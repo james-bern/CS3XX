@@ -406,7 +406,6 @@ struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
 
 struct C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset {
     bool  _eso_called_eso_begin_before_calling_eso_vertex_or_eso_end;
-    bool  _eso_called_eso_color_at_least_once_before_calling_eso_vertex;
     real  _eso_current_color[4];
     real  _eso_PVM[16];
     int   _eso_primitive;
@@ -1715,7 +1714,7 @@ template <int D_pos, int D_color = 3> void soup_draw(
         int num_vertices,
         Vec<D_pos> *vertex_positions,
         Vec<D_color> *vertex_colors,
-        Vec<D_color> color_if_vertex_colors_is_NULL = { 1.0, 1.0, 1.0 },
+        Vec<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
         bool use_world_units_instead_of_pixels = false,
         bool force_draw_on_top = false) {
@@ -1740,13 +1739,13 @@ template <int D_pos, int D_color = 3> void soup_draw(
             );
 }
 
-template <int D_pos, int D_color> void soup_draw(
+template <int D_pos, int D_color = 3> void soup_draw(
         mat4 PVM,
         int primitive,
         int num_vertices,
         Vec<D_pos> *vertex_positions,
-        void *vertex_colors,
-        Vec<D_color> color_if_vertex_colors_is_NULL,
+        void *vertex_colors = NULL,
+        Vec<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
         bool use_world_units_instead_of_pixels = false,
         bool force_draw_on_top = false) {
@@ -1778,9 +1777,17 @@ template <int D_pos, int D_color> void soup_draw(
 
 #define ESO_MAX_VERTICES 999999
 
+void _eso_reset() {
+    COW1._eso_current_color[0] = 1.0;
+    COW1._eso_current_color[1] = 0.0;
+    COW1._eso_current_color[2] = 1.0;
+    COW1._eso_current_color[3] = 1.0;
+}
+
 void _eso_init() {
     COW0._eso_vertex_positions = (real *) calloc(ESO_MAX_VERTICES, 3 * sizeof(real));
     COW0._eso_vertex_colors = (real *) calloc(ESO_MAX_VERTICES, 4 * sizeof(real));
+    _eso_reset();
 }
 
 void _eso_begin(real *PVM, int primitive, real size_in_pixels, bool use_world_units_instead_of_pixels, bool force_draw_on_top) {
@@ -1818,7 +1825,6 @@ void eso_end() {
 
 void eso_vertex(real x, real y, real z = 0.0) {
     ASSERT(COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end);
-    ASSERT(COW1._eso_called_eso_color_at_least_once_before_calling_eso_vertex);
     ASSERT(COW1._eso_num_vertices < ESO_MAX_VERTICES);
     real p[3] = { x, y, z };
     memcpy(COW0._eso_vertex_positions + 3 * COW1._eso_num_vertices, p, 3 * sizeof(real));
@@ -1827,7 +1833,6 @@ void eso_vertex(real x, real y, real z = 0.0) {
 }
 
 void eso_color(real r, real g, real b, real a = 1.0) {
-    COW1._eso_called_eso_color_at_least_once_before_calling_eso_vertex = true;
     COW1._eso_current_color[0] = r;
     COW1._eso_current_color[1] = g;
     COW1._eso_current_color[2] = b;
@@ -3990,6 +3995,7 @@ void _cow_reset() {
     COW1 = {};
     globals._mouse_owner = COW_MOUSE_OWNER_NONE; // fornow
 
+    _eso_reset();
     _sound_reset();
     _window_reset();
 

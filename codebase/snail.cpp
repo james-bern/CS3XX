@@ -119,6 +119,14 @@ union int3 {
     int &operator [](int index) { return ((int *)(this))[index]; }
 };
 
+union int4 {
+    struct { int i, j, k, l; };
+    #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
+    int data[4];
+    #endif
+    int &operator [](int index) { return ((int *)(this))[index]; }
+};
+
 // dependencies ////////////////////////////////////////////////////////////////
 
 #define _CRT_SECURE_NO_WARNINGS
