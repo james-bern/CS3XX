@@ -4069,14 +4069,18 @@ bool cow_begin_frame() {
         { // framerate overlay
             static long measured_fps;
             // request uncapped framerate 
-            if (globals.key_pressed['/'] && !globals.key_shift_held) {
+            static bool override;
+            if ((!override) || (globals.key_pressed['/'] && !globals.key_shift_held)) {
+
+                override = true;
+
                 COW0._cow_framerate_uncapped = !COW0._cow_framerate_uncapped;
                 #ifndef COW_PATCH_FRAMERATE
                 glfwSwapInterval(!COW0._cow_framerate_uncapped);
                 #endif
             }
             { // display fps
-                static bool display_fps;
+                static bool display_fps = true;
                 if (globals.key_pressed['\\']) {
                     display_fps = !display_fps;
                 }
