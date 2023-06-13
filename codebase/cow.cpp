@@ -3443,8 +3443,8 @@ void _line_line_closest_points(vec3 a1, vec3 a2, vec3 b1, vec3 b2, vec3 *out_a_s
     if (out_b_star) *out_b_star = b1 + (tc * v);
 }
 
-void _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 *vertex_colors = NULL) { // please ignore; this function is jank
-    if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return;
+bool _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 *vertex_colors = NULL) { // please ignore; this function is jank
+    if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return false;
     static vec3 *selected_point;
     static vec3 *selected_handle;
     double _L_handle_NDC = .07;
@@ -3519,6 +3519,7 @@ void _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 
             globals._mouse_owner = COW_MOUSE_OWNER_NONE;
         }
     }
+    return (selected_point != NULL);
 }
 #endif
 
