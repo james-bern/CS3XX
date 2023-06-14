@@ -15,7 +15,8 @@
 
 #define real double
 #define for_(i, N) for (int i = 0; i < N; ++i)
-#define for_polygon_(i, j, N) for (int i = N - 1, j = 0; j < N; i = j++)
+#define for_line_loop_(i, j, N) for (int i = N - 1, j = 0; j < N; i = j++)
+#define for_line_strip_(i, j, N) for (int i = 0, j = 1; j < N; i = j++)
 #define for_sign(sign) for (int sign = -1; sign <= 1; sign += 2)
 
 #define NUM_DENm1(f, F) (double(f) / ((F) - 1))
