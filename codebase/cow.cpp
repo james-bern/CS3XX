@@ -2939,7 +2939,7 @@ template <typename T> T sbuff_delete(StretchyBuffer<T> *buffer, int i) {
     ASSERT(i >= 0);
     ASSERT(i < buffer->length);
     T result = buffer->data[i];
-    memmove(buffer->data + i, buffer->data + i + 1, (buffer->length - i - 1) * sizeof(T));
+    memmove(&buffer->data[i], &buffer->data[i + 1], (buffer->length - i - 1) * sizeof(T));
     --buffer->length;
     return result;
 }
