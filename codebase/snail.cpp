@@ -151,39 +151,39 @@ union int4 {
 
 // vectors and matrices ////////////////////////////////////////////////////////
 
-template <int T> union Vec {
+template <int T> union SnailVector {
     real data[T];
     real &operator [](int index) { return ((real *)(this))[index]; }
 };
 
-template <int T> union Mat {
+template <int T> union SnailMatrix {
     real data[T * T];
     real &operator ()(int r, int c) { return data[T * r + c]; }
 };
 
 // sugary accessors ////////////////////////////////////////////////////////////
 
-template <> union Vec<2> {
+template <> union SnailVector<2> {
     struct { real x, y; };
     #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
     real data[2];
     #endif
     real &operator [](int index) { return ((real *)(this))[index]; }
 };
-template <> union Vec<3> {
+template <> union SnailVector<3> {
     struct { real x, y, z; };
     #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
     struct { real r, g, b; };
-    struct { Vec<2> xy; real _; };
+    struct { SnailVector<2> xy; real _; };
     real data[3];
     #endif
     real &operator [](int index) { return ((real *)(this))[index]; }
 };
-template <> union Vec<4> {
+template <> union SnailVector<4> {
     struct { real x, y, z, w; };
     #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
     struct { real r, g, b, a; };
-    struct { Vec<3> xyz; real _; };
+    struct { SnailVector<3> xyz; real _; };
     real data[4];
     #endif
     real &operator [](int index) { return ((real *)(this))[index]; }
@@ -191,123 +191,123 @@ template <> union Vec<4> {
 
 // "constructors" //////////////////////////////////////////////////////////////
 
-Vec<2> V2(real x, real y) { return { x, y }; }
-Vec<3> V3(real x, real y, real z) { return { x, y, z }; }
-Vec<4> V4(real x, real y, real z, real w) { return { x, y, z, w }; }
-Vec<3> V3(Vec<2> xy, real z) { return { xy.x, xy.y, z }; }
-Vec<4> V4(Vec<3> xyz, real w) { return { xyz.x, xyz.y, xyz.z, w }; }
-Vec<2> V2(real x) { return { x, x }; }
-Vec<3> V3(real x) { return { x, x, x }; }
-Vec<4> V4(real x) { return { x, x, x, x }; }
+SnailVector<2> V2(real x, real y) { return { x, y }; }
+SnailVector<3> V3(real x, real y, real z) { return { x, y, z }; }
+SnailVector<4> V4(real x, real y, real z, real w) { return { x, y, z, w }; }
+SnailVector<3> V3(SnailVector<2> xy, real z) { return { xy.x, xy.y, z }; }
+SnailVector<4> V4(SnailVector<3> xyz, real w) { return { xyz.x, xyz.y, xyz.z, w }; }
+SnailVector<2> V2(real x) { return { x, x }; }
+SnailVector<3> V3(real x) { return { x, x, x }; }
+SnailVector<4> V4(real x) { return { x, x, x, x }; }
 
-Mat<2> M2(real a0, real a1, real a2, real a3) { Mat<2> ret = { a0, a1, a2, a3 }; return ret; }
-Mat<3> M3(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8) { Mat<3> ret = { a0, a1, a2, a3, a4, a5, a6, a7, a8 }; return ret; }
-Mat<4> M4(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8, real a9, real a10, real a11, real a12, real a13, real a14, real a15) { Mat<4> ret = { a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 }; return ret; }
+SnailMatrix<2> M2(real a0, real a1, real a2, real a3) { SnailMatrix<2> ret = { a0, a1, a2, a3 }; return ret; }
+SnailMatrix<3> M3(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8) { SnailMatrix<3> ret = { a0, a1, a2, a3, a4, a5, a6, a7, a8 }; return ret; }
+SnailMatrix<4> M4(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8, real a9, real a10, real a11, real a12, real a13, real a14, real a15) { SnailMatrix<4> ret = { a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 }; return ret; }
 
-Mat<2> hstack(Vec<2> col0, Vec<2> col1) { return { col0.x, col1.x, col0.y, col1.y }; }
-Mat<3> hstack(Vec<3> col0, Vec<3> col1, Vec<3> col2) { return { col0.x, col1.x, col2.x, col0.y, col1.y, col2.y, col0.z, col1.z, col2.z }; }
-Mat<4> hstack(Vec<4> col0, Vec<4> col1, Vec<4> col2, Vec<4> col3) { return { col0.x, col1.x, col2.x, col3.x, col0.y, col1.y, col2.y, col3.y, col0.z, col1.z, col2.z, col3.z, col0.w, col1.w, col2.w, col3.w }; }
+SnailMatrix<2> hstack(SnailVector<2> col0, SnailVector<2> col1) { return { col0.x, col1.x, col0.y, col1.y }; }
+SnailMatrix<3> hstack(SnailVector<3> col0, SnailVector<3> col1, SnailVector<3> col2) { return { col0.x, col1.x, col2.x, col0.y, col1.y, col2.y, col0.z, col1.z, col2.z }; }
+SnailMatrix<4> hstack(SnailVector<4> col0, SnailVector<4> col1, SnailVector<4> col2, SnailVector<4> col3) { return { col0.x, col1.x, col2.x, col3.x, col0.y, col1.y, col2.y, col3.y, col0.z, col1.z, col2.z, col3.z, col0.w, col1.w, col2.w, col3.w }; }
 
 // short names /////////////////////////////////////////////////////////////////
 
-// typedef Vec<2> vec2;
-// typedef Vec<3> vec3;
-// typedef Vec<4> vec4;
-// typedef Mat<2> mat2;
-// typedef Mat<3> mat3;
-// typedef Mat<4> mat4;
-typedef Vec<2> vec2;
-typedef Vec<3> vec3;
-typedef Vec<4> vec4;
-typedef Mat<2> mat2;
-typedef Mat<3> mat3;
-typedef Mat<4> mat4;
+// typedef SnailVector<2> vec2;
+// typedef SnailVector<3> vec3;
+// typedef SnailVector<4> vec4;
+// typedef SnailMatrix<2> mat2;
+// typedef SnailMatrix<3> mat3;
+// typedef SnailMatrix<4> mat4;
+typedef SnailVector<2> vec2;
+typedef SnailVector<3> vec3;
+typedef SnailVector<4> vec4;
+typedef SnailMatrix<2> mat2;
+typedef SnailMatrix<3> mat3;
+typedef SnailMatrix<4> mat4;
 
 // arithmetic operators ////////////////////////////////////////////////////////
 
 // vectors
-template <int T> Vec<T>  operator +  (Vec<T> A, Vec<T> B) {
-    Vec<T> result;
+template <int T> SnailVector<T>  operator +  (SnailVector<T> A, SnailVector<T> B) {
+    SnailVector<T> result;
     SNAIL_FOR_(i, T) {
         result[i] = A[i] + B[i];
     }
     return result;
 }
-template <int T> Vec<T> &operator += (Vec<T> &A, Vec<T> B) {
+template <int T> SnailVector<T> &operator += (SnailVector<T> &A, SnailVector<T> B) {
     A = A + B;
     return A;
 }
 
-template <int T> Vec<T>  operator -  (Vec<T> A, Vec<T> B) {
-    Vec<T> result;
+template <int T> SnailVector<T>  operator -  (SnailVector<T> A, SnailVector<T> B) {
+    SnailVector<T> result;
     SNAIL_FOR_(i, T) {
         result[i] = A[i] - B[i];
     }
     return result;
 }
-template <int T> Vec<T> &operator -= (Vec<T> &A, Vec<T> B) {
+template <int T> SnailVector<T> &operator -= (SnailVector<T> &A, SnailVector<T> B) {
     A = A - B;
     return A;
 }
 
-template <int T> Vec<T>  operator *  (real scalar, Vec<T> v) {
-    Vec<T> result;
+template <int T> SnailVector<T>  operator *  (real scalar, SnailVector<T> v) {
+    SnailVector<T> result;
     SNAIL_FOR_(i, T) {
         result[i]  = scalar * v[i];
     }
     return result;
 }
-template <int T> Vec<T>  operator *  (Vec<T> v, real scalar) {
-    Vec<T> result = scalar * v;
+template <int T> SnailVector<T>  operator *  (SnailVector<T> v, real scalar) {
+    SnailVector<T> result = scalar * v;
     return result;
 }
-template <int T> Vec<T> &operator *= (Vec<T> &v, real scalar) {
+template <int T> SnailVector<T> &operator *= (SnailVector<T> &v, real scalar) {
     v = scalar * v;
     return v;
 }
-template <int T> Vec<T>  operator -  (Vec<T> v) {
+template <int T> SnailVector<T>  operator -  (SnailVector<T> v) {
     return -1 * v;
 }
 
-template <int T> Vec<T>  operator /  (Vec<T> v, real scalar) {
-    Vec<T> result;
+template <int T> SnailVector<T>  operator /  (SnailVector<T> v, real scalar) {
+    SnailVector<T> result;
     SNAIL_FOR_(i, T) {
         result[i]  = v[i] / scalar;
     }
     return result;
 }
-template <int T> Vec<T> &operator /= (Vec<T> &v, real scalar) {
+template <int T> SnailVector<T> &operator /= (SnailVector<T> &v, real scalar) {
     v = v / scalar;
     return v;
 }
 
 // matrices
-template <int T> Mat<T>  operator +  (Mat<T> A, Mat<T> B) {
-    Mat<T> ret = {};
+template <int T> SnailMatrix<T>  operator +  (SnailMatrix<T> A, SnailMatrix<T> B) {
+    SnailMatrix<T> ret = {};
     SNAIL_FOR_(k, T * T) {
         ret.data[k] = A.data[k] + B.data[k];
     }
     return ret;
 }
-template <int T> Mat<T> &operator += (Mat<T> &A, Mat<T> B) {
+template <int T> SnailMatrix<T> &operator += (SnailMatrix<T> &A, SnailMatrix<T> B) {
     A = A + B;
     return A;
 }
 
-template <int T> Mat<T>  operator -  (Mat<T> A, Mat<T> B) {
-    Mat<T> ret = {};
+template <int T> SnailMatrix<T>  operator -  (SnailMatrix<T> A, SnailMatrix<T> B) {
+    SnailMatrix<T> ret = {};
     SNAIL_FOR_(i, T * T) {
         ret.data[i] = A.data[i] - B.data[i];
     }
     return ret;
 }
-template <int T> Mat<T> &operator -= (Mat<T> &A, Mat<T> B) {
+template <int T> SnailMatrix<T> &operator -= (SnailMatrix<T> &A, SnailMatrix<T> B) {
     A = A + B;
     return A;
 }
 
-template <int T> Mat<T>  operator *  (Mat<T> A, Mat<T> B) {
-    Mat<T> ret = {};
+template <int T> SnailMatrix<T>  operator *  (SnailMatrix<T> A, SnailMatrix<T> B) {
+    SnailMatrix<T> ret = {};
     SNAIL_FOR_(r, T) {
         SNAIL_FOR_(c, T) {
             SNAIL_FOR_(i, T) {
@@ -317,12 +317,12 @@ template <int T> Mat<T>  operator *  (Mat<T> A, Mat<T> B) {
     }
     return ret;
 }
-template <int T> Mat<T> &operator *= (Mat<T> &A, Mat<T> B) {
+template <int T> SnailMatrix<T> &operator *= (SnailMatrix<T> &A, SnailMatrix<T> B) {
     A = A * B;
     return A;
 }
-template <int T> Vec<T>  operator *  (Mat<T> A, Vec<T> b) { // A b
-    Vec<T> ret = {};
+template <int T> SnailVector<T>  operator *  (SnailMatrix<T> A, SnailVector<T> b) { // A b
+    SnailVector<T> ret = {};
     SNAIL_FOR_(r, T) {
         SNAIL_FOR_(c, T) {
             ret[r] += A(r, c) * b[c];
@@ -330,8 +330,8 @@ template <int T> Vec<T>  operator *  (Mat<T> A, Vec<T> b) { // A b
     }
     return ret;
 }
-template <int T> Vec<T>  operator *  (Vec<T> b, Mat<T> A) { // b^T A
-    Vec<T> ret = {};
+template <int T> SnailVector<T>  operator *  (SnailVector<T> b, SnailMatrix<T> A) { // b^T A
+    SnailVector<T> ret = {};
     SNAIL_FOR_(r, T) {
         SNAIL_FOR_(c, T) {
             ret[r] += A(c, r) * b[c];
@@ -339,28 +339,28 @@ template <int T> Vec<T>  operator *  (Vec<T> b, Mat<T> A) { // b^T A
     }
     return ret;
 }
-template <int T> Mat<T>  operator *  (real scalar, Mat<T> M) {
-    Mat<T> result = {};
+template <int T> SnailMatrix<T>  operator *  (real scalar, SnailMatrix<T> M) {
+    SnailMatrix<T> result = {};
     SNAIL_FOR_(k, T * T) {
         result.data[k] = scalar * M.data[k];
     }
     return result;
 }
-template <int T> Mat<T>  operator *  (Mat<T> M, real scalar) {
+template <int T> SnailMatrix<T>  operator *  (SnailMatrix<T> M, real scalar) {
     return scalar * M;
 }
-template <int T> Mat<T> &operator *= (Mat<T> &M, real scalar) {
+template <int T> SnailMatrix<T> &operator *= (SnailMatrix<T> &M, real scalar) {
     M = scalar * M;
     return M;
 }
-template <int T> Mat<T>  operator -  (Mat<T> M) {
+template <int T> SnailMatrix<T>  operator -  (SnailMatrix<T> M) {
     return -1 * M;
 }
 
-template <int T> Mat<T>  operator /  (Mat<T> M, real scalar) {
+template <int T> SnailMatrix<T>  operator /  (SnailMatrix<T> M, real scalar) {
     return (1 / scalar) * M;
 }
-template <int T> Mat<T> &operator /= (Mat<T> &M, real scalar) {
+template <int T> SnailMatrix<T> &operator /= (SnailMatrix<T> &M, real scalar) {
     M = M / scalar;
     return M;
 }
@@ -370,15 +370,15 @@ template <int T> Mat<T> &operator /= (Mat<T> &M, real scalar) {
 /**
  * u dot v TODO latex 
  */
-template <int T> real dot(Vec<T> A, Vec<T> B) {
+template <int T> real dot(SnailVector<T> A, SnailVector<T> B) {
     real result = 0;
     for (int i = 0; i < T; ++i) {
         result += A[i] * B[i];
     }
     return result;
 }
-template <int T> Mat<T> outer(Vec<T> u, Vec<T> v) {
-    Mat<T> ret = {};
+template <int T> SnailMatrix<T> outer(SnailVector<T> u, SnailVector<T> v) {
+    SnailMatrix<T> ret = {};
     SNAIL_FOR_(r, T) {
         SNAIL_FOR_(c, T) {
             ret(r, c) = u[r] * v[c];
@@ -387,33 +387,33 @@ template <int T> Mat<T> outer(Vec<T> u, Vec<T> v) {
     return ret;
 }
 
-real cross(Vec<2> A, Vec<2> B) {
+real cross(SnailVector<2> A, SnailVector<2> B) {
     return A.x * B.y - A.y * B.x;
 }
-Vec<3> cross(Vec<3> A, Vec<3> B) {
+SnailVector<3> cross(SnailVector<3> A, SnailVector<3> B) {
     return { A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x };
 }
 
-template <int T> real squaredNorm(Vec<T> v) {
+template <int T> real squaredNorm(SnailVector<T> v) {
     return dot(v, v);
 }
-template <int T> real norm(Vec<T> v) {
+template <int T> real norm(SnailVector<T> v) {
     return sqrt(squaredNorm(v));
 }
-template <int T> Vec<T> normalized(Vec<T> v) {
+template <int T> SnailVector<T> normalized(SnailVector<T> v) {
     real norm_v = norm(v);
     // SNAIL_ASSERT(fabs(norm_v) > 1e-7);
     return (1 / norm_v) * v;
 }
 
 // ALIASES
-// template <int T> real length(Vec<T> v) { return norm(v); }
-// template <int T> real squared_length(Vec<T> v) { return squaredNorm(v); }
+// template <int T> real length(SnailVector<T> v) { return norm(v); }
+// template <int T> real squared_length(SnailVector<T> v) { return squaredNorm(v); }
 
 // important matrix functions //////////////////////////////////////////////////
 
-template <int T> Mat<T> transpose(Mat<T> M) {
-    Mat<T> ret = {};
+template <int T> SnailMatrix<T> transpose(SnailMatrix<T> M) {
+    SnailMatrix<T> ret = {};
     SNAIL_FOR_(r, T) {
         SNAIL_FOR_(c, T) {
             ret(r, c) = M(c, r);
@@ -422,15 +422,15 @@ template <int T> Mat<T> transpose(Mat<T> M) {
     return ret;
 }
 
-real determinant(Mat<2> M) {
+real determinant(SnailMatrix<2> M) {
     return M(0, 0) * M(1, 1) - M(0, 1) * M(1, 0);
 }
-real determinant(Mat<3> M) {
+real determinant(SnailMatrix<3> M) {
     return M(0, 0) * (M(1, 1) * M(2, 2) - M(2, 1) * M(1, 2))
         - M(0, 1) * (M(1, 0) * M(2, 2) - M(1, 2) * M(2, 0))
         + M(0, 2) * (M(1, 0) * M(2, 1) - M(1, 1) * M(2, 0));
 }
-real determinant(Mat<4> M) {
+real determinant(SnailMatrix<4> M) {
     real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2);
     real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1);
     real A1223 = M(2, 1) * M(3, 2) - M(2, 2) * M(3, 1);
@@ -443,14 +443,14 @@ real determinant(Mat<4> M) {
         - M(0, 3) * ( M(1, 0) * A1223 - M(1, 1) * A0223 + M(1, 2) * A0123 ) ;
 }
 
-Mat<2> inverse(Mat<2> M) {
+SnailMatrix<2> inverse(SnailMatrix<2> M) {
     real invdet = 1 / determinant(M);
     return { invdet * M(1, 1), 
         invdet * -M(0, 1), 
         invdet * -M(1, 0), 
         invdet * M(0, 0) };
 }
-Mat<3> inverse(Mat<3> M) {
+SnailMatrix<3> inverse(SnailMatrix<3> M) {
     real invdet = 1 / determinant(M);
     return { invdet * (M(1, 1) * M(2, 2) - M(2, 1) * M(1, 2)),
         invdet * (M(0, 2) * M(2, 1) - M(0, 1) * M(2, 2)),
@@ -462,7 +462,7 @@ Mat<3> inverse(Mat<3> M) {
         invdet * (M(2, 0) * M(0, 1) - M(0, 0) * M(2, 1)),
         invdet * (M(0, 0) * M(1, 1) - M(1, 0) * M(0, 1)) };
 }
-Mat<4> inverse(Mat<4> M) {
+SnailMatrix<4> inverse(SnailMatrix<4> M) {
     real invdet = 1 / determinant(M);
     real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2) ;
     real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1) ;
@@ -502,98 +502,98 @@ Mat<4> inverse(Mat<4> M) {
 
 // using 4x4 transforms ////////////////////////////////////////////////////////
 
-template <int T> Vec<T> transformPoint(const Mat<4> &M, Vec<T> p) {
-    Vec<4> p_hom = {};
+template <int T> SnailVector<T> transformPoint(const SnailMatrix<4> &M, SnailVector<T> p) {
+    SnailVector<4> p_hom = {};
     memcpy(&p_hom, &p, T * sizeof(real));
     p_hom.w = 1;
-    Vec<4> ret_hom = M * p_hom;
+    SnailVector<4> ret_hom = M * p_hom;
     ret_hom /= ret_hom.w;
-    Vec<T> ret = {};
+    SnailVector<T> ret = {};
     memcpy(&ret, &ret_hom, T * sizeof(real));
     return ret;
 }
-template <int T> Vec<T> transformVector(const Mat<4> &M, Vec<T> p) {
-    Vec<4> p_hom = {};
+template <int T> SnailVector<T> transformVector(const SnailMatrix<4> &M, SnailVector<T> p) {
+    SnailVector<4> p_hom = {};
     memcpy(&p_hom, &p, T * sizeof(real));
-    Vec<4> ret_hom = M * p_hom;
-    Vec<T> ret = {};
+    SnailVector<4> ret_hom = M * p_hom;
+    SnailVector<T> ret = {};
     memcpy(&ret, &ret_hom, T * sizeof(real));
     return ret;
 }
-template <int T> Vec<T> transformNormal(const Mat<4> &M, Vec<T> p) {
-    Vec<4> p_hom = {};
+template <int T> SnailVector<T> transformNormal(const SnailMatrix<4> &M, SnailVector<T> p) {
+    SnailVector<4> p_hom = {};
     memcpy(&p_hom, &p, T * sizeof(real));
-    Vec<4> ret_hom = inverse(transpose(M)) * p_hom;
-    Vec<T> ret = {};
+    SnailVector<4> ret_hom = inverse(transpose(M)) * p_hom;
+    SnailVector<T> ret = {};
     memcpy(&ret, &ret_hom, T * sizeof(real));
     return ret;
 }
 
 // 4x4 transform cookbook //////////////////////////////////////////////////////
 
-template <int T> Mat<T> IdentityMatrix() {
-    Mat<T> ret = {};
+template <int T> SnailMatrix<T> IdentityMatrix() {
+    SnailMatrix<T> ret = {};
     for (int i = 0; i < T; ++i) {
         ret(i, i) = 1;
     }
     return ret;
 }
-const Mat<4> _Identity4x4 = IdentityMatrix<4>();
+const SnailMatrix<4> _Identity4x4 = IdentityMatrix<4>();
 
-Mat<4> M4_Identity() {
+SnailMatrix<4> M4_Identity() {
     return _Identity4x4;
 }
 
-Mat<4> M4_Translation(real x, real y, real z = 0) {
-    Mat<4> ret = _Identity4x4;
+SnailMatrix<4> M4_Translation(real x, real y, real z = 0) {
+    SnailMatrix<4> ret = _Identity4x4;
     ret(0, 3) = x;
     ret(1, 3) = y;
     ret(2, 3) = z;
     return ret;
 }
-Mat<4> M4_Translation(Vec<2> xy) {
+SnailMatrix<4> M4_Translation(SnailVector<2> xy) {
     return M4_Translation(xy.x, xy.y);
 }
-Mat<4> M4_Translation(Vec<3> xyz) {
+SnailMatrix<4> M4_Translation(SnailVector<3> xyz) {
     return M4_Translation(xyz.x, xyz.y, xyz.z);
 }
-Mat<4> M4_Scaling(real x, real y, real z = 1) {
-    Mat<4> ret = {};
+SnailMatrix<4> M4_Scaling(real x, real y, real z = 1) {
+    SnailMatrix<4> ret = {};
     ret(0, 0) = x;
     ret(1, 1) = y;
     ret(2, 2) = z;
     ret(3, 3) = 1;
     return ret;
 }
-Mat<4> M4_Scaling(real s) {
+SnailMatrix<4> M4_Scaling(real s) {
     return M4_Scaling(s, s, s);
 }
-Mat<4> M4_Scaling(Vec<2> xy) {
+SnailMatrix<4> M4_Scaling(SnailVector<2> xy) {
     return M4_Scaling(xy.x, xy.y);
 }
-Mat<4> M4_Scaling(Vec<3> xyz) {
+SnailMatrix<4> M4_Scaling(SnailVector<3> xyz) {
     return M4_Scaling(xyz.x, xyz.y, xyz.z);
 }
-Mat<4> M4_RotationAboutXAxis(real t) {
-    Mat<4> ret = _Identity4x4;
+SnailMatrix<4> M4_RotationAboutXAxis(real t) {
+    SnailMatrix<4> ret = _Identity4x4;
     ret(1, 1) = cos(t); ret(1, 2) = -sin(t);
     ret(2, 1) = sin(t); ret(2, 2) =  cos(t);
     return ret;
 }
-Mat<4> M4_RotationAboutYAxis(real t) {
-    Mat<4> ret = _Identity4x4;
+SnailMatrix<4> M4_RotationAboutYAxis(real t) {
+    SnailMatrix<4> ret = _Identity4x4;
     ret(0, 0) =  cos(t); ret(0, 2) = sin(t);
     ret(2, 0) = -sin(t); ret(2, 2) = cos(t);
     return ret;
 }
-Mat<4> M4_RotationAboutZAxis(real t) {
-    Mat<4> ret = _Identity4x4;
+SnailMatrix<4> M4_RotationAboutZAxis(real t) {
+    SnailMatrix<4> ret = _Identity4x4;
     ret(0, 0) = cos(t); ret(0, 1) = -sin(t);
     ret(1, 0) = sin(t); ret(1, 1) =  cos(t);
     return ret;
 }
 
-Mat<4> M4_RotationAxisAngle(Vec<3> axis, real angle) {
+SnailMatrix<4> M4_RotationAxisAngle(SnailVector<3> axis, real angle) {
     real x = axis.x;
     real y = axis.y;
     real z = axis.z;
@@ -614,14 +614,14 @@ Mat<4> M4_RotationAxisAngle(Vec<3> axis, real angle) {
 
 // optimization stuff //////////////////////////////////////////////////////////
 
-template <int T> Mat<T> firstDerivativeofUnitVector(Vec<T> v) {
-    Vec<T> tmp = normalized(v);
+template <int T> SnailMatrix<T> firstDerivativeofUnitVector(SnailVector<T> v) {
+    SnailVector<T> tmp = normalized(v);
     return (1 / norm(v)) * (IdentityMatrix<T>() - outer(tmp, tmp));
 }
 #define firstDerivativeOfNorm normalized
 #define secondDerivativeOfNorm firstDerivativeofUnitVector
 
-template <int T> real squaredNorm(Mat<T> M) {
+template <int T> real squaredNorm(SnailMatrix<T> M) {
     real ret = 0;
     for (int i = 0; i < T * T; ++i) {
         ret += M.data[i] * M.data[i];
@@ -631,41 +631,41 @@ template <int T> real squaredNorm(Mat<T> M) {
 
 // misc functions //////////////////////////////////////////////////////////////
 
-template <int T> Vec<T> cwiseAbs(Vec<T> A) {
+template <int T> SnailVector<T> cwiseAbs(SnailVector<T> A) {
     for (int i = 0; i < T; ++i) A[i] = abs(A[i]);
     return A;
 }
-template <int T> Vec<T> cwiseMin(Vec<T> A, Vec<T> B) {
-    Vec<T> ret = {};
+template <int T> SnailVector<T> cwiseMin(SnailVector<T> A, SnailVector<T> B) {
+    SnailVector<T> ret = {};
     for (int i = 0; i < T; ++i) ret[i] = (A[i] < B[i]) ? A[i] : B[i];
     return ret;
 }
-template <int T> Vec<T> cwiseMax(Vec<T> A, Vec<T> B) {
-    Vec<T> ret = {};
+template <int T> SnailVector<T> cwiseMax(SnailVector<T> A, SnailVector<T> B) {
+    SnailVector<T> ret = {};
     for (int i = 0; i < T; ++i) ret[i] = (A[i] > B[i]) ? A[i] : B[i];
     return ret;
 }
-template <int T> Vec<T> cwiseProduct(Vec<T> a, Vec<T> b) {
-    Vec<T> ret = {};
+template <int T> SnailVector<T> cwiseProduct(SnailVector<T> a, SnailVector<T> b) {
+    SnailVector<T> ret = {};
     for (int i = 0; i < T; ++i) ret[i] = a[i] * b[i];
     return ret;
 }
-Vec<2> e_theta(real theta) {
+SnailVector<2> e_theta(real theta) {
     return { cos(theta), sin(theta) };
 }
-double atan2(Vec<2> a) {
+double atan2(SnailVector<2> a) {
     return atan2(a.y, a.x);
 }
-Vec<2> rotated(Vec<2> a, real theta) {
+SnailVector<2> rotated(SnailVector<2> a, real theta) {
     return { cos(theta) * a.x - sin(theta) * a.y, sin(theta) * a.x + cos(theta) * a.y };
 }
-Mat<2> R_theta_2x2(real theta) {
+SnailMatrix<2> R_theta_2x2(real theta) {
     return { cos(theta), -sin(theta), sin(theta), cos(theta) };
 }
-Vec<2> perpendicularTo(Vec<2> v) {
+SnailVector<2> perpendicularTo(SnailVector<2> v) {
     return { v.y, -v.x };
 }
-Mat<4> xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
+SnailMatrix<4> xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
     return {
         x[0], y[0], z[0], o[0],
         x[1], y[1], z[1], o[1],
@@ -674,7 +674,7 @@ Mat<4> xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
     };
 }
 #define M4_xyzo xyzo2mat4
-template <int T> Vec<T> magClamped(Vec<T> a, real c) {
+template <int T> SnailVector<T> magClamped(SnailVector<T> a, real c) {
     double norm_a = norm(a);
     if (SNAIL_ABS(norm_a) < c) { return a; }
     return a / norm_a * SNAIL_CLAMP(norm_a, -c, c);
@@ -682,7 +682,7 @@ template <int T> Vec<T> magClamped(Vec<T> a, real c) {
 
 // utility /////////////////////////////////////////////////////////////////////
 
-template <int T> void pprint(Vec<T> v) {
+template <int T> void pprint(SnailVector<T> v) {
     printf("V%d(", T);
     SNAIL_FOR_(i, T) {
         printf("%lf", v[i]);
@@ -690,7 +690,7 @@ template <int T> void pprint(Vec<T> v) {
     }
     printf(")\n");
 }
-template <int T> void pprint(Mat<T> M) {
+template <int T> void pprint(SnailMatrix<T> M) {
     SNAIL_FOR_(r, T) {
         printf("| ");
         SNAIL_FOR_(c, T) {

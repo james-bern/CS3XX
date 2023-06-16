@@ -1444,7 +1444,7 @@ template <typename T> void shader_set_uniform(Shader *shader, char *name, int co
     glUseProgram(shader->_program_ID);
     _shader_set_uniform(shader->_program_ID, name, count, value);
 }
-template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_vertices, Vec<D> *vertex_attribute) {
+template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_vertices, SnailVector<D> *vertex_attribute) {
     ASSERT(shader);
     ASSERT(vertex_attribute);
     ASSERT(shader->_attribute_counter + 1 <= shader->_num_vertex_attributes); // you just set more attributes than you said you would
@@ -1713,9 +1713,9 @@ template <int D_pos, int D_color = 3> void soup_draw(
         mat4 PVM,
         int primitive,
         int num_vertices,
-        Vec<D_pos> *vertex_positions,
-        Vec<D_color> *vertex_colors,
-        Vec<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
+        SnailVector<D_pos> *vertex_positions,
+        SnailVector<D_color> *vertex_colors,
+        SnailVector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
         bool use_world_units_instead_of_pixels = false,
         bool force_draw_on_top = false) {
@@ -1744,9 +1744,9 @@ template <int D_pos, int D_color = 3> void soup_draw(
         mat4 PVM,
         int primitive,
         int num_vertices,
-        Vec<D_pos> *vertex_positions,
+        SnailVector<D_pos> *vertex_positions,
         void *vertex_colors = NULL,
-        Vec<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
+        SnailVector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
         bool use_world_units_instead_of_pixels = false,
         bool force_draw_on_top = false) {
@@ -1945,8 +1945,8 @@ void _text_draw(
 template<int D_pos = 3, int D_color = 3> void text_draw(
         mat4 PV,
         char *text,
-        Vec<D_pos> position_World,
-        Vec<D_color> color = { 1.0, 1.0, 1.0 },
+        SnailVector<D_pos> position_World,
+        SnailVector<D_color> color = { 1.0, 1.0, 1.0 },
         real font_size_in_pixels = 0,
         vec2 nudge_in_pixels = { 0.0, 0.0 },
         bool force_draw_on_top = false
@@ -3394,7 +3394,7 @@ WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive,
 }
 
 #ifdef SNAIL_CPP
-template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *vertex_positions, real size_in_pixels = 0, Vec<D_color> color = { 1.0, 1.0, 1.0 }) {
+template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *vertex_positions, real size_in_pixels = 0, SnailVector<D_color> color = { 1.0, 1.0, 1.0 }) {
     STATIC_ASSERT(D_color == 3 || D_color == 4);
     return (vec2 *) _widget_drag(PV.data, num_vertices, (real *) vertex_positions, size_in_pixels, color[0], color[1], color[2], D_color == 4 ? color[3] : 1);
 }
