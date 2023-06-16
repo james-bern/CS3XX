@@ -111,6 +111,10 @@ union int2 {
     int &operator [](int index) { return ((int *)(this))[index]; }
 };
 
+bool operator == (const int2 &a, const int2 &b) {
+    return ((a.i == b.i) && (a.j == b.j));
+}
+
 union int3 {
     struct { int i, j, k; };
     #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
@@ -118,6 +122,10 @@ union int3 {
     #endif
     int &operator [](int index) { return ((int *)(this))[index]; }
 };
+
+bool operator == (const int3 &a, const int3 &b) {
+    return ((a.i == b.i) && (a.j == b.j) && (a.k == b.k));
+}
 
 union int4 {
     struct { int i, j, k, l; };

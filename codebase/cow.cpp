@@ -2935,10 +2935,18 @@ template <typename T> void sbuff_insert(StretchyBuffer<T> *buffer, int i, T elem
     buffer->data[i] = element;
 }
 
-template <typename T> void sbuff_delete(StretchyBuffer<T> *buffer, int i) {
-    ASSERT(i <= buffer->length - 1);
+template <typename T> T sbuff_delete(StretchyBuffer<T> *buffer, int i) {
+    ASSERT(i >= 0);
+    ASSERT(i < buffer->length);
+    T result = buffer->data[i];
     memmove(buffer->data + i, buffer->data + i + 1, (buffer->length - i - 1) * sizeof(T));
     --buffer->length;
+    return result;
+}
+
+template <typename T> T sbuff_pop_back(StretchyBuffer<T> *buffer) {
+    ASSERT(buffer->length != 0);
+    return sbuff_delete(buffer, buffer->length - 1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
