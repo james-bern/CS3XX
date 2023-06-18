@@ -476,20 +476,18 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 #define INCHES(millimeters) ((millimeters) / 25.4)
 #define MM(inches) ((inches) * 25.4)
 
+// TODO: rewrite as functions
 #define ABS(a) ((a) < 0 ? -(a) : (a))
 #define SGN(a) ((a) < 0 ? -1 : 1)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MID(a, b, c) MAX(MIN(a, b), MIN(MAX(a, b), c))
 #define AVG(a, b) (.5 * (a) + .5 * (b))
-
 #define IS_ZERO(a) (ABS(a) < TINY_VAL)
 #define ARE_EQUAL(a, b) (IS_ZERO(ABS((a) - (b))))
 #define IS_BETWEEN(p, a, b) (((a) - TINY_VAL < (p)) && ((p) < (b) + TINY_VAL))
 #define IS_POSITIVE(a) ((a) > TINY_VAL)
 #define IS_NEGATIVE(a) ((a) < -TINY_VAL)
-
-// TODO: rewrite as functions
 #define LERP(t, a, b) ((a) + (t) * ((b) - (a))) // works on vecX, matX
 #define INVERSE_LERP(p, a, b) (((p) - (a)) / real((b) - (a)))
 #define LINEAR_REMAP(p, a, b, c, d) LERP(INVERSE_LERP(p, a, b), c, d)
