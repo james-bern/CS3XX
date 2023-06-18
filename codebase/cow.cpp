@@ -3837,16 +3837,19 @@ void plot_data_point(Plot *plot, real y) {
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef SNAIL_CPP
-struct SparseMatrixEntry {
-    int row;
-    int col;
+struct OptEntry {
+    int i;
+    int j;
     real val;
+    const unsigned int col() const { return i;   } // FORNOW
+    const unsigned int row() const { return j;   } // FORNOW
+    const double     value() const { return val; } // FORNOW
 };
 
-real *_opt_sparse2dense(int R, int C, int num_entries, SparseMatrixEntry *sparse) {
+real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
     real *dense = (real *) calloc(R * C, sizeof(real));
     #define RXC(M, row, col) ((M)[C * (row) + (col)])
-    for (int k = 0; k < num_entries; ++k) { RXC(dense, sparse[k].row, sparse[k].col) += sparse[k].val; }
+    for (int k = 0; k < num_entries; ++k) { RXC(dense, sparse[k].i, sparse[k].j) += sparse[k].val; }
     #undef RXC
     return dense;
 }
@@ -3855,7 +3858,7 @@ real *_opt_sparse2dense(int R, int C, int num_entries, SparseMatrixEntry *sparse
 struct EigenTriplet { int row, col; real val; };
 void eigenSimplicialCholesky(int N, real *x, int A_length, EigenTriplet *A_data, real *b);
 #endif
-void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, SparseMatrixEntry *_A, real *b) {
+void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry *_A, real *b) {
     { // checks
         ASSERT(x);
         ASSERT(N);
@@ -3956,7 +3959,7 @@ void opt_add(real *a, int i, vec2 a_i) {
     }
 };
 
-void opt_add(StretchyBuffer<SparseMatrixEntry> *A, int i, int j, mat2 A_ij) {
+void opt_add(StretchyBuffer<OptEntry> *A, int i, int j, mat2 A_ij) {
     if (A != NULL) {
         sbuff_push_back(A, { 2 * i + 0, 2 * j + 0, A_ij(0, 0) });
         sbuff_push_back(A, { 2 * i + 1, 2 * j + 0, A_ij(1, 0) });
