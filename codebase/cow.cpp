@@ -1,6 +1,7 @@
 #ifndef COW_CPP
 #define COW_CPP
 
+// triangle_indices -> triangles
 // remove real world units option
 // texture (i, j) -> (j, i)
 // / gui_slider should be [a, b)
