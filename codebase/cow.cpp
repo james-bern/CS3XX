@@ -2273,7 +2273,7 @@ void gui_slider(
         if (slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW) {
             snprintf(text, sizeof(text), "%s %d deg", name, (int) round(DEG(*variable)));
         } else {
-            snprintf(text, sizeof(text), "%s %.1lf", name, *variable);
+            snprintf(text, sizeof(text), "%s %.5lf", name, *variable);
         }
         _gui_slider(text, variable, variable, lower_bound, upper_bound);
     }
