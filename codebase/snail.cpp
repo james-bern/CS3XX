@@ -167,6 +167,7 @@ template <int T> union SnailVector {
 template <int T> union SnailMatrix {
     real data[T * T];
     real &operator ()(int r, int c) { return data[T * r + c]; }
+    const real &operator ()(int r, int c) const { return data[T * r + c]; }
 };
 
 // sugary accessors ////////////////////////////////////////////////////////////
