@@ -1149,7 +1149,7 @@ void _callback_key(GLFWwindow *, int key, int, int action, int mods) {
     globals.key_alt_held     = (mods & GLFW_MOD_ALT);
 }
 
-void _callback_cursor_position(GLFWwindow *, real xpos, real ypos) {
+void _callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     real tmp_mouse_s_NDC_0 = globals.mouse_position_NDC[0];
     real tmp_mouse_s_NDC_1 = globals.mouse_position_NDC[1];
     real tmp_mouse_s_Screen_0 = globals.mouse_position_Screen[0];
@@ -1194,7 +1194,7 @@ void _callback_mouse_button(GLFWwindow *, int button, int action, int) {
     }
 }
 
-void _callback_scroll(GLFWwindow *, real, real yoffset) {
+void _callback_scroll(GLFWwindow *, double, double yoffset) {
     globals.mouse_wheel_offset += yoffset;
 }
 
@@ -2266,7 +2266,7 @@ void gui_slider(
 
     static char text[256];
     if (slide_variable_in_log10__NOTE_pass_bounds_in_log10) {
-        double tmp = log10(*variable);
+        real tmp = log10(*variable);
         snprintf(text, sizeof(text), "%s %lf", name, *variable);
         _gui_slider(text, variable, &tmp, lower_bound, upper_bound);
         *variable = pow(10.0, tmp);
@@ -2890,7 +2890,7 @@ vec3 color_plasma(real t) {
 
 vec3 color_rainbow_swirl(real t) {
     #define Q(o) (.5 + .5 * cos(6.28 * ((o) - t)))
-    return { Q(0), Q(.33), Q(-.33) };
+    return V3(Q(0), Q(.33), Q(-.33));
     #undef Q
 }
 #endif
@@ -3844,7 +3844,7 @@ struct OptEntry {
     real val;
     const unsigned int col() const { return i;   } // FORNOW
     const unsigned int row() const { return j;   } // FORNOW
-    const double     value() const { return val; } // FORNOW
+    const real       value() const { return val; } // FORNOW
 };
 
 real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
@@ -4229,7 +4229,7 @@ void eg_text() {
                 text_draw(
                         PV,
                         buffer,
-                        { cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta) },
+                        V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
                         color_plasma(.5 + .5 * sin(theta))
                         ); 
             }
@@ -4387,7 +4387,7 @@ void eg_kitchen_sink() {
                 text_draw(
                         PV,
                         buffer,
-                        { cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta) },
+                        V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
                         color_rainbow_swirl(double(i) / 24.0)); 
             }
         }

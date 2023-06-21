@@ -1,5 +1,3 @@
-typedef double real;
-#define GL_REAL GL_DOUBLE
 #define _CRT_SECURE_NO_WARNINGS
 
 #ifndef JIM_NO_SNAIL
