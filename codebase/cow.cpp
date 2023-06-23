@@ -2500,7 +2500,7 @@ void _mesh_draw(
     guarded_push(vertex_texture_coordinates, 2);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, COW0._mesh_EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(int), triangle_indices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(u32), triangle_indices, GL_DYNAMIC_DRAW);
 
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "P", P);
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "V", V);
