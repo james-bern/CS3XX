@@ -1,5 +1,7 @@
 // #define COW_PATCH_FRAMERATE
 // #define COW_PATCH_FRAMERATE_SLEEP
+typedef double real;
+#define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
 #include "include.cpp"
 

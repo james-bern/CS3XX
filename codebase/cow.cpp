@@ -1452,7 +1452,7 @@ template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_verti
     glBindVertexArray(shader->_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, shader->_VBO[shader->_attribute_counter]);
     glBufferData(GL_ARRAY_BUFFER, num_vertices * D * sizeof(real), vertex_attribute, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(shader->_attribute_counter, D, GL_DOUBLE, GL_FALSE, 0, NULL);
+    glVertexAttribPointer(shader->_attribute_counter, D, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(shader->_attribute_counter);
     ++shader->_attribute_counter;
 }
@@ -2500,7 +2500,7 @@ void _mesh_draw(
     guarded_push(vertex_texture_coordinates, 2);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, COW0._mesh_EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(u32), triangle_indices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(int), triangle_indices, GL_DYNAMIC_DRAW);
 
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "P", P);
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "V", V);
