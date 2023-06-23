@@ -1452,7 +1452,7 @@ template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_verti
     glBindVertexArray(shader->_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, shader->_VBO[shader->_attribute_counter]);
     glBufferData(GL_ARRAY_BUFFER, num_vertices * D * sizeof(real), vertex_attribute, GL_DYNAMIC_DRAW);
-    glVertexAttribPointer(shader->_attribute_counter, D, GL_FLOAT, GL_FALSE, 0, NULL);
+    glVertexAttribPointer(shader->_attribute_counter, D, GL_REAL, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(shader->_attribute_counter);
     ++shader->_attribute_counter;
 }
