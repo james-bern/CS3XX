@@ -2484,7 +2484,7 @@ void _mesh_draw(
     glBindVertexArray(COW0._mesh_VAO);
     int i_attrib = 0;
     auto guarded_push = [&](void *array, int dim) {
-        // glDisableVertexAttribArray(i_attrib); // fornow
+        glDisableVertexAttribArray(i_attrib); // fornow
         if (array) {
             glBindBuffer(GL_ARRAY_BUFFER, COW0._mesh_VBO[i_attrib]);
             glBufferData(GL_ARRAY_BUFFER, num_vertices * dim * sizeof(real), array, GL_DYNAMIC_DRAW);
