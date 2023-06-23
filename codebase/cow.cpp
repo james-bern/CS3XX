@@ -1189,6 +1189,7 @@ void _callback_mouse_button(GLFWwindow *, int button, int action, int) {
             globals.mouse_right_pressed = true;
             globals.mouse_right_held = true;
         } else if (action == GLFW_RELEASE) { 
+            globals.mouse_right_released = true;
             globals.mouse_right_held = false;
         }
     }
