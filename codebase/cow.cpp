@@ -1,9 +1,10 @@
 #ifndef COW_CPP
 #define COW_CPP
 
+// _mouse_left_click_consumed
 // triangle_indices -> triangles
-// remove real world units option
 // texture (i, j) -> (j, i)
+// / remove real world units option
 // / gui_slider should be [a, b)
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -138,6 +139,7 @@ struct C2_READONLY_USER_FACING_DATA {
 
     int _mouse_owner;
     int _frames_since_mouse_left_pressed;
+    // TODO: _mouse_left_click_consumed
 
     _mat4 Identity = { 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 };
     _mat4 NDC_from_Screen;
@@ -351,8 +353,8 @@ struct CX_INTERNAL_CONSTANTS {
                 float diffuse = max(0, dot(N, L));
                 float specular = pow(max(0, dot(N, H)), 100);
                 float fresnel = F0 + (1 - F0) * pow(1 - max(0, dot(N, H)), 5);
-                rgb += .2 * (-1.0 + 2.0 * diffuse);
-                rgb += .2 * specular;
+                rgb += .3 * (-1.0 + 2.0 * diffuse);
+                rgb += .4 * specular;
                 rgb += .6 * (-.3 + 1.3 * fresnel);
             }
             frag_color = vec4(rgb, a);
