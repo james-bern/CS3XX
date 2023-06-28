@@ -412,7 +412,6 @@ struct C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset 
     int   _eso_primitive;
     int   _eso_num_vertices;
     real  _eso_size_in_pixels;
-    bool  _eso_use_world_units_instead_of_pixels;
     bool  _eso_overlay;
 
     real  _gui_x_curr;
@@ -1515,7 +1514,6 @@ void _soup_draw(
         real b_if_vertex_colors_is_NULL,
         real a_if_vertex_colors_is_NULL,
         real size_in_pixels,
-        bool use_world_units_instead_of_pixels,
         bool force_draw_on_top) {
 
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
@@ -1544,7 +1542,6 @@ void _soup_draw(
                         b_if_vertex_colors_is_NULL,
                         a_if_vertex_colors_is_NULL,
                         size_in_pixels,
-                        use_world_units_instead_of_pixels,
                         force_draw_on_top);
 
                 if (primitive == SOUP_OUTLINED_TRIANGLES) {
@@ -1578,7 +1575,6 @@ void _soup_draw(
                     b_if_vertex_colors_is_NULL,
                     a_if_vertex_colors_is_NULL,
                     size_in_pixels,
-                    use_world_units_instead_of_pixels,
                     force_draw_on_top);
         }
     }
@@ -1620,20 +1616,11 @@ void _soup_draw(
     glUseProgram(shader_program_ID);
 
     _shader_set_uniform_real(shader_program_ID, "aspect", _window_get_aspect());
-    if (use_world_units_instead_of_pixels) {
-        real tmp[4] = {  0.0, 0.5 * size_in_pixels, 0.0 , 0.0 };
-        _linalg_mat4_times_vec4_persp_divide(tmp, PVM, tmp);
-        _shader_set_uniform_real(shader_program_ID, "primitive_radius_NDC",
-                sqrt(_linalg_vecX_squared_length(4, tmp)));
-    } else {
-        _shader_set_uniform_real(shader_program_ID, "primitive_radius_NDC",
-                0.5 * size_in_pixels / _window_get_height());
-    } 
+    _shader_set_uniform_real(shader_program_ID, "primitive_radius_NDC", 0.5 * size_in_pixels / _window_get_height());
     _shader_set_uniform_bool(shader_program_ID, "has_vertex_colors", vertex_colors != NULL);
     _shader_set_uniform_bool(shader_program_ID, "force_draw_on_top", force_draw_on_top);
     _shader_set_uniform_mat4(shader_program_ID, "PVM", PVM);
     _shader_set_uniform_vec4(shader_program_ID, "color_if_vertex_colors_is_NULL", color_if_vertex_colors_is_NULL);
-
 
     if (primitive != SOUP_QUADS && !mesh_special_case) {
         glDrawArrays(primitive, 0, num_vertices);
@@ -1717,7 +1704,6 @@ template <int D_pos, int D_color = 3> void soup_draw(
         SnailVector<D_color> *vertex_colors,
         SnailVector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
-        bool use_world_units_instead_of_pixels = false,
         bool force_draw_on_top = false) {
     STATIC_ASSERT(D_pos == 2 || D_pos == 3 || D_pos == 4);
     STATIC_ASSERT(D_color == 3 || D_color == 4);
@@ -1735,7 +1721,6 @@ template <int D_pos, int D_color = 3> void soup_draw(
             color_if_vertex_colors_is_NULL[2],
             (D_color == 4) ? color_if_vertex_colors_is_NULL[3] : 1,
             size_in_pixels,
-            use_world_units_instead_of_pixels,
             force_draw_on_top
             );
 }
@@ -1748,7 +1733,6 @@ template <int D_pos, int D_color = 3> void soup_draw(
         void *vertex_colors = NULL,
         SnailVector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
-        bool use_world_units_instead_of_pixels = false,
         bool force_draw_on_top = false) {
 
     ASSERT(vertex_colors == NULL);
@@ -1766,7 +1750,6 @@ template <int D_pos, int D_color = 3> void soup_draw(
             color_if_vertex_colors_is_NULL[2],
             (D_color == 4) ? color_if_vertex_colors_is_NULL[3] : 1,
             size_in_pixels,
-            use_world_units_instead_of_pixels,
             force_draw_on_top
             );
 }
@@ -1791,12 +1774,11 @@ void _eso_init() {
     _eso_reset();
 }
 
-void _eso_begin(real *PVM, int primitive, real size_in_pixels, bool use_world_units_instead_of_pixels, bool force_draw_on_top) {
+void _eso_begin(real *PVM, int primitive, real size_in_pixels, bool force_draw_on_top) {
     ASSERT(!COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end);
     COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
     COW1._eso_primitive = primitive;
     COW1._eso_size_in_pixels = size_in_pixels;
-    COW1._eso_use_world_units_instead_of_pixels = use_world_units_instead_of_pixels;
     COW1._eso_overlay = force_draw_on_top;
     COW1._eso_num_vertices = 0;
     ASSERT(PVM);
@@ -1819,7 +1801,6 @@ void eso_end() {
             0.0,
             0.0,
             COW1._eso_size_in_pixels,
-            COW1._eso_use_world_units_instead_of_pixels,
             COW1._eso_overlay
             );
 }
@@ -1841,8 +1822,8 @@ void eso_color(real r, real g, real b, real a = 1.0) {
 }
 
 #ifdef SNAIL_CPP
-void eso_begin(mat4 PVM, int primitive, real size_in_pixels = 0, bool use_world_units_instead_of_pixels = false, bool force_draw_on_top = false) {
-    _eso_begin(PVM.data, primitive, size_in_pixels, use_world_units_instead_of_pixels, force_draw_on_top);
+void eso_begin(mat4 PVM, int primitive, real size_in_pixels = 0, bool force_draw_on_top = false) {
+    _eso_begin(PVM.data, primitive, size_in_pixels, force_draw_on_top);
 }
 
 void eso_vertex(vec2 xy) {
@@ -1935,7 +1916,6 @@ void _text_draw(
                 b,
                 a,
                 0,
-                false,
                 force_draw_on_top
                 );
     }
@@ -2118,8 +2098,8 @@ bool gui_button(char *name, int hotkey = '\0') {
         if ((COW1._gui_hot == name) || globals.key_held[hotkey]) r += nudge; 
     }
     {
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, false, true);
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, false, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 8;
     COW1._gui_y_curr += 4;
@@ -2172,8 +2152,8 @@ void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
         if ((COW1._gui_hot == variable) || globals.key_held[hotkey]) r += nudge; 
     }
     {
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, false, true);
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, false, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 2 * L;
     if (hotkey) {
@@ -2217,9 +2197,9 @@ void _gui_slider(char *text, void *variable__for_ID_must_persist, real *_variabl
         }
     }
     {
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6, .6, .6, 1, 6, false, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6, .6, .6, 1, 6, true);
         real r = (COW1._gui_selected == variable__for_ID_must_persist) ? 1 : (COW1._gui_hot == variable__for_ID_must_persist) ? .9 : .8;
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17 : 14, false, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17 : 14, true);
     }
     COW1._gui_y_curr -= 8;
     COW1._gui_x_curr += w + 16;
@@ -3352,7 +3332,7 @@ void *_widget_drag(real *PV, int num_vertices, real *vertex_positions, real size
     }
 
     if (hot || selected) {
-        _soup_draw(PV, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, hot, NULL, r, g, b, a, size_in_pixels, false, true);
+        _soup_draw(PV, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, hot, NULL, r, g, b, a, size_in_pixels, true);
     }
 
     globals._mouse_owner = (hot || selected) ? COW_MOUSE_OWNER_WIDGET : COW_MOUSE_OWNER_NONE;
@@ -3478,7 +3458,7 @@ bool _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 
     }
 
     if (hot) {
-        soup_draw(PV, SOUP_POINTS, 1, hot, NULL, (vertex_colors != NULL) ? (vertex_colors[hot - vertex_positions]) : monokai.white, 20.0, false, true);
+        soup_draw(PV, SOUP_POINTS, 1, hot, NULL, (vertex_colors != NULL) ? (vertex_colors[hot - vertex_positions]) : monokai.white, 20.0, true);
     }
 
     if (selected_point) {
@@ -3501,13 +3481,13 @@ bool _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 
         }
         if (!selected_handle) {
             if (hot_handle) {
-                soup_draw(PV, SOUP_POINTS, 1, hot_handle, NULL, selected_color, 16.0, false, true);
+                soup_draw(PV, SOUP_POINTS, 1, hot_handle, NULL, selected_color, 16.0, true);
                 if (globals.mouse_left_pressed) {
                     selected_handle = hot_handle;
                 }
             }
         } else {
-            soup_draw(PV, SOUP_POINTS, 1, selected_handle, NULL, selected_color, 20.0, false, true);
+            soup_draw(PV, SOUP_POINTS, 1, selected_handle, NULL, selected_color, 20.0, true);
         }
         if (globals.mouse_left_held && selected_handle) {
             mat4 World_from_NDC = inverse(PV);
@@ -3623,7 +3603,7 @@ void sound_loop_music(char *filename) {
 
 void _recorder_draw_pacman(real r, real g, real b, real a, real f) {
     real aspect = _window_get_aspect();
-    _eso_begin((real *) &globals.Identity, SOUP_TRIANGLE_FAN, 0.0, false, true);
+    _eso_begin((real *) &globals.Identity, SOUP_TRIANGLE_FAN, 0.0, true);
     real o[2] = { (aspect - .25) / aspect, .75 };
     real radius = .125;
     int N = 32;
@@ -3697,14 +3677,14 @@ void _recorder_begin_frame() { // record
         if (!window_is_pointer_locked()) { // draw mouse draw cursor
             double f = config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
             eso_color(1.0, 1.0, 1.0, 1.0);
-            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_TRIANGLE_FAN, 10.0, false, true);
+            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_TRIANGLE_FAN, 10.0, true);
             eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f *  0);
             eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f * 14);
             eso_vertex(globals.mouse_position_Screen[0] + f *  4, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] + f *  6, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] + f * 12, globals.mouse_position_Screen[1] + f * 11);
             eso_end();
-            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_QUADS, 10.0, false, true);
+            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_QUADS, 10.0, true);
             eso_vertex(globals.mouse_position_Screen[0] +  f * 4, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] +  f * 6, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] +  f * 9, globals.mouse_position_Screen[1] + f * 17);
@@ -4049,7 +4029,7 @@ bool cow_begin_frame() {
                         COW1._window_clear_color[0],
                         COW1._window_clear_color[1],
                         COW1._window_clear_color[2],
-                        0.8, 0, false, true);
+                        0.8, 0, true);
                 COW1._gui_hide_and_disable = false; {
                     _gui_begin_frame();
                     gui_printf("config.hotkeys_*");
@@ -4257,7 +4237,6 @@ void eg_soup() {
     int num_polygon_sides = 16;
     vec2 foo[] = { { -6.0, -6.0 }, { -6.0, 6.0 }, { 6.0, 6.0 }, { 6.0, -6.0 } };
     real size_in_pixels = 12.0;
-    bool use_world_units_instead_of_pixels = false;
     bool force_draw_on_top = false;
 
     while (cow_begin_frame()) {
@@ -4265,11 +4244,10 @@ void eg_soup() {
         mat4 PV = camera_get_PV(&camera);
 
         gui_slider("size_in_pixels", &size_in_pixels, 0, 100, false);
-        gui_checkbox("use_world_units_instead_of_pixels", &use_world_units_instead_of_pixels, COW_KEY_TAB);
         gui_checkbox("force_draw_on_top", &force_draw_on_top);
         gui_slider("num_polygon_sides", &num_polygon_sides, 0, 32, 'j', 'k', false);
 
-        eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, use_world_units_instead_of_pixels, force_draw_on_top); {
+        eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, force_draw_on_top); {
             eso_color(monokai.green);
             for (int i = 0; i < num_polygon_sides; ++i) {
                 real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
@@ -4279,10 +4257,10 @@ void eg_soup() {
         } eso_end();
 
         widget_drag(PV, 4, foo, size_in_pixels, monokai.yellow);
-        soup_draw(PV, SOUP_QUADS, 4, foo, NULL, V4(monokai.red, .5), 0, use_world_units_instead_of_pixels, force_draw_on_top);
+        soup_draw(PV, SOUP_QUADS, 4, foo, NULL, V4(monokai.red, .5), 0, force_draw_on_top);
 
         vec2 s_mouse = mouse_get_position(PV);
-        eso_begin(PV, SOUP_POINTS, size_in_pixels, use_world_units_instead_of_pixels, force_draw_on_top);
+        eso_begin(PV, SOUP_POINTS, size_in_pixels, force_draw_on_top);
         eso_color(monokai.blue);
         eso_vertex(s_mouse);
         eso_end();
@@ -4375,7 +4353,7 @@ void eg_kitchen_sink() {
             // }
             for (int pass = 0; pass < 3; ++pass ) {
                 mat4 transform = (pass < 2) ? globals.Identity : PV * M4_Translation(0.0, 0.0, 0.01) * M;
-                soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.data, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0, 1.0, 0.0, 1.0)), (pass == 0) ? 30.0 : 0, false, pass < 2);
+                soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.data, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0, 1.0, 0.0, 1.0)), (pass == 0) ? 30.0 : 0, pass < 2);
             }
 
             text_draw(globals.NDC_from_Screen, "  :3", globals.mouse_position_Screen); 
@@ -4538,7 +4516,7 @@ void _eg_no_snail() {
         gui_slider("num_polygon_sides", &num_polygon_sides, 0, 32, 'j', 'k', false);
         gui_slider("size_in_pixels", &size_in_pixels, 0.0, 24.0, false);
 
-        _eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, false, false); {
+        _eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, false); {
             eso_color(0.0, 1.0, 0.0);
             for (int i = 0; i < num_polygon_sides; ++i) {
                 real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
@@ -4548,7 +4526,7 @@ void _eg_no_snail() {
         } eso_end();
 
         _widget_drag(PV, 4, foo, size_in_pixels, 1.0, 1.0, 0.0, 1.0);
-        _soup_draw(PV, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, foo, NULL, 1.0, 0.0, 0.0, 1.0, 0, false, false);
+        _soup_draw(PV, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, foo, NULL, 1.0, 0.0, 0.0, 1.0, 0, false);
 
         real s_mouse[2];
         _input_get_mouse_position_and_change_in_position_in_world_coordinates(
@@ -4558,7 +4536,7 @@ void _eg_no_snail() {
                 NULL,
                 NULL
                 );
-        _eso_begin(PV, SOUP_POINTS, size_in_pixels, false, false);
+        _eso_begin(PV, SOUP_POINTS, size_in_pixels, false);
         eso_color(0.0, 0.0, 1.0);
         eso_vertex(s_mouse[0], s_mouse[1]);
         eso_end();
