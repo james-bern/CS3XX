@@ -2799,7 +2799,7 @@ OrthogonalCoordinateSystem3D camera_get_coordinate_system(Camera3D *camera) {
     return { C, x, y, z, o, R };
 }
 
-vec3 camera_get_origin(Camera3D *camera) {
+vec3 camera_get_position(Camera3D *camera) {
     vec3 o;
     _camera_get_coordinate_system(camera, NULL, NULL, NULL, NULL, (real *) &o, NULL);
     return o;
@@ -2827,6 +2827,11 @@ mat4 camera_get_PV(Camera3D *camera) {
     mat4 ret;
     _camera_get_PV(camera, ret.data);
     return ret;
+}
+
+vec3 camera_get_mouse_ray(Camera3D *camera) {
+    // convenience function; probably repeats a lot of computation already done in the frame
+    return normalized(transformPoint(inverse(camera_get_PV(camera)), V3(globals.mouse_position_NDC, 0.0)) - camera_get_position(camera));
 }
 #endif
 
