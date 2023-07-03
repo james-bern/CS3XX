@@ -3177,6 +3177,7 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
     IndexedTriangleMesh3D mesh_mesh = {};
     {
         StretchyBuffer<vec3> vertex_positions = {};
+        StretchyBuffer<vec3> vertex_colors = {};
         StretchyBuffer<int3> triangle_indices = {};
         {
             FILE *fp = fopen(filename, "r");
@@ -3189,20 +3190,43 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                     int i, j, k;
                     ASSERT(sscanf(buffer, "%s %d %d %d", prefix, &i, &j, &k) == 4);
                     sbuff_push_back(&triangle_indices, { i - 1, j - 1, k - 1 });
-                }
-                if (strcmp(prefix, "v") == 0) {
+                } else if (strcmp(prefix, "v") == 0) {
                     real x, y, z;
                     ASSERT(sscanf(buffer, "%s %lf %lf %lf", prefix, &x, &y, &z) == 4);
                     sbuff_push_back(&vertex_positions, { x, y, z });
+                } else if (strcmp(prefix, "#MRGB") == 0) {
+                    do_once { printf("[info] found ZBrush polypaint payload"); };
+                    static char hexPayload[4096];
+                    ASSERT(sscanf(buffer, "%s %s", prefix, hexPayload) == 2);
+                    printf("!\n");
+                    int numVertexColorEntries = int(strlen(hexPayload) / 8);
+                    for (int vertexColorEntryIndex = 0; vertexColorEntryIndex <  numVertexColorEntries; ++vertexColorEntryIndex) {
+                        vec3 rgb = {};
+                        for (int channel = 1; channel < 4; ++channel) {
+                            int channelContribution__255 = 0;
+                            for (int bitIndex = 0; bitIndex < 2; ++bitIndex) {
+                                char hexCharacter = hexPayload[vertexColorEntryIndex * 8 + 2 * channel + bitIndex];
+                                channelContribution__255 += (('0' <= hexCharacter) && (hexCharacter <= '9')) ? (hexCharacter - '0') : (10 + hexCharacter - 'a');
+                                if (bitIndex == 0) channelContribution__255 *= 16;
+                            }
+                            rgb[channel - 1] = channelContribution__255 / 255.0;
+                        }
+                        sbuff_push_back(&vertex_colors, rgb);
+                    }
                 }
             }
             fclose(fp);
         }
+
         // note: don't free the data pointers! (we're stealing them)
         mesh_mesh.num_triangles = triangle_indices.length;
         mesh_mesh.triangle_indices = triangle_indices.data;
         mesh_mesh.num_vertices = vertex_positions.length;
         mesh_mesh.vertex_positions = vertex_positions.data;
+        if (vertex_colors.length) {
+            ASSERT(vertex_colors.length == vertex_positions.length); 
+            mesh_mesh.vertex_colors = vertex_colors.data;
+        }
     }
     if (transform_vertex_positions_to_double_unit_box) {
         _meshutil_transform_vertex_positions_to_double_unit_box(mesh_mesh.num_vertices, mesh_mesh.vertex_positions);
