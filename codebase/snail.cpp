@@ -621,6 +621,25 @@ SnailMatrix<4> M4_RotationAxisAngle(SnailVector<3> axis, real angle) {
         0, 0, 0, 1 };
 }
 
+mat4 M4_RotationFrom(vec3 a, vec3 b) {
+    // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+
+    // FORNOW
+    a = normalized(a);
+    b = normalized(b);
+
+    vec3 v = cross(a, b);
+    real c = dot(a, b);
+    if (SNAIL_ABS(c + 1.0) < 1e-5) return IdentityMatrix<4>();
+    mat3 v_x = { 0.0, -v.z, v.y, v.z, 0.0, -v.x, -v.y, v.x, 0.0 };
+    mat3 R = IdentityMatrix<3>() + v_x + v_x * v_x / (1 + c);
+    return {
+        R.data[0], R.data[1], R.data[2], 0.0,
+        R.data[3], R.data[4], R.data[5], 0.0,
+        R.data[6], R.data[7], R.data[8], 0.0,
+              0.0,       0.0,       0.0, 1.0 };
+}
+
 // optimization stuff //////////////////////////////////////////////////////////
 
 template <int T> SnailMatrix<T> firstDerivativeofUnitVector(SnailVector<T> v) {
