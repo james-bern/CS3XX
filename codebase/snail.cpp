@@ -622,6 +622,7 @@ SnailMatrix<4> M4_RotationAxisAngle(SnailVector<3> axis, real angle) {
 }
 
 mat4 M4_RotationFrom(vec3 a, vec3 b) {
+    // NOTE: twist dof is whatever
     // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
 
     // FORNOW
