@@ -285,10 +285,12 @@ struct CX_INTERNAL_CONSTANTS {
 
     char *_mesh_vert = R""(
         #version 330 core
-        layout (location = 0) in vec3 vertex;
-        layout (location = 1) in vec3 normal;
-        layout (location = 2) in vec3 color;
-        layout (location = 3) in vec2 texCoord;
+        layout (location = 0) in  vec3 vertex;
+        layout (location = 1) in  vec3 normal;
+        layout (location = 2) in  vec3 color;
+        layout (location = 3) in  vec2 texCoord;
+        layout (location = 4) in ivec4 boneIndices;
+        layout (location = 5) in  vec4 boneWeights;
 
         out BLOCK {
             vec3 position_World;
@@ -297,20 +299,46 @@ struct CX_INTERNAL_CONSTANTS {
             vec2 texCoord;
         } vs_out;
 
+        uniform mat4 P, V, M;
+
         uniform bool has_vertex_colors;
         uniform vec3 color_if_vertex_colors_is_NULL;
 
         uniform bool has_vertex_texture_coordinates;
 
-        uniform mat4 P, V, M;
+        uniform bool has_bones;
+        uniform mat4 bones[64];
 
         void main() {
-            vec4 tmp = M * vec4(vertex, 1);
-            vs_out.position_World = vec3(tmp);
-            gl_Position = P * V * tmp;
-            vs_out.normal_World = inverse(transpose(mat3(M))) * normal;
+
+            {
+                vec4 tmp_position = vec4(vertex, 1.0);
+                if (has_bones) {
+                    tmp_position = boneWeights.x * (bones[boneIndices.x] * tmp_position)
+                                 + boneWeights.y * (bones[boneIndices.y] * tmp_position)
+                                 + boneWeights.z * (bones[boneIndices.z] * tmp_position)
+                                 + boneWeights.w * (bones[boneIndices.w] * tmp_position);
+                }
+                tmp_position = M * tmp_position;
+                vs_out.position_World = vec3(tmp_position);
+                gl_Position = P * V * tmp_position;
+            }
+
+            {
+                vec3 tmp_normal = normal;
+                if (has_bones) {
+                    tmp_normal = boneWeights.x * (inverse(transpose(mat3(bones[boneIndices.x]))) * tmp_normal)
+                               + boneWeights.y * (inverse(transpose(mat3(bones[boneIndices.y]))) * tmp_normal)
+                               + boneWeights.z * (inverse(transpose(mat3(bones[boneIndices.z]))) * tmp_normal)
+                               + boneWeights.w * (inverse(transpose(mat3(bones[boneIndices.w]))) * tmp_normal);
+                }
+                tmp_normal = inverse(transpose(mat3(M))) * tmp_normal;
+                vs_out.normal_World = tmp_normal;
+            }
+
             vs_out.color = has_vertex_colors ? color : color_if_vertex_colors_is_NULL;
             vs_out.texCoord = has_vertex_texture_coordinates ? texCoord : vec2(0., 0.);
+
         }
     )"";
 
@@ -381,7 +409,7 @@ struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
 
     int _mesh_shader_program;
     u32 _mesh_VAO;
-    u32 _mesh_VBO[4];
+    u32 _mesh_VBO[6];
     u32 _mesh_EBO;
 
     FILE *_recorder_fp_mpg;
@@ -1355,13 +1383,13 @@ void _shader_set_uniform_vec4(int shader_program_ID, char *name, real *value) {
 
 void _shader_set_uniform_mat4(int shader_program_ID, char *name, real *value) {
     ASSERT(value);
-    float as_floats[16] = {}; {
-        for (int k = 0; k < 16; ++k) as_floats[k] = float(value[k]);
+    float tmp[16] = {}; {
+        for (int k = 0; k < 16; ++k) tmp[k] = float(value[k]);
     }
-    glUniformMatrix4fv(_shader_get_uniform_location(shader_program_ID, name), 1, GL_TRUE, as_floats);
+    glUniformMatrix4fv(_shader_get_uniform_location(shader_program_ID, name), 1, GL_TRUE, tmp);
 }
 
-void _shader_set_uniform_array_vec3(int shader_program_ID, char *name, int count, real *value) {
+void _shader_set_uniform_vec3_array(int shader_program_ID, char *name, int count, real *value) {
     ASSERT(value);
     float *tmp = (float *) malloc(count * 3 * sizeof(float)); 
     for (int i = 0; i < count; ++i) {
@@ -1370,6 +1398,18 @@ void _shader_set_uniform_array_vec3(int shader_program_ID, char *name, int count
         }
     }
     glUniform3fv(_shader_get_uniform_location(shader_program_ID, name), count, tmp);
+    free(tmp);
+}
+
+void _shader_set_uniform_mat4_array(int shader_program_ID, char *name, int count, real *value) {
+    ASSERT(value);
+    float *tmp = (float *) malloc(count * 16 * sizeof(float)); 
+    for (int i = 0; i < count; ++i) {
+        for (int d = 0; d < 16; ++d) { 
+            tmp[16 * i + d] = float(value[16 * i + d]);
+        }
+    }
+    glUniformMatrix4fv(_shader_get_uniform_location(shader_program_ID, name), count, GL_TRUE, tmp);
     free(tmp);
 }
 
@@ -1403,7 +1443,7 @@ void _shader_set_uniform(int shader_program_ID, char *name, mat4 value) {
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, int count, vec3 *value) {
-    _shader_set_uniform_array_vec3(shader_program_ID, name, count, (real *) value);
+    _shader_set_uniform_vec3_array(shader_program_ID, name, count, (real *) value);
 }
 
 struct Shader {
@@ -2442,7 +2482,11 @@ void _mesh_draw(
         real g_if_vertex_colors_is_NULL = 1,
         real b_if_vertex_colors_is_NULL = 1,
         real *vertex_texture_coordinates = NULL,
-        char *texture_filename = NULL
+        char *texture_filename = NULL,
+        int num_bones = 0,
+        real *bones__NUM_BONES_MAT4S = NULL,
+        int *bone_indices__INT4_PER_VERTEX = NULL,
+        real *bone_weights__VEC4_PER_VERTEX = NULL
         ) {
     if (num_triangles == 0) { return; } // NOTE: num_triangles zero is now valid input
     ASSERT(P);
@@ -2465,21 +2509,31 @@ void _mesh_draw(
 
     glBindVertexArray(COW0._mesh_VAO);
     int i_attrib = 0;
-    auto guarded_push = [&](void *array, int dim) {
-        glDisableVertexAttribArray(i_attrib); // fornow
+    auto guarded_push = [&](void *array, int dim, int sizeof_type, int GL_TYPE) {
+        ASSERT(i_attrib < _COUNT_OF(COW0._mesh_VBO));
+        glDisableVertexAttribArray(i_attrib);
         if (array) {
             glBindBuffer(GL_ARRAY_BUFFER, COW0._mesh_VBO[i_attrib]);
-            glBufferData(GL_ARRAY_BUFFER, num_vertices * dim * sizeof(real), array, GL_DYNAMIC_DRAW);
-            glVertexAttribPointer(i_attrib, dim, GL_REAL, 0, 0, NULL);
-            glEnableVertexAttribArray(i_attrib);
+            glBufferData(GL_ARRAY_BUFFER, num_vertices * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
+            if (GL_TYPE == GL_REAL) {
+                glVertexAttribPointer(i_attrib, dim, GL_TYPE, GL_FALSE, 0, NULL);
+            } else if (GL_TYPE == GL_INT) {
+                glVertexAttribIPointer(i_attrib, dim, GL_TYPE, 0, NULL);
+            } else {
+                ASSERT(0);
+            }
+            glEnableVertexAttribArray(i_attrib); // FORNOW: after the other stuff?
         }
         ++i_attrib;
     };
 
-    guarded_push(vertex_positions, 3);
-    guarded_push(vertex_normals, 3);
-    guarded_push(vertex_colors, 3);
-    guarded_push(vertex_texture_coordinates, 2);
+    // TODO: assert sizeof's match
+    guarded_push(vertex_positions,              3, sizeof(real), GL_REAL);
+    guarded_push(vertex_normals,                3, sizeof(real), GL_REAL);
+    guarded_push(vertex_colors,                 3, sizeof(real), GL_REAL);
+    guarded_push(vertex_texture_coordinates,    2, sizeof(real), GL_REAL);
+    guarded_push(bone_indices__INT4_PER_VERTEX, 4, sizeof(int ), GL_INT);
+    guarded_push(bone_weights__VEC4_PER_VERTEX, 4, sizeof(real), GL_REAL);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, COW0._mesh_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(u32), triangle_indices, GL_DYNAMIC_DRAW);
@@ -2496,9 +2550,14 @@ void _mesh_draw(
     _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_colors", vertex_colors != NULL);
     _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_normals", vertex_normals != NULL);
     _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_texture_coordinates", vertex_texture_coordinates != NULL);
+    _shader_set_uniform_bool(COW0._mesh_shader_program, "has_bones", num_bones != 0);
     _shader_set_uniform_bool(COW0._mesh_shader_program, "has_texture", texture_filename != NULL);
     _shader_set_uniform_int (COW0._mesh_shader_program, "i_texture", MAX(0, i_texture));
     _shader_set_uniform_vec3(COW0._mesh_shader_program, "color_if_vertex_colors_is_NULL", color_if_vertex_colors_is_NULL);
+
+    if (num_bones != 0) {
+        _shader_set_uniform_mat4_array(COW0._mesh_shader_program, "bones", num_bones, bones__NUM_BONES_MAT4S);
+    }
 
     glDrawElements(GL_TRIANGLES, 3 * num_triangles, GL_UNSIGNED_INT, NULL);
 }
@@ -2516,7 +2575,12 @@ void mesh_draw(
         vec3 *vertex_colors,
         vec3 color_if_vertex_colors_is_NULL = { 1.0, 1.0, 1.0 },
         vec2 *vertex_texture_coordinates = NULL,
-        char *texture_filename = NULL) {
+        char *texture_filename = NULL,
+        int num_bones = 0,
+        mat4 *bones = NULL,
+        int4 *bone_indices = NULL,
+        vec4 *bone_weights = NULL
+        ) {
     _mesh_draw(
             P.data,
             V.data,
@@ -2531,7 +2595,11 @@ void mesh_draw(
             color_if_vertex_colors_is_NULL[1],
             color_if_vertex_colors_is_NULL[2],
             (real *) vertex_texture_coordinates,
-            texture_filename
+            texture_filename,
+            num_bones,
+            (real *) bones,
+            (int *) bone_indices,
+            (real *) bone_weights
             );
 }
 #endif
@@ -2972,6 +3040,10 @@ struct IndexedTriangleMesh3D {
     int3 *triangle_indices;
     vec2 *vertex_texture_coordinates;
     char *texture_filename;
+    int num_bones;
+    mat4 *bones;
+    int4 *bone_indices;
+    vec4 *bone_weights;
 
     void draw(
             mat4 P,
@@ -3034,7 +3106,11 @@ void IndexedTriangleMesh3D::draw(
             vertex_colors,
             color_if_vertex_colors_is_NULL,
             vertex_texture_coordinates,
-            (texture_filename) ? texture_filename : texture_filename_if_texture_filename_is_NULL
+            (texture_filename) ? texture_filename : texture_filename_if_texture_filename_is_NULL,
+            num_bones,
+            bones,
+            bone_indices,
+            bone_weights
             );
 }
 
@@ -3195,10 +3271,9 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                     ASSERT(sscanf(buffer, "%s %lf %lf %lf", prefix, &x, &y, &z) == 4);
                     sbuff_push_back(&vertex_positions, { x, y, z });
                 } else if (strcmp(prefix, "#MRGB") == 0) {
-                    do_once { printf("[info] found ZBrush polypaint payload"); };
+                    // do_once { printf("[info] found ZBrush polypaint payload\n"); };
                     static char hexPayload[4096];
                     ASSERT(sscanf(buffer, "%s %s", prefix, hexPayload) == 2);
-                    printf("!\n");
                     int numVertexColorEntries = int(strlen(hexPayload) / 8);
                     for (int vertexColorEntryIndex = 0; vertexColorEntryIndex <  numVertexColorEntries; ++vertexColorEntryIndex) {
                         vec3 rgb = {};

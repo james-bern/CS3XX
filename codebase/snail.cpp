@@ -409,6 +409,11 @@ template <int T> real squaredNorm(SnailVector<T> v) {
 template <int T> real norm(SnailVector<T> v) {
     return sqrt(squaredNorm(v));
 }
+template <int T> real sum(SnailVector<T> v) {
+    real result = 0.0;
+    SNAIL_FOR_(i, T) result += v[i];
+    return result;
+}
 template <int T> SnailVector<T> normalized(SnailVector<T> v) {
     real norm_v = norm(v);
     // SNAIL_ASSERT(fabs(norm_v) > 1e-7);
@@ -521,18 +526,18 @@ template <int T> SnailVector<T> transformPoint(const SnailMatrix<4> &M, SnailVec
     memcpy(&ret, &ret_hom, T * sizeof(real));
     return ret;
 }
-template <int T> SnailVector<T> transformVector(const SnailMatrix<4> &M, SnailVector<T> p) {
-    SnailVector<4> p_hom = {};
-    memcpy(&p_hom, &p, T * sizeof(real));
-    SnailVector<4> ret_hom = M * p_hom;
+template <int T> SnailVector<T> transformVector(const SnailMatrix<4> &M, SnailVector<T> v) {
+    SnailVector<4> v_hom = {};
+    memcpy(&v_hom, &v, T * sizeof(real));
+    SnailVector<4> ret_hom = M * v_hom;
     SnailVector<T> ret = {};
     memcpy(&ret, &ret_hom, T * sizeof(real));
     return ret;
 }
-template <int T> SnailVector<T> transformNormal(const SnailMatrix<4> &M, SnailVector<T> p) {
-    SnailVector<4> p_hom = {};
-    memcpy(&p_hom, &p, T * sizeof(real));
-    SnailVector<4> ret_hom = inverse(transpose(M)) * p_hom;
+template <int T> SnailVector<T> transformNormal(const SnailMatrix<4> &M, SnailVector<T> n) {
+    SnailVector<4> n_hom = {};
+    memcpy(&n_hom, &n, T * sizeof(real));
+    SnailVector<4> ret_hom = inverse(transpose(M)) * n_hom;
     SnailVector<T> ret = {};
     memcpy(&ret, &ret_hom, T * sizeof(real));
     return ret;
@@ -540,14 +545,14 @@ template <int T> SnailVector<T> transformNormal(const SnailMatrix<4> &M, SnailVe
 
 // 4x4 transform cookbook //////////////////////////////////////////////////////
 
-template <int T> SnailMatrix<T> IdentityMatrix() {
+template <int T> SnailMatrix<T> identityMatrix() {
     SnailMatrix<T> ret = {};
     for (int i = 0; i < T; ++i) {
         ret(i, i) = 1;
     }
     return ret;
 }
-const SnailMatrix<4> _Identity4x4 = IdentityMatrix<4>();
+const SnailMatrix<4> _Identity4x4 = identityMatrix<4>();
 
 SnailMatrix<4> M4_Identity() {
     return _Identity4x4;
@@ -631,9 +636,9 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
 
     vec3 v = cross(a, b);
     real c = dot(a, b);
-    if (SNAIL_ABS(c + 1.0) < 1e-5) return IdentityMatrix<4>();
+    if (SNAIL_ABS(c + 1.0) < 1e-5) return identityMatrix<4>();
     mat3 v_x = { 0.0, -v.z, v.y, v.z, 0.0, -v.x, -v.y, v.x, 0.0 };
-    mat3 R = IdentityMatrix<3>() + v_x + v_x * v_x / (1 + c);
+    mat3 R = identityMatrix<3>() + v_x + v_x * v_x / (1 + c);
     return {
         R.data[0], R.data[1], R.data[2], 0.0,
         R.data[3], R.data[4], R.data[5], 0.0,
@@ -645,7 +650,7 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
 
 template <int T> SnailMatrix<T> firstDerivativeofUnitVector(SnailVector<T> v) {
     SnailVector<T> tmp = normalized(v);
-    return (1 / norm(v)) * (IdentityMatrix<T>() - outer(tmp, tmp));
+    return (1 / norm(v)) * (identityMatrix<T>() - outer(tmp, tmp));
 }
 #define firstDerivativeOfNorm normalized
 #define secondDerivativeOfNorm firstDerivativeofUnitVector
