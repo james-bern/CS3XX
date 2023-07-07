@@ -3054,6 +3054,13 @@ struct IndexedTriangleMesh3D {
             );
 
     void _dump_for_library(char *filename, char *name);
+
+    void _applyTransform(mat4 Model_from_Whatever) {
+        for (int vertex_i = 0; vertex_i < num_vertices; ++vertex_i) {
+            vertex_positions[vertex_i] = transformPoint(Model_from_Whatever, vertex_positions[vertex_i]);
+            if (vertex_normals) vertex_normals[vertex_i] = transformNormal(Model_from_Whatever, vertex_normals[vertex_i]);
+        }
+    }
 };
 
 void Soup3D::draw(
