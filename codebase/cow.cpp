@@ -1,6 +1,8 @@
 #ifndef COW_CPP
 #define COW_CPP
 
+// TODO: SnailIVector<D>
+
 // _mouse_left_click_consumed
 // triangle_indices -> triangles
 // texture (i, j) -> (j, i)
@@ -1448,7 +1450,6 @@ void _shader_set_uniform(int shader_program_ID, char *name, int count, vec3 *val
 
 struct Shader {
     int _program_ID;
-    int _num_vertex_attributes;
     int _attribute_counter;
     GLuint _VAO;
     GLuint _VBO[16];
@@ -1457,18 +1458,15 @@ struct Shader {
 
 Shader shader_create(
         char *vertex_shader_source,
-        int num_vertex_attributes,
         char *fragment_shader_source,
         char *geometry_shader_source = NULL) {
     ASSERT(vertex_shader_source);
     ASSERT(fragment_shader_source);
-    ASSERT(num_vertex_attributes);
 
     Shader shader = {};
-    shader._num_vertex_attributes = num_vertex_attributes;
     shader._program_ID = _shader_compile_and_build_program(vertex_shader_source, fragment_shader_source, geometry_shader_source);
     glGenVertexArrays(1, &shader._VAO);
-    glGenBuffers(num_vertex_attributes, shader._VBO);
+    glGenBuffers(_COUNT_OF(shader._VBO), shader._VBO);
     glGenBuffers(1, &shader._EBO);
     return shader;
 };
@@ -1488,7 +1486,6 @@ template <typename T> void shader_set_uniform(Shader *shader, char *name, int co
 template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_vertices, SnailVector<D> *vertex_attribute) {
     ASSERT(shader);
     ASSERT(vertex_attribute);
-    ASSERT(shader->_attribute_counter + 1 <= shader->_num_vertex_attributes); // you just set more attributes than you said you would
     glUseProgram(shader->_program_ID);
     glBindVertexArray(shader->_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, shader->_VBO[shader->_attribute_counter]);
@@ -1500,7 +1497,6 @@ template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_verti
 void shader_draw(Shader *shader, int num_triangles, int3 *triangle_indices) {
     ASSERT(shader);
     ASSERT(triangle_indices);
-    ASSERT(shader->_attribute_counter == shader->_num_vertex_attributes); // you haven't set all the attributes you said you would
     shader->_attribute_counter = 0;
 
     glUseProgram(shader->_program_ID);
@@ -2332,7 +2328,7 @@ int _mesh_texture_get_format(int number_of_channels) {
     return (number_of_channels == 1) ? GL_RED : (number_of_channels == 3) ? GL_RGB : GL_RGBA;
 }
 
-void _mesh_texture_create(char *texture_filename, int width, int height, int number_of_channels, u8 *data) {
+u32 _mesh_texture_create(char *texture_filename, int width, int height, int number_of_channels, u8 *data) {
     ASSERT(texture_filename);
     ASSERT(COW1._mesh_num_textures < ITRI_MAX_NUM_TEXTURES);
     ASSERT(strlen(texture_filename) < ITRI_MAX_FILENAME_LENGTH);
@@ -2355,6 +2351,8 @@ void _mesh_texture_create(char *texture_filename, int width, int height, int num
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
     glGenerateMipmap(GL_TEXTURE_2D);
+
+    return COW1._mesh_textures[i_texture];
 }
 
 void _mesh_texture_sync_to_GPU(char *texture_filename, int width, int height, int number_of_channels, u8 *data) {
@@ -2374,7 +2372,7 @@ void _mesh_texture_sync_to_GPU(char *texture_filename, int width, int height, in
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
 }
 
-void _mesh_texture_load(char *texture_filename) {
+u32 _mesh_texture_load(char *texture_filename) {
     ASSERT(texture_filename);
     int width, height, number_of_channels;
     u8 *data = stbi_load(texture_filename, &width, &height, &number_of_channels, 0);
@@ -2382,8 +2380,9 @@ void _mesh_texture_load(char *texture_filename) {
     ASSERT(width > 0);
     ASSERT(height > 0);
     ASSERT(number_of_channels == 3 || number_of_channels == 4);
-    _mesh_texture_create(texture_filename, width, height, number_of_channels, data);
+    u32 result = _mesh_texture_create(texture_filename, width, height, number_of_channels, data);
     stbi_image_free(data);
+    return result;
 }
 
 struct Texture {
@@ -2392,12 +2391,14 @@ struct Texture {
     int height;
     int number_of_channels;
     u8 *data;
+    u32 _texture_GLuint;
 };
 
-Texture texture_create(char *texture_name, int width, int height, int number_of_channels = 3) {
+Texture texture_create(char *texture_name, int width = 0, int height = 0, int number_of_channels = 3) {
     ASSERT(texture_name);
-    ASSERT(width > 0);
-    ASSERT(height > 0);
+    if (width == 0 || height == 0) { // FORNOW
+        glfwGetFramebufferSize(COW0._window_glfw_window, &width, &height);
+    }
     ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
     Texture texture = {};
     texture.name = texture_name;
@@ -2405,7 +2406,7 @@ Texture texture_create(char *texture_name, int width, int height, int number_of_
     texture.height = height;
     texture.number_of_channels = number_of_channels;
     texture.data = (u8 *) calloc(width * height * number_of_channels, sizeof(u8));
-    _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
+    texture._texture_GLuint = _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
     return texture;
 }
 
@@ -2418,7 +2419,7 @@ Texture texture_load(char *texture_filename) {
     ASSERT(texture.width > 0);
     ASSERT(texture.height > 0);
     ASSERT(texture.number_of_channels == 3 || texture.number_of_channels == 4);
-    _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
+    texture._texture_GLuint = _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
     return texture;
 }
 
@@ -4411,7 +4412,7 @@ void eg_kitchen_sink() {
         }
     )"";
 
-    Shader shader = shader_create(vertex_shader_source, 2, fragment_shader_source);
+    Shader shader = shader_create(vertex_shader_source, fragment_shader_source);
 
     sound_loop_music("codebase/music.wav");
     while (cow_begin_frame()) {
@@ -4565,7 +4566,7 @@ void eg_shader() {
         }
     )"";
 
-    Shader shader = shader_create(vertex_shader_source, 2, fragment_shader_source);
+    Shader shader = shader_create(vertex_shader_source, fragment_shader_source);
 
     IndexedTriangleMesh3D mesh = library.meshes.teapot;
     int num_vertices       = mesh.num_vertices;
