@@ -125,6 +125,8 @@ struct C2_READONLY_USER_FACING_DATA {
     bool key_shift_held;
     bool key_control_held;
     bool key_alt_held;
+    bool key_any_key_pressed;
+    int key_last_key_pressed;
 
     bool mouse_left_pressed;
     bool mouse_left_held;
@@ -1117,6 +1119,7 @@ void _input_begin_frame() {
     globals.mouse_change_in_position_NDC[0] = 0.0;
     globals.mouse_change_in_position_NDC[1] = 0.0;
     globals.mouse_wheel_offset = 0.0;
+    globals.key_any_key_pressed = false;
     glfwPollEvents();
     // NOTE e.g. key_*['j'] the same as key_*['J']
     for (int i = 0; i < 26; ++i) {
@@ -1172,6 +1175,10 @@ void _callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (action == GLFW_PRESS) {
         globals.key_pressed[key] = true;
         globals.key_held[key] = true;
+
+        globals.key_any_key_pressed = true;
+        globals.key_last_key_pressed = key;
+        if ('A' <= globals.key_last_key_pressed && globals.key_last_key_pressed <= 'Z') globals.key_last_key_pressed = 'a' + (globals.key_last_key_pressed - 'A');
     } else if (action == GLFW_RELEASE) {
         globals.key_released[key] = true;
         globals.key_held[key] = false;
