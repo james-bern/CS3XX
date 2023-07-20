@@ -407,6 +407,7 @@ struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
 
     bool _cow_initialized;
     bool _cow_framerate_uncapped;
+    bool _cow_display_fps;
 
     real *_eso_vertex_positions;
     real *_eso_vertex_colors;
@@ -4198,11 +4199,10 @@ bool cow_begin_frame() {
                 #endif
             }
             { // display fps
-                static bool display_fps = true;
                 if (globals.key_pressed['\\']) {
-                    display_fps = !display_fps;
+                    COW0._cow_display_fps = !COW0._cow_display_fps;
                 }
-                if (display_fps) {
+                if (COW0._cow_display_fps) {
                     static int fps;
                     static std::chrono::steady_clock::time_point timestamp = std::chrono::high_resolution_clock::now();
                     auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - timestamp);
