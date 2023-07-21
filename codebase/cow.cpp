@@ -1412,6 +1412,18 @@ void _shader_set_uniform_vec3_array(int shader_program_ID, char *name, int count
     free(tmp);
 }
 
+void _shader_set_uniform_vec4_array(int shader_program_ID, char *name, int count, real *value) {
+    ASSERT(value);
+    float *tmp = (float *) malloc(count * 4 * sizeof(float)); 
+    for (int i = 0; i < count; ++i) {
+        for (int d = 0; d < 4; ++d) { 
+            tmp[4 * i + d] = float(value[4 * i + d]);
+        }
+    }
+    glUniform3fv(_shader_get_uniform_location(shader_program_ID, name), count, tmp);
+    free(tmp);
+}
+
 void _shader_set_uniform_mat4_array(int shader_program_ID, char *name, int count, real *value) {
     ASSERT(value);
     float *tmp = (float *) malloc(count * 16 * sizeof(float)); 
@@ -1457,6 +1469,14 @@ void _shader_set_uniform(int shader_program_ID, char *name, int count, vec3 *val
     _shader_set_uniform_vec3_array(shader_program_ID, name, count, (real *) value);
 }
 
+void _shader_set_uniform(int shader_program_ID, char *name, int count, vec4 *value) {
+    _shader_set_uniform_vec4_array(shader_program_ID, name, count, (real *) value);
+}
+
+void _shader_set_uniform(int shader_program_ID, char *name, int count, mat4 *value) {
+    _shader_set_uniform_mat4_array(shader_program_ID, name, count, (real *) value);
+}
+
 struct Shader {
     int _program_ID;
     int _attribute_counter;
@@ -1500,6 +1520,18 @@ template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_verti
     glBindBuffer(GL_ARRAY_BUFFER, shader->_VBO[shader->_attribute_counter]);
     glBufferData(GL_ARRAY_BUFFER, num_vertices * D * sizeof(real), vertex_attribute, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(shader->_attribute_counter, D, GL_REAL, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(shader->_attribute_counter);
+    ++shader->_attribute_counter;
+}
+void shader_pass_vertex_attribute(Shader *shader, int num_vertices, int4 *vertex_attribute) {
+    int D = 4; // FORNOW; TODO: int2, int3
+    ASSERT(shader);
+    ASSERT(vertex_attribute);
+    glUseProgram(shader->_program_ID);
+    glBindVertexArray(shader->_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, shader->_VBO[shader->_attribute_counter]);
+    glBufferData(GL_ARRAY_BUFFER, num_vertices * D * sizeof(int), vertex_attribute, GL_DYNAMIC_DRAW);
+    glVertexAttribIPointer(shader->_attribute_counter, D, GL_INT, 0, NULL);
     glEnableVertexAttribArray(shader->_attribute_counter);
     ++shader->_attribute_counter;
 }
@@ -2043,6 +2075,12 @@ void gui_printf(const char *format, ...) {
     }
 
     COW1._gui_y_curr += 28;
+}
+
+void gui_readout(char *name, bool *variable) {
+    if (!name) name = "";
+    char *join = (char *)((name) ? " " : "");
+    gui_printf("%s%s%s", name, join, (*variable) ? "true" : "false");
 }
 
 void gui_readout(char *name, int *variable) {
@@ -3073,7 +3111,17 @@ struct IndexedTriangleMesh3D {
         }
     }
 
-    // vec3 _skin(
+    vec3 _skin(int i) {
+        vec3 result = {};
+        for (int d = 0; d < 4; ++d) result += bone_weights[i][d] * transformPoint(bones[bone_indices[i][d]], vertex_positions[i]);
+        return result;
+    }
+
+    vec3 _skin(int3 tri, vec3 w) {
+        vec3 result = {};
+        for (int d = 0; d < 3; ++d) result += w[d] * _skin(tri[d]);
+        return result;
+    }
 };
 
 void Soup3D::draw(
@@ -3152,11 +3200,17 @@ void IndexedTriangleMesh3D::_dump_for_library(char *filename, char *name) {
     fprintf(fp, "vec3 _library_mesh_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
     fprintf(fp, "vec3 _library_mesh_%s_vertex_normals  [] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_normals[i][0],vertex_normals[i][1],vertex_normals[i][2]); fprintf(fp, "};\n");
 
-    // // TODO bones
+    // TODO: vertex_colors
+
     fprintf(fp, "int _library_mesh_%s_num_bones = %d;\n", name, num_bones); 
-    // TODO mat4 *bones;
-    // TODO int4 *bone_indices;
-    // TODO vec4 *bone_weights;
+    if (num_bones != 0) {
+        ASSERT(bones);
+        ASSERT(bone_indices);
+        ASSERT(bone_weights);
+    }
+    fprintf(fp, "mat4 _library_mesh_%s_bones[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_bones; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf},",bones[i].data[0],bones[i].data[1],bones[i].data[2],bones[i].data[3],bones[i].data[4],bones[i].data[5],bones[i].data[6],bones[i].data[7],bones[i].data[8],bones[i].data[9],bones[i].data[10],bones[i].data[11],bones[i].data[12],bones[i].data[13],bones[i].data[14],bones[i].data[15]); } fprintf(fp, "};\n");
+    fprintf(fp, "int4 _library_mesh_%s_bone_indices[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%d,%d,%d,%d},",bone_indices[i][0],bone_indices[i][1],bone_indices[i][2],bone_indices[i][3]); } fprintf(fp, "};\n");
+    fprintf(fp, "vec4 _library_mesh_%s_bone_weights[] = {", name); if (num_bones != 0) { fprintf(fp, "\n");  for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf},",bone_weights[i][0],bone_weights[i][1],bone_weights[i][2],bone_weights[i][3]); } fprintf(fp, "};\n");
 
     fclose(fp);
 }
