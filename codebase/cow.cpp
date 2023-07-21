@@ -77,8 +77,8 @@
 #define COW_KEY_ESCAPE GLFW_KEY_ESCAPE
 #define COW_KEY_ARROW_LEFT GLFW_KEY_LEFT
 #define COW_KEY_ARROW_RIGHT GLFW_KEY_RIGHT
-#undef GLFW_KEY_LEFT_SHIFT  // use globals.key_shift_held instead
-#undef GLFW_KEY_RIGHT_SHIFT // use globals.key_shift_held instead
+#define COW_KEY_LEFT_SHIFT GLFW_KEY_LEFT_SHIFT
+#define COW_KEY_RIGHT_SHIFT GLFW_KEY_RIGHT_SHIFT
 #define COW_KEY_BACKSPACE GLFW_KEY_BACKSPACE
 #define COW_KEY_ENTER GLFW_KEY_ENTER
 #define COW_KEY_SPACE GLFW_KEY_SPACE
@@ -3138,19 +3138,26 @@ void Soup3D::_dump_for_library(char *filename, char *name) {
     ASSERT(primitive == SOUP_OUTLINED_TRIANGLES);
     FILE *fp = fopen(filename, "w");
     ASSERT(fp);
-    fprintf(fp, "const int _library_soup_%s_num_vertices = %d;\n", name, num_vertices); 
-    fprintf(fp, "const vec3 _library_soup_%s_vertex_positions[_library_soup_%s_num_vertices] = {\n    ", name, name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
+    fprintf(fp, "int _library_soup_%s_num_vertices = %d;\n", name, num_vertices); 
+    fprintf(fp, "vec3 _library_soup_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
     fclose(fp);
 }
 
 void IndexedTriangleMesh3D::_dump_for_library(char *filename, char *name) {
     FILE *fp = fopen(filename, "w");
     ASSERT(fp);
-    fprintf(fp, "const int _library_mesh_%s_num_triangles = %d;\n", name, num_triangles); 
-    fprintf(fp, "const int _library_mesh_%s_num_vertices = %d;\n", name, num_vertices); 
-    fprintf(fp, "const int3 _library_mesh_%s_triangle_indices[_library_mesh_%s_num_triangles] = {\n    ", name, name); for (int i = 0; i < num_triangles; ++i) fprintf(fp, "{%d,%d,%d},",triangle_indices[i].i,triangle_indices[i].j,triangle_indices[i].k); fprintf(fp, "};\n");
-    fprintf(fp, "const vec3 _library_mesh_%s_vertex_positions[_library_mesh_%s_num_vertices] = {\n    ", name, name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
-    fprintf(fp, "const vec3 _library_mesh_%s_vertex_normals  [_library_mesh_%s_num_vertices] = {\n    ", name, name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_normals[i][0],vertex_normals[i][1],vertex_normals[i][2]); fprintf(fp, "};\n");
+    fprintf(fp, "int _library_mesh_%s_num_triangles = %d;\n", name, num_triangles); 
+    fprintf(fp, "int _library_mesh_%s_num_vertices = %d;\n", name, num_vertices); 
+    fprintf(fp, "int3 _library_mesh_%s_triangle_indices[] = {\n    ", name); for (int i = 0; i < num_triangles; ++i) fprintf(fp, "{%d,%d,%d},",triangle_indices[i].i,triangle_indices[i].j,triangle_indices[i].k); fprintf(fp, "};\n");
+    fprintf(fp, "vec3 _library_mesh_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
+    fprintf(fp, "vec3 _library_mesh_%s_vertex_normals  [] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_normals[i][0],vertex_normals[i][1],vertex_normals[i][2]); fprintf(fp, "};\n");
+
+    // // TODO bones
+    fprintf(fp, "int _library_mesh_%s_num_bones = %d;\n", name, num_bones); 
+    // TODO mat4 *bones;
+    // TODO int4 *bone_indices;
+    // TODO vec4 *bone_weights;
+
     fclose(fp);
 }
 
