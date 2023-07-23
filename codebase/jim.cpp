@@ -83,50 +83,114 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
     } free(tmp_buffer);
 }
 
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#ifdef COW_OS_WINDOWS
+#define stat _stat
+#else
+#include <unistd.h>
+#endif
+
+FILE *jim_hot_fopen(char *filename, char *mode = "r") {
+    struct Stamp {
+        char filename[128];
+        time_t mod_time;
+    };
+
+    static int num_stamps;
+    static Stamp stamps[64];
+
+    time_t mod_time = 0; {
+        struct stat result;
+        ASSERT(stat(filename, &result) == 0);
+        mod_time = result.st_mtime;
+    }
+
+    Stamp *stamp = NULL;
+    {
+        for (Stamp *finger = stamps; finger < stamps + num_stamps; ++finger) {
+            if (strcmp(filename, finger->filename) == 0) {
+                stamp = finger;
+                break;
+            }
+        }
+    }
+
+
+    if (!stamp) {
+        ASSERT(num_stamps < _COUNT_OF(stamps));
+        stamp = &stamps[num_stamps++];
+        strcpy(stamp->filename, filename);
+        stamp->mod_time = mod_time;
+        return fopen(filename, mode);
+    }
+
+    if (mod_time > stamp->mod_time) {
+        stamp->mod_time = mod_time;
+        return fopen(filename, mode);
+    } 
+
+    return NULL;
+}
+
+void eg_hot_fopen() {
+    while (true) {
+        FILE *file = jim_hot_fopen("scratch.txt");
+        // FILE *file = jim_hot_fopen("C:/Users/Jim/Documents/GitHub/CS3XX/scratch.txt");
+        if (file) {
+            printf("modified!\n");
+            fclose(file);
+        }
+    }
+}
+
+/*
 // hot_load
 #if defined(WIN32) || defined(_WIN64)
 #include <Windows.h>
 FILETIME Win32GetLastWriteTime(char *filename) {
-    FILETIME LastWriteTime = {};
-    WIN32_FIND_DATAA FindData;
-    HANDLE FindHandle = FindFirstFileA(filename, &FindData);
-    if (FindHandle != INVALID_HANDLE_VALUE) {
-        LastWriteTime = FindData.ftLastWriteTime;
-        FindClose(FindHandle);
-    }
-    return LastWriteTime;
+FILETIME LastWriteTime = {};
+WIN32_FIND_DATAA FindData;
+HANDLE FindHandle = FindFirstFileA(filename, &FindData);
+if (FindHandle != INVALID_HANDLE_VALUE) {
+LastWriteTime = FindData.ftLastWriteTime;
+FindClose(FindHandle);
+}
+return LastWriteTime;
 }
 
 FILE *jim_hot_fopen(char *filename, bool DONT_ACTUALLY_OPEN = 0) {
-    struct char128 { char filename[128]; };
-    static struct { char128 key; FILETIME *value; } *hm_last_hot_fopened;
+struct char128 { char filename[128]; };
+static struct { char128 key; FILETIME *value; } *hm_last_hot_fopened;
 
-    ASSERT(strlen(filename) < sizeof(char128));
+ASSERT(strlen(filename) < sizeof(char128));
 
-    FILETIME *last_hot_fopened; {
-        char128 key = {};
-        strcpy(key.filename, filename);
-        if (hmgeti(hm_last_hot_fopened, key) == -1) {
-            FILETIME *value = (FILETIME *) calloc(1, sizeof(FILETIME));
-            hmput(hm_last_hot_fopened, key, value);
-        }
-        last_hot_fopened = hmget(hm_last_hot_fopened, key);
-    }
-    FILETIME last_write = Win32GetLastWriteTime(filename);
+FILETIME *last_hot_fopened; {
+char128 key = {};
+strcpy(key.filename, filename);
+if (hmgeti(hm_last_hot_fopened, key) == -1) {
+FILETIME *value = (FILETIME *) calloc(1, sizeof(FILETIME));
+hmput(hm_last_hot_fopened, key, value);
+}
+last_hot_fopened = hmget(hm_last_hot_fopened, key);
+}
+FILETIME last_write = Win32GetLastWriteTime(filename);
 
 
-    if (CompareFileTime(last_hot_fopened, &last_write) < 0) {
-        Sleep(50);
-        SYSTEMTIME st;
-        GetSystemTime(&st);
-        SystemTimeToFileTime(&st, last_hot_fopened);
-        if (DONT_ACTUALLY_OPEN) return (FILE *) 1;
-        return fopen(filename, "r");
-    }
+if (CompareFileTime(last_hot_fopened, &last_write) < 0) {
+Sleep(50);
+SYSTEMTIME st;
+GetSystemTime(&st);
+SystemTimeToFileTime(&st, last_hot_fopened);
+if (DONT_ACTUALLY_OPEN) return (FILE *) 1;
+return fopen(filename, "r");
+}
 
-    return 0;
+return 0;
 }
 #endif
+ */
 
 // ohno
 #define _UNIQUE_ISH_VARIABLE_NAME CONCAT(_VAR_, __COUNTER__)

@@ -19,14 +19,14 @@ mat4 fps_camera_get_C(FPSCamera *human) {
     mat4 trans = M4_Translation(human->origin.x, human->origin.y, human->origin.z);
     mat4 rot_x = M4_RotationAboutXAxis(human->phi);
     mat4 rot_y = M4_RotationAboutYAxis(-1 * human->theta);
-    
+
     return C * trans * rot_y * rot_x;
 }
 
 void fps_camera_move(FPSCamera *human) {
 
     mat4 C = fps_camera_get_C(human);
-    
+
     vec3 movement_dir = V3(0, 0, 0);
     real speed = 1;
 
@@ -65,7 +65,7 @@ void fps_camera_move(FPSCamera *human) {
 
     movement_dir.y = 0;
     if(norm(movement_dir) != 0){
-       human->origin += speed * normalized(movement_dir);
+        human->origin += speed * normalized(movement_dir);
     }
 
     if (window_is_pointer_locked()) {
@@ -177,8 +177,10 @@ void raspberry() {
 }
 
 int main() {
+    eg_hot_fopen();
     APPS {
-        APP(raspberry);
+        // APP(raspberry);
+        APP(eg_hot_fopen);
     }
     return 0;
 }
