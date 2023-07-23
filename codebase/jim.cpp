@@ -84,6 +84,9 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
 }
 
 
+// if file has been modified (more than a second since the last modification)
+// returns the report of fopen(filename, mode)
+// otherwise returns NULL
 #include <sys/types.h>
 #include <sys/stat.h>
 #ifdef COW_OS_WINDOWS
@@ -91,7 +94,6 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
 #else
 #include <unistd.h>
 #endif
-
 FILE *jim_hot_fopen(char *filename, char *mode = "r") {
     struct Stamp {
         char filename[128];
@@ -133,11 +135,9 @@ FILE *jim_hot_fopen(char *filename, char *mode = "r") {
 
     return NULL;
 }
-
 void eg_hot_fopen() {
     while (true) {
         FILE *file = jim_hot_fopen("scratch.txt");
-        // FILE *file = jim_hot_fopen("C:/Users/Jim/Documents/GitHub/CS3XX/scratch.txt");
         if (file) {
             printf("modified!\n");
             fclose(file);
@@ -145,52 +145,6 @@ void eg_hot_fopen() {
     }
 }
 
-/*
-// hot_load
-#if defined(WIN32) || defined(_WIN64)
-#include <Windows.h>
-FILETIME Win32GetLastWriteTime(char *filename) {
-FILETIME LastWriteTime = {};
-WIN32_FIND_DATAA FindData;
-HANDLE FindHandle = FindFirstFileA(filename, &FindData);
-if (FindHandle != INVALID_HANDLE_VALUE) {
-LastWriteTime = FindData.ftLastWriteTime;
-FindClose(FindHandle);
-}
-return LastWriteTime;
-}
-
-FILE *jim_hot_fopen(char *filename, bool DONT_ACTUALLY_OPEN = 0) {
-struct char128 { char filename[128]; };
-static struct { char128 key; FILETIME *value; } *hm_last_hot_fopened;
-
-ASSERT(strlen(filename) < sizeof(char128));
-
-FILETIME *last_hot_fopened; {
-char128 key = {};
-strcpy(key.filename, filename);
-if (hmgeti(hm_last_hot_fopened, key) == -1) {
-FILETIME *value = (FILETIME *) calloc(1, sizeof(FILETIME));
-hmput(hm_last_hot_fopened, key, value);
-}
-last_hot_fopened = hmget(hm_last_hot_fopened, key);
-}
-FILETIME last_write = Win32GetLastWriteTime(filename);
-
-
-if (CompareFileTime(last_hot_fopened, &last_write) < 0) {
-Sleep(50);
-SYSTEMTIME st;
-GetSystemTime(&st);
-SystemTimeToFileTime(&st, last_hot_fopened);
-if (DONT_ACTUALLY_OPEN) return (FILE *) 1;
-return fopen(filename, "r");
-}
-
-return 0;
-}
-#endif
- */
 
 // ohno
 #define _UNIQUE_ISH_VARIABLE_NAME CONCAT(_VAR_, __COUNTER__)
