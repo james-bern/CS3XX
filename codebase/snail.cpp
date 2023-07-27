@@ -59,12 +59,12 @@
 // -   v.x,  v.y,  v.y,  v.w                                                    
 // -  v[0], v[1], v[2], v[3]                                                    
 //                                                                              
-// the data of TxT matrix M can be accessed with convenience function M(r, c)   
-// - or, if you prefer, M.data[T * r + c]                                       
+// the data of TxT matrix M can be accessed with convenience function M(row, col)   
+// - or, if you prefer, M.data[T * row + col]                                       
 //                                                                              
 // with cheat codes enabled (#define SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD) 
 // you can also access vectors like this                                        
-// -   v.r,  v.g,  v.b,  v.a                                                    
+// -   v.row,  v.g,  v.b,  v.a                                                    
 // -  v.xy                                                                      
 // - v.xyz                                                                      
 // - v.data[0], v.data[1], ...                                                  
@@ -168,8 +168,8 @@ template <int T> union SnailVector {
 
 template <int T> union SnailMatrix {
     real data[T * T];
-    real &operator ()(int r, int c) { return data[T * r + c]; }
-    const real &operator ()(int r, int c) const { return data[T * r + c]; }
+    real &operator ()(int row, int col) { return data[T * row + col]; }
+    const real &operator ()(int row, int col) const { return data[T * row + col]; }
 };
 
 // sugary accessors ////////////////////////////////////////////////////////////
@@ -184,7 +184,7 @@ template <> union SnailVector<2> {
 template <> union SnailVector<3> {
     struct { real x, y, z; };
     #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    struct { real r, g, b; };
+    struct { real row, g, b; };
     struct { SnailVector<2> xy; real _; };
     real data[3];
     #endif
@@ -193,7 +193,7 @@ template <> union SnailVector<3> {
 template <> union SnailVector<4> {
     struct { real x, y, z, w; };
     #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    struct { real r, g, b, a; };
+    struct { real row, g, b, a; };
     struct { SnailVector<3> xyz; real _; };
     real data[4];
     #endif
@@ -319,10 +319,10 @@ template <int T> SnailMatrix<T> &operator -= (SnailMatrix<T> &A, SnailMatrix<T> 
 
 template <int T> SnailMatrix<T>  operator *  (SnailMatrix<T> A, SnailMatrix<T> B) {
     SnailMatrix<T> ret = {};
-    SNAIL_FOR_(r, T) {
-        SNAIL_FOR_(c, T) {
+    SNAIL_FOR_(row, T) {
+        SNAIL_FOR_(col, T) {
             SNAIL_FOR_(i, T) {
-                ret(r, c) += A(r, i) * B(i, c);
+                ret(row, col) += A(row, i) * B(i, col);
             }
         }
     }
@@ -334,18 +334,18 @@ template <int T> SnailMatrix<T> &operator *= (SnailMatrix<T> &A, SnailMatrix<T> 
 }
 template <int T> SnailVector<T>  operator *  (SnailMatrix<T> A, SnailVector<T> b) { // A b
     SnailVector<T> ret = {};
-    SNAIL_FOR_(r, T) {
-        SNAIL_FOR_(c, T) {
-            ret[r] += A(r, c) * b[c];
+    SNAIL_FOR_(row, T) {
+        SNAIL_FOR_(col, T) {
+            ret[row] += A(row, col) * b[col];
         }
     }
     return ret;
 }
 template <int T> SnailVector<T>  operator *  (SnailVector<T> b, SnailMatrix<T> A) { // b^T A
     SnailVector<T> ret = {};
-    SNAIL_FOR_(r, T) {
-        SNAIL_FOR_(c, T) {
-            ret[r] += A(c, r) * b[c];
+    SNAIL_FOR_(row, T) {
+        SNAIL_FOR_(col, T) {
+            ret[row] += A(col, row) * b[col];
         }
     }
     return ret;
@@ -390,9 +390,9 @@ template <int T> real dot(SnailVector<T> A, SnailVector<T> B) {
 }
 template <int T> SnailMatrix<T> outer(SnailVector<T> u, SnailVector<T> v) {
     SnailMatrix<T> ret = {};
-    SNAIL_FOR_(r, T) {
-        SNAIL_FOR_(c, T) {
-            ret(r, c) = u[r] * v[c];
+    SNAIL_FOR_(row, T) {
+        SNAIL_FOR_(col, T) {
+            ret(row, col) = u[row] * v[col];
         }
     }
     return ret;
@@ -430,9 +430,9 @@ template <int T> SnailVector<T> normalized(SnailVector<T> v) {
 
 template <int T> SnailMatrix<T> transpose(SnailMatrix<T> M) {
     SnailMatrix<T> ret = {};
-    SNAIL_FOR_(r, T) {
-        SNAIL_FOR_(c, T) {
-            ret(r, c) = M(c, r);
+    SNAIL_FOR_(row, T) {
+        SNAIL_FOR_(col, T) {
+            ret(row, col) = M(col, row);
         }
     }
     return ret;
@@ -619,12 +619,12 @@ SnailMatrix<4> M4_RotationAxisAngle(SnailVector<3> axis, real angle) {
     real xy = x * y;
     real xz = x * z;
     real yz = y * z;
-    real c = cos(angle);
+    real col = cos(angle);
     real s = sin(angle);
-    real d = 1-c;
-    return { c+x2*d, xy*d-z*s, xz*d+y*s, 0,
-        xy*d+z*s, c+y2*d, yz*d-x*s, 0,
-        xz*d-y*s, yz*d+x*s, c+z2*d, 0,
+    real d = 1-col;
+    return { col+x2*d, xy*d-z*s, xz*d+y*s, 0,
+        xy*d+z*s, col+y2*d, yz*d-x*s, 0,
+        xz*d-y*s, yz*d+x*s, col+z2*d, 0,
         0, 0, 0, 1 };
 }
 
@@ -637,10 +637,10 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
     b = normalized(b);
 
     vec3 v = cross(a, b);
-    real c = dot(a, b);
-    if (SNAIL_ABS(c + 1.0) < 1e-5) return identityMatrix<4>();
+    real col = dot(a, b);
+    if (SNAIL_ABS(col + 1.0) < 1e-5) return identityMatrix<4>();
     mat3 v_x = { 0.0, -v.z, v.y, v.z, 0.0, -v.x, -v.y, v.x, 0.0 };
-    mat3 R = identityMatrix<3>() + v_x + v_x * v_x / (1 + c);
+    mat3 R = identityMatrix<3>() + v_x + v_x * v_x / (1 + col);
     return {
         R.data[0], R.data[1], R.data[2], 0.0,
         R.data[3], R.data[4], R.data[5], 0.0,
@@ -710,10 +710,10 @@ SnailMatrix<4> xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
     };
 }
 #define M4_xyzo xyzo2mat4
-template <int T> SnailVector<T> magClamped(SnailVector<T> a, real c) {
+template <int T> SnailVector<T> magClamped(SnailVector<T> a, real col) {
     double norm_a = norm(a);
-    if (SNAIL_ABS(norm_a) < c) { return a; }
-    return a / norm_a * SNAIL_CLAMP(norm_a, -c, c);
+    if (SNAIL_ABS(norm_a) < col) { return a; }
+    return a / norm_a * SNAIL_CLAMP(norm_a, -col, col);
 }
 
 // utility /////////////////////////////////////////////////////////////////////
@@ -727,11 +727,11 @@ template <int T> void pprint(SnailVector<T> v) {
     printf(")\n");
 }
 template <int T> void pprint(SnailMatrix<T> M) {
-    SNAIL_FOR_(r, T) {
+    SNAIL_FOR_(row, T) {
         printf("| ");
-        SNAIL_FOR_(c, T) {
-            printf("%lf", M(r, c));
-            if (c != T - 1) printf(", ");
+        SNAIL_FOR_(col, T) {
+            printf("%lf", M(row, col));
+            if (col != T - 1) printf(", ");
         }
         printf(" |\n");
     }

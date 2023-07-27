@@ -146,6 +146,14 @@ void eg_hot_fopen() {
 }
 
 
+#ifdef COW_OS_WINDOWS
+#include <windows.h>
+#else
+#include <unistd.h>
+#define Sleep(x) usleep((x)*1000)
+#endif
+
+
 // ohno
 #define _UNIQUE_ISH_VARIABLE_NAME CONCAT(_VAR_, __COUNTER__)
 #define BEGIN_PRE_MAIN static int _UNIQUE_ISH_VARIABLE_NAME = []() {

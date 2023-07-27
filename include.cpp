@@ -6,13 +6,22 @@ static FILE *LOG_FP = fopen("log.txt", "a");
 static bool _SETBUF_DUMMY_OBJECT = [](){ setbuf(LOG_FP, NULL); return true;}();
 #endif
 
+#ifndef real
+#define real double
+#endif
+#ifndef GL_REAL
+#define GL_REAL GL_DOUBLE
+#endif
+
 #ifndef JIM_NO_SNAIL
 #ifdef JIM_IS_JIM
 #define SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
 #endif
 #include "codebase/snail.cpp"
 #endif
+#ifndef JIM_NO_COW
 #include "codebase/cow.cpp"
+#endif
 #ifdef JIM_IS_JIM
 #include "codebase/jim.cpp"
 #endif
