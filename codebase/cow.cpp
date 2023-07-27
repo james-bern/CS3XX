@@ -3,6 +3,8 @@
 
 // TODO: SnailIVector<D>
 
+// sbuff_push_back(&foo, ...) -> foo.push_back(...)
+
 // _mouse_left_click_consumed
 // triangle_indices -> triangles
 // texture (i, j) -> (j, i)
@@ -4006,12 +4008,13 @@ void plot_data_point(Plot *plot, real y) {
 ////////////////////////////////////////////////////////////////////////////////
 
 #ifdef SNAIL_CPP
+// TODO: REMOVE THIS FROM COW
 struct OptEntry {
     int i;
     int j;
     real val;
-    const unsigned int col() const { return i;   } // FORNOW
-    const unsigned int row() const { return j;   } // FORNOW
+    const unsigned int col() const { return j;   } // FORNOW
+    const unsigned int row() const { return i;   } // FORNOW
     const real       value() const { return val; } // FORNOW
 };
 
