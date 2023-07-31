@@ -803,7 +803,8 @@ void _window_init() {
 
     glDisable(GL_CULL_FACE);   // fornow
 
-    glfwSwapInterval(1);
+    // glfwSwapInterval(1);
+    glfwSwapInterval(!COW0._cow_framerate_uncapped);
     #ifdef COW_PATCH_FRAMERATE
     glfwSwapInterval(0);
     #endif
