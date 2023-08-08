@@ -1,7 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #ifdef JIM_REDIRECT_PRINTF_TO_LOG_TXT
-static FILE *LOG_FP = fopen("log.txt", "a");
+static FILE *LOG_FP = fopen("log.txt", "w");
 #define printf(...) fprintf(LOG_FP, __VA_ARGS__)
 static bool _SETBUF_DUMMY_OBJECT = [](){ setbuf(LOG_FP, NULL); return true;}();
 #endif

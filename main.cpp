@@ -4,6 +4,7 @@ typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
 #include "include.cpp"
+#include "dxl.cpp"
 
 struct FPSCamera {
     vec3 origin;
@@ -177,10 +178,10 @@ void raspberry() {
 }
 
 int main() {
-    eg_hot_fopen();
     APPS {
+        APP(hello_dxl);
         // APP(raspberry);
-        APP(eg_hot_fopen);
+        // APP(eg_hot_fopen);
     }
     return 0;
 }

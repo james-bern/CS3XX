@@ -29,10 +29,6 @@ struct SerialPort {
 };
 
 
-
-
-
-
 struct {
     SerialPort *port;
 } _serial;
