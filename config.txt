@@ -1,0 +1,13 @@
+COM4
+30 13 124
++1 -1  +1
+0.10
+
+---
+
+README
+
+COMX
+motorID0   motorID1   ... motorID8
+motorSign0 motorSign1 ... motorSign8
+pulleyRadiusInMeters

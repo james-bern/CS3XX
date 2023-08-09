@@ -179,14 +179,10 @@ void raspberry() {
 
 int main() {
     APPS {
-        APP(hello_dxl);
+        // APP(hello_dxl);
+        APP(hello_easy_dxl);
         // APP(raspberry);
         // APP(eg_hot_fopen);
     }
     return 0;
 }
-
-
-
-
-

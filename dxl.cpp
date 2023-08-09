@@ -5,8 +5,6 @@
 #include "codebase/ext/dynamixel/dynamixel_sdk.h"
 #pragma warning(pop)
 
-#define COM_PORT "COM4"
-
 #define PROTOCOL_VERSION 2
 #define BAUDRATE 1000000
 
@@ -14,7 +12,7 @@ struct {
     int id;
     int _port_number;
     bool initialized;
-    bool _NO_READ;
+    bool _NO_READ = true; // FORNOW
 } dxl;
 
 bool dxl_init(char *deviceName) {
@@ -37,7 +35,6 @@ bool dxl_init(char *deviceName) {
 }
 
 void _ASSERT_DXL_NO_ERROR() {
-    return;
     if (dxl._NO_READ) { return; }
     {
         int dxl_comm_result = COMM_TX_FAIL;
@@ -111,12 +108,10 @@ void dxl_exit() {
 }
 
 void hello_dxl() {
-
     glfwSwapInterval(1); // FORNOW
 
     {
-        dxl._NO_READ = true;
-        dxl_init(COM_PORT);
+        dxl_init("COM4");
         dxl_set_torque_enable(1);
     }
     uint8_t dxl_ID = 31;
@@ -149,6 +144,79 @@ void hello_dxl() {
         }
     }
     dxl_exit();
+}
+
+// --
+
+// TODO click conversion
+// TODO extended position mode
+// TODO bring reading back
+
+#define MAX_NUM_MOTORS 64
+struct {
+    int num_motors;
+    int motor_ids[MAX_NUM_MOTORS];
+    real motor_signs[MAX_NUM_MOTORS];
+    real pulley_radius_in_meters;
+} easy_dxl;
+
+
+void easy_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename) {
+    FILE *fp = fopen(filename, "r");
+    ASSERT(fp);
+
+    char buffer[2048];
+
+    char comName[64];
+    fgets(buffer, _COUNT_OF(buffer), fp); // COMX
+    sscanf(buffer, "%s", comName);
+    dxl_init(comName);
+
+    easy_dxl.num_motors = 9;
+
+    fgets(buffer, _COUNT_OF(buffer), fp); // IDS
+    sscanf(buffer, "%d %d %d   %d %d %d   %d %d %d",
+            &easy_dxl.motor_ids[0],
+            &easy_dxl.motor_ids[1],
+            &easy_dxl.motor_ids[2],
+            &easy_dxl.motor_ids[3],
+            &easy_dxl.motor_ids[4],
+            &easy_dxl.motor_ids[5],
+            &easy_dxl.motor_ids[6],
+            &easy_dxl.motor_ids[7],
+            &easy_dxl.motor_ids[8]);
+
+    fgets(buffer, _COUNT_OF(buffer), fp); // signs
+    sscanf(buffer, "%lf %lf %lf   %lf %lf %lf   %lf %lf %lf",
+            &easy_dxl.motor_signs[0],
+            &easy_dxl.motor_signs[1],
+            &easy_dxl.motor_signs[2],
+            &easy_dxl.motor_signs[3],
+            &easy_dxl.motor_signs[4],
+            &easy_dxl.motor_signs[5],
+            &easy_dxl.motor_signs[6],
+            &easy_dxl.motor_signs[7],
+            &easy_dxl.motor_signs[8]);
+
+    fgets(buffer, _COUNT_OF(buffer), fp); // pulley radius
+    sscanf(buffer, "%lf", &easy_dxl.pulley_radius_in_meters);
+
+    fclose(fp);
+}
+
+void easy_dxl_write(real *u) {
+
+}
+
+
+void hello_easy_dxl() {
+    easy_dxl_init_FORNOW_ASSUMES_9_MOTORS("config.txt");
+    real u[9] = {};
+    while (cow_begin_frame()) {
+        easy_dxl_write(u);
+    }
+    dxl_exit();
+
 }
 
 #endif
