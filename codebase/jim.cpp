@@ -60,7 +60,7 @@ template <typename F> struct Defer { Defer(F f) : f(f) {} ~Defer() { f(); } F f;
 
 
 // https://en.cppreference.com/w/c/algorithm/qsort
-void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_sort_against) {
+void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_sort_against, bool sort_both_arrays = false) {
     struct qsortHelperStruct {
         int index;
         real value;
@@ -74,13 +74,22 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
 
     qsort(helperArray, nitems, sizeof(qsortHelperStruct), (int (*)(const void *, const void *))comp);
 
-    void *tmp_buffer = malloc(nitems * size); { // fornow
-        for_(i, nitems) memcpy(\
-                ((char *) tmp_buffer) + (i * size), \
-                ((char *) base) + (helperArray[i].index * size), \
-                size);
-        memcpy(base, tmp_buffer, nitems * size);
-    } free(tmp_buffer);
+    {
+        void *tmp_buffer = malloc(nitems * size); { // fornow
+            for_(i, nitems) memcpy(\
+                    ((char *) tmp_buffer) + (i * size), \
+                    ((char *) base) + (helperArray[i].index * size), \
+                    size);
+            memcpy(base, tmp_buffer, nitems * size);
+        } free(tmp_buffer);
+    }
+
+    if (sort_both_arrays) {
+        real *tmp_buffer = (real *) malloc(nitems * sizeof(real)); {
+            for_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
+            memcpy(corresp_values_to_sort_against, tmp_buffer, nitems * sizeof(real));
+        } free(tmp_buffer);
+    }
 }
 
 
