@@ -7,7 +7,6 @@
 SerialPort *serial;
 
 int portHandlerWindows(const char *port_name) {
-
     char buffer[15];
     sprintf_s(buffer, sizeof(buffer), "\\\\.\\%s", port_name);
     serial = new SerialPort(buffer);
@@ -23,13 +22,14 @@ void closePortWindows(int port_num) {
 }
 
 int readPortWindows(int, uint8_t *packet, int length) {
-    serial->readSerialPort((const char *) packet, length);
-    return 1;
+    return serial->readSerialPort((const char *) packet, length);
 }
 
 int writePortWindows(int, uint8_t *packet, int length) {
-    serial->writeSerialPort((const char *) packet, length);
-    return 1;
+    if (serial->writeSerialPort((const char *) packet, length)) {
+        return length;
+    }
+    return 0;
 }
 
 void clearPortWindows(int port_num) { }
