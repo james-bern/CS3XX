@@ -29,9 +29,11 @@ struct SerialPort {
 };
 
 
+/*
 struct {
     SerialPort *port;
 } _serial;
+
 
 void serial_init(int com_port_number) {
     char buffer[15];
@@ -52,6 +54,7 @@ void serial_write(char *buffer, int buffer_size = -1) {
 void serial_exit() {
     CloseHandle(_serial.port->handler);
 }
+*/
 
 
 
@@ -73,7 +76,10 @@ SerialPort::SerialPort(const char *portName) {
             FILE_ATTRIBUTE_NORMAL,
             NULL);
 
-    ASSERT(this->handler != INVALID_HANDLE_VALUE); // bad port name?
+    if (this->handler == INVALID_HANDLE_VALUE) {
+        printf("[SerialPort] wrong COM port name?\n");
+        return;
+    }
 
     DCB dcbSerialParameters = {};
     ASSERT(GetCommState(this->handler, &dcbSerialParameters));

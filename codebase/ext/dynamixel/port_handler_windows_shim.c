@@ -22,13 +22,17 @@ void closePortWindows(int port_num) {
 }
 
 int readPortWindows(int, uint8_t *packet, int length) {
-    return serial->readSerialPort((const char *) packet, length);
+    int result = serial->readSerialPort((const char *) packet, length);
+    if (_DXL_NO_READ) return 1;
+    return result;
 }
 
 int writePortWindows(int, uint8_t *packet, int length) {
     if (serial->writeSerialPort((const char *) packet, length)) {
+        if (_DXL_NO_READ) return 1;
         return length;
     }
+    if (_DXL_NO_READ) return 1;
     return 0;
 }
 

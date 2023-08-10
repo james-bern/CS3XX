@@ -1,6 +1,8 @@
 #ifndef DXL_CPP
 #define DXL_CPP
 
+bool _DXL_NO_READ; // FORNOW: Hackorama in the shim to not worry about receipts, etc.
+
 #pragma warning(push, 0)
 #include "codebase/ext/dynamixel/dynamixel_sdk.h"
 #pragma warning(pop)
@@ -12,40 +14,28 @@ struct {
     int id;
     int _port_number;
     bool initialized;
-    bool _NO_READ; // FORNOW
 } dxl;
 
-bool dxl_init(char *deviceName) {
+void dxl_init(char *deviceName) {
     dxl._port_number = portHandler(deviceName);
 
     packetHandler();
-    ASSERT(openPort(dxl._port_number));
-    dxl.initialized = true;
-    return true;
-    {
-        // if (openPort(dxl._port_number)) {
-        //     if (setBaudRate(dxl._port_number, BAUDRATE)) { // TODO remove this check once you're confident with the shim
-        //         dxl.initialized = true;
-        //         return true;
-        //     }
-
-        //     printf("[dxl] failed to set baud\n");
-        //     closePort(dxl._port_number);
-        //     return false;
-        // }
-
-        // printf("[dxl] failed to open port\n");
-        // return false;
+    openPort(dxl._port_number);
+    if (!serial->connected) {
+        printf("[dxl_init] Failed to open port.\n");
+        dxl.initialized = false;
+        return;
     }
+    dxl.initialized = true;
 }
 
 void _ASSERT_DXL_NO_ERROR() {
-    if (dxl._NO_READ) { return; }
+    if (_DXL_NO_READ) { return; }
     {
         int dxl_comm_result = COMM_TX_FAIL;
         if ((dxl_comm_result = getLastTxRxResult(dxl._port_number, PROTOCOL_VERSION)) != COMM_SUCCESS) {
             printf("%s\n", getTxRxResult(PROTOCOL_VERSION, dxl_comm_result));
-            // ASSERT(0);
+            ASSERT(0);
         }
     }
     {
@@ -96,7 +86,7 @@ void dxl_set_goal_position(int byte4, uint8_t dxl_ID = DXL_BROADCAST_ID) {
 
 int dxl_get_present_position(uint8_t dxl_ID) {
     if (!dxl.initialized) { return 0; }
-    if (dxl._NO_READ) { return 0; }
+    if (_DXL_NO_READ) { return 0; }
 
     int ret = read4ByteTxRx(dxl._port_number, PROTOCOL_VERSION, dxl_ID, DXL_ADDR_PRESENT_POSITION);
     _DXL_HANDLE_STATUS_PACKET(dxl_ID);
@@ -115,6 +105,7 @@ void dxl_exit() {
 void hello_dxl() {
     glfwSwapInterval(1); // FORNOW
 
+    _DXL_NO_READ = true;
     {
         dxl_init("COM4");
         dxl_set_torque_enable(1);
@@ -126,7 +117,7 @@ void hello_dxl() {
     Plot plot; {
         plot_init(&plot, 256);
         plot_add_trace(&plot, DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE, monokai.yellow, 24.0);
-        plot_add_trace(&plot, DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE, (!dxl._NO_READ) ? monokai.blue : monokai.gray, 12.0);
+        plot_add_trace(&plot, DXL_MINIMUM_POSITION_VALUE, DXL_MAXIMUM_POSITION_VALUE, (!_DXL_NO_READ) ? monokai.blue : monokai.gray, 12.0);
     }
 
     Camera2D camera = { 2.0 };
@@ -161,11 +152,12 @@ void hello_dxl() {
 struct {
     int num_motors;
     int motor_ids[MAX_NUM_MOTORS];
-    real motor_signs[MAX_NUM_MOTORS];
+    int motor_signs[MAX_NUM_MOTORS];
     real pulley_radius_in_meters;
     int CLICKS_FROM_METERS(real contraction_in_meters) {
         return int(4096 * (contraction_in_meters / pulley_radius_in_meters) / (TAU));
     }
+    char commPortString[64];
 } kaa_dxl;
 
 
@@ -176,10 +168,8 @@ void kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename) {
 
         char buffer[2048];
 
-        char comName[64];
         fgets(buffer, _COUNT_OF(buffer), fp); // COMX
-        sscanf(buffer, "%s", comName);
-        dxl_init(comName);
+        sscanf(buffer, "%s", kaa_dxl.commPortString);
 
         kaa_dxl.num_motors = 9;
 
@@ -196,7 +186,7 @@ void kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename) {
                 &kaa_dxl.motor_ids[8]);
 
         fgets(buffer, _COUNT_OF(buffer), fp); // signs
-        sscanf(buffer, "%lf %lf %lf   %lf %lf %lf   %lf %lf %lf",
+        sscanf(buffer, "%d %d %d   %d %d %d   %d %d %d",
                 &kaa_dxl.motor_signs[0],
                 &kaa_dxl.motor_signs[1],
                 &kaa_dxl.motor_signs[2],
@@ -212,12 +202,13 @@ void kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename) {
 
         fclose(fp);
     }
-
+    dxl_init(kaa_dxl.commPortString);
     dxl_set_torque_enable(1);
 }
 
 void kaa_dxl_write(real *u) {
     for_(j, kaa_dxl.num_motors) {
+        if (kaa_dxl.motor_ids[j] == -1) continue;
         dxl_set_goal_position(kaa_dxl.CLICKS_FROM_METERS(kaa_dxl.motor_signs[j] * u[j]), (uint8_t) kaa_dxl.motor_ids[j]);
     }
 }
@@ -226,10 +217,12 @@ void kaa_dxl_write(real *u) {
 // TODO: software contraction limits
 
 
-void hello_kaa_dxl() {
+void motor_tester() {
     glfwSwapInterval(1); // FORNOW
 
-    kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS("config.txt");
+    _DXL_NO_READ = true;
+
+    kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS("./motor_config.txt");
     real u[9] = {};
 
     Plot plot; {
@@ -244,9 +237,16 @@ void hello_kaa_dxl() {
         mat4 PV = camera_get_PV(&camera);
         time += 0.0167;
 
-        for_(j, kaa_dxl.num_motors) {
-            u[j] = CLAMP(time, 0.0, 1.0) * LINEAR_REMAP(sin(0.2 * j + time), -1.0, 1.0, 0.0, 0.1);
+        real MAX_CONTRACTION = 0.05;
+        if (1) { // manual sliders
+            for_(j, kaa_dxl.num_motors) {
+                char buffer[64];
+                sprintf(buffer, "(ID = %03d, sign = %02d) u[%d] =", kaa_dxl.motor_ids[j], kaa_dxl.motor_signs[j], j);
+                gui_slider(buffer, &u[j], -MAX_CONTRACTION, MAX_CONTRACTION);
+            }
+            gui_readout("pulley_radius_in_meters", &kaa_dxl.pulley_radius_in_meters);
         }
+
 
         kaa_dxl_write(u);
 

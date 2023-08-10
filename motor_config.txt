@@ -1,0 +1,54 @@
+COM4
+  2  -1  -1     -1  -1  -1    -1  -1  -1   
+ +1  +1  +1     +1  +1  +1    +1  +1  +1
+0.1
+
+----------------------------------------
+
+config.txt
+----------
+COMX
+motorID0*     motorID1      ... motorID8
+motorSign0    motorSign1    ... motorSign8
+pulleyRadiusInMeters (START WITH SOMETHING VERY LARGE, e.g. 1.0 !!! LARGE PULLEY => LESS MOTOR ROTATION!)
+
+
+
+README
+======
+
+!!! important
+------------
+script currently has NO SAFETY FEATURES (will tear robot apart)
+- i recommend first testing pipeline on a single motor that is not connected to anything
+- then nine motors that aren't connected to anything
+
+
+assumptions
+------
+- motors...
+-- have baud rate 57600
+-- are in extended position mode
+-- have been zeroed (this can be done using Homing Offset in the Dynamixel Wizard)
+--- (motors current position of zero should correspond to the robot's rest position (cables just barely tense)
+
+
+notes (epfl)
+------------
+
+COM port can be found by searching "device manager" in windows**
+** using a dummy com port (e.g., COMX) will make the code run without trying to send commands to the motors
+
+motor sign is +1 if increasing the angle (turning counter-clockwise) tightens the tendon
+
+* you can use -1 as a "dummy id" (is ignored)
+
+FORNOW serial port is write-only (we don't read motor positions back, we just "spray and pray")
+
+
+
+notes (williams)
+----------------
+API has two functions
+- void kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename); which takes a config file as described above
+- void kaa_dxl_write(real *u); which takes cable contractions in meters (exactly the same format as the sim is already in)

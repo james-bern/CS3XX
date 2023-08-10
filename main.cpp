@@ -179,8 +179,8 @@ void raspberry() {
 
 int main() {
     APPS {
-        APP(hello_dxl);
-        // APP(hello_kaa_dxl);
+        // APP(hello_dxl);
+        APP(motor_tester);
         // APP(raspberry);
         // APP(eg_hot_fopen);
     }
