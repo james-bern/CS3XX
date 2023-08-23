@@ -68,6 +68,10 @@
 #include <chrono>
 #include <utility>
 
+#ifdef COW_OS_WINDOWS
+#define isnan _isnan
+#endif
+
 #ifdef COW_PATCH_FRAMERATE_SLEEP
 #include <thread>
 #endif
@@ -541,8 +545,8 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 
 // // working with int's
 #define MODULO(x, N) (((x) % (N) + (N)) % (N)) // works on negative numbers
-// #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
-#define _COUNT_OF(fixed_size_array) ((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
+                                               // #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
+#define _COUNT_OF(fixed_size_array) int((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
 
 #define IS_ODD(a) ((a) % 2 != 0)
 #define IS_EVEN(a) ((a) % 2 == 0)
@@ -761,8 +765,8 @@ void _window_init() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE); // FORNOW
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    // glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE); // enables legacy on windows; breaks on m1 mac
 
     #ifdef JIM_TRANSPARENT_FRAMEBUFFER
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
@@ -2854,13 +2858,13 @@ void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom =
         if (IS_ZERO(camera->angle_of_view)) { // ortho
             camera->ortho_screen_height_World = tmp2D.screen_height_World;
         } else { // persp
-            //                   r_y
-            //               -   |  
-            //            -      |  
-            //         -         |  
-            //      - ) theta    |  
-            // eye-------------->o  
-            //         D            
+                 //                   r_y
+                 //               -   |  
+                 //            -      |  
+                 //         -         |  
+                 //      - ) theta    |  
+                 // eye-------------->o  
+                 //         D            
             real r_y = tmp2D.screen_height_World / 2;
             real theta = camera->angle_of_view / 2;
             camera->persp_distance_to_origin = r_y / tan(theta);
@@ -2889,9 +2893,9 @@ struct OrthogonalCoordinateSystem3D {
     vec3 z;
     vec3 o;
     mat4 R; // stored as [\ | / |]
-    //           [- R - 0]
-    //           [/ | \ |]
-    //           [- 0 - 1]
+            //           [- R - 0]
+            //           [/ | \ |]
+            //           [- 0 - 1]
 };
 
 mat4 camera_get_PV(Camera2D *camera) {
@@ -3099,6 +3103,52 @@ struct IndexedTriangleMesh3D {
     int4 *bone_indices;
     vec4 *bone_weights;
 
+    static IndexedTriangleMesh3D combine(int num_meshes, IndexedTriangleMesh3D *meshes) {
+        // TODO: check that meshes are "compatible"--i.e., e.g., that they ALL have vertex colors
+        IndexedTriangleMesh3D result = {};
+        for (int meshIndex = 0; meshIndex < num_meshes; ++meshIndex) {
+            IndexedTriangleMesh3D &mesh = meshes[meshIndex];
+            result.num_vertices  += mesh.num_vertices;
+            result.num_triangles += mesh.num_triangles;
+            result.num_bones     += mesh.num_bones;
+            ASSERT(!mesh.vertex_texture_coordinates);
+            ASSERT(!mesh.texture_filename);
+        }
+        result.vertex_positions = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
+        result.vertex_normals   = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
+        result.vertex_colors    = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
+        result.triangle_indices = (int3 *) malloc(result.num_triangles * sizeof(int3));
+        result.bones            = (mat4 *) malloc(result.num_bones     * sizeof(mat4));
+        result.bone_indices     = (int4 *) malloc(result.num_vertices  * sizeof(int4));
+        result.bone_weights     = (vec4 *) malloc(result.num_vertices  * sizeof(vec4));
+        int num_vertices = 0;
+        int num_triangles = 0;
+        int num_bones = 0;
+        for (int meshIndex = 0; meshIndex < num_meshes; ++meshIndex) {
+            IndexedTriangleMesh3D &mesh = meshes[meshIndex];
+            memcpy(result.vertex_positions + num_vertices , mesh.vertex_positions, mesh.num_vertices  * sizeof(vec3));
+            memcpy(result.vertex_normals   + num_vertices , mesh.vertex_normals  , mesh.num_vertices  * sizeof(vec3));
+            memcpy(result.vertex_colors    + num_vertices , mesh.vertex_colors   , mesh.num_vertices  * sizeof(vec3));
+            memcpy(result.triangle_indices + num_triangles, mesh.triangle_indices, mesh.num_triangles * sizeof(int3));
+            memcpy(result.bones            + num_bones    , mesh.bones           , mesh.num_bones     * sizeof(mat4));
+            memcpy(result.bone_indices     + num_vertices , mesh.bone_indices    , mesh.num_vertices  * sizeof(int4));
+            memcpy(result.bone_weights     + num_vertices , mesh.bone_weights    , mesh.num_vertices  * sizeof(vec4));
+
+            // patch up triangle_indices and bone_indices
+            for (int triangleIndex = 0; triangleIndex < mesh.num_triangles; ++triangleIndex) {
+                for (int d = 0; d < 3; ++d) result.triangle_indices[num_triangles + triangleIndex][d] += num_vertices;
+            }
+            for (int vertexIndex = 0; vertexIndex < mesh.num_vertices; ++vertexIndex) {
+                for (int d = 0; d < 4; ++d) result.bone_indices[num_vertices + vertexIndex][d] += num_bones;
+            }
+
+            num_vertices += mesh.num_vertices;
+            num_triangles += mesh.num_triangles;
+            num_bones += mesh.num_bones;
+        }
+        return result;
+    }
+
     void draw(
             mat4 P,
             mat4 V,
@@ -3128,7 +3178,13 @@ struct IndexedTriangleMesh3D {
         for (int d = 0; d < 3; ++d) result += w[d] * _skin(tri[d]);
         return result;
     }
+
 };
+
+IndexedTriangleMesh3D operator +(IndexedTriangleMesh3D &A, IndexedTriangleMesh3D &B) {
+    IndexedTriangleMesh3D tmp[] = { A, B };
+    return IndexedTriangleMesh3D::combine(2, tmp);
+}
 
 void Soup3D::draw(
         mat4 PVM,
@@ -3254,8 +3310,8 @@ void _meshutil_transform_vertex_positions_to_double_unit_box(int num_vertices, v
 void _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(IndexedTriangleMesh3D *mesh_mesh) {
     ASSERT(mesh_mesh->vertex_normals == NULL);
     if (1) { // () _mesh_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals
-        // TODO allocate mesh_mesh->vertex_normals        
-        // TODO write entries of mesh_mesh->vertex_normals
+             // TODO allocate mesh_mesh->vertex_normals        
+             // TODO write entries of mesh_mesh->vertex_normals
         mesh_mesh->vertex_normals = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3));
         for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
             int3 ijk = mesh_mesh->triangle_indices[i_triangle];
@@ -3285,10 +3341,10 @@ void _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(IndexedTriangleMe
     int new_num_vertices = 0;
     vec3 *new_vertex_positions = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3)); // (more space than we'll need)
     if (1) { // [] _mesh_mesh_merge_duplicated_vertices
-        // TODO set new_num_vertices and entries of new_vertex_positions                   
-        // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
-        // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
-        // NOTE please don't worry about space efficiency at all                           
+             // TODO set new_num_vertices and entries of new_vertex_positions                   
+             // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
+             // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
+             // NOTE please don't worry about space efficiency at all                           
         int *primal  = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         int *new_index = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
@@ -4017,9 +4073,9 @@ struct OptEntry {
     int i;
     int j;
     real val;
-    const unsigned int col() const { return j;   } // FORNOW
-    const unsigned int row() const { return i;   } // FORNOW
-    const real       value() const { return val; } // FORNOW
+    /*const*/ unsigned int col() const { return j;   } // FORNOW
+    /*const*/ unsigned int row() const { return i;   } // FORNOW
+    /*const*/ real       value() const { return val; } // FORNOW
 };
 
 real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
@@ -4062,7 +4118,7 @@ void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry
         for (int k = 0; k < N; ++k) { NXNP1(A, k, N) = b[k]; }
 
         { // convert to triangular form (in place)
-            // https://en.wikipedia.org/wiki/Gaussian_elimination
+          // https://en.wikipedia.org/wiki/Gaussian_elimination
             int m = N;
             int n = N + 1;
             int h = 0;
