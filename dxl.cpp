@@ -1,3 +1,6 @@
+// TODO: print theta in clicks (OK to still slide u; 
+// TODO: read ports
+
 #ifndef DXL_CPP
 #define DXL_CPP
 
@@ -105,7 +108,7 @@ void dxl_exit() {
 void hello_dxl() {
     glfwSwapInterval(1); // FORNOW
 
-    _DXL_NO_READ = true;
+    _DXL_NO_READ = false;
     {
         dxl_init("COM4");
         dxl_set_torque_enable(1);
@@ -154,10 +157,14 @@ struct {
     int motor_ids[MAX_NUM_MOTORS];
     int motor_signs[MAX_NUM_MOTORS];
     real pulley_radius_in_meters;
-    int CLICKS_FROM_METERS(real contraction_in_meters) {
-        return int(4096 * (contraction_in_meters / pulley_radius_in_meters) / (TAU));
-    }
     char commPortString[64];
+    int CLICKS_FROM_METERS(real contraction_in_meters) {
+        return int((contraction_in_meters / pulley_radius_in_meters) * (4096 / PI));
+    }
+    real _top_3_motors_max_meters =  50 / 1000.0;
+    real _other_motors_max_meters = 100 / 1000.0;
+    int top_3_motors_max_clicks() { return CLICKS_FROM_METERS(_top_3_motors_max_meters); }
+    int other_motors_max_clicks() { return CLICKS_FROM_METERS(_other_motors_max_meters); }
 } kaa_dxl;
 
 
@@ -204,12 +211,19 @@ void kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename) {
     }
     dxl_init(kaa_dxl.commPortString);
     dxl_set_torque_enable(1);
+    dxl_set_led(1);
+}
+
+int _kaa_dxl_clicks_from_u(real *u, int j) {
+    int tmp = kaa_dxl.CLICKS_FROM_METERS(kaa_dxl.motor_signs[j] * u[j]);
+    int bound = (j < 3) ? kaa_dxl.top_3_motors_max_clicks() : kaa_dxl.other_motors_max_clicks();
+    return MAG_CLAMP(tmp, bound);
 }
 
 void kaa_dxl_write(real *u) {
     for_(j, kaa_dxl.num_motors) {
         if (kaa_dxl.motor_ids[j] == -1) continue;
-        dxl_set_goal_position(kaa_dxl.CLICKS_FROM_METERS(kaa_dxl.motor_signs[j] * u[j]), (uint8_t) kaa_dxl.motor_ids[j]);
+        dxl_set_goal_position(_kaa_dxl_clicks_from_u(u, j), (uint8_t) kaa_dxl.motor_ids[j]);
     }
 }
 
@@ -219,6 +233,7 @@ void kaa_dxl_write(real *u) {
 
 void motor_tester() {
     glfwSwapInterval(1); // FORNOW
+    COW0._cow_display_fps = true; // FORNOW
 
     _DXL_NO_READ = true;
 
@@ -227,7 +242,7 @@ void motor_tester() {
 
     Plot plot; {
         plot_init(&plot, 256);
-        for_(j, kaa_dxl.num_motors) plot_add_trace(&plot, 0.0, 0.1, color_kelly(j));
+        for_(j, kaa_dxl.num_motors) plot_add_trace(&plot, 0.0, 2 * kaa_dxl._other_motors_max_meters, color_kelly(j));
     }
 
     real time = 0.0;
@@ -237,14 +252,34 @@ void motor_tester() {
         mat4 PV = camera_get_PV(&camera);
         time += 0.0167;
 
-        real MAX_CONTRACTION = 0.05;
+        gui_printf("README");
+        gui_printf("------");
+        gui_printf("Pulley Diameter %d mm", int(2000 * kaa_dxl.pulley_radius_in_meters));
+        gui_printf("top 3 motors clamped to %d clicks", kaa_dxl.top_3_motors_max_clicks());
+        gui_printf("other motors clamped to %d clicks", kaa_dxl.other_motors_max_clicks());
+        gui_printf("");
         if (1) { // manual sliders
+            real SLIDER_MAX_UNCLAMPED_CONTRACTION = 1.4 * kaa_dxl._other_motors_max_meters;
             for_(j, kaa_dxl.num_motors) {
-                char buffer[64];
-                sprintf(buffer, "(ID = %03d, sign = %02d) u[%d] =", kaa_dxl.motor_ids[j], kaa_dxl.motor_signs[j], j);
-                gui_slider(buffer, &u[j], -MAX_CONTRACTION, MAX_CONTRACTION);
+                if (j == 0) {
+                    gui_printf("top 3 motors");
+                    gui_printf("------------");
+                }
+                if (j == 3) {
+                    gui_printf("");
+                    gui_printf("other motors");
+                    gui_printf("------------");
+                }
+                char buffer[512];
+                // sprintf(buffer, "(ID = %03d, sign = %02d) u[%d] =", kaa_dxl.motor_ids[j], kaa_dxl.motor_signs[j], j);
+                sprintf(buffer, "%d: %d\
+                        \
+                        \
+                        \
+                        ", kaa_dxl.motor_ids[j], _kaa_dxl_clicks_from_u(u, j));
+                gui_slider(buffer, &u[j], -SLIDER_MAX_UNCLAMPED_CONTRACTION, SLIDER_MAX_UNCLAMPED_CONTRACTION);
+
             }
-            gui_readout("pulley_radius_in_meters", &kaa_dxl.pulley_radius_in_meters);
         }
 
 

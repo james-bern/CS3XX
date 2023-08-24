@@ -1,50 +1,50 @@
 COM4
-  2  -1  -1     -1  -1  -1    -1  -1  -1   
+  0   1   2      3   4   5     6   7   8   
  +1  +1  +1     +1  +1  +1    +1  +1  +1
-0.1
+0.02
 
 ----------------------------------------
 
 config.txt
 ----------
-COMX
-motorID0*     motorID1      ... motorID8
-motorSign0    motorSign1    ... motorSign8
-pulleyRadiusInMeters (START WITH SOMETHING VERY LARGE, e.g. 1.0 !!! LARGE PULLEY => LESS MOTOR ROTATION!)
+COMx*
+motorid0**     motorid1      ... motorid8
+motorsign0***    motorsign1    ... motorsign8
+pulley_radius_in_meters (start with something very large, e.g. 1.0 !!! large pulley => less motor rotation!)
 
 
-
-README
+readme
 ======
-
-!!! important
-------------
-script currently has NO SAFETY FEATURES (will tear robot apart)
-- i recommend first testing pipeline on a single motor that is not connected to anything
-- then nine motors that aren't connected to anything
-
 
 assumptions
 ------
-- motors...
--- have baud rate 57600
--- are in extended position mode
--- have been zeroed (this can be done using Homing Offset in the Dynamixel Wizard)
---- (motors current position of zero should correspond to the robot's rest position (cables just barely tense)
+- all spool radii are 0.02 m (i.e., spool diameter = 4 cm)
+- all motors have baudRate = 1Mbps
+- all motors are in Extended Position Mode
+- all motors have been zeroed using homing offset so 0 is robot's rest position (cables just barely tense)
 
+safety
+------
+- double clicking the executable will automatically power on the motors and send them 0
+  - it is VERY important that the assumptions above are followed!!
+    - otherwise the robot may be destroyed
+- if assumptions valid, API (hopefully) never sends targets outside [ -50mm,  50mm] to top 3 motors
+- if assumptions valid, API (hopefully) never sends targets outside [-100mm, 100mm] to other motors
 
 notes (epfl)
 ------------
 
-COM port can be found by searching "device manager" in windows**
-** using a dummy com port (e.g., COMX) will make the code run without trying to send commands to the motors
+COM port can be found by searching "device manager" in windows
 
-motor sign is +1 if increasing the angle (turning counter-clockwise) tightens the tendon
+unless something very strange happens
+- LED's ON = Torque ON;
+- LED's OFF = Torque OFF
 
-* you can use -1 as a "dummy id" (is ignored)
+* using a dummy com port (e.g., COMX) will make the code run without trying to send commands to the motors
 
-FORNOW serial port is write-only (we don't read motor positions back, we just "spray and pray")
+** you can use -1 as a "dummy id" (is ignored)
 
+*** motor sign is +1 if increasing the angle (turning counter-clockwise) tightens the tendon
 
 
 notes (williams)
@@ -52,3 +52,5 @@ notes (williams)
 API has two functions
 - void kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename); which takes a config file as described above
 - void kaa_dxl_write(real *u); which takes cable contractions in meters (exactly the same format as the sim is already in)
+
+FORNOW serial port is write-only (we don't read motor positions back, we just "spray and pray")

@@ -84,7 +84,7 @@ SerialPort::SerialPort(const char *portName) {
     DCB dcbSerialParameters = {};
     ASSERT(GetCommState(this->handler, &dcbSerialParameters));
 
-    dcbSerialParameters.BaudRate = 57600; // FORNOW! VERY IMPORTANT
+    dcbSerialParameters.BaudRate = 1000000; // FORNOW! VERY IMPORTANT
     dcbSerialParameters.ByteSize = 8;
     dcbSerialParameters.StopBits = ONESTOPBIT;
     dcbSerialParameters.Parity = NOPARITY;
