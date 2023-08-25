@@ -159,7 +159,7 @@ struct {
     real pulley_radius_in_meters;
     char commPortString[64];
     int CLICKS_FROM_METERS(real contraction_in_meters) {
-        return int((contraction_in_meters / pulley_radius_in_meters) * (4096 / PI));
+        return int((contraction_in_meters / pulley_radius_in_meters) * (4096 / TAU));
     }
     real _top_3_motors_max_meters =  50 / 1000.0;
     real _other_motors_max_meters = 100 / 1000.0;
