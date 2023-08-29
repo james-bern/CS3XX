@@ -222,10 +222,15 @@ int _kaa_dxl_clicks_from_u(real *u, int j) {
 }
 
 void kaa_dxl_write(real *u) {
+    static int HORRIFYING_HACK__FRAME;
     for_(j, kaa_dxl.num_motors) {
+        if ((HORRIFYING_HACK__FRAME % 6 == 0) && (j > 3)) continue;
+        if ((HORRIFYING_HACK__FRAME % 6 == 2) && (j < 3 || j >= 6)) continue;
+        if ((HORRIFYING_HACK__FRAME % 6 == 4) && (j < 6)) continue;
         if (kaa_dxl.motor_ids[j] == -1) continue;
         dxl_set_goal_position(_kaa_dxl_clicks_from_u(u, j), (uint8_t) kaa_dxl.motor_ids[j]);
     }
+    ++HORRIFYING_HACK__FRAME;
 }
 
 
