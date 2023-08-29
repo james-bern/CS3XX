@@ -1,5 +1,4 @@
-// TODO: print theta in clicks (OK to still slide u; 
-// TODO: read ports
+// TODO: sync write?
 
 #ifndef DXL_CPP
 #define DXL_CPP
