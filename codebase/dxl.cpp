@@ -169,6 +169,7 @@ struct {
 
 
 void kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS(char *filename) {
+    _DXL_NO_READ = true;
     { // parse config
         FILE *fp = fopen(filename, "r");
         ASSERT(fp);
@@ -235,7 +236,6 @@ void motor_tester() {
     glfwSwapInterval(1); // FORNOW
     COW0._cow_display_fps = true; // FORNOW
 
-    _DXL_NO_READ = true;
 
     kaa_dxl_init_FORNOW_ASSUMES_9_MOTORS("./motor_config.txt");
     real u[9] = {};

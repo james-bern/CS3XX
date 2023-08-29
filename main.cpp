@@ -3,8 +3,8 @@
 typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
+#define JIM_DXL
 #include "include.cpp"
-#include "dxl.cpp"
 
 struct FPSCamera {
     vec3 origin;
