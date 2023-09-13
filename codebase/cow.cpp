@@ -545,7 +545,7 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 
 // // working with int's
 #define MODULO(x, N) (((x) % (N) + (N)) % (N)) // works on negative numbers
-                                               // #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
+// #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
 #define _COUNT_OF(fixed_size_array) int((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
 
 #define IS_ODD(a) ((a) % 2 != 0)
@@ -2858,13 +2858,13 @@ void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom =
         if (IS_ZERO(camera->angle_of_view)) { // ortho
             camera->ortho_screen_height_World = tmp2D.screen_height_World;
         } else { // persp
-                 //                   r_y
-                 //               -   |  
-                 //            -      |  
-                 //         -         |  
-                 //      - ) theta    |  
-                 // eye-------------->o  
-                 //         D            
+            //                   r_y
+            //               -   |  
+            //            -      |  
+            //         -         |  
+            //      - ) theta    |  
+            // eye-------------->o  
+            //         D            
             real r_y = tmp2D.screen_height_World / 2;
             real theta = camera->angle_of_view / 2;
             camera->persp_distance_to_origin = r_y / tan(theta);
@@ -2893,9 +2893,9 @@ struct OrthogonalCoordinateSystem3D {
     vec3 z;
     vec3 o;
     mat4 R; // stored as [\ | / |]
-            //           [- R - 0]
-            //           [/ | \ |]
-            //           [- 0 - 1]
+    //           [- R - 0]
+    //           [/ | \ |]
+    //           [- 0 - 1]
 };
 
 mat4 camera_get_PV(Camera2D *camera) {
@@ -3310,8 +3310,8 @@ void _meshutil_transform_vertex_positions_to_double_unit_box(int num_vertices, v
 void _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(IndexedTriangleMesh3D *mesh_mesh) {
     ASSERT(mesh_mesh->vertex_normals == NULL);
     if (1) { // () _mesh_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals
-             // TODO allocate mesh_mesh->vertex_normals        
-             // TODO write entries of mesh_mesh->vertex_normals
+        // TODO allocate mesh_mesh->vertex_normals        
+        // TODO write entries of mesh_mesh->vertex_normals
         mesh_mesh->vertex_normals = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3));
         for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
             int3 ijk = mesh_mesh->triangle_indices[i_triangle];
@@ -3341,10 +3341,10 @@ void _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(IndexedTriangleMe
     int new_num_vertices = 0;
     vec3 *new_vertex_positions = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3)); // (more space than we'll need)
     if (1) { // [] _mesh_mesh_merge_duplicated_vertices
-             // TODO set new_num_vertices and entries of new_vertex_positions                   
-             // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
-             // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
-             // NOTE please don't worry about space efficiency at all                           
+        // TODO set new_num_vertices and entries of new_vertex_positions                   
+        // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
+        // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
+        // NOTE please don't worry about space efficiency at all                           
         int *primal  = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         int *new_index = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
@@ -4118,7 +4118,7 @@ void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry
         for (int k = 0; k < N; ++k) { NXNP1(A, k, N) = b[k]; }
 
         { // convert to triangular form (in place)
-          // https://en.wikipedia.org/wiki/Gaussian_elimination
+            // https://en.wikipedia.org/wiki/Gaussian_elimination
             int m = N;
             int n = N + 1;
             int h = 0;
