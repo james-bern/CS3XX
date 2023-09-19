@@ -1643,10 +1643,10 @@ void _soup_draw(
                 vertex_colors = NULL;
 
                 // FORNOW
-                r_if_vertex_colors_is_NULL = 1.0,
-                                           g_if_vertex_colors_is_NULL = 1.0,
-                                           b_if_vertex_colors_is_NULL = 1.0,
-                                           a_if_vertex_colors_is_NULL = 1.0;
+                r_if_vertex_colors_is_NULL = 0.0;
+                g_if_vertex_colors_is_NULL = 0.0;
+                b_if_vertex_colors_is_NULL = 0.0;
+                a_if_vertex_colors_is_NULL = 1.0;
             }
         }
 
@@ -3130,16 +3130,20 @@ struct IndexedTriangleMesh3D {
             memcpy(result.vertex_normals   + num_vertices , mesh.vertex_normals  , mesh.num_vertices  * sizeof(vec3));
             memcpy(result.vertex_colors    + num_vertices , mesh.vertex_colors   , mesh.num_vertices  * sizeof(vec3));
             memcpy(result.triangle_indices + num_triangles, mesh.triangle_indices, mesh.num_triangles * sizeof(int3));
-            memcpy(result.bones            + num_bones    , mesh.bones           , mesh.num_bones     * sizeof(mat4));
-            memcpy(result.bone_indices     + num_vertices , mesh.bone_indices    , mesh.num_vertices  * sizeof(int4));
-            memcpy(result.bone_weights     + num_vertices , mesh.bone_weights    , mesh.num_vertices  * sizeof(vec4));
+            if (result.num_bones != 0) {
+                memcpy(result.bones            + num_bones    , mesh.bones           , mesh.num_bones     * sizeof(mat4));
+                memcpy(result.bone_indices     + num_vertices , mesh.bone_indices    , mesh.num_vertices  * sizeof(int4));
+                memcpy(result.bone_weights     + num_vertices , mesh.bone_weights    , mesh.num_vertices  * sizeof(vec4));
+            }
 
             // patch up triangle_indices and bone_indices
             for (int triangleIndex = 0; triangleIndex < mesh.num_triangles; ++triangleIndex) {
                 for (int d = 0; d < 3; ++d) result.triangle_indices[num_triangles + triangleIndex][d] += num_vertices;
             }
-            for (int vertexIndex = 0; vertexIndex < mesh.num_vertices; ++vertexIndex) {
-                for (int d = 0; d < 4; ++d) result.bone_indices[num_vertices + vertexIndex][d] += num_bones;
+            if (result.num_bones != 0) {
+                for (int vertexIndex = 0; vertexIndex < mesh.num_vertices; ++vertexIndex) {
+                    for (int d = 0; d < 4; ++d) result.bone_indices[num_vertices + vertexIndex][d] += num_bones;
+                }
             }
 
             num_vertices += mesh.num_vertices;
