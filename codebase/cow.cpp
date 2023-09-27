@@ -1552,7 +1552,7 @@ void shader_draw(Shader *shader, int num_triangles, int3 *triangle_indices) {
 
     glUseProgram(shader->_program_ID);
 
-    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(0); // ??
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, shader->_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(int), triangle_indices, GL_DYNAMIC_DRAW);
     glDrawElements(GL_TRIANGLES, 3 * num_triangles, GL_UNSIGNED_INT, NULL);
