@@ -191,7 +191,10 @@ Thing *WAD_Thing(int WAD_ID) {
     ASSERT(WAD_ID > 0);
     ASSERT(WAD_ID < THINGS_ARRAY_LENGTH);
     Thing *result = _WAD_things[WAD_ID];
-    ASSERT(result);
+    if (!result) {
+        printf("[WAD_Thing] WAD_ID %d not found\n", WAD_ID);
+        ASSERT(0);
+    }
     ASSERT(result->live);
     return result;
 }
