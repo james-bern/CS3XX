@@ -2066,17 +2066,17 @@ void gui_printf(const char *format, ...) {
     char *sep = strchr(text, '`'); // fornow hacking in two color text
     if (!sep) {
         _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
-                1.0 - COW1._window_clear_color[0],
-                1.0 - COW1._window_clear_color[1],
-                1.0 - COW1._window_clear_color[2],
+                1.0,
+                1.0,
+                1.0,
                 1.0, 0, 0.0, 0.0, true);
     } else {
         real tmp = COW1._gui_x_curr; {
             *sep = 0;
             _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
-                    1.0 - COW1._window_clear_color[0],
-                    1.0 - COW1._window_clear_color[1],
-                    1.0 - COW1._window_clear_color[2],
+                    1.0,
+                    1.0,
+                    1.0,
                     1.0, 0, 0.0, 0.0, true);
             COW1._gui_x_curr += 2 * stb_easy_font_width(text);
             text = sep + 1;
@@ -4312,10 +4312,10 @@ bool cow_begin_frame() {
         { // framerate overlay
             static long measured_fps;
             // request uncapped framerate 
-            static bool override;
-            if ((!override) || (globals.key_pressed['/'] && !globals.key_shift_held)) {
+            /* static bool override; */
+            if (/*(!override) || */(globals.key_pressed['/'] && !globals.key_shift_held)) {
 
-                override = true;
+                /* override = true; */
 
                 COW0._cow_framerate_uncapped = !COW0._cow_framerate_uncapped;
                 #ifndef COW_PATCH_FRAMERATE
