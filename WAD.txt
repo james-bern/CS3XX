@@ -15,21 +15,21 @@ size   2.00 2.00
 color  6
 
 THING 3
-s     20.11 0.00
-size   5.00 80.00
-color  7
-
-THING 9
-s     -19.98 -0.02
+s     -59.02 -2.02
 size   5.00 80.00
 color  7
 
 THING 4
-s     -59.02 -2.02
+s     20.11 0.00
 size   5.00 80.00
 color  7
 
 THING 5
 s     42.45 11.26
+size   5.00 80.00
+color  7
+
+THING 9
+s     -19.98 -0.02
 size   5.00 80.00
 color  7

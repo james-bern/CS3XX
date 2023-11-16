@@ -6,7 +6,6 @@
 typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
-#define JIM_DXL
 #include "include.cpp"
 
 
@@ -199,6 +198,12 @@ Thing *WAD_Thing(int WAD_ID) {
 
 
 // TODO: orientation flags (go with an int)
+void _save_WAD_helper(FILE *file, Thing *thing, int WAD_ID) {
+    fprintf(file, "\nTHING %d\n", WAD_ID);
+    fprintf(file, "s     %.2lf %.2lf\n", thing->s[0], thing->s[1]);
+    fprintf(file, "size   %.2lf %.2lf\n", thing->size[0], thing->size[1]);
+    fprintf(file, "color  %d\n", thing->color);
+}
 void save_WAD() {
     FILE *file = fopen("WAD.txt", "w");
     ASSERT(file);
@@ -209,22 +214,17 @@ void save_WAD() {
     fprintf(file, "\nMIAO\n");
     fprintf(file, "s     %.2lf %.2lf\n", miao->s[0], miao->s[1]);
     // part 0: nonzero WAD_ID's
-    // part 1: zero WAD_ID's
-    for (int part = 0; part < 2; ++part) {
-        for_each_thing_skipping_lucy_and_miao {
-            if (!thing->from_WAD__including_lucy_miao) continue;
-
-            int WAD_ID = 0;
-            if (thing->has_nonzero_WAD_ID) WAD_ID = _WAD_recover_ID__LINEAR_RUNTIME(thing);
-
-            if (((part == 0) && (WAD_ID != 0)) || ((part == 1) && (WAD_ID == 0))) {
-                fprintf(file, "\nTHING %d\n", WAD_ID);
-                fprintf(file, "s     %.2lf %.2lf\n", thing->s[0], thing->s[1]);
-                fprintf(file, "size   %.2lf %.2lf\n", thing->size[0], thing->size[1]);
-                fprintf(file, "color  %d\n", thing->color);
-            }
-        }
+    for (Thing **ptr = _WAD_things; ptr < _WAD_things + THINGS_ARRAY_LENGTH; ++ptr) {
+        if (!*ptr) continue;
+        _save_WAD_helper(file, *ptr, (ptr - _WAD_things));
     }
+    // part 1: zero WAD_ID's
+    for_each_thing_skipping_lucy_and_miao {
+        if (!thing->from_WAD__including_lucy_miao) continue;
+        if (thing->has_nonzero_WAD_ID) continue;
+        _save_WAD_helper(file, thing, 0);
+    }
+
     fclose(file);
 }
 
@@ -414,116 +414,116 @@ void MiaoTheGame() {
                                 _WAD_things[new_WAD_ID] = widgeted;
                                 save_WAD();
                                 game.reseting_level = true;
-                                widgeted = selected = NULL; // FORNOW
+                                widgeted = selected = NULL; // FORNOW TODO
                                 continue;
                             }
                         }
+                        }
+                    }
+                }
+
+            }
+
+            { // game
+                if (game.level_index == 0) {
+                    // TODO NEXT: actually editing the WAD with the mouse
+                    Thing *green = WAD_Thing(1);
+                    Thing *cyan = WAD_Thing(2);
+                    Thing *magenta = Programmatic_Thing();
+                    Thing *platform = Programmatic_Thing();
+                    if (game.reseting_level) {
+                        cyan->mobile = true;
+                        cyan->v = { 0.5, 0.5 }; // customizing WAD thing
+
+                        platform->size = { 16, 48 };
+                        platform->color = WHITE;
+                        platform->origin_flags = UPPER_MIDLE;
+                        magenta->size = { 4, 4 };
+                        magenta->color = MAGENTA;
+                        magenta->s = { 0, 12 };
+                    } else if ((game.mode == MODE_GAME) && !game.paused) {
+                        green->y += 0.1;
+                        magenta->x -= 0.1;
+                    }
+                } else if (game.level_index == 1) {
+                    if (game.reseting_level) {
+                        Thing *platform = Programmatic_Thing();
+                        platform->size = { 128, 32 };
+                        platform->color = WHITE;
+                        platform->origin_flags = UPPER_MIDLE;
+                    }
+                }
+
+                if ((game.mode == MODE_GAME) && !game.paused) { // common (across levels) updates
+                    { // lucy and miao
+                        if (globals.key_held['a']) lucy->x -= 1.0;
+                        if (globals.key_held['d']) lucy->x += 1.0;
+                    }
+
+                    for_each_thing_skipping_lucy_and_miao {
+                        if (!thing->live) continue;
+                        if (!thing->mobile) continue;
+                        thing->v.y -= 0.01;
+                        thing->s += thing->v;
                     }
                 }
             }
 
-        }
-
-        { // game
-            if (game.level_index == 0) {
-                // TODO NEXT: actually editing the WAD with the mouse
-                Thing *green = WAD_Thing(1);
-                Thing *cyan = WAD_Thing(2);
-                Thing *magenta = Programmatic_Thing();
-                Thing *platform = Programmatic_Thing();
-                if (game.reseting_level) {
-                    cyan->mobile = true;
-                    cyan->v = { 0.5, 0.5 }; // customizing WAD thing
-
-                    platform->size = { 16, 48 };
-                    platform->color = WHITE;
-                    platform->origin_flags = UPPER_MIDLE;
-                    magenta->size = { 4, 4 };
-                    magenta->color = MAGENTA;
-                    magenta->s = { 0, 12 };
-                } else if ((game.mode == MODE_GAME) && !game.paused) {
-                    green->y += 0.1;
-                    magenta->x -= 0.1;
-                }
-            } else if (game.level_index == 1) {
-                if (game.reseting_level) {
-                    Thing *platform = Programmatic_Thing();
-                    platform->size = { 128, 32 };
-                    platform->color = WHITE;
-                    platform->origin_flags = UPPER_MIDLE;
-                }
-            }
-
-            if ((game.mode == MODE_GAME) && !game.paused) { // common (across levels) updates
-                { // lucy and miao
-                    if (globals.key_held['a']) lucy->x -= 1.0;
-                    if (globals.key_held['d']) lucy->x += 1.0;
-                }
-
-                for_each_thing_skipping_lucy_and_miao {
-                    if (!thing->live) continue;
-                    if (!thing->mobile) continue;
-                    thing->v.y -= 0.01;
-                    thing->s += thing->v;
-                }
-            }
-        }
-
-        // common across editor and game
-        { // draw
-            eso_begin(transform_for_drawing_and_picking, SOUP_QUADS);
-            for_each_thing {
-                if (!thing->live) continue;
-
-                vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
-                if ((game.mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) color /= 1.3;
-                eso_color(color);
-                thing->eso_quad();
-            }
-            eso_end();
-            if (game.mode == MODE_EDITOR) {
+            // common across editor and game
+            { // draw
+                eso_begin(transform_for_drawing_and_picking, SOUP_QUADS);
                 for_each_thing {
                     if (!thing->live) continue;
 
-                    if (thing->has_nonzero_WAD_ID) {
-                        int WAD_ID = _WAD_recover_ID__LINEAR_RUNTIME(thing);
-                        char text[16] = {}; {
-                            ASSERT(WAD_ID < 10);
-                            text[0] = '0' + WAD_ID;
-                        }
-                        text_draw(
-                                transform_for_drawing_and_picking,
-                                text,
-                                thing->s,
-                                monokai.black);
+                    vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
+                    if ((game.mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) color /= 1.3;
+                    eso_color(color);
+                    thing->eso_quad();
+                }
+                eso_end();
+                if (game.mode == MODE_EDITOR) {
+                    for_each_thing {
+                        if (!thing->live) continue;
 
+                        if (thing->has_nonzero_WAD_ID) {
+                            int WAD_ID = _WAD_recover_ID__LINEAR_RUNTIME(thing);
+                            char text[16] = {}; {
+                                ASSERT(WAD_ID < 10);
+                                text[0] = '0' + WAD_ID;
+                            }
+                            text_draw(
+                                    transform_for_drawing_and_picking,
+                                    text,
+                                    thing->s,
+                                    monokai.black);
+
+                        }
                     }
                 }
             }
+
+
+
+
+
+
+            if (game.reseting_level) game.reseting_level = false;
+
+
         }
-
-
-
-
-
-
-        if (game.reseting_level) game.reseting_level = false;
-
 
     }
 
-}
 
 
-
-int main() {
-    config.hotkeys_app_next = 0;
-    config.hotkeys_app_prev = 0;
-    _cow_init();
-    _cow_reset();
-    MiaoTheGame();
-    return 0;
-}
+    int main() {
+        config.hotkeys_app_next = 0;
+        config.hotkeys_app_prev = 0;
+        _cow_init();
+        _cow_reset();
+        MiaoTheGame();
+        return 0;
+    }
 
 
 
