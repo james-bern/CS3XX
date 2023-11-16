@@ -6,6 +6,7 @@
 typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
+#define JIM_DXL
 #include "include.cpp"
 
 

@@ -35,6 +35,10 @@ static bool _SETBUF_DUMMY_OBJECT = [](){ setbuf(LOG_FP, NULL); return true;}();
 #include <cstring>
 #include <cmath>
 
+#ifdef JIM_DXL
+#include "codebase/dxl.cpp"
+#endif
+
 /*
 // (very) optional style guide; feel free to delete entirely
 // however, if you're newer to C/C++ then this guide may help reduce bugs
