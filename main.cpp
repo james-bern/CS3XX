@@ -33,6 +33,8 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
 // - no good graphics
 
 // TODO: level editor
+// TODO: save_WAD(level_index)
+// TODO: load_WAD(level_index)
 
 
 #define BLACK   0
@@ -274,6 +276,7 @@ void load_WAD() {
 void MiaoTheGame() {
 
     game.reseting_level = true;
+    game.level_index = 1;
 
     window_set_clear_color(0.5, 0.5, 0.5);
     while (cow_begin_frame()) {
@@ -408,8 +411,9 @@ void MiaoTheGame() {
                             if (new_WAD_ID >= THINGS_ARRAY_LENGTH) new_WAD_ID = 1;
                             while (_WAD_things[new_WAD_ID]) ++new_WAD_ID;
 
-                            /* if (gui_button("set WAD_ID (saves WAD)")) { */ // TODO ???
-                            if (globals.key_pressed['1']) {
+                            // if (gui_button("set WAD_ID (saves WAD)")) // TODO ???
+                            if (globals.key_pressed['1'])
+                            {
                                 printf("asdf\n");
                                 ASSERT(new_WAD_ID != 0);
                                 ASSERT(!_WAD_things[new_WAD_ID]);
@@ -421,112 +425,112 @@ void MiaoTheGame() {
                                 continue;
                             }
                         }
-                        }
-                    }
-                }
-
-            }
-
-            { // game
-                if (game.level_index == 0) {
-                    // TODO NEXT: actually editing the WAD with the mouse
-                    Thing *green = WAD_Thing(1);
-                    Thing *cyan = WAD_Thing(2);
-                    Thing *magenta = Programmatic_Thing();
-                    Thing *platform = Programmatic_Thing();
-                    if (game.reseting_level) {
-                        cyan->mobile = true;
-                        cyan->v = { 0.5, 0.5 }; // customizing WAD thing
-
-                        platform->size = { 16, 48 };
-                        platform->color = WHITE;
-                        platform->origin_flags = UPPER_MIDLE;
-                        magenta->size = { 4, 4 };
-                        magenta->color = MAGENTA;
-                        magenta->s = { 0, 12 };
-                    } else if ((game.mode == MODE_GAME) && !game.paused) {
-                        green->y += 0.1;
-                        magenta->x -= 0.1;
-                    }
-                } else if (game.level_index == 1) {
-                    if (game.reseting_level) {
-                        Thing *platform = Programmatic_Thing();
-                        platform->size = { 128, 32 };
-                        platform->color = WHITE;
-                        platform->origin_flags = UPPER_MIDLE;
-                    }
-                }
-
-                if ((game.mode == MODE_GAME) && !game.paused) { // common (across levels) updates
-                    { // lucy and miao
-                        if (globals.key_held['a']) lucy->x -= 1.0;
-                        if (globals.key_held['d']) lucy->x += 1.0;
-                    }
-
-                    for_each_thing_skipping_lucy_and_miao {
-                        if (!thing->live) continue;
-                        if (!thing->mobile) continue;
-                        thing->v.y -= 0.01;
-                        thing->s += thing->v;
                     }
                 }
             }
-
-            // common across editor and game
-            { // draw
-                eso_begin(transform_for_drawing_and_picking, SOUP_QUADS);
-                for_each_thing {
-                    if (!thing->live) continue;
-
-                    vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
-                    if ((game.mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) color /= 1.3;
-                    eso_color(color);
-                    thing->eso_quad();
-                }
-                eso_end();
-                if (game.mode == MODE_EDITOR) {
-                    for_each_thing {
-                        if (!thing->live) continue;
-
-                        if (thing->has_nonzero_WAD_ID) {
-                            int WAD_ID = _WAD_recover_ID__LINEAR_RUNTIME(thing);
-                            char text[16] = {}; {
-                                ASSERT(WAD_ID < 10);
-                                text[0] = '0' + WAD_ID;
-                            }
-                            text_draw(
-                                    transform_for_drawing_and_picking,
-                                    text,
-                                    thing->s,
-                                    monokai.black);
-
-                        }
-                    }
-                }
-            }
-
-
-
-
-
-
-            if (game.reseting_level) game.reseting_level = false;
-
 
         }
 
+        { // game
+            if (game.level_index == 0) {
+                // TODO: copy and paste level
+            } if (game.level_index == 1) {
+                // TODO NEXT: actually editing the WAD with the mouse
+                Thing *green = WAD_Thing(1);
+                Thing *cyan = WAD_Thing(2);
+                Thing *magenta = Programmatic_Thing();
+                Thing *platform = Programmatic_Thing();
+                if (game.reseting_level) {
+                    cyan->mobile = true;
+                    cyan->v = { 0.5, 0.5 }; // customizing WAD thing
+
+                    platform->size = { 16, 48 };
+                    platform->color = WHITE;
+                    platform->origin_flags = UPPER_MIDLE;
+                    magenta->size = { 4, 4 };
+                    magenta->color = MAGENTA;
+                    magenta->s = { 0, 12 };
+                } else if ((game.mode == MODE_GAME) && !game.paused) {
+                    green->y += 0.1;
+                    magenta->x -= 0.1;
+                }
+            } else if (game.level_index == 1) {
+                if (game.reseting_level) {
+                    Thing *platform = Programmatic_Thing();
+                    platform->size = { 128, 32 };
+                    platform->color = WHITE;
+                    platform->origin_flags = UPPER_MIDLE;
+                }
+            }
+
+            if ((game.mode == MODE_GAME) && !game.paused) { // common (across levels) updates
+                { // lucy and miao
+                    if (globals.key_held['a']) lucy->x -= 1.0;
+                    if (globals.key_held['d']) lucy->x += 1.0;
+                }
+
+                for_each_thing_skipping_lucy_and_miao {
+                    if (!thing->live) continue;
+                    if (!thing->mobile) continue;
+                    thing->v.y -= 0.01;
+                    thing->s += thing->v;
+                }
+            }
+        }
+
+        // common across editor and game
+        { // draw
+            eso_begin(transform_for_drawing_and_picking, SOUP_QUADS);
+            for_each_thing {
+                if (!thing->live) continue;
+
+                vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
+                real a = ((game.mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
+                eso_color(color, a);
+                thing->eso_quad();
+            }
+            eso_end();
+            if (game.mode == MODE_EDITOR) {
+                for_each_thing {
+                    if (!thing->live) continue;
+
+                    if (thing->has_nonzero_WAD_ID) {
+                        int WAD_ID = _WAD_recover_ID__LINEAR_RUNTIME(thing);
+                        char text[8] = {};
+                        sprintf(text, "%d", WAD_ID);
+                        text_draw(
+                                transform_for_drawing_and_picking,
+                                text,
+                                thing->s,
+                                monokai.black);
+
+                    }
+                }
+            }
+        }
+
+
+
+
+
+
+        game.reseting_level = false;
+
+
     }
 
+}
 
 
-    int main() {
-        config.hotkeys_app_next = 0;
-        config.hotkeys_app_prev = 0;
-        _cow_init();
-        _cow_reset();
-        MiaoTheGame();
-        return 0;
-    }
+
+int main() {
+    config.hotkeys_app_next = 0;
+    config.hotkeys_app_prev = 0;
+    _cow_init();
+    _cow_reset();
+    MiaoTheGame();
+    return 0;
+}
 
 
 
