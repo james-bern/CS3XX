@@ -411,18 +411,13 @@ void MiaoTheGame() {
                             if (new_WAD_ID >= THINGS_ARRAY_LENGTH) new_WAD_ID = 1;
                             while (_WAD_things[new_WAD_ID]) ++new_WAD_ID;
 
-                            // if (gui_button("set WAD_ID (saves WAD)")) // TODO ???
-                            if (globals.key_pressed['1'])
+                            // if (globals.key_pressed['1'])
+                            if (gui_button("set WAD_ID"))
                             {
-                                printf("asdf\n");
                                 ASSERT(new_WAD_ID != 0);
-                                ASSERT(!_WAD_things[new_WAD_ID]);
+                               ASSERT(!_WAD_things[new_WAD_ID]);
                                 widgeted->has_nonzero_WAD_ID = true;
                                 _WAD_things[new_WAD_ID] = widgeted;
-                                save_WAD();
-                                game.reseting_level = true;
-                                widgeted = selected = NULL; // FORNOW TODO
-                                continue;
                             }
                         }
                     }
@@ -502,7 +497,10 @@ void MiaoTheGame() {
                                 transform_for_drawing_and_picking,
                                 text,
                                 thing->s,
-                                monokai.black);
+                                monokai.black,
+                                0,
+                                {},
+                                true);
 
                     }
                 }
