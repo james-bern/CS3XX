@@ -1,5 +1,15 @@
-// Handmade Hero -- Operating System API, low-level rasterization, ...
-// cow.cpp       -- write the game
+//  vertical slice
+// - firing bullets
+// - music
+// - sound cues for powerups (like in aggressive alpine skiing)
+// - weapon powerups
+// - cat powerups
+// - full art
+// - blue red green blocks, etc.
+// - level editor
+// - intro sequence where you can shoot and get warmed up
+// - cat following you
+// - no good graphics
 
 // #define COW_PATCH_FRAMERATE
 // #define COW_PATCH_FRAMERATE_SLEEP
@@ -18,23 +28,6 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
     return true;
 }
 
-
-// TODO: vertical slice
-// - firing bullets
-// - music
-// - sound cues for powerups (like in aggressive alpine skiing)
-// - weapon powerups
-// - cat powerups
-// - full art
-// - blue red green blocks, etc.
-// - level editor
-// - intro sequence where you can shoot and get warmed up
-// - cat following you
-// - no good graphics
-
-// TODO: level editor
-// TODO: save_WAD(level_index)
-// TODO: load_WAD(level_index)
 
 
 #define BLACK   0
@@ -61,7 +54,6 @@ int2 UPPER_RIGHT  = {  1,  1 };
 
 struct Thing {
     bool live;
-    /* int WAD_ID; // TODO: should this really exist? */
     bool has_nonzero_WAD_ID;
     bool from_WAD__including_lucy_miao;
 
@@ -141,13 +133,6 @@ Thing **_WAD_things = level->_WAD_things;
 #define for_each_thing for (Thing *thing = things; thing < (things + THINGS_ARRAY_LENGTH); ++thing)
 #define for_each_thing_skipping_lucy_and_miao for (Thing *thing = (things + 2); thing < (things + THINGS_ARRAY_LENGTH); ++thing)
 
-// : how do you envision prototyping?
-//  ---------------------------------
-// XXX There should be a bunch of THING's with ID 0 (at the bottom of WAD file)
-// TODO Then you assign them an ID
-// Then you can start scripting
-// (Changing the ID has to be done manually across both files when the game is not running)
-
 // TODO: Copy and Paste Thing's
 
 
@@ -203,6 +188,7 @@ Thing *WAD_Thing(int WAD_ID) {
 
 
 // TODO: orientation flags (go with an int)
+
 void _save_WAD_helper(FILE *file, Thing *thing, int WAD_ID) {
     fprintf(file, "\nTHING %d\n", WAD_ID);
     fprintf(file, "s     %.2lf %.2lf\n", thing->s[0], thing->s[1]);
@@ -428,9 +414,8 @@ void MiaoTheGame() {
 
         { // game
             if (game.level_index == 0) {
-                // TODO: copy and paste level
+                // TODO: special level with all the different kinds of everything (like blow did for sokoban)
             } if (game.level_index == 1) {
-                // TODO NEXT: actually editing the WAD with the mouse
                 Thing *green = WAD_Thing(1);
                 Thing *cyan = WAD_Thing(2);
                 Thing *magenta = Programmatic_Thing();
