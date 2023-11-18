@@ -2214,7 +2214,6 @@ void _gui_begin_frame() {
         COW1._gui_x_curr -= 8;
 
         bool result = (COW1._gui_selected == name) && (globals.mouse_left_pressed || globals.key_pressed[hotkey]);
-        if (result) printf("%d\n", result);
         return result;
     }
 

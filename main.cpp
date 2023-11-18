@@ -43,16 +43,34 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
 #define CYAN    6
 #define WHITE   7
 
-#define ORIGIN_NORMAL_TYPE_CENTER_MIDDLE 0
-#define ORIGIN_NORMAL_TYPE_UPPER_MIDDLE  1
-#define ORIGIN_NORMAL_TYPE_UPPER_RIGHT   2
-#define ORIGIN_NORMAL_TYPE_CENTER_RIGHT  3
-#define ORIGIN_NORMAL_TYPE_LOWER_RIGHT   4
-#define ORIGIN_NORMAL_TYPE_LOWER_MIDDLE  5
-#define ORIGIN_NORMAL_TYPE_LOWER_LEFT    6
-#define ORIGIN_NORMAL_TYPE_CENTER_LEFT   7
-#define ORIGIN_NORMAL_TYPE_UPPER_LEFT    8
-vec2 ORIGIN_NORMAL_TYPE_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
+#define NORMAL_TYPE_CENTER_MIDDLE 0
+#define NORMAL_TYPE_UPPER_MIDDLE  1
+#define NORMAL_TYPE_UPPER_RIGHT   2
+#define NORMAL_TYPE_CENTER_RIGHT  3
+#define NORMAL_TYPE_LOWER_RIGHT   4
+#define NORMAL_TYPE_LOWER_MIDDLE  5
+#define NORMAL_TYPE_LOWER_LEFT    6
+#define NORMAL_TYPE_CENTER_LEFT   7
+#define NORMAL_TYPE_UPPER_LEFT    8
+vec2 NORMAL_TYPE_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
+
+#define UPDATE_GROUP_BULLET 255
+
+struct Rectangle {
+    vec2 min;
+    vec2 max;
+
+    bool containsPoint(vec2 p) {
+        return (IS_BETWEEN(p.x, min.x, max.x) && IS_BETWEEN(p.y, min.y, max.y));
+    }
+
+    void eso() {
+        eso_vertex(min.x, min.y);
+        eso_vertex(min.x, max.y);
+        eso_vertex(max.x, max.y);
+        eso_vertex(max.x, min.y);
+    }
+};
 
 struct Thing {
     bool live;
@@ -71,23 +89,17 @@ struct Thing {
     bool walker;
     bool barrier;
 
-    bool containsPoint(vec2 p) {
+    Rectangle getRect() {
         vec2 r = size / 2;
-        vec2 n = ORIGIN_NORMAL_TYPE_n[origin_normal_type];
-        return (
-                (p.x > s.x + (-1 - n.x) * r.x) &&
-                (p.x < s.x + ( 1 - n.x) * r.x) &&
-                (p.y > s.y + (-1 - n.y) * r.y) &&
-                (p.y < s.y + ( 1 - n.y) * r.y)
-               );
+        vec2 c = s - cwiseProduct(NORMAL_TYPE_n[origin_normal_type], r);
+        return { c - r, c + r };
     }
-    void eso_quad() {
-        vec2 r = size / 2;
-        vec2 n = ORIGIN_NORMAL_TYPE_n[origin_normal_type];
-        eso_vertex(x + ( 1 - n.x) * r.x, y + ( 1 - n.y) * r.y);
-        eso_vertex(x + ( 1 - n.x) * r.x, y + (-1 - n.y) * r.y);
-        eso_vertex(x + (-1 - n.x) * r.x, y + (-1 - n.y) * r.y);
-        eso_vertex(x + (-1 - n.x) * r.x, y + ( 1 - n.y) * r.y);
+
+    void setRect(Rectangle rect) {
+        vec2 c = (rect.min + rect.max) / 2;
+        vec2 r = (rect.max - rect.min) / 2;
+        s = c + cwiseProduct(NORMAL_TYPE_n[origin_normal_type], r);
+        size = 2 * r;
     }
 };
 
@@ -208,10 +220,11 @@ void save_WAD() {
     for_each_live_thing_skipping_lucy_and_miao {
         if (!thing->from_WAD__including_lucy_miao) continue;
         fprintf(file, "\nTHING\n");
-        fprintf(file, "update_group  %d\n", thing->update_group);
-        fprintf(file, "s             %.2lf %.2lf\n", thing->s[0], thing->s[1]);
-        fprintf(file, "size          %.2lf %.2lf\n", thing->size[0], thing->size[1]);
-        fprintf(file, "color         %d\n", thing->color);
+        fprintf(file, "origin_normal_type  %d\n", thing->origin_normal_type);
+        fprintf(file, "update_group        %d\n", thing->update_group);
+        fprintf(file, "s                   %.2lf %.2lf\n", thing->s[0], thing->s[1]);
+        fprintf(file, "size                %.2lf %.2lf\n", thing->size[0], thing->size[1]);
+        fprintf(file, "color               %d\n", thing->color);
     }
 
     fclose(file);
@@ -233,7 +246,9 @@ void load_WAD() {
                 curr = New_Live_Thing();
                 curr->from_WAD__including_lucy_miao = true;
             } else {
-                if (poe_matches_prefix(line, "update_group ")) {
+                if (poe_matches_prefix(line, "origin_normal_type ")) {
+                    sscanf(line, "%s %d", prefix, &curr->origin_normal_type);
+                } else if (poe_matches_prefix(line, "update_group ")) {
                     sscanf(line, "%s %d", prefix, &curr->update_group);
                 } else if (poe_matches_prefix(line, "s ")) {
                     sscanf(line, "%s %lf %lf", prefix, &curr->s.x, &curr->s.y);
@@ -317,14 +332,14 @@ void CatGame() {
                 lucy->live = true;
                 lucy->size = { 4, 8 };
                 lucy->color = RED;
-                lucy->origin_normal_type = ORIGIN_NORMAL_TYPE_LOWER_MIDDLE;
+                lucy->origin_normal_type = NORMAL_TYPE_LOWER_MIDDLE;
                 lucy->mobile = true;
                 lucy->from_WAD__including_lucy_miao = true;
 
                 miao->live = true;
                 miao->size = { 4, 4 };
                 miao->color = BLUE;
-                miao->origin_normal_type = ORIGIN_NORMAL_TYPE_LOWER_MIDDLE;
+                miao->origin_normal_type = NORMAL_TYPE_LOWER_MIDDLE;
                 miao->mobile = true;
                 miao->from_WAD__including_lucy_miao = true;
             }
@@ -337,76 +352,115 @@ void CatGame() {
         // UPDATE_AND_DRAW (could be an instance method of the level class)
 
         if (game->mode == MODE_EDITOR) { // editor
-                                         // TODO: should be able to hot load game logic
+                                         // TODO: should be able to editor_hot_thing load game logic
 
             if (gui_button("save", 's')) {
                 save_WAD();
             }
 
-            Thing *hot = level->_editor_mouse_currently_pressed_thing;
-            if (!hot) {
+            Thing *editor_hot_thing = level->_editor_mouse_currently_pressed_thing;
+            if (!editor_hot_thing) {
                 for_each_live_thing {
                     if (!thing->from_WAD__including_lucy_miao) continue;
 
-                    if (thing->containsPoint(mouse_position)) {
-                        // TODO: closest to center (do later)
-                        hot = thing;
+                    if (thing->getRect().containsPoint(mouse_position)) {
+                        // TODO: closest to getCenter (do later)
+                        editor_hot_thing = thing;
                         break;
                     }
                 }
             }
 
             { // draw outlines
-                if (hot) {
-                    ASSERT(hot->from_WAD__including_lucy_miao);
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); hot->eso_quad(); eso_end();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true);
-                    eso_color(monokai.orange);
-                    hot->eso_quad();
-                    eso_end();
+                if (editor_hot_thing) {
+                    ASSERT(editor_hot_thing->from_WAD__including_lucy_miao);
+                    Rectangle rect = editor_hot_thing->getRect();
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); rect.eso(); eso_end();
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.orange); rect.eso(); eso_end();
                 }
                 if (level->editor_selected_thing) {
                     ASSERT(level->editor_selected_thing->from_WAD__including_lucy_miao);
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); level->editor_selected_thing->eso_quad(); eso_end();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.yellow); level->editor_selected_thing->eso_quad(); eso_end();
+                    Rectangle rect = level->editor_selected_thing->getRect();
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); rect.eso(); eso_end();
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.yellow); rect.eso(); eso_end();
                 }
             }
 
 
             { // UI
-                if (hot && cow.mouse_left_pressed) {
-                    level->_editor_mouse_currently_pressed_thing = hot;
-                    level->editor_selected_thing = level->_editor_mouse_currently_pressed_thing;
-                }
-                if (level->_editor_mouse_currently_pressed_thing && cow.mouse_left_held) {
-                    level->_editor_mouse_currently_pressed_thing->s += mouse_change_in_position; // FORNOW ?
-                }
-                if (cow.mouse_left_released) {
-                    level->_editor_mouse_currently_pressed_thing = NULL;
+
+                { // picking
+                    if (editor_hot_thing && cow.mouse_left_pressed) {
+                        level->_editor_mouse_currently_pressed_thing = editor_hot_thing;
+                        level->editor_selected_thing = level->_editor_mouse_currently_pressed_thing;
+                    }
+                    if (level->_editor_mouse_currently_pressed_thing && cow.mouse_left_held) {
+                        level->_editor_mouse_currently_pressed_thing->s += mouse_change_in_position; // FORNOW ?
+                    }
+                    if (cow.mouse_left_released) {
+                        level->_editor_mouse_currently_pressed_thing = NULL;
+                    }
                 }
 
-                { // copy and paste
-                    if (level->editor_selected_thing) {
-                        if (cow.key_pressed['c']) memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
-                        if (cow.key_pressed['x']) {
-                            *level->editor_selected_thing = {};
-                            level->editor_selected_thing = NULL;
+                { // FORNOW repetitive stuff (works on hot or selected)
+                    { // resizing
+                        if (editor_hot_thing && (editor_hot_thing != lucy) && (editor_hot_thing != miao)) {
+                            Rectangle rect = editor_hot_thing->getRect();
+                            // TODO: widget_drag(&rect);
+                            editor_hot_thing->setRect(rect);
+                        } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
+                            Rectangle rect = level->editor_selected_thing->getRect();
+                            // TODO: widget_drag(&rect);
+                            level->editor_selected_thing->setRect(rect);
+                        }
+
+                    }
+
+                    { // cut, copy and paste
+                        if (gui_button("cut", 'x')) {
+                            if (editor_hot_thing && (editor_hot_thing != lucy) && (editor_hot_thing != miao)) {
+                                if (level->editor_selected_thing == editor_hot_thing) {
+                                    level->editor_selected_thing = NULL;
+                                }
+
+                                memcpy(&game->editor_clipboard_thing, editor_hot_thing, sizeof(Thing));
+                                *editor_hot_thing = {};
+                                editor_hot_thing = NULL;
+                            } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
+                                memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
+                                *level->editor_selected_thing = {};
+                                level->editor_selected_thing = NULL;
+                            }
+                        }
+
+                        if (gui_button("copy", 'c')) {
+                            if (editor_hot_thing && (editor_hot_thing != lucy) && (editor_hot_thing != miao)) {
+                                memcpy(&game->editor_clipboard_thing, editor_hot_thing, sizeof(Thing));
+                            } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
+                                memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
+                            }
+                        }
+
+                        if (gui_button("paste", 'v')) {
+                            if (game->editor_clipboard_thing.live) {
+                                Thing *thing = New_Live_Thing();
+                                *thing = game->editor_clipboard_thing;
+                                thing->s = mouse_position;
+                                thing->from_WAD__including_lucy_miao = true;
+                            }
                         }
                     }
-
-                    if (game->editor_clipboard_thing.live && cow.key_pressed['v']) {
-                        Thing *thing = New_Live_Thing();
-                        *thing = game->editor_clipboard_thing;
-                        thing->s = mouse_position;
-                        thing->from_WAD__including_lucy_miao = true;
-                    }
                 }
 
-                if (level->editor_selected_thing) {
-                    if ((level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
-                        gui_slider("color", &level->editor_selected_thing->color, BLACK, WHITE);
-                        gui_slider("origin", &level->editor_selected_thing->origin_normal_type, 0, _COUNT_OF(ORIGIN_NORMAL_TYPE_n) - 1);
-                        gui_slider("update_group", &level->editor_selected_thing->update_group, 0, 255);
+
+                { //  sliders
+                    if (level->editor_selected_thing) {
+                        if ((level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
+                            gui_slider("color", &level->editor_selected_thing->color, BLACK, WHITE);
+                            gui_slider("origin", &level->editor_selected_thing->origin_normal_type, 0, 8);
+                            gui_slider("update_group", &level->editor_selected_thing->update_group, 0, 255);
+                            for_(i, 10) if (cow.key_pressed['0' + i]) level->editor_selected_thing->update_group = i;
+                        }
                     }
                 }
             }
@@ -427,34 +481,39 @@ void CatGame() {
 
 
 
-                } if (game->level_index == 1) {
-                    Thing *magenta = Programmatic_Thing();
-                    Thing *platform = Programmatic_Thing();
-                    if (game->reseting_level) {
-                        platform->size = { 16, 48 };
-                        platform->color = WHITE;
-                        platform->origin_normal_type = ORIGIN_NORMAL_TYPE_UPPER_MIDDLE;
-                        magenta->size = { 4, 4 };
-                        magenta->color = MAGENTA;
-                        magenta->s = { 0, 12 };
-                    } else if ((game->mode == MODE_GAME) && !game->paused) {
-                        for_each_live_thing_skipping_lucy_and_miao {
-                            if (thing->update_group == 1) {
-                                thing->y -= 0.1;
-                            } else if (thing->update_group == 2) {
-                                thing->x -= 0.1;
+                } else
+                    if (game->level_index == 1) {
+                        Thing *magenta = Programmatic_Thing();
+                        Thing *platform = Programmatic_Thing();
+                        if (game->reseting_level) {
+                            platform->size = { 16, 48 };
+                            platform->color = WHITE;
+                            platform->origin_normal_type = NORMAL_TYPE_UPPER_MIDDLE;
+                            magenta->size = { 4, 4 };
+                            magenta->color = MAGENTA;
+                            magenta->s = { 0, 12 };
+
+                            for_each_live_thing_skipping_lucy_and_miao {
+                                if (thing->update_group == 1) {
+                                    thing->v = 0.1 * normalized(lucy->s - thing->s);
+                                }
+                            }
+                        } else if ((game->mode == MODE_GAME) && !game->paused) {
+                            for_each_live_thing_skipping_lucy_and_miao {
+                                if (thing->update_group == 1) {
+                                    thing->s += thing->v;
+                                }
                             }
                         }
                     }
-                }
-                else if (game->level_index == 2) {
-                    if (game->reseting_level) {
-                        Thing *platform = Programmatic_Thing();
-                        platform->size = { 128, 32 };
-                        platform->color = WHITE;
-                        platform->origin_normal_type = ORIGIN_NORMAL_TYPE_UPPER_MIDDLE;
+                    else if (game->level_index == 2) {
+                        if (game->reseting_level) {
+                            Thing *platform = Programmatic_Thing();
+                            platform->size = { 128, 32 };
+                            platform->color = WHITE;
+                            platform->origin_normal_type = NORMAL_TYPE_UPPER_MIDDLE;
+                        }
                     }
-                }
 
                 // common (across levels) updates
                 if ((game->mode == MODE_GAME) && !game->paused) {
@@ -478,7 +537,7 @@ void CatGame() {
                     vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
                     real a = ((game->mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
                     eso_color(color, a);
-                    thing->eso_quad();
+                    thing->getRect().eso();
                 }
                 eso_end();
                 if (game->mode == MODE_EDITOR) {
