@@ -32,7 +32,7 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
 
 
 
-// WAD_ID -> update ID
+// WAD_ID -> update_group_ID
 
 
 #define BLACK   0
@@ -126,8 +126,8 @@ struct LevelState {
 
     int num_scriptable_things;
 
+    Thing *_editor_mouse_currently_pressed_thing;
     Thing *editor_selected_thing;
-    Thing *editor_widgeted_thing;
     int editor_new_WAD_ID = 1;
 
 };
@@ -379,7 +379,7 @@ void CatGame() {
                 save_WAD();
             }
 
-            Thing *hot = level->editor_selected_thing;
+            Thing *hot = level->_editor_mouse_currently_pressed_thing;
             if (!hot) {
                 for_each_thing {
                     if (!thing->from_WAD__including_lucy_miao) continue;
@@ -401,29 +401,33 @@ void CatGame() {
                     hot->eso_quad();
                     eso_end();
                 }
-                if (level->editor_widgeted_thing) {
-                    ASSERT(level->editor_widgeted_thing->from_WAD__including_lucy_miao);
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); level->editor_widgeted_thing->eso_quad(); eso_end();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.yellow); level->editor_widgeted_thing->eso_quad(); eso_end();
+                if (level->editor_selected_thing) {
+                    ASSERT(level->editor_selected_thing->from_WAD__including_lucy_miao);
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); level->editor_selected_thing->eso_quad(); eso_end();
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.yellow); level->editor_selected_thing->eso_quad(); eso_end();
                 }
             }
 
 
             { // UI
                 if (hot && cow.mouse_left_pressed) {
-                    level->editor_selected_thing = hot;
-                    level->editor_widgeted_thing = level->editor_selected_thing;
+                    level->_editor_mouse_currently_pressed_thing = hot;
+                    level->editor_selected_thing = level->_editor_mouse_currently_pressed_thing;
                 }
-                if (level->editor_selected_thing && cow.mouse_left_held) {
-                    level->editor_selected_thing->s += mouse_change_in_position; // FORNOW ?
+                if (level->_editor_mouse_currently_pressed_thing && cow.mouse_left_held) {
+                    level->_editor_mouse_currently_pressed_thing->s += mouse_change_in_position; // FORNOW ?
                 }
                 if (cow.mouse_left_released) {
-                    level->editor_selected_thing = NULL;
+                    level->_editor_mouse_currently_pressed_thing = NULL;
                 }
 
                 { // copy and paste
-                    if (level->editor_widgeted_thing && cow.key_pressed['c']) {
-                        memcpy(&game->editor_clipboard_thing, level->editor_widgeted_thing, sizeof(Thing));
+                    if (level->editor_selected_thing) {
+                        if (cow.key_pressed['c']) memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
+                        if (cow.key_pressed['x']) {
+                            *level->editor_selected_thing = {};
+                            level->editor_selected_thing = NULL;
+                        }
                     }
 
                     if (game->editor_clipboard_thing.live && cow.key_pressed['v']) {
@@ -435,12 +439,12 @@ void CatGame() {
                     }
                 }
 
-                if (level->editor_widgeted_thing) {
-                    if ((level->editor_widgeted_thing != lucy) && (level->editor_widgeted_thing != miao)) {
-                        gui_slider("color", &level->editor_widgeted_thing->color, BLACK, WHITE);
-                        gui_slider("origin", &level->editor_widgeted_thing->origin_normal_type, 0, _COUNT_OF(ORIGIN_NORMAL_TYPE_n) - 1);
-                        if (level->editor_widgeted_thing->has_nonzero_WAD_ID) {
-                            gui_printf("WAD_ID %d", _WAD_recover_ID__LINEAR_RUNTIME(level->editor_widgeted_thing));
+                if (level->editor_selected_thing) {
+                    if ((level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
+                        gui_slider("color", &level->editor_selected_thing->color, BLACK, WHITE);
+                        gui_slider("origin", &level->editor_selected_thing->origin_normal_type, 0, _COUNT_OF(ORIGIN_NORMAL_TYPE_n) - 1);
+                        if (level->editor_selected_thing->has_nonzero_WAD_ID) {
+                            gui_printf("WAD_ID %d", _WAD_recover_ID__LINEAR_RUNTIME(level->editor_selected_thing));
                         } else {
                             while (_WAD_things_recovery_array[level->editor_new_WAD_ID]) ++level->editor_new_WAD_ID;
                             gui_slider("new WAD_ID", &level->editor_new_WAD_ID, 1, THINGS_ARRAY_LENGTH - 1);
@@ -449,8 +453,8 @@ void CatGame() {
                             if (gui_button("set WAD_ID")) {
                                 ASSERT(level->editor_new_WAD_ID != 0);
                                 ASSERT(!_WAD_things_recovery_array[level->editor_new_WAD_ID]);
-                                level->editor_widgeted_thing->has_nonzero_WAD_ID = true;
-                                _WAD_things_recovery_array[level->editor_new_WAD_ID] = level->editor_widgeted_thing;
+                                level->editor_selected_thing->has_nonzero_WAD_ID = true;
+                                _WAD_things_recovery_array[level->editor_new_WAD_ID] = level->editor_selected_thing;
                             }
                         }
                     }

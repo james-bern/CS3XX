@@ -30,29 +30,9 @@ size   5.00 80.00
 color  7
 
 THING 0
-s     50.74 6.30
-size   5.00 80.00
-color  7
-
-THING 0
-s     2.30 20.20
-size   4.00 4.00
-color  2
-
-THING 0
-s     8.54 27.72
-size   4.00 4.00
-color  2
-
-THING 0
 s     -3.95 34.42
 size   4.00 4.00
 color  2
-
-THING 0
-s     44.45 -3.41
-size   5.00 80.00
-color  7
 
 THING 0
 s     72.62 -1.82
@@ -65,32 +45,7 @@ size   4.00 4.00
 color  2
 
 THING 0
-s     1.46 26.75
-size   4.00 4.00
-color  2
-
-THING 0
-s     2.59 30.72
-size   4.00 4.00
-color  2
-
-THING 0
-s     -5.49 25.89
-size   4.00 4.00
-color  2
-
-THING 0
-s     5.55 24.01
-size   4.00 4.00
-color  2
-
-THING 0
 s     -3.21 18.65
-size   4.00 4.00
-color  2
-
-THING 0
-s     5.20 19.06
 size   4.00 4.00
 color  2
 
@@ -105,32 +60,7 @@ size   4.00 4.00
 color  2
 
 THING 0
-s     -16.12 21.67
-size   4.00 4.00
-color  4
-
-THING 0
-s     -11.12 20.45
-size   4.00 4.00
-color  4
-
-THING 0
 s     -11.32 15.91
-size   4.00 4.00
-color  4
-
-THING 0
-s     -22.14 16.39
-size   4.00 4.00
-color  4
-
-THING 0
-s     -22.68 16.50
-size   4.00 4.00
-color  4
-
-THING 0
-s     -23.96 18.27
 size   4.00 4.00
 color  4
 
