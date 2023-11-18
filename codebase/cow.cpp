@@ -2332,12 +2332,12 @@ void _gui_begin_frame() {
                 snprintf(text, sizeof(text), "%s %d `%s %s", name, *variable, decrement_hotkey ? _gui_hotkey2string(decrement_hotkey) : "", increment_hotkey ? _gui_hotkey2string(increment_hotkey) : "");
             }
         }
-        _gui_slider(text, variable, &tmp, lower_bound, upper_bound - 1);
+        _gui_slider(text, variable, &tmp, lower_bound, upper_bound);
         *variable = int(round(tmp));
         if (globals.key_pressed[increment_hotkey]) ++(*variable);
         if (globals.key_pressed[decrement_hotkey]) --(*variable);
         if (globals.key_pressed[increment_hotkey] || globals.key_pressed[decrement_hotkey]) {
-            *variable = (!loop) ? CLAMP(*variable, lower_bound, (upper_bound - 1)) : lower_bound + MODULO(*variable - lower_bound, (upper_bound) - lower_bound);
+            *variable = (!loop) ? CLAMP(*variable, lower_bound, (upper_bound)) : lower_bound + MODULO(*variable - lower_bound, (upper_bound + 1) - lower_bound);
         }
     }
 

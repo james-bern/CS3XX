@@ -1,35 +1,145 @@
 LUCY
-s     1.29 0.49
+s     -15.16 2.33
 
 MIAO
-s     -3.78 0.46
+s     -3.83 0.46
 
 THING 1
-s     2.54 19.08
+s     13.81 12.97
 size   4.00 4.00
 color  2
 
 THING 2
-s     -17.75 3.20
+s     -26.62 -19.19
 size   2.00 2.00
 color  6
 
-THING 57
-s     -41.81 -12.48
-size   5.00 80.00
-color  7
-
-THING 58
-s     -10.67 -17.98
+THING 118
+s     31.22 12.27
 size   5.00 80.00
 color  7
 
 THING 0
-s     29.69 10.51
+s     65.78 1.54
 size   5.00 80.00
 color  7
 
 THING 0
-s     -25.37 1.07
+s     -59.88 -20.71
 size   5.00 80.00
 color  7
+
+THING 0
+s     50.74 6.30
+size   5.00 80.00
+color  7
+
+THING 0
+s     2.30 20.20
+size   4.00 4.00
+color  2
+
+THING 0
+s     8.54 27.72
+size   4.00 4.00
+color  2
+
+THING 0
+s     -3.95 34.42
+size   4.00 4.00
+color  2
+
+THING 0
+s     44.45 -3.41
+size   5.00 80.00
+color  7
+
+THING 0
+s     72.62 -1.82
+size   5.00 80.00
+color  7
+
+THING 0
+s     -1.72 32.27
+size   4.00 4.00
+color  2
+
+THING 0
+s     1.46 26.75
+size   4.00 4.00
+color  2
+
+THING 0
+s     2.59 30.72
+size   4.00 4.00
+color  2
+
+THING 0
+s     -5.49 25.89
+size   4.00 4.00
+color  2
+
+THING 0
+s     5.55 24.01
+size   4.00 4.00
+color  2
+
+THING 0
+s     -3.21 18.65
+size   4.00 4.00
+color  2
+
+THING 0
+s     5.20 19.06
+size   4.00 4.00
+color  2
+
+THING 0
+s     7.24 31.35
+size   4.00 4.00
+color  2
+
+THING 0
+s     11.33 21.29
+size   4.00 4.00
+color  2
+
+THING 0
+s     -16.12 21.67
+size   4.00 4.00
+color  4
+
+THING 0
+s     -11.12 20.45
+size   4.00 4.00
+color  4
+
+THING 0
+s     -11.32 15.91
+size   4.00 4.00
+color  4
+
+THING 0
+s     -22.14 16.39
+size   4.00 4.00
+color  4
+
+THING 0
+s     -22.68 16.50
+size   4.00 4.00
+color  4
+
+THING 0
+s     -23.96 18.27
+size   4.00 4.00
+color  4
+
+THING 0
+s     -26.08 23.98
+size   4.00 4.00
+color  4
+
+THING 0
+s     -26.60 27.78
+size   4.00 4.00
+color  4

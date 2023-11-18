@@ -1,3 +1,5 @@
+// TODO: Copy and Paste Thing's
+
 //  vertical slice
 // - firing bullets
 // - music
@@ -30,6 +32,9 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
 
 
 
+// WAD_ID -> update ID
+
+
 #define BLACK   0
 #define RED     1
 #define GREEN   2
@@ -39,28 +44,27 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
 #define CYAN    6
 #define WHITE   7
 
-// TODO: flags
-int2 LOWER_LEFT   = { -1, -1 };
-int2 LOWER_MIDLE  = {  0, -1 };
-int2 LOWER_RIGHT  = {  1, -1 };
-int2 CENTER_LEFT  = { -1,  0 };
-int2 CENTER_MIDLE = {  0,  0 };
-int2 CENTER_RIGHT = {  1,  0 };
-int2 UPPER_LEFT   = { -1,  1 };
-int2 UPPER_MIDLE  = {  0,  1 };
-int2 UPPER_RIGHT  = {  1,  1 };
-
-// #define ZERO__WAD_ID_PROGRAMMATIC 0
+#define ORIGIN_NORMAL_TYPE_CENTER_MIDDLE 0
+#define ORIGIN_NORMAL_TYPE_UPPER_MIDDLE  1
+#define ORIGIN_NORMAL_TYPE_UPPER_RIGHT   2
+#define ORIGIN_NORMAL_TYPE_CENTER_RIGHT  3
+#define ORIGIN_NORMAL_TYPE_LOWER_RIGHT   4
+#define ORIGIN_NORMAL_TYPE_LOWER_MIDDLE  5
+#define ORIGIN_NORMAL_TYPE_LOWER_LEFT    6
+#define ORIGIN_NORMAL_TYPE_CENTER_LEFT   7
+#define ORIGIN_NORMAL_TYPE_UPPER_LEFT    8
+vec2 ORIGIN_NORMAL_TYPE_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
 
 struct Thing {
     bool live;
     bool has_nonzero_WAD_ID;
     bool from_WAD__including_lucy_miao;
 
+    int origin_normal_type;
+
     union { vec2 s;    struct { real x,     y;      }; };
     vec2 v;
     union { vec2 size; struct { real width, height; }; };
-    int2 origin_flags; // FORNOW
     int color;
     bool mobile;
 
@@ -69,21 +73,21 @@ struct Thing {
 
     bool containsPoint(vec2 p) {
         vec2 r = size / 2;
-        vec2 f = V2(origin_flags[0], origin_flags[1]);
+        vec2 n = ORIGIN_NORMAL_TYPE_n[origin_normal_type];
         return (
-                (p.x > s.x + (-1 - f.x) * r.x) &&
-                (p.x < s.x + ( 1 - f.x) * r.x) &&
-                (p.y > s.y + (-1 - f.y) * r.y) &&
-                (p.y < s.y + ( 1 - f.y) * r.y)
+                (p.x > s.x + (-1 - n.x) * r.x) &&
+                (p.x < s.x + ( 1 - n.x) * r.x) &&
+                (p.y > s.y + (-1 - n.y) * r.y) &&
+                (p.y < s.y + ( 1 - n.y) * r.y)
                );
     }
     void eso_quad() {
         vec2 r = size / 2;
-        vec2 f = V2(origin_flags[0], origin_flags[1]);
-        eso_vertex(x + ( 1 - f.x) * r.x, y + ( 1 - f.y) * r.y);
-        eso_vertex(x + ( 1 - f.x) * r.x, y + (-1 - f.y) * r.y);
-        eso_vertex(x + (-1 - f.x) * r.x, y + (-1 - f.y) * r.y);
-        eso_vertex(x + (-1 - f.x) * r.x, y + ( 1 - f.y) * r.y);
+        vec2 n = ORIGIN_NORMAL_TYPE_n[origin_normal_type];
+        eso_vertex(x + ( 1 - n.x) * r.x, y + ( 1 - n.y) * r.y);
+        eso_vertex(x + ( 1 - n.x) * r.x, y + (-1 - n.y) * r.y);
+        eso_vertex(x + (-1 - n.x) * r.x, y + (-1 - n.y) * r.y);
+        eso_vertex(x + (-1 - n.x) * r.x, y + ( 1 - n.y) * r.y);
     }
 };
 
@@ -92,19 +96,40 @@ struct Thing {
 #define MODE_EDITOR 1
 
 struct FrameState {
-    int _recover_things_index;
+    int _programmatic_things_recovery_index;
+};
+
+struct LucyLevelState {
+};
+
+struct MiaoLevelState {
 };
 
 struct LevelState {
     FrameState frame;
-    int powerups_bit_field;
+
+
+    // extra state that isn't needed for all Thing's
+    struct {
+
+    } lucy_;
+
+    struct { 
+
+    } miao_;
+
 
     #define THINGS_ARRAY_LENGTH 256
     Thing things[THINGS_ARRAY_LENGTH];
-    Thing *_recover_things[THINGS_ARRAY_LENGTH];
-    Thing *_WAD_things[THINGS_ARRAY_LENGTH];
+    Thing *_programmatic_things_recovery_array[THINGS_ARRAY_LENGTH];
+    Thing *_WAD_things_recovery_array[THINGS_ARRAY_LENGTH];
 
     int num_scriptable_things;
+
+    Thing *editor_selected_thing;
+    Thing *editor_widgeted_thing;
+    int editor_new_WAD_ID = 1;
+
 };
 
 struct GameState {
@@ -113,27 +138,31 @@ struct GameState {
     int mode;
     bool reseting_level;
     bool paused;
+
+    Thing editor_clipboard_thing;
 };
 
 
 
 
-GameState game;
+
+
+GameState *game = (GameState *) calloc(1, sizeof(GameState));
+#define cow globals // FORNOW
 
 
 // aliases
-LevelState *level = &game.level;
+LevelState *level = &game->level;
 FrameState *frame = &level->frame;
 Thing *things = level->things;
 Thing *lucy = &things[0];
 Thing *miao = &things[1];
-Thing **_WAD_things = level->_WAD_things;
+Thing **_WAD_things_recovery_array = level->_WAD_things_recovery_array;
 
 // "iterators"
 #define for_each_thing for (Thing *thing = things; thing < (things + THINGS_ARRAY_LENGTH); ++thing)
 #define for_each_thing_skipping_lucy_and_miao for (Thing *thing = (things + 2); thing < (things + THINGS_ARRAY_LENGTH); ++thing)
 
-// TODO: Copy and Paste Thing's
 
 
 int _WAD_recover_ID__LINEAR_RUNTIME(Thing *thing) {
@@ -143,8 +172,8 @@ int _WAD_recover_ID__LINEAR_RUNTIME(Thing *thing) {
     ASSERT(thing != lucy);
     ASSERT(thing != miao);
 
-    for (Thing **other = _WAD_things; other < _WAD_things + THINGS_ARRAY_LENGTH; ++other) {
-        if (thing == *other) return (other - _WAD_things);
+    for (Thing **other = _WAD_things_recovery_array; other < _WAD_things_recovery_array + THINGS_ARRAY_LENGTH; ++other) {
+        if (thing == *other) return (other - _WAD_things_recovery_array);
     }
     ASSERT(0);
     return 0;
@@ -153,6 +182,7 @@ int _WAD_recover_ID__LINEAR_RUNTIME(Thing *thing) {
 
 
 
+// constructors
 // Things are only created through this constructor.
 // (zero is sorta kinda not really initialization)
 Thing *New_Live_Thing() {
@@ -165,19 +195,19 @@ Thing *New_Live_Thing() {
 }
 
 Thing *Programmatic_Thing() {
-    if (game.reseting_level) {
+    if (game->reseting_level) {
         ++level->num_scriptable_things;
-        return (level->_recover_things[frame->_recover_things_index++] = New_Live_Thing());
+        return (level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++] = New_Live_Thing());
     }
-    ASSERT(frame->_recover_things_index < level->num_scriptable_things);
-    return level->_recover_things[frame->_recover_things_index++];
+    ASSERT(frame->_programmatic_things_recovery_index < level->num_scriptable_things);
+    return level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++];
 }
 
 
 Thing *WAD_Thing(int WAD_ID) {
     ASSERT(WAD_ID > 0);
     ASSERT(WAD_ID < THINGS_ARRAY_LENGTH);
-    Thing *result = _WAD_things[WAD_ID];
+    Thing *result = _WAD_things_recovery_array[WAD_ID];
     if (!result) {
         printf("[WAD_Thing] WAD_ID %d not found\n", WAD_ID);
         ASSERT(0);
@@ -205,9 +235,9 @@ void save_WAD() {
     fprintf(file, "\nMIAO\n");
     fprintf(file, "s     %.2lf %.2lf\n", miao->s[0], miao->s[1]);
     // part 0: nonzero WAD_ID's
-    for (Thing **ptr = _WAD_things; ptr < _WAD_things + THINGS_ARRAY_LENGTH; ++ptr) {
+    for (Thing **ptr = _WAD_things_recovery_array; ptr < _WAD_things_recovery_array + THINGS_ARRAY_LENGTH; ++ptr) {
         if (!*ptr) continue;
-        _save_WAD_helper(file, *ptr, (ptr - _WAD_things));
+        _save_WAD_helper(file, *ptr, (ptr - _WAD_things_recovery_array));
     }
     // part 1: zero WAD_ID's
     for_each_thing_skipping_lucy_and_miao {
@@ -223,8 +253,8 @@ void load_WAD() {
     FILE *file = fopen("WAD.txt", "r");
     ASSERT(file);
     {
-        static char prefix[512]; // FORNOW
-        static char line[512];
+        char prefix[512]; // FORNOW
+        char line[512];
         Thing *curr = NULL;
         while (fgets(line, _COUNT_OF(line), file)) {
             if (poe_matches_prefix(line, "LUCY")) {
@@ -238,7 +268,7 @@ void load_WAD() {
                 curr = New_Live_Thing();
                 curr->from_WAD__including_lucy_miao = true;
                 curr->has_nonzero_WAD_ID = (curr_wad_id != 0);
-                if (curr->has_nonzero_WAD_ID) _WAD_things[curr_wad_id] = curr;
+                if (curr->has_nonzero_WAD_ID) _WAD_things_recovery_array[curr_wad_id] = curr;
             } else {
                 if (poe_matches_prefix(line, "s ")) {
                     sscanf(line, "%s %lf %lf", prefix, &curr->s.x, &curr->s.y);
@@ -259,25 +289,31 @@ void load_WAD() {
 
 
 
-void MiaoTheGame() {
+void CatGame() {
 
-    game.reseting_level = true;
-    game.level_index = 1;
+    game->reseting_level = true;
+    game->level_index = 1;
 
     window_set_clear_color(0.5, 0.5, 0.5);
     while (cow_begin_frame()) {
-
-        mat4 transform_for_drawing_and_picking = camera_get_PV(&camera);
-        vec2 mouse_position = mouse_get_position(transform_for_drawing_and_picking);
-        vec2 mouse_change_in_position = mouse_get_change_in_position(transform_for_drawing_and_picking);
 
 
         memset(frame, 0, sizeof(FrameState));
 
 
 
-        gui_printf((game.mode == MODE_GAME) ? "GAME" : "EDITOR");
-        gui_readout("level", &game.level_index);
+        // cow stuff (try to keep it up here)
+        camera_move(&camera);
+        mat4 transform_for_drawing_and_picking = camera_get_PV(&camera);
+        vec2 mouse_position = mouse_get_position(transform_for_drawing_and_picking);
+        vec2 mouse_change_in_position = mouse_get_change_in_position(transform_for_drawing_and_picking);
+
+
+
+
+
+        gui_printf((game->mode == MODE_GAME) ? "GAME" : "EDITOR");
+        gui_readout("level", &game->level_index);
         {
             int num_things = 0;
             for_each_thing {
@@ -291,41 +327,40 @@ void MiaoTheGame() {
 
 
 
-        if (gui_button("reset", 'r')) game.reseting_level = true;
-        if (game.mode == MODE_GAME) gui_checkbox("paused", &game.paused, 'p');
+        if (gui_button("reset", 'r')) game->reseting_level = true;
+        if (game->mode == MODE_GAME) gui_checkbox("paused", &game->paused, 'p');
 
-        if (globals.key_pressed[COW_KEY_ARROW_LEFT] || globals.key_pressed[COW_KEY_ARROW_RIGHT]) {
-            game.reseting_level = true;
-            if (globals.key_pressed[COW_KEY_ARROW_LEFT])  --game.level_index;
-            if (globals.key_pressed[COW_KEY_ARROW_RIGHT]) ++game.level_index;
+        if (cow.key_pressed[COW_KEY_ARROW_LEFT] || cow.key_pressed[COW_KEY_ARROW_RIGHT]) {
+            game->reseting_level = true;
+            if (cow.key_pressed[COW_KEY_ARROW_LEFT])  --game->level_index;
+            if (cow.key_pressed[COW_KEY_ARROW_RIGHT]) ++game->level_index;
         }
 
-        if (globals.key_pressed[COW_KEY_TAB]) {
+        if (cow.key_pressed[COW_KEY_TAB]) {
             // TODO: Prompt to save when tabbing out of editor
-            game.reseting_level = true;
-            game.mode = (game.mode == MODE_GAME) ? MODE_EDITOR : MODE_GAME;
+            game->reseting_level = true;
+            game->mode = (game->mode == MODE_GAME) ? MODE_EDITOR : MODE_GAME;
         }
 
 
 
 
 
-        if (game.reseting_level) {
-            printf("[game] resetting\n");
+        if (game->reseting_level) {
             memset(level, 0, sizeof(LevelState));
 
             {
                 lucy->live = true;
                 lucy->size = { 4, 8 };
                 lucy->color = RED;
-                lucy->origin_flags = LOWER_MIDLE;
+                lucy->origin_normal_type = ORIGIN_NORMAL_TYPE_LOWER_MIDDLE;
                 lucy->mobile = true;
                 lucy->from_WAD__including_lucy_miao = true;
 
                 miao->live = true;
                 miao->size = { 4, 4 };
                 miao->color = BLUE;
-                miao->origin_flags = LOWER_MIDLE;
+                miao->origin_normal_type = ORIGIN_NORMAL_TYPE_LOWER_MIDDLE;
                 miao->mobile = true;
                 miao->from_WAD__including_lucy_miao = true;
             }
@@ -333,17 +368,18 @@ void MiaoTheGame() {
             load_WAD();
         }
 
-        if (game.mode == MODE_EDITOR) {
 
-            // TODO: should be able to hot load game logic
+
+        // UPDATE_AND_DRAW (could be an instance method of the level class)
+
+        if (game->mode == MODE_EDITOR) { // editor
+                                        // TODO: should be able to hot load game logic
 
             if (gui_button("save", 's')) {
                 save_WAD();
             }
 
-            static Thing *widgeted;
-            static Thing *selected;
-            Thing *hot = selected;
+            Thing *hot = level->editor_selected_thing;
             if (!hot) {
                 for_each_thing {
                     if (!thing->from_WAD__including_lucy_miao) continue;
@@ -365,128 +401,152 @@ void MiaoTheGame() {
                     hot->eso_quad();
                     eso_end();
                 }
-                if (widgeted) {
-                    ASSERT(widgeted->from_WAD__including_lucy_miao);
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); widgeted->eso_quad(); eso_end();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.yellow); widgeted->eso_quad(); eso_end();
+                if (level->editor_widgeted_thing) {
+                    ASSERT(level->editor_widgeted_thing->from_WAD__including_lucy_miao);
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); level->editor_widgeted_thing->eso_quad(); eso_end();
+                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.yellow); level->editor_widgeted_thing->eso_quad(); eso_end();
                 }
             }
 
 
             { // UI
-                if (hot && globals.mouse_left_pressed) {
-                    selected = hot;
-                    widgeted = selected;
+                if (hot && cow.mouse_left_pressed) {
+                    level->editor_selected_thing = hot;
+                    level->editor_widgeted_thing = level->editor_selected_thing;
                 }
-                if (selected && globals.mouse_left_held) {
-                    selected->s += mouse_change_in_position; // FORNOW ?
+                if (level->editor_selected_thing && cow.mouse_left_held) {
+                    level->editor_selected_thing->s += mouse_change_in_position; // FORNOW ?
                 }
-                if (globals.mouse_left_released) {
-                    selected = NULL;
+                if (cow.mouse_left_released) {
+                    level->editor_selected_thing = NULL;
                 }
 
-                if (widgeted) {
-                    if ((widgeted != lucy) && (widgeted != miao)) {
-                        gui_slider("color", &widgeted->color, BLACK, WHITE + 1);
-                        if (widgeted->has_nonzero_WAD_ID) {
-                            gui_printf("WAD_ID %d", _WAD_recover_ID__LINEAR_RUNTIME(widgeted));
+                { // copy and paste
+                    if (level->editor_widgeted_thing && cow.key_pressed['c']) {
+                        memcpy(&game->editor_clipboard_thing, level->editor_widgeted_thing, sizeof(Thing));
+                    }
+
+                    if (game->editor_clipboard_thing.live && cow.key_pressed['v']) {
+                        Thing *thing = New_Live_Thing();
+                        *thing = game->editor_clipboard_thing;
+                        thing->s = mouse_position;
+                        thing->from_WAD__including_lucy_miao = true;
+                        thing->has_nonzero_WAD_ID = false;
+                    }
+                }
+
+                if (level->editor_widgeted_thing) {
+                    if ((level->editor_widgeted_thing != lucy) && (level->editor_widgeted_thing != miao)) {
+                        gui_slider("color", &level->editor_widgeted_thing->color, BLACK, WHITE);
+                        gui_slider("origin", &level->editor_widgeted_thing->origin_normal_type, 0, _COUNT_OF(ORIGIN_NORMAL_TYPE_n) - 1);
+                        if (level->editor_widgeted_thing->has_nonzero_WAD_ID) {
+                            gui_printf("WAD_ID %d", _WAD_recover_ID__LINEAR_RUNTIME(level->editor_widgeted_thing));
                         } else {
-                            static int new_WAD_ID = 1;
-                            gui_slider("new WAD_ID", &new_WAD_ID, 1, THINGS_ARRAY_LENGTH + 1);
-                            while (_WAD_things[new_WAD_ID]) ++new_WAD_ID;
-                            if (new_WAD_ID >= THINGS_ARRAY_LENGTH) new_WAD_ID = 1;
-                            while (_WAD_things[new_WAD_ID]) ++new_WAD_ID;
+                            while (_WAD_things_recovery_array[level->editor_new_WAD_ID]) ++level->editor_new_WAD_ID;
+                            gui_slider("new WAD_ID", &level->editor_new_WAD_ID, 1, THINGS_ARRAY_LENGTH - 1);
+                            level->editor_new_WAD_ID = CLAMP(level->editor_new_WAD_ID, 1, THINGS_ARRAY_LENGTH - 1);
 
-                            // if (globals.key_pressed['1'])
-                            if (gui_button("set WAD_ID"))
-                            {
-                                ASSERT(new_WAD_ID != 0);
-                               ASSERT(!_WAD_things[new_WAD_ID]);
-                                widgeted->has_nonzero_WAD_ID = true;
-                                _WAD_things[new_WAD_ID] = widgeted;
+                            if (gui_button("set WAD_ID")) {
+                                ASSERT(level->editor_new_WAD_ID != 0);
+                                ASSERT(!_WAD_things_recovery_array[level->editor_new_WAD_ID]);
+                                level->editor_widgeted_thing->has_nonzero_WAD_ID = true;
+                                _WAD_things_recovery_array[level->editor_new_WAD_ID] = level->editor_widgeted_thing;
                             }
                         }
                     }
                 }
             }
-
         }
 
         { // game
-            if (game.level_index == 0) {
-                // TODO: special level with all the different kinds of everything (like blow did for sokoban)
-            } if (game.level_index == 1) {
-                Thing *green = WAD_Thing(1);
-                Thing *cyan = WAD_Thing(2);
-                Thing *magenta = Programmatic_Thing();
-                Thing *platform = Programmatic_Thing();
-                if (game.reseting_level) {
-                    cyan->mobile = true;
-                    cyan->v = { 0.5, 0.5 }; // customizing WAD thing
+            { // update
 
-                    platform->size = { 16, 48 };
-                    platform->color = WHITE;
-                    platform->origin_flags = UPPER_MIDLE;
-                    magenta->size = { 4, 4 };
-                    magenta->color = MAGENTA;
-                    magenta->s = { 0, 12 };
-                } else if ((game.mode == MODE_GAME) && !game.paused) {
-                    green->y += 0.1;
-                    magenta->x -= 0.1;
-                }
-            } else if (game.level_index == 1) {
-                if (game.reseting_level) {
+                // level-specific Thing's and updates
+                if (game->level_index == 0) {
+                    // TODO: special level with all the different kinds of everything (like blow did for sokoban)
+
+
+
+
+
+
+
+
+
+                } if (game->level_index == 1) {
+                    Thing *green = WAD_Thing(1);
+                    Thing *cyan = WAD_Thing(2);
+                    Thing *magenta = Programmatic_Thing();
                     Thing *platform = Programmatic_Thing();
-                    platform->size = { 128, 32 };
-                    platform->color = WHITE;
-                    platform->origin_flags = UPPER_MIDLE;
+                    if (game->reseting_level) {
+                        cyan->mobile = true;
+                        cyan->v = { 0.5, 0.5 }; // customizing WAD thing
+
+                        platform->size = { 16, 48 };
+                        platform->color = WHITE;
+                        platform->origin_normal_type = ORIGIN_NORMAL_TYPE_UPPER_MIDDLE;
+                        magenta->size = { 4, 4 };
+                        magenta->color = MAGENTA;
+                        magenta->s = { 0, 12 };
+                    } else if ((game->mode == MODE_GAME) && !game->paused) {
+                        green->y -= 0.1;
+                        magenta->x -= 0.1;
+                    }
+                }
+                else if (game->level_index == 2) {
+                    if (game->reseting_level) {
+                        Thing *platform = Programmatic_Thing();
+                        platform->size = { 128, 32 };
+                        platform->color = WHITE;
+                        platform->origin_normal_type = ORIGIN_NORMAL_TYPE_UPPER_MIDDLE;
+                    }
+                }
+
+                // common (across levels) updates
+                if ((game->mode == MODE_GAME) && !game->paused) {
+                    { // lucy and miao
+                        if (cow.key_held['a']) lucy->x -= 0.4;
+                        if (cow.key_held['d']) lucy->x += 0.4;
+                    }
+
+                    for_each_thing_skipping_lucy_and_miao {
+                        if (!thing->live) continue;
+                        if (!thing->mobile) continue;
+                        thing->v.y -= 0.01;
+                        thing->s += thing->v;
+                    }
                 }
             }
 
-            if ((game.mode == MODE_GAME) && !game.paused) { // common (across levels) updates
-                { // lucy and miao
-                    if (globals.key_held['a']) lucy->x -= 1.0;
-                    if (globals.key_held['d']) lucy->x += 1.0;
-                }
-
-                for_each_thing_skipping_lucy_and_miao {
-                    if (!thing->live) continue;
-                    if (!thing->mobile) continue;
-                    thing->v.y -= 0.01;
-                    thing->s += thing->v;
-                }
-            }
-        }
-
-        // common across editor and game
-        { // draw
-            eso_begin(transform_for_drawing_and_picking, SOUP_QUADS);
-            for_each_thing {
-                if (!thing->live) continue;
-
-                vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
-                real a = ((game.mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
-                eso_color(color, a);
-                thing->eso_quad();
-            }
-            eso_end();
-            if (game.mode == MODE_EDITOR) {
+            { // draw
+                eso_begin(transform_for_drawing_and_picking, SOUP_QUADS);
                 for_each_thing {
                     if (!thing->live) continue;
 
-                    if (thing->has_nonzero_WAD_ID) {
-                        int WAD_ID = _WAD_recover_ID__LINEAR_RUNTIME(thing);
-                        char text[8] = {};
-                        sprintf(text, "%d", WAD_ID);
-                        text_draw(
-                                transform_for_drawing_and_picking,
-                                text,
-                                thing->s,
-                                monokai.black,
-                                0,
-                                {},
-                                true);
+                    vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
+                    real a = ((game->mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
+                    eso_color(color, a);
+                    thing->eso_quad();
+                }
+                eso_end();
+                if (game->mode == MODE_EDITOR) {
+                    for_each_thing {
+                        if (!thing->live) continue;
 
+                        if (thing->has_nonzero_WAD_ID) {
+                            int WAD_ID = _WAD_recover_ID__LINEAR_RUNTIME(thing);
+                            char text[8] = {};
+                            sprintf(text, "%d", WAD_ID);
+                            text_draw(
+                                    transform_for_drawing_and_picking,
+                                    text,
+                                    thing->s,
+                                    monokai.black,
+                                    0,
+                                    {},
+                                    true);
+
+                        }
                     }
                 }
             }
@@ -497,7 +557,7 @@ void MiaoTheGame() {
 
 
 
-        game.reseting_level = false;
+        game->reseting_level = false;
 
 
     }
@@ -511,7 +571,7 @@ int main() {
     config.hotkeys_app_prev = 0;
     _cow_init();
     _cow_reset();
-    MiaoTheGame();
+    CatGame();
     return 0;
 }
 
