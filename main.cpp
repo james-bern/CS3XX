@@ -19,6 +19,7 @@ typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
 #include "include.cpp"
+#define cow globals // FORNOW
 
 
 Camera2D camera = { 128.0 }; // FORNOW
@@ -29,6 +30,7 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
     }
     return true;
 }
+
 
 
 
@@ -64,13 +66,43 @@ struct Rectangle {
         return (IS_BETWEEN(p.x, min.x, max.x) && IS_BETWEEN(p.y, min.y, max.y));
     }
 
+    void getCorners(vec2 *corners) {
+        corners[0] = { min.x, min.y };
+        corners[1] = { max.x, min.y };
+        corners[2] = { max.x, max.y };
+        corners[3] = { min.x, max.y };
+    }
+
     void eso() {
-        eso_vertex(min.x, min.y);
-        eso_vertex(min.x, max.y);
-        eso_vertex(max.x, max.y);
-        eso_vertex(max.x, min.y);
+        vec2 corners[4]; getCorners(corners);
+        for_(i, 4) eso_vertex(corners[i]);
     }
 };
+
+void widget_drag(mat4 PV, Rectangle *rect) {
+
+    vec2 mouse_change_in_position = mouse_get_change_in_position(PV);
+
+    { // corners
+        vec2 corners[4]; rect->getCorners(corners);
+        vec2 *corner = widget_drag(PV, 4, corners);
+        if (corner) {
+            vec2 opposite = corners[(corner - corners + 2) % 4];
+            rect->min = cwiseMin(*corner, opposite);
+            rect->max = cwiseMax(*corner, opposite);
+            return;
+        }
+    }
+
+    { // lines
+
+    }
+
+    if (cow.mouse_left_held) {
+        rect->min += mouse_change_in_position;
+        rect->max += mouse_change_in_position;
+    }
+}
 
 struct Thing {
     bool live;
@@ -78,7 +110,7 @@ struct Thing {
 
     int update_group;
 
-    int origin_normal_type;
+    int origin_type;
 
     union { vec2 s;    struct { real x,     y;      }; };
     vec2 v;
@@ -89,16 +121,17 @@ struct Thing {
     bool walker;
     bool barrier;
 
+    vec2 getRadius() { return size / 2; }
+    vec2 getCenter() { return s - cwiseProduct(NORMAL_TYPE_n[origin_type], getRadius()); }
     Rectangle getRect() {
-        vec2 r = size / 2;
-        vec2 c = s - cwiseProduct(NORMAL_TYPE_n[origin_normal_type], r);
+        vec2 r = getRadius();
+        vec2 c = getCenter();
         return { c - r, c + r };
     }
-
     void setRect(Rectangle rect) {
         vec2 c = (rect.min + rect.max) / 2;
         vec2 r = (rect.max - rect.min) / 2;
-        s = c + cwiseProduct(NORMAL_TYPE_n[origin_normal_type], r);
+        s = c + cwiseProduct(NORMAL_TYPE_n[origin_type], r);
         size = 2 * r;
     }
 };
@@ -135,7 +168,7 @@ struct LevelState {
     Thing things[THINGS_ARRAY_LENGTH];
     Thing *_programmatic_things_recovery_array[THINGS_ARRAY_LENGTH];
 
-    int num_scriptable_things;
+    int _num_programmatic_things;
 
     Thing *_editor_mouse_currently_pressed_thing;
     Thing *editor_selected_thing;
@@ -158,7 +191,6 @@ struct GameState {
 
 
 GameState *game = (GameState *) calloc(1, sizeof(GameState));
-#define cow globals // FORNOW
 
 
 // aliases
@@ -195,10 +227,10 @@ Thing *New_Live_Thing() {
 
 Thing *Programmatic_Thing() {
     if (game->reseting_level) {
-        ++level->num_scriptable_things;
+        ++level->_num_programmatic_things;
         return (level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++] = New_Live_Thing());
     }
-    ASSERT(frame->_programmatic_things_recovery_index < level->num_scriptable_things);
+    ASSERT(frame->_programmatic_things_recovery_index < level->_num_programmatic_things);
     return level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++];
 }
 
@@ -220,7 +252,7 @@ void save_WAD() {
     for_each_live_thing_skipping_lucy_and_miao {
         if (!thing->from_WAD__including_lucy_miao) continue;
         fprintf(file, "\nTHING\n");
-        fprintf(file, "origin_normal_type  %d\n", thing->origin_normal_type);
+        fprintf(file, "origin_type  %d\n", thing->origin_type);
         fprintf(file, "update_group        %d\n", thing->update_group);
         fprintf(file, "s                   %.2lf %.2lf\n", thing->s[0], thing->s[1]);
         fprintf(file, "size                %.2lf %.2lf\n", thing->size[0], thing->size[1]);
@@ -246,8 +278,8 @@ void load_WAD() {
                 curr = New_Live_Thing();
                 curr->from_WAD__including_lucy_miao = true;
             } else {
-                if (poe_matches_prefix(line, "origin_normal_type ")) {
-                    sscanf(line, "%s %d", prefix, &curr->origin_normal_type);
+                if (poe_matches_prefix(line, "origin_type ")) {
+                    sscanf(line, "%s %d", prefix, &curr->origin_type);
                 } else if (poe_matches_prefix(line, "update_group ")) {
                     sscanf(line, "%s %d", prefix, &curr->update_group);
                 } else if (poe_matches_prefix(line, "s ")) {
@@ -274,7 +306,7 @@ void CatGame() {
     game->reseting_level = true;
     game->level_index = 1;
 
-    window_set_clear_color(0.5, 0.5, 0.5);
+    window_set_clear_color(0.2, 0.2, 0.2);
     while (cow_begin_frame()) {
 
 
@@ -286,11 +318,19 @@ void CatGame() {
         camera_move(&camera);
         mat4 transform_for_drawing_and_picking = camera_get_PV(&camera);
         vec2 mouse_position = mouse_get_position(transform_for_drawing_and_picking);
-        vec2 mouse_change_in_position = mouse_get_change_in_position(transform_for_drawing_and_picking);
 
 
 
 
+
+
+
+
+        if (cow.key_pressed[COW_KEY_TAB]) {
+            // TODO: Prompt to save when tabbing out of editor
+            game->reseting_level = true;
+            game->mode = (game->mode == MODE_GAME) ? MODE_EDITOR : MODE_GAME;
+        }
 
         gui_printf((game->mode == MODE_GAME) ? "GAME" : "EDITOR");
         gui_readout("level", &game->level_index);
@@ -301,13 +341,9 @@ void CatGame() {
             }
             gui_readout("# things", &num_things);
         }
-        gui_printf("-----------");
-
-
-
 
         if (gui_button("reset", 'r')) game->reseting_level = true;
-        if (game->mode == MODE_GAME) gui_checkbox("paused", &game->paused, 'p');
+        gui_checkbox("paused", &game->paused, 'p');
 
         if (cow.key_pressed[COW_KEY_ARROW_LEFT] || cow.key_pressed[COW_KEY_ARROW_RIGHT]) {
             game->reseting_level = true;
@@ -315,11 +351,6 @@ void CatGame() {
             if (cow.key_pressed[COW_KEY_ARROW_RIGHT]) ++game->level_index;
         }
 
-        if (cow.key_pressed[COW_KEY_TAB]) {
-            // TODO: Prompt to save when tabbing out of editor
-            game->reseting_level = true;
-            game->mode = (game->mode == MODE_GAME) ? MODE_EDITOR : MODE_GAME;
-        }
 
 
 
@@ -332,14 +363,14 @@ void CatGame() {
                 lucy->live = true;
                 lucy->size = { 4, 8 };
                 lucy->color = RED;
-                lucy->origin_normal_type = NORMAL_TYPE_LOWER_MIDDLE;
+                lucy->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
                 lucy->mobile = true;
                 lucy->from_WAD__including_lucy_miao = true;
 
                 miao->live = true;
                 miao->size = { 4, 4 };
                 miao->color = BLUE;
-                miao->origin_normal_type = NORMAL_TYPE_LOWER_MIDDLE;
+                miao->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
                 miao->mobile = true;
                 miao->from_WAD__including_lucy_miao = true;
             }
@@ -394,24 +425,17 @@ void CatGame() {
                         level->_editor_mouse_currently_pressed_thing = editor_hot_thing;
                         level->editor_selected_thing = level->_editor_mouse_currently_pressed_thing;
                     }
-                    if (level->_editor_mouse_currently_pressed_thing && cow.mouse_left_held) {
-                        level->_editor_mouse_currently_pressed_thing->s += mouse_change_in_position; // FORNOW ?
-                    }
                     if (cow.mouse_left_released) {
                         level->_editor_mouse_currently_pressed_thing = NULL;
                     }
                 }
 
-                { // FORNOW repetitive stuff (works on hot or selected)
-                    { // resizing
+                { 
+                    { // dragging
                         if (editor_hot_thing && (editor_hot_thing != lucy) && (editor_hot_thing != miao)) {
                             Rectangle rect = editor_hot_thing->getRect();
-                            // TODO: widget_drag(&rect);
+                            widget_drag(transform_for_drawing_and_picking, &rect);
                             editor_hot_thing->setRect(rect);
-                        } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
-                            Rectangle rect = level->editor_selected_thing->getRect();
-                            // TODO: widget_drag(&rect);
-                            level->editor_selected_thing->setRect(rect);
                         }
 
                     }
@@ -454,12 +478,20 @@ void CatGame() {
 
 
                 { //  sliders
-                    if (level->editor_selected_thing) {
-                        if ((level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
-                            gui_slider("color", &level->editor_selected_thing->color, BLACK, WHITE);
-                            gui_slider("origin", &level->editor_selected_thing->origin_normal_type, 0, 8);
-                            gui_slider("update_group", &level->editor_selected_thing->update_group, 0, 255);
-                            for_(i, 10) if (cow.key_pressed['0' + i]) level->editor_selected_thing->update_group = i;
+                    Thing *thing = level->editor_selected_thing;
+                    if (thing) {
+                        if ((thing != lucy) && (thing != miao)) {
+                            gui_readout("s", &thing->s);
+                            gui_slider("color", &thing->color, BLACK, WHITE);
+                            {
+                                int tmp = thing->origin_type;
+                                gui_slider("origin type", &thing->origin_type, 0, 8);
+                                if (tmp != thing->origin_type) {
+                                    thing->s += cwiseProduct(NORMAL_TYPE_n[thing->origin_type] - NORMAL_TYPE_n[tmp], thing->getRadius());
+                                }
+                            }
+                            gui_slider("update_group", &thing->update_group, 0, 255);
+                            for_(i, 10) if (cow.key_pressed['0' + i]) thing->update_group = i;
                         }
                     }
                 }
@@ -488,7 +520,7 @@ void CatGame() {
                         if (game->reseting_level) {
                             platform->size = { 16, 48 };
                             platform->color = WHITE;
-                            platform->origin_normal_type = NORMAL_TYPE_UPPER_MIDDLE;
+                            platform->origin_type = NORMAL_TYPE_UPPER_MIDDLE;
                             magenta->size = { 4, 4 };
                             magenta->color = MAGENTA;
                             magenta->s = { 0, 12 };
@@ -511,7 +543,7 @@ void CatGame() {
                             Thing *platform = Programmatic_Thing();
                             platform->size = { 128, 32 };
                             platform->color = WHITE;
-                            platform->origin_normal_type = NORMAL_TYPE_UPPER_MIDDLE;
+                            platform->origin_type = NORMAL_TYPE_UPPER_MIDDLE;
                         }
                     }
 
@@ -541,15 +573,27 @@ void CatGame() {
                 }
                 eso_end();
                 if (game->mode == MODE_EDITOR) {
-                    for_each_live_thing {
 
+
+
+                    {
+                        Thing *thing = level->editor_selected_thing;
+                        if (thing) {
+                            eso_begin(transform_for_drawing_and_picking, SOUP_POINTS, 12, true); eso_color(monokai.black); eso_vertex(thing->s); eso_end();
+                            eso_begin(transform_for_drawing_and_picking, SOUP_POINTS, 8, true); eso_color(monokai.yellow); eso_vertex(thing->s); eso_end();
+                        }
+                    }
+
+
+
+                    for_each_live_thing {
                         if (thing->update_group) {
                             char text[8] = {};
                             sprintf(text, "%d", thing->update_group);
                             text_draw(
                                     transform_for_drawing_and_picking,
                                     text,
-                                    thing->s,
+                                    thing->getCenter(),
                                     monokai.black,
                                     0,
                                     {},

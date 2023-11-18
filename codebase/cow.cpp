@@ -2063,2692 +2063,2601 @@ void _gui_begin_frame() {
     }
 }
 
-    void gui_printf(const char *format, ...) {
-        if (COW1._gui_hide_and_disable) { return; }
-        static char _text[256] = {};
-        {
-            va_list arg;
-            va_start(arg, format);
-            vsnprintf(_text, sizeof(_text), format, arg);
-            va_end(arg);
-        }
+void gui_printf(const char *format, ...) {
+    if (COW1._gui_hide_and_disable) { return; }
+    static char _text[256] = {};
+    {
+        va_list arg;
+        va_start(arg, format);
+        vsnprintf(_text, sizeof(_text), format, arg);
+        va_end(arg);
+    }
 
-        char *text = _text;
-        char *sep = strchr(text, '`'); // fornow hacking in two color text
-        if (!sep) {
+    char *text = _text;
+    char *sep = strchr(text, '`'); // fornow hacking in two color text
+    if (!sep) {
+        _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
+                1.0,
+                1.0,
+                1.0,
+                1.0, 0, 0.0, 0.0, true);
+    } else {
+        real tmp = COW1._gui_x_curr; {
+            *sep = 0;
             _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
                     1.0,
                     1.0,
                     1.0,
                     1.0, 0, 0.0, 0.0, true);
-        } else {
-            real tmp = COW1._gui_x_curr; {
-                *sep = 0;
-                _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
-                        1.0,
-                        1.0,
-                        1.0,
-                        1.0, 0, 0.0, 0.0, true);
-                COW1._gui_x_curr += 2 * stb_easy_font_width(text);
-                text = sep + 1;
-                _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
-            } COW1._gui_x_curr = tmp;
-        }
-
-        COW1._gui_y_curr += 28;
+            COW1._gui_x_curr += 2 * stb_easy_font_width(text);
+            text = sep + 1;
+            _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
+        } COW1._gui_x_curr = tmp;
     }
 
-    void gui_readout(char *name, bool *variable) {
-        if (!name) name = "";
-        char *join = (char *)((name) ? " " : "");
-        gui_printf("%s%s%s", name, join, (*variable) ? "true" : "false");
-    }
+    COW1._gui_y_curr += 28;
+}
 
-    void gui_readout(char *name, int *variable) {
-        if (!name) name = "";
-        char *join = (char *)((name) ? " " : "");
-        gui_printf("%s%s%d", name, join, *variable);
-    }
+void gui_readout(char *name, bool *variable) {
+    if (!name) name = "";
+    char *join = (char *)((name) ? " " : "");
+    gui_printf("%s%s%s", name, join, (*variable) ? "true" : "false");
+}
 
-    void gui_readout(char *name, real *variable) {
-        if (!name) name = "";
-        char *join = (char *)((name) ? " " : "");
-        gui_printf("%s%s%.4lf", name, join, *variable);
-    }
+void gui_readout(char *name, int *variable) {
+    if (!name) name = "";
+    char *join = (char *)((name) ? " " : "");
+    gui_printf("%s%s%d", name, join, *variable);
+}
+
+void gui_readout(char *name, real *variable) {
+    if (!name) name = "";
+    char *join = (char *)((name) ? " " : "");
+    gui_printf("%s%s%.4lf", name, join, *variable);
+}
 
 #ifdef SNAIL_CPP
-    void gui_readout(char *name, vec2 *variable) {
-        if (!name) name = "";
-        char *join = (char *)((name) ? " " : "");
-        gui_printf("%s%s(%.4lf, %.4lf)", name, join, variable->x, variable->y);
-    }
+void gui_readout(char *name, vec2 *variable) {
+    if (!name) name = "";
+    char *join = (char *)((name) ? " " : "");
+    gui_printf("%s%s(%.4lf, %.4lf)", name, join, variable->x, variable->y);
+}
 
-    void gui_readout(char *name, vec3 *variable) {
-        if (!name) name = "";
-        char *join = (char *)((name) ? " " : "");
-        gui_printf("%s%s(%.1lf, %.1lf, %.1lf)", name, join, variable->x, variable->y, variable->z);
-    }
+void gui_readout(char *name, vec3 *variable) {
+    if (!name) name = "";
+    char *join = (char *)((name) ? " " : "");
+    gui_printf("%s%s(%.1lf, %.1lf, %.1lf)", name, join, variable->x, variable->y, variable->z);
+}
 #endif
 
-    char *_gui_hotkey2string(int hotkey) {
-        if (hotkey == COW_KEY_TAB) {
-            return "TAB";
+char *_gui_hotkey2string(int hotkey) {
+    if (hotkey == COW_KEY_TAB) {
+        return "TAB";
+    }
+    if (hotkey == ' ') {
+        return "SPACE";
+    }
+    if (hotkey == COW_KEY_ARROW_LEFT) {
+        return "<--";
+    }
+    if (hotkey == COW_KEY_ARROW_RIGHT) {
+        return "-->";
+    }
+    static char dummy[512];
+    if (dummy[2] == 0) {
+        for (int i = 0; i < 256; ++i) {
+            dummy[2 * i] = char(i);
         }
-        if (hotkey == ' ') {
-            return "SPACE";
+    }
+    return dummy + 2 * hotkey;
+}
+
+bool gui_button(char *name, int hotkey = '\0') {
+    if (COW1._gui_hide_and_disable) { return false; }
+    real s_mouse[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+
+    // fornow
+    static char text[256];
+    if (hotkey) {
+        snprintf(text, sizeof(text), "%s `%s", name, _gui_hotkey2string(hotkey));
+    } else {
+        strcpy(text, name);
+    }
+    real L = (2 * stb_easy_font_width(text) + 16); // fornow
+    if (hotkey) L -= 12;
+
+    real H = 24;
+    real box[8] = {
+        COW1._gui_x_curr    , COW1._gui_y_curr    ,
+        COW1._gui_x_curr + L, COW1._gui_y_curr    ,
+        COW1._gui_x_curr + L, COW1._gui_y_curr + H,
+        COW1._gui_x_curr    , COW1._gui_y_curr + H,
+    };
+
+    if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
+        bool is_near = IS_BETWEEN(s_mouse[0], box[0], box[2]) && IS_BETWEEN(s_mouse[1], box[1], box[5]);
+        if (is_near) {
+            COW1._gui_hot = name;
+            globals._mouse_owner = COW_MOUSE_OWNER_GUI;
         }
-        if (hotkey == COW_KEY_ARROW_LEFT) {
-            return "<--";
+        if (COW1._gui_hot == name && !is_near) {
+            COW1._gui_hot = NULL;
+            if (COW1._gui_selected != name) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
         }
-        if (hotkey == COW_KEY_ARROW_RIGHT) {
-            return "-->";
+    }
+    if (!COW1._gui_selected && (((COW1._gui_hot == name) && globals.mouse_left_pressed) || globals.key_pressed[hotkey])) {
+        globals._mouse_owner = COW_MOUSE_OWNER_GUI;
+        COW1._gui_selected = name;
+    }
+    if (COW1._gui_selected == name) {
+        if (globals.mouse_left_released || globals.key_released[hotkey]) {
+            if (COW1._gui_hot != name) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
+            COW1._gui_selected = 0;
         }
-        static char dummy[512];
-        if (dummy[2] == 0) {
-            for (int i = 0; i < 256; ++i) {
-                dummy[2 * i] = char(i);
-            }
-        }
-        return dummy + 2 * hotkey;
     }
 
-    bool gui_button(char *name, int hotkey = '\0') {
-        if (COW1._gui_hide_and_disable) { return false; }
-        real s_mouse[2];
-        _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    real r = (COW1._gui_selected != name) ? 0 : .8;
+    if (COW1._gui_selected != name) {
+        real nudge = SGN(.5 - r) * .1;
+        r += nudge; 
+        if ((COW1._gui_hot == name) || globals.key_held[hotkey]) r += nudge; 
+    }
+    {
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+    }
+    COW1._gui_x_curr += 8;
+    COW1._gui_y_curr += 4;
+    gui_printf(text);
+    COW1._gui_y_curr += 8;
+    COW1._gui_x_curr -= 8;
 
-        // fornow
-        static char text[256];
-        if (hotkey) {
-            snprintf(text, sizeof(text), "%s `%s", name, _gui_hotkey2string(hotkey));
+    bool result = (COW1._gui_selected == name) && (globals.mouse_left_pressed || globals.key_pressed[hotkey]);
+    return result;
+}
+
+void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
+    if (COW1._gui_hide_and_disable) { return; }
+    real s_mouse[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    real L = 16;
+    real box[8] = {
+        COW1._gui_x_curr    , COW1._gui_y_curr    ,
+        COW1._gui_x_curr + L, COW1._gui_y_curr    ,
+        COW1._gui_x_curr + L, COW1._gui_y_curr + L,
+        COW1._gui_x_curr    , COW1._gui_y_curr + L,
+    };
+
+    if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
+        bool is_near = IS_BETWEEN(s_mouse[0], box[0], box[2]) && IS_BETWEEN(s_mouse[1], box[1], box[5]);
+        if (is_near) {
+            COW1._gui_hot = variable;
+            globals._mouse_owner = COW_MOUSE_OWNER_GUI;
+        }
+        if (COW1._gui_hot == variable && !is_near) {
+            COW1._gui_hot = NULL;
+            if (COW1._gui_selected != variable) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
+        }
+    }
+    if (!COW1._gui_selected && (((COW1._gui_hot == variable) && globals.mouse_left_pressed) || globals.key_pressed[hotkey])) {
+        globals._mouse_owner = COW_MOUSE_OWNER_GUI;
+        *variable = !(*variable);
+        COW1._gui_selected = variable;
+    }
+    if (COW1._gui_selected == variable) {
+        if (globals.mouse_left_released || globals.key_released[hotkey]) {
+            if (COW1._gui_hot != variable) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
+            COW1._gui_selected = NULL;
+        }
+    }
+
+    real r = (!*variable) ? 0 : 1;
+    if (COW1._gui_selected != variable) {
+        real nudge = SGN(.5 - r) * .1;
+        r += nudge; 
+        if ((COW1._gui_hot == variable) || globals.key_held[hotkey]) r += nudge; 
+    }
+    {
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+    }
+    COW1._gui_x_curr += 2 * L;
+    if (hotkey) {
+        gui_printf("%s `%s", name, _gui_hotkey2string(hotkey));
+    } else {
+        gui_printf(name);
+    }
+    COW1._gui_x_curr -= 2 * L;
+}
+
+void _gui_slider(char *text, void *variable__for_ID_must_persist, real *_variable__for_out_must_be_real, real lower_bound, real upper_bound) {
+    COW1._gui_y_curr += 8;
+    real s_mouse[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    real w = 166;
+    real band[4] = { COW1._gui_x_curr, COW1._gui_y_curr, COW1._gui_x_curr + w, COW1._gui_y_curr };
+    real s_dot[2] = { LERP(INVERSE_LERP(*_variable__for_out_must_be_real, lower_bound, upper_bound), band[0], band[2]), band[1] };
+
+    if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
+        bool is_near = _linalg_vecX_squared_distance(2, s_dot, s_mouse) < 16;
+        if (is_near) {
+            COW1._gui_hot = variable__for_ID_must_persist;
+            globals._mouse_owner = COW_MOUSE_OWNER_GUI;
+        }
+        if (COW1._gui_hot == variable__for_ID_must_persist && !is_near) {
+            COW1._gui_hot = NULL;
+            if (COW1._gui_selected != variable__for_ID_must_persist) globals._mouse_owner = COW_MOUSE_OWNER_NONE;
+        }
+    }
+    if (!COW1._gui_selected && (COW1._gui_hot == variable__for_ID_must_persist) && globals.mouse_left_pressed) {
+        globals._mouse_owner = COW_MOUSE_OWNER_GUI;
+        COW1._gui_selected = variable__for_ID_must_persist;
+    }
+    if (COW1._gui_selected == variable__for_ID_must_persist) {
+        if (globals.mouse_left_held) {
+            *_variable__for_out_must_be_real = LERP(CLAMP(INVERSE_LERP(s_mouse[0], band[0], band[2]), 0, 1), lower_bound, upper_bound);
+        }
+        if (globals.mouse_left_released) {
+            if (COW1._gui_hot != variable__for_ID_must_persist) globals._mouse_owner = COW_MOUSE_OWNER_NONE;
+            COW1._gui_selected = 0;
+        }
+    }
+    {
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6, .6, .6, 1, 6, true);
+        real r = (COW1._gui_selected == variable__for_ID_must_persist) ? 1 : (COW1._gui_hot == variable__for_ID_must_persist) ? .9 : .8;
+        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17 : 14, true);
+    }
+    COW1._gui_y_curr -= 8;
+    COW1._gui_x_curr += w + 16;
+    gui_printf(text);
+    COW1._gui_x_curr -= w + 16;
+}
+
+void gui_slider(
+        char *name,
+        int *variable,
+        int lower_bound,
+        int upper_bound,
+        int decrement_hotkey = '\0',
+        int increment_hotkey = '\0',
+        bool loop = false) {
+    if (COW1._gui_hide_and_disable) { return; }
+    real tmp = real(*variable);
+    static char text[256]; {
+        if (!decrement_hotkey && !increment_hotkey) {
+            snprintf(text, sizeof(text), "%s %d", name, *variable);
         } else {
-            strcpy(text, name);
+            snprintf(text, sizeof(text), "%s %d `%s %s", name, *variable, decrement_hotkey ? _gui_hotkey2string(decrement_hotkey) : "", increment_hotkey ? _gui_hotkey2string(increment_hotkey) : "");
         }
-        real L = (2 * stb_easy_font_width(text) + 16); // fornow
-        if (hotkey) L -= 12;
-
-        real H = 24;
-        real box[8] = {
-            COW1._gui_x_curr    , COW1._gui_y_curr    ,
-            COW1._gui_x_curr + L, COW1._gui_y_curr    ,
-            COW1._gui_x_curr + L, COW1._gui_y_curr + H,
-            COW1._gui_x_curr    , COW1._gui_y_curr + H,
-        };
-
-        if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
-            bool is_near = IS_BETWEEN(s_mouse[0], box[0], box[2]) && IS_BETWEEN(s_mouse[1], box[1], box[5]);
-            if (is_near) {
-                COW1._gui_hot = name;
-                globals._mouse_owner = COW_MOUSE_OWNER_GUI;
-            }
-            if (COW1._gui_hot == name && !is_near) {
-                COW1._gui_hot = NULL;
-                if (COW1._gui_selected != name) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
-            }
-        }
-        if (!COW1._gui_selected && (((COW1._gui_hot == name) && globals.mouse_left_pressed) || globals.key_pressed[hotkey])) {
-            globals._mouse_owner = COW_MOUSE_OWNER_GUI;
-            COW1._gui_selected = name;
-        }
-        if (COW1._gui_selected == name) {
-            if (globals.mouse_left_released || globals.key_released[hotkey]) {
-                if (COW1._gui_hot != name) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
-                COW1._gui_selected = 0;
-            }
-        }
-
-        real r = (COW1._gui_selected != name) ? 0 : .8;
-        if (COW1._gui_selected != name) {
-            real nudge = SGN(.5 - r) * .1;
-            r += nudge; 
-            if ((COW1._gui_hot == name) || globals.key_held[hotkey]) r += nudge; 
-        }
-        {
-            _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-            _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
-        }
-        COW1._gui_x_curr += 8;
-        COW1._gui_y_curr += 4;
-        gui_printf(text);
-        COW1._gui_y_curr += 8;
-        COW1._gui_x_curr -= 8;
-
-        bool result = (COW1._gui_selected == name) && (globals.mouse_left_pressed || globals.key_pressed[hotkey]);
-        return result;
     }
-
-    void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
-        if (COW1._gui_hide_and_disable) { return; }
-        real s_mouse[2];
-        _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
-        real L = 16;
-        real box[8] = {
-            COW1._gui_x_curr    , COW1._gui_y_curr    ,
-            COW1._gui_x_curr + L, COW1._gui_y_curr    ,
-            COW1._gui_x_curr + L, COW1._gui_y_curr + L,
-            COW1._gui_x_curr    , COW1._gui_y_curr + L,
-        };
-
-        if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
-            bool is_near = IS_BETWEEN(s_mouse[0], box[0], box[2]) && IS_BETWEEN(s_mouse[1], box[1], box[5]);
-            if (is_near) {
-                COW1._gui_hot = variable;
-                globals._mouse_owner = COW_MOUSE_OWNER_GUI;
-            }
-            if (COW1._gui_hot == variable && !is_near) {
-                COW1._gui_hot = NULL;
-                if (COW1._gui_selected != variable) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
-            }
-        }
-        if (!COW1._gui_selected && (((COW1._gui_hot == variable) && globals.mouse_left_pressed) || globals.key_pressed[hotkey])) {
-            globals._mouse_owner = COW_MOUSE_OWNER_GUI;
-            *variable = !(*variable);
-            COW1._gui_selected = variable;
-        }
-        if (COW1._gui_selected == variable) {
-            if (globals.mouse_left_released || globals.key_released[hotkey]) {
-                if (COW1._gui_hot != variable) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
-                COW1._gui_selected = NULL;
-            }
-        }
-
-        real r = (!*variable) ? 0 : 1;
-        if (COW1._gui_selected != variable) {
-            real nudge = SGN(.5 - r) * .1;
-            r += nudge; 
-            if ((COW1._gui_hot == variable) || globals.key_held[hotkey]) r += nudge; 
-        }
-        {
-            _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-            _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
-        }
-        COW1._gui_x_curr += 2 * L;
-        if (hotkey) {
-            gui_printf("%s `%s", name, _gui_hotkey2string(hotkey));
-        } else {
-            gui_printf(name);
-        }
-        COW1._gui_x_curr -= 2 * L;
+    _gui_slider(text, variable, &tmp, lower_bound, upper_bound);
+    *variable = int(round(tmp));
+    if (globals.key_pressed[increment_hotkey]) ++(*variable);
+    if (globals.key_pressed[decrement_hotkey]) --(*variable);
+    if (globals.key_pressed[increment_hotkey] || globals.key_pressed[decrement_hotkey]) {
+        *variable = (!loop) ? CLAMP(*variable, lower_bound, (upper_bound)) : lower_bound + MODULO(*variable - lower_bound, (upper_bound + 1) - lower_bound);
     }
+}
 
-    void _gui_slider(char *text, void *variable__for_ID_must_persist, real *_variable__for_out_must_be_real, real lower_bound, real upper_bound) {
-        COW1._gui_y_curr += 8;
-        real s_mouse[2];
-        _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
-        real w = 166;
-        real band[4] = { COW1._gui_x_curr, COW1._gui_y_curr, COW1._gui_x_curr + w, COW1._gui_y_curr };
-        real s_dot[2] = { LERP(INVERSE_LERP(*_variable__for_out_must_be_real, lower_bound, upper_bound), band[0], band[2]), band[1] };
+void gui_slider(
+        char *name,
+        real *variable,
+        real lower_bound,
+        real upper_bound,
+        bool slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW = false,
+        bool slide_variable_in_log10__NOTE_pass_bounds_in_log10 = false) {
 
-        if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
-            bool is_near = _linalg_vecX_squared_distance(2, s_dot, s_mouse) < 16;
-            if (is_near) {
-                COW1._gui_hot = variable__for_ID_must_persist;
-                globals._mouse_owner = COW_MOUSE_OWNER_GUI;
-            }
-            if (COW1._gui_hot == variable__for_ID_must_persist && !is_near) {
-                COW1._gui_hot = NULL;
-                if (COW1._gui_selected != variable__for_ID_must_persist) globals._mouse_owner = COW_MOUSE_OWNER_NONE;
-            }
-        }
-        if (!COW1._gui_selected && (COW1._gui_hot == variable__for_ID_must_persist) && globals.mouse_left_pressed) {
-            globals._mouse_owner = COW_MOUSE_OWNER_GUI;
-            COW1._gui_selected = variable__for_ID_must_persist;
-        }
-        if (COW1._gui_selected == variable__for_ID_must_persist) {
-            if (globals.mouse_left_held) {
-                *_variable__for_out_must_be_real = LERP(CLAMP(INVERSE_LERP(s_mouse[0], band[0], band[2]), 0, 1), lower_bound, upper_bound);
-            }
-            if (globals.mouse_left_released) {
-                if (COW1._gui_hot != variable__for_ID_must_persist) globals._mouse_owner = COW_MOUSE_OWNER_NONE;
-                COW1._gui_selected = 0;
-            }
-        }
-        {
-            _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6, .6, .6, 1, 6, true);
-            real r = (COW1._gui_selected == variable__for_ID_must_persist) ? 1 : (COW1._gui_hot == variable__for_ID_must_persist) ? .9 : .8;
-            _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17 : 14, true);
-        }
-        COW1._gui_y_curr -= 8;
-        COW1._gui_x_curr += w + 16;
-        gui_printf(text);
-        COW1._gui_x_curr -= w + 16;
-    }
+    if (COW1._gui_hide_and_disable) { return; }
 
-    void gui_slider(
-            char *name,
-            int *variable,
-            int lower_bound,
-            int upper_bound,
-            int decrement_hotkey = '\0',
-            int increment_hotkey = '\0',
-            bool loop = false) {
-        if (COW1._gui_hide_and_disable) { return; }
-        real tmp = real(*variable);
-        static char text[256]; {
-            if (!decrement_hotkey && !increment_hotkey) {
-                snprintf(text, sizeof(text), "%s %d", name, *variable);
-            } else {
-                snprintf(text, sizeof(text), "%s %d `%s %s", name, *variable, decrement_hotkey ? _gui_hotkey2string(decrement_hotkey) : "", increment_hotkey ? _gui_hotkey2string(increment_hotkey) : "");
-            }
-        }
+    ASSERT(!(slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW && slide_variable_in_log10__NOTE_pass_bounds_in_log10));
+
+    static char text[256];
+    if (slide_variable_in_log10__NOTE_pass_bounds_in_log10) {
+        real tmp = log10(*variable);
+        snprintf(text, sizeof(text), "%s %lf", name, *variable);
         _gui_slider(text, variable, &tmp, lower_bound, upper_bound);
-        *variable = int(round(tmp));
-        if (globals.key_pressed[increment_hotkey]) ++(*variable);
-        if (globals.key_pressed[decrement_hotkey]) --(*variable);
-        if (globals.key_pressed[increment_hotkey] || globals.key_pressed[decrement_hotkey]) {
-            *variable = (!loop) ? CLAMP(*variable, lower_bound, (upper_bound)) : lower_bound + MODULO(*variable - lower_bound, (upper_bound + 1) - lower_bound);
+        *variable = pow(10.0, tmp);
+    } else {
+        if (slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW) {
+            snprintf(text, sizeof(text), "%s %d deg", name, (int) round(DEG(*variable)));
+        } else {
+            snprintf(text, sizeof(text), "%s %.5lf", name, *variable);
+        }
+        _gui_slider(text, variable, variable, lower_bound, upper_bound);
+    }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// #include "indexed.cpp"///////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void _mesh_init() {
+    COW0._mesh_shader_program = _shader_compile_and_build_program(COWX._mesh_vert, COWX._mesh_frag);
+    glGenVertexArrays(1, &COW0._mesh_VAO);
+    glGenBuffers(_COUNT_OF(COW0._mesh_VBO), COW0._mesh_VBO);
+    glGenBuffers(1, &COW0._mesh_EBO);
+    stbi_set_flip_vertically_on_load(true);
+}
+
+bool _mesh_texture_find(int *i_texture, char *texture_filename) { // fornow O(n)
+    bool already_loaded = false;
+    for ((*i_texture) = 0; (*i_texture) < COW1._mesh_num_textures; (*i_texture)++) {
+        if (strcmp(texture_filename, COW1._mesh_texture_filenames[*i_texture]) == 0) {
+            already_loaded = true;
+            break;
+        }
+    }
+    return already_loaded;
+}
+
+int _mesh_texture_get_format(int number_of_channels) {
+    ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
+    return (number_of_channels == 1) ? GL_RED : (number_of_channels == 3) ? GL_RGB : GL_RGBA;
+}
+
+u32 _mesh_texture_create(char *texture_filename, int width, int height, int number_of_channels, u8 *data) {
+    ASSERT(texture_filename);
+    ASSERT(COW1._mesh_num_textures < ITRI_MAX_NUM_TEXTURES);
+    ASSERT(strlen(texture_filename) < ITRI_MAX_FILENAME_LENGTH);
+    ASSERT(width > 0);
+    ASSERT(height > 0);
+    ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
+    ASSERT(data);
+
+    int format = _mesh_texture_get_format(number_of_channels);
+
+    int i_texture = COW1._mesh_num_textures++;
+    strcpy(COW1._mesh_texture_filenames[i_texture], texture_filename);
+
+    glGenTextures(1, COW1._mesh_textures + i_texture);
+    glActiveTexture(GL_TEXTURE0 + i_texture);
+    glBindTexture(GL_TEXTURE_2D, COW1._mesh_textures[i_texture]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    return COW1._mesh_textures[i_texture];
+}
+
+void _mesh_texture_sync_to_GPU(char *texture_filename, int width, int height, int number_of_channels, u8 *data) {
+    ASSERT(texture_filename);
+    ASSERT(width > 0);
+    ASSERT(height > 0);
+    ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
+    ASSERT(data);
+
+    int format = _mesh_texture_get_format(number_of_channels);
+
+    int i_texture;
+    ASSERT(_mesh_texture_find(&i_texture, texture_filename));
+    glActiveTexture(GL_TEXTURE0 + i_texture);
+    glBindTexture(GL_TEXTURE_2D, COW1._mesh_textures[i_texture]);
+
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
+}
+
+u32 _mesh_texture_load(char *texture_filename) {
+    ASSERT(texture_filename);
+    int width, height, number_of_channels;
+    u8 *data = stbi_load(texture_filename, &width, &height, &number_of_channels, 0);
+    ASSERT(data);
+    ASSERT(width > 0);
+    ASSERT(height > 0);
+    ASSERT(number_of_channels == 3 || number_of_channels == 4);
+    u32 result = _mesh_texture_create(texture_filename, width, height, number_of_channels, data);
+    stbi_image_free(data);
+    return result;
+}
+
+struct Texture {
+    char *name;
+    int width;
+    int height;
+    int number_of_channels;
+    u8 *data;
+    u32 _texture_GLuint;
+};
+
+Texture texture_create(char *texture_name, int width = 0, int height = 0, int number_of_channels = 3) {
+    ASSERT(texture_name);
+    if (width == 0 || height == 0) { // FORNOW
+        glfwGetFramebufferSize(COW0._window_glfw_window, &width, &height);
+    }
+    ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
+    Texture texture = {};
+    texture.name = texture_name;
+    texture.width = width;
+    texture.height = height;
+    texture.number_of_channels = number_of_channels;
+    texture.data = (u8 *) calloc(width * height * number_of_channels, sizeof(u8));
+    texture._texture_GLuint = _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
+    return texture;
+}
+
+Texture texture_load(char *texture_filename) {
+    ASSERT(texture_filename);
+    Texture texture = {};
+    texture.name = texture_filename;
+    texture.data = stbi_load(texture.name, &texture.width, &texture.height, &texture.number_of_channels, 0);
+    ASSERT(texture.data);
+    ASSERT(texture.width > 0);
+    ASSERT(texture.height > 0);
+    ASSERT(texture.number_of_channels == 3 || texture.number_of_channels == 4);
+    texture._texture_GLuint = _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
+    return texture;
+}
+
+void texture_set_pixel(Texture *texture, int i, int j, real r, real g = 0.0, real b = 0.0, real a = 1.0) {
+    #define REAL2U8(r) (u8(CLAMP(r, 0.0, 1.0) * 255.0))
+    int pixel = i * texture->width + j;
+    texture->data[pixel * texture->number_of_channels + 0]  = REAL2U8(r);
+    if (texture->number_of_channels > 1) {
+        texture->data[pixel * texture->number_of_channels + 1]  = REAL2U8(g);
+        texture->data[pixel * texture->number_of_channels + 2]  = REAL2U8(b);
+    }
+    if (texture->number_of_channels > 3) {
+        texture->data[pixel * texture->number_of_channels + 3]  = REAL2U8(a);
+    }
+    #undef REAL2U8
+}
+
+void texture_get_pixel(Texture *texture, int i, int j, real *r, real *g = NULL, real *b = NULL, real *a = NULL) {
+    ASSERT(r != NULL);
+
+    #define U82REAL(r) ((r) / 255.0)
+    int pixel = i * texture->width + j;
+    *r = U82REAL(texture->data[pixel * texture->number_of_channels + 0]);
+    if (texture->number_of_channels > 1) {
+        if (g != NULL) {
+            *g = U82REAL(texture->data[pixel * texture->number_of_channels + 1]);
+        }
+        if (b != NULL) {
+            *b = U82REAL(texture->data[pixel * texture->number_of_channels + 2]);
+        }
+    }
+    if (texture->number_of_channels > 3) {
+        if (a != NULL) {
+            *a = U82REAL(texture->data[pixel * texture->number_of_channels + 3]);
+        }
+    }
+    #undef REAL2U8
+}
+
+#ifdef SNAIL_CPP
+void texture_set_pixel(Texture *texture, int i, int j, vec3 rgb, real a = 1.0) {
+    texture_set_pixel(texture, i, j, rgb.x, rgb.y, rgb.z, a);
+}
+#endif
+
+void texture_sync_to_GPU(Texture *texture) {
+    _mesh_texture_sync_to_GPU(texture->name, texture->width, texture->height, texture->number_of_channels, texture->data);
+}
+
+void _mesh_draw(
+        real *P,
+        real *V,
+        real *M,
+        int num_triangles,
+        int *triangle_indices,
+        int num_vertices,
+        real *vertex_positions,
+        real *vertex_normals = NULL,
+        real *vertex_colors = NULL,
+        real r_if_vertex_colors_is_NULL = 1,
+        real g_if_vertex_colors_is_NULL = 1,
+        real b_if_vertex_colors_is_NULL = 1,
+        real *vertex_texture_coordinates = NULL,
+        char *texture_filename = NULL,
+        int num_bones = 0,
+        real *bones__NUM_BONES_MAT4S = NULL,
+        int *bone_indices__INT4_PER_VERTEX = NULL,
+        real *bone_weights__VEC4_PER_VERTEX = NULL
+        ) {
+    if (num_triangles == 0) { return; } // NOTE: num_triangles zero is now valid input
+    ASSERT(P);
+    ASSERT(V);
+    ASSERT(M);
+    ASSERT(vertex_positions);
+    real color_if_vertex_colors_is_NULL[3] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL };
+
+    int i_texture = -1;
+    if (texture_filename) {
+        if (!_mesh_texture_find(&i_texture, texture_filename)) {
+            _mesh_texture_load(texture_filename);
+            _mesh_texture_find(&i_texture, texture_filename);
         }
     }
 
-    void gui_slider(
-            char *name,
-            real *variable,
-            real lower_bound,
-            real upper_bound,
-            bool slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW = false,
-            bool slide_variable_in_log10__NOTE_pass_bounds_in_log10 = false) {
+    // NOTE moved this up before the pushes; is that okay?
+    ASSERT(COW0._mesh_shader_program);
+    glUseProgram(COW0._mesh_shader_program);
 
-        if (COW1._gui_hide_and_disable) { return; }
-
-        ASSERT(!(slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW && slide_variable_in_log10__NOTE_pass_bounds_in_log10));
-
-        static char text[256];
-        if (slide_variable_in_log10__NOTE_pass_bounds_in_log10) {
-            real tmp = log10(*variable);
-            snprintf(text, sizeof(text), "%s %lf", name, *variable);
-            _gui_slider(text, variable, &tmp, lower_bound, upper_bound);
-            *variable = pow(10.0, tmp);
-        } else {
-            if (slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW) {
-                snprintf(text, sizeof(text), "%s %d deg", name, (int) round(DEG(*variable)));
+    glBindVertexArray(COW0._mesh_VAO);
+    int i_attrib = 0;
+    auto guarded_push = [&](void *array, int dim, int sizeof_type, int GL_TYPE) {
+        ASSERT(i_attrib < _COUNT_OF(COW0._mesh_VBO));
+        glDisableVertexAttribArray(i_attrib);
+        if (array) {
+            glBindBuffer(GL_ARRAY_BUFFER, COW0._mesh_VBO[i_attrib]);
+            glBufferData(GL_ARRAY_BUFFER, num_vertices * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
+            if (GL_TYPE == GL_REAL) {
+                glVertexAttribPointer(i_attrib, dim, GL_TYPE, GL_FALSE, 0, NULL);
+            } else if (GL_TYPE == GL_INT) {
+                glVertexAttribIPointer(i_attrib, dim, GL_TYPE, 0, NULL);
             } else {
-                snprintf(text, sizeof(text), "%s %.5lf", name, *variable);
+                ASSERT(0);
             }
-            _gui_slider(text, variable, variable, lower_bound, upper_bound);
+            glEnableVertexAttribArray(i_attrib); // FORNOW: after the other stuff?
         }
-
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "indexed.cpp"///////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-
-    void _mesh_init() {
-        COW0._mesh_shader_program = _shader_compile_and_build_program(COWX._mesh_vert, COWX._mesh_frag);
-        glGenVertexArrays(1, &COW0._mesh_VAO);
-        glGenBuffers(_COUNT_OF(COW0._mesh_VBO), COW0._mesh_VBO);
-        glGenBuffers(1, &COW0._mesh_EBO);
-        stbi_set_flip_vertically_on_load(true);
-    }
-
-    bool _mesh_texture_find(int *i_texture, char *texture_filename) { // fornow O(n)
-        bool already_loaded = false;
-        for ((*i_texture) = 0; (*i_texture) < COW1._mesh_num_textures; (*i_texture)++) {
-            if (strcmp(texture_filename, COW1._mesh_texture_filenames[*i_texture]) == 0) {
-                already_loaded = true;
-                break;
-            }
-        }
-        return already_loaded;
-    }
-
-    int _mesh_texture_get_format(int number_of_channels) {
-        ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
-        return (number_of_channels == 1) ? GL_RED : (number_of_channels == 3) ? GL_RGB : GL_RGBA;
-    }
-
-    u32 _mesh_texture_create(char *texture_filename, int width, int height, int number_of_channels, u8 *data) {
-        ASSERT(texture_filename);
-        ASSERT(COW1._mesh_num_textures < ITRI_MAX_NUM_TEXTURES);
-        ASSERT(strlen(texture_filename) < ITRI_MAX_FILENAME_LENGTH);
-        ASSERT(width > 0);
-        ASSERT(height > 0);
-        ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
-        ASSERT(data);
-
-        int format = _mesh_texture_get_format(number_of_channels);
-
-        int i_texture = COW1._mesh_num_textures++;
-        strcpy(COW1._mesh_texture_filenames[i_texture], texture_filename);
-
-        glGenTextures(1, COW1._mesh_textures + i_texture);
-        glActiveTexture(GL_TEXTURE0 + i_texture);
-        glBindTexture(GL_TEXTURE_2D, COW1._mesh_textures[i_texture]);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        return COW1._mesh_textures[i_texture];
-    }
-
-    void _mesh_texture_sync_to_GPU(char *texture_filename, int width, int height, int number_of_channels, u8 *data) {
-        ASSERT(texture_filename);
-        ASSERT(width > 0);
-        ASSERT(height > 0);
-        ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
-        ASSERT(data);
-
-        int format = _mesh_texture_get_format(number_of_channels);
-
-        int i_texture;
-        ASSERT(_mesh_texture_find(&i_texture, texture_filename));
-        glActiveTexture(GL_TEXTURE0 + i_texture);
-        glBindTexture(GL_TEXTURE_2D, COW1._mesh_textures[i_texture]);
-
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
-    }
-
-    u32 _mesh_texture_load(char *texture_filename) {
-        ASSERT(texture_filename);
-        int width, height, number_of_channels;
-        u8 *data = stbi_load(texture_filename, &width, &height, &number_of_channels, 0);
-        ASSERT(data);
-        ASSERT(width > 0);
-        ASSERT(height > 0);
-        ASSERT(number_of_channels == 3 || number_of_channels == 4);
-        u32 result = _mesh_texture_create(texture_filename, width, height, number_of_channels, data);
-        stbi_image_free(data);
-        return result;
-    }
-
-    struct Texture {
-        char *name;
-        int width;
-        int height;
-        int number_of_channels;
-        u8 *data;
-        u32 _texture_GLuint;
+        ++i_attrib;
     };
 
-    Texture texture_create(char *texture_name, int width = 0, int height = 0, int number_of_channels = 3) {
-        ASSERT(texture_name);
-        if (width == 0 || height == 0) { // FORNOW
-            glfwGetFramebufferSize(COW0._window_glfw_window, &width, &height);
-        }
-        ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
-        Texture texture = {};
-        texture.name = texture_name;
-        texture.width = width;
-        texture.height = height;
-        texture.number_of_channels = number_of_channels;
-        texture.data = (u8 *) calloc(width * height * number_of_channels, sizeof(u8));
-        texture._texture_GLuint = _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
-        return texture;
+    // TODO: assert sizeof's match
+    guarded_push(vertex_positions,              3, sizeof(real), GL_REAL);
+    guarded_push(vertex_normals,                3, sizeof(real), GL_REAL);
+    guarded_push(vertex_colors,                 3, sizeof(real), GL_REAL);
+    guarded_push(vertex_texture_coordinates,    2, sizeof(real), GL_REAL);
+    guarded_push(bone_indices__INT4_PER_VERTEX, 4, sizeof(int ), GL_INT);
+    guarded_push(bone_weights__VEC4_PER_VERTEX, 4, sizeof(real), GL_REAL);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, COW0._mesh_EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(u32), triangle_indices, GL_DYNAMIC_DRAW);
+
+    _shader_set_uniform_mat4(COW0._mesh_shader_program, "P", P);
+    _shader_set_uniform_mat4(COW0._mesh_shader_program, "V", V);
+    _shader_set_uniform_mat4(COW0._mesh_shader_program, "M", M);
+    { // fornow scavenge the camera position from V
+        real C[16];
+        _linalg_mat4_inverse(C, V);
+        real eye_World[4] = { C[3], C[7], C[11], 1 };
+        _shader_set_uniform_vec4(COW0._mesh_shader_program, "eye_World", eye_World);
+    }
+    _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_colors", vertex_colors != NULL);
+    _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_normals", vertex_normals != NULL);
+    _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_texture_coordinates", vertex_texture_coordinates != NULL);
+    _shader_set_uniform_bool(COW0._mesh_shader_program, "has_bones", num_bones != 0);
+    _shader_set_uniform_bool(COW0._mesh_shader_program, "has_texture", texture_filename != NULL);
+    _shader_set_uniform_int (COW0._mesh_shader_program, "i_texture", MAX(0, i_texture));
+    _shader_set_uniform_vec3(COW0._mesh_shader_program, "color_if_vertex_colors_is_NULL", color_if_vertex_colors_is_NULL);
+
+    if (num_bones != 0) {
+        _shader_set_uniform_mat4_array(COW0._mesh_shader_program, "bones", num_bones, bones__NUM_BONES_MAT4S);
     }
 
-    Texture texture_load(char *texture_filename) {
-        ASSERT(texture_filename);
-        Texture texture = {};
-        texture.name = texture_filename;
-        texture.data = stbi_load(texture.name, &texture.width, &texture.height, &texture.number_of_channels, 0);
-        ASSERT(texture.data);
-        ASSERT(texture.width > 0);
-        ASSERT(texture.height > 0);
-        ASSERT(texture.number_of_channels == 3 || texture.number_of_channels == 4);
-        texture._texture_GLuint = _mesh_texture_create(texture.name, texture.width, texture.height, texture.number_of_channels, texture.data);
-        return texture;
-    }
-
-    void texture_set_pixel(Texture *texture, int i, int j, real r, real g = 0.0, real b = 0.0, real a = 1.0) {
-        #define REAL2U8(r) (u8(CLAMP(r, 0.0, 1.0) * 255.0))
-        int pixel = i * texture->width + j;
-        texture->data[pixel * texture->number_of_channels + 0]  = REAL2U8(r);
-        if (texture->number_of_channels > 1) {
-            texture->data[pixel * texture->number_of_channels + 1]  = REAL2U8(g);
-            texture->data[pixel * texture->number_of_channels + 2]  = REAL2U8(b);
-        }
-        if (texture->number_of_channels > 3) {
-            texture->data[pixel * texture->number_of_channels + 3]  = REAL2U8(a);
-        }
-        #undef REAL2U8
-    }
-
-    void texture_get_pixel(Texture *texture, int i, int j, real *r, real *g = NULL, real *b = NULL, real *a = NULL) {
-        ASSERT(r != NULL);
-
-        #define U82REAL(r) ((r) / 255.0)
-        int pixel = i * texture->width + j;
-        *r = U82REAL(texture->data[pixel * texture->number_of_channels + 0]);
-        if (texture->number_of_channels > 1) {
-            if (g != NULL) {
-                *g = U82REAL(texture->data[pixel * texture->number_of_channels + 1]);
-            }
-            if (b != NULL) {
-                *b = U82REAL(texture->data[pixel * texture->number_of_channels + 2]);
-            }
-        }
-        if (texture->number_of_channels > 3) {
-            if (a != NULL) {
-                *a = U82REAL(texture->data[pixel * texture->number_of_channels + 3]);
-            }
-        }
-        #undef REAL2U8
-    }
+    glDrawElements(GL_TRIANGLES, 3 * num_triangles, GL_UNSIGNED_INT, NULL);
+}
 
 #ifdef SNAIL_CPP
-    void texture_set_pixel(Texture *texture, int i, int j, vec3 rgb, real a = 1.0) {
-        texture_set_pixel(texture, i, j, rgb.x, rgb.y, rgb.z, a);
-    }
+void mesh_draw(
+        mat4 P,
+        mat4 V,
+        mat4 M,
+        int num_triangles,
+        int3 *triangle_indices,
+        int num_vertices,
+        vec3 *vertex_positions,
+        vec3 *vertex_normals,
+        vec3 *vertex_colors,
+        vec3 color_if_vertex_colors_is_NULL = { 1.0, 1.0, 1.0 },
+        vec2 *vertex_texture_coordinates = NULL,
+        char *texture_filename = NULL,
+        int num_bones = 0,
+        mat4 *bones = NULL,
+        int4 *bone_indices = NULL,
+        vec4 *bone_weights = NULL
+        ) {
+    _mesh_draw(
+            P.data,
+            V.data,
+            M.data,
+            num_triangles,
+            (int *) triangle_indices,
+            num_vertices,
+            (real *) vertex_positions,
+            (real *) vertex_normals,
+            (real *) vertex_colors,
+            color_if_vertex_colors_is_NULL[0],
+            color_if_vertex_colors_is_NULL[1],
+            color_if_vertex_colors_is_NULL[2],
+            (real *) vertex_texture_coordinates,
+            texture_filename,
+            num_bones,
+            (real *) bones,
+            (int *) bone_indices,
+            (real *) bone_weights
+            );
+}
 #endif
 
-    void texture_sync_to_GPU(Texture *texture) {
-        _mesh_texture_sync_to_GPU(texture->name, texture->width, texture->height, texture->number_of_channels, texture->data);
-    }
+////////////////////////////////////////////////////////////////////////////////
+// #include "camera.cpp"////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    void _mesh_draw(
-            real *P,
-            real *V,
-            real *M,
-            int num_triangles,
-            int *triangle_indices,
-            int num_vertices,
-            real *vertex_positions,
-            real *vertex_normals = NULL,
-            real *vertex_colors = NULL,
-            real r_if_vertex_colors_is_NULL = 1,
-            real g_if_vertex_colors_is_NULL = 1,
-            real b_if_vertex_colors_is_NULL = 1,
-            real *vertex_texture_coordinates = NULL,
-            char *texture_filename = NULL,
-            int num_bones = 0,
-            real *bones__NUM_BONES_MAT4S = NULL,
-            int *bone_indices__INT4_PER_VERTEX = NULL,
-            real *bone_weights__VEC4_PER_VERTEX = NULL
-            ) {
-        if (num_triangles == 0) { return; } // NOTE: num_triangles zero is now valid input
-        ASSERT(P);
-        ASSERT(V);
-        ASSERT(M);
-        ASSERT(vertex_positions);
-        real color_if_vertex_colors_is_NULL[3] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL };
+// this is an "ortho camera" that points at (o_x, o_y)   
+struct Camera2D {
+    real screen_height_World;
+    real o_x;
+    real o_y;
+};
 
-        int i_texture = -1;
-        if (texture_filename) {
-            if (!_mesh_texture_find(&i_texture, texture_filename)) {
-                _mesh_texture_load(texture_filename);
-                _mesh_texture_find(&i_texture, texture_filename);
-            }
-        }
-
-        // NOTE moved this up before the pushes; is that okay?
-        ASSERT(COW0._mesh_shader_program);
-        glUseProgram(COW0._mesh_shader_program);
-
-        glBindVertexArray(COW0._mesh_VAO);
-        int i_attrib = 0;
-        auto guarded_push = [&](void *array, int dim, int sizeof_type, int GL_TYPE) {
-            ASSERT(i_attrib < _COUNT_OF(COW0._mesh_VBO));
-            glDisableVertexAttribArray(i_attrib);
-            if (array) {
-                glBindBuffer(GL_ARRAY_BUFFER, COW0._mesh_VBO[i_attrib]);
-                glBufferData(GL_ARRAY_BUFFER, num_vertices * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
-                if (GL_TYPE == GL_REAL) {
-                    glVertexAttribPointer(i_attrib, dim, GL_TYPE, GL_FALSE, 0, NULL);
-                } else if (GL_TYPE == GL_INT) {
-                    glVertexAttribIPointer(i_attrib, dim, GL_TYPE, 0, NULL);
-                } else {
-                    ASSERT(0);
-                }
-                glEnableVertexAttribArray(i_attrib); // FORNOW: after the other stuff?
-            }
-            ++i_attrib;
-        };
-
-        // TODO: assert sizeof's match
-        guarded_push(vertex_positions,              3, sizeof(real), GL_REAL);
-        guarded_push(vertex_normals,                3, sizeof(real), GL_REAL);
-        guarded_push(vertex_colors,                 3, sizeof(real), GL_REAL);
-        guarded_push(vertex_texture_coordinates,    2, sizeof(real), GL_REAL);
-        guarded_push(bone_indices__INT4_PER_VERTEX, 4, sizeof(int ), GL_INT);
-        guarded_push(bone_weights__VEC4_PER_VERTEX, 4, sizeof(real), GL_REAL);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, COW0._mesh_EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(u32), triangle_indices, GL_DYNAMIC_DRAW);
-
-        _shader_set_uniform_mat4(COW0._mesh_shader_program, "P", P);
-        _shader_set_uniform_mat4(COW0._mesh_shader_program, "V", V);
-        _shader_set_uniform_mat4(COW0._mesh_shader_program, "M", M);
-        { // fornow scavenge the camera position from V
-            real C[16];
-            _linalg_mat4_inverse(C, V);
-            real eye_World[4] = { C[3], C[7], C[11], 1 };
-            _shader_set_uniform_vec4(COW0._mesh_shader_program, "eye_World", eye_World);
-        }
-        _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_colors", vertex_colors != NULL);
-        _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_normals", vertex_normals != NULL);
-        _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_texture_coordinates", vertex_texture_coordinates != NULL);
-        _shader_set_uniform_bool(COW0._mesh_shader_program, "has_bones", num_bones != 0);
-        _shader_set_uniform_bool(COW0._mesh_shader_program, "has_texture", texture_filename != NULL);
-        _shader_set_uniform_int (COW0._mesh_shader_program, "i_texture", MAX(0, i_texture));
-        _shader_set_uniform_vec3(COW0._mesh_shader_program, "color_if_vertex_colors_is_NULL", color_if_vertex_colors_is_NULL);
-
-        if (num_bones != 0) {
-            _shader_set_uniform_mat4_array(COW0._mesh_shader_program, "bones", num_bones, bones__NUM_BONES_MAT4S);
-        }
-
-        glDrawElements(GL_TRIANGLES, 3 * num_triangles, GL_UNSIGNED_INT, NULL);
-    }
-
-#ifdef SNAIL_CPP
-    void mesh_draw(
-            mat4 P,
-            mat4 V,
-            mat4 M,
-            int num_triangles,
-            int3 *triangle_indices,
-            int num_vertices,
-            vec3 *vertex_positions,
-            vec3 *vertex_normals,
-            vec3 *vertex_colors,
-            vec3 color_if_vertex_colors_is_NULL = { 1.0, 1.0, 1.0 },
-            vec2 *vertex_texture_coordinates = NULL,
-            char *texture_filename = NULL,
-            int num_bones = 0,
-            mat4 *bones = NULL,
-            int4 *bone_indices = NULL,
-            vec4 *bone_weights = NULL
-            ) {
-        _mesh_draw(
-                P.data,
-                V.data,
-                M.data,
-                num_triangles,
-                (int *) triangle_indices,
-                num_vertices,
-                (real *) vertex_positions,
-                (real *) vertex_normals,
-                (real *) vertex_colors,
-                color_if_vertex_colors_is_NULL[0],
-                color_if_vertex_colors_is_NULL[1],
-                color_if_vertex_colors_is_NULL[2],
-                (real *) vertex_texture_coordinates,
-                texture_filename,
-                num_bones,
-                (real *) bones,
-                (int *) bone_indices,
-                (real *) bone_weights
-                );
-    }
-#endif
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "camera.cpp"////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-
-    // this is an "ortho camera" that points at (o_x, o_y)   
-    struct Camera2D {
-        real screen_height_World;
-        real o_x;
-        real o_y;
+// this is an "orbit camera" that points at the origin*  
+//                               *unless o_x, o_y nonzero
+//                                                       
+// it is stuck to the surface of a sphere at (theta, phi)
+// these angles can also be interpreted as (yaw, pitch)  
+//                                                       
+// the sphere radius (camera distance) is given by*      
+//     (screen_height_World / 2) / tan(angle_of_view / 2)
+// *we define it this way for compatability with Camera2D
+struct Camera3D {
+    union {
+        real persp_distance_to_origin;
+        real ortho_screen_height_World;
     };
+    real angle_of_view; // set to 0 to use an ortho camera
+    real theta; // yaw
+    real phi; // pitch
+    real o_x;
+    real o_y;
+};
 
-    // this is an "orbit camera" that points at the origin*  
-    //                               *unless o_x, o_y nonzero
-    //                                                       
-    // it is stuck to the surface of a sphere at (theta, phi)
-    // these angles can also be interpreted as (yaw, pitch)  
-    //                                                       
-    // the sphere radius (camera distance) is given by*      
-    //     (screen_height_World / 2) / tan(angle_of_view / 2)
-    // *we define it this way for compatability with Camera2D
-    struct Camera3D {
-        union {
-            real persp_distance_to_origin;
-            real ortho_screen_height_World;
+void camera_attach_to_gui(Camera2D *camera) {
+    gui_slider("screen_height_World", &camera->screen_height_World, 0.1, 100.0, false);
+    gui_slider("o_x", &camera->o_x, -camera->screen_height_World, camera->screen_height_World, false);
+    gui_slider("o_y", &camera->o_y, -camera->screen_height_World, camera->screen_height_World, false);
+}
+
+void camera_attach_to_gui(Camera3D *camera) {
+    if (IS_ZERO(camera->angle_of_view)) { // ortho
+        gui_slider("ortho_screen_height_World", &camera->ortho_screen_height_World, 0.1, 100.0, false);
+    } else {
+        gui_slider("persp_distance_to_origin", &camera->persp_distance_to_origin, 0.1, 100.0, false);
+    }
+    gui_slider("angle_of_view", &camera->angle_of_view, RAD(0.0), RAD(180.0), true);
+    gui_slider("theta", &camera->theta, RAD(-180.0), RAD(180.0), true);
+    gui_slider("phi", &camera->phi, RAD(-90.0), RAD(90.0), true);
+    gui_slider("o_x", &camera->o_x, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
+    gui_slider("o_y", &camera->o_y, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
+}
+
+void _camera_get_P(Camera2D *camera, real *P) {
+    _window_get_P_ortho(P, camera->screen_height_World);
+}
+
+void _camera_get_V(Camera2D *camera, real *V) {
+    _window_get_V_ortho_2D(V, camera->o_x, camera->o_y);
+}
+
+void _camera_get_PV(Camera2D *camera, real *PV) {
+    _window_get_PV_ortho_2D(PV, camera->screen_height_World, camera->o_x, camera->o_y);
+}
+
+real camera_get_screen_height_World(Camera3D *camera) {
+    if (IS_ZERO(camera->angle_of_view)) { // ortho
+        return camera->ortho_screen_height_World;
+    } else { // persp
+        real theta = camera->angle_of_view / 2;
+        return 2 * tan(theta) * camera->persp_distance_to_origin;
+    }
+}
+
+void _camera_get_coordinate_system(Camera3D *camera, real *C_out, real *x_out = NULL, real *y_out = NULL, real *z_out = NULL, real *o_out = NULL, real *R_out = NULL) {
+    real camera_o_z = camera->persp_distance_to_origin;
+
+    real C[16]; {
+        real T[16] = {
+            1, 0, 0, camera->o_x,
+            0, 1, 0, camera->o_y, // fornow
+            0, 0, 1, camera_o_z,
+            0, 0, 0, 1,
         };
-        real angle_of_view; // set to 0 to use an ortho camera
-        real theta; // yaw
-        real phi; // pitch
-        real o_x;
-        real o_y;
-    };
-
-    void camera_attach_to_gui(Camera2D *camera) {
-        gui_slider("screen_height_World", &camera->screen_height_World, 0.1, 100.0, false);
-        gui_slider("o_x", &camera->o_x, -camera->screen_height_World, camera->screen_height_World, false);
-        gui_slider("o_y", &camera->o_y, -camera->screen_height_World, camera->screen_height_World, false);
+        real c_x = cos(camera->phi);
+        real s_x = sin(camera->phi);
+        real c_y = cos(camera->theta);
+        real s_y = sin(camera->theta);
+        real R_y[16] = {
+            c_y , 0, s_y, 0,
+            0   , 1, 0  , 0,
+            -s_y, 0, c_y, 0,
+            0   , 0, 0  , 1,
+        };
+        real R_x[16] = {
+            1,   0,    0, 0, 
+            0, c_x, -s_x, 0,
+            0, s_x,  c_x, 0,
+            0  , 0   , 0, 1,
+        };
+        _linalg_mat4_times_mat4(C,      R_x, T);
+        _linalg_mat4_times_mat4(C, R_y, C     );
     }
 
-    void camera_attach_to_gui(Camera3D *camera) {
-        if (IS_ZERO(camera->angle_of_view)) { // ortho
-            gui_slider("ortho_screen_height_World", &camera->ortho_screen_height_World, 0.1, 100.0, false);
-        } else {
-            gui_slider("persp_distance_to_origin", &camera->persp_distance_to_origin, 0.1, 100.0, false);
+    real xyzo[4][3] = {}; {
+        for (int c = 0; c < 4; ++c) for (int r = 0; r < 3; ++r) xyzo[c][r] = _LINALG_4X4(C, r, c);
+    }
+    if (C_out) memcpy(C_out, C, sizeof(C));
+    {
+        if (x_out) memcpy(x_out, xyzo[0], 3 * sizeof(real));
+        if (y_out) memcpy(y_out, xyzo[1], 3 * sizeof(real));
+        if (z_out) memcpy(z_out, xyzo[2], 3 * sizeof(real));
+        if (o_out) memcpy(o_out, xyzo[3], 3 * sizeof(real));
+    }
+    if (R_out) {
+        real tmp[] = {
+            C[0], C[1], C[ 2], 0,
+            C[4], C[5], C[ 6], 0,
+            C[8], C[9], C[10], 0,
+            0   , 0   , 0    , 1,
+        };
+        memcpy(R_out, tmp, sizeof(tmp));
+    }
+}
+
+void _camera_get_P(Camera3D *camera, real *P) {
+    if (IS_ZERO(camera->angle_of_view)) {
+        _window_get_P_ortho(P, camera->ortho_screen_height_World);
+    } else {
+        _window_get_P_perspective(P, camera->angle_of_view);
+    }
+}
+
+void _camera_get_V(Camera3D *camera, real *V) {
+    _camera_get_coordinate_system(camera, V);
+    _linalg_mat4_inverse(V, V);
+}
+
+void _camera_get_PV(Camera3D *camera, real *PV) {
+    ASSERT(PV);
+    real P[16], V[16];
+    _camera_get_P(camera, P);
+    _camera_get_V(camera, V);
+    _linalg_mat4_times_mat4(PV, P, V);
+}
+
+void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom = false) {
+    real NDC_from_World[16] = {};
+    _camera_get_PV(camera, NDC_from_World);
+    if (!disable_pan && globals.mouse_right_held) {
+        real dx, dy;
+        _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, NULL, NULL, &dx, &dy);
+        camera->o_x -= dx;
+        camera->o_y -= dy;
+    }
+    else if (!disable_zoom && !IS_ZERO(globals.mouse_wheel_offset)) {
+        camera->screen_height_World *= (1 - .1 * globals.mouse_wheel_offset);
+
+        // zoom while preserving mouse position                
+        //                                                     
+        // mouse_World' = mouse_World                          
+        // mouse_NDC'   = mouse_NDC                            
+        //                                                     
+        // mouse_NDC'         = mouse_NDC                      
+        // P' V' mouse_World'  = mouse_NDC                     
+        // P' V' mouse_World   = mouse_NDC                     
+        // V' mouse_World     = inv(P') mouse_NDC              
+        // mouse_World - eye' = inv(P') mouse_NDC              
+        //               eye' = mouse_World - inv(P') mouse_NDC
+        //                                    ^----- a -------^
+
+        real x, y;
+        _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, &x, &y, NULL, NULL);
+
+        real mouse_World[4] = { x, y, 0, 1 };
+        real a[4] = {};
+        real inv_P_prime[16] = {}; {
+            Camera2D tmp = { camera->screen_height_World };
+            _camera_get_PV(&tmp, inv_P_prime);
+            _linalg_mat4_inverse(inv_P_prime, inv_P_prime);
         }
-        gui_slider("angle_of_view", &camera->angle_of_view, RAD(0.0), RAD(180.0), true);
-        gui_slider("theta", &camera->theta, RAD(-180.0), RAD(180.0), true);
-        gui_slider("phi", &camera->phi, RAD(-90.0), RAD(90.0), true);
-        gui_slider("o_x", &camera->o_x, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
-        gui_slider("o_y", &camera->o_y, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
+        real mouse_NDC[4] = {}; {
+            _linalg_mat4_times_vec4_persp_divide(mouse_NDC, NDC_from_World, mouse_World); 
+        }
+        _linalg_mat4_times_vec4_persp_divide(a, inv_P_prime, mouse_NDC);
+        for (int d = 0; d < 2; ++d) (&camera->o_x)[d] = mouse_World[d] - a[d];
     }
+}
 
-    void _camera_get_P(Camera2D *camera, real *P) {
-        _window_get_P_ortho(P, camera->screen_height_World);
-    }
+void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom = false, bool disable_rotate = false) {
+    disable_rotate |= (globals._mouse_owner != COW_MOUSE_OWNER_NONE);
+    { // 2D transforms
+        Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->o_x, camera->o_y };
+        camera_move(&tmp2D, disable_pan, disable_zoom);
 
-    void _camera_get_V(Camera2D *camera, real *V) {
-        _window_get_V_ortho_2D(V, camera->o_x, camera->o_y);
-    }
-
-    void _camera_get_PV(Camera2D *camera, real *PV) {
-        _window_get_PV_ortho_2D(PV, camera->screen_height_World, camera->o_x, camera->o_y);
-    }
-
-    real camera_get_screen_height_World(Camera3D *camera) {
         if (IS_ZERO(camera->angle_of_view)) { // ortho
-            return camera->ortho_screen_height_World;
+            camera->ortho_screen_height_World = tmp2D.screen_height_World;
         } else { // persp
+                 //                   r_y
+                 //               -   |  
+                 //            -      |  
+                 //         -         |  
+                 //      - ) theta    |  
+                 // eye-------------->o  
+                 //         D            
+            real r_y = tmp2D.screen_height_World / 2;
             real theta = camera->angle_of_view / 2;
-            return 2 * tan(theta) * camera->persp_distance_to_origin;
+            camera->persp_distance_to_origin = r_y / tan(theta);
         }
+
+        camera->o_x = tmp2D.o_x;
+        camera->o_y = tmp2D.o_y;
     }
-
-    void _camera_get_coordinate_system(Camera3D *camera, real *C_out, real *x_out = NULL, real *y_out = NULL, real *z_out = NULL, real *o_out = NULL, real *R_out = NULL) {
-        real camera_o_z = camera->persp_distance_to_origin;
-
-        real C[16]; {
-            real T[16] = {
-                1, 0, 0, camera->o_x,
-                0, 1, 0, camera->o_y, // fornow
-                0, 0, 1, camera_o_z,
-                0, 0, 0, 1,
-            };
-            real c_x = cos(camera->phi);
-            real s_x = sin(camera->phi);
-            real c_y = cos(camera->theta);
-            real s_y = sin(camera->theta);
-            real R_y[16] = {
-                c_y , 0, s_y, 0,
-                0   , 1, 0  , 0,
-                -s_y, 0, c_y, 0,
-                0   , 0, 0  , 1,
-            };
-            real R_x[16] = {
-                1,   0,    0, 0, 
-                0, c_x, -s_x, 0,
-                0, s_x,  c_x, 0,
-                0  , 0   , 0, 1,
-            };
-            _linalg_mat4_times_mat4(C,      R_x, T);
-            _linalg_mat4_times_mat4(C, R_y, C     );
-        }
-
-        real xyzo[4][3] = {}; {
-            for (int c = 0; c < 4; ++c) for (int r = 0; r < 3; ++r) xyzo[c][r] = _LINALG_4X4(C, r, c);
-        }
-        if (C_out) memcpy(C_out, C, sizeof(C));
-        {
-            if (x_out) memcpy(x_out, xyzo[0], 3 * sizeof(real));
-            if (y_out) memcpy(y_out, xyzo[1], 3 * sizeof(real));
-            if (z_out) memcpy(z_out, xyzo[2], 3 * sizeof(real));
-            if (o_out) memcpy(o_out, xyzo[3], 3 * sizeof(real));
-        }
-        if (R_out) {
-            real tmp[] = {
-                C[0], C[1], C[ 2], 0,
-                C[4], C[5], C[ 6], 0,
-                C[8], C[9], C[10], 0,
-                0   , 0   , 0    , 1,
-            };
-            memcpy(R_out, tmp, sizeof(tmp));
-        }
+    if (!disable_rotate && globals.mouse_left_held) {
+        real fac = 2;
+        camera->theta -= fac * globals.mouse_change_in_position_NDC[0];
+        camera->phi += fac * globals.mouse_change_in_position_NDC[1];
+        camera->phi = CLAMP(camera->phi, -RAD(90), RAD(90));
     }
-
-    void _camera_get_P(Camera3D *camera, real *P) {
-        if (IS_ZERO(camera->angle_of_view)) {
-            _window_get_P_ortho(P, camera->ortho_screen_height_World);
-        } else {
-            _window_get_P_perspective(P, camera->angle_of_view);
-        }
-    }
-
-    void _camera_get_V(Camera3D *camera, real *V) {
-        _camera_get_coordinate_system(camera, V);
-        _linalg_mat4_inverse(V, V);
-    }
-
-    void _camera_get_PV(Camera3D *camera, real *PV) {
-        ASSERT(PV);
-        real P[16], V[16];
-        _camera_get_P(camera, P);
-        _camera_get_V(camera, V);
-        _linalg_mat4_times_mat4(PV, P, V);
-    }
-
-    void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom = false) {
-        real NDC_from_World[16] = {};
-        _camera_get_PV(camera, NDC_from_World);
-        if (!disable_pan && globals.mouse_right_held) {
-            real dx, dy;
-            _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, NULL, NULL, &dx, &dy);
-            camera->o_x -= dx;
-            camera->o_y -= dy;
-        }
-        else if (!disable_zoom && !IS_ZERO(globals.mouse_wheel_offset)) {
-            camera->screen_height_World *= (1 - .1 * globals.mouse_wheel_offset);
-
-            // zoom while preserving mouse position                
-            //                                                     
-            // mouse_World' = mouse_World                          
-            // mouse_NDC'   = mouse_NDC                            
-            //                                                     
-            // mouse_NDC'         = mouse_NDC                      
-            // P' V' mouse_World'  = mouse_NDC                     
-            // P' V' mouse_World   = mouse_NDC                     
-            // V' mouse_World     = inv(P') mouse_NDC              
-            // mouse_World - eye' = inv(P') mouse_NDC              
-            //               eye' = mouse_World - inv(P') mouse_NDC
-            //                                    ^----- a -------^
-
-            real x, y;
-            _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, &x, &y, NULL, NULL);
-
-            real mouse_World[4] = { x, y, 0, 1 };
-            real a[4] = {};
-            real inv_P_prime[16] = {}; {
-                Camera2D tmp = { camera->screen_height_World };
-                _camera_get_PV(&tmp, inv_P_prime);
-                _linalg_mat4_inverse(inv_P_prime, inv_P_prime);
-            }
-            real mouse_NDC[4] = {}; {
-                _linalg_mat4_times_vec4_persp_divide(mouse_NDC, NDC_from_World, mouse_World); 
-            }
-            _linalg_mat4_times_vec4_persp_divide(a, inv_P_prime, mouse_NDC);
-            for (int d = 0; d < 2; ++d) (&camera->o_x)[d] = mouse_World[d] - a[d];
-        }
-    }
-
-    void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom = false, bool disable_rotate = false) {
-        disable_rotate |= (globals._mouse_owner != COW_MOUSE_OWNER_NONE);
-        { // 2D transforms
-            Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->o_x, camera->o_y };
-            camera_move(&tmp2D, disable_pan, disable_zoom);
-
-            if (IS_ZERO(camera->angle_of_view)) { // ortho
-                camera->ortho_screen_height_World = tmp2D.screen_height_World;
-            } else { // persp
-                     //                   r_y
-                     //               -   |  
-                     //            -      |  
-                     //         -         |  
-                     //      - ) theta    |  
-                     // eye-------------->o  
-                     //         D            
-                real r_y = tmp2D.screen_height_World / 2;
-                real theta = camera->angle_of_view / 2;
-                camera->persp_distance_to_origin = r_y / tan(theta);
-            }
-
-            camera->o_x = tmp2D.o_x;
-            camera->o_y = tmp2D.o_y;
-        }
-        if (!disable_rotate && globals.mouse_left_held) {
-            real fac = 2;
-            camera->theta -= fac * globals.mouse_change_in_position_NDC[0];
-            camera->phi += fac * globals.mouse_change_in_position_NDC[1];
-            camera->phi = CLAMP(camera->phi, -RAD(90), RAD(90));
-        }
-    }
+}
 
 #ifdef SNAIL_CPP
-    struct OrthogonalCoordinateSystem3D {
-        //   = [| | | |]   [\ | / |]
-        // C = [x y z o] = [- R - o]
-        //   = [| | | |]   [/ | \ |]
-        //   = [0 0 0 1]   [- 0 - 1]
-        mat4 C;
-        vec3 x;
-        vec3 y;
-        vec3 z;
-        vec3 o;
-        mat4 R; // stored as [\ | / |]
-                //           [- R - 0]
-                //           [/ | \ |]
-                //           [- 0 - 1]
-    };
+struct OrthogonalCoordinateSystem3D {
+    //   = [| | | |]   [\ | / |]
+    // C = [x y z o] = [- R - o]
+    //   = [| | | |]   [/ | \ |]
+    //   = [0 0 0 1]   [- 0 - 1]
+    mat4 C;
+    vec3 x;
+    vec3 y;
+    vec3 z;
+    vec3 o;
+    mat4 R; // stored as [\ | / |]
+            //           [- R - 0]
+            //           [/ | \ |]
+            //           [- 0 - 1]
+};
 
-    mat4 camera_get_PV(Camera2D *camera) {
-        mat4 ret;
-        _camera_get_PV(camera, ret.data);
-        return ret;
-    }
+mat4 camera_get_PV(Camera2D *camera) {
+    mat4 ret;
+    _camera_get_PV(camera, ret.data);
+    return ret;
+}
 
-    mat4 camera_get_P(Camera2D *camera) {
-        mat4 ret;
-        _camera_get_P(camera, ret.data);
-        return ret;
-    }
+mat4 camera_get_P(Camera2D *camera) {
+    mat4 ret;
+    _camera_get_P(camera, ret.data);
+    return ret;
+}
 
-    mat4 camera_get_V(Camera2D *camera) {
-        mat4 ret;
-        _camera_get_V(camera, ret.data);
-        return ret;
-    }
+mat4 camera_get_V(Camera2D *camera) {
+    mat4 ret;
+    _camera_get_V(camera, ret.data);
+    return ret;
+}
 
 
-    OrthogonalCoordinateSystem3D camera_get_coordinate_system(Camera3D *camera) {
-        mat4 C;
-        vec3 x, y, z, o;
-        mat4 R;
-        _camera_get_coordinate_system(camera, (real *) &C, (real *) &x, (real *) &y, (real *) &z, (real *) &o, (real *) &R);
-        return { C, x, y, z, o, R };
-    }
+OrthogonalCoordinateSystem3D camera_get_coordinate_system(Camera3D *camera) {
+    mat4 C;
+    vec3 x, y, z, o;
+    mat4 R;
+    _camera_get_coordinate_system(camera, (real *) &C, (real *) &x, (real *) &y, (real *) &z, (real *) &o, (real *) &R);
+    return { C, x, y, z, o, R };
+}
 
-    vec3 camera_get_position(Camera3D *camera) {
-        vec3 o;
-        _camera_get_coordinate_system(camera, NULL, NULL, NULL, NULL, (real *) &o, NULL);
-        return o;
-    }
+vec3 camera_get_position(Camera3D *camera) {
+    vec3 o;
+    _camera_get_coordinate_system(camera, NULL, NULL, NULL, NULL, (real *) &o, NULL);
+    return o;
+}
 
-    mat4 camera_get_P(Camera3D *camera) {
-        mat4 ret;
-        _camera_get_P(camera, ret.data);
-        return ret;
-    }
+mat4 camera_get_P(Camera3D *camera) {
+    mat4 ret;
+    _camera_get_P(camera, ret.data);
+    return ret;
+}
 
-    mat4 camera_get_V(Camera3D *camera) {
-        mat4 ret;
-        _camera_get_V(camera, ret.data);
-        return ret;
-    }
+mat4 camera_get_V(Camera3D *camera) {
+    mat4 ret;
+    _camera_get_V(camera, ret.data);
+    return ret;
+}
 
-    mat4 camera_get_C(Camera3D *camera) {
-        mat4 ret;
-        _camera_get_coordinate_system(camera, ret.data);
-        return ret;
-    }
+mat4 camera_get_C(Camera3D *camera) {
+    mat4 ret;
+    _camera_get_coordinate_system(camera, ret.data);
+    return ret;
+}
 
-    mat4 camera_get_PV(Camera3D *camera) {
-        mat4 ret;
-        _camera_get_PV(camera, ret.data);
-        return ret;
-    }
+mat4 camera_get_PV(Camera3D *camera) {
+    mat4 ret;
+    _camera_get_PV(camera, ret.data);
+    return ret;
+}
 
-    vec3 camera_get_mouse_ray(Camera3D *camera) {
-        // convenience function; probably repeats a lot of computation already done in the frame
-        return normalized(transformPoint(inverse(camera_get_PV(camera)), V3(globals.mouse_position_NDC, 0.0)) - camera_get_position(camera));
-    }
+vec3 camera_get_mouse_ray(Camera3D *camera) {
+    // convenience function; probably repeats a lot of computation already done in the frame
+    return normalized(transformPoint(inverse(camera_get_PV(camera)), V3(globals.mouse_position_NDC, 0.0)) - camera_get_position(camera));
+}
 #endif
 
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    // extras //////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// extras //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "color.cpp"/////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// #include "color.cpp"/////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    struct {
-        _vec3 red    = { 249./255,  38./255, 114./255 }; /** red */
-        _vec3 orange = { 253./255, 151./255,  31./255 }; /** orange */
-        _vec3 yellow = { 255./255, 255./255,  50./255 }; /** not the actual monokai yellow cause i don't like it */
-        _vec3 green  = { 166./255, 226./255,  46./255 }; /** green */
-        _vec3 blue   = { 102./255, 217./255, 239./255 }; /** blue */
-        _vec3 purple = { 174./255, 129./255, 255./255 }; /** purple */
-        _vec3 white  = { 255./255, 255./255, 255./255 }; /** full white */
-        _vec3 gray   = { 127./255, 127./255, 127./255 }; /** 50% gray */
-        _vec3 black  = {   0./255,   0./255,   0./255 }; /** full black */
-        _vec3 brown  = { 123./255,  63./255,   0./255 }; /** monokai doesn't actually define a brown so i made this one up */
-    } monokai;
+struct {
+    _vec3 red    = { 249./255,  38./255, 114./255 }; /** red */
+    _vec3 orange = { 253./255, 151./255,  31./255 }; /** orange */
+    _vec3 yellow = { 255./255, 255./255,  50./255 }; /** not the actual monokai yellow cause i don't like it */
+    _vec3 green  = { 166./255, 226./255,  46./255 }; /** green */
+    _vec3 blue   = { 102./255, 217./255, 239./255 }; /** blue */
+    _vec3 purple = { 174./255, 129./255, 255./255 }; /** purple */
+    _vec3 white  = { 255./255, 255./255, 255./255 }; /** full white */
+    _vec3 gray   = { 127./255, 127./255, 127./255 }; /** 50% gray */
+    _vec3 black  = {   0./255,   0./255,   0./255 }; /** full black */
+    _vec3 brown  = { 123./255,  63./255,   0./255 }; /** monokai doesn't actually define a brown so i made this one up */
+} monokai;
 
 #ifdef SNAIL_CPP
-    vec3 color_kelly(int i) {
-        static vec3 _kelly_colors[]={{255./255,179./255,0./255},{128./255,62./255,117./255},{255./255,104./255,0./255},{166./255,189./255,215./255},{193./255,0./255,32./255},{206./255,162./255,98./255},{129./255,112./255,102./255},{0./255,125./255,52./255},{246./255,118./255,142./255},{0./255,83./255,138./255},{255./255,122./255,92./255},{83./255,55./255,122./255},{255./255,142./255,0./255},{179./255,40./255,81./255},{244./255,200./255,0./255},{127./255,24./255,13./255},{147./255,170./255,0./255},{89./255,51./255,21./255},{241./255,58./255,19./255},{35./255,44./255,22./255}};
-        return _kelly_colors[MODULO(i, _COUNT_OF(_kelly_colors))];
-    }
+vec3 color_kelly(int i) {
+    static vec3 _kelly_colors[]={{255./255,179./255,0./255},{128./255,62./255,117./255},{255./255,104./255,0./255},{166./255,189./255,215./255},{193./255,0./255,32./255},{206./255,162./255,98./255},{129./255,112./255,102./255},{0./255,125./255,52./255},{246./255,118./255,142./255},{0./255,83./255,138./255},{255./255,122./255,92./255},{83./255,55./255,122./255},{255./255,142./255,0./255},{179./255,40./255,81./255},{244./255,200./255,0./255},{127./255,24./255,13./255},{147./255,170./255,0./255},{89./255,51./255,21./255},{241./255,58./255,19./255},{35./255,44./255,22./255}};
+    return _kelly_colors[MODULO(i, _COUNT_OF(_kelly_colors))];
+}
 
-    vec3 color_plasma(real t) {
-        t = CLAMP(t, 0.0, 1.0);
-        const vec3 c0 = { 0.05873234392399702, 0.02333670892565664, 0.5433401826748754 };
-        const vec3 c1 = { 2.176514634195958, 0.2383834171260182, 0.7539604599784036 };
-        const vec3 c2 = { -2.689460476458034, -7.455851135738909, 3.110799939717086 };
-        const vec3 c3 = { 6.130348345893603, 42.3461881477227, -28.51885465332158 };
-        const vec3 c4 = { -11.10743619062271, -82.66631109428045, 60.13984767418263 };
-        const vec3 c5 = { 10.02306557647065, 71.41361770095349, -54.07218655560067 };
-        const vec3 c6 = { -3.658713842777788, -22.93153465461149, 18.19190778539828 };
-        return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
-    }
+vec3 color_plasma(real t) {
+    t = CLAMP(t, 0.0, 1.0);
+    const vec3 c0 = { 0.05873234392399702, 0.02333670892565664, 0.5433401826748754 };
+    const vec3 c1 = { 2.176514634195958, 0.2383834171260182, 0.7539604599784036 };
+    const vec3 c2 = { -2.689460476458034, -7.455851135738909, 3.110799939717086 };
+    const vec3 c3 = { 6.130348345893603, 42.3461881477227, -28.51885465332158 };
+    const vec3 c4 = { -11.10743619062271, -82.66631109428045, 60.13984767418263 };
+    const vec3 c5 = { 10.02306557647065, 71.41361770095349, -54.07218655560067 };
+    const vec3 c6 = { -3.658713842777788, -22.93153465461149, 18.19190778539828 };
+    return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
+}
 
-    vec3 color_rainbow_swirl(real t) {
-        #define Q(o) (.5 + .5 * cos(6.28 * ((o) - t)))
-        return V3(Q(0), Q(.33), Q(-.33));
-        #undef Q
-    }
+vec3 color_rainbow_swirl(real t) {
+    #define Q(o) (.5 + .5 * cos(6.28 * ((o) - t)))
+    return V3(Q(0), Q(.33), Q(-.33));
+    #undef Q
+}
 #endif
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "sbuff.cpp"/////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// #include "sbuff.cpp"/////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    template <typename T> struct StretchyBuffer {
-        int length;
-        int _capacity;
-        T *data;
+template <typename T> struct StretchyBuffer {
+    int length;
+    int _capacity;
+    T *data;
 
-        T &operator [](int index) { return data[index]; }
-    };
+    T &operator [](int index) { return data[index]; }
+};
 
-    template <typename T> void sbuff_push_back(StretchyBuffer<T> *buffer, T element) {
-        if (buffer->_capacity == 0) {
-            ASSERT(!buffer->data);
-            ASSERT(buffer->length == 0);
-            buffer->_capacity = 16;
-            buffer->data = (T *) malloc(buffer->_capacity * sizeof(T));
-        }
-        if (buffer->length == buffer->_capacity) {
-            buffer->_capacity *= 2;
-            buffer->data = (T *) realloc(buffer->data, buffer->_capacity * sizeof(T));
-        }
-        buffer->data[buffer->length++] = element;
+template <typename T> void sbuff_push_back(StretchyBuffer<T> *buffer, T element) {
+    if (buffer->_capacity == 0) {
+        ASSERT(!buffer->data);
+        ASSERT(buffer->length == 0);
+        buffer->_capacity = 16;
+        buffer->data = (T *) malloc(buffer->_capacity * sizeof(T));
     }
-
-    template <typename T> void sbuff_free(StretchyBuffer<T> *buffer) {
-        if (buffer->data) {
-            free(buffer->data);
-        }
-        *buffer = {};
+    if (buffer->length == buffer->_capacity) {
+        buffer->_capacity *= 2;
+        buffer->data = (T *) realloc(buffer->data, buffer->_capacity * sizeof(T));
     }
+    buffer->data[buffer->length++] = element;
+}
 
-    template <typename T> void sbuff_insert(StretchyBuffer<T> *buffer, int i, T element) {
-        sbuff_push_back(buffer, element); // shrug-emoji
-        memmove(buffer->data + i + 1, buffer->data + i, (buffer->length - i) * sizeof(T));
-        buffer->data[i] = element;
+template <typename T> void sbuff_free(StretchyBuffer<T> *buffer) {
+    if (buffer->data) {
+        free(buffer->data);
     }
+    *buffer = {};
+}
 
-    template <typename T> T sbuff_delete(StretchyBuffer<T> *buffer, int i) {
-        ASSERT(i >= 0);
-        ASSERT(i < buffer->length);
-        T result = buffer->data[i];
-        memmove(&buffer->data[i], &buffer->data[i + 1], (buffer->length - i - 1) * sizeof(T));
-        --buffer->length;
-        return result;
-    }
+template <typename T> void sbuff_insert(StretchyBuffer<T> *buffer, int i, T element) {
+    sbuff_push_back(buffer, element); // shrug-emoji
+    memmove(buffer->data + i + 1, buffer->data + i, (buffer->length - i) * sizeof(T));
+    buffer->data[i] = element;
+}
 
-    template <typename T> T sbuff_pop_back(StretchyBuffer<T> *buffer) {
-        ASSERT(buffer->length != 0);
-        return sbuff_delete(buffer, buffer->length - 1);
-    }
+template <typename T> T sbuff_delete(StretchyBuffer<T> *buffer, int i) {
+    ASSERT(i >= 0);
+    ASSERT(i < buffer->length);
+    T result = buffer->data[i];
+    memmove(&buffer->data[i], &buffer->data[i + 1], (buffer->length - i - 1) * sizeof(T));
+    --buffer->length;
+    return result;
+}
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "mesh.cpp"//////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+template <typename T> T sbuff_pop_back(StretchyBuffer<T> *buffer) {
+    ASSERT(buffer->length != 0);
+    return sbuff_delete(buffer, buffer->length - 1);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// #include "mesh.cpp"//////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #ifdef SNAIL_CPP
-    struct Soup3D {
-        int primitive;
-        int num_vertices;
-        vec3 *vertex_positions;
-        vec3 *vertex_colors;
+struct Soup3D {
+    int primitive;
+    int num_vertices;
+    vec3 *vertex_positions;
+    vec3 *vertex_colors;
 
-        void draw(
-                mat4 PVM,
-                vec3 color_if_vertex_colors_is_NULL,
-                real size_in_pixels,
-                bool force_draw_on_top);
-
-        // fornow
-        void draw(
-                mat4 PVM,
-                vec4 color_if_vertex_colors_is_NULL,
-                real size_in_pixels,
-                bool force_draw_on_top);
-
-        void _dump_for_library(char *filename, char *name);
-    };
-
-    struct IndexedTriangleMesh3D {
-        int num_vertices;
-        int num_triangles;
-        vec3 *vertex_positions;
-        vec3 *vertex_normals;
-        vec3 *vertex_colors;
-        int3 *triangle_indices;
-        vec2 *vertex_texture_coordinates;
-        char *texture_filename;
-        int num_bones;
-        mat4 *bones;
-        int4 *bone_indices;
-        vec4 *bone_weights;
-
-        static IndexedTriangleMesh3D combine(int num_meshes, IndexedTriangleMesh3D *meshes) {
-            // TODO: check that meshes are "compatible"--i.e., e.g., that they ALL have vertex colors
-            IndexedTriangleMesh3D result = {};
-            for (int meshIndex = 0; meshIndex < num_meshes; ++meshIndex) {
-                IndexedTriangleMesh3D &mesh = meshes[meshIndex];
-                result.num_vertices  += mesh.num_vertices;
-                result.num_triangles += mesh.num_triangles;
-                result.num_bones     += mesh.num_bones;
-                ASSERT(!mesh.vertex_texture_coordinates);
-                ASSERT(!mesh.texture_filename);
-            }
-            result.vertex_positions = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
-            result.vertex_normals   = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
-            result.vertex_colors    = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
-            result.triangle_indices = (int3 *) malloc(result.num_triangles * sizeof(int3));
-            result.bones            = (mat4 *) malloc(result.num_bones     * sizeof(mat4));
-            result.bone_indices     = (int4 *) malloc(result.num_vertices  * sizeof(int4));
-            result.bone_weights     = (vec4 *) malloc(result.num_vertices  * sizeof(vec4));
-            int num_vertices = 0;
-            int num_triangles = 0;
-            int num_bones = 0;
-            for (int meshIndex = 0; meshIndex < num_meshes; ++meshIndex) {
-                IndexedTriangleMesh3D &mesh = meshes[meshIndex];
-                memcpy(result.vertex_positions + num_vertices , mesh.vertex_positions, mesh.num_vertices  * sizeof(vec3));
-                memcpy(result.vertex_normals   + num_vertices , mesh.vertex_normals  , mesh.num_vertices  * sizeof(vec3));
-                memcpy(result.vertex_colors    + num_vertices , mesh.vertex_colors   , mesh.num_vertices  * sizeof(vec3));
-                memcpy(result.triangle_indices + num_triangles, mesh.triangle_indices, mesh.num_triangles * sizeof(int3));
-                if (result.num_bones != 0) {
-                    memcpy(result.bones            + num_bones    , mesh.bones           , mesh.num_bones     * sizeof(mat4));
-                    memcpy(result.bone_indices     + num_vertices , mesh.bone_indices    , mesh.num_vertices  * sizeof(int4));
-                    memcpy(result.bone_weights     + num_vertices , mesh.bone_weights    , mesh.num_vertices  * sizeof(vec4));
-                }
-
-                // patch up triangle_indices and bone_indices
-                for (int triangleIndex = 0; triangleIndex < mesh.num_triangles; ++triangleIndex) {
-                    for (int d = 0; d < 3; ++d) result.triangle_indices[num_triangles + triangleIndex][d] += num_vertices;
-                }
-                if (result.num_bones != 0) {
-                    for (int vertexIndex = 0; vertexIndex < mesh.num_vertices; ++vertexIndex) {
-                        for (int d = 0; d < 4; ++d) result.bone_indices[num_vertices + vertexIndex][d] += num_bones;
-                    }
-                }
-
-                num_vertices += mesh.num_vertices;
-                num_triangles += mesh.num_triangles;
-                num_bones += mesh.num_bones;
-            }
-            return result;
-        }
-
-        void draw(
-                mat4 P,
-                mat4 V,
-                mat4 M,
-                vec3 color_if_vertex_colors_is_NULL,
-                char *texture_filename_if_texture_filename_is_NULL
-                );
-
-        void _dump_for_library(char *filename, char *name);
-
-        void _applyTransform(mat4 Model_from_Whatever) {
-            // useful for (desctructively) converting from zBrush -> cow
-            for (int vertex_i = 0; vertex_i < num_vertices; ++vertex_i) {
-                vertex_positions[vertex_i] = transformPoint(Model_from_Whatever, vertex_positions[vertex_i]);
-                if (vertex_normals) vertex_normals[vertex_i] = transformNormal(Model_from_Whatever, vertex_normals[vertex_i]);
-            }
-        }
-
-        vec3 _skin(int i) {
-            vec3 result = {};
-            for (int d = 0; d < 4; ++d) result += bone_weights[i][d] * transformPoint(bones[bone_indices[i][d]], vertex_positions[i]);
-            return result;
-        }
-
-        vec3 _skin(int3 tri, vec3 w) {
-            vec3 result = {};
-            for (int d = 0; d < 3; ++d) result += w[d] * _skin(tri[d]);
-            return result;
-        }
-
-    };
-
-    IndexedTriangleMesh3D operator +(IndexedTriangleMesh3D &A, IndexedTriangleMesh3D &B) {
-        IndexedTriangleMesh3D tmp[] = { A, B };
-        return IndexedTriangleMesh3D::combine(2, tmp);
-    }
-
-    void Soup3D::draw(
+    void draw(
             mat4 PVM,
-            vec3 color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-            real size_in_pixels = 0,
-            bool force_draw_on_top = false) {
-        soup_draw(
-                PVM,
-                primitive,
-                num_vertices,
-                vertex_positions,
-                vertex_colors,
-                color_if_vertex_colors_is_NULL,
-                size_in_pixels,
-                force_draw_on_top);
-    }
+            vec3 color_if_vertex_colors_is_NULL,
+            real size_in_pixels,
+            bool force_draw_on_top);
 
-    void Soup3D::draw(
+    // fornow
+    void draw(
             mat4 PVM,
             vec4 color_if_vertex_colors_is_NULL,
-            real size_in_pixels = 0,
-            bool force_draw_on_top = false) {
-        soup_draw(
-                PVM,
-                primitive,
-                num_vertices,
-                vertex_positions,
-                vertex_colors,
-                color_if_vertex_colors_is_NULL,
-                size_in_pixels,
-                force_draw_on_top);
+            real size_in_pixels,
+            bool force_draw_on_top);
+
+    void _dump_for_library(char *filename, char *name);
+};
+
+struct IndexedTriangleMesh3D {
+    int num_vertices;
+    int num_triangles;
+    vec3 *vertex_positions;
+    vec3 *vertex_normals;
+    vec3 *vertex_colors;
+    int3 *triangle_indices;
+    vec2 *vertex_texture_coordinates;
+    char *texture_filename;
+    int num_bones;
+    mat4 *bones;
+    int4 *bone_indices;
+    vec4 *bone_weights;
+
+    static IndexedTriangleMesh3D combine(int num_meshes, IndexedTriangleMesh3D *meshes) {
+        // TODO: check that meshes are "compatible"--i.e., e.g., that they ALL have vertex colors
+        IndexedTriangleMesh3D result = {};
+        for (int meshIndex = 0; meshIndex < num_meshes; ++meshIndex) {
+            IndexedTriangleMesh3D &mesh = meshes[meshIndex];
+            result.num_vertices  += mesh.num_vertices;
+            result.num_triangles += mesh.num_triangles;
+            result.num_bones     += mesh.num_bones;
+            ASSERT(!mesh.vertex_texture_coordinates);
+            ASSERT(!mesh.texture_filename);
+        }
+        result.vertex_positions = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
+        result.vertex_normals   = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
+        result.vertex_colors    = (vec3 *) malloc(result.num_vertices  * sizeof(vec3));
+        result.triangle_indices = (int3 *) malloc(result.num_triangles * sizeof(int3));
+        result.bones            = (mat4 *) malloc(result.num_bones     * sizeof(mat4));
+        result.bone_indices     = (int4 *) malloc(result.num_vertices  * sizeof(int4));
+        result.bone_weights     = (vec4 *) malloc(result.num_vertices  * sizeof(vec4));
+        int num_vertices = 0;
+        int num_triangles = 0;
+        int num_bones = 0;
+        for (int meshIndex = 0; meshIndex < num_meshes; ++meshIndex) {
+            IndexedTriangleMesh3D &mesh = meshes[meshIndex];
+            memcpy(result.vertex_positions + num_vertices , mesh.vertex_positions, mesh.num_vertices  * sizeof(vec3));
+            memcpy(result.vertex_normals   + num_vertices , mesh.vertex_normals  , mesh.num_vertices  * sizeof(vec3));
+            memcpy(result.vertex_colors    + num_vertices , mesh.vertex_colors   , mesh.num_vertices  * sizeof(vec3));
+            memcpy(result.triangle_indices + num_triangles, mesh.triangle_indices, mesh.num_triangles * sizeof(int3));
+            if (result.num_bones != 0) {
+                memcpy(result.bones            + num_bones    , mesh.bones           , mesh.num_bones     * sizeof(mat4));
+                memcpy(result.bone_indices     + num_vertices , mesh.bone_indices    , mesh.num_vertices  * sizeof(int4));
+                memcpy(result.bone_weights     + num_vertices , mesh.bone_weights    , mesh.num_vertices  * sizeof(vec4));
+            }
+
+            // patch up triangle_indices and bone_indices
+            for (int triangleIndex = 0; triangleIndex < mesh.num_triangles; ++triangleIndex) {
+                for (int d = 0; d < 3; ++d) result.triangle_indices[num_triangles + triangleIndex][d] += num_vertices;
+            }
+            if (result.num_bones != 0) {
+                for (int vertexIndex = 0; vertexIndex < mesh.num_vertices; ++vertexIndex) {
+                    for (int d = 0; d < 4; ++d) result.bone_indices[num_vertices + vertexIndex][d] += num_bones;
+                }
+            }
+
+            num_vertices += mesh.num_vertices;
+            num_triangles += mesh.num_triangles;
+            num_bones += mesh.num_bones;
+        }
+        return result;
     }
 
-    void IndexedTriangleMesh3D::draw(
+    void draw(
             mat4 P,
             mat4 V,
             mat4 M,
-            vec3 color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-            char *texture_filename_if_texture_filename_is_NULL = NULL) {
-        mesh_draw(
-                P,
-                V,
-                M,
-                num_triangles,
-                triangle_indices,
-                num_vertices,
-                vertex_positions,
-                vertex_normals,
-                vertex_colors,
-                color_if_vertex_colors_is_NULL,
-                vertex_texture_coordinates,
-                (texture_filename) ? texture_filename : texture_filename_if_texture_filename_is_NULL,
-                num_bones,
-                bones,
-                bone_indices,
-                bone_weights
-                );
-    }
+            vec3 color_if_vertex_colors_is_NULL,
+            char *texture_filename_if_texture_filename_is_NULL
+            );
 
-    void Soup3D::_dump_for_library(char *filename, char *name) {
-        ASSERT(primitive == SOUP_OUTLINED_TRIANGLES);
-        FILE *fp = fopen(filename, "w");
-        ASSERT(fp);
-        fprintf(fp, "int _library_soup_%s_num_vertices = %d;\n", name, num_vertices); 
-        fprintf(fp, "vec3 _library_soup_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
-        fclose(fp);
-    }
+    void _dump_for_library(char *filename, char *name);
 
-    void IndexedTriangleMesh3D::_dump_for_library(char *filename, char *name) {
-        FILE *fp = fopen(filename, "w");
-        ASSERT(fp);
-        fprintf(fp, "int _library_mesh_%s_num_triangles = %d;\n", name, num_triangles); 
-        fprintf(fp, "int _library_mesh_%s_num_vertices = %d;\n", name, num_vertices); 
-        fprintf(fp, "int3 _library_mesh_%s_triangle_indices[] = {\n    ", name); for (int i = 0; i < num_triangles; ++i) fprintf(fp, "{%d,%d,%d},",triangle_indices[i].i,triangle_indices[i].j,triangle_indices[i].k); fprintf(fp, "};\n");
-        fprintf(fp, "vec3 _library_mesh_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
-        fprintf(fp, "vec3 _library_mesh_%s_vertex_normals  [] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_normals[i][0],vertex_normals[i][1],vertex_normals[i][2]); fprintf(fp, "};\n");
-
-        // TODO: vertex_colors
-
-        fprintf(fp, "int _library_mesh_%s_num_bones = %d;\n", name, num_bones); 
-        if (num_bones != 0) {
-            ASSERT(bones);
-            ASSERT(bone_indices);
-            ASSERT(bone_weights);
+    void _applyTransform(mat4 Model_from_Whatever) {
+        // useful for (desctructively) converting from zBrush -> cow
+        for (int vertex_i = 0; vertex_i < num_vertices; ++vertex_i) {
+            vertex_positions[vertex_i] = transformPoint(Model_from_Whatever, vertex_positions[vertex_i]);
+            if (vertex_normals) vertex_normals[vertex_i] = transformNormal(Model_from_Whatever, vertex_normals[vertex_i]);
         }
-        fprintf(fp, "mat4 _library_mesh_%s_bones[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_bones; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf},",bones[i].data[0],bones[i].data[1],bones[i].data[2],bones[i].data[3],bones[i].data[4],bones[i].data[5],bones[i].data[6],bones[i].data[7],bones[i].data[8],bones[i].data[9],bones[i].data[10],bones[i].data[11],bones[i].data[12],bones[i].data[13],bones[i].data[14],bones[i].data[15]); } fprintf(fp, "};\n");
-        fprintf(fp, "int4 _library_mesh_%s_bone_indices[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%d,%d,%d,%d},",bone_indices[i][0],bone_indices[i][1],bone_indices[i][2],bone_indices[i][3]); } fprintf(fp, "};\n");
-        fprintf(fp, "vec4 _library_mesh_%s_bone_weights[] = {", name); if (num_bones != 0) { fprintf(fp, "\n");  for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf},",bone_weights[i][0],bone_weights[i][1],bone_weights[i][2],bone_weights[i][3]); } fprintf(fp, "};\n");
-
-        fclose(fp);
     }
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "_meshutil.cpp"///////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+    vec3 _skin(int i) {
+        vec3 result = {};
+        for (int d = 0; d < 4; ++d) result += bone_weights[i][d] * transformPoint(bones[bone_indices[i][d]], vertex_positions[i]);
+        return result;
+    }
+
+    vec3 _skin(int3 tri, vec3 w) {
+        vec3 result = {};
+        for (int d = 0; d < 3; ++d) result += w[d] * _skin(tri[d]);
+        return result;
+    }
+
+};
+
+IndexedTriangleMesh3D operator +(IndexedTriangleMesh3D &A, IndexedTriangleMesh3D &B) {
+    IndexedTriangleMesh3D tmp[] = { A, B };
+    return IndexedTriangleMesh3D::combine(2, tmp);
+}
+
+void Soup3D::draw(
+        mat4 PVM,
+        vec3 color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
+        real size_in_pixels = 0,
+        bool force_draw_on_top = false) {
+    soup_draw(
+            PVM,
+            primitive,
+            num_vertices,
+            vertex_positions,
+            vertex_colors,
+            color_if_vertex_colors_is_NULL,
+            size_in_pixels,
+            force_draw_on_top);
+}
+
+void Soup3D::draw(
+        mat4 PVM,
+        vec4 color_if_vertex_colors_is_NULL,
+        real size_in_pixels = 0,
+        bool force_draw_on_top = false) {
+    soup_draw(
+            PVM,
+            primitive,
+            num_vertices,
+            vertex_positions,
+            vertex_colors,
+            color_if_vertex_colors_is_NULL,
+            size_in_pixels,
+            force_draw_on_top);
+}
+
+void IndexedTriangleMesh3D::draw(
+        mat4 P,
+        mat4 V,
+        mat4 M,
+        vec3 color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
+        char *texture_filename_if_texture_filename_is_NULL = NULL) {
+    mesh_draw(
+            P,
+            V,
+            M,
+            num_triangles,
+            triangle_indices,
+            num_vertices,
+            vertex_positions,
+            vertex_normals,
+            vertex_colors,
+            color_if_vertex_colors_is_NULL,
+            vertex_texture_coordinates,
+            (texture_filename) ? texture_filename : texture_filename_if_texture_filename_is_NULL,
+            num_bones,
+            bones,
+            bone_indices,
+            bone_weights
+            );
+}
+
+void Soup3D::_dump_for_library(char *filename, char *name) {
+    ASSERT(primitive == SOUP_OUTLINED_TRIANGLES);
+    FILE *fp = fopen(filename, "w");
+    ASSERT(fp);
+    fprintf(fp, "int _library_soup_%s_num_vertices = %d;\n", name, num_vertices); 
+    fprintf(fp, "vec3 _library_soup_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
+    fclose(fp);
+}
+
+void IndexedTriangleMesh3D::_dump_for_library(char *filename, char *name) {
+    FILE *fp = fopen(filename, "w");
+    ASSERT(fp);
+    fprintf(fp, "int _library_mesh_%s_num_triangles = %d;\n", name, num_triangles); 
+    fprintf(fp, "int _library_mesh_%s_num_vertices = %d;\n", name, num_vertices); 
+    fprintf(fp, "int3 _library_mesh_%s_triangle_indices[] = {\n    ", name); for (int i = 0; i < num_triangles; ++i) fprintf(fp, "{%d,%d,%d},",triangle_indices[i].i,triangle_indices[i].j,triangle_indices[i].k); fprintf(fp, "};\n");
+    fprintf(fp, "vec3 _library_mesh_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
+    fprintf(fp, "vec3 _library_mesh_%s_vertex_normals  [] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_normals[i][0],vertex_normals[i][1],vertex_normals[i][2]); fprintf(fp, "};\n");
+
+    // TODO: vertex_colors
+
+    fprintf(fp, "int _library_mesh_%s_num_bones = %d;\n", name, num_bones); 
+    if (num_bones != 0) {
+        ASSERT(bones);
+        ASSERT(bone_indices);
+        ASSERT(bone_weights);
+    }
+    fprintf(fp, "mat4 _library_mesh_%s_bones[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_bones; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf},",bones[i].data[0],bones[i].data[1],bones[i].data[2],bones[i].data[3],bones[i].data[4],bones[i].data[5],bones[i].data[6],bones[i].data[7],bones[i].data[8],bones[i].data[9],bones[i].data[10],bones[i].data[11],bones[i].data[12],bones[i].data[13],bones[i].data[14],bones[i].data[15]); } fprintf(fp, "};\n");
+    fprintf(fp, "int4 _library_mesh_%s_bone_indices[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%d,%d,%d,%d},",bone_indices[i][0],bone_indices[i][1],bone_indices[i][2],bone_indices[i][3]); } fprintf(fp, "};\n");
+    fprintf(fp, "vec4 _library_mesh_%s_bone_weights[] = {", name); if (num_bones != 0) { fprintf(fp, "\n");  for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf},",bone_weights[i][0],bone_weights[i][1],bone_weights[i][2],bone_weights[i][3]); } fprintf(fp, "};\n");
+
+    fclose(fp);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// #include "_meshutil.cpp"///////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #if 0
-    IndexedTriangleMesh3D bunny = _meshutil_indexed_triangle_mesh_load("data_fancy_bunny", true, true, false);
-    bunny._dump_for_library("out.txt", "bunny");
+IndexedTriangleMesh3D bunny = _meshutil_indexed_triangle_mesh_load("data_fancy_bunny", true, true, false);
+bunny._dump_for_library("out.txt", "bunny");
 #endif
 
 #if 0
-    Soup3D bunny = _meshutil_soup_TRIANGLES_load("data_basic_bunny", true);
-    bunny._dump_for_library("out.txt", "bunny");
+Soup3D bunny = _meshutil_soup_TRIANGLES_load("data_basic_bunny", true);
+bunny._dump_for_library("out.txt", "bunny");
 #endif
 
-    void _meshutil_transform_vertex_positions_to_double_unit_box(int num_vertices, vec3 *vertex_positions) {
-        vec3 L = V3(HUGE_VAL, HUGE_VAL, HUGE_VAL);
-        vec3 R = V3(-HUGE_VAL, -HUGE_VAL, -HUGE_VAL);
-        for (int i = 0; i < num_vertices; ++i) {
-            L = cwiseMin(L, vertex_positions[i]);
-            R = cwiseMax(R, vertex_positions[i]);
-        }
-        vec3 center = .5 * (L + R);
-        vec3 size = R - L;
-        real largest = MAX(MAX(size[0], size[1]), size[2]);
-        for (int i = 0; i < num_vertices; ++i) {
-            vertex_positions[i] -= center;
-            vertex_positions[i] *= (2 / largest);
-        }
+void _meshutil_transform_vertex_positions_to_double_unit_box(int num_vertices, vec3 *vertex_positions) {
+    vec3 L = V3(HUGE_VAL, HUGE_VAL, HUGE_VAL);
+    vec3 R = V3(-HUGE_VAL, -HUGE_VAL, -HUGE_VAL);
+    for (int i = 0; i < num_vertices; ++i) {
+        L = cwiseMin(L, vertex_positions[i]);
+        R = cwiseMax(R, vertex_positions[i]);
     }
+    vec3 center = .5 * (L + R);
+    vec3 size = R - L;
+    real largest = MAX(MAX(size[0], size[1]), size[2]);
+    for (int i = 0; i < num_vertices; ++i) {
+        vertex_positions[i] -= center;
+        vertex_positions[i] *= (2 / largest);
+    }
+}
 
-    void _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(IndexedTriangleMesh3D *mesh_mesh) {
-        ASSERT(mesh_mesh->vertex_normals == NULL);
-        if (1) { // () _mesh_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals
-                 // TODO allocate mesh_mesh->vertex_normals        
-                 // TODO write entries of mesh_mesh->vertex_normals
-            mesh_mesh->vertex_normals = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3));
-            for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
-                int3 ijk = mesh_mesh->triangle_indices[i_triangle];
-                real A;
-                vec3 n_hat;
-                {
-                    vec3 abc[3];
-                    for (int d = 0; d < 3; ++d) {
-                        abc[d] = mesh_mesh->vertex_positions[ijk[d]];
-                    }
-                    vec3 n = cross(abc[1] - abc[0], abc[2] - abc[0]);
-                    real mag_n = norm(n);
-                    A = norm(n) / 2;
-                    n_hat = n / mag_n;
-                }
+void _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(IndexedTriangleMesh3D *mesh_mesh) {
+    ASSERT(mesh_mesh->vertex_normals == NULL);
+    if (1) { // () _mesh_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals
+             // TODO allocate mesh_mesh->vertex_normals        
+             // TODO write entries of mesh_mesh->vertex_normals
+        mesh_mesh->vertex_normals = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3));
+        for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
+            int3 ijk = mesh_mesh->triangle_indices[i_triangle];
+            real A;
+            vec3 n_hat;
+            {
+                vec3 abc[3];
                 for (int d = 0; d < 3; ++d) {
-                    mesh_mesh->vertex_normals[ijk[d]] += A * n_hat;
+                    abc[d] = mesh_mesh->vertex_positions[ijk[d]];
                 }
+                vec3 n = cross(abc[1] - abc[0], abc[2] - abc[0]);
+                real mag_n = norm(n);
+                A = norm(n) / 2;
+                n_hat = n / mag_n;
             }
-            for (int i_vertex = 0; i_vertex < mesh_mesh->num_vertices; ++i_vertex) {
-                mesh_mesh->vertex_normals[i_vertex] = normalized(mesh_mesh->vertex_normals[i_vertex]);
+            for (int d = 0; d < 3; ++d) {
+                mesh_mesh->vertex_normals[ijk[d]] += A * n_hat;
             }
         }
+        for (int i_vertex = 0; i_vertex < mesh_mesh->num_vertices; ++i_vertex) {
+            mesh_mesh->vertex_normals[i_vertex] = normalized(mesh_mesh->vertex_normals[i_vertex]);
+        }
     }
+}
 
-    void _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(IndexedTriangleMesh3D *mesh_mesh) {
-        int new_num_vertices = 0;
-        vec3 *new_vertex_positions = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3)); // (more space than we'll need)
-        if (1) { // [] _mesh_mesh_merge_duplicated_vertices
-                 // TODO set new_num_vertices and entries of new_vertex_positions                   
-                 // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
-                 // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
-                 // NOTE please don't worry about space efficiency at all                           
-            int *primal  = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
-            int *new_index = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
-            for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
-                primal[i] = -1;
-                new_index[i] = -1;
+void _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(IndexedTriangleMesh3D *mesh_mesh) {
+    int new_num_vertices = 0;
+    vec3 *new_vertex_positions = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3)); // (more space than we'll need)
+    if (1) { // [] _mesh_mesh_merge_duplicated_vertices
+             // TODO set new_num_vertices and entries of new_vertex_positions                   
+             // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
+             // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
+             // NOTE please don't worry about space efficiency at all                           
+        int *primal  = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
+        int *new_index = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
+        for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
+            primal[i] = -1;
+            new_index[i] = -1;
+        }
+        for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
+            if (primal[i] != -1) {
+                continue;
             }
-            for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
-                if (primal[i] != -1) {
+            vec3 p_i = mesh_mesh->vertex_positions[i];
+            for (int j = i + 1; j < mesh_mesh->num_vertices; ++j) {
+                if (primal[j] != -1) {
                     continue;
                 }
-                vec3 p_i = mesh_mesh->vertex_positions[i];
-                for (int j = i + 1; j < mesh_mesh->num_vertices; ++j) {
-                    if (primal[j] != -1) {
-                        continue;
-                    }
-                    vec3 p_j = mesh_mesh->vertex_positions[j];
-                    if (IS_ZERO(squaredNorm(p_i - p_j))) {
-                        ASSERT(primal[j] == -1);
-                        primal[j] = i;
-                    }
+                vec3 p_j = mesh_mesh->vertex_positions[j];
+                if (IS_ZERO(squaredNorm(p_i - p_j))) {
+                    ASSERT(primal[j] == -1);
+                    primal[j] = i;
                 }
             }
-            int k = 0;
-            for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
-                if (primal[i] == -1) {
-                    ++new_num_vertices;
-                    new_vertex_positions[k] = mesh_mesh->vertex_positions[i];
-                    new_index[i] = k;
-                    ++k;
-                }
-            }
-            for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
-                for (int d = 0; d < 3; ++d) {
-                    int i = mesh_mesh->triangle_indices[i_triangle][d];
-                    mesh_mesh->triangle_indices[i_triangle][d] = (primal[i] == -1) ? new_index[i] : new_index[primal[i]];
-                }
-            }
-            free(primal);
-            free(new_index);
         }
-        if (new_num_vertices) {
-            mesh_mesh->num_vertices = new_num_vertices;
-            free(mesh_mesh->vertex_positions);
-            mesh_mesh->vertex_positions = new_vertex_positions;
+        int k = 0;
+        for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
+            if (primal[i] == -1) {
+                ++new_num_vertices;
+                new_vertex_positions[k] = mesh_mesh->vertex_positions[i];
+                new_index[i] = k;
+                ++k;
+            }
         }
+        for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
+            for (int d = 0; d < 3; ++d) {
+                int i = mesh_mesh->triangle_indices[i_triangle][d];
+                mesh_mesh->triangle_indices[i_triangle][d] = (primal[i] == -1) ? new_index[i] : new_index[primal[i]];
+            }
+        }
+        free(primal);
+        free(new_index);
     }
-
-    IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool transform_vertex_positions_to_double_unit_box, bool compute_normals, bool merge_duplicated_vertices) {
-        IndexedTriangleMesh3D mesh_mesh = {};
-        {
-            StretchyBuffer<vec3> vertex_positions = {};
-            StretchyBuffer<vec3> vertex_colors = {};
-            StretchyBuffer<int3> triangle_indices = {};
-            {
-                FILE *fp = fopen(filename, "r");
-                ASSERT(fp);
-                char buffer[4096];
-                while (fgets(buffer, _COUNT_OF(buffer), fp) != NULL) {
-                    char prefix[16] = {};
-                    sscanf(buffer, "%s", prefix);
-                    if (strcmp(prefix, "f") == 0) {
-                        int i, j, k;
-                        ASSERT(sscanf(buffer, "%s %d %d %d", prefix, &i, &j, &k) == 4);
-                        sbuff_push_back(&triangle_indices, { i - 1, j - 1, k - 1 });
-                    } else if (strcmp(prefix, "v") == 0) {
-                        real x, y, z;
-                        ASSERT(sscanf(buffer, "%s %lf %lf %lf", prefix, &x, &y, &z) == 4);
-                        sbuff_push_back(&vertex_positions, { x, y, z });
-                    } else if (strcmp(prefix, "#MRGB") == 0) {
-                        // do_once { printf("[info] found ZBrush polypaint payload\n"); };
-                        static char hexPayload[4096];
-                        ASSERT(sscanf(buffer, "%s %s", prefix, hexPayload) == 2);
-                        int numVertexColorEntries = int(strlen(hexPayload) / 8);
-                        for (int vertexColorEntryIndex = 0; vertexColorEntryIndex <  numVertexColorEntries; ++vertexColorEntryIndex) {
-                            vec3 rgb = {};
-                            for (int channel = 1; channel < 4; ++channel) {
-                                int channelContribution__255 = 0;
-                                for (int bitIndex = 0; bitIndex < 2; ++bitIndex) {
-                                    char hexCharacter = hexPayload[vertexColorEntryIndex * 8 + 2 * channel + bitIndex];
-                                    channelContribution__255 += (('0' <= hexCharacter) && (hexCharacter <= '9')) ? (hexCharacter - '0') : (10 + hexCharacter - 'a');
-                                    if (bitIndex == 0) channelContribution__255 *= 16;
-                                }
-                                rgb[channel - 1] = channelContribution__255 / 255.0;
-                            }
-                            sbuff_push_back(&vertex_colors, rgb);
-                        }
-                    }
-                }
-                fclose(fp);
-            }
-
-            // note: don't free the data pointers! (we're stealing them)
-            mesh_mesh.num_triangles = triangle_indices.length;
-            mesh_mesh.triangle_indices = triangle_indices.data;
-            mesh_mesh.num_vertices = vertex_positions.length;
-            mesh_mesh.vertex_positions = vertex_positions.data;
-            if (vertex_colors.length) {
-                ASSERT(vertex_colors.length == vertex_positions.length); 
-                mesh_mesh.vertex_colors = vertex_colors.data;
-            }
-        }
-        if (transform_vertex_positions_to_double_unit_box) {
-            _meshutil_transform_vertex_positions_to_double_unit_box(mesh_mesh.num_vertices, mesh_mesh.vertex_positions);
-        }
-        if (merge_duplicated_vertices) {
-            _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(&mesh_mesh);
-        }
-        if (compute_normals) {
-            _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(&mesh_mesh);
-        }
-        return mesh_mesh;
+    if (new_num_vertices) {
+        mesh_mesh->num_vertices = new_num_vertices;
+        free(mesh_mesh->vertex_positions);
+        mesh_mesh->vertex_positions = new_vertex_positions;
     }
+}
 
-    Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_positions_to_double_unit_box) {
-        Soup3D soup_mesh = {};
+IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool transform_vertex_positions_to_double_unit_box, bool compute_normals, bool merge_duplicated_vertices) {
+    IndexedTriangleMesh3D mesh_mesh = {};
+    {
+        StretchyBuffer<vec3> vertex_positions = {};
+        StretchyBuffer<vec3> vertex_colors = {};
+        StretchyBuffer<int3> triangle_indices = {};
         {
-            soup_mesh.primitive = SOUP_OUTLINED_TRIANGLES;
-
-            StretchyBuffer<vec3> vertex_positions = {};
-            {
-                FILE *fp = fopen(filename, "r");
-                ASSERT(fp);
-                char buffer[4096];
-                while (fgets(buffer, _COUNT_OF(buffer), fp) != NULL) {
+            FILE *fp = fopen(filename, "r");
+            ASSERT(fp);
+            char buffer[4096];
+            while (fgets(buffer, _COUNT_OF(buffer), fp) != NULL) {
+                char prefix[16] = {};
+                sscanf(buffer, "%s", prefix);
+                if (strcmp(prefix, "f") == 0) {
+                    int i, j, k;
+                    ASSERT(sscanf(buffer, "%s %d %d %d", prefix, &i, &j, &k) == 4);
+                    sbuff_push_back(&triangle_indices, { i - 1, j - 1, k - 1 });
+                } else if (strcmp(prefix, "v") == 0) {
                     real x, y, z;
-                    ASSERT(sscanf(buffer, "%lf %lf %lf", &x, &y, &z) == 3);
+                    ASSERT(sscanf(buffer, "%s %lf %lf %lf", prefix, &x, &y, &z) == 4);
                     sbuff_push_back(&vertex_positions, { x, y, z });
+                } else if (strcmp(prefix, "#MRGB") == 0) {
+                    // do_once { printf("[info] found ZBrush polypaint payload\n"); };
+                    static char hexPayload[4096];
+                    ASSERT(sscanf(buffer, "%s %s", prefix, hexPayload) == 2);
+                    int numVertexColorEntries = int(strlen(hexPayload) / 8);
+                    for (int vertexColorEntryIndex = 0; vertexColorEntryIndex <  numVertexColorEntries; ++vertexColorEntryIndex) {
+                        vec3 rgb = {};
+                        for (int channel = 1; channel < 4; ++channel) {
+                            int channelContribution__255 = 0;
+                            for (int bitIndex = 0; bitIndex < 2; ++bitIndex) {
+                                char hexCharacter = hexPayload[vertexColorEntryIndex * 8 + 2 * channel + bitIndex];
+                                channelContribution__255 += (('0' <= hexCharacter) && (hexCharacter <= '9')) ? (hexCharacter - '0') : (10 + hexCharacter - 'a');
+                                if (bitIndex == 0) channelContribution__255 *= 16;
+                            }
+                            rgb[channel - 1] = channelContribution__255 / 255.0;
+                        }
+                        sbuff_push_back(&vertex_colors, rgb);
+                    }
                 }
-                fclose(fp);
             }
-            // note: don't free the data pointers! (we're stealing them)
-            soup_mesh.num_vertices = vertex_positions.length;
-            soup_mesh.vertex_positions = vertex_positions.data;
+            fclose(fp);
         }
-        if (transform_vertex_positions_to_double_unit_box) {
-            _meshutil_transform_vertex_positions_to_double_unit_box(soup_mesh.num_vertices, soup_mesh.vertex_positions);
+
+        // note: don't free the data pointers! (we're stealing them)
+        mesh_mesh.num_triangles = triangle_indices.length;
+        mesh_mesh.triangle_indices = triangle_indices.data;
+        mesh_mesh.num_vertices = vertex_positions.length;
+        mesh_mesh.vertex_positions = vertex_positions.data;
+        if (vertex_colors.length) {
+            ASSERT(vertex_colors.length == vertex_positions.length); 
+            mesh_mesh.vertex_colors = vertex_colors.data;
         }
-        return soup_mesh;
     }
+    if (transform_vertex_positions_to_double_unit_box) {
+        _meshutil_transform_vertex_positions_to_double_unit_box(mesh_mesh.num_vertices, mesh_mesh.vertex_positions);
+    }
+    if (merge_duplicated_vertices) {
+        _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(&mesh_mesh);
+    }
+    if (compute_normals) {
+        _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(&mesh_mesh);
+    }
+    return mesh_mesh;
+}
+
+Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_positions_to_double_unit_box) {
+    Soup3D soup_mesh = {};
+    {
+        soup_mesh.primitive = SOUP_OUTLINED_TRIANGLES;
+
+        StretchyBuffer<vec3> vertex_positions = {};
+        {
+            FILE *fp = fopen(filename, "r");
+            ASSERT(fp);
+            char buffer[4096];
+            while (fgets(buffer, _COUNT_OF(buffer), fp) != NULL) {
+                real x, y, z;
+                ASSERT(sscanf(buffer, "%lf %lf %lf", &x, &y, &z) == 3);
+                sbuff_push_back(&vertex_positions, { x, y, z });
+            }
+            fclose(fp);
+        }
+        // note: don't free the data pointers! (we're stealing them)
+        soup_mesh.num_vertices = vertex_positions.length;
+        soup_mesh.vertex_positions = vertex_positions.data;
+    }
+    if (transform_vertex_positions_to_double_unit_box) {
+        _meshutil_transform_vertex_positions_to_double_unit_box(soup_mesh.num_vertices, soup_mesh.vertex_positions);
+    }
+    return soup_mesh;
+}
 #endif
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "util.cpp"/////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// #include "util.cpp"/////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    real random_real(real lower_bound, real upper_bound) {
-        real t = real(rand()) / RAND_MAX;
-        return LERP(t, lower_bound, upper_bound);
-    }
+real random_real(real lower_bound, real upper_bound) {
+    real t = real(rand()) / RAND_MAX;
+    return LERP(t, lower_bound, upper_bound);
+}
 
-    int random_sign() {
-        return random_real(0.0, 1.0) < .5 ? -1 : 1;
-    }
+int random_sign() {
+    return random_real(0.0, 1.0) < .5 ? -1 : 1;
+}
 
-    bool random_bool() {
-        return (random_real(0.0, 1.0) > 0.5);
-    }
+bool random_bool() {
+    return (random_real(0.0, 1.0) > 0.5);
+}
 
-    long util_timestamp_in_milliseconds() { // no promises this is even a little bit accurate
-        using namespace std::chrono;
-        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-        return (long) ms.count();
-    }
+long util_timestamp_in_milliseconds() { // no promises this is even a little bit accurate
+    using namespace std::chrono;
+    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    return (long) ms.count();
+}
 
-    char *_load_file_into_char_array(char *filename) {
-        // https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
-        FILE *fp;
-        long lSize;
-        char *buffer;
+char *_load_file_into_char_array(char *filename) {
+    // https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
+    FILE *fp;
+    long lSize;
+    char *buffer;
 
-        fp = fopen (filename, "rb" );
-        if( !fp ) perror(filename),exit(1);
+    fp = fopen (filename, "rb" );
+    if( !fp ) perror(filename),exit(1);
 
-        fseek( fp , 0L , SEEK_END);
-        lSize = ftell( fp );
-        rewind( fp );
+    fseek( fp , 0L , SEEK_END);
+    lSize = ftell( fp );
+    rewind( fp );
 
-        /* allocate memory for entire content */
-        buffer = (char *) calloc( 1, lSize+1 );
-        if( !buffer ) fclose(fp),fputs("memory alloc fails",stderr),exit(1);
+    /* allocate memory for entire content */
+    buffer = (char *) calloc( 1, lSize+1 );
+    if( !buffer ) fclose(fp),fputs("memory alloc fails",stderr),exit(1);
 
-        /* copy the file into the buffer */
-        if( 1!=fread( buffer , lSize, 1 , fp) )
-            fclose(fp),free(buffer),fputs("entire read fails",stderr),exit(1);
+    /* copy the file into the buffer */
+    if( 1!=fread( buffer , lSize, 1 , fp) )
+        fclose(fp),free(buffer),fputs("entire read fails",stderr),exit(1);
 
-        fclose(fp);
-        return buffer;
-    }
+    fclose(fp);
+    return buffer;
+}
 
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "widget.cpp"////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// #include "widget.cpp"////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    void *_widget_drag(real *PV, int num_vertices, real *vertex_positions, real size_in_pixels, real r, real g, real b, real a) {
-        if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return NULL;
-        static real *selected;
-        if (selected) { // fornow: allows multiple calls to this function between begin_frame
-            bool found = false;
-            for (int i = 0; i < num_vertices; ++i) {
-                if (selected == vertex_positions + 2 * i) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) return NULL;
-        }
-        real *hot = selected;
-        if (!selected) {
-            {
-                for (int i = 0; i < num_vertices; ++i) {
-                    real *ptr = vertex_positions + 2 * i;
-                    real tmp[4] = { ptr[0], ptr[1], 0, 1 };
-                    _linalg_mat4_times_vec4_persp_divide(tmp, PV, tmp);
-                    for (int d = 0; d < 2; ++d) tmp[d] -= globals.mouse_position_NDC[d];
-                    if (_linalg_vecX_squared_length(2, tmp) < pow(.02, 2)) { // todo comparison in pixels
-                        hot = ptr;
-                    }
-                }
-            }
-            if (hot) {
-                if (globals.mouse_left_pressed) {
-                    selected = hot;
-                }
-            }
-        }
-
-        real mouse_xy_World[2];
-        _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV, mouse_xy_World, mouse_xy_World + 1, NULL, NULL);
-        if (globals.mouse_left_held && selected) {
-            for (int d = 0; d < 2; ++d) *(selected + d) = mouse_xy_World[d];
-        } else if (globals.mouse_left_released) {
-            selected = NULL;
-        }
-
-        if (hot || selected) {
-            _soup_draw(PV, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, hot, NULL, r, g, b, a, size_in_pixels, true);
-        }
-
-        globals._mouse_owner = (hot || selected) ? COW_MOUSE_OWNER_WIDGET : COW_MOUSE_OWNER_NONE;
-        return selected;
-    }
-
-    struct WidgetLineEditorResult {
-        bool success;
-        bool add_delete;
-        int index;
-        vec2 vertex_position;
-    };
-    WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive, int num_vertices, vec2 *vertices, real size = 0, real tolerance_NDC = 0.02) {
-        ASSERT(primitive == SOUP_LINE_STRIP || primitive == SOUP_LINE_LOOP);
-        int N = (primitive == SOUP_LINE_STRIP) ? num_vertices - 1 : num_vertices;
-        for (int i = 0; i < N; ++i) {
-            int j = (i + 1) % num_vertices;
-            vec2 s = transformPoint(PV, vertices[i]);
-            vec2 t = transformPoint(PV, vertices[j]);
-            vec2 a = globals.mouse_position_NDC - s;
-            vec2 b = t - s;
-            real norm_b = norm(b);
-            vec2 b_hat = b / norm_b;
-            real a1 = dot(a, b_hat);
-            real f = a1 / norm(b);
-            if (IS_BETWEEN(a1, tolerance_NDC, norm_b - tolerance_NDC)) {
-                real a2 = sqrt(squaredNorm(a) - pow(a1, 2));
-                if (a2 < tolerance_NDC) {
-                    vec2 vertex_position = LERP(f, vertices[i], vertices[j]);
-                    soup_draw(PV, SOUP_POINTS, 1, &vertex_position, NULL, monokai.green, size);
-                    if (globals.mouse_right_pressed) return { true, 0, j, vertex_position };
-                }
-            } else if ((primitive == SOUP_LINE_STRIP && num_vertices > 2) || (primitive == SOUP_LINE_LOOP && num_vertices > 3)) {
-                if (IS_BETWEEN(a1, -tolerance_NDC, norm_b + tolerance_NDC)) {
-                    int k = (f < .5) ? i : j;
-                    vec2 s_t = (k == 0) ? s : t;
-                    real dist = norm(globals.mouse_position_NDC - s_t);
-                    if (dist < tolerance_NDC) {
-                        vec2 vertex_position = vertices[k];
-                        soup_draw(PV, SOUP_POINTS, 1, &vertex_position, NULL, monokai.red, size);
-                        if (globals.mouse_right_pressed) return { true, 1, k };
-                    }
-                }
-            }
-        }
-        return {};
-    }
-
-#ifdef SNAIL_CPP
-    template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *vertex_positions, real size_in_pixels = 0, SnailVector<D_color> color = { 1.0, 1.0, 1.0 }) {
-        STATIC_ASSERT(D_color == 3 || D_color == 4);
-        return (vec2 *) _widget_drag(PV.data, num_vertices, (real *) vertex_positions, size_in_pixels, color[0], color[1], color[2], D_color == 4 ? color[3] : 1);
-    }
-    void widget_line_editor(mat4 PV, int primitive, StretchyBuffer<vec2> *vertices, real size = 0) {
-        WidgetLineEditorResult result = _widget_line_editor__NOTE_no_drag(PV, primitive, vertices->length, vertices->data, size);
-        if (result.success) {
-            if (!result.add_delete) {
-                sbuff_insert(vertices, result.index, result.vertex_position);
-            } else {
-                sbuff_delete(vertices, result.index);
-            }
-        }
-        widget_drag(PV, vertices->length, vertices->data);
-    }
-#endif
-
-#ifdef SNAIL_CPP
-    void _line_line_closest_points(vec3 a1, vec3 a2, vec3 b1, vec3 b2, vec3 *out_a_star, vec3 *out_b_star) {
-        // http://www.geomalgorithms.com/algorithms.html#dist3D_Segment_to_Segment()
-        // https://stackoverflow.com/questions/66979936/closest-two-3d-point-between-two-line-segment-of-varied-magnitude-in-different-p
-        vec3 u = a2 - a1;
-        vec3 v = b2 - b1;
-        vec3 w = a1 - b1;
-        double a = dot(u, u);         // always >= 0
-        double b = dot(u, v);
-        double c = dot(v, v);         // always >= 0
-        double d = dot(u, w);
-        double e = dot(v, w);
-        double sc, sN, sD = a*c - b*b;  // sc = sN / sD, sD >= 0
-        double tc, tN, tD = a*c - b*b;  // tc = tN / tD, tD >= 0
-        double tol = 1e-15;
-        // compute the line parameters of the two closest points
-        if (sD < tol) {            // the lines are almost parallel
-            sN = 0.0;              // force using point a1 on segment AB
-            sD = 1.0;              // to prevent possible division by 0.0 later
-            tN = e;
-            tD = c;
-        }
-        else {                     // get the closest points on the infinite lines
-            sN = (b*e - c*d);
-            tN = (a*e - b*d);
-        }
-        // finally do the division to get sc and tc
-        sc = (fabs(sN) < tol ? 0.0 : sN / sD);
-        tc = (fabs(tN) < tol ? 0.0 : tN / tD);
-        if (out_a_star) *out_a_star = a1 + (sc * u);
-        if (out_b_star) *out_b_star = b1 + (tc * v);
-    }
-
-    bool _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 *vertex_colors = NULL) { // please ignore; this function is jank
-        if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return false;
-        static vec3 *selected_point;
-        static vec3 *selected_handle;
-        double _L_handle_NDC = .07;
-        double tol = .02;
-
-        vec3 *hot = NULL; {
-            for (int i = 0; i < num_points; ++i) {
-                vec3 *point = vertex_positions + i;
-                vec3 tmp = transformPoint(PV, *point); 
-                tmp.z = 0;
-                if (norm(tmp - V3(globals.mouse_position_NDC, 0.0)) < tol) {
-                    hot = point;
-                }
-            }
-        }
-
-        static bool STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT;
-        if (!globals.mouse_left_held) STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT = false;
-        if (hot && globals.mouse_left_pressed) {
-            STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT = true;
-            selected_point = (selected_point != hot) ? hot : 0;
-        }
-
-        if (hot) {
-            soup_draw(PV, SOUP_POINTS, 1, hot, NULL, (vertex_colors != NULL) ? (vertex_colors[hot - vertex_positions]) : monokai.white, 20.0, true);
-        }
-
-        if (selected_point) {
-            double L_handle = norm(*selected_point - transformPoint(inverse(PV), transformPoint(PV, *selected_point) + V3(_L_handle_NDC, 0, 0)));
-
-            vec3 selected_color = (vertex_colors == NULL) ? monokai.white : vertex_colors[selected_point - vertex_positions];
-
-            vec3 *hot_handle = 0;
-            vec3 handles[3] = { *selected_point + V3(L_handle, 0, 0), *selected_point + V3(0, L_handle, 0), *selected_point + V3(0, 0, L_handle) };
-            vec3 handle_vertex_positions[] = { *selected_point, handles[0], *selected_point, handles[1], *selected_point, handles[2] };
-            soup_draw(PV, SOUP_LINES, 6, handle_vertex_positions, NULL, selected_color, 8.0);
-            if (!STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT) {
-                for (int d = 0; d < 3; ++d) {
-                    vec3 tmp = transformPoint(PV, handles[d]);
-                    tmp.z = 0;
-                    if (norm(tmp - V3(globals.mouse_position_NDC, 0.0)) < tol) {
-                        hot_handle = handles + d;
-                    }
-                }
-            }
-            if (!selected_handle) {
-                if (hot_handle) {
-                    soup_draw(PV, SOUP_POINTS, 1, hot_handle, NULL, selected_color, 16.0, true);
-                    if (globals.mouse_left_pressed) {
-                        selected_handle = hot_handle;
-                    }
-                }
-            } else {
-                soup_draw(PV, SOUP_POINTS, 1, selected_handle, NULL, selected_color, 20.0, true);
-            }
-            if (globals.mouse_left_held && selected_handle) {
-                mat4 World_from_NDC = inverse(PV);
-                vec3 s = transformPoint(World_from_NDC, V3(globals.mouse_position_NDC, -1.0));
-                vec3 t = transformPoint(World_from_NDC, V3(globals.mouse_position_NDC,  1.0));
-                vec3 new_handle_position;
-                _line_line_closest_points(*selected_point, *selected_handle, s, t, &new_handle_position, 0);
-                *selected_point += new_handle_position - *selected_handle;
-
-                {
-                    vec3 tmp = 16 * normalized(new_handle_position - *selected_point);
-                    vec3 tmp2[2] = { *selected_point - tmp, *selected_point + tmp };
-                    soup_draw(PV, SOUP_LINES, 2, tmp2, NULL, selected_color, 3.0);
-                }
-                globals._mouse_owner = COW_MOUSE_OWNER_WIDGET;
-            } else if (globals.mouse_left_released) {
-                selected_handle = 0;
-                globals._mouse_owner = COW_MOUSE_OWNER_NONE;
-            }
-        }
-        return (selected_point != NULL);
-    }
-#endif
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "sound.cpp"/////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-
-#if defined(COW_OS_UBUNTU) || defined(COW_NO_SOUND)
-    void _sound_init() {}
-    void _sound_reset() {}
-    int _sound_load(char *) { return 0; }
-    void _sound_play_sound(int ) {}
-    void _sound_loop_music(int ) {}
-    int _sound_find_load(char *) { return 0; }
-    void sound_attach_to_gui() {}
-    void sound_play_sound(char *) {}
-    void sound_loop_music(char *) {}
-    void sound_stop_all() {}
-#else
-    void _sound_init() {
-        ASSERT(cs_init(COW0._window_hwnd__note_this_is_NULL_if_not_on_Windows, 44100, 8192, NULL) == CUTE_SOUND_ERROR_NONE);
-        cs_spawn_mix_thread();
-        cs_mix_thread_sleep_delay(5);
-    }
-
-    void _sound_reset() {
-        cs_stop_all_playing_sounds();
-        cs_music_stop(0);
-    }
-
-    int _sound_load(char *filename) {
-        ASSERT(COW1._sound_num_loaded < SOUND_MAX_DIFFERENT_FILES);
-        ASSERT(strlen(filename) < SOUND_MAX_FILENAME_LENGTH - 1); // ?
-        cs_error_t err;
-        strcpy(COW1._sound_filenames[COW1._sound_num_loaded], filename);
-        COW1._sound_audio_source_ptrs[COW1._sound_num_loaded] = cs_load_wav(filename, &err);
-        ASSERT(err == CUTE_SOUND_ERROR_NONE);
-        return COW1._sound_num_loaded++;
-    }
-
-    void _sound_play_sound(int audio_source_i) {
-        cs_play_sound(COW1._sound_audio_source_ptrs[audio_source_i], cs_sound_params_default());
-    }
-
-    void _sound_loop_music(int audio_source_i) {
-        cs_sound_params_t params = cs_sound_params_default();
-        params.looped = true;
-        cs_music_play(COW1._sound_audio_source_ptrs[audio_source_i], 0);
-        cs_music_set_loop(true);
-    }
-
-    int _sound_find_load(char *filename) { // fornow O(n)
-        int audio_source_i = -1;
-        for (int i = 0; i < COW1._sound_num_loaded; ++i) {
-            if (strcmp(COW1._sound_filenames[i], filename) == 0) {
-                audio_source_i = i;
+void *_widget_drag(real *PV, int num_vertices, real *vertex_positions, real size_in_pixels, real r, real g, real b, real a) {
+    if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return NULL;
+    static real *selected;
+    if (selected) { // fornow: allows multiple calls to this function between begin_frame
+        bool found = false;
+        for (int i = 0; i < num_vertices; ++i) {
+            if (selected == vertex_positions + 2 * i) {
+                found = true;
                 break;
             }
         }
-        if (audio_source_i == -1) {
-            audio_source_i = _sound_load(filename);
+        if (!found) return NULL;
+    }
+    real *hot = selected;
+    if (!selected) {
+        {
+            for (int i = 0; i < num_vertices; ++i) {
+                real *ptr = vertex_positions + 2 * i;
+                real tmp[4] = { ptr[0], ptr[1], 0, 1 };
+                _linalg_mat4_times_vec4_persp_divide(tmp, PV, tmp);
+                for (int d = 0; d < 2; ++d) tmp[d] -= globals.mouse_position_NDC[d];
+                if (_linalg_vecX_squared_length(2, tmp) < pow(.02, 2)) { // todo comparison in pixels
+                    hot = ptr;
+                }
+            }
         }
-        return audio_source_i;
-    }
-
-    void sound_attach_to_gui() {
-        real tmp = COW1._sound_music_gui_1_minus_volume;
-        gui_slider("music volume                                                                                                                                ", &COW1._sound_music_gui_1_minus_volume, 1.0, 0.0, false);
-        if (COW1._sound_music_gui_1_minus_volume != tmp) {
-            cs_music_set_volume(1.0f - float(COW1._sound_music_gui_1_minus_volume));
+        if (hot) {
+            if (globals.mouse_left_pressed) {
+                selected = hot;
+            }
         }
     }
 
-    void sound_play_sound(char *filename) {
-        _sound_play_sound(_sound_find_load(filename));
+    real mouse_xy_World[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV, mouse_xy_World, mouse_xy_World + 1, NULL, NULL);
+    if (globals.mouse_left_held && selected) {
+        for (int d = 0; d < 2; ++d) *(selected + d) = mouse_xy_World[d];
+    } else if (globals.mouse_left_released) {
+        selected = NULL;
     }
 
-    void sound_loop_music(char *filename) {
-        _sound_loop_music(_sound_find_load(filename));
+    if (hot || selected) {
+        _soup_draw(PV, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, hot, NULL, r, g, b, a, size_in_pixels, true);
     }
+
+    globals._mouse_owner = (hot || selected) ? COW_MOUSE_OWNER_WIDGET : COW_MOUSE_OWNER_NONE;
+    return selected;
+}
+
+struct WidgetLineEditorResult {
+    bool success;
+    bool add_delete;
+    int index;
+    vec2 vertex_position;
+};
+WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive, int num_vertices, vec2 *vertices, real size = 0, real tolerance_NDC = 0.02) {
+    ASSERT(primitive == SOUP_LINE_STRIP || primitive == SOUP_LINE_LOOP);
+    int N = (primitive == SOUP_LINE_STRIP) ? num_vertices - 1 : num_vertices;
+    for (int i = 0; i < N; ++i) {
+        int j = (i + 1) % num_vertices;
+        vec2 s = transformPoint(PV, vertices[i]);
+        vec2 t = transformPoint(PV, vertices[j]);
+        vec2 a = globals.mouse_position_NDC - s;
+        vec2 b = t - s;
+        real norm_b = norm(b);
+        vec2 b_hat = b / norm_b;
+        real a1 = dot(a, b_hat);
+        real f = a1 / norm(b);
+        if (IS_BETWEEN(a1, tolerance_NDC, norm_b - tolerance_NDC)) {
+            real a2 = sqrt(squaredNorm(a) - pow(a1, 2));
+            if (a2 < tolerance_NDC) {
+                vec2 vertex_position = LERP(f, vertices[i], vertices[j]);
+                soup_draw(PV, SOUP_POINTS, 1, &vertex_position, NULL, monokai.green, size);
+                if (globals.mouse_right_pressed) return { true, 0, j, vertex_position };
+            }
+        } else if ((primitive == SOUP_LINE_STRIP && num_vertices > 2) || (primitive == SOUP_LINE_LOOP && num_vertices > 3)) {
+            if (IS_BETWEEN(a1, -tolerance_NDC, norm_b + tolerance_NDC)) {
+                int k = (f < .5) ? i : j;
+                vec2 s_t = (k == 0) ? s : t;
+                real dist = norm(globals.mouse_position_NDC - s_t);
+                if (dist < tolerance_NDC) {
+                    vec2 vertex_position = vertices[k];
+                    soup_draw(PV, SOUP_POINTS, 1, &vertex_position, NULL, monokai.red, size);
+                    if (globals.mouse_right_pressed) return { true, 1, k };
+                }
+            }
+        }
+    }
+    return {};
+}
+
+#ifdef SNAIL_CPP
+template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *vertex_positions, real size_in_pixels = 0, SnailVector<D_color> color = { 1.0, 1.0, 1.0 }) {
+    STATIC_ASSERT(D_color == 3 || D_color == 4);
+    return (vec2 *) _widget_drag(PV.data, num_vertices, (real *) vertex_positions, size_in_pixels, color[0], color[1], color[2], D_color == 4 ? color[3] : 1);
+}
+void widget_line_editor(mat4 PV, int primitive, StretchyBuffer<vec2> *vertices, real size = 0) {
+    WidgetLineEditorResult result = _widget_line_editor__NOTE_no_drag(PV, primitive, vertices->length, vertices->data, size);
+    if (result.success) {
+        if (!result.add_delete) {
+            sbuff_insert(vertices, result.index, result.vertex_position);
+        } else {
+            sbuff_delete(vertices, result.index);
+        }
+    }
+    widget_drag(PV, vertices->length, vertices->data);
+}
+#endif
+
+#ifdef SNAIL_CPP
+void _line_line_closest_points(vec3 a1, vec3 a2, vec3 b1, vec3 b2, vec3 *out_a_star, vec3 *out_b_star) {
+    // http://www.geomalgorithms.com/algorithms.html#dist3D_Segment_to_Segment()
+    // https://stackoverflow.com/questions/66979936/closest-two-3d-point-between-two-line-segment-of-varied-magnitude-in-different-p
+    vec3 u = a2 - a1;
+    vec3 v = b2 - b1;
+    vec3 w = a1 - b1;
+    double a = dot(u, u);         // always >= 0
+    double b = dot(u, v);
+    double c = dot(v, v);         // always >= 0
+    double d = dot(u, w);
+    double e = dot(v, w);
+    double sc, sN, sD = a*c - b*b;  // sc = sN / sD, sD >= 0
+    double tc, tN, tD = a*c - b*b;  // tc = tN / tD, tD >= 0
+    double tol = 1e-15;
+    // compute the line parameters of the two closest points
+    if (sD < tol) {            // the lines are almost parallel
+        sN = 0.0;              // force using point a1 on segment AB
+        sD = 1.0;              // to prevent possible division by 0.0 later
+        tN = e;
+        tD = c;
+    }
+    else {                     // get the closest points on the infinite lines
+        sN = (b*e - c*d);
+        tN = (a*e - b*d);
+    }
+    // finally do the division to get sc and tc
+    sc = (fabs(sN) < tol ? 0.0 : sN / sD);
+    tc = (fabs(tN) < tol ? 0.0 : tN / tD);
+    if (out_a_star) *out_a_star = a1 + (sc * u);
+    if (out_b_star) *out_b_star = b1 + (tc * v);
+}
+
+bool _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 *vertex_colors = NULL) { // please ignore; this function is jank
+    if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return false;
+    static vec3 *selected_point;
+    static vec3 *selected_handle;
+    double _L_handle_NDC = .07;
+    double tol = .02;
+
+    vec3 *hot = NULL; {
+        for (int i = 0; i < num_points; ++i) {
+            vec3 *point = vertex_positions + i;
+            vec3 tmp = transformPoint(PV, *point); 
+            tmp.z = 0;
+            if (norm(tmp - V3(globals.mouse_position_NDC, 0.0)) < tol) {
+                hot = point;
+            }
+        }
+    }
+
+    static bool STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT;
+    if (!globals.mouse_left_held) STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT = false;
+    if (hot && globals.mouse_left_pressed) {
+        STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT = true;
+        selected_point = (selected_point != hot) ? hot : 0;
+    }
+
+    if (hot) {
+        soup_draw(PV, SOUP_POINTS, 1, hot, NULL, (vertex_colors != NULL) ? (vertex_colors[hot - vertex_positions]) : monokai.white, 20.0, true);
+    }
+
+    if (selected_point) {
+        double L_handle = norm(*selected_point - transformPoint(inverse(PV), transformPoint(PV, *selected_point) + V3(_L_handle_NDC, 0, 0)));
+
+        vec3 selected_color = (vertex_colors == NULL) ? monokai.white : vertex_colors[selected_point - vertex_positions];
+
+        vec3 *hot_handle = 0;
+        vec3 handles[3] = { *selected_point + V3(L_handle, 0, 0), *selected_point + V3(0, L_handle, 0), *selected_point + V3(0, 0, L_handle) };
+        vec3 handle_vertex_positions[] = { *selected_point, handles[0], *selected_point, handles[1], *selected_point, handles[2] };
+        soup_draw(PV, SOUP_LINES, 6, handle_vertex_positions, NULL, selected_color, 8.0);
+        if (!STILL_HOLDING_MOUSE_AFTER_SELECTING_POINT) {
+            for (int d = 0; d < 3; ++d) {
+                vec3 tmp = transformPoint(PV, handles[d]);
+                tmp.z = 0;
+                if (norm(tmp - V3(globals.mouse_position_NDC, 0.0)) < tol) {
+                    hot_handle = handles + d;
+                }
+            }
+        }
+        if (!selected_handle) {
+            if (hot_handle) {
+                soup_draw(PV, SOUP_POINTS, 1, hot_handle, NULL, selected_color, 16.0, true);
+                if (globals.mouse_left_pressed) {
+                    selected_handle = hot_handle;
+                }
+            }
+        } else {
+            soup_draw(PV, SOUP_POINTS, 1, selected_handle, NULL, selected_color, 20.0, true);
+        }
+        if (globals.mouse_left_held && selected_handle) {
+            mat4 World_from_NDC = inverse(PV);
+            vec3 s = transformPoint(World_from_NDC, V3(globals.mouse_position_NDC, -1.0));
+            vec3 t = transformPoint(World_from_NDC, V3(globals.mouse_position_NDC,  1.0));
+            vec3 new_handle_position;
+            _line_line_closest_points(*selected_point, *selected_handle, s, t, &new_handle_position, 0);
+            *selected_point += new_handle_position - *selected_handle;
+
+            {
+                vec3 tmp = 16 * normalized(new_handle_position - *selected_point);
+                vec3 tmp2[2] = { *selected_point - tmp, *selected_point + tmp };
+                soup_draw(PV, SOUP_LINES, 2, tmp2, NULL, selected_color, 3.0);
+            }
+            globals._mouse_owner = COW_MOUSE_OWNER_WIDGET;
+        } else if (globals.mouse_left_released) {
+            selected_handle = 0;
+            globals._mouse_owner = COW_MOUSE_OWNER_NONE;
+        }
+    }
+    return (selected_point != NULL);
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+// #include "sound.cpp"/////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+#if defined(COW_OS_UBUNTU) || defined(COW_NO_SOUND)
+void _sound_init() {}
+void _sound_reset() {}
+int _sound_load(char *) { return 0; }
+void _sound_play_sound(int ) {}
+void _sound_loop_music(int ) {}
+int _sound_find_load(char *) { return 0; }
+void sound_attach_to_gui() {}
+void sound_play_sound(char *) {}
+void sound_loop_music(char *) {}
+void sound_stop_all() {}
+#else
+void _sound_init() {
+    ASSERT(cs_init(COW0._window_hwnd__note_this_is_NULL_if_not_on_Windows, 44100, 8192, NULL) == CUTE_SOUND_ERROR_NONE);
+    cs_spawn_mix_thread();
+    cs_mix_thread_sleep_delay(5);
+}
+
+void _sound_reset() {
+    cs_stop_all_playing_sounds();
+    cs_music_stop(0);
+}
+
+int _sound_load(char *filename) {
+    ASSERT(COW1._sound_num_loaded < SOUND_MAX_DIFFERENT_FILES);
+    ASSERT(strlen(filename) < SOUND_MAX_FILENAME_LENGTH - 1); // ?
+    cs_error_t err;
+    strcpy(COW1._sound_filenames[COW1._sound_num_loaded], filename);
+    COW1._sound_audio_source_ptrs[COW1._sound_num_loaded] = cs_load_wav(filename, &err);
+    ASSERT(err == CUTE_SOUND_ERROR_NONE);
+    return COW1._sound_num_loaded++;
+}
+
+void _sound_play_sound(int audio_source_i) {
+    cs_play_sound(COW1._sound_audio_source_ptrs[audio_source_i], cs_sound_params_default());
+}
+
+void _sound_loop_music(int audio_source_i) {
+    cs_sound_params_t params = cs_sound_params_default();
+    params.looped = true;
+    cs_music_play(COW1._sound_audio_source_ptrs[audio_source_i], 0);
+    cs_music_set_loop(true);
+}
+
+int _sound_find_load(char *filename) { // fornow O(n)
+    int audio_source_i = -1;
+    for (int i = 0; i < COW1._sound_num_loaded; ++i) {
+        if (strcmp(COW1._sound_filenames[i], filename) == 0) {
+            audio_source_i = i;
+            break;
+        }
+    }
+    if (audio_source_i == -1) {
+        audio_source_i = _sound_load(filename);
+    }
+    return audio_source_i;
+}
+
+void sound_attach_to_gui() {
+    real tmp = COW1._sound_music_gui_1_minus_volume;
+    gui_slider("music volume                                                                                                                                ", &COW1._sound_music_gui_1_minus_volume, 1.0, 0.0, false);
+    if (COW1._sound_music_gui_1_minus_volume != tmp) {
+        cs_music_set_volume(1.0f - float(COW1._sound_music_gui_1_minus_volume));
+    }
+}
+
+void sound_play_sound(char *filename) {
+    _sound_play_sound(_sound_find_load(filename));
+}
+
+void sound_loop_music(char *filename) {
+    _sound_loop_music(_sound_find_load(filename));
+}
 
 #define sound_stop_all() do { cs_stop_all_playing_sounds(); } while (0)
 
 #endif
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "recorder.cpp" /////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// #include "recorder.cpp" /////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #define RECORDER_DAT_FILENAME "codebase/recordings/tmp.dat"
 #define MAX_SCRATCH_FILESIZE Gigabytes(25)
 
-    void _recorder_draw_pacman(real r, real g, real b, real a, real f) {
-        real aspect = _window_get_aspect();
-        _eso_begin((real *) &globals.Identity, SOUP_TRIANGLE_FAN, 0.0, true);
-        real o[2] = { (aspect - .25) / aspect, .75 };
-        real radius = .125;
-        int N = 32;
-        eso_color(r, g, b, a);
-        eso_vertex(o[0], o[1]);
-        for (int i = 0; i < N; ++i) {
-            real theta = f * 2 * PI * i / (N - 1);
-            eso_vertex(o[0] + radius * cos(theta) / aspect, o[1] + radius * sin(theta));
-        }
-        eso_end();
+void _recorder_draw_pacman(real r, real g, real b, real a, real f) {
+    real aspect = _window_get_aspect();
+    _eso_begin((real *) &globals.Identity, SOUP_TRIANGLE_FAN, 0.0, true);
+    real o[2] = { (aspect - .25) / aspect, .75 };
+    real radius = .125;
+    int N = 32;
+    eso_color(r, g, b, a);
+    eso_vertex(o[0], o[1]);
+    for (int i = 0; i < N; ++i) {
+        real theta = f * 2 * PI * i / (N - 1);
+        eso_vertex(o[0] + radius * cos(theta) / aspect, o[1] + radius * sin(theta));
     }
+    eso_end();
+}
 
-    void _recorder_begin_frame() { // record
-        if ((globals.key_shift_held && globals.key_pressed['`']) || COW0._recorder_out_of_space) {
-            COW0._recorder_recording = !COW0._recorder_recording;
-            if (COW0._recorder_recording) { // start
-                real _width, _height;
-                _window_get_size(&_width, &_height);
-                COW0._recorder_width = int(_width);
-                COW0._recorder_height = int(_height);
-                COW0._recorder_size_of_frame = 4 * COW0._recorder_width * COW0._recorder_height;
-                COW0._recorder__buffer1 = (unsigned char *) malloc(COW0._recorder_size_of_frame);
-                COW0._recorder_buffer2 = (unsigned char *) malloc(COW0._recorder_size_of_frame);
-                COW0._recorder_num_frames_recorded = 0;
-                COW0._recorder_out_of_space = false;
-                char filename[64] = {}; {
-                    struct tm *timenow;
-                    time_t now = time(NULL);
-                    timenow = gmtime(&now);
-                    strftime(filename, sizeof(filename), "codebase/recordings/%Y-%m-%d--%H-%M-%S.mpg", timenow);
-                }
-                COW0._recorder_fp_mpg = fopen(filename, "wb");
-                ASSERT(COW0._recorder_fp_mpg);
-                if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE) {
-                    COW0._recorder_fp_dat = fopen(RECORDER_DAT_FILENAME, "wb");
-                }
-            } else { // stop
-                if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE) {
-                    ASSERT(COW0._recorder_fp_dat);
-                    fclose(COW0._recorder_fp_dat);
-                    COW0._recorder_fp_dat = fopen(RECORDER_DAT_FILENAME, "rb");
-                    ASSERT(COW0._recorder_fp_dat);
-
-                    for (int frame = 0; frame < COW0._recorder_num_frames_recorded; ++frame) {
-                        fread(COW0._recorder_buffer2, COW0._recorder_size_of_frame, 1, COW0._recorder_fp_dat);
-                        jo_write_mpeg(COW0._recorder_fp_mpg, COW0._recorder_buffer2, COW0._recorder_width, COW0._recorder_height, 60);
-
-                        { // progress foo
-                            _window_clear_draw_buffer();
-                            _recorder_draw_pacman(1.0, 0.0, 0.0, 1.0, 1.0);
-                            _recorder_draw_pacman(0.0, 1.0, 0.0, 1.0, LINEAR_REMAP(frame, 0, COW0._recorder_num_frames_recorded - 1, 0.0, 1.0));
-                            _window_swap_draw_buffers();
-                            glfwPollEvents(); // must poll events to avoid a crash
-                        }
-                    }
-
-                    fclose(COW0._recorder_fp_dat);
-                    ASSERT(remove(RECORDER_DAT_FILENAME) == 0);
-
-                    _window_clear_draw_buffer();
-                }
-
-                fclose(COW0._recorder_fp_mpg);
-
-                free(COW0._recorder__buffer1);
-                free(COW0._recorder_buffer2);
-                // COW1.recorder = {};
+void _recorder_begin_frame() { // record
+    if ((globals.key_shift_held && globals.key_pressed['`']) || COW0._recorder_out_of_space) {
+        COW0._recorder_recording = !COW0._recorder_recording;
+        if (COW0._recorder_recording) { // start
+            real _width, _height;
+            _window_get_size(&_width, &_height);
+            COW0._recorder_width = int(_width);
+            COW0._recorder_height = int(_height);
+            COW0._recorder_size_of_frame = 4 * COW0._recorder_width * COW0._recorder_height;
+            COW0._recorder__buffer1 = (unsigned char *) malloc(COW0._recorder_size_of_frame);
+            COW0._recorder_buffer2 = (unsigned char *) malloc(COW0._recorder_size_of_frame);
+            COW0._recorder_num_frames_recorded = 0;
+            COW0._recorder_out_of_space = false;
+            char filename[64] = {}; {
+                struct tm *timenow;
+                time_t now = time(NULL);
+                timenow = gmtime(&now);
+                strftime(filename, sizeof(filename), "codebase/recordings/%Y-%m-%d--%H-%M-%S.mpg", timenow);
             }
-        }
-        if (COW0._recorder_recording) { // save frame
-            if (!window_is_pointer_locked()) { // draw mouse draw cursor
-                double f = config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
-                eso_color(1.0, 1.0, 1.0, 1.0);
-                _eso_begin((real *) &globals.NDC_from_Screen, SOUP_TRIANGLE_FAN, 10.0, true);
-                eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f *  0);
-                eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f * 14);
-                eso_vertex(globals.mouse_position_Screen[0] + f *  4, globals.mouse_position_Screen[1] + f * 11);
-                eso_vertex(globals.mouse_position_Screen[0] + f *  6, globals.mouse_position_Screen[1] + f * 11);
-                eso_vertex(globals.mouse_position_Screen[0] + f * 12, globals.mouse_position_Screen[1] + f * 11);
-                eso_end();
-                _eso_begin((real *) &globals.NDC_from_Screen, SOUP_QUADS, 10.0, true);
-                eso_vertex(globals.mouse_position_Screen[0] +  f * 4, globals.mouse_position_Screen[1] + f * 11);
-                eso_vertex(globals.mouse_position_Screen[0] +  f * 6, globals.mouse_position_Screen[1] + f * 11);
-                eso_vertex(globals.mouse_position_Screen[0] +  f * 9, globals.mouse_position_Screen[1] + f * 17);
-                eso_vertex(globals.mouse_position_Screen[0] +  f * 7, globals.mouse_position_Screen[1] + f * 17);
-                eso_end();
+            COW0._recorder_fp_mpg = fopen(filename, "wb");
+            ASSERT(COW0._recorder_fp_mpg);
+            if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE) {
+                COW0._recorder_fp_dat = fopen(RECORDER_DAT_FILENAME, "wb");
             }
+        } else { // stop
+            if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE) {
+                ASSERT(COW0._recorder_fp_dat);
+                fclose(COW0._recorder_fp_dat);
+                COW0._recorder_fp_dat = fopen(RECORDER_DAT_FILENAME, "rb");
+                ASSERT(COW0._recorder_fp_dat);
 
-            glReadPixels(0, 0, COW0._recorder_width, COW0._recorder_height, GL_RGBA, GL_UNSIGNED_BYTE, COW0._recorder__buffer1);
-
-            if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE && ((unsigned long long)(COW0._recorder_num_frames_recorded + 1) * (unsigned long long)(COW0._recorder_size_of_frame)) > MAX_SCRATCH_FILESIZE) {
-                COW0._recorder_out_of_space = true;
-            } else {
-                for (int row = 0; row < COW0._recorder_height; ++row) {
-                    memcpy(
-                            COW0._recorder_buffer2 + row * (4 * COW0._recorder_width),
-                            COW0._recorder__buffer1 + (COW0._recorder_height - 1 - row) * (4 * COW0._recorder_width),
-                            4 * COW0._recorder_width
-                          );
-                }
-
-                if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE) {
-                    fwrite(COW0._recorder_buffer2, COW0._recorder_size_of_frame, 1, COW0._recorder_fp_dat);
-                } else {
+                for (int frame = 0; frame < COW0._recorder_num_frames_recorded; ++frame) {
+                    fread(COW0._recorder_buffer2, COW0._recorder_size_of_frame, 1, COW0._recorder_fp_dat);
                     jo_write_mpeg(COW0._recorder_fp_mpg, COW0._recorder_buffer2, COW0._recorder_width, COW0._recorder_height, 60);
+
+                    { // progress foo
+                        _window_clear_draw_buffer();
+                        _recorder_draw_pacman(1.0, 0.0, 0.0, 1.0, 1.0);
+                        _recorder_draw_pacman(0.0, 1.0, 0.0, 1.0, LINEAR_REMAP(frame, 0, COW0._recorder_num_frames_recorded - 1, 0.0, 1.0));
+                        _window_swap_draw_buffers();
+                        glfwPollEvents(); // must poll events to avoid a crash
+                    }
                 }
 
-                ++COW0._recorder_num_frames_recorded;
+                fclose(COW0._recorder_fp_dat);
+                ASSERT(remove(RECORDER_DAT_FILENAME) == 0);
+
+                _window_clear_draw_buffer();
             }
 
-            _recorder_draw_pacman(1.0, 0.0, 0.0, 0.9, 1.0);
+            fclose(COW0._recorder_fp_mpg);
+
+            free(COW0._recorder__buffer1);
+            free(COW0._recorder_buffer2);
+            // COW1.recorder = {};
         }
     }
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "plot.cpp" /////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-
-    // plot[i][j].y is the data
-    // j = 0 most recent sample
-
-#define PLOT_MAX_NUM_TRACES 16
-
-    struct Plot {
-        int num_samples;
-        int num_traces;
-        real y_min[PLOT_MAX_NUM_TRACES];
-        real y_max[PLOT_MAX_NUM_TRACES];
-        vec2 *vertex_positions[PLOT_MAX_NUM_TRACES];
-        vec3 trace_colors[PLOT_MAX_NUM_TRACES];
-        real trace_sizes_in_pixels[PLOT_MAX_NUM_TRACES];
-    };
-
-    real plot_get(Plot *plot, int trace_i, int sample_j) {
-        return LINEAR_REMAP(plot->vertex_positions[trace_i][sample_j].y, 0.0, 1.0, plot->y_min[trace_i], plot->y_max[trace_i]);
-    }
-
-    void plot_init(Plot *plot, int num_samples = 64) {
-        *plot = {};
-        plot->num_samples = num_samples;
-    }
-
-    void plot_add_trace(Plot *plot, real y_min, real y_max, vec3 color = { 1.0, 1.0, 1.0 }, real size_in_pixels = 0.0) {
-        ASSERT(plot->num_traces < PLOT_MAX_NUM_TRACES);
-        plot->y_min[plot->num_traces] = y_min;
-        plot->y_max[plot->num_traces] = y_max;
-        plot->vertex_positions[plot->num_traces] = (vec2 *) malloc(plot->num_samples * sizeof(vec2));
-        plot->trace_colors[plot->num_traces] = color;
-        plot->trace_sizes_in_pixels[plot->num_traces] = size_in_pixels;
-        for (int j = 0; j < plot->num_samples; ++j) {
-            plot->vertex_positions[plot->num_traces][j] = { real(j) / (plot->num_samples - 1), INFINITY };
-        }
-        ++(plot->num_traces);
-    }
-
-    void plot_data_point(Plot *plot, int trace_i, real y) {
-        ASSERT(0 <= trace_i && trace_i < plot->num_traces);
-        for (int j = plot->num_samples - 1; j > 0; --j) {
-            plot->vertex_positions[trace_i][j].y = plot->vertex_positions[trace_i][j - 1].y;
-        }
-        plot->vertex_positions[trace_i][0].y = LINEAR_REMAP(y, plot->y_min[trace_i], plot->y_max[trace_i], 0.0, 1.0);
-    }
-
-    void plot_draw(Plot *plot, mat4 PV) {
-        { // draw axes
-            eso_begin(PV, SOUP_LINE_STRIP);
-            eso_color(monokai.gray);
-            eso_vertex(1.0, 0.0);
-            eso_vertex(0.0, 0.0);
-            eso_vertex(0.0, 1.0);
+    if (COW0._recorder_recording) { // save frame
+        if (!window_is_pointer_locked()) { // draw mouse draw cursor
+            double f = config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
+            eso_color(1.0, 1.0, 1.0, 1.0);
+            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_TRIANGLE_FAN, 10.0, true);
+            eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f *  0);
+            eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f * 14);
+            eso_vertex(globals.mouse_position_Screen[0] + f *  4, globals.mouse_position_Screen[1] + f * 11);
+            eso_vertex(globals.mouse_position_Screen[0] + f *  6, globals.mouse_position_Screen[1] + f * 11);
+            eso_vertex(globals.mouse_position_Screen[0] + f * 12, globals.mouse_position_Screen[1] + f * 11);
+            eso_end();
+            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_QUADS, 10.0, true);
+            eso_vertex(globals.mouse_position_Screen[0] +  f * 4, globals.mouse_position_Screen[1] + f * 11);
+            eso_vertex(globals.mouse_position_Screen[0] +  f * 6, globals.mouse_position_Screen[1] + f * 11);
+            eso_vertex(globals.mouse_position_Screen[0] +  f * 9, globals.mouse_position_Screen[1] + f * 17);
+            eso_vertex(globals.mouse_position_Screen[0] +  f * 7, globals.mouse_position_Screen[1] + f * 17);
             eso_end();
         }
 
-        for (int i = 0; i < plot->num_traces; ++i) {
-            soup_draw(PV, SOUP_LINE_STRIP, plot->num_samples, plot->vertex_positions[i], NULL, plot->trace_colors[i], plot->trace_sizes_in_pixels[i]);
-        } 
+        glReadPixels(0, 0, COW0._recorder_width, COW0._recorder_height, GL_RGBA, GL_UNSIGNED_BYTE, COW0._recorder__buffer1);
+
+        if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE && ((unsigned long long)(COW0._recorder_num_frames_recorded + 1) * (unsigned long long)(COW0._recorder_size_of_frame)) > MAX_SCRATCH_FILESIZE) {
+            COW0._recorder_out_of_space = true;
+        } else {
+            for (int row = 0; row < COW0._recorder_height; ++row) {
+                memcpy(
+                        COW0._recorder_buffer2 + row * (4 * COW0._recorder_width),
+                        COW0._recorder__buffer1 + (COW0._recorder_height - 1 - row) * (4 * COW0._recorder_width),
+                        4 * COW0._recorder_width
+                      );
+            }
+
+            if (config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE) {
+                fwrite(COW0._recorder_buffer2, COW0._recorder_size_of_frame, 1, COW0._recorder_fp_dat);
+            } else {
+                jo_write_mpeg(COW0._recorder_fp_mpg, COW0._recorder_buffer2, COW0._recorder_width, COW0._recorder_height, 60);
+            }
+
+            ++COW0._recorder_num_frames_recorded;
+        }
+
+        _recorder_draw_pacman(1.0, 0.0, 0.0, 0.9, 1.0);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// #include "plot.cpp" /////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// plot[i][j].y is the data
+// j = 0 most recent sample
+
+#define PLOT_MAX_NUM_TRACES 16
+
+struct Plot {
+    int num_samples;
+    int num_traces;
+    real y_min[PLOT_MAX_NUM_TRACES];
+    real y_max[PLOT_MAX_NUM_TRACES];
+    vec2 *vertex_positions[PLOT_MAX_NUM_TRACES];
+    vec3 trace_colors[PLOT_MAX_NUM_TRACES];
+    real trace_sizes_in_pixels[PLOT_MAX_NUM_TRACES];
+};
+
+real plot_get(Plot *plot, int trace_i, int sample_j) {
+    return LINEAR_REMAP(plot->vertex_positions[trace_i][sample_j].y, 0.0, 1.0, plot->y_min[trace_i], plot->y_max[trace_i]);
+}
+
+void plot_init(Plot *plot, int num_samples = 64) {
+    *plot = {};
+    plot->num_samples = num_samples;
+}
+
+void plot_add_trace(Plot *plot, real y_min, real y_max, vec3 color = { 1.0, 1.0, 1.0 }, real size_in_pixels = 0.0) {
+    ASSERT(plot->num_traces < PLOT_MAX_NUM_TRACES);
+    plot->y_min[plot->num_traces] = y_min;
+    plot->y_max[plot->num_traces] = y_max;
+    plot->vertex_positions[plot->num_traces] = (vec2 *) malloc(plot->num_samples * sizeof(vec2));
+    plot->trace_colors[plot->num_traces] = color;
+    plot->trace_sizes_in_pixels[plot->num_traces] = size_in_pixels;
+    for (int j = 0; j < plot->num_samples; ++j) {
+        plot->vertex_positions[plot->num_traces][j] = { real(j) / (plot->num_samples - 1), INFINITY };
+    }
+    ++(plot->num_traces);
+}
+
+void plot_data_point(Plot *plot, int trace_i, real y) {
+    ASSERT(0 <= trace_i && trace_i < plot->num_traces);
+    for (int j = plot->num_samples - 1; j > 0; --j) {
+        plot->vertex_positions[trace_i][j].y = plot->vertex_positions[trace_i][j - 1].y;
+    }
+    plot->vertex_positions[trace_i][0].y = LINEAR_REMAP(y, plot->y_min[trace_i], plot->y_max[trace_i], 0.0, 1.0);
+}
+
+void plot_draw(Plot *plot, mat4 PV) {
+    { // draw axes
+        eso_begin(PV, SOUP_LINE_STRIP);
+        eso_color(monokai.gray);
+        eso_vertex(1.0, 0.0);
+        eso_vertex(0.0, 0.0);
+        eso_vertex(0.0, 1.0);
+        eso_end();
     }
 
-    void plot_clear(Plot *plot) {
-        for (int i = 0; i < plot->num_traces; ++i) {
-            for (int j = 0; j < plot->num_samples; ++j) {
-                plot->vertex_positions[i][j].y = INFINITY;
-            }
+    for (int i = 0; i < plot->num_traces; ++i) {
+        soup_draw(PV, SOUP_LINE_STRIP, plot->num_samples, plot->vertex_positions[i], NULL, plot->trace_colors[i], plot->trace_sizes_in_pixels[i]);
+    } 
+}
+
+void plot_clear(Plot *plot) {
+    for (int i = 0; i < plot->num_traces; ++i) {
+        for (int j = 0; j < plot->num_samples; ++j) {
+            plot->vertex_positions[i][j].y = INFINITY;
         }
     }
+}
 
-    // single trace API
-    real plot_get(Plot *plot, int sample_j) {
-        ASSERT(plot->num_traces == 1);
-        return plot_get(plot, 0, sample_j);
-    }
-    void plot_data_point(Plot *plot, real y) {
-        ASSERT(plot->num_traces == 1);
-        return plot_data_point(plot, 0, y);
-    }
+// single trace API
+real plot_get(Plot *plot, int sample_j) {
+    ASSERT(plot->num_traces == 1);
+    return plot_get(plot, 0, sample_j);
+}
+void plot_data_point(Plot *plot, real y) {
+    ASSERT(plot->num_traces == 1);
+    return plot_data_point(plot, 0, y);
+}
 
 
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "library.cpp"///////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// #include "library.cpp"///////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #include "library.cpp"
 
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    // advanced ////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// advanced ////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // #include "optimization.cpp"//////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// #include "optimization.cpp"//////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #ifdef SNAIL_CPP
-    // TODO: REMOVE THIS FROM COW
-    struct OptEntry {
-        int i;
-        int j;
-        real val;
-        /*const*/ unsigned int col() const { return j;   } // FORNOW
-        /*const*/ unsigned int row() const { return i;   } // FORNOW
-        /*const*/ real       value() const { return val; } // FORNOW
-    };
+// TODO: REMOVE THIS FROM COW
+struct OptEntry {
+    int i;
+    int j;
+    real val;
+    /*const*/ unsigned int col() const { return j;   } // FORNOW
+    /*const*/ unsigned int row() const { return i;   } // FORNOW
+    /*const*/ real       value() const { return val; } // FORNOW
+};
 
-    real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
-        real *dense = (real *) calloc(R * C, sizeof(real));
-        #define RXC(M, row, col) ((M)[C * (row) + (col)])
-        for (int k = 0; k < num_entries; ++k) { RXC(dense, sparse[k].i, sparse[k].j) += sparse[k].val; }
-        #undef RXC
-        return dense;
-    }
+real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
+    real *dense = (real *) calloc(R * C, sizeof(real));
+    #define RXC(M, row, col) ((M)[C * (row) + (col)])
+    for (int k = 0; k < num_entries; ++k) { RXC(dense, sparse[k].i, sparse[k].j) += sparse[k].val; }
+    #undef RXC
+    return dense;
+}
 
 #ifdef USE_EIGEN
-    struct EigenTriplet { int row, col; real val; };
-    void eigenSimplicialCholesky(int N, real *x, int A_length, EigenTriplet *A_data, real *b);
+struct EigenTriplet { int row, col; real val; };
+void eigenSimplicialCholesky(int N, real *x, int A_length, EigenTriplet *A_data, real *b);
 #endif
-    void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry *_A, real *b) {
-        { // checks
-            ASSERT(x);
-            ASSERT(N);
-            ASSERT(_A);
-            ASSERT(b);
-        }
-
-        if (_A_num_entries == 0) {
-            printf("A empty\n");
-            memset(x, 0, N * sizeof(real));
-            return;
-        }
-
-        #ifdef USE_EIGEN
-        {
-            eigenSimplicialCholesky(N, x, _A_num_entries, (EigenTriplet *) _A, b);
-        }
-        #else
-        {
-            do_once { printf("[warn] USE_EIGEN not #define'd; falling back to dense gauss-jordan\n"); };
-
-            // build the augmented matrix
-            real *A = _opt_sparse2dense(N, N + 1, _A_num_entries, _A);
-            #define NXNP1(M, row, col) ((M)[(N + 1) * (row) + (col)])
-            for (int k = 0; k < N; ++k) { NXNP1(A, k, N) = b[k]; }
-
-            { // convert to triangular form (in place)
-              // https://en.wikipedia.org/wiki/Gaussian_elimination
-                int m = N;
-                int n = N + 1;
-                int h = 0;
-                int k = 0;
-
-                real *scratch = (real *) malloc(n * sizeof(real));
-                while (h < m && k < n) {
-                    int max_i = -1;
-                    real max_abs = -INFINITY;
-                    {
-                        for (int i = h; i < m; ++i) {
-                            real tmp = ABS(NXNP1(A, i, k));
-                            if (tmp > max_abs) {
-                                max_abs = tmp;
-                                max_i = i;
-                            }
-                        }
-                    }
-                    ASSERT(max_i != -1);
-                    if (ARE_EQUAL(0., NXNP1(A, max_i, k))) {
-                        ++k;
-                    } else {
-                        { // for_(c, n) { SWAP(NXNP1(A, h, c), NXNP1(A, max_i, c)); }
-                            real *row_a = A + n * h;
-                            real *row_b = A + n * max_i;
-                            int size = n * sizeof(real);
-                            memcpy(scratch, row_a, size);
-                            memcpy(row_a, row_b, size);
-                            memcpy(row_b, scratch, size);
-                        }
-                        for (int i = h + 1; i < m; ++i) {
-                            real f = NXNP1(A, i, k) / NXNP1(A, h, k);
-                            NXNP1(A, i, k) = 0;
-                            for (int j = k + 1; j < n; ++j) {
-                                NXNP1(A, i, j) = NXNP1(A, i, j) - NXNP1(A, h, j) * f;
-                            }
-                        }
-                        ++h;
-                        ++k;
-                    }
-                }
-                free(scratch);
-            }
-
-            // back substitue and store result in x
-            {
-                memset(x, 0, N * sizeof(real));
-                for (int row = N - 1; row >= 0; --row) {
-                    for (int col = N - 1; col >= row; --col) {
-                        x[row] += NXNP1(A, row, col) * NXNP1(A, col, N);
-                    }
-                }
-            }
-            #undef NXNP1
-            free(A);
-        }
-        #endif
+void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry *_A, real *b) {
+    { // checks
+        ASSERT(x);
+        ASSERT(N);
+        ASSERT(_A);
+        ASSERT(b);
     }
 
-    void opt_add(real *U, real a) {
-        if (U != NULL) {
-            *U += a;
-        }
-    };
-
-    void opt_add(real *a, int i, vec2 a_i) {
-        if (a != NULL) {
-            a[2 * i + 0] += a_i[0];
-            a[2 * i + 1] += a_i[1];
-        }
-    };
-
-    void opt_add(StretchyBuffer<OptEntry> *A, int i, int j, mat2 A_ij) {
-        if (A != NULL) {
-            sbuff_push_back(A, { 2 * i + 0, 2 * j + 0, A_ij(0, 0) });
-            sbuff_push_back(A, { 2 * i + 1, 2 * j + 0, A_ij(1, 0) });
-            sbuff_push_back(A, { 2 * i + 1, 2 * j + 1, A_ij(1, 1) });
-            sbuff_push_back(A, { 2 * i + 0, 2 * j + 1, A_ij(0, 1) });
-        }
-    };
-
-    real opt_Vector_dot(int N, real *u, real *v) {
-        real ret = 0;
-        for (int i = 0; i < N; ++i) {
-            ret += u[i] * v[i];
-        }
-        return ret;
-    }
-#endif
-
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    // top-level functions /////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-
-    void _cow_init() {
-        ASSERT(!COW0._cow_initialized);
-
-        setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
-
-        // srand((unsigned int) time(NULL));
-
-
-        _eso_init();
-        _window_init();
-        _soup_init();
-        _mesh_init();
-        _sound_init();
-
-        COW0._cow_initialized = true;
+    if (_A_num_entries == 0) {
+        printf("A empty\n");
+        memset(x, 0, N * sizeof(real));
+        return;
     }
 
-    void _cow_reset() {
-        ASSERT(COW0._cow_initialized);
-
-        COW1 = {};
-        globals._mouse_owner = COW_MOUSE_OWNER_NONE; // fornow
-
-        _eso_reset();
-        _sound_reset();
-        _window_reset();
-
-        srand(0);
+    #ifdef USE_EIGEN
+    {
+        eigenSimplicialCholesky(N, x, _A_num_entries, (EigenTriplet *) _A, b);
     }
+    #else
+    {
+        do_once { printf("[warn] USE_EIGEN not #define'd; falling back to dense gauss-jordan\n"); };
 
-    bool cow_begin_frame() {
-        ASSERT(COW0._cow_initialized);
+        // build the augmented matrix
+        real *A = _opt_sparse2dense(N, N + 1, _A_num_entries, _A);
+        #define NXNP1(M, row, col) ((M)[(N + 1) * (row) + (col)])
+        for (int k = 0; k < N; ++k) { NXNP1(A, k, N) = b[k]; }
 
+        { // convert to triangular form (in place)
+          // https://en.wikipedia.org/wiki/Gaussian_elimination
+            int m = N;
+            int n = N + 1;
+            int h = 0;
+            int k = 0;
 
-        { // cow
-            _window_get_NDC_from_Screen((real *) &globals.NDC_from_Screen);
-            { // _gui_NDC_from_Screen
-                memcpy((real *) &globals._gui_NDC_from_Screen, (real *) &globals.NDC_from_Screen, 16 * sizeof(real));
-                if (config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina != 1) {
-                    for (int i = 0; i < 3; ++i) {
-                        for (int j = 0; j < 3; ++j) {
-                            _LINALG_4X4(((real *) &globals._gui_NDC_from_Screen), i, j) *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
-                        }
-                    }
-                }
-            }
-
-            { // _cow_help_toggle overlay
-                static bool push_gui_hide_and_disable;
-                if (globals.key_shift_held && globals.key_pressed['/']) {
-                    COW1._cow_help_toggle = !COW1._cow_help_toggle;
-                    if (COW1._cow_help_toggle) {
-                        push_gui_hide_and_disable = COW1._gui_hide_and_disable;
-                    }
-                    if (!COW1._cow_help_toggle) {
-                        COW1._gui_hide_and_disable = push_gui_hide_and_disable;
-                    }
-                }
-                if (COW1._cow_help_toggle) {
-                    real box[] = { -1, -1, 1, -1, 1, 1, -1, 1 };
-                    _soup_draw((real *) &globals.Identity, SOUP_QUADS, 2, 4, 4, box, NULL,
-                            COW1._window_clear_color[0],
-                            COW1._window_clear_color[1],
-                            COW1._window_clear_color[2],
-                            0.8, 0, true);
-                    COW1._gui_hide_and_disable = false; {
-                        _gui_begin_frame();
-                        gui_printf("config.hotkeys_*");
-                        if (config.hotkeys_app_next) { gui_printf("next app (wraps around) `%s", _gui_hotkey2string(config.hotkeys_app_next)); }
-                        if (config.hotkeys_app_prev) { gui_printf("previous app (wraps around) `%s", _gui_hotkey2string(config.hotkeys_app_prev)); }
-                        if (config.hotkeys_app_quit) {
-                            gui_printf("quit (next app no wrap) `%s", _gui_hotkey2string(config.hotkeys_app_quit));
-                            gui_printf("quit all `SHIFT + %s", _gui_hotkey2string(config.hotkeys_app_quit));
-                        }
-                        if (config.hotkeys_app_menu) {
-                            gui_printf("exit to main menu `%s", _gui_hotkey2string(config.hotkeys_app_menu));
-                        }
-                        gui_printf("display fps counter` \\");
-                        gui_printf("uncap fps `/");
-                        if (config.hotkeys_gui_hide) {
-                            gui_printf("(un)hide gui `%s", _gui_hotkey2string(config.hotkeys_gui_hide));
-                        }
-                        gui_printf("(un)hide help `?");
-                        gui_printf("start/stop recording (note: no sound) `~");
-                        gui_printf("");
-                        gui_printf("config.tweaks_*");
-                        gui_checkbox("soup_draw_with_rounded_corners_for_all_line_primitives", &config.tweaks_soup_draw_with_rounded_corners_for_all_line_primitives);
-                        gui_slider("size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels", &config.tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels, 2.0, 32.0, false);
-                        gui_checkbox("ASSERT_crashes_the_program_without_you_having_to_press_Enter", &config.tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter);
-                        gui_checkbox("record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE", &config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE);
-                    } COW1._gui_hide_and_disable = true;
-                }
-            }
-
-            { // framerate overlay
-                static long measured_fps;
-                // request uncapped framerate 
-                /* static bool override; */
-                if (/*(!override) || */(globals.key_pressed['/'] && !globals.key_shift_held)) {
-
-                    /* override = true; */
-
-                    COW0._cow_framerate_uncapped = !COW0._cow_framerate_uncapped;
-                    #ifndef COW_PATCH_FRAMERATE
-                    glfwSwapInterval(!COW0._cow_framerate_uncapped);
-                    #endif
-                }
-                { // display fps
-                    if (globals.key_pressed['\\']) {
-                        COW0._cow_display_fps = !COW0._cow_display_fps;
-                    }
-                    if (COW0._cow_display_fps) {
-                        static int fps;
-                        static std::chrono::steady_clock::time_point timestamp = std::chrono::high_resolution_clock::now();
-                        auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - timestamp);
-                        if (nanos.count() > 166666666 / 1.5) {
-                            timestamp = std::chrono::high_resolution_clock::now();
-                            fps = measured_fps;
-                            // printf("fps: %d\n", display_fps);
-                        }
-                        char text[16] = {};
-                        snprintf(text, sizeof(text), "fps: %d", fps);
-                        _text_draw((real *) &globals.NDC_from_Screen, text, 0.0, 0.0, 0.0, (fps < 45) ? 1.0 : 0.0, (fps > 30) ? 1.0 : 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, true);
-                    }
-                }
-                // grab and smooth fps
+            real *scratch = (real *) malloc(n * sizeof(real));
+            while (h < m && k < n) {
+                int max_i = -1;
+                real max_abs = -INFINITY;
                 {
-                    const int N_MOVING_WINDOW = 5;
-                    static std::chrono::steady_clock::time_point prev_timestamps[N_MOVING_WINDOW];
-                    std::chrono::steady_clock::time_point timestamp = std::chrono::high_resolution_clock::now();
-                    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp - prev_timestamps[N_MOVING_WINDOW - 1]);
-                    measured_fps = (int) round(N_MOVING_WINDOW / (nanos.count() / 1000000000.));
-
-                    for (int i = N_MOVING_WINDOW - 1; i >= 1; --i) {
-                        prev_timestamps[i] = prev_timestamps[i - 1];
+                    for (int i = h; i < m; ++i) {
+                        real tmp = ABS(NXNP1(A, i, k));
+                        if (tmp > max_abs) {
+                            max_abs = tmp;
+                            max_i = i;
+                        }
                     }
-                    prev_timestamps[0] = timestamp;
+                }
+                ASSERT(max_i != -1);
+                if (ARE_EQUAL(0., NXNP1(A, max_i, k))) {
+                    ++k;
+                } else {
+                    { // for_(c, n) { SWAP(NXNP1(A, h, c), NXNP1(A, max_i, c)); }
+                        real *row_a = A + n * h;
+                        real *row_b = A + n * max_i;
+                        int size = n * sizeof(real);
+                        memcpy(scratch, row_a, size);
+                        memcpy(row_a, row_b, size);
+                        memcpy(row_b, scratch, size);
+                    }
+                    for (int i = h + 1; i < m; ++i) {
+                        real f = NXNP1(A, i, k) / NXNP1(A, h, k);
+                        NXNP1(A, i, k) = 0;
+                        for (int j = k + 1; j < n; ++j) {
+                            NXNP1(A, i, j) = NXNP1(A, i, j) - NXNP1(A, h, j) * f;
+                        }
+                    }
+                    ++h;
+                    ++k;
+                }
+            }
+            free(scratch);
+        }
+
+        // back substitue and store result in x
+        {
+            memset(x, 0, N * sizeof(real));
+            for (int row = N - 1; row >= 0; --row) {
+                for (int col = N - 1; col >= row; --col) {
+                    x[row] += NXNP1(A, row, col) * NXNP1(A, col, N);
                 }
             }
         }
-        _recorder_begin_frame();
-        _window_begin_frame();
-        _gui_begin_frame();
+        #undef NXNP1
+        free(A);
+    }
+    #endif
+}
 
-        #ifdef COW_SHENANIGANS
-        static bool _cow_shenanigans;
-        gui_checkbox("shenanigans!", &_cow_shenanigans);
-        if (!_cow_shenanigans) {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        } else {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        }
-        #endif
+void opt_add(real *U, real a) {
+    if (U != NULL) {
+        *U += a;
+    }
+};
 
-        #ifdef COW_PATCH_FRAMERATE
-        static auto timestamp = std::chrono::high_resolution_clock::now();
-        if (!COW0._cow_framerate_uncapped) {
-            while (true) {
-                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - timestamp);
-                if (nanos.count() > 16666666) {
-                    break;
+void opt_add(real *a, int i, vec2 a_i) {
+    if (a != NULL) {
+        a[2 * i + 0] += a_i[0];
+        a[2 * i + 1] += a_i[1];
+    }
+};
+
+void opt_add(StretchyBuffer<OptEntry> *A, int i, int j, mat2 A_ij) {
+    if (A != NULL) {
+        sbuff_push_back(A, { 2 * i + 0, 2 * j + 0, A_ij(0, 0) });
+        sbuff_push_back(A, { 2 * i + 1, 2 * j + 0, A_ij(1, 0) });
+        sbuff_push_back(A, { 2 * i + 1, 2 * j + 1, A_ij(1, 1) });
+        sbuff_push_back(A, { 2 * i + 0, 2 * j + 1, A_ij(0, 1) });
+    }
+};
+
+real opt_Vector_dot(int N, real *u, real *v) {
+    real ret = 0;
+    for (int i = 0; i < N; ++i) {
+        ret += u[i] * v[i];
+    }
+    return ret;
+}
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// top-level functions /////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void _cow_init() {
+    ASSERT(!COW0._cow_initialized);
+
+    setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
+
+    // srand((unsigned int) time(NULL));
+
+
+    _eso_init();
+    _window_init();
+    _soup_init();
+    _mesh_init();
+    _sound_init();
+
+    COW0._cow_initialized = true;
+}
+
+void _cow_reset() {
+    ASSERT(COW0._cow_initialized);
+
+    COW1 = {};
+    globals._mouse_owner = COW_MOUSE_OWNER_NONE; // fornow
+
+    _eso_reset();
+    _sound_reset();
+    _window_reset();
+
+    srand(0);
+}
+
+bool cow_begin_frame() {
+    ASSERT(COW0._cow_initialized);
+
+
+    { // cow
+        _window_get_NDC_from_Screen((real *) &globals.NDC_from_Screen);
+        { // _gui_NDC_from_Screen
+            memcpy((real *) &globals._gui_NDC_from_Screen, (real *) &globals.NDC_from_Screen, 16 * sizeof(real));
+            if (config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina != 1) {
+                for (int i = 0; i < 3; ++i) {
+                    for (int j = 0; j < 3; ++j) {
+                        _LINALG_4X4(((real *) &globals._gui_NDC_from_Screen), i, j) *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
+                    }
                 }
-                #ifdef COW_PATCH_FRAMERATE_SLEEP
-                std::this_thread::sleep_for(nanos);
+            }
+        }
+
+        { // _cow_help_toggle overlay
+            static bool push_gui_hide_and_disable;
+            if (globals.key_shift_held && globals.key_pressed['/']) {
+                COW1._cow_help_toggle = !COW1._cow_help_toggle;
+                if (COW1._cow_help_toggle) {
+                    push_gui_hide_and_disable = COW1._gui_hide_and_disable;
+                }
+                if (!COW1._cow_help_toggle) {
+                    COW1._gui_hide_and_disable = push_gui_hide_and_disable;
+                }
+            }
+            if (COW1._cow_help_toggle) {
+                real box[] = { -1, -1, 1, -1, 1, 1, -1, 1 };
+                _soup_draw((real *) &globals.Identity, SOUP_QUADS, 2, 4, 4, box, NULL,
+                        COW1._window_clear_color[0],
+                        COW1._window_clear_color[1],
+                        COW1._window_clear_color[2],
+                        0.8, 0, true);
+                COW1._gui_hide_and_disable = false; {
+                    _gui_begin_frame();
+                    gui_printf("config.hotkeys_*");
+                    if (config.hotkeys_app_next) { gui_printf("next app (wraps around) `%s", _gui_hotkey2string(config.hotkeys_app_next)); }
+                    if (config.hotkeys_app_prev) { gui_printf("previous app (wraps around) `%s", _gui_hotkey2string(config.hotkeys_app_prev)); }
+                    if (config.hotkeys_app_quit) {
+                        gui_printf("quit (next app no wrap) `%s", _gui_hotkey2string(config.hotkeys_app_quit));
+                        gui_printf("quit all `SHIFT + %s", _gui_hotkey2string(config.hotkeys_app_quit));
+                    }
+                    if (config.hotkeys_app_menu) {
+                        gui_printf("exit to main menu `%s", _gui_hotkey2string(config.hotkeys_app_menu));
+                    }
+                    gui_printf("display fps counter` \\");
+                    gui_printf("uncap fps `/");
+                    if (config.hotkeys_gui_hide) {
+                        gui_printf("(un)hide gui `%s", _gui_hotkey2string(config.hotkeys_gui_hide));
+                    }
+                    gui_printf("(un)hide help `?");
+                    gui_printf("start/stop recording (note: no sound) `~");
+                    gui_printf("");
+                    gui_printf("config.tweaks_*");
+                    gui_checkbox("soup_draw_with_rounded_corners_for_all_line_primitives", &config.tweaks_soup_draw_with_rounded_corners_for_all_line_primitives);
+                    gui_slider("size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels", &config.tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels, 2.0, 32.0, false);
+                    gui_checkbox("ASSERT_crashes_the_program_without_you_having_to_press_Enter", &config.tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter);
+                    gui_checkbox("record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE", &config.tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE);
+                } COW1._gui_hide_and_disable = true;
+            }
+        }
+
+        { // framerate overlay
+            static long measured_fps;
+            // request uncapped framerate 
+            /* static bool override; */
+            if (/*(!override) || */(globals.key_pressed['/'] && !globals.key_shift_held)) {
+
+                /* override = true; */
+
+                COW0._cow_framerate_uncapped = !COW0._cow_framerate_uncapped;
+                #ifndef COW_PATCH_FRAMERATE
+                glfwSwapInterval(!COW0._cow_framerate_uncapped);
                 #endif
             }
-            timestamp = std::chrono::high_resolution_clock::now();
+            { // display fps
+                if (globals.key_pressed['\\']) {
+                    COW0._cow_display_fps = !COW0._cow_display_fps;
+                }
+                if (COW0._cow_display_fps) {
+                    static int fps;
+                    static std::chrono::steady_clock::time_point timestamp = std::chrono::high_resolution_clock::now();
+                    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - timestamp);
+                    if (nanos.count() > 166666666 / 1.5) {
+                        timestamp = std::chrono::high_resolution_clock::now();
+                        fps = measured_fps;
+                        // printf("fps: %d\n", display_fps);
+                    }
+                    char text[16] = {};
+                    snprintf(text, sizeof(text), "fps: %d", fps);
+                    _text_draw((real *) &globals.NDC_from_Screen, text, 0.0, 0.0, 0.0, (fps < 45) ? 1.0 : 0.0, (fps > 30) ? 1.0 : 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, true);
+                }
+            }
+            // grab and smooth fps
+            {
+                const int N_MOVING_WINDOW = 5;
+                static std::chrono::steady_clock::time_point prev_timestamps[N_MOVING_WINDOW];
+                std::chrono::steady_clock::time_point timestamp = std::chrono::high_resolution_clock::now();
+                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp - prev_timestamps[N_MOVING_WINDOW - 1]);
+                measured_fps = (int) round(N_MOVING_WINDOW / (nanos.count() / 1000000000.));
+
+                for (int i = N_MOVING_WINDOW - 1; i >= 1; --i) {
+                    prev_timestamps[i] = prev_timestamps[i - 1];
+                }
+                prev_timestamps[0] = timestamp;
+            }
         }
-        #endif
-
-        _input_begin_frame();
-
-        return !(
-                glfwWindowShouldClose(COW0._window_glfw_window)
-                || globals.key_pressed[config.hotkeys_app_next]
-                || globals.key_pressed[config.hotkeys_app_prev]
-                || globals.key_pressed[config.hotkeys_app_quit]
-                || globals.key_pressed[config.hotkeys_app_menu]
-                );
     }
+    _recorder_begin_frame();
+    _window_begin_frame();
+    _gui_begin_frame();
 
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    // eg ////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+    #ifdef COW_SHENANIGANS
+    static bool _cow_shenanigans;
+    gui_checkbox("shenanigans!", &_cow_shenanigans);
+    if (!_cow_shenanigans) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    } else {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
+    #endif
+
+    #ifdef COW_PATCH_FRAMERATE
+    static auto timestamp = std::chrono::high_resolution_clock::now();
+    if (!COW0._cow_framerate_uncapped) {
+        while (true) {
+            auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - timestamp);
+            if (nanos.count() > 16666666) {
+                break;
+            }
+            #ifdef COW_PATCH_FRAMERATE_SLEEP
+            std::this_thread::sleep_for(nanos);
+            #endif
+        }
+        timestamp = std::chrono::high_resolution_clock::now();
+    }
+    #endif
+
+    _input_begin_frame();
+
+    return !(
+            glfwWindowShouldClose(COW0._window_glfw_window)
+            || globals.key_pressed[config.hotkeys_app_next]
+            || globals.key_pressed[config.hotkeys_app_prev]
+            || globals.key_pressed[config.hotkeys_app_quit]
+            || globals.key_pressed[config.hotkeys_app_menu]
+            );
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+// eg ////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 #ifdef SNAIL_CPP
-    void eg_library() {
-        Camera3D camera = { 5.0, RAD(0.0) };
-        real time = 0.0;
-        bool paused = false;
-        bool draw_axes = false;
+void eg_library() {
+    Camera3D camera = { 5.0, RAD(0.0) };
+    real time = 0.0;
+    bool paused = false;
+    bool draw_axes = false;
 
-        while (cow_begin_frame()) {
-            camera_move(&camera);
-            camera_attach_to_gui(&camera);
-            gui_checkbox("paused", &paused, 'p');
+    while (cow_begin_frame()) {
+        camera_move(&camera);
+        camera_attach_to_gui(&camera);
+        gui_checkbox("paused", &paused, 'p');
 
-            mat4 P = camera_get_P(&camera);
-            mat4 V = camera_get_V(&camera);
-            mat4 PV = P * V;
+        mat4 P = camera_get_P(&camera);
+        mat4 V = camera_get_V(&camera);
+        mat4 PV = P * V;
 
+        mat4 R = M4_RotationAboutYAxis(time);
+
+        mat4 M_wire = M4_Translation(-2.2, 0.0, 0.0) * R;
+        mat4 M_smooth = M4_Translation(0.0, 0.0, 0.0) * R;
+        mat4 M_matcap = M4_Translation( 2.2, 0.0, 0.0) * R;
+
+        library.soups.bunny.draw(PV * M_wire, monokai.purple);
+        library.meshes.bunny.draw(P, V, M_smooth, monokai.purple);
+        library.meshes.bunny.draw(P, globals.Identity, V * M_matcap, {}, "codebase/matcap.png");
+
+        gui_checkbox("draw_axes", &draw_axes);
+        if (draw_axes) {
+            library.soups.axes.draw(PV);
+        }
+
+        if (!paused) {
+            time += 0.0167;
+        }
+    }
+}
+
+void eg_text() {
+    Camera3D camera = { 5.0, RAD(45.0) };
+    real time = 0;
+    bool paused = false;
+
+    while (cow_begin_frame()) {
+        camera_move(&camera);
+        mat4 PV = camera_get_PV(&camera);
+
+        text_draw(globals.NDC_from_Screen, "<- mouse", globals.mouse_position_Screen); 
+
+        {
+            char *text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+            int N = int(strlen(text));
+            for (int i = 0; i < N; ++i) {
+                char buffer[] = { text[i], '\0' };
+                real theta = 5 * LINEAR_REMAP(i, 0, N, 0.0, 2 * PI) - time;
+                text_draw(
+                        PV,
+                        buffer,
+                        V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
+                        color_plasma(.5 + .5 * sin(theta))
+                        ); 
+            }
+        }
+
+        if (!paused) {
+            time += 0.0167;
+        }
+    }
+}
+
+void eg_sound() {
+    sound_loop_music("codebase/music.wav");
+    while (cow_begin_frame()) {
+        if (gui_button("play sound.wav", ' ')) {
+            sound_play_sound("codebase/sound.wav");
+        }
+        sound_attach_to_gui();
+    }
+}
+
+void eg_soup() {
+    Camera2D camera = { 20.0, -4.0 };
+    int num_polygon_sides = 16;
+    vec2 foo[] = { { -6.0, -6.0 }, { -6.0, 6.0 }, { 6.0, 6.0 }, { 6.0, -6.0 } };
+    real size_in_pixels = 12.0;
+    bool force_draw_on_top = false;
+
+    while (cow_begin_frame()) {
+        camera_move(&camera);
+        mat4 PV = camera_get_PV(&camera);
+
+        gui_slider("size_in_pixels", &size_in_pixels, 0, 100, false);
+        gui_checkbox("force_draw_on_top", &force_draw_on_top);
+        gui_slider("num_polygon_sides", &num_polygon_sides, 0, 32, 'j', 'k', false);
+
+        eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, force_draw_on_top); {
+            eso_color(monokai.green);
+            for (int i = 0; i < num_polygon_sides; ++i) {
+                real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
+                real r = 6.0 * sqrt(2.0);
+                eso_vertex(r * V2(cos(theta), sin(theta)));
+            }
+        } eso_end();
+
+        widget_drag(PV, 4, foo, size_in_pixels, monokai.yellow);
+        soup_draw(PV, SOUP_QUADS, 4, foo, NULL, V4(monokai.red, .5), 0, force_draw_on_top);
+
+        vec2 s_mouse = mouse_get_position(PV);
+        eso_begin(PV, SOUP_POINTS, size_in_pixels, force_draw_on_top);
+        eso_color(monokai.blue);
+        eso_vertex(s_mouse);
+        eso_end();
+    }
+}
+
+void eg_kitchen_sink() {
+    Camera3D camera = { 8.0, RAD(0.0) };
+    real time = 0.0;
+    bool paused = false;
+    bool draw_axes = true;
+
+    StretchyBuffer<vec2> trace = {};
+
+    Texture texture = texture_create("shader toy tribute act", 16, 16, 3);
+
+    char *vertex_shader_source = R""(
+        #version 330 core
+        uniform mat4 transform;
+        layout (location = 0) in vec3 vertex_position;
+        layout (location = 1) in vec3 vertex_normal;
+        out vec3 color;
+        void main() {
+            color = vertex_normal;
+            gl_Position = transform * vec4(vertex_position, 1.0);
+        }
+    )"";
+
+    char *fragment_shader_source = R""(
+        #version 330 core
+        in vec3 color;
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(color, 1.0);
+        }
+    )"";
+
+    Shader shader = shader_create(vertex_shader_source, fragment_shader_source);
+
+    sound_loop_music("codebase/music.wav");
+    while (cow_begin_frame()) {
+        camera_move(&camera);
+        camera_attach_to_gui(&camera);
+
+        if (gui_button("play sound.wav", COW_KEY_SPACE)) {
+            sound_play_sound("codebase/sound.wav");
+        }
+        sound_attach_to_gui();
+
+        gui_checkbox("paused", &paused, 'p');
+
+        mat4 P = camera_get_P(&camera);
+        mat4 V = camera_get_V(&camera);
+        mat4 PV = P * V;
+        mat4 M = M4_Translation(0.0, 0.0, -2.0) * M4_Scaling(2.0);
+
+        static int kelly_i;
+        gui_slider("kelly_i", &kelly_i, 0, 20 - 1, 'j', 'k', true);
+
+        {
             mat4 R = M4_RotationAboutYAxis(time);
 
             mat4 M_wire = M4_Translation(-2.2, 0.0, 0.0) * R;
             mat4 M_smooth = M4_Translation(0.0, 0.0, 0.0) * R;
             mat4 M_matcap = M4_Translation( 2.2, 0.0, 0.0) * R;
 
-            library.soups.bunny.draw(PV * M_wire, monokai.purple);
-            library.meshes.bunny.draw(P, V, M_smooth, monokai.purple);
-            library.meshes.bunny.draw(P, globals.Identity, V * M_matcap, {}, "codebase/matcap.png");
+            vec3 color = !(globals.mouse_left_held && !globals._mouse_owner) ? color_kelly(kelly_i) : monokai.white;
+            library.soups.bunny.draw(PV * M_wire, color);
+            library.meshes.bunny.draw(P, V, M_smooth, color);
+            if (0) { library.meshes.bunny.draw(P, globals.Identity, V * M_matcap, {}, "codebase/matcap.png"); }
 
-            gui_checkbox("draw_axes", &draw_axes);
+            gui_checkbox("draw_axes", &draw_axes, COW_KEY_TAB);
             if (draw_axes) {
                 library.soups.axes.draw(PV);
             }
+        }
 
-            if (!paused) {
-                time += 0.0167;
+        {
+            vec2 s_mouse = globals.mouse_position_NDC;
+            if (trace.length == 0 || squaredNorm(trace[trace.length - 1] - s_mouse) > .0001) {
+                sbuff_push_back(&trace, s_mouse);
+            }
+            if (gui_button("clear trace", 'r')) {
+                sbuff_free(&trace);
+            }
+            // if (globals.mouse_left_double_clicked) {
+            //     for (int i = 0; i < trace.length; ++i) {
+            //         trace[i] *= -1;
+            //     }
+            // }
+            for (int pass = 0; pass < 3; ++pass ) {
+                mat4 transform = (pass < 2) ? globals.Identity : PV * M4_Translation(0.0, 0.0, 0.01) * M;
+                soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.data, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0, 1.0, 0.0, 1.0)), (pass == 0) ? 30.0 : 0, pass < 2);
+            }
+
+            text_draw(globals.NDC_from_Screen, "  :3", globals.mouse_position_Screen); 
+
+            char *text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+            int N = int(strlen(text));
+            for (int i = 0; i < N; ++i) {
+                char buffer[] = { text[i], '\0' };
+                real theta = time - 5.0 * LINEAR_REMAP(i, 0, N, 0.0, 2 * PI);
+                text_draw(
+                        PV,
+                        buffer,
+                        V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
+                        color_rainbow_swirl(double(i) / 24.0)); 
             }
         }
-    }
 
-    void eg_text() {
-        Camera3D camera = { 5.0, RAD(45.0) };
-        real time = 0;
-        bool paused = false;
+        if (0) {
+            vec3 o, x, y, z;
 
-        while (cow_begin_frame()) {
-            camera_move(&camera);
-            mat4 PV = camera_get_PV(&camera);
+            o = { 0.0, 2.0, 0.0 };
+            x = { 0.1, 0.0, 0.0 };
+            y = { 0.0, 0.1, 0.0 };
+            z = { 0.0, 0.0, 0.1 };
 
-            text_draw(globals.NDC_from_Screen, "<- mouse", globals.mouse_position_Screen); 
-
-            {
-                char *text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-                int N = int(strlen(text));
-                for (int i = 0; i < N; ++i) {
-                    char buffer[] = { text[i], '\0' };
-                    real theta = 5 * LINEAR_REMAP(i, 0, N, 0.0, 2 * PI) - time;
-                    text_draw(
-                            PV,
-                            buffer,
-                            V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
-                            color_plasma(.5 + .5 * sin(theta))
-                            ); 
-                }
-            }
-
-            if (!paused) {
-                time += 0.0167;
-            }
-        }
-    }
-
-    void eg_sound() {
-        sound_loop_music("codebase/music.wav");
-        while (cow_begin_frame()) {
-            if (gui_button("play sound.wav", ' ')) {
-                sound_play_sound("codebase/sound.wav");
-            }
-            sound_attach_to_gui();
-        }
-    }
-
-    void eg_soup() {
-        Camera2D camera = { 20.0, -4.0 };
-        int num_polygon_sides = 16;
-        vec2 foo[] = { { -6.0, -6.0 }, { -6.0, 6.0 }, { 6.0, 6.0 }, { 6.0, -6.0 } };
-        real size_in_pixels = 12.0;
-        bool force_draw_on_top = false;
-
-        while (cow_begin_frame()) {
-            camera_move(&camera);
-            mat4 PV = camera_get_PV(&camera);
-
-            gui_slider("size_in_pixels", &size_in_pixels, 0, 100, false);
-            gui_checkbox("force_draw_on_top", &force_draw_on_top);
-            gui_slider("num_polygon_sides", &num_polygon_sides, 0, 32, 'j', 'k', false);
-
-            eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, force_draw_on_top); {
-                eso_color(monokai.green);
-                for (int i = 0; i < num_polygon_sides; ++i) {
-                    real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
-                    real r = 6.0 * sqrt(2.0);
-                    eso_vertex(r * V2(cos(theta), sin(theta)));
-                }
-            } eso_end();
-
-            widget_drag(PV, 4, foo, size_in_pixels, monokai.yellow);
-            soup_draw(PV, SOUP_QUADS, 4, foo, NULL, V4(monokai.red, .5), 0, force_draw_on_top);
-
-            vec2 s_mouse = mouse_get_position(PV);
-            eso_begin(PV, SOUP_POINTS, size_in_pixels, force_draw_on_top);
+            eso_begin(PV, SOUP_LINES);
+            eso_color(monokai.red);
+            eso_vertex(o);
+            eso_vertex(o + x);
+            eso_color(monokai.green);
+            eso_vertex(o);
+            eso_vertex(o + y);
             eso_color(monokai.blue);
-            eso_vertex(s_mouse);
+            eso_vertex(o);
+            eso_vertex(o + z);
             eso_end();
         }
-    }
-
-    void eg_kitchen_sink() {
-        Camera3D camera = { 8.0, RAD(0.0) };
-        real time = 0.0;
-        bool paused = false;
-        bool draw_axes = true;
-
-        StretchyBuffer<vec2> trace = {};
-
-        Texture texture = texture_create("shader toy tribute act", 16, 16, 3);
-
-        char *vertex_shader_source = R""(
-        #version 330 core
-        uniform mat4 transform;
-        layout (location = 0) in vec3 vertex_position;
-        layout (location = 1) in vec3 vertex_normal;
-        out vec3 color;
-        void main() {
-            color = vertex_normal;
-            gl_Position = transform * vec4(vertex_position, 1.0);
-        }
-    )"";
-
-        char *fragment_shader_source = R""(
-        #version 330 core
-        in vec3 color;
-        out vec4 fragColor;
-        void main() {
-            fragColor = vec4(color, 1.0);
-        }
-    )"";
-
-        Shader shader = shader_create(vertex_shader_source, fragment_shader_source);
-
-        sound_loop_music("codebase/music.wav");
-        while (cow_begin_frame()) {
-            camera_move(&camera);
-            camera_attach_to_gui(&camera);
-
-            if (gui_button("play sound.wav", COW_KEY_SPACE)) {
-                sound_play_sound("codebase/sound.wav");
-            }
-            sound_attach_to_gui();
-
-            gui_checkbox("paused", &paused, 'p');
-
-            mat4 P = camera_get_P(&camera);
-            mat4 V = camera_get_V(&camera);
-            mat4 PV = P * V;
-            mat4 M = M4_Translation(0.0, 0.0, -2.0) * M4_Scaling(2.0);
-
-            static int kelly_i;
-            gui_slider("kelly_i", &kelly_i, 0, 20 - 1, 'j', 'k', true);
-
+        if (0) {
             {
-                mat4 R = M4_RotationAboutYAxis(time);
-
-                mat4 M_wire = M4_Translation(-2.2, 0.0, 0.0) * R;
-                mat4 M_smooth = M4_Translation(0.0, 0.0, 0.0) * R;
-                mat4 M_matcap = M4_Translation( 2.2, 0.0, 0.0) * R;
-
-                vec3 color = !(globals.mouse_left_held && !globals._mouse_owner) ? color_kelly(kelly_i) : monokai.white;
-                library.soups.bunny.draw(PV * M_wire, color);
-                library.meshes.bunny.draw(P, V, M_smooth, color);
-                if (0) { library.meshes.bunny.draw(P, globals.Identity, V * M_matcap, {}, "codebase/matcap.png"); }
-
-                gui_checkbox("draw_axes", &draw_axes, COW_KEY_TAB);
-                if (draw_axes) {
-                    library.soups.axes.draw(PV);
-                }
-            }
-
-            {
-                vec2 s_mouse = globals.mouse_position_NDC;
-                if (trace.length == 0 || squaredNorm(trace[trace.length - 1] - s_mouse) > .0001) {
-                    sbuff_push_back(&trace, s_mouse);
-                }
-                if (gui_button("clear trace", 'r')) {
-                    sbuff_free(&trace);
-                }
-                // if (globals.mouse_left_double_clicked) {
-                //     for (int i = 0; i < trace.length; ++i) {
-                //         trace[i] *= -1;
-                //     }
-                // }
-                for (int pass = 0; pass < 3; ++pass ) {
-                    mat4 transform = (pass < 2) ? globals.Identity : PV * M4_Translation(0.0, 0.0, 0.01) * M;
-                    soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.data, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0, 1.0, 0.0, 1.0)), (pass == 0) ? 30.0 : 0, pass < 2);
-                }
-
-                text_draw(globals.NDC_from_Screen, "  :3", globals.mouse_position_Screen); 
-
-                char *text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-                int N = int(strlen(text));
-                for (int i = 0; i < N; ++i) {
-                    char buffer[] = { text[i], '\0' };
-                    real theta = time - 5.0 * LINEAR_REMAP(i, 0, N, 0.0, 2 * PI);
-                    text_draw(
-                            PV,
-                            buffer,
-                            V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
-                            color_rainbow_swirl(double(i) / 24.0)); 
-                }
-            }
-
-            if (0) {
-                vec3 o, x, y, z;
-
-                o = { 0.0, 2.0, 0.0 };
-                x = { 0.1, 0.0, 0.0 };
-                y = { 0.0, 0.1, 0.0 };
-                z = { 0.0, 0.0, 0.1 };
-
-                eso_begin(PV, SOUP_LINES);
-                eso_color(monokai.red);
-                eso_vertex(o);
-                eso_vertex(o + x);
-                eso_color(monokai.green);
-                eso_vertex(o);
-                eso_vertex(o + y);
-                eso_color(monokai.blue);
-                eso_vertex(o);
-                eso_vertex(o + z);
-                eso_end();
-            }
-            if (0) {
-                {
-                    for (int i = 0; i < texture.height; ++i) {
-                        real v = real(i) / (texture.height - 1);
-                        for (int j = 0; j < texture.width; ++j) {
-                            real u = real(j) / (texture.width - 1);
-                            texture_set_pixel(&texture, i, j, V3(0.5) + 0.5 * V3(cos(time + u), cos(time + v + 2.0), cos(time + u + 4.0)));
-                        }
-                    }
-                    texture_sync_to_GPU(&texture);
-                }
-                library.meshes.square.draw(P, V, M, {}, texture.name);
-            }
-            if (1) {
-                IndexedTriangleMesh3D mesh = library.meshes.teapot;
-                int num_vertices       = mesh.num_vertices;
-                vec3 *vertex_positions = mesh.vertex_positions;
-                vec3 *vertex_normals   = mesh.vertex_normals;
-                int num_triangles      = mesh.num_triangles;
-                int3 *triangle_indices = mesh.triangle_indices;
-
-                Camera3D persp = { 4.0, RAD(45.0) };
-                shader_set_uniform(&shader, "transform", camera_get_PV(&persp) * M4_Translation(0.0, 1.5, 0.0));
-                shader_pass_vertex_attribute(&shader, num_vertices, vertex_positions);
-                shader_pass_vertex_attribute(&shader, num_vertices, vertex_normals);
-                shader_draw(&shader, num_triangles, triangle_indices);
-                shader_set_uniform(&shader, "transform", camera_get_PV(&persp) * M4_Translation(0.0, -1.5, 0.0));
-                shader_pass_vertex_attribute(&shader, num_vertices, vertex_positions);
-                shader_pass_vertex_attribute(&shader, num_vertices, vertex_normals);
-                shader_draw(&shader, num_triangles, triangle_indices);
-            }
-
-            if (!paused) {
-                time += 0.0167;
-            }
-
-        }
-    }
-
-    void eg_shader() {
-        char *vertex_shader_source = R""(
-        #version 330 core
-        uniform mat4 transform;
-        layout (location = 0) in vec3 vertex_position;
-        layout (location = 1) in vec3 vertex_normal;
-        out vec3 color;
-        void main() {
-            color = vertex_normal;
-            gl_Position = transform * vec4(vertex_position, 1.0);
-        }
-    )"";
-
-        char *fragment_shader_source = R""(
-        #version 330 core
-        in vec3 color;
-        out vec4 fragColor;
-        void main() {
-            fragColor = vec4(color, 1.0);
-        }
-    )"";
-
-        Shader shader = shader_create(vertex_shader_source, fragment_shader_source);
-
-        IndexedTriangleMesh3D mesh = library.meshes.teapot;
-        int num_vertices       = mesh.num_vertices;
-        vec3 *vertex_positions = mesh.vertex_positions;
-        vec3 *vertex_normals   = mesh.vertex_normals;
-        int num_triangles      = mesh.num_triangles;
-        int3 *triangle_indices = mesh.triangle_indices;
-
-        Camera3D camera = { 5.0 };
-        while (cow_begin_frame()) {
-            camera_move(&camera);
-            shader_set_uniform(&shader, "transform", camera_get_PV(&camera));
-            shader_pass_vertex_attribute(&shader, num_vertices, vertex_positions);
-            shader_pass_vertex_attribute(&shader, num_vertices, vertex_normals);
-            shader_draw(&shader, num_triangles, triangle_indices);
-        }
-    }
-
-    void eg_texture() {
-        Camera2D camera = { 3.0 };
-        Texture texture = texture_create("shader toy tribute act", 16, 16, 3);
-        bool paused = false;
-        real time = 0.0;
-        while (cow_begin_frame()) {
-            camera_move(&camera);
-            mat4 P = camera_get_P(&camera);
-            mat4 V = camera_get_V(&camera);
-
-            gui_checkbox("paused", &paused, 'p');
-
-            if (!paused) {
                 for (int i = 0; i < texture.height; ++i) {
                     real v = real(i) / (texture.height - 1);
                     for (int j = 0; j < texture.width; ++j) {
@@ -4757,56 +4666,147 @@ void _gui_begin_frame() {
                     }
                 }
                 texture_sync_to_GPU(&texture);
-
-                time += 0.0167;
             }
-            library.meshes.square.draw(P, V, globals.Identity, {}, texture.name);
+            library.meshes.square.draw(P, V, M, {}, texture.name);
         }
+        if (1) {
+            IndexedTriangleMesh3D mesh = library.meshes.teapot;
+            int num_vertices       = mesh.num_vertices;
+            vec3 *vertex_positions = mesh.vertex_positions;
+            vec3 *vertex_normals   = mesh.vertex_normals;
+            int num_triangles      = mesh.num_triangles;
+            int3 *triangle_indices = mesh.triangle_indices;
+
+            Camera3D persp = { 4.0, RAD(45.0) };
+            shader_set_uniform(&shader, "transform", camera_get_PV(&persp) * M4_Translation(0.0, 1.5, 0.0));
+            shader_pass_vertex_attribute(&shader, num_vertices, vertex_positions);
+            shader_pass_vertex_attribute(&shader, num_vertices, vertex_normals);
+            shader_draw(&shader, num_triangles, triangle_indices);
+            shader_set_uniform(&shader, "transform", camera_get_PV(&persp) * M4_Translation(0.0, -1.5, 0.0));
+            shader_pass_vertex_attribute(&shader, num_vertices, vertex_positions);
+            shader_pass_vertex_attribute(&shader, num_vertices, vertex_normals);
+            shader_draw(&shader, num_triangles, triangle_indices);
+        }
+
+        if (!paused) {
+            time += 0.0167;
+        }
+
     }
+}
+
+void eg_shader() {
+    char *vertex_shader_source = R""(
+        #version 330 core
+        uniform mat4 transform;
+        layout (location = 0) in vec3 vertex_position;
+        layout (location = 1) in vec3 vertex_normal;
+        out vec3 color;
+        void main() {
+            color = vertex_normal;
+            gl_Position = transform * vec4(vertex_position, 1.0);
+        }
+    )"";
+
+    char *fragment_shader_source = R""(
+        #version 330 core
+        in vec3 color;
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(color, 1.0);
+        }
+    )"";
+
+    Shader shader = shader_create(vertex_shader_source, fragment_shader_source);
+
+    IndexedTriangleMesh3D mesh = library.meshes.teapot;
+    int num_vertices       = mesh.num_vertices;
+    vec3 *vertex_positions = mesh.vertex_positions;
+    vec3 *vertex_normals   = mesh.vertex_normals;
+    int num_triangles      = mesh.num_triangles;
+    int3 *triangle_indices = mesh.triangle_indices;
+
+    Camera3D camera = { 5.0 };
+    while (cow_begin_frame()) {
+        camera_move(&camera);
+        shader_set_uniform(&shader, "transform", camera_get_PV(&camera));
+        shader_pass_vertex_attribute(&shader, num_vertices, vertex_positions);
+        shader_pass_vertex_attribute(&shader, num_vertices, vertex_normals);
+        shader_draw(&shader, num_triangles, triangle_indices);
+    }
+}
+
+void eg_texture() {
+    Camera2D camera = { 3.0 };
+    Texture texture = texture_create("shader toy tribute act", 16, 16, 3);
+    bool paused = false;
+    real time = 0.0;
+    while (cow_begin_frame()) {
+        camera_move(&camera);
+        mat4 P = camera_get_P(&camera);
+        mat4 V = camera_get_V(&camera);
+
+        gui_checkbox("paused", &paused, 'p');
+
+        if (!paused) {
+            for (int i = 0; i < texture.height; ++i) {
+                real v = real(i) / (texture.height - 1);
+                for (int j = 0; j < texture.width; ++j) {
+                    real u = real(j) / (texture.width - 1);
+                    texture_set_pixel(&texture, i, j, V3(0.5) + 0.5 * V3(cos(time + u), cos(time + v + 2.0), cos(time + u + 4.0)));
+                }
+            }
+            texture_sync_to_GPU(&texture);
+
+            time += 0.0167;
+        }
+        library.meshes.square.draw(P, V, globals.Identity, {}, texture.name);
+    }
+}
 
 
 #endif
 
-    void _eg_no_snail() {
-        Camera2D camera = { 5.0, -1.0 };
-        int num_polygon_sides = 16;
-        real foo[] = { -1.5, -1.5, -1.5, 1.5, 1.5, 1.5, 1.5, -1.5 };
-        real size_in_pixels = 12.0;
-        real PV[16];
+void _eg_no_snail() {
+    Camera2D camera = { 5.0, -1.0 };
+    int num_polygon_sides = 16;
+    real foo[] = { -1.5, -1.5, -1.5, 1.5, 1.5, 1.5, 1.5, -1.5 };
+    real size_in_pixels = 12.0;
+    real PV[16];
 
-        while (cow_begin_frame()) {
-            camera_move(&camera);
-            _camera_get_PV(&camera, PV);
+    while (cow_begin_frame()) {
+        camera_move(&camera);
+        _camera_get_PV(&camera, PV);
 
-            gui_slider("num_polygon_sides", &num_polygon_sides, 0, 32, 'j', 'k', false);
-            gui_slider("size_in_pixels", &size_in_pixels, 0.0, 24.0, false);
+        gui_slider("num_polygon_sides", &num_polygon_sides, 0, 32, 'j', 'k', false);
+        gui_slider("size_in_pixels", &size_in_pixels, 0.0, 24.0, false);
 
-            _eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, false); {
-                eso_color(0.0, 1.0, 0.0);
-                for (int i = 0; i < num_polygon_sides; ++i) {
-                    real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
-                    real r = 1.5 * sqrt(2.0);
-                    eso_vertex(r * cos(theta), r * sin(theta));
-                }
-            } eso_end();
+        _eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, false); {
+            eso_color(0.0, 1.0, 0.0);
+            for (int i = 0; i < num_polygon_sides; ++i) {
+                real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
+                real r = 1.5 * sqrt(2.0);
+                eso_vertex(r * cos(theta), r * sin(theta));
+            }
+        } eso_end();
 
-            _widget_drag(PV, 4, foo, size_in_pixels, 1.0, 1.0, 0.0, 1.0);
-            _soup_draw(PV, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, foo, NULL, 1.0, 0.0, 0.0, 1.0, 0, false);
+        _widget_drag(PV, 4, foo, size_in_pixels, 1.0, 1.0, 0.0, 1.0);
+        _soup_draw(PV, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, foo, NULL, 1.0, 0.0, 0.0, 1.0, 0, false);
 
-            real s_mouse[2];
-            _input_get_mouse_position_and_change_in_position_in_world_coordinates(
-                    PV,
-                    s_mouse,
-                    s_mouse + 1,
-                    NULL,
-                    NULL
-                    );
-            _eso_begin(PV, SOUP_POINTS, size_in_pixels, false);
-            eso_color(0.0, 0.0, 1.0);
-            eso_vertex(s_mouse[0], s_mouse[1]);
-            eso_end();
-        }
+        real s_mouse[2];
+        _input_get_mouse_position_and_change_in_position_in_world_coordinates(
+                PV,
+                s_mouse,
+                s_mouse + 1,
+                NULL,
+                NULL
+                );
+        _eso_begin(PV, SOUP_POINTS, size_in_pixels, false);
+        eso_color(0.0, 0.0, 1.0);
+        eso_vertex(s_mouse[0], s_mouse[1]);
+        eso_end();
     }
+}
 
 #ifdef SNAIL_CPP
 #define _APP_EXAMPLES_ALL() \

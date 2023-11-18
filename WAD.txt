@@ -5,106 +5,15 @@ MIAO
 s     -3.74 2.29
 
 THING
-origin_normal_type  0
-update_group        0
-s                   -25.26 -12.47
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        0
-s                   -29.41 -5.33
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        0
-s                   -20.74 -16.85
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        0
-s                   -29.53 4.98
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        0
-s                   -24.40 21.20
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        0
-s                   19.91 27.51
-size                4.00 4.00
-color               6
-
-THING
-origin_normal_type  0
-update_group        0
-s                   20.01 18.90
-size                4.00 4.00
-color               6
-
-THING
-origin_normal_type  0
-update_group        0
-s                   -4.51 25.56
-size                4.00 4.00
-color               7
-
-THING
-origin_normal_type  0
-update_group        0
-s                   -0.38 21.63
-size                4.00 4.00
-color               7
-
-THING
-origin_normal_type  0
-update_group        0
-s                   1.67 18.91
-size                4.00 4.00
-color               7
-
-THING
-origin_normal_type  0
+origin_type  4
 update_group        1
-s                   -1.79 45.75
-size                4.00 4.00
+s                   15.03 0.46
+size                12.14 17.91
 color               2
 
 THING
-origin_normal_type  0
-update_group        1
-s                   65.68 45.29
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        1
-s                   89.97 -3.51
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        1
-s                   74.67 -34.24
-size                4.00 4.00
-color               2
-
-THING
-origin_normal_type  0
-update_group        0
-s                   -27.55 12.36
-size                4.00 4.00
-color               2
+origin_type  5
+update_group        2
+s                   -0.67 23.09
+size                23.87 20.92
+color               5
