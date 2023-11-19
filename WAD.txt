@@ -9,7 +9,7 @@ is_prefab 1
 max_health 8
 origin_type 4
 update_group 0
-s 76.02 -36.79
+s 21.50 -1.71
 size 21.72 27.33
 color 5
 

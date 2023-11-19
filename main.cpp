@@ -119,11 +119,10 @@ void widget_drag(mat4 PV, RectangleMinMax *rect, bool no_resize) {
 struct Thing {
 
     // constructors won't take a slot if it is live or reserved
-    bool live; // gets drawn and updated
+    bool live; // gets drawn and updated (implies reserved)
     bool reserved;
 
     bool from_WAD__including_lucy_miao;
-    bool is_prefab; // ???
 
 
     int age;
@@ -266,7 +265,7 @@ Thing Prefab() {
     return {};
 }
 
-Thing *Programmatic_Reserved_Slot() {
+Thing *Programmatic_Reserved_Dead_Slot() {
     if (game->reseting_level) {
         ++level->_num_programmatic_things;
         return (level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++] = Reserve_Slot());
@@ -293,7 +292,6 @@ void save_WAD() {
     for_each_live_thing_skipping_lucy_and_miao(thing) {
         if (!thing->from_WAD__including_lucy_miao) continue;
         fprintf(file, "\nTHING\n");
-        fprintf(file, "is_prefab %d\n", thing->is_prefab);
         fprintf(file, "max_health %d\n", thing->max_health);
         fprintf(file, "origin_type %d\n", thing->origin_type);
         fprintf(file, "update_group %d\n", thing->update_group);
@@ -322,11 +320,7 @@ void load_WAD() {
                 curr->live = true;
                 curr->from_WAD__including_lucy_miao = true;
             } else {
-                if (poe_matches_prefix(line, "is_prefab ")) {
-                    int tmp;
-                    sscanf(line, "%s %d", prefix, &tmp);
-                    curr->is_prefab = tmp;
-                } else if (poe_matches_prefix(line, "max_health ")) {
+                if (poe_matches_prefix(line, "max_health ")) {
                     sscanf(line, "%s %d", prefix, &curr->max_health);
                 } else if (poe_matches_prefix(line, "origin_type ")) {
                     sscanf(line, "%s %d", prefix, &curr->origin_type);
@@ -536,7 +530,6 @@ void CatGame() {
                         gui_readout("live", &thing->live);
                         gui_readout("reserved", &thing->reserved);
                         if ((thing != lucy) && (thing != miao)) {
-                            gui_checkbox("is_prefab", &thing->is_prefab);
                             gui_slider("max_health", &thing->max_health, 0, 16);
                             gui_slider("color", &thing->color, BLACK, WHITE);
                             {
@@ -579,11 +572,16 @@ void CatGame() {
                     // TODO: boss up top
                     if (game->level_index == 1) {
 
-                        Thing *hand = Programmatic_Reserved_Slot();
+                        // TODO: load by ID again (need both)
+                        Thing *hand = Programmatic_Reserved_Dead_Slot();
+                        // Thing *hand = WAD_Reserved_Dead_Thing(1);
+
+                        // NOTE: we may actually want a prefab to reset all the crap
+                        //       (TODOLATERBUTSOON)
 
                         if (game->reseting_level) {
-                            /* hand = Prefab("hand"); */
                             hand->size = V2(24.0);
+                            // hand->live = true;
                         } else if ((game->mode == MODE_GAME) && !game->paused) {
 
 
@@ -667,17 +665,6 @@ void CatGame() {
                     vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
                     real alpha = ((game->mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
                     thing->debug_draw(PV, SOUP_QUADS, color, alpha);
-
-                    if (thing->is_prefab) {
-                        vec2 corners[4]; thing->getRect().getCornersCCW(corners);
-                        eso_begin(PV, SOUP_LINES);
-                        eso_color(monokai.red);
-                        eso_vertex(corners[0]);
-                        eso_vertex(corners[2]);
-                        eso_vertex(corners[1]);
-                        eso_vertex(corners[3]);
-                        eso_end();
-                    }
                 }
                 if (game->mode == MODE_EDITOR) {
                     { // draw origin
