@@ -1,19 +1,32 @@
 LUCY
-s     4.90 1.27
+s     -57.34 0.93
 
 MIAO
-s     -3.74 2.29
+s     11.90 49.00
 
 THING
-origin_type  4
-update_group        1
-s                   15.03 0.46
-size                12.14 17.91
-color               2
+is_prefab 1
+max_health 8
+origin_type 4
+update_group 0
+s 76.02 -36.79
+size 21.72 27.33
+color 5
 
 THING
-origin_type  5
-update_group        2
-s                   -0.67 23.09
-size                23.87 20.92
-color               5
+is_prefab 0
+max_health 0
+origin_type 5
+update_group 0
+s -0.75 26.42
+size 33.34 20.72
+color 1
+
+THING
+is_prefab 0
+max_health 0
+origin_type 1
+update_group 0
+s -1.28 -2.45
+size 20.00 43.31
+color 7

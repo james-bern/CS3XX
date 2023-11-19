@@ -552,6 +552,7 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 
 #define IS_ODD(a) ((a) % 2 != 0)
 #define IS_EVEN(a) ((a) % 2 == 0)
+#define IS_DIVISIBLE_BY(a, b) ((a) % (b) == 0)
 
 // // misc.
 #define STR(foo) #foo

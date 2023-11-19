@@ -58,7 +58,7 @@ vec2 NORMAL_TYPE_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1
 
 #define UPDATE_GROUP_BULLET 255
 
-struct Rectangle {
+struct RectangleMinMax {
     vec2 min;
     vec2 max;
 
@@ -66,7 +66,7 @@ struct Rectangle {
         return (IS_BETWEEN(p.x, min.x, max.x) && IS_BETWEEN(p.y, min.y, max.y));
     }
 
-    void getCorners(vec2 *corners) {
+    void getCornersCCW(vec2 *corners) {
         corners[0] = { min.x, min.y };
         corners[1] = { max.x, min.y };
         corners[2] = { max.x, max.y };
@@ -74,28 +74,40 @@ struct Rectangle {
     }
 
     void eso() {
-        vec2 corners[4]; getCorners(corners);
+        vec2 corners[4]; getCornersCCW(corners);
         for_(i, 4) eso_vertex(corners[i]);
+    }
+
+    bool collidesWith(RectangleMinMax other) {
+        return
+            (IS_BETWEEN(this->min.x, other.min.x, other.max.x) && IS_BETWEEN(this->min.y, other.min.y, other.max.y)) ||
+            (IS_BETWEEN(this->max.x, other.min.x, other.max.x) && IS_BETWEEN(this->max.y, other.min.y, other.max.y)) ||
+            (IS_BETWEEN(other.min.x, this->min.x, this->max.x) && IS_BETWEEN(other.min.y, this->min.y, this->max.y)) ||
+            (IS_BETWEEN(other.max.x, this->min.x, this->max.x) && IS_BETWEEN(other.max.y, this->min.y, this->max.y));
+
+
     }
 };
 
-void widget_drag(mat4 PV, Rectangle *rect) {
+void widget_drag(mat4 PV, RectangleMinMax *rect, bool no_resize) {
 
     vec2 mouse_change_in_position = mouse_get_change_in_position(PV);
 
-    { // corners
-        vec2 corners[4]; rect->getCorners(corners);
-        vec2 *corner = widget_drag(PV, 4, corners);
-        if (corner) {
-            vec2 opposite = corners[(corner - corners + 2) % 4];
-            rect->min = cwiseMin(*corner, opposite);
-            rect->max = cwiseMax(*corner, opposite);
-            return;
+    if (!no_resize) {
+        { // corners
+            vec2 corners[4]; rect->getCornersCCW(corners);
+            vec2 *corner = widget_drag(PV, 4, corners);
+            if (corner) {
+                vec2 opposite = corners[(corner - corners + 2) % 4];
+                rect->min = cwiseMin(*corner, opposite);
+                rect->max = cwiseMax(*corner, opposite);
+                return;
+            }
         }
-    }
 
-    { // lines
+        { // lines
 
+        }
     }
 
     if (cow.mouse_left_held) {
@@ -105,8 +117,22 @@ void widget_drag(mat4 PV, Rectangle *rect) {
 }
 
 struct Thing {
-    bool live;
+
+    // constructors won't take a slot if it is live or reserved
+    bool live; // gets drawn and updated
+    bool reserved;
+
     bool from_WAD__including_lucy_miao;
+    bool is_prefab; // ???
+
+
+    int age;
+    int max_age;
+    int frames_since_fired;
+    int frames_since_hit;
+    int damage;
+    int max_health;
+
 
     int update_group;
 
@@ -116,23 +142,38 @@ struct Thing {
     vec2 v;
     union { vec2 size; struct { real width, height; }; };
     int color;
-    bool mobile;
 
     bool walker;
     bool barrier;
 
     vec2 getRadius() { return size / 2; }
     vec2 getCenter() { return s - cwiseProduct(NORMAL_TYPE_n[origin_type], getRadius()); }
-    Rectangle getRect() {
+
+    RectangleMinMax getRect() {
         vec2 r = getRadius();
         vec2 c = getCenter();
         return { c - r, c + r };
     }
-    void setRect(Rectangle rect) {
+    void setRect(RectangleMinMax rect) {
         vec2 c = (rect.min + rect.max) / 2;
         vec2 r = (rect.max - rect.min) / 2;
         s = c + cwiseProduct(NORMAL_TYPE_n[origin_type], r);
         size = 2 * r;
+    }
+
+    void debug_draw(mat4 PV, int GL_PRIMITIVE, vec3 drawColor, real drawAlpha = 1.0)  {
+        RectangleMinMax rect = getRect();
+        if (GL_PRIMITIVE == SOUP_LINE_LOOP) {
+            eso_begin(PV, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); rect.eso(); eso_end();
+            eso_begin(PV, SOUP_LINE_LOOP, 2.0, true); eso_color(drawColor); rect.eso(); eso_end();
+        } else {
+            ASSERT(GL_PRIMITIVE == SOUP_QUADS);
+            eso_begin(PV, SOUP_QUADS); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
+        }
+    }
+
+    bool collidesWith(Thing *other) {
+        return this->getRect().collidesWith(other->getRect());
     }
 };
 
@@ -155,13 +196,8 @@ struct LevelState {
 
 
     // extra state that isn't needed for all Thing's
-    struct {
-
-    } lucy_;
-
-    struct { 
-
-    } miao_;
+    LucyLevelState lucy_;
+    MiaoLevelState miao_;
 
 
     #define THINGS_ARRAY_LENGTH 256
@@ -199,14 +235,17 @@ FrameState *frame = &level->frame;
 Thing *things = level->things;
 Thing *lucy = &things[0];
 Thing *miao = &things[1];
+LucyLevelState *lucy_ = &level->lucy_;
+MiaoLevelState *miao_ = &level->miao_;
 
 // "iterators"
 void _for_next_live(Thing **thing_ptr) {
     do { ++*thing_ptr; } while (!((*thing_ptr)->live));
 }
-#define for_each_live_thing for (Thing *thing = things; thing < (things + THINGS_ARRAY_LENGTH); _for_next_live(&thing))
-#define for_each_live_thing_skipping_lucy_and_miao for (Thing *thing = (things + 2); thing < (things + THINGS_ARRAY_LENGTH); _for_next_live(&thing))
+#define for_each_live_thing(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); _for_next_live(&name))
+#define for_each_live_thing_skipping_lucy_and_miao(name) for (Thing *name = (things + 2); name < (things + THINGS_ARRAY_LENGTH); _for_next_live(&name))
 
+#define _for_each_slot(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); ++name)
 
 
 
@@ -216,19 +255,21 @@ void _for_next_live(Thing **thing_ptr) {
 // constructors
 // Things are only created through this constructor.
 // (zero is sorta kinda not really initialization)
-Thing *New_Live_Thing() {
+Thing *Reserve_Slot() {
     Thing *result = things;
-    while (result->live) ++result;
-
-    result->live = true;
-
+    while (result->live || result->reserved) ++result;
+    result->reserved = true;
     return result;
 }
 
-Thing *Programmatic_Thing() {
+Thing Prefab() {
+    return {};
+}
+
+Thing *Programmatic_Reserved_Slot() {
     if (game->reseting_level) {
         ++level->_num_programmatic_things;
-        return (level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++] = New_Live_Thing());
+        return (level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++] = Reserve_Slot());
     }
     ASSERT(frame->_programmatic_things_recovery_index < level->_num_programmatic_things);
     return level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++];
@@ -249,14 +290,16 @@ void save_WAD() {
     fprintf(file, "\nMIAO\n");
     fprintf(file, "s     %.2lf %.2lf\n", miao->s[0], miao->s[1]);
     // part 0: everything else
-    for_each_live_thing_skipping_lucy_and_miao {
+    for_each_live_thing_skipping_lucy_and_miao(thing) {
         if (!thing->from_WAD__including_lucy_miao) continue;
         fprintf(file, "\nTHING\n");
-        fprintf(file, "origin_type  %d\n", thing->origin_type);
-        fprintf(file, "update_group        %d\n", thing->update_group);
-        fprintf(file, "s                   %.2lf %.2lf\n", thing->s[0], thing->s[1]);
-        fprintf(file, "size                %.2lf %.2lf\n", thing->size[0], thing->size[1]);
-        fprintf(file, "color               %d\n", thing->color);
+        fprintf(file, "is_prefab %d\n", thing->is_prefab);
+        fprintf(file, "max_health %d\n", thing->max_health);
+        fprintf(file, "origin_type %d\n", thing->origin_type);
+        fprintf(file, "update_group %d\n", thing->update_group);
+        fprintf(file, "s %.2lf %.2lf\n", thing->s[0], thing->s[1]);
+        fprintf(file, "size %.2lf %.2lf\n", thing->size[0], thing->size[1]);
+        fprintf(file, "color %d\n", thing->color);
     }
 
     fclose(file);
@@ -275,10 +318,17 @@ void load_WAD() {
             } else if (poe_matches_prefix(line, "MIAO")) {
                 curr = miao;
             } else if (poe_matches_prefix(line, "THING")) {
-                curr = New_Live_Thing();
+                curr = Reserve_Slot();
+                curr->live = true;
                 curr->from_WAD__including_lucy_miao = true;
             } else {
-                if (poe_matches_prefix(line, "origin_type ")) {
+                if (poe_matches_prefix(line, "is_prefab ")) {
+                    int tmp;
+                    sscanf(line, "%s %d", prefix, &tmp);
+                    curr->is_prefab = tmp;
+                } else if (poe_matches_prefix(line, "max_health ")) {
+                    sscanf(line, "%s %d", prefix, &curr->max_health);
+                } else if (poe_matches_prefix(line, "origin_type ")) {
                     sscanf(line, "%s %d", prefix, &curr->origin_type);
                 } else if (poe_matches_prefix(line, "update_group ")) {
                     sscanf(line, "%s %d", prefix, &curr->update_group);
@@ -316,8 +366,8 @@ void CatGame() {
 
         // cow stuff (try to keep it up here)
         camera_move(&camera);
-        mat4 transform_for_drawing_and_picking = camera_get_PV(&camera);
-        vec2 mouse_position = mouse_get_position(transform_for_drawing_and_picking);
+        mat4 PV = camera_get_PV(&camera);
+        vec2 mouse_position = mouse_get_position(PV);
 
 
 
@@ -335,11 +385,17 @@ void CatGame() {
         gui_printf((game->mode == MODE_GAME) ? "GAME" : "EDITOR");
         gui_readout("level", &game->level_index);
         {
-            int num_things = 0;
-            for_each_live_thing {
-                ++num_things;
+            int num_live_things = 0;
+            int num_reserved_slots = 0;
+            int num_empty_slots = THINGS_ARRAY_LENGTH;
+            for_each_live_thing(thing) ++num_live_things;
+            _for_each_slot(slot) if (slot->reserved) ++num_reserved_slots;
+            _for_each_slot(slot) {
+                if (slot->reserved || slot->live) --num_empty_slots;
             }
-            gui_readout("# things", &num_things);
+            gui_readout("num_live_things", &num_live_things);
+            gui_readout("num_reserved_slots", &num_reserved_slots);
+            gui_readout("num_empty_slots", &num_empty_slots);
         }
 
         if (gui_button("reset", 'r')) game->reseting_level = true;
@@ -360,22 +416,23 @@ void CatGame() {
             memset(level, 0, sizeof(LevelState));
 
             {
+                lucy->reserved = true;
                 lucy->live = true;
                 lucy->size = { 4, 8 };
                 lucy->color = RED;
                 lucy->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
-                lucy->mobile = true;
                 lucy->from_WAD__including_lucy_miao = true;
 
+                miao->reserved = true;
                 miao->live = true;
                 miao->size = { 4, 4 };
                 miao->color = BLUE;
                 miao->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
-                miao->mobile = true;
                 miao->from_WAD__including_lucy_miao = true;
             }
 
-            load_WAD();
+            printf("[0000] FORNOW\n");
+            if (game->level_index == 1) load_WAD();
         }
 
 
@@ -391,7 +448,7 @@ void CatGame() {
 
             Thing *editor_hot_thing = level->_editor_mouse_currently_pressed_thing;
             if (!editor_hot_thing) {
-                for_each_live_thing {
+                for_each_live_thing(thing) {
                     if (!thing->from_WAD__including_lucy_miao) continue;
 
                     if (thing->getRect().containsPoint(mouse_position)) {
@@ -405,15 +462,11 @@ void CatGame() {
             { // draw outlines
                 if (editor_hot_thing) {
                     ASSERT(editor_hot_thing->from_WAD__including_lucy_miao);
-                    Rectangle rect = editor_hot_thing->getRect();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); rect.eso(); eso_end();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.orange); rect.eso(); eso_end();
+                    editor_hot_thing->debug_draw(PV, SOUP_LINE_LOOP, monokai.orange);
                 }
                 if (level->editor_selected_thing) {
                     ASSERT(level->editor_selected_thing->from_WAD__including_lucy_miao);
-                    Rectangle rect = level->editor_selected_thing->getRect();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 6.0, true); eso_color(monokai.black); rect.eso(); eso_end();
-                    eso_begin(transform_for_drawing_and_picking, SOUP_LINE_LOOP, 2.0, true); eso_color(monokai.yellow); rect.eso(); eso_end();
+                    level->editor_selected_thing->debug_draw(PV, SOUP_LINE_LOOP, monokai.yellow);
                 }
             }
 
@@ -432,9 +485,9 @@ void CatGame() {
 
                 { 
                     { // dragging
-                        if (editor_hot_thing && (editor_hot_thing != lucy) && (editor_hot_thing != miao)) {
-                            Rectangle rect = editor_hot_thing->getRect();
-                            widget_drag(transform_for_drawing_and_picking, &rect);
+                        if (editor_hot_thing) {
+                            RectangleMinMax rect = editor_hot_thing->getRect();
+                            widget_drag(PV, &rect, (editor_hot_thing == lucy) || (editor_hot_thing == miao));
                             editor_hot_thing->setRect(rect);
                         }
 
@@ -467,7 +520,7 @@ void CatGame() {
 
                         if (gui_button("paste", 'v')) {
                             if (game->editor_clipboard_thing.live) {
-                                Thing *thing = New_Live_Thing();
+                                Thing *thing = Reserve_Slot();
                                 *thing = game->editor_clipboard_thing;
                                 thing->s = mouse_position;
                                 thing->from_WAD__including_lucy_miao = true;
@@ -477,11 +530,14 @@ void CatGame() {
                 }
 
 
-                { //  sliders
+                { //  sliders and checkboxes
                     Thing *thing = level->editor_selected_thing;
                     if (thing) {
+                        gui_readout("live", &thing->live);
+                        gui_readout("reserved", &thing->reserved);
                         if ((thing != lucy) && (thing != miao)) {
-                            gui_readout("s", &thing->s);
+                            gui_checkbox("is_prefab", &thing->is_prefab);
+                            gui_slider("max_health", &thing->max_health, 0, 16);
                             gui_slider("color", &thing->color, BLACK, WHITE);
                             {
                                 int tmp = thing->origin_type;
@@ -504,47 +560,48 @@ void CatGame() {
                 // level-specific Thing's and updates
                 if (game->level_index == 0) {
                     // TODO: special level with all the different kinds of everything (like blow did for sokoban)
+                    // TODO: will this involve prefabs in some way?
 
 
 
 
 
+                    // TODO: LEVEL tag in WAD
 
 
 
 
                 } else
-                    if (game->level_index == 1) {
-                        Thing *magenta = Programmatic_Thing();
-                        Thing *platform = Programmatic_Thing();
-                        if (game->reseting_level) {
-                            platform->size = { 16, 48 };
-                            platform->color = WHITE;
-                            platform->origin_type = NORMAL_TYPE_UPPER_MIDDLE;
-                            magenta->size = { 4, 4 };
-                            magenta->color = MAGENTA;
-                            magenta->s = { 0, 12 };
 
-                            for_each_live_thing_skipping_lucy_and_miao {
-                                if (thing->update_group == 1) {
-                                    thing->v = 0.1 * normalized(lucy->s - thing->s);
-                                }
-                            }
+                    // // TODO: SHIVA level
+                    // TODO: hand flipping sides
+                    // TODO: programmatic rain
+                    // TODO: boss up top
+                    if (game->level_index == 1) {
+
+                        Thing *hand = Programmatic_Reserved_Slot();
+
+                        if (game->reseting_level) {
+                            /* hand = Prefab("hand"); */
+                            hand->size = V2(24.0);
                         } else if ((game->mode == MODE_GAME) && !game->paused) {
-                            for_each_live_thing_skipping_lucy_and_miao {
-                                if (thing->update_group == 1) {
-                                    thing->s += thing->v;
-                                }
+
+
+                            if (!hand->live) {
+                                // TODO: hand = Prefab("hand");
+                                hand->live = true;
+                                hand->x = 20;
                             }
+
+                            // TODO: hand->SHIVA_UPDATE();
+                            hand->v = 0.3 * normalized(lucy->s - hand->s);
+                            hand->s += hand->v;
+
                         }
+
                     }
                     else if (game->level_index == 2) {
-                        if (game->reseting_level) {
-                            Thing *platform = Programmatic_Thing();
-                            platform->size = { 128, 32 };
-                            platform->color = WHITE;
-                            platform->origin_type = NORMAL_TYPE_UPPER_MIDDLE;
-                        }
+
                     }
 
                 // common (across levels) updates
@@ -552,53 +609,91 @@ void CatGame() {
                     { // lucy and miao
                         if (cow.key_held['a']) lucy->x -= 0.4;
                         if (cow.key_held['d']) lucy->x += 0.4;
-                    }
 
-                    for_each_live_thing_skipping_lucy_and_miao {
-                        if (!thing->mobile) continue;
-                        thing->v.y -= 0.01;
-                        thing->s += thing->v;
-                    }
-                }
-            }
-
-            { // draw
-                eso_begin(transform_for_drawing_and_picking, SOUP_QUADS);
-                for_each_live_thing {
-
-                    vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
-                    real a = ((game->mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
-                    eso_color(color, a);
-                    thing->getRect().eso();
-                }
-                eso_end();
-                if (game->mode == MODE_EDITOR) {
-
-
-
-                    {
-                        Thing *thing = level->editor_selected_thing;
-                        if (thing) {
-                            eso_begin(transform_for_drawing_and_picking, SOUP_POINTS, 12, true); eso_color(monokai.black); eso_vertex(thing->s); eso_end();
-                            eso_begin(transform_for_drawing_and_picking, SOUP_POINTS, 8, true); eso_color(monokai.yellow); eso_vertex(thing->s); eso_end();
+                        ++lucy->frames_since_fired;
+                        if (cow.key_pressed['k']) lucy->frames_since_fired = 0;
+                        if (cow.key_held['k'] && IS_DIVISIBLE_BY(lucy->frames_since_fired, 12)) {
+                            lucy->frames_since_fired = 0;
+                            Thing *bullet = Reserve_Slot();
+                            bullet->live = true;
+                            bullet->max_age = 128;
+                            bullet->update_group = UPDATE_GROUP_BULLET;
+                            bullet->s = lucy->s + V2(0.0, 4.0);
+                            bullet->v = { 1.0, 0.0 };
+                            bullet->color = RED;
+                            bullet->size = { 2.0, 2.0 };
                         }
                     }
 
 
 
-                    for_each_live_thing {
-                        if (thing->update_group) {
-                            char text[8] = {};
-                            sprintf(text, "%d", thing->update_group);
-                            text_draw(
-                                    transform_for_drawing_and_picking,
-                                    text,
-                                    thing->getCenter(),
-                                    monokai.black,
-                                    0,
-                                    {},
-                                    true);
+                    // special updates
+                    for_each_live_thing_skipping_lucy_and_miao(thing) {
+                        if (thing->update_group == UPDATE_GROUP_BULLET) {
+                            thing->s += thing->v;
+                        }
+                        if ((thing->max_age) && (thing->age++ > thing->max_age)) {
+                            *thing = {};
+                        }
+                    }
 
+
+                    // bullet collision
+                    for_each_live_thing_skipping_lucy_and_miao(bullet) {
+                        if (bullet->update_group != UPDATE_GROUP_BULLET) continue;
+                        for_each_live_thing_skipping_lucy_and_miao(other) {
+                            if (other->update_group == UPDATE_GROUP_BULLET) continue;
+
+                            if (bullet->collidesWith(other)) {
+                                other->frames_since_hit = 0;
+                                ++other->damage;
+                                if (other->damage >= other->max_health) other->live = false;
+                                // TODO: shiva update
+
+                                /* bullet->live = false; */
+                                /* bullet->reserved = false; */
+                                *bullet = {}; // FORNOW
+                            }
+                        }
+                    }
+
+
+
+                }
+            }
+
+            { // draw
+                for_each_live_thing(thing) {
+                    vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
+                    real alpha = ((game->mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
+                    thing->debug_draw(PV, SOUP_QUADS, color, alpha);
+
+                    if (thing->is_prefab) {
+                        vec2 corners[4]; thing->getRect().getCornersCCW(corners);
+                        eso_begin(PV, SOUP_LINES);
+                        eso_color(monokai.red);
+                        eso_vertex(corners[0]);
+                        eso_vertex(corners[2]);
+                        eso_vertex(corners[1]);
+                        eso_vertex(corners[3]);
+                        eso_end();
+                    }
+                }
+                if (game->mode == MODE_EDITOR) {
+                    { // draw origin
+                        Thing *thing = level->editor_selected_thing;
+                        if (thing) {
+                            eso_begin(PV, SOUP_POINTS, 12, true); eso_color(monokai.black); eso_vertex(thing->s); eso_end();
+                            eso_begin(PV, SOUP_POINTS, 8, true); eso_color(monokai.yellow); eso_vertex(thing->s); eso_end();
+                        }
+                    }
+                    { // draw update group
+                        for_each_live_thing(thing) {
+                            if (thing->update_group) {
+                                char text[8] = {};
+                                sprintf(text, "%d", thing->update_group);
+                                text_draw(PV, text, thing->getCenter(), monokai.black, 0, {}, true);
+                            }
                         }
                     }
                 }
