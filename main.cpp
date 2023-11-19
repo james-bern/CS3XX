@@ -118,9 +118,11 @@ void widget_drag(mat4 PV, RectangleMinMax *rect, bool no_resize) {
 
 struct Thing {
 
-    // constructors won't take a slot if it is live or reserved
-    bool live; // gets drawn and updated (implies reserved)
-    bool reserved;
+    // constructors won't take a slot if it is is_live or is_reserved
+    bool is_live; // gets drawn and updated (implies is_reserved)
+    bool is_reserved; // all things in EDITOR are reserved
+                      // reserved but _not_ reserved is a prefab in GAME
+                      // in the editor it is drawn with an X
 
     bool from_WAD__including_lucy_miao;
 
@@ -238,11 +240,12 @@ LucyLevelState *lucy_ = &level->lucy_;
 MiaoLevelState *miao_ = &level->miao_;
 
 // "iterators"
-void _for_next_live(Thing **thing_ptr) {
-    do { ++*thing_ptr; } while (!((*thing_ptr)->live));
+void _for_next_reserved(Thing **thing_ptr) {
+    do { ++*thing_ptr; } while (!((*thing_ptr)->is_reserved));
 }
-#define for_each_live_thing(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); _for_next_live(&name))
-#define for_each_live_thing_skipping_lucy_and_miao(name) for (Thing *name = (things + 2); name < (things + THINGS_ARRAY_LENGTH); _for_next_live(&name))
+#define for_each_reserved_thing(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); _for_next_reserved(&name))
+
+#define for_each_reserved_thing_skipping_lucy_and_miao(name) for (Thing *name = (things + 2); name < (things + THINGS_ARRAY_LENGTH); _for_next_reserved(&name))
 
 #define _for_each_slot(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); ++name)
 
@@ -256,8 +259,8 @@ void _for_next_live(Thing **thing_ptr) {
 // (zero is sorta kinda not really initialization)
 Thing *Reserve_Slot() {
     Thing *result = things;
-    while (result->live || result->reserved) ++result;
-    result->reserved = true;
+    while (result->is_live || result->is_reserved) ++result;
+    result->is_reserved = true;
     return result;
 }
 
@@ -289,7 +292,7 @@ void save_WAD() {
     fprintf(file, "\nMIAO\n");
     fprintf(file, "s     %.2lf %.2lf\n", miao->s[0], miao->s[1]);
     // part 0: everything else
-    for_each_live_thing_skipping_lucy_and_miao(thing) {
+    for_each_reserved_thing_skipping_lucy_and_miao(thing) {
         if (!thing->from_WAD__including_lucy_miao) continue;
         fprintf(file, "\nTHING\n");
         fprintf(file, "max_health %d\n", thing->max_health);
@@ -317,7 +320,7 @@ void load_WAD() {
                 curr = miao;
             } else if (poe_matches_prefix(line, "THING")) {
                 curr = Reserve_Slot();
-                curr->live = true;
+                curr->is_live = true;
                 curr->from_WAD__including_lucy_miao = true;
             } else {
                 if (poe_matches_prefix(line, "max_health ")) {
@@ -382,10 +385,13 @@ void CatGame() {
             int num_live_things = 0;
             int num_reserved_slots = 0;
             int num_empty_slots = THINGS_ARRAY_LENGTH;
-            for_each_live_thing(thing) ++num_live_things;
-            _for_each_slot(slot) if (slot->reserved) ++num_reserved_slots;
             _for_each_slot(slot) {
-                if (slot->reserved || slot->live) --num_empty_slots;
+                if (slot->is_live) {
+                    ASSERT(slot->is_reserved);
+                    ++num_live_things;
+                }
+                if (slot->is_reserved) ++num_reserved_slots;
+                if (slot->is_reserved || slot->is_live) --num_empty_slots;
             }
             gui_readout("num_live_things", &num_live_things);
             gui_readout("num_reserved_slots", &num_reserved_slots);
@@ -410,15 +416,15 @@ void CatGame() {
             memset(level, 0, sizeof(LevelState));
 
             {
-                lucy->reserved = true;
-                lucy->live = true;
+                lucy->is_reserved = true;
+                lucy->is_live = true;
                 lucy->size = { 4, 8 };
                 lucy->color = RED;
                 lucy->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
                 lucy->from_WAD__including_lucy_miao = true;
 
-                miao->reserved = true;
-                miao->live = true;
+                miao->is_reserved = true;
+                miao->is_live = true;
                 miao->size = { 4, 4 };
                 miao->color = BLUE;
                 miao->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
@@ -442,7 +448,7 @@ void CatGame() {
 
             Thing *editor_hot_thing = level->_editor_mouse_currently_pressed_thing;
             if (!editor_hot_thing) {
-                for_each_live_thing(thing) {
+                for_each_reserved_thing(thing) {
                     if (!thing->from_WAD__including_lucy_miao) continue;
 
                     if (thing->getRect().containsPoint(mouse_position)) {
@@ -513,7 +519,7 @@ void CatGame() {
                         }
 
                         if (gui_button("paste", 'v')) {
-                            if (game->editor_clipboard_thing.live) {
+                            if (game->editor_clipboard_thing.is_live) {
                                 Thing *thing = Reserve_Slot();
                                 *thing = game->editor_clipboard_thing;
                                 thing->s = mouse_position;
@@ -527,8 +533,8 @@ void CatGame() {
                 { //  sliders and checkboxes
                     Thing *thing = level->editor_selected_thing;
                     if (thing) {
-                        gui_readout("live", &thing->live);
-                        gui_readout("reserved", &thing->reserved);
+                        ASSERT(thing->is_reserved);
+                        gui_checkbox("is_live", &thing->is_live);
                         if ((thing != lucy) && (thing != miao)) {
                             gui_slider("max_health", &thing->max_health, 0, 16);
                             gui_slider("color", &thing->color, BLACK, WHITE);
@@ -572,23 +578,23 @@ void CatGame() {
                     // TODO: boss up top
                     if (game->level_index == 1) {
 
-                        // TODO: load by ID again (need both)
                         Thing *hand = Programmatic_Reserved_Dead_Slot();
-                        // Thing *hand = WAD_Reserved_Dead_Thing(1);
 
                         // NOTE: we may actually want a prefab to reset all the crap
-                        //       (TODOLATERBUTSOON)
 
                         if (game->reseting_level) {
                             hand->size = V2(24.0);
-                            // hand->live = true;
+                            // hand->is_live = true;
                         } else if ((game->mode == MODE_GAME) && !game->paused) {
 
 
-                            if (!hand->live) {
+                            if (!hand->is_live) {
                                 // TODO: hand = Prefab("hand");
-                                hand->live = true;
-                                hand->x = 20;
+
+                                // bool hand_flipX = hand->flipX;
+                                // *hand = Prefab_Thing(1);
+                                hand->is_live = true;
+                                // hand->flipX = !hand_flipX;
                             }
 
                             // TODO: hand->SHIVA_UPDATE();
@@ -613,7 +619,7 @@ void CatGame() {
                         if (cow.key_held['k'] && IS_DIVISIBLE_BY(lucy->frames_since_fired, 12)) {
                             lucy->frames_since_fired = 0;
                             Thing *bullet = Reserve_Slot();
-                            bullet->live = true;
+                            bullet->is_live = true;
                             bullet->max_age = 128;
                             bullet->update_group = UPDATE_GROUP_BULLET;
                             bullet->s = lucy->s + V2(0.0, 4.0);
@@ -626,7 +632,9 @@ void CatGame() {
 
 
                     // special updates
-                    for_each_live_thing_skipping_lucy_and_miao(thing) {
+                    for_each_reserved_thing_skipping_lucy_and_miao(thing) {
+                        if (!thing->is_live) continue;
+
                         if (thing->update_group == UPDATE_GROUP_BULLET) {
                             thing->s += thing->v;
                         }
@@ -637,19 +645,22 @@ void CatGame() {
 
 
                     // bullet collision
-                    for_each_live_thing_skipping_lucy_and_miao(bullet) {
+                    for_each_reserved_thing_skipping_lucy_and_miao(bullet) {
+                        if (!bullet->is_live) continue;
                         if (bullet->update_group != UPDATE_GROUP_BULLET) continue;
-                        for_each_live_thing_skipping_lucy_and_miao(other) {
+
+                        for_each_reserved_thing_skipping_lucy_and_miao(other) {
+                            if (!other->is_live) continue;
                             if (other->update_group == UPDATE_GROUP_BULLET) continue;
 
                             if (bullet->collidesWith(other)) {
                                 other->frames_since_hit = 0;
                                 ++other->damage;
-                                if (other->damage >= other->max_health) other->live = false;
+                                if (other->damage >= other->max_health) other->is_live = false;
                                 // TODO: shiva update
 
-                                /* bullet->live = false; */
-                                /* bullet->reserved = false; */
+                                /* bullet->is_live = false; */
+                                /* bullet->is_reserved = false; */
                                 *bullet = {}; // FORNOW
                             }
                         }
@@ -661,26 +672,34 @@ void CatGame() {
             }
 
             { // draw
-                for_each_live_thing(thing) {
+                for_each_reserved_thing(thing) {
                     vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
                     real alpha = ((game->mode == MODE_EDITOR) && (!thing->from_WAD__including_lucy_miao)) ? 0.6 : 1.0;
                     thing->debug_draw(PV, SOUP_QUADS, color, alpha);
-                }
-                if (game->mode == MODE_EDITOR) {
-                    { // draw origin
-                        Thing *thing = level->editor_selected_thing;
-                        if (thing) {
+                    if (game->mode == MODE_EDITOR) {
+                        // X
+                        if (!thing->is_live) {
+                            eso_begin(PV, SOUP_LINES);
+                            eso_color(monokai.red);
+                            vec2 corners[4]; thing->getRect().getCornersCCW(corners);
+                            eso_vertex(corners[0]);
+                            eso_vertex(corners[2]);
+                            eso_vertex(corners[1]);
+                            eso_vertex(corners[3]);
+                            eso_end();
+                        }
+
+                        // update group
+                        if (thing->update_group) {
+                            char text[8] = {};
+                            sprintf(text, "%d", thing->update_group);
+                            text_draw(PV, text, thing->getCenter(), monokai.black, 0, {}, true);
+                        }
+                        
+                        // origin dot
+                        if (thing == level->editor_selected_thing) {
                             eso_begin(PV, SOUP_POINTS, 12, true); eso_color(monokai.black); eso_vertex(thing->s); eso_end();
                             eso_begin(PV, SOUP_POINTS, 8, true); eso_color(monokai.yellow); eso_vertex(thing->s); eso_end();
-                        }
-                    }
-                    { // draw update group
-                        for_each_live_thing(thing) {
-                            if (thing->update_group) {
-                                char text[8] = {};
-                                sprintf(text, "%d", thing->update_group);
-                                text_draw(PV, text, thing->getCenter(), monokai.black, 0, {}, true);
-                            }
                         }
                     }
                 }
