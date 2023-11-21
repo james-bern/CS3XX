@@ -114,19 +114,22 @@ struct Thing {
 
     // constructors won't take a slot if it is is_live or is_persistent
 
+    bool is_prefab;
+    bool is_live;
     bool is_persistent; // even after death 
 
-    union {
-        bool is_live;
-        bool is_NOT_prefab; // (if it's not live in the editor, it's a prefab)
-    };
+    void die() {
+        ASSERT(is_live);
+        if (is_persistent) {
+            is_live = false;
+        } else {
+            *this = {};
+        }
+    }
 
-    bool is_from_WAD__INCLUDES_LUCY_AND_MIAO;
+    bool is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO;
 
-    union {
-        int prefab_ID; // !is_live
-        int unique_ID; // is_live
-    };
+    int ID;
 
 
 
@@ -265,10 +268,17 @@ MiaoLevelState *miao_ = &level->miao_;
 /* #define for_each_persistent_thing(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); _for_next_persistent(&name)) */
 /* #define for_each_persistent_thing_skipping_lucy_and_miao(name) for (Thing *name = (things + 2); name < (things + THINGS_ARRAY_LENGTH); _for_next_persistent(&name)) */
 
-#define _for_each_slot(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); ++name)
+#define _for_each_(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); ++name)
 
 
 // NOTE: if it's dead in the editor, then it's a prefab (you can't be both dead and not a prefab)
+
+
+
+// persistency is still not fully fleshed out
+// should all prefabs be persistent?--no
+// - persistent prefab example : hand (keep respawning same hooked enemy)
+// - ephemeral prefab example : rain (just throw the thing into the scene)
 
 
 
@@ -279,12 +289,11 @@ MiaoLevelState *miao_ = &level->miao_;
 // (zero is sorta kinda not really initialization)
 Thing *_Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_PERSISTENT_OR_FROM_WAD() {
     Thing *result = things;
-    while (result->is_live || result->is_persistent || result->is_from_WAD__INCLUDES_LUCY_AND_MIAO) ++result; // TODO: live should imply reserved (AUTOMATED CONSISTENCY CHECKS EACH FRAME)
+    while (result->is_live || result->is_persistent || result->is_prefab || result->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO) ++result; // TODO: live should imply reserved (AUTOMATED CONSISTENCY CHECKS EACH FRAME)
     *result = {};
-    result->is_persistent = true;
     return result;
 }
-Thing *Acquire_Or_Recover_Persistent_Slot__MUST_BE_SAME_ORDER_EVERY_TIME() {
+Thing *Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE() {
     if (game->reseting_level) {
         ++level->_num_programmatic_things;
         Thing *result = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_PERSISTENT_OR_FROM_WAD();
@@ -295,29 +304,39 @@ Thing *Acquire_Or_Recover_Persistent_Slot__MUST_BE_SAME_ORDER_EVERY_TIME() {
     ASSERT(frame->_programmatic_things_recovery_index < level->_num_programmatic_things);
     return level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++];
 }
-Thing *Find_Live_Thing_By_Unique_ID(int unique_ID) {
-    _for_each_slot(thing) {
+Thing *Find_Live_Thing_By_Unique_ID(int ID) {
+    _for_each_(thing) {
         if (!thing->is_live) continue;
-        if (thing->unique_ID == unique_ID) {
+        if (thing->ID == ID) {
             return thing;
         }
     }
     return NULL;
 }
 //
-void Prefab_Copy(Thing *dest, int i) {
-    _for_each_slot(thing) {
-        if (!thing->is_persistent) continue;
-        if (thing->is_NOT_prefab) continue;
-        if (thing->prefab_ID == i) {
-            ASSERT(!thing->is_NOT_prefab);
-            *dest = *thing;
-            dest->prefab_ID = 0;
+void _Instantiate_Prefab_Helper(Thing *slot, int ID) {
+    _for_each_(prefab) {
+        if (!prefab->is_prefab) continue;
+        if (prefab->ID == ID) {
+            *slot = *prefab;
+            slot->is_prefab = 0; // FORNOW
+            slot->ID = 0;        // FORNOW
             return;
         }
     }
-    printf("[Prefab_Copy] prefab_ID %d not found.\n", i);
+    printf("[error] ID %d not found.\n", ID);
     ASSERT(0);
+}
+Thing *Instantiate_Prefab(int ID) {
+    Thing *slot = things;
+    while ((slot->is_live) || (slot->is_persistent)) ++slot;
+    /* ASSERT(!slot->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO); // TODO */
+    _Instantiate_Prefab_Helper(slot, ID);
+    return slot;
+}
+void Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(Thing *slot, int ID) {
+    ASSERT(slot->is_persistent);
+    _Instantiate_Prefab_Helper(slot, ID);
 }
 //
 int &Counter__MUST_BE_SAME_ORDER_EVERY_TIME() {
@@ -357,15 +376,16 @@ void save_WAD() {
                         fprintf(destination, "MIAO\n");
                         fprintf(destination, "s %.2lf %.2lf\n", miao->s[0], miao->s[1]);
                         // part 0: everything else
-                        _for_each_slot(thing) {
-                            if (!thing->is_from_WAD__INCLUDES_LUCY_AND_MIAO) continue;
+                        _for_each_(thing) {
+                            if (!thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO) continue;
                             if (thing == lucy) continue;
                             if (thing == miao) continue;
                             fprintf(destination, "THING\n");
                             fprintf(destination, "color         %d\n", thing->color);
+                            fprintf(destination, "is_prefab     %d\n", thing->is_prefab);
                             fprintf(destination, "is_live       %d\n", thing->is_live);
                             fprintf(destination, "is_persistent %d\n", thing->is_persistent);
-                            fprintf(destination, "prefab_ID     %d\n", thing->prefab_ID);
+                            fprintf(destination, "ID     %d\n", thing->ID);
                             fprintf(destination, "max_health    %d\n", thing->max_health);
                             fprintf(destination, "origin_type   %d\n", thing->origin_type);
                             fprintf(destination, "update_group  %d\n", thing->update_group);
@@ -413,14 +433,16 @@ void load_WAD() {
                     thing = miao;
                 } else if (poe_matches_prefix(line, "THING")) {
                     thing = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_PERSISTENT_OR_FROM_WAD();
-                    thing->is_from_WAD__INCLUDES_LUCY_AND_MIAO = true;
+                    thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO = true;
                 } else {
-                    if (poe_matches_prefix(line, "is_live ")) {
+                    if (poe_matches_prefix(line, "is_prefab ")) {
+                        int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_prefab = tmp;
+                    } else if (poe_matches_prefix(line, "is_live ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_live = tmp;
                     } else if (poe_matches_prefix(line, "is_persistent ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_persistent = tmp;
-                    } else if (poe_matches_prefix(line, "prefab_ID ")) {
-                        sscanf(line, "%s %d", prefix, &thing->prefab_ID);
+                    } else if (poe_matches_prefix(line, "ID ")) {
+                        sscanf(line, "%s %d", prefix, &thing->ID);
                     } else if (poe_matches_prefix(line, "max_health ")) {
                         sscanf(line, "%s %d", prefix, &thing->max_health);
                     } else if (poe_matches_prefix(line, "origin_type ")) {
@@ -459,6 +481,8 @@ void CatGame() {
         mat4 PV = camera_get_PV(&camera);
         vec2 mouse_position = mouse_get_position(PV);
 
+        { // TODO: checks
+        }
 
         { // start of frame
             if (_request_reset) {
@@ -485,16 +509,19 @@ void CatGame() {
             gui_readout("LEVEL", &game->level_index);
             gui_readout("frame_index", &level->frame_index);
             {
+                int num_prefabs = 0;
                 int num_persistent_live = 0;
                 int num_persistent_dead = 0;
                 int num_ephemeral_live = 0;
                 int num_empty_slots = THINGS_ARRAY_LENGTH;
-                _for_each_slot(slot) {
-                    if ( slot->is_persistent &&  slot->is_live) ++num_persistent_live;
-                    if (!slot->is_persistent &&  slot->is_live) ++num_ephemeral_live;
-                    if ( slot->is_persistent && !slot->is_live) ++num_persistent_dead;
-                    if (slot->is_persistent || slot->is_live) --num_empty_slots;
+                _for_each_(slot) {
+                    if (slot->is_prefab) ++num_prefabs;
+                    else if ( slot->is_persistent &&  slot->is_live) ++num_persistent_live;
+                    else if (!slot->is_persistent &&  slot->is_live) ++num_ephemeral_live;
+                    else if ( slot->is_persistent && !slot->is_live) ++num_persistent_dead;
+                    else if (slot->is_persistent || slot->is_live) --num_empty_slots;
                 }
+                gui_readout("num_prefabs", &num_prefabs);
                 gui_readout("num_ephemeral_live", &num_ephemeral_live);
                 gui_readout("num_persistent_live", &num_persistent_live);
                 gui_readout("num_persistent_dead", &num_persistent_dead);
@@ -512,7 +539,7 @@ void CatGame() {
 
         { // reset update and draw 
             #define RESET if (game->reseting_level) 
-            #define WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(win_condition) else if (win_condition) { memset(level->things + 2, 0, (THINGS_ARRAY_LENGTH  - 2) * sizeof(Thing)); } else if (0)
+            #define WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(win_condition) else if ((game->mode == MODE_GAME) && (win_condition)) { memset(level->things + 2, 0, (THINGS_ARRAY_LENGTH  - 2) * sizeof(Thing)); } else if (0)
             #define UPDATE else if ((game->mode == MODE_GAME) && (!game->paused || globals.key_pressed['.'])) 
             { // common
                 RESET {
@@ -524,7 +551,7 @@ void CatGame() {
                         lucy->size = { 4, 8 };
                         lucy->color = RED;
                         lucy->origin_type = LOWER_RIGHT;
-                        lucy->is_from_WAD__INCLUDES_LUCY_AND_MIAO = true;
+                        lucy->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO = true;
                         lucy->max_health = 1;
 
                         miao->is_persistent = true;
@@ -532,7 +559,7 @@ void CatGame() {
                         miao->size = { 4, 4 };
                         miao->color = BLUE;
                         miao->origin_type = LOWER_RIGHT;
-                        miao->is_from_WAD__INCLUDES_LUCY_AND_MIAO = true;
+                        miao->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO = true;
                         miao->max_health = 1;
                     }
 
@@ -541,14 +568,15 @@ void CatGame() {
 
 
                     // named group updates
-                    _for_each_slot(thing) { // FORNOW: includes lucy and miao
-                        if (!thing->is_persistent) continue;
+                    _for_each_(thing) { // FORNOW: includes lucy and miao
+                        if (thing->is_prefab) continue;
+                        if (!thing->is_live) continue;
 
                         if (thing->update_group == UPDATE_GROUP_BULLET) {
                             thing->s += thing->v;
                         }
                         if ((thing->max_age) && (thing->age++ > thing->max_age)) {
-                            *thing = {};
+                            thing->die();
                         }
                     }
 
@@ -595,11 +623,13 @@ void CatGame() {
                     }
 
                     // killers
-                    _for_each_slot(bullet) {
+                    _for_each_(bullet) {
+                        if (bullet->is_prefab) continue;
                         if (!bullet->is_live) continue;
                         if (bullet->update_group != UPDATE_GROUP_BULLET) continue;
 
-                        _for_each_slot(other) {
+                        _for_each_(other) {
+                            if (other->is_prefab) continue;
                             if (!other->is_live) continue;
                             if (other->update_group == UPDATE_GROUP_BULLET) continue;
 
@@ -607,11 +637,11 @@ void CatGame() {
                                 other->frames_since_hit = 0;
                                 ++other->damage;
                                 if (other->max_health) {
-                                    if (other->damage >= other->max_health) other->is_live = false;
+                                    if (other->damage >= other->max_health) other->die();
                                 }
                                 // TODO: shiva update
 
-                                bullet->is_live = false;
+                                bullet->die();
                             }
                         }
                     }
@@ -642,7 +672,7 @@ void CatGame() {
                                           // TODO: will this involve prefabs in some way?
                                           // NEXT: LEVEL tag in WAD
                         } LEVEL { // SHIVA
-                            Thing *hand = Acquire_Or_Recover_Persistent_Slot__MUST_BE_SAME_ORDER_EVERY_TIME();
+                            Thing *hand = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE();
                             Thing *head = Find_Live_Thing_By_Unique_ID(1);
                             int &numberOfHandKills             = Counter__MUST_BE_SAME_ORDER_EVERY_TIME();
                             int &numberOfFramesSinceHandKilled = Counter__MUST_BE_SAME_ORDER_EVERY_TIME();
@@ -652,19 +682,20 @@ void CatGame() {
                                 { // hand
                                     if (!hand->is_live) {
                                         ++numberOfFramesSinceHandKilled;
-                                    }
-                                    if (numberOfFramesSinceHandKilled > 60) {
-                                        numberOfFramesSinceHandKilled = 0;
-                                        Prefab_Copy(hand, 1);
-                                        hand->is_live = true;
-                                        if (IS_ODD(numberOfHandKills++)) { // FORNOW
-                                            hand->x *= -1;
-                                            hand->flip_x();
+                                        if (numberOfFramesSinceHandKilled > 60) {
+                                            numberOfFramesSinceHandKilled = 0;
+
+                                            Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(hand, 2);
+                                            if (IS_ODD(numberOfHandKills++)) {
+                                                hand->x *= -1;
+                                                hand->flip_x();
+                                            }
                                         }
+                                    } else {
+                                        hand->s += 0.3 * normalized(lucy->s - hand->s);
                                     }
-                                    hand->s += 0.3 * normalized(lucy->s - hand->s);
-                                    /* if (hand->frames_since_hit < 8) hand->x += 0.1; */ // NEXT
-                                                                                          // hand->SHIVA_UPDATE();
+                                    // if (hand->frames_since_hit < 8) hand->x += 0.1;
+                                    // hand->SHIVA_UPDATE();
                                 }
 
                                 { // head
@@ -674,14 +705,11 @@ void CatGame() {
 
                                 { // rain
                                     if (IS_DIVISIBLE_BY(level->frame_index, 113)) {
-                                        Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_PERSISTENT_OR_FROM_WAD();
-                                        bullet->is_live = true;
+                                        Thing *bullet = Instantiate_Prefab(3);
                                         bullet->max_age = 512;
                                         bullet->update_group = UPDATE_GROUP_BULLET;
                                         bullet->s = V2(SGN(lucy->x) * 6.0, 63.0);
                                         bullet->v = { 0.0, -0.5 };
-                                        bullet->color = RED;
-                                        bullet->size = { 16.0, 16.0 };
                                     }
                                 }
                             }
@@ -693,18 +721,19 @@ void CatGame() {
                 }
 
                 { // draw
-                    _for_each_slot(thing) {
-                        if (!thing->is_live && !thing->is_persistent) continue;
+                    _for_each_(thing) {
                         vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
-                        vec3 inverseColor = V3(1.0) - color;
-                        real alpha = ((game->mode == MODE_EDITOR) && (!thing->is_from_WAD__INCLUDES_LUCY_AND_MIAO)) ? 0.6 : 1.0;
-
 
                         if (game->mode == MODE_GAME) {
-                            if (thing->is_live) {
-                                thing->debug_draw(PV, SOUP_QUADS, color, alpha);
-                            }
+                            if (thing->is_prefab) continue;
+                            if (!thing->is_live) continue;
+
+                            thing->debug_draw(PV, SOUP_QUADS, color);
                         } else if (game->mode == MODE_EDITOR) {
+
+                            vec3 inverseColor = V3(1.0) - color;
+                            real alpha = (!thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO) ? 0.6 : 1.0;
+
                             thing->debug_draw(PV, SOUP_QUADS, color, alpha);
 
                             // X
@@ -719,11 +748,11 @@ void CatGame() {
                                 eso_end();
                             }
 
-                            if (thing->is_from_WAD__INCLUDES_LUCY_AND_MIAO) { // text
-                                if (thing->prefab_ID || thing->update_group) {
+                            if (thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO) { // text
+                                if (thing->ID || thing->update_group) {
                                     char text[16] = {};
-                                    sprintf(text, "%d-%d", thing->prefab_ID, thing->update_group);
-                                    if (!thing->prefab_ID) text[0] = ' ';
+                                    sprintf(text, "%d-%d", thing->ID, thing->update_group);
+                                    if (!thing->ID) text[0] = ' ';
                                     if (!thing->update_group) text[2] = ' ';
                                     text_draw(PV, text, thing->getCenter(), inverseColor, 12, {}, true);
                                 }
@@ -755,8 +784,8 @@ void CatGame() {
 
                 level->editor_hot_thing = level->_editor_mouse_currently_pressed_thing;
                 if (!level->editor_hot_thing) {
-                    _for_each_slot(thing) {
-                        if (!thing->is_from_WAD__INCLUDES_LUCY_AND_MIAO) continue;
+                    _for_each_(thing) {
+                        if (!thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO) continue;
 
                         if (thing->getRect().containsPoint(mouse_position)) {
                             // TODO: closest to getCenter (do later)
@@ -822,10 +851,11 @@ void CatGame() {
 
                             if (gui_button("paste", 'v')) {
                                 if (game->editor_clipboard_thing.is_live) {
-                                    /* Thing *thing = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_PERSISTENT_OR_FROM_WAD(); */
-                                    /* *thing = game->editor_clipboard_thing; */
-                                    /* thing->s = mouse_position; */
-                                    /* thing->is_from_WAD__INCLUDES_LUCY_AND_MIAO = true; */
+                                    Thing *thing = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_PERSISTENT_OR_FROM_WAD();
+                                    *thing = game->editor_clipboard_thing;
+                                    thing->s = mouse_position;
+                                    thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO = true;
+                                    thing->ID = 0;
                                 }
                             }
                         }
@@ -837,17 +867,11 @@ void CatGame() {
                         if (thing) {
                             /* ASSERT(thing->is_persistent); */
                             {
-                                {
-                                    gui_checkbox("is_persistent", &thing->is_persistent);
-                                }
-                                {
-                                    bool is_prefab = !thing->is_NOT_prefab;
-                                    gui_checkbox("is_prefab", &is_prefab);
-                                    thing->is_NOT_prefab = !is_prefab;
-                                }
+                                gui_checkbox("is_prefab", &thing->is_prefab);
+                                gui_checkbox("is_live", &thing->is_live);
+                                gui_checkbox("is_persistent", &thing->is_persistent);
 
-                                char *text = "prefab_ID"; if (thing->is_live) text = "unique_ID";
-                                gui_slider(text, &thing->prefab_ID, 0, 16);
+                                gui_slider("ID", &thing->ID, 0, 16);
                             }
                             gui_slider("update_group", &thing->update_group, 0, 16);
                             for_(i, 10) if (cow.key_pressed['0' + i]) thing->update_group = i;
