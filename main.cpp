@@ -24,6 +24,10 @@ typedef double real;
 
 Camera2D camera = { 128.0 }; // FORNOW
 bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
+    // FORNOW
+    while (*string == ' ') ++string;
+    while (*prefix == ' ') ++prefix;
+
     if (strlen(string) < strlen(prefix)) return false;
     for_(i, (int) strlen(prefix)) { // FORNOW
         if (string[i] != prefix[i]) return false;
@@ -115,9 +119,10 @@ struct Thing {
     // constructors won't take a slot if it is is_live or is_persistent
 
     bool is_prefab;
+    bool is_instance; // shallow copy (so far just used in game -- Nov 21)
     bool is_live;
     bool is_persistent; // even after death 
-    bool is_WAD; // includes lucy and miao
+    bool is_WAD; // includes lucy and miao (so far just used in editor -- Nov 21)
 
     void die() {
         ASSERT(is_live);
@@ -371,26 +376,33 @@ void save_WAD() {
                     {
                         // part -1: lucy and miao
                         fprintf(destination, "LEVEL\n");
-                        fprintf(destination, "LUCY\n");
-                        fprintf(destination, "s %.2lf %.2lf\n", lucy->s[0], lucy->s[1]);
-                        fprintf(destination, "MIAO\n");
-                        fprintf(destination, "s %.2lf %.2lf\n", miao->s[0], miao->s[1]);
-                        // part 0: everything else
-                        _for_each_(thing) {
-                            if (!thing->is_WAD) continue;
-                            if (thing == lucy) continue;
-                            if (thing == miao) continue;
-                            fprintf(destination, "THING\n");
-                            fprintf(destination, "color         %d\n", thing->color);
-                            fprintf(destination, "is_prefab     %d\n", thing->is_prefab);
-                            fprintf(destination, "is_live       %d\n", thing->is_live);
-                            fprintf(destination, "is_persistent %d\n", thing->is_persistent);
-                            fprintf(destination, "ID     %d\n", thing->ID);
-                            fprintf(destination, "max_health    %d\n", thing->max_health);
-                            fprintf(destination, "origin_type   %d\n", thing->origin_type);
-                            fprintf(destination, "update_group  %d\n", thing->update_group);
-                            fprintf(destination, "s    %.2lf %.2lf\n", thing->s[0], thing->s[1]);
-                            fprintf(destination, "size %.2lf %.2lf\n", thing->size[0], thing->size[1]);
+                        fprintf(destination, " LUCY\n");
+                        fprintf(destination, "  s %.2lf %.2lf\n", lucy->s[0], lucy->s[1]);
+                        fprintf(destination, " MIAO\n");
+                        fprintf(destination, "  s %.2lf %.2lf\n", miao->s[0], miao->s[1]);
+                        // part 0: things and prefabs
+                        // part 1: instances
+                        for_(pass, 2) {
+                            _for_each_(thing) {
+                                if (!thing->is_WAD) continue;
+                                if (thing == lucy) continue;
+                                if (thing == miao) continue;
+                                if ((pass == 0) && (!thing->is_instance)) {
+                                    fprintf(destination, " THING\n");
+                                    fprintf(destination, "  color         %d\n", thing->color);
+                                    fprintf(destination, "  is_prefab     %d\n", thing->is_prefab);
+                                    fprintf(destination, "  is_live       %d\n", thing->is_live);
+                                    fprintf(destination, "  is_persistent %d\n", thing->is_persistent);
+                                    fprintf(destination, "  ID            %d\n", thing->ID);
+                                    fprintf(destination, "  max_health    %d\n", thing->max_health);
+                                    fprintf(destination, "  origin_type   %d\n", thing->origin_type);
+                                    fprintf(destination, "  update_group  %d\n", thing->update_group);
+                                    fprintf(destination, "  s    %.2lf %.2lf\n", thing->s[0], thing->s[1]);
+                                    fprintf(destination, "  size %.2lf %.2lf\n", thing->size[0], thing->size[1]);
+                                } else if ((pass == 1) && (thing->is_instance)) {
+                                    fprintf(destination, " INSTANCE %d %.2lf %.2lf\n", thing->ID, thing->x, thing->y);
+                                }
+                            }
                         }
                     }
                 }
@@ -431,9 +443,21 @@ void load_WAD() {
                     thing = lucy;
                 } else if (poe_matches_prefix(line, "MIAO")) {
                     thing = miao;
-                } else if (poe_matches_prefix(line, "THING")) {
+                } else if (poe_matches_prefix(line, "THING") || poe_matches_prefix(line, "INSTANCE")) {
                     thing = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
-                    thing->is_WAD = (game->mode == EDITOR); // FORNOW
+                    thing->is_WAD = (game->mode == EDITOR); // FORNOW (not used in game)
+                    if (poe_matches_prefix(line, "INSTANCE")) {
+                        real x;
+                        real y;
+                        int ID;
+                        sscanf(line, "%s %d %lf %lf", prefix, &ID, &x, &y);
+                        thing->is_persistent = true; // fornow
+                        Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(thing, ID);
+                        thing->is_instance = true;
+                        thing->ID = ID;
+                        thing->x = x;
+                        thing->y = y;
+                    }
                 } else {
                     if (poe_matches_prefix(line, "is_prefab ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_prefab = tmp;
@@ -667,6 +691,16 @@ void CatGame() {
                     #define LEVEL else if (game->level_index == _level_index++)
 
                     { // level-specific Thing's and updates
+
+
+
+                        // - before adding more features, we need more levels to motivate what we're doing
+                        // - editor feature that is still missing is the ability to copy and paste live prefabs into the level
+                        //   bool is_instance
+                        //   (very plausible you might want a bunch of shallow copies of the exact same thing)
+                        //   ((but do we actually have a use case?)
+
+
                         if (0) {} LEVEL { // LEVEL 0
                                           // TODO: special level with all the different kinds of everything (like blow did for sokoban)
                                           // TODO: will this involve prefabs in some way?
@@ -706,7 +740,7 @@ void CatGame() {
                                 }
 
                                 { // head
-                                    head->x -= 0.1;
+                                    head->x = 10.0 * sin(level->frame_index / 60.0);
                                     // head->SHIVA_UPDATE();
                                 }
 
@@ -717,6 +751,13 @@ void CatGame() {
                                         bullet->update_group = UPDATE_GROUP_BULLET;
                                         bullet->x = SGN(lucy->x) * 6.0;
                                         bullet->v = { 0.0, -0.5 };
+                                    }
+                                }
+
+                                _for_each_(thing) {
+                                    if (!thing->is_live) continue;
+                                    if (thing->update_group == 1) {
+                                        thing->s += 0.1 * normalized(miao->s - thing->s);
                                     }
                                 }
                             }
@@ -758,9 +799,9 @@ void CatGame() {
                             if (thing->is_WAD) { // text
                                 if (thing->ID || thing->update_group) {
                                     char text[16] = {};
-                                    sprintf(text, "%d-%d", thing->ID, thing->update_group);
+                                    sprintf(text, "%d (%d)", thing->ID, thing->update_group);
                                     if (!thing->ID) text[0] = ' ';
-                                    if (!thing->update_group) text[2] = ' ';
+                                    if (!thing->update_group) text[1] = '\0';
                                     text_draw(PV, text, thing->getCenter(), inverseColor, 12, {}, true);
                                 }
                             }
@@ -815,9 +856,10 @@ void CatGame() {
 
                     { 
                         { // dragging
-                            if (level->editor_hot_thing) {
-                                RectangleMinMax rect = level->editor_hot_thing->getRect();
-                                widget_drag(PV, &rect, (level->editor_hot_thing == lucy) || (level->editor_hot_thing == miao));
+                            Thing *thing = level->editor_hot_thing;
+                            if (thing) {
+                                RectangleMinMax rect = thing->getRect();
+                                widget_drag(PV, &rect, (thing == lucy) || (thing == miao) || (thing->is_instance));
                                 level->editor_hot_thing->setRect(rect);
                             }
 
@@ -856,14 +898,18 @@ void CatGame() {
                                 }
                             }
 
+                            // TODO: is_instance??
                             if (gui_button("paste", 'v')) {
-                                if (game->editor_clipboard_thing.is_live) {
-                                    Thing *thing = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
-                                    *thing = game->editor_clipboard_thing;
-                                    thing->s = mouse_position;
-                                    thing->is_WAD = true;
-                                    thing->is_prefab = false;
-                                    thing->ID = 0;
+                                Thing thing = game->editor_clipboard_thing;
+                                if (thing.is_live) {
+                                    Thing *slot = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
+                                    *slot = game->editor_clipboard_thing;
+                                    slot->s = mouse_position;
+                                    slot->is_WAD = true;
+                                    slot->is_prefab = false;
+                                    if (thing.is_prefab || thing.is_instance) {
+                                        slot->is_instance = true;
+                                    }
                                 }
                             }
                         }
@@ -873,7 +919,7 @@ void CatGame() {
                     { //  checkboxes and sliders
                         Thing *thing = level->editor_selected_thing;
                         if (thing) {
-                            if ((thing != lucy) && (thing != miao)) {
+                            if ((thing != lucy) && (thing != miao) && (!thing->is_instance)) {
                                 ASSERT(thing->is_WAD);
                                 gui_checkbox("is_prefab", &thing->is_prefab);
                                 gui_checkbox("is_live", &thing->is_live);
@@ -889,6 +935,9 @@ void CatGame() {
                                         thing->s += cwiseProduct(ORIGIN_n[thing->origin_type] - ORIGIN_n[tmp], thing->getRadius());
                                     }
                                 }
+                            } else if (thing->is_instance) {
+                                gui_readout("is_instance", &thing->is_instance);
+                                gui_readout("ID", &thing->ID);
                             }
                         }
                     }
