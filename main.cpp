@@ -1,4 +1,4 @@
-// TODO: Copy and Paste Thing's
+// TODO: ability for hoo to die
 
 //  vertical slice
 // - firing bullets
@@ -76,13 +76,9 @@ struct RectangleMinMax {
     }
 
     bool collidesWith(RectangleMinMax other) {
-        return
-            (IS_BETWEEN(this->min.x, other.min.x, other.max.x) && IS_BETWEEN(this->min.y, other.min.y, other.max.y)) ||
-            (IS_BETWEEN(this->max.x, other.min.x, other.max.x) && IS_BETWEEN(this->max.y, other.min.y, other.max.y)) ||
-            (IS_BETWEEN(other.min.x, this->min.x, this->max.x) && IS_BETWEEN(other.min.y, this->min.y, this->max.y)) ||
-            (IS_BETWEEN(other.max.x, this->min.x, this->max.x) && IS_BETWEEN(other.max.y, this->min.y, this->max.y));
-
-
+        bool overlapX = ((other.min.x < this->max.x) && (this->min.x < other.max.x));
+        bool overlapY = ((other.min.y < this->max.y) && (this->min.y < other.max.y));
+        return overlapX && overlapY;
     }
 };
 
@@ -116,15 +112,20 @@ void widget_drag(mat4 PV, RectangleMinMax *rect, bool no_resize) {
 struct Thing {
 
     // constructors won't take a slot if it is is_live or is_reserved
+
+    bool is_reserved; // all things in EDITOR are reserved
+                      // reserved but _not_ reserved is a Prefab in GAME
+                      // in the editor it is drawn with an X
     union {
         bool is_live; // gets drawn and updated (implies is_reserved)
         bool _is_NOT_prefab;
     };
-    bool is_reserved; // all things in EDITOR are reserved
-                      // reserved but _not_ reserved is a Prefab in GAME
-                      // in the editor it is drawn with an X
 
-    int prefab_ID;
+    union {
+        int prefab_ID; // !is_live
+        int unique_ID; // is_live
+    };
+
     bool from_WAD__including_lucy_miao;
 
 
@@ -253,7 +254,7 @@ void _for_next_reserved(Thing **thing_ptr) {
 #define _for_each_slot(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); ++name)
 
 
-
+// NOTE: if it's dead in the editor, then it's a prefab (you can't be both dead and not a prefab)
 
 
 
@@ -276,6 +277,14 @@ Thing *Reserve_Zeroed__Or__Recover_Slot__MUST_BE_SAME_ORDER_EVERY_TIME() {
     }
     ASSERT(frame->_programmatic_things_recovery_index < level->_num_programmatic_things);
     return level->_programmatic_things_recovery_array[frame->_programmatic_things_recovery_index++];
+}
+Thing *Find_Live_Thing(int unique_ID) {
+    for_each_reserved_thing_skipping_lucy_and_miao(thing) {
+        if (thing->is_live && (thing->unique_ID == unique_ID)) {
+            return thing;
+        }
+    }
+    return NULL;
 }
 //
 void Prefab_Copy(Thing *dest, int i) {
@@ -406,12 +415,14 @@ void load_WAD() {
 
 
 
+// TODO: outline color
 
 
 
 void CatGame() {
 
-    bool _entered_while_loop = false;
+    bool _request_reset = true;
+    game->level_index = 1;
 
     window_set_clear_color(0.2, 0.2, 0.2);
     while (cow_begin_frame()) {
@@ -421,13 +432,16 @@ void CatGame() {
 
 
         { // start of frame
-            if (!_entered_while_loop) {
-                _entered_while_loop = true;
+            if (_request_reset) {
+                _request_reset = false;
                 game->reseting_level = true;
-                game->level_index = 1;
             } else {
+                // FORNOW
+                if (!game->reseting_level) {
+                    ++level->frame_index;
+                }
+
                 game->reseting_level = false;
-                ++level->frame_index;
                 memset(frame, 0, sizeof(FrameState));
             }
         }
@@ -468,6 +482,7 @@ void CatGame() {
 
         { // reset update and draw 
             #define RESET if (game->reseting_level) 
+            #define WIN_CONDITION(win_condition) else if (win_condition) { memset(level->things + 2, 0, (THINGS_ARRAY_LENGTH  - 2) * sizeof(Thing)); } else if (0)
             #define UPDATE else if ((game->mode == MODE_GAME) && !game->paused) 
             { // common
                 RESET {
@@ -480,6 +495,7 @@ void CatGame() {
                         lucy->color = RED;
                         lucy->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
                         lucy->from_WAD__including_lucy_miao = true;
+                        lucy->max_health = 1;
 
                         miao->is_reserved = true;
                         miao->is_live = true;
@@ -487,29 +503,11 @@ void CatGame() {
                         miao->color = BLUE;
                         miao->origin_type = NORMAL_TYPE_LOWER_MIDDLE;
                         miao->from_WAD__including_lucy_miao = true;
+                        miao->max_health = 1;
                     }
 
                     load_WAD();
                 } UPDATE {
-                    { // lucy and miao
-                        if (cow.key_held['a']) lucy->x -= 0.4;
-                        if (cow.key_held['d']) lucy->x += 0.4;
-
-                        ++lucy->frames_since_fired;
-                        if (cow.key_pressed['k']) lucy->frames_since_fired = 0;
-                        if (cow.key_held['k'] && IS_DIVISIBLE_BY(lucy->frames_since_fired, 12)) {
-                            lucy->frames_since_fired = 0;
-                            Thing *bullet = _Reserve_Zeroed_Slot();
-                            bullet->is_live = true;
-                            bullet->max_age = 128;
-                            bullet->update_group = UPDATE_GROUP_BULLET;
-                            bullet->s = lucy->s + V2(0.0, 4.0);
-                            bullet->v = { 1.0, 0.0 };
-                            bullet->color = RED;
-                            bullet->size = { 2.0, 2.0 };
-                        }
-                    }
-
 
 
                     // named group updates
@@ -524,13 +522,33 @@ void CatGame() {
                         }
                     }
 
+                    { // lucy and miao
+                        if (cow.key_held['a']) lucy->x -= 0.4;
+                        if (cow.key_held['d']) lucy->x += 0.4;
 
-                    // bullet collision
+                        { // fire
+                            ++lucy->frames_since_fired;
+                            if (cow.key_pressed['k']) lucy->frames_since_fired = 0;
+                            if (cow.key_held['k'] && IS_DIVISIBLE_BY(lucy->frames_since_fired, 12)) {
+                                lucy->frames_since_fired = 0;
+                                Thing *bullet = _Reserve_Zeroed_Slot();
+                                bullet->is_live = true;
+                                bullet->max_age = 128;
+                                bullet->update_group = UPDATE_GROUP_BULLET;
+                                bullet->s = lucy->s + V2(4.0, 4.0);
+                                bullet->v = { 1.0, 0.0 };
+                                bullet->color = RED;
+                                bullet->size = { 2.0, 2.0 };
+                            }
+                        }
+                    }
+
+                    // killers
                     for_each_reserved_thing_skipping_lucy_and_miao(bullet) {
                         if (!bullet->is_live) continue;
                         if (bullet->update_group != UPDATE_GROUP_BULLET) continue;
 
-                        for_each_reserved_thing_skipping_lucy_and_miao(other) {
+                        for_each_reserved_thing(other) {
                             if (!other->is_live) continue;
                             if (other->update_group == UPDATE_GROUP_BULLET) continue;
 
@@ -550,6 +568,20 @@ void CatGame() {
                     }
                 }
             }
+
+
+            if (!lucy->is_live) {
+                printf("[lucy dead]\n");
+                _request_reset = true; // TODO: why doesn't this reset work?
+                continue;
+            }
+
+            if (!miao->is_live) {
+                miao->is_live = true;
+                miao->s = lucy->s + V2(0.0, 6.0);
+            }
+
+
             { // levels
                 { // update
                     int _level_index = 0;
@@ -562,26 +594,36 @@ void CatGame() {
                                           // NEXT: LEVEL tag in WAD
                         } LEVEL { // SHIVA
                             Thing *hand = Reserve_Zeroed__Or__Recover_Slot__MUST_BE_SAME_ORDER_EVERY_TIME();
-
+                            Thing *head = Find_Live_Thing(1);
                             RESET {
-
+                            } WIN_CONDITION(!head) {
                             } UPDATE {
-                                if (!hand->is_live) {
-                                    Prefab_Copy(hand, 1);
-                                    hand->is_live = true;
+                                { // hand
+                                    if (!hand->is_live) {
+                                        Prefab_Copy(hand, 1);
+                                        hand->is_live = true;
+                                    }
+                                    hand->s += 0.3 * normalized(lucy->s - hand->s);
+                                    /* if (hand->frames_since_hit < 8) hand->x += 0.1; */ // NEXT
+                                                                                          // hand->SHIVA_UPDATE();
                                 }
-                                hand->s += 0.3 * normalized(lucy->s - hand->s);
-                                /* if (hand->frames_since_hit < 8) hand->x += 0.1; */ // NEXT
 
-                                if (IS_DIVISIBLE_BY(level->frame_index, 64)) {
-                                    Thing *bullet = _Reserve_Zeroed_Slot();
-                                    bullet->is_live = true;
-                                    bullet->max_age = 512;
-                                    bullet->update_group = UPDATE_GROUP_BULLET;
-                                    bullet->s = lucy->s + V2(0.0, 63.0);
-                                    bullet->v = { 0.0, -0.5 };
-                                    bullet->color = RED;
-                                    bullet->size = { 8.0, 8.0 };
+                                { // head
+                                    head->y -= 0.1;
+                                    // head->SHIVA_UPDATE();
+                                }
+
+                                { // rain
+                                    if (IS_DIVISIBLE_BY(level->frame_index, 113)) {
+                                        Thing *bullet = _Reserve_Zeroed_Slot();
+                                        bullet->is_live = true;
+                                        bullet->max_age = 512;
+                                        bullet->update_group = UPDATE_GROUP_BULLET;
+                                        bullet->s = V2(SGN(lucy->x) * 6.0, 63.0);
+                                        bullet->v = { 0.0, -0.5 };
+                                        bullet->color = RED;
+                                        bullet->size = { 16.0, 16.0 };
+                                    }
                                 }
                             }
                         } LEVEL { // spike hover with cat fire
@@ -617,15 +659,13 @@ void CatGame() {
                                 eso_end();
                             }
 
-                            if ((thing != lucy) && (thing != miao)) { // text
-                                if (thing->from_WAD__including_lucy_miao) {
-                                    if (thing->prefab_ID || thing->update_group) {
-                                        char text[16] = {};
-                                        sprintf(text, "%d-%d", thing->prefab_ID, thing->update_group);
-                                        if (!thing->prefab_ID) text[0] = ' ';
-                                        if (!thing->update_group) text[2] = ' ';
-                                        text_draw(PV, text, thing->getCenter(), inverseColor, 12, {}, true);
-                                    }
+                            if (thing->from_WAD__including_lucy_miao) { // text
+                                if (thing->prefab_ID || thing->update_group) {
+                                    char text[16] = {};
+                                    sprintf(text, "%d-%d", thing->prefab_ID, thing->update_group);
+                                    if (!thing->prefab_ID) text[0] = ' ';
+                                    if (!thing->update_group) text[2] = ' ';
+                                    text_draw(PV, text, thing->getCenter(), inverseColor, 12, {}, true);
                                 }
                             }
 
@@ -687,6 +727,14 @@ void CatGame() {
 
                         }
 
+                        { // snaps
+                            if (gui_button("snap zero", 'z')) {
+                                if (level->editor_selected_thing) {
+                                    level->editor_selected_thing->s = {};
+                                }
+                            }
+                        }
+
                         { // cut, copy and paste
                             if (gui_button("cut", 'x')) {
                                 if (level->editor_hot_thing && (level->editor_hot_thing != lucy) && (level->editor_hot_thing != miao)) {
@@ -735,7 +783,8 @@ void CatGame() {
                                     thing->is_live = !tmp;
                                 }
 
-                                gui_slider("prefab_ID", &thing->prefab_ID, 0, 16);
+                                char *text = "prefab_ID"; if (thing->is_live) text = "unique_ID";
+                                gui_slider(text, &thing->prefab_ID, 0, 16);
                             }
                             gui_slider("update_group", &thing->update_group, 0, 16);
                             for_(i, 10) if (cow.key_pressed['0' + i]) thing->update_group = i;

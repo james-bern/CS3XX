@@ -41,17 +41,17 @@ s    43.18 17.16
 size 10.56 9.81
 LEVEL
 LUCY
-s -57.34 0.93
+s 0.00 0.00
 MIAO
-s -9.43 50.81
+s 53.70 -25.99
 THING
-color        3
+color        5
 is_live      0
 prefab_ID    1
 max_health   4
 origin_type  4
 update_group 0
-s    59.61 -2.04
+s    59.63 -2.04
 size 25.93 29.66
 THING
 color        7
@@ -60,62 +60,17 @@ prefab_ID    0
 max_health   0
 origin_type  1
 update_group 0
-s    -1.28 -2.50
+s    0.00 0.00
 size 20.00 43.31
 THING
-color        7
+color        1
 is_live      1
-prefab_ID    0
-max_health   0
-origin_type  1
+prefab_ID    1
+max_health   3
+origin_type  5
 update_group 0
-s    33.15 -23.13
-size 20.00 43.31
-THING
-color        2
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    9.97 29.80
-size 10.56 9.81
-THING
-color        2
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    -6.35 30.96
-size 10.56 9.81
-THING
-color        2
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    -24.34 28.86
-size 10.56 9.81
-THING
-color        2
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    -36.85 25.04
-size 10.56 9.81
-THING
-color        2
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    24.99 20.27
-size 10.56 9.81
+s    -40.53 21.01
+size 47.55 26.70
 LEVEL
 LUCY
 s 0.00 0.00
