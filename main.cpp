@@ -147,7 +147,7 @@ struct Thing {
 
     bool facing_right() { return ((origin_type == UPPER_RIGHT) || (origin_type == CENTER_RIGHT) || (origin_type == LOWER_RIGHT)); }
     bool facing_left() { return ((origin_type == UPPER_LEFT) || (origin_type == CENTER_LEFT) || (origin_type == LOWER_LEFT)); }
-    void flip_x(bool preserve_rectangle = false) {
+    void flip_x(bool preserve_rect = false) {
         if (origin_type == UPPER_RIGHT) origin_type = UPPER_LEFT;
         else if (origin_type == CENTER_RIGHT) origin_type = CENTER_LEFT;
         else if (origin_type == LOWER_RIGHT) origin_type = LOWER_LEFT;
@@ -155,7 +155,7 @@ struct Thing {
         else if (origin_type == CENTER_LEFT) origin_type = CENTER_RIGHT;
         else if (origin_type == UPPER_LEFT) origin_type = UPPER_RIGHT;
         else ASSERT(0);
-        if (preserve_rectangle) x += ORIGIN_n[origin_type].x * width;
+        if (preserve_rect) x += ORIGIN_n[origin_type].x * width;
     }
 
     union { vec2 s;    struct { real x,     y;      }; };
@@ -730,6 +730,7 @@ void CatGame() {
 
                             thing->debug_draw(PV, SOUP_QUADS, color);
                         } else if (game->mode == MODE_EDITOR) {
+                            if (!thing->is_prefab && !thing->is_live && !thing->is_persistent && !thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO) continue;
 
                             vec3 inverseColor = V3(1.0) - color;
                             real alpha = (!thing->is_from_WAD__USED_BY_EDITOR_ONLY__INCLUDES_LUCY_AND_MIAO) ? 0.6 : 1.0;
@@ -862,24 +863,18 @@ void CatGame() {
                     }
 
 
-                    { //  sliders and checkboxes
+                    { //  checkboxes and sliders
                         Thing *thing = level->editor_selected_thing;
                         if (thing) {
-                            /* ASSERT(thing->is_persistent); */
-                            {
-                                gui_checkbox("is_prefab", &thing->is_prefab);
-                                gui_checkbox("is_live", &thing->is_live);
-                                gui_checkbox("is_persistent", &thing->is_persistent);
-
-                                gui_slider("ID", &thing->ID, 0, 16);
-                            }
+                            gui_checkbox("is_prefab", &thing->is_prefab);
+                            gui_checkbox("is_live", &thing->is_live);
+                            gui_checkbox("is_persistent", &thing->is_persistent);
+                            gui_slider("ID", &thing->ID, 0, 16);
                             gui_slider("update_group", &thing->update_group, 0, 16);
-                            for_(i, 10) if (cow.key_pressed['0' + i]) thing->update_group = i;
-
                             if ((thing != lucy) && (thing != miao)) {
                                 gui_slider("max_health", &thing->max_health, 0, 255);
                                 gui_slider("color", &thing->color, BLACK, WHITE);
-                                {
+                                { // origin type (with rect preservation)
                                     int tmp = thing->origin_type;
                                     gui_slider("origin_type", &thing->origin_type, 0, 8);
                                     if (tmp != thing->origin_type) {
@@ -893,9 +888,7 @@ void CatGame() {
             }
         }
 
-
     }
-
 }
 
 
