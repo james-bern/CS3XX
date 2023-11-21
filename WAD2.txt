@@ -1,75 +1,82 @@
 LEVEL
 LUCY
-s 0.00 10.00
+s -5.61 5.34
 MIAO
-s 0.00 15.00
+s -16.55 -9.63
 THING
-color        7
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  1
-update_group 0
+color         7
+is_live       1
+is_persistent 1
+prefab_ID     0
+max_health    0
+origin_type   1
+update_group  0
 s    7.46 -14.13
 size 20.00 43.31
 THING
-color        6
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    -12.80 34.57
+color         6
+is_live       1
+is_persistent 1
+prefab_ID     0
+max_health    7
+origin_type   0
+update_group  16
+s    -12.20 35.00
+size 9.27 8.95
+THING
+color         6
+is_live       1
+is_persistent 1
+prefab_ID     0
+max_health    7
+origin_type   0
+update_group  16
+s    19.01 27.85
 size 10.56 9.81
 THING
-color        6
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    18.93 27.88
-size 10.56 9.81
-THING
-color        6
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  0
-update_group 16
-s    43.18 17.16
+color         6
+is_live       1
+is_persistent 0
+prefab_ID     0
+max_health    3
+origin_type   0
+update_group  16
+s    43.08 17.14
 size 10.56 9.81
 LEVEL
 LUCY
-s 0.00 0.00
+s -0.05 -0.02
 MIAO
-s 53.70 -25.99
+s 0.00 0.00
 THING
-color        5
-is_live      0
-prefab_ID    1
-max_health   4
-origin_type  4
-update_group 0
+color         5
+is_live       0
+is_persistent 1
+prefab_ID     1
+max_health    4
+origin_type   4
+update_group  0
 s    59.63 -2.04
 size 25.93 29.66
 THING
-color        7
-is_live      1
-prefab_ID    0
-max_health   0
-origin_type  1
-update_group 0
+color         7
+is_live       1
+is_persistent 0
+prefab_ID     0
+max_health    0
+origin_type   1
+update_group  0
 s    0.00 0.00
 size 20.00 43.31
 THING
-color        1
-is_live      1
-prefab_ID    1
-max_health   3
-origin_type  5
-update_group 0
-s    -40.53 21.01
+color         1
+is_live       1
+is_persistent 1
+prefab_ID     1
+max_health    5
+origin_type   5
+update_group  0
+s    -0.04 43.28
 size 47.55 26.70
 LEVEL
 LUCY
