@@ -1,3 +1,4 @@
+// TODO: jump
 // TODO: data-oriented platform collision/correction
 // TODO: ? data-oriented bullet collision
 
@@ -290,15 +291,16 @@ void Thing::advect() {
             if (!platform->is_live) continue;
             if (!platform->is_platform) continue;
 
+            // ? something like this (jank)
+            // ***T <--A-- P******P --B--> T***
             MinMaxRect T = this->getRect();
             MinMaxRect P = platform->getRect();
-
-            vec2 rightQuantity = T.max - P.min;
-            vec2 leftQuantity = T.min - P.max;
-            bool overlap = true; for_(k, 2) overlap &= ((rightQuantity[k] > 0) && (leftQuantity[k] < 0));
+            vec2 A = T.max - P.min;
+            vec2 B = T.min - P.max;
+            bool overlap = true; for_(k, 2) overlap &= ((A[k] > 0) && (0 > B[k]));
             if (overlap) {
                 real sgn = SGN(v[d]);
-                s[d] -= (sgn > 0) ? rightQuantity[d] : leftQuantity[d];
+                s[d] -= (sgn > 0) ? A[d] : B[d];
                 s[d] -= sgn * 0.001;
             }
         }
