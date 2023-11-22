@@ -1,4 +1,5 @@
-// TODO: ability for hoo to die
+// TODO: data-oriented platform collision/correction
+// TODO: ? data-oriented bullet collision
 
 //  vertical slice
 // - firing bullets
@@ -60,7 +61,7 @@ vec2 ORIGIN_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
 
 #define UPDATE_GROUP_BULLET 255
 
-struct RectangleMinMax {
+struct MinMaxRect {
     vec2 min;
     vec2 max;
 
@@ -80,14 +81,14 @@ struct RectangleMinMax {
         for_(i, 4) eso_vertex(corners[i]);
     }
 
-    bool collidesWith(RectangleMinMax other) {
+    bool collidesWith(MinMaxRect other) {
         bool overlapX = ((other.min.x < this->max.x) && (this->min.x < other.max.x));
         bool overlapY = ((other.min.y < this->max.y) && (this->min.y < other.max.y));
         return overlapX && overlapY;
     }
 };
 
-void widget_drag(mat4 PV, RectangleMinMax *rect, bool no_resize) {
+void widget_drag(mat4 PV, MinMaxRect *rect, bool no_resize) {
     vec2 mouse_change_in_position = mouse_get_change_in_position(PV);
 
     if (!no_resize) {
@@ -178,12 +179,12 @@ struct Thing {
     vec2 getRadius() { return size / 2; }
     vec2 getCenter() { return s - cwiseProduct(ORIGIN_n[origin_type], getRadius()); }
 
-    RectangleMinMax getRect() {
+    MinMaxRect getRect() {
         vec2 r = getRadius();
         vec2 c = getCenter();
         return { c - r, c + r };
     }
-    void setRect(RectangleMinMax rect) {
+    void setRect(MinMaxRect rect) {
         vec2 c = (rect.min + rect.max) / 2;
         vec2 r = (rect.max - rect.min) / 2;
         s = c + cwiseProduct(ORIGIN_n[origin_type], r);
@@ -191,7 +192,7 @@ struct Thing {
     }
 
     void debug_draw(mat4 PV, int GL_PRIMITIVE, vec3 drawColor, real drawAlpha = 1.0)  {
-        RectangleMinMax rect = getRect();
+        MinMaxRect rect = getRect();
         if (GL_PRIMITIVE == SOUP_LINE_LOOP) {
             eso_begin(PV, SOUP_LINE_LOOP, 4.0, true); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
         } else {
@@ -275,6 +276,8 @@ MiaoLevelState *miao_ = &level->miao_;
 
 
 
+// TODO: collision with bullets is actually a lot simpler
+//       that will probably end up being its own function
 void Thing::advect() {
     ASSERT(!is_platform);
     if (IS_ZERO(squaredNorm(v))) return;
@@ -287,9 +290,16 @@ void Thing::advect() {
             if (!platform->is_live) continue;
             if (!platform->is_platform) continue;
 
-            if (collidesWith(platform)) {
-                s[d] -= v[d];
-                break;
+            MinMaxRect T = this->getRect();
+            MinMaxRect P = platform->getRect();
+
+            vec2 rightQuantity = T.max - P.min;
+            vec2 leftQuantity = T.min - P.max;
+            bool overlap = true; for_(k, 2) overlap &= ((rightQuantity[k] > 0) && (leftQuantity[k] < 0));
+            if (overlap) {
+                real sgn = SGN(v[d]);
+                s[d] -= (sgn > 0) ? rightQuantity[d] : leftQuantity[d];
+                s[d] -= sgn * 0.001;
             }
         }
     }
@@ -867,7 +877,7 @@ void CatGame() {
                         { // dragging
                             Thing *thing = level->editor_hot_thing;
                             if (thing) {
-                                RectangleMinMax rect = thing->getRect();
+                                MinMaxRect rect = thing->getRect();
                                 widget_drag(PV, &rect, (thing == lucy) || (thing == miao) || (thing->is_instance));
                                 level->editor_hot_thing->setRect(rect);
                             }

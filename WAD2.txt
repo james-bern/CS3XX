@@ -1,8 +1,8 @@
 LEVEL
  LUCY
-  s 12.27 -4.58
+  s 0.00 0.00
  MIAO
-  s 4.73 -10.21
+  s 0.00 0.00
  THING
   color         7
   is_prefab     0
@@ -13,20 +13,44 @@ LEVEL
   max_health    0
   origin_type   1
   update_group  0
-  s    7.46 -14.13
+  s    0.00 0.00
   size 20.00 43.31
  THING
   color         7
   is_prefab     0
   is_live       1
-  is_persistent 0
+  is_persistent 1
   is_platform   1
   ID            0
   max_health    0
   origin_type   1
   update_group  0
-  s    33.38 -18.12
-  size 21.14 12.26
+  s    13.31 -53.16
+  size 20.00 43.31
+ THING
+  color         7
+  is_prefab     0
+  is_live       1
+  is_persistent 1
+  is_platform   1
+  ID            0
+  max_health    0
+  origin_type   1
+  update_group  0
+  s    36.17 6.44
+  size 20.00 43.31
+ THING
+  color         7
+  is_prefab     0
+  is_live       1
+  is_persistent 1
+  is_platform   1
+  ID            0
+  max_health    0
+  origin_type   1
+  update_group  0
+  s    26.10 -4.67
+  size 20.00 43.31
 LEVEL
  LUCY
   s -26.68 9.86
