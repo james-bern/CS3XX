@@ -1,13 +1,14 @@
 LEVEL
  LUCY
-  s -5.61 5.34
+  s 12.27 -4.58
  MIAO
-  s -16.55 -9.63
+  s 4.73 -10.21
  THING
   color         7
   is_prefab     0
   is_live       1
   is_persistent 1
+  is_platform   1
   ID            0
   max_health    0
   origin_type   1
@@ -15,38 +16,39 @@ LEVEL
   s    7.46 -14.13
   size 20.00 43.31
  THING
-  color         6
-  is_prefab     0
-  is_live       1
-  is_persistent 1
-  ID            0
-  max_health    7
-  origin_type   0
-  update_group  16
-  s    -12.20 35.00
-  size 9.27 8.95
- THING
-  color         6
-  is_prefab     0
-  is_live       1
-  is_persistent 1
-  ID            0
-  max_health    7
-  origin_type   0
-  update_group  16
-  s    19.01 27.85
-  size 10.56 9.81
- THING
-  color         6
+  color         7
   is_prefab     0
   is_live       1
   is_persistent 0
+  is_platform   1
   ID            0
-  max_health    3
-  origin_type   0
-  update_group  16
-  s    43.08 17.14
-  size 10.56 9.81
+  max_health    0
+  origin_type   1
+  update_group  0
+  s    33.38 -18.12
+  size 21.14 12.26
+LEVEL
+ LUCY
+  s -26.68 9.86
+ MIAO
+  s 0.00 0.00
+ THING
+  color         7
+  is_prefab     1
+  is_live       1
+  is_persistent 1
+  is_platform   1
+  ID            0
+  max_health    0
+  origin_type   1
+  update_group  0
+  s    -74.12 -11.52
+  size 20.00 43.31
+ INSTANCE 0 -25.77 4.96
+ INSTANCE 0 -18.83 -7.24
+ INSTANCE 0 -9.35 -15.22
+ INSTANCE 0 -0.67 -22.59
+ INSTANCE 0 9.29 -29.15
 LEVEL
  LUCY
   s -3.14 0.65
@@ -57,6 +59,7 @@ LEVEL
   is_prefab     1
   is_live       1
   is_persistent 1
+  is_platform   0
   ID            2
   max_health    4
   origin_type   4
@@ -68,6 +71,7 @@ LEVEL
   is_prefab     0
   is_live       1
   is_persistent 0
+  is_platform   1
   ID            0
   max_health    0
   origin_type   1
@@ -79,6 +83,7 @@ LEVEL
   is_prefab     0
   is_live       1
   is_persistent 1
+  is_platform   0
   ID            1
   max_health    5
   origin_type   5
@@ -90,6 +95,7 @@ LEVEL
   is_prefab     1
   is_live       1
   is_persistent 0
+  is_platform   0
   ID            3
   max_health    5
   origin_type   0
@@ -101,6 +107,7 @@ LEVEL
   is_prefab     0
   is_live       0
   is_persistent 0
+  is_platform   0
   ID            2
   max_health    0
   origin_type   0
@@ -112,6 +119,7 @@ LEVEL
   is_prefab     0
   is_live       0
   is_persistent 0
+  is_platform   0
   ID            2
   max_health    0
   origin_type   0
@@ -123,17 +131,19 @@ LEVEL
   is_prefab     1
   is_live       1
   is_persistent 0
+  is_platform   0
   ID            6
   max_health    0
   origin_type   0
   update_group  1
-  s    85.10 -44.44
+  s    102.92 -28.56
   size 4.96 5.20
  THING
   color         7
   is_prefab     0
   is_live       1
   is_persistent 0
+  is_platform   1
   ID            0
   max_health    0
   origin_type   1

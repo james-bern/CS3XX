@@ -24,7 +24,7 @@ typedef double real;
 
 Camera2D camera = { 128.0 }; // FORNOW
 bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
-    // FORNOW
+                                                      // FORNOW
     while (*string == ' ') ++string;
     while (*prefix == ' ') ++prefix;
 
@@ -88,7 +88,6 @@ struct RectangleMinMax {
 };
 
 void widget_drag(mat4 PV, RectangleMinMax *rect, bool no_resize) {
-
     vec2 mouse_change_in_position = mouse_get_change_in_position(PV);
 
     if (!no_resize) {
@@ -115,14 +114,19 @@ void widget_drag(mat4 PV, RectangleMinMax *rect, bool no_resize) {
 }
 
 struct Thing {
-
     // constructors won't take a slot if it is is_live or is_persistent
 
+    // entity system flags
     bool is_prefab;
     bool is_instance; // shallow copy (so far just used in game -- Nov 21)
     bool is_live;
     bool is_persistent; // even after death 
     bool is_WAD; // includes lucy and miao (so far just used in editor -- Nov 21)
+
+
+    // game flags
+    bool is_platform;
+
 
     void die() {
         ASSERT(is_live);
@@ -199,6 +203,8 @@ struct Thing {
     bool collidesWith(Thing *other) {
         return this->getRect().collidesWith(other->getRect());
     }
+
+    void advect();
 };
 
 // Is this a good idea? Might we want to play the logic in the editor?
@@ -253,12 +259,7 @@ struct GameState {
 
 
 
-
-
-
 GameState *game = (GameState *) calloc(1, sizeof(GameState));
-
-
 // aliases
 LevelState *level = &game->level;
 FrameState *frame = &level->frame;
@@ -267,28 +268,36 @@ Thing *lucy = &things[0];
 Thing *miao = &things[1];
 LucyLevelState *lucy_ = &level->lucy_;
 MiaoLevelState *miao_ = &level->miao_;
-
-// "iterators"
-/* void _for_next_persistent(Thing **thing_ptr) { do { ++*thing_ptr; } while (!((*thing_ptr)->is_persistent)); } */
-/* #define for_each_persistent_thing(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); _for_next_persistent(&name)) */
-/* #define for_each_persistent_thing_skipping_lucy_and_miao(name) for (Thing *name = (things + 2); name < (things + THINGS_ARRAY_LENGTH); _for_next_persistent(&name)) */
-
 #define _for_each_(name) for (Thing *name = things; name < (things + THINGS_ARRAY_LENGTH); ++name)
 
 
-// NOTE: if it's dead in the editor, then it's a prefab (you can't be both dead and not a prefab)
 
 
 
-// persistency is still not fully fleshed out
-// should all prefabs be persistent?--no
-// - persistent prefab example : hand (keep respawning same hooked enemy)
-// - ephemeral prefab example : rain (just throw the thing into the scene)
+
+void Thing::advect() {
+    ASSERT(!is_platform);
+    if (IS_ZERO(squaredNorm(v))) return;
+
+    // TODO: for_(d, 2)
+
+    for_(d, 2) {
+        s[d] += v[d];
+        _for_each_(platform) {
+            if (!platform->is_live) continue;
+            if (!platform->is_platform) continue;
+
+            if (collidesWith(platform)) {
+                s[d] -= v[d];
+                break;
+            }
+        }
+    }
+}
 
 
 
-// // constructors
-// // FORNOW: These are all slow
+// // constructors (FORNOW: slow)
 //
 // Things are only created through this constructor.
 // (zero is sorta kinda not really initialization)
@@ -393,6 +402,7 @@ void save_WAD() {
                                     fprintf(destination, "  is_prefab     %d\n", thing->is_prefab);
                                     fprintf(destination, "  is_live       %d\n", thing->is_live);
                                     fprintf(destination, "  is_persistent %d\n", thing->is_persistent);
+                                    fprintf(destination, "  is_platform   %d\n", thing->is_platform);
                                     fprintf(destination, "  ID            %d\n", thing->ID);
                                     fprintf(destination, "  max_health    %d\n", thing->max_health);
                                     fprintf(destination, "  origin_type   %d\n", thing->origin_type);
@@ -458,13 +468,15 @@ void load_WAD() {
                         thing->x = x;
                         thing->y = y;
                     }
-                } else {
+                } else { // NOT used for instance
                     if (poe_matches_prefix(line, "is_prefab ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_prefab = tmp;
                     } else if (poe_matches_prefix(line, "is_live ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_live = tmp;
                     } else if (poe_matches_prefix(line, "is_persistent ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_persistent = tmp;
+                    } else if (poe_matches_prefix(line, "is_platform ")) {
+                        int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_platform = tmp;
                     } else if (poe_matches_prefix(line, "ID ")) {
                         sscanf(line, "%s %d", prefix, &thing->ID);
                     } else if (poe_matches_prefix(line, "max_health ")) {
@@ -493,21 +505,19 @@ void load_WAD() {
 // TODO: outline color
 
 
-
 void CatGame() {
-
     bool _request_reset = true;
-    game->level_index = 1;
-
+    game->level_index = 0;
     window_set_clear_color(0.2, 0.2, 0.2);
     while (cow_begin_frame()) {
         camera_move(&camera);
         mat4 PV = camera_get_PV(&camera);
         vec2 mouse_position = mouse_get_position(PV);
-
-        { // TODO: checks
+        { // integrity checks
+            _for_each_(slot) {
+                ASSERT(!((slot->is_prefab) && (slot->is_instance)));
+            }
         }
-
         { // start of frame
             if (_request_reset) {
                 _request_reset = false;
@@ -522,8 +532,7 @@ void CatGame() {
                 memset(frame, 0, sizeof(FrameState));
             }
         }
-
-        { // ui
+        { // gui
             if (cow.key_pressed[COW_KEY_TAB]) {
                 // TODO: Prompt to save when tabbing out of editor
                 game->reseting_level = true;
@@ -560,12 +569,14 @@ void CatGame() {
                 if (cow.key_pressed[COW_KEY_ARROW_RIGHT]) ++game->level_index;
             }
         }
-
-        { // reset update and draw 
-            #define RESET if (game->reseting_level) 
-            #define WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(win_condition) else if ((game->mode == GAME) && (win_condition)) { memset(level->things + 2, 0, (THINGS_ARRAY_LENGTH  - 2) * sizeof(Thing)); } else if (0)
-            #define UPDATE else if ((game->mode == GAME) && (!game->paused || globals.key_pressed['.'])) 
-            { // common
+        { // reset, update, & draw 
+            { // macros
+                #define RESET if (game->reseting_level) 
+                #define WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(win_condition) else if ((game->mode == GAME) && (win_condition)) { memset(level->things + 2, 0, (THINGS_ARRAY_LENGTH  - 2) * sizeof(Thing)); } else if (0)
+                #define UPDATE else if ((game->mode == GAME) && (!game->paused || globals.key_pressed['.'])) 
+                #define LEVEL else if (game->level_index == _level_index++)
+            }
+            { // lucy and miao
                 RESET {
                     memset(level, 0, sizeof(LevelState));
 
@@ -589,32 +600,24 @@ void CatGame() {
 
                     load_WAD();
                 } UPDATE {
-
-
-                    // named group updates
-                    _for_each_(thing) { // FORNOW: includes lucy and miao
-                        if (thing->is_prefab) continue;
-                        if (!thing->is_live) continue;
-
-                        if (thing->update_group == UPDATE_GROUP_BULLET) {
-                            thing->s += thing->v;
-                        }
-                        if ((thing->max_age) && (thing->age++ > thing->max_age)) {
-                            thing->die();
-                        }
-                    }
-
                     { // lucy and miao
                         {
-                            real speed = 0.4;
-                            if (cow.key_held['a']) {
-                                if (lucy->facing_right()) lucy->flip_x(true);
-                                lucy->x -= speed;
+                            { // v
+
+                                lucy->v.x = 0.0;
+                                real speed = 0.4;
+                                if (cow.key_held['a']) {
+                                    if (lucy->facing_right()) lucy->flip_x(true);
+                                    lucy->v.x = -speed;
+                                }
+                                if (cow.key_held['d']) {
+                                    if (lucy->facing_left()) lucy->flip_x(true);
+                                    lucy->v.x = speed;
+                                }
+                                lucy->v.y = -0.5;
                             }
-                            if (cow.key_held['d']) {
-                                if (lucy->facing_left()) lucy->flip_x(true);
-                                lucy->x += speed;
-                            }
+
+                            lucy->advect();
                         }
 
                         { // fire
@@ -645,129 +648,136 @@ void CatGame() {
                             }
                         }
                     }
+                }
 
-                    // killers
-                    _for_each_(bullet) {
-                        if (bullet->is_prefab) continue;
-                        if (!bullet->is_live) continue;
-                        if (bullet->update_group != UPDATE_GROUP_BULLET) continue;
+                if (!lucy->is_live) {
+                    printf("[lucy dead]\n");
+                    _request_reset = true; // TODO: why doesn't this reset work?
+                    continue;
+                }
 
-                        _for_each_(other) {
-                            if (other->is_prefab) continue;
-                            if (!other->is_live) continue;
-                            if (other->update_group == UPDATE_GROUP_BULLET) continue;
-
-                            if (bullet->collidesWith(other)) {
-                                other->frames_since_hit = 0;
-                                ++other->damage;
-                                if (other->max_health) {
-                                    if (other->damage >= other->max_health) other->die();
-                                }
-                                // TODO: shiva update
-
-                                bullet->die();
-                            }
-                        }
-                    }
+                if (!miao->is_live) {
+                    miao->is_live = true;
+                    miao->s = lucy->s + V2(0.0, 6.0);
                 }
             }
+            { // level-specific reset & update
+                int _level_index = 0;
+                { // level-specific Thing's and updates
+                  // - before adding more features, we need more levels to motivate what we're doing
+                  // - editor feature that is still missing is the ability to copy and paste live prefabs into the level
+                  //   bool is_instance
+                  //   (very plausible you might want a bunch of shallow copies of the exact same thing)
+                  //   ((but do we actually have a use case?)
 
 
-            if (!lucy->is_live) {
-                printf("[lucy dead]\n");
-                _request_reset = true; // TODO: why doesn't this reset work?
-                continue;
-            }
+                    if (0) {} LEVEL { // LEVEL 0
+                                      // TODO: special level with all the different kinds of everything (like blow did for sokoban)
+                                      // TODO: will this involve prefabs in some way?
+                                      // TODO: you will want to have some hotkey combo that
+                                      // "elevates" a prefab out of a level-specific prefab to 
+                                      // one that can be used on any level
+                    } LEVEL { // PLAYGROUND
+                    } LEVEL { // SHIVA
+                        Thing *hand = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE();
+                        Thing *head = Find_Live_Thing_By_Unique_ID(1);
+                        int &numberOfHandKills             = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
+                        int &numberOfFramesSinceHandKilled = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
+                        RESET {
+                            Thing *fly = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
+                            fly->is_live = true;
+                            fly->size = V2(4.0);
+                            fly->color = GREEN;
+                            fly->s = V2(-5.0, 15.0);
+                            fly->v = V2(0.1, 0.1);
+                            fly->update_group = UPDATE_GROUP_BULLET;
+                        } WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(!head) {
+                        } UPDATE {
+                            { // hand
+                                if (!hand->is_live) {
+                                    ++numberOfFramesSinceHandKilled;
+                                    if (numberOfFramesSinceHandKilled > 60) {
+                                        numberOfFramesSinceHandKilled = 0;
 
-            if (!miao->is_live) {
-                miao->is_live = true;
-                miao->s = lucy->s + V2(0.0, 6.0);
-            }
-
-
-            { // levels
-                { // update
-                    int _level_index = 0;
-                    #define LEVEL else if (game->level_index == _level_index++)
-
-                    { // level-specific Thing's and updates
-
-
-
-                        // - before adding more features, we need more levels to motivate what we're doing
-                        // - editor feature that is still missing is the ability to copy and paste live prefabs into the level
-                        //   bool is_instance
-                        //   (very plausible you might want a bunch of shallow copies of the exact same thing)
-                        //   ((but do we actually have a use case?)
-
-
-                        if (0) {} LEVEL { // LEVEL 0
-                                          // TODO: special level with all the different kinds of everything (like blow did for sokoban)
-                                          // TODO: will this involve prefabs in some way?
-                                          // NEXT: LEVEL tag in WAD
-                        } LEVEL { // SHIVA
-                            Thing *hand = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE();
-                            Thing *head = Find_Live_Thing_By_Unique_ID(1);
-                            int &numberOfHandKills             = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
-                            int &numberOfFramesSinceHandKilled = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
-                            RESET {
-                                Thing *fly = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
-                                fly->is_live = true;
-                                fly->size = V2(4.0);
-                                fly->color = GREEN;
-                                fly->s = V2(-5.0, 15.0);
-                                fly->v = V2(0.1, 0.1);
-                                fly->update_group = UPDATE_GROUP_BULLET;
-                            } WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(!head) {
-                            } UPDATE {
-                                { // hand
-                                    if (!hand->is_live) {
-                                        ++numberOfFramesSinceHandKilled;
-                                        if (numberOfFramesSinceHandKilled > 60) {
-                                            numberOfFramesSinceHandKilled = 0;
-
-                                            Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(hand, 2);
-                                            if (IS_ODD(numberOfHandKills++)) {
-                                                hand->x *= -1;
-                                                hand->flip_x();
-                                            }
+                                        Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(hand, 2);
+                                        if (IS_ODD(numberOfHandKills++)) {
+                                            hand->x *= -1;
+                                            hand->flip_x();
                                         }
-                                    } else {
-                                        hand->s += 0.3 * normalized(lucy->s - hand->s);
                                     }
-                                    // if (hand->frames_since_hit < 8) hand->x += 0.1;
-                                    // hand->SHIVA_UPDATE();
+                                } else {
+                                    hand->s += 0.3 * normalized(lucy->s - hand->s);
                                 }
+                                // if (hand->frames_since_hit < 8) hand->x += 0.1;
+                                // hand->SHIVA_UPDATE();
+                            }
 
-                                { // head
-                                    head->x = 10.0 * sin(level->frame_index / 60.0);
-                                    // head->SHIVA_UPDATE();
-                                }
+                            { // head
+                                head->x = 10.0 * sin(level->frame_index / 60.0);
+                                // head->SHIVA_UPDATE();
+                            }
 
-                                { // rain
-                                    if (IS_DIVISIBLE_BY(level->frame_index, 113)) {
-                                        Thing *bullet = Instantiate_Prefab(3);
-                                        bullet->max_age = 512;
-                                        bullet->update_group = UPDATE_GROUP_BULLET;
-                                        bullet->x = SGN(lucy->x) * 6.0;
-                                        bullet->v = { 0.0, -0.5 };
-                                    }
-                                }
-
-                                _for_each_(thing) {
-                                    if (!thing->is_live) continue;
-                                    if (thing->update_group == 1) {
-                                        thing->s += 0.1 * normalized(miao->s - thing->s);
-                                    }
+                            { // rain
+                                if (IS_DIVISIBLE_BY(level->frame_index, 113)) {
+                                    Thing *bullet = Instantiate_Prefab(3);
+                                    bullet->max_age = 512;
+                                    bullet->update_group = UPDATE_GROUP_BULLET;
+                                    bullet->x = SGN(lucy->x) * 6.0;
+                                    bullet->v = { 0.0, -0.5 };
                                 }
                             }
-                        } LEVEL { // spike hover with cat fire
 
-                        } LEVEL { // dragon ride
+                            _for_each_(thing) {
+                                if (!thing->is_live) continue;
+                                if (thing->update_group == 1) {
+                                    thing->s += 0.1 * normalized(miao->s - thing->s);
+                                }
+                            }
+                        }
+                    } LEVEL { // spike hover with cat fire
+
+                    } LEVEL { // dragon ride
+                    }
+                }
+            }
+            { // common update & draw
+                { // things that kill (happens after all movement)
+                    RESET {} UPDATE {
+                        // old age
+                        _for_each_(thing) { // FORNOW: includes lucy and miao
+                            if (thing->is_prefab) continue;
+                            if (!thing->is_live) continue;
+
+                            if ((thing->max_age) && (thing->age++ > thing->max_age)) {
+                                thing->die();
+                            }
+                        }
+                        // bullet collision
+                        _for_each_(bullet) {
+                            if (bullet->is_prefab) continue;
+                            if (!bullet->is_live) continue;
+                            if (bullet->update_group != UPDATE_GROUP_BULLET) continue;
+                            bullet->s += bullet->v;
+
+                            _for_each_(other) {
+                                if (other->is_prefab) continue;
+                                if (!other->is_live) continue;
+                                if (other->update_group == UPDATE_GROUP_BULLET) continue;
+
+                                if (bullet->collidesWith(other)) {
+                                    other->frames_since_hit = 0;
+                                    ++other->damage;
+                                    if (other->max_health) {
+                                        if (other->damage >= other->max_health) other->die();
+                                    }
+                                    // TODO: shiva update
+
+                                    bullet->die();
+                                }
+                            }
                         }
                     }
                 }
-
                 { // draw
                     _for_each_(thing) {
                         vec3 color = V3(thing->color & RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
@@ -822,7 +832,6 @@ void CatGame() {
                 }
             }
         }
-
         { // editor
             if (game->mode == EDITOR) {
                 // TODO: should be able to hotload game logic
@@ -926,6 +935,8 @@ void CatGame() {
                                 gui_checkbox("is_persistent", &thing->is_persistent);
                                 gui_slider("ID", &thing->ID, 0, 16);
                                 gui_slider("update_group", &thing->update_group, 0, 16);
+                                gui_printf("---");
+                                gui_checkbox("is_platform", &thing->is_platform);
                                 gui_slider("max_health", &thing->max_health, 0, 255);
                                 gui_slider("color", &thing->color, BLACK, WHITE);
                                 { // origin type (with rect preservation)
@@ -944,7 +955,6 @@ void CatGame() {
                 }
             }
         }
-
     }
 }
 
@@ -955,6 +965,7 @@ int main() {
     config.hotkeys_app_prev = 0;
     config.tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = false;
     _cow_init();
+    config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1;
     _cow_reset();
     CatGame();
     return 0;
