@@ -25,7 +25,7 @@ LEVEL
   max_health    0
   origin_type   1
   update_group  0
-  s    13.31 -53.16
+  s    -46.48 -6.20
   size 20.00 43.31
  THING
   color         7
@@ -49,8 +49,8 @@ LEVEL
   max_health    0
   origin_type   1
   update_group  0
-  s    26.10 -4.67
-  size 20.00 43.31
+  s    17.73 -1.80
+  size 14.53 16.03
 LEVEL
  LUCY
   s -26.68 9.86
@@ -66,8 +66,8 @@ LEVEL
   max_health    0
   origin_type   1
   update_group  0
-  s    -74.12 -11.52
-  size 20.00 43.31
+  s    -72.48 -11.52
+  size 23.28 13.15
  INSTANCE 0 -25.77 4.96
  INSTANCE 0 -18.83 -7.24
  INSTANCE 0 -9.35 -15.22

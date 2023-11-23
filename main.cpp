@@ -126,28 +126,32 @@ struct Thing {
     bool is_WAD; // includes lucy and miao (so far just used in editor -- Nov 21)
 
 
-    // game flags
+    int ID; // editor_ID
+            // TODO: game_ID (unique programmatically-generated ID to let Thing's refer to Thing's that may die -- Blow)
+
+
+            // game flags
     bool is_platform;
 
 
-    void die() {
-        ASSERT(is_live);
-        if (is_persistent) {
-            is_live = false;
-        } else {
-            *this = {};
-        }
-    }
+    // ---
 
 
-    int ID;
 
 
+    void advect();
+    bool on_platform;
+
+
+
+
+
+    // FORNOW; TODO flip these?
+    int frames_since_fired;
+    int frames_since_hit;
 
     int age;
     int max_age;
-    int frames_since_fired;
-    int frames_since_hit;
     int damage;
     int max_health;
 
@@ -174,8 +178,14 @@ struct Thing {
     union { vec2 size; struct { real width, height; }; };
     int color;
 
-    bool walker;
-    bool barrier;
+
+
+    void die() {
+        ASSERT(!is_prefab);
+        ASSERT(is_live);
+        if (is_persistent) is_live = false;
+        else *this = {};
+    }
 
     vec2 getRadius() { return size / 2; }
     vec2 getCenter() { return s - cwiseProduct(ORIGIN_n[origin_type], getRadius()); }
@@ -206,7 +216,6 @@ struct Thing {
         return this->getRect().collidesWith(other->getRect());
     }
 
-    void advect();
 };
 
 // Is this a good idea? Might we want to play the logic in the editor?
@@ -218,7 +227,9 @@ struct FrameState {
     int _Integers_recovery_index;
 };
 
-struct LucyLevelState { };
+struct LucyLevelState {
+    int jump_counter;
+};
 struct MiaoLevelState { };
 struct LevelState {
     FrameState frame;
@@ -281,10 +292,8 @@ MiaoLevelState *miao_ = &level->miao_;
 //       that will probably end up being its own function
 void Thing::advect() {
     ASSERT(!is_platform);
-    if (IS_ZERO(squaredNorm(v))) return;
-
-    // TODO: for_(d, 2)
-
+    ASSERT (!IS_ZERO(squaredNorm(v)));
+    on_platform = false;
     for_(d, 2) {
         s[d] += v[d];
         _for_each_(platform) {
@@ -302,6 +311,7 @@ void Thing::advect() {
                 real sgn = SGN(v[d]);
                 s[d] -= (sgn > 0) ? A[d] : B[d];
                 s[d] -= sgn * 0.001;
+                if ((d == 1) && (sgn < 0)) on_platform = true;
             }
         }
     }
@@ -613,30 +623,42 @@ void CatGame() {
                     load_WAD();
                 } UPDATE {
                     { // lucy and miao
-                        {
-                            { // v
-
+                        { // movement 
+                            { // v.y
+                                lucy->v.y = -0.5;
+                                if (cow.key_pressed['j'] && lucy->on_platform) {
+                                    if (lucy_->jump_counter == 0) {
+                                        lucy_->jump_counter = 16;
+                                    }
+                                }
+                                if (lucy_->jump_counter != 0) {
+                                    --lucy_->jump_counter;
+                                    lucy->v.y = 0.8;
+                                }
+                            }
+                            { // v.x
                                 lucy->v.x = 0.0;
                                 real speed = 0.4;
-                                if (cow.key_held['a']) {
+                                if (cow.key_held['s']) {
                                     if (lucy->facing_right()) lucy->flip_x(true);
                                     lucy->v.x = -speed;
                                 }
-                                if (cow.key_held['d']) {
+                                if (cow.key_held['f']) {
                                     if (lucy->facing_left()) lucy->flip_x(true);
                                     lucy->v.x = speed;
                                 }
-                                lucy->v.y = -0.5;
                             }
 
                             lucy->advect();
                         }
 
+
+
                         { // fire
                             ++lucy->frames_since_fired;
                             if (cow.key_pressed['k']) lucy->frames_since_fired = 0;
 
-                            bool firing_vertically = (cow.key_held['w']);
+                            bool firing_vertically = (cow.key_held['e']);
                             int sgn = lucy->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
 
                             if (cow.key_held['k'] && IS_DIVISIBLE_BY(lucy->frames_since_fired, 12)) {
@@ -782,7 +804,6 @@ void CatGame() {
                                     if (other->max_health) {
                                         if (other->damage >= other->max_health) other->die();
                                     }
-                                    // TODO: shiva update
 
                                     bullet->die();
                                 }
@@ -818,13 +839,13 @@ void CatGame() {
                                 eso_end();
                             }
 
-                            if (thing->is_WAD) { // text
-                                if (thing->ID || thing->update_group) {
-                                    char text[16] = {};
-                                    sprintf(text, "%d (%d)", thing->ID, thing->update_group);
-                                    if (!thing->ID) text[0] = ' ';
-                                    if (!thing->update_group) text[1] = '\0';
-                                    text_draw(PV, text, thing->getCenter(), inverseColor, 12, {}, true);
+                            { // text
+                                if (thing->is_WAD) {
+                                    if (thing->ID) {
+                                        char text[16] = {};
+                                        sprintf(text, "ID: %d", thing->ID);
+                                        text_draw(PV, text, thing->getCenter(), inverseColor, 12, {}, true);
+                                    }
                                 }
                             }
 
