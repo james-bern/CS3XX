@@ -131,6 +131,7 @@ struct C2_READONLY_USER_FACING_DATA {
     bool key_pressed[512];
     bool key_held[512];
     bool key_released[512];
+    bool key_toggled[512];
     bool key_shift_held;
     bool key_control_held;
     bool key_alt_held;
@@ -1140,6 +1141,7 @@ void _input_begin_frame() {
         globals.key_pressed ['a' + i] = globals.key_pressed ['A' + i];
         globals.key_held    ['a' + i] = globals.key_held    ['A' + i];
         globals.key_released['a' + i] = globals.key_released['A' + i];
+        globals.key_toggled['a' + i]  = globals.key_toggled['A' + i];
     }
     if (globals.mouse_left_pressed) {
         if (globals._frames_since_mouse_left_pressed < 12) {
@@ -1189,6 +1191,7 @@ void _callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (action == GLFW_PRESS) {
         globals.key_pressed[key] = true;
         globals.key_held[key] = true;
+        globals.key_toggled[key] = !globals.key_toggled[key];
 
         globals.key_any_key_pressed = true;
         globals.key_last_key_pressed = key;
