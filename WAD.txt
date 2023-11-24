@@ -9,7 +9,7 @@ LEVEL
   is_live       1
   is_persistent 1
   is_platform   1
-  ID            0
+  name            0
   max_health    0
   origin_type   1
   update_group  0
@@ -21,7 +21,7 @@ LEVEL
   is_live       1
   is_persistent 1
   is_platform   1
-  ID            0
+  name            0
   max_health    0
   origin_type   1
   update_group  0
@@ -33,7 +33,7 @@ LEVEL
   is_live       1
   is_persistent 1
   is_platform   1
-  ID            0
+  name            0
   max_health    0
   origin_type   1
   update_group  0
@@ -45,7 +45,7 @@ LEVEL
   is_live       1
   is_persistent 1
   is_platform   1
-  ID            0
+  name            0
   max_health    0
   origin_type   1
   update_group  0
@@ -62,7 +62,7 @@ LEVEL
   is_live       1
   is_persistent 1
   is_platform   1
-  ID            0
+  name            0
   max_health    0
   origin_type   1
   update_group  0
@@ -83,47 +83,51 @@ LEVEL
   is_prefab     1
   is_live       1
   is_persistent 1
-  is_platform   0
-  ID            2
-  max_health    4
-  origin_type   4
+  name            2
   update_group  0
-  s    65.54 -0.80
-  size 8.52 9.12
+  is_platform   0
+  is_killer     0
+  max_health    5
+  origin_type   4
+  s    42.18 -12.64
+  size 7.53 8.76
  THING
   color         1
   is_prefab     0
   is_live       1
   is_persistent 1
+  name            1
+  update_group  0
   is_platform   0
-  ID            1
+  is_killer     0
   max_health    0
   origin_type   5
-  update_group  0
-  s    1.52 54.17
+  s    1.52 54.19
   size 53.33 26.93
  THING
   color         1
   is_prefab     1
   is_live       1
   is_persistent 0
+  name            3
+  update_group  1
   is_platform   0
-  ID            3
+  is_killer     0
   max_health    5
   origin_type   0
-  update_group  1
-  s    -47.84 61.58
-  size 19.56 8.29
+  s    -55.08 62.10
+  size 21.62 9.21
  THING
   color         0
   is_prefab     0
   is_live       0
   is_persistent 0
+  name            2
+  update_group  0
   is_platform   0
-  ID            2
+  is_killer     0
   max_health    0
   origin_type   0
-  update_group  0
   s    0.00 0.00
   size 0.00 0.00
  THING
@@ -131,11 +135,12 @@ LEVEL
   is_prefab     0
   is_live       0
   is_persistent 0
+  name            2
+  update_group  0
   is_platform   0
-  ID            2
+  is_killer     0
   max_health    0
   origin_type   0
-  update_group  0
   s    0.00 0.00
   size 0.00 0.00
  THING
@@ -143,37 +148,53 @@ LEVEL
   is_prefab     0
   is_live       1
   is_persistent 0
+  name            0
+  update_group  0
   is_platform   1
-  ID            0
+  is_killer     0
   max_health    0
   origin_type   1
-  update_group  0
-  s    0.02 0.00
+  s    0.04 -9.84
   size 31.12 6.25
  THING
   color         4
   is_prefab     0
   is_live       1
   is_persistent 0
+  name            0
+  update_group  0
   is_platform   1
-  ID            0
+  is_killer     0
   max_health    0
   origin_type   1
-  update_group  0
   s    8.96 -35.00
   size 13.47 4.92
  THING
   color         1
-  is_prefab     0
+  is_prefab     1
   is_live       1
-  is_persistent 0
-  is_platform   1
-  ID            0
-  max_health    0
-  origin_type   1
+  is_persistent 1
+  name            4
   update_group  0
-  s    -9.56 -45.05
-  size 13.47 4.92
+  is_platform   0
+  is_killer     1
+  max_health    0
+  origin_type   4
+  s    40.42 -21.79
+  size 2.48 43.84
+ THING
+  color         1
+  is_prefab     1
+  is_live       1
+  is_persistent 1
+  name            5
+  update_group  0
+  is_platform   0
+  is_killer     0
+  max_health    0
+  origin_type   5
+  s    37.38 -9.67
+  size 4.60 4.30
 LEVEL
  LUCY
   s -3.14 0.65
@@ -185,7 +206,7 @@ LEVEL
   is_live       1
   is_persistent 1
   is_platform   0
-  ID            2
+  name            2
   max_health    4
   origin_type   4
   update_group  0
@@ -197,7 +218,7 @@ LEVEL
   is_live       1
   is_persistent 0
   is_platform   1
-  ID            0
+  name            0
   max_health    0
   origin_type   1
   update_group  0
@@ -209,7 +230,7 @@ LEVEL
   is_live       1
   is_persistent 1
   is_platform   0
-  ID            1
+  name            1
   max_health    5
   origin_type   5
   update_group  0
@@ -221,7 +242,7 @@ LEVEL
   is_live       1
   is_persistent 0
   is_platform   0
-  ID            3
+  name            3
   max_health    5
   origin_type   0
   update_group  0
@@ -233,7 +254,7 @@ LEVEL
   is_live       0
   is_persistent 0
   is_platform   0
-  ID            2
+  name            2
   max_health    0
   origin_type   0
   update_group  0
@@ -245,7 +266,7 @@ LEVEL
   is_live       0
   is_persistent 0
   is_platform   0
-  ID            2
+  name            2
   max_health    0
   origin_type   0
   update_group  0
@@ -257,7 +278,7 @@ LEVEL
   is_live       1
   is_persistent 0
   is_platform   0
-  ID            6
+  name            6
   max_health    0
   origin_type   0
   update_group  1
@@ -269,7 +290,7 @@ LEVEL
   is_live       1
   is_persistent 0
   is_platform   1
-  ID            0
+  name            0
   max_health    0
   origin_type   1
   update_group  0
