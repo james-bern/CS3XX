@@ -144,7 +144,7 @@ LEVEL
   s    0.00 0.00
   size 0.00 0.00
  THING
-  color         7
+  color         1
   is_prefab     0
   is_live       1
   is_persistent 0
@@ -154,7 +154,7 @@ LEVEL
   is_killer     0
   max_health    0
   origin_type   1
-  s    0.04 -9.84
+  s    0.02 -9.84
   size 31.12 6.25
  THING
   color         4
@@ -193,8 +193,34 @@ LEVEL
   is_killer     0
   max_health    0
   origin_type   5
-  s    37.38 -9.67
-  size 4.60 4.30
+  s    42.40 -7.59
+  size 4.73 4.40
+ THING
+  color         4
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name            0
+  update_group  0
+  is_platform   1
+  is_killer     0
+  max_health    0
+  origin_type   1
+  s    -10.70 -10.47
+  size 8.95 8.59
+ THING
+  color         4
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name            0
+  update_group  0
+  is_platform   1
+  is_killer     0
+  max_health    0
+  origin_type   1
+  s    10.50 -10.82
+  size 8.95 8.59
 LEVEL
  LUCY
   s -3.14 0.65

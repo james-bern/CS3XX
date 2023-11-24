@@ -11,8 +11,8 @@
 // - cat following you
 // - no good graphics
 
-// #define COW_PATCH_FRAMERATE
-// #define COW_PATCH_FRAMERATE_SLEEP
+#define COW_PATCH_FRAMERATE
+#define COW_PATCH_FRAMERATE_SLEEP
 typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
@@ -741,6 +741,12 @@ void cat_game() {
 
                         // multiple phases
                         // like juggling
+                        // todo actually learn siteswap
+                        // todo all events must be driven off the same clock
+                        // (FORNOW: don't make them reactive--the pushing things away is fine, but may go away)
+                        // -- player shouldn't have to guess how many shots are necessary to kill something?
+                        // ! the hand can be killed by time, not by your shots (shots just delay it)
+                        // !! same with head
 
                         Thing *head = Find_Live_Thing_By_Name(1);
 
@@ -757,13 +763,13 @@ void cat_game() {
                                 if (!hand->is_live) {
                                     if (hand2->is_live) hand2->die();
 
-                                    if (numberOfFramesSinceHandKilled == 0 && numberOfHandKills > 2) {
+                                    if (numberOfFramesSinceHandKilled == 0 && numberOfHandKills >= 1) {
                                         Thing *bullet = Instantiate_Prefab(5);
                                         bullet->is_live = true;
                                         bullet->max_age = 1024;
                                         bullet->update_group = UPDATE_GROUP_BULLET;
                                         if (IS_EVEN(numberOfHandKills)) bullet->x *= -1;
-                                        bullet->v = { 0.25 * ORIGIN_n[hand->origin_type].x, 0.0 };
+                                        bullet->v = { 0.4 * ORIGIN_n[hand->origin_type].x, 0.0 };
                                         bullet->bullet_owner = BULLET_OWNER_ENEMY;
                                     }
 
@@ -795,7 +801,7 @@ void cat_game() {
                             }
 
                             { // rain
-                                if (IS_DIVISIBLE_BY(level->frame_index, 90)) {
+                                if (IS_DIVISIBLE_BY(level->frame_index, 85)) {
                                     rainCounter = (rainCounter + 1) % 4;
                                     Thing *bullet = Instantiate_Prefab(3);
                                     bullet->max_age = 512;
