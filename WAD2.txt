@@ -75,105 +75,99 @@ LEVEL
  INSTANCE 0 9.29 -29.64
 LEVEL
  LUCY
-  s -5.84 1.43
+  s -5.82 1.43
  MIAO
   s 11.11 0.44
  THING
-  color         4
   is_prefab     1
   is_live       1
   is_persistent 1
-  name            3
+  name          3
   update_group  2
-  is_platform   0
-  is_killer     0
-  takes_hits    1
-  max_age    89
+  color       4
+  layer          2
+  hits        0
+  max_age       89
   max_health    0
   origin_type   3
   s    49.42 -9.05
   v    0.00 0.00
   size 6.03 7.30
  THING
-  color         1
   is_prefab     0
   is_live       1
   is_persistent 1
-  name            1
+  name          1
   update_group  2
-  is_platform   0
-  is_killer     1
-  takes_hits    1
-  max_age    0
+  color       1
+  layer          2
+  hits        1
+  max_age       0
   max_health    0
   origin_type   5
-  s    -0.79 55.06
+  s    -0.77 55.06
   v    0.00 0.00
   size 52.13 5.50
  THING
-  color         1
   is_prefab     1
   is_live       1
   is_persistent 0
-  name            1
+  name          1
   update_group  1
-  is_platform   0
-  is_killer     1
-  takes_hits    0
-  max_age    0
+  color       1
+  layer          0
+  hits        5
+  max_age       0
   max_health    5
   origin_type   5
-  s    -9.96 52.62
+  s    -9.94 52.64
   v    0.00 -1.01
   size 16.09 7.88
  THING
-  color         7
   is_prefab     0
   is_live       1
   is_persistent 0
-  name            0
+  name          0
   update_group  0
-  is_platform   1
-  is_killer     0
-  takes_hits    0
-  max_age    0
+  color       7
+  layer          4
+  hits        0
+  max_age       0
   max_health    0
   origin_type   1
-  s    -0.02 -10.19
+  s    0.30 -11.39
   v    0.00 0.00
   size 32.77 85.33
  THING
-  color         1
   is_prefab     1
   is_live       1
   is_persistent 1
-  name            4
+  name          4
   update_group  3
-  is_platform   0
-  is_killer     1
-  takes_hits    0
-  max_age    0
+  color       1
+  layer          0
+  hits        1
+  max_age       0
   max_health    0
-  origin_type   5
-  s    71.72 -8.51
+  origin_type   4
+  s    67.87 16.55
   v    0.00 0.00
-  size 2.48 43.84
+  size 5.09 18.75
  THING
-  color         1
   is_prefab     1
   is_live       1
   is_persistent 1
-  name            2
+  name          2
   update_group  1
-  is_platform   0
-  is_killer     1
-  takes_hits    0
-  max_age    0
+  color       1
+  layer          0
+  hits        1
+  max_age       0
   max_health    0
   origin_type   3
-  s    35.24 -8.22
+  s    33.94 -8.37
   v    -1.00 0.00
-  size 4.25 3.80
+  size 3.61 3.50
 LEVEL
  LUCY
   s -5.84 1.43
@@ -187,7 +181,7 @@ LEVEL
   name            2
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    89
   max_health    0
   origin_type   4
@@ -201,7 +195,7 @@ LEVEL
   name            1
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   5
@@ -215,40 +209,12 @@ LEVEL
   name            3
   update_group  1
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    5
   origin_type   0
   s    -57.45 62.33
   size 16.83 8.75
- THING
-  color         0
-  is_prefab     0
-  is_live       0
-  is_persistent 0
-  name            2
-  update_group  0
-  is_platform   0
-  is_killer     0
-  max_age    0
-  max_health    0
-  origin_type   0
-  s    0.00 0.00
-  size 0.00 0.00
- THING
-  color         0
-  is_prefab     0
-  is_live       0
-  is_persistent 0
-  name            2
-  update_group  0
-  is_platform   0
-  is_killer     0
-  max_age    0
-  max_health    0
-  origin_type   0
-  s    0.00 0.00
-  size 0.00 0.00
  THING
   color         1
   is_prefab     0
@@ -257,7 +223,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   1
@@ -271,7 +237,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   1
@@ -285,7 +251,7 @@ LEVEL
   name            4
   update_group  0
   is_platform   0
-  is_killer     1
+  hits_actors     1
   max_age    0
   max_health    0
   origin_type   4
@@ -299,7 +265,7 @@ LEVEL
   name            5
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   5
@@ -313,7 +279,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   1
@@ -327,7 +293,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   1
@@ -346,7 +312,7 @@ LEVEL
   name            2
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_health    5
   origin_type   4
   s    42.18 -12.64
@@ -359,7 +325,7 @@ LEVEL
   name            1
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   5
   s    1.52 54.19
@@ -372,7 +338,7 @@ LEVEL
   name            3
   update_group  1
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_health    5
   origin_type   0
   s    -55.08 62.10
@@ -385,7 +351,7 @@ LEVEL
   name            2
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   0
   s    0.00 0.00
@@ -398,7 +364,7 @@ LEVEL
   name            2
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   0
   s    0.00 0.00
@@ -411,7 +377,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   1
   s    0.02 -9.84
@@ -424,7 +390,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   1
   s    8.96 -35.00
@@ -437,7 +403,7 @@ LEVEL
   name            4
   update_group  0
   is_platform   0
-  is_killer     1
+  hits_actors     1
   max_health    0
   origin_type   4
   s    40.42 -21.79
@@ -450,7 +416,7 @@ LEVEL
   name            5
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   5
   s    42.40 -7.59
@@ -463,7 +429,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   1
   s    -10.70 -10.47
@@ -476,7 +442,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_health    0
   origin_type   1
   s    10.50 -10.82
@@ -494,7 +460,7 @@ LEVEL
   name            2
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    4
   origin_type   4
@@ -509,7 +475,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   1
@@ -524,7 +490,7 @@ LEVEL
   name            1
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    5
   origin_type   5
@@ -539,7 +505,7 @@ LEVEL
   name            3
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    5
   origin_type   0
@@ -554,7 +520,7 @@ LEVEL
   name            2
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   0
@@ -569,7 +535,7 @@ LEVEL
   name            2
   update_group  0
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   0
@@ -584,7 +550,7 @@ LEVEL
   name            6
   update_group  2
   is_platform   0
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   0
@@ -599,7 +565,7 @@ LEVEL
   name            0
   update_group  0
   is_platform   1
-  is_killer     0
+  hits_actors     0
   max_age    0
   max_health    0
   origin_type   1
