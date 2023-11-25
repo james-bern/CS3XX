@@ -57,22 +57,39 @@ LEVEL
  MIAO
   s 0.00 0.00
  THING
-  color         7
   is_prefab     1
   is_live       1
   is_persistent 1
-  is_platform   1
-  name            0
+  name          0
+  update_group  0
+  color       7
+  layer          4
+  hits        0
+  max_age       0
   max_health    0
   origin_type   1
-  update_group  0
-  s    -72.48 -11.52
-  size 23.28 13.15
- INSTANCE 0 -25.77 4.96
+  s    -53.81 45.44
+  v    0.00 0.00
+  size 7.03 8.70
+ INSTANCE 0 -25.70 -0.94
  INSTANCE 0 -18.83 -7.24
- INSTANCE 0 -9.35 -15.22
- INSTANCE 0 -0.67 -22.59
- INSTANCE 0 9.29 -29.64
+ INSTANCE 0 -9.35 -14.53
+ INSTANCE 0 -0.46 -20.98
+ INSTANCE 0 8.94 -26.62
+ INSTANCE 0 -55.88 -36.79
+ INSTANCE 0 -24.91 -44.17
+ INSTANCE 0 -2.36 -49.25
+ INSTANCE 0 13.38 -53.84
+ INSTANCE 0 28.77 -46.31
+ INSTANCE 0 34.89 -40.76
+ INSTANCE 0 42.17 -34.89
+ INSTANCE 0 47.27 -29.82
+ INSTANCE 0 25.91 -21.38
+ INSTANCE 0 -44.20 -42.38
+ INSTANCE 0 -73.17 -20.10
+ INSTANCE 0 -42.32 0.28
+ INSTANCE 0 -58.72 -6.55
+ INSTANCE 0 -64.51 -28.71
 LEVEL
  LUCY
   s -5.82 1.43

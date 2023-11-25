@@ -56,10 +56,10 @@ vec2 ORIGIN_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
 #define LUCY_STATE_NOMAL 0
 
 
-#define UPDATE_GROUP_GHOST 1
+#define UPDATE_GROUP_SPEQV 1
 #define UPDATE_GROUP_SHIVA 2
 #define UPDATE_GROUP_CHILD 3
-#define UPDATE_GROUP_ADVEC 4
+#define UPDATE_GROUP_GSTEP 4
 
 
 struct MinMaxRect {
@@ -197,7 +197,7 @@ struct Thing {
 
     // ---
 
-    void advect();
+    void gstep();
     bool on_platform;
 
     #define HIT_COUNTER_COOLDOWN 16
@@ -334,7 +334,7 @@ MiaoLevelState *miao_ = &level->miao_;
 
 
 
-void Thing::advect() {
+void Thing::gstep() {
     /* ASSERT (!IS_ZERO(squaredNorm(v))); */
     on_platform = false;
     for_(d, 2) {
@@ -718,7 +718,7 @@ void cat_game() {
                                     }
                                 }
 
-                                lucy->advect();
+                                lucy->gstep();
                             }
                             { // stacking
                                 if (cow.key_pressed[' ']) {
@@ -734,7 +734,7 @@ void cat_game() {
                             { // miao
                                 if (miao->state == MIAO_STATE_NORMAL) {
                                     miao->v.y = -1.5;
-                                    miao->advect();
+                                    miao->gstep();
                                 } else if (miao->state == MIAO_STATE_STACKED) {
                                     miao->origin_type = lucy->origin_type;
                                     miao->s = lucy->s + V2(0.0, lucy->height);
@@ -758,7 +758,7 @@ void cat_game() {
                                 lucy_->frames_since_fired = 0;
                                 Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
                                 bullet->is_live = true;
-                                bullet->update_group = UPDATE_GROUP_GHOST;
+                                bullet->update_group = UPDATE_GROUP_SPEQV;
                                 bullet->s = lucy->getCenter() + ((!firing_vertically) ? V2(sgn * 3.0, 1.0) : V2(0.0, 5.0));
                                 bullet->v = (!firing_vertically) ? V2(sgn * 2.0, 0.0) : V2(0.0, 2.0);
                                 bullet->size = { 2.0, 2.0 };
@@ -773,7 +773,7 @@ void cat_game() {
                                 miao_->frames_since_fired = 0;
                                 Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
                                 bullet->is_live = true;
-                                bullet->update_group = UPDATE_GROUP_GHOST;
+                                bullet->update_group = UPDATE_GROUP_SPEQV;
                                 bullet->s = miao->getCenter() + V2(sgn * 3.0, 0.0);
                                 bullet->v = V2(sgn * 2.0, 0.0);
                                 bullet->size = { 2.0, 2.0 };
@@ -914,7 +914,7 @@ void cat_game() {
 
                             if (thing->hit_counter) --thing->hit_counter;
 
-                            if (thing->update_group == UPDATE_GROUP_GHOST) {
+                            if (thing->update_group == UPDATE_GROUP_SPEQV) {
                                 thing->s += thing->v;
                             }
                             if (thing->update_group == UPDATE_GROUP_SHIVA) {
