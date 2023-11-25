@@ -1,3 +1,5 @@
+// TODO: immortal
+
 //  vertical slice
 // - firing bullets
 // - music
@@ -12,7 +14,7 @@
 // - no good graphics
 
 #define COW_PATCH_FRAMERATE
-#define COW_PATCH_FRAMERATE_SLEEP
+// #define COW_PATCH_FRAMERATE_SLEEP
 typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
@@ -61,6 +63,8 @@ vec2 ORIGIN_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
 
 
 #define UPDATE_GROUP_BULLET 1
+#define UPDATE_GROUP_SHIVA  2
+#define UPDATE_GROUP_CHILD  3
 
 
 struct MinMaxRect {
@@ -130,7 +134,6 @@ struct Thing {
     #define BULLET_OWNER_NONE  0
     #define BULLET_OWNER_LUCY  1
     #define BULLET_OWNER_MIAO  2
-    #define BULLET_OWNER_ENEMY 3
     int bullet_owner;
 
 
@@ -148,6 +151,7 @@ struct Thing {
     // game flags
     bool is_platform;
     bool is_killer;
+    bool takes_hits;
     // TODO: (draw these different; port bullets to general-purpose killers)
     // TODO: permeable platforms
 
@@ -176,15 +180,20 @@ struct Thing {
     int origin_type;
     bool facing_right() { return ((origin_type == UPPER_RIGHT) || (origin_type == CENTER_RIGHT) || (origin_type == LOWER_RIGHT)); }
     bool facing_left() { return ((origin_type == UPPER_LEFT) || (origin_type == CENTER_LEFT) || (origin_type == LOWER_LEFT)); }
-    void flip_x(bool preserve_rect = false) {
+    void flip_origin_type_x(bool preserve_rect = false) {
         if (origin_type == UPPER_RIGHT) origin_type = UPPER_LEFT;
         else if (origin_type == CENTER_RIGHT) origin_type = CENTER_LEFT;
         else if (origin_type == LOWER_RIGHT) origin_type = LOWER_LEFT;
         else if (origin_type == LOWER_LEFT) origin_type = LOWER_RIGHT;
         else if (origin_type == CENTER_LEFT) origin_type = CENTER_RIGHT;
         else if (origin_type == UPPER_LEFT) origin_type = UPPER_RIGHT;
-        else ASSERT(0);
+        else { ; }
         if (preserve_rect) x += ORIGIN_n[origin_type].x * width;
+    }
+    void mirror_x() {
+        flip_origin_type_x();
+        x *= -1;
+        v.x *= -1;
     }
 
     void die() {
@@ -215,7 +224,7 @@ struct Thing {
             eso_begin(PV, SOUP_LINE_LOOP, 4.0, true); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
         } else {
             ASSERT(GL_PRIMITIVE == SOUP_QUADS);
-            eso_begin(PV, SOUP_QUADS); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
+            eso_begin(PV, SOUP_QUADS, 4.0); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
         }
     }
 
@@ -234,6 +243,8 @@ struct FrameState {
 
 struct LucyLevelState {
     int jump_counter;
+    int jump_released_since_last_jump;
+
     int frames_since_fired;
 };
 struct MiaoLevelState {
@@ -243,6 +254,7 @@ struct LevelState {
     FrameState frame;
 
     int frame_index;
+    real time;
 
     #define THINGS_ARRAY_LENGTH 256
     Thing things[THINGS_ARRAY_LENGTH];
@@ -253,6 +265,8 @@ struct LevelState {
     int _num_programmatic_things;
 
     int _Integers[64];
+
+    int _next_unique_ID__FORNOW_VERY_SLOPPY;
 
     Thing *_editor_mouse_currently_pressed_thing;
     Thing *editor_hot_thing;
@@ -286,7 +300,7 @@ MiaoLevelState *miao_ = &level->miao_;
 
 void Thing::advect() {
     ASSERT(!is_platform);
-    ASSERT (!IS_ZERO(squaredNorm(v)));
+    /* ASSERT (!IS_ZERO(squaredNorm(v))); */
     on_platform = false;
     for_(d, 2) {
         s[d] += v[d];
@@ -321,6 +335,7 @@ Thing *_Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE(
     Thing *result = things;
     while (_Slot_Is_Full(result)) ++result;
     *result = {};
+    result->ID = level->_next_unique_ID__FORNOW_VERY_SLOPPY++;
     return result;
 }
 Thing *Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE() {
@@ -343,14 +358,25 @@ Thing *Find_Live_Thing_By_Name(int name) {
     }
     return NULL;
 }
+// ^ TODO: unify v
+Thing *Find_Live_Thing_By_ID(int ID) {
+    _for_each_(thing) {
+        if (!thing->is_live) continue;
+        if (thing->ID == ID) {
+            return thing;
+        }
+    }
+    return NULL;
+}
 //
 void _Instantiate_Prefab_Helper(Thing *slot, int name) {
     _for_each_(prefab) {
         if (!prefab->is_prefab) continue;
         if (prefab->name == name) {
             *slot = *prefab;
-            slot->is_prefab = 0; // FORNOW
-            slot->name = 0;        // FORNOW
+            slot->is_prefab = 0;
+            slot->name = 0; // TODO
+            slot->ID = ++level->_next_unique_ID__FORNOW_VERY_SLOPPY;
             return;
         }
     }
@@ -417,9 +443,12 @@ void save_WAD() {
                                     fprintf(destination, "  update_group  %d\n", thing->update_group);
                                     fprintf(destination, "  is_platform   %d\n", thing->is_platform);
                                     fprintf(destination, "  is_killer     %d\n", thing->is_killer);
+                                    fprintf(destination, "  takes_hits    %d\n", thing->takes_hits);
+                                    fprintf(destination, "  max_age    %d\n", thing->max_age);
                                     fprintf(destination, "  max_health    %d\n", thing->max_health);
                                     fprintf(destination, "  origin_type   %d\n", thing->origin_type);
                                     fprintf(destination, "  s    %.2lf %.2lf\n", thing->s[0], thing->s[1]);
+                                    fprintf(destination, "  v    %.2lf %.2lf\n", thing->v[0], thing->v[1]);
                                     fprintf(destination, "  size %.2lf %.2lf\n", thing->size[0], thing->size[1]);
                                 } else if ((pass == 1) && (thing->is_instance)) {
                                     fprintf(destination, " INSTANCE %d %.2lf %.2lf\n", thing->name, thing->x, thing->y);
@@ -494,12 +523,18 @@ void load_WAD() {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_platform = tmp;
                     } else if (poe_matches_prefix(line, "is_killer ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_killer = tmp;
+                    } else if (poe_matches_prefix(line, "takes_hits ")) {
+                        int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->takes_hits = tmp;
+                    } else if (poe_matches_prefix(line, "max_age ")) {
+                        sscanf(line, "%s %d", prefix, &thing->max_age);
                     } else if (poe_matches_prefix(line, "max_health ")) {
                         sscanf(line, "%s %d", prefix, &thing->max_health);
                     } else if (poe_matches_prefix(line, "origin_type ")) {
                         sscanf(line, "%s %d", prefix, &thing->origin_type);
                     } else if (poe_matches_prefix(line, "s ")) {
                         sscanf(line, "%s %lf %lf", prefix, &thing->s.x, &thing->s.y);
+                    } else if (poe_matches_prefix(line, "v ")) {
+                        sscanf(line, "%s %lf %lf", prefix, &thing->v.x, &thing->v.y);
                     } else if (poe_matches_prefix(line, "size ")) {
                         sscanf(line, "%s %lf %lf", prefix, &thing->size.x, &thing->size.y);
                     } else if (poe_matches_prefix(line, "color ")) {
@@ -538,6 +573,7 @@ void cat_game() {
                 // FORNOW
                 if ((game->mode == GAME) && !game->reseting_level && (!game->paused || cow.key_pressed['.'])) { // FORNOW
                     ++level->frame_index;
+                    level->time += 1.0 / 60.0;
                 }
 
                 game->reseting_level = false;
@@ -601,6 +637,7 @@ void cat_game() {
                         lucy->origin_type = LOWER_RIGHT;
                         lucy->is_WAD = true;
                         lucy->max_health = 1;
+                        lucy->takes_hits = true;
 
                         miao->is_persistent = true;
                         miao->is_live = true;
@@ -609,34 +646,42 @@ void cat_game() {
                         miao->origin_type = LOWER_RIGHT;
                         miao->is_WAD = true;
                         miao->max_health = 1;
+                        miao->takes_hits = true;
                     }
 
                     load_WAD();
                 } UPDATE {
-                    { // lucy and miao
+                    { // lucy & miao
                         { // movement 
                             { // lucy
                                 { // v.y
-                                    lucy->v.y = -0.5;
+                                    lucy->v.y = -1.5;
                                     if (cow.key_pressed['j'] && lucy->on_platform) {
+                                        lucy_->jump_released_since_last_jump = false;
                                         if (lucy_->jump_counter == 0) {
                                             lucy_->jump_counter = 16;
                                         }
                                     }
+                                    if (cow.key_released['j']) lucy_->jump_released_since_last_jump = true;
                                     if (lucy_->jump_counter != 0) {
                                         --lucy_->jump_counter;
-                                        lucy->v.y = 0.8;
+                                        if (lucy_->jump_counter > 6) {
+                                            lucy->v.y = 1.0;
+                                        } else {
+                                            if (lucy_->jump_released_since_last_jump) lucy_->jump_counter = 0;
+                                            lucy->v.y = 0.0;
+                                        }
                                     }
                                 }
                                 { // v.x
                                     lucy->v.x = 0.0;
-                                    real speed = 0.4;
+                                    real speed = 0.8; // TODO: rescale everything so hoodie's speed is 1?
                                     if (cow.key_held['s']) {
-                                        if (lucy->facing_right()) lucy->flip_x(true);
+                                        if (lucy->facing_right()) lucy->flip_origin_type_x(true);
                                         lucy->v.x = -speed;
                                     }
                                     if (cow.key_held['f']) {
-                                        if (lucy->facing_left()) lucy->flip_x(true);
+                                        if (lucy->facing_left()) lucy->flip_origin_type_x(true);
                                         lucy->v.x = speed;
                                     }
                                 }
@@ -656,7 +701,7 @@ void cat_game() {
                             }
                             { // miao
                                 if (miao->state == MIAO_STATE_NORMAL) {
-                                    miao->v.y = -0.5;
+                                    miao->v.y = -1.5;
                                     miao->advect();
                                 } else if (miao->state == MIAO_STATE_STACKED) {
                                     miao->origin_type = lucy->origin_type;
@@ -671,7 +716,7 @@ void cat_game() {
                             ++miao_->frames_since_fired;
 
 
-                            if ((cow.key_held['k'] || cow.key_toggled[';']) && IS_DIVISIBLE_BY(lucy_->frames_since_fired, 12)) {
+                            if ((cow.key_held['k'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(lucy_->frames_since_fired, 12)) {
                                 bool firing_vertically = (cow.key_held['e']);
                                 int sgn = lucy->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
 
@@ -679,28 +724,28 @@ void cat_game() {
                                 lucy_->frames_since_fired = 0;
                                 Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
                                 bullet->is_live = true;
-                                bullet->max_age = 128;
                                 bullet->update_group = UPDATE_GROUP_BULLET;
                                 bullet->s = lucy->getCenter() + ((!firing_vertically) ? V2(sgn * 3.0, 1.0) : V2(0.0, 5.0));
-                                bullet->v = (!firing_vertically) ? V2(sgn * 1.0, 0.0) : V2(0.0, 1.0);
+                                bullet->v = (!firing_vertically) ? V2(sgn * 2.0, 0.0) : V2(0.0, 2.0);
                                 bullet->color = RED;
                                 bullet->size = { 2.0, 2.0 };
                                 bullet->bullet_owner = BULLET_OWNER_LUCY;
+                                bullet->is_killer = true;
                             }
-                            if ((cow.key_held['l'] || cow.key_toggled[';']) && IS_DIVISIBLE_BY(miao_->frames_since_fired, 12)) {
+                            if ((cow.key_held['l'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(miao_->frames_since_fired, 12)) {
                                 int sgn = miao->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
 
                                 // TODO: make miao bullet a super prefab
                                 miao_->frames_since_fired = 0;
                                 Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
                                 bullet->is_live = true;
-                                bullet->max_age = 128;
                                 bullet->update_group = UPDATE_GROUP_BULLET;
                                 bullet->s = miao->getCenter() + V2(sgn * 3.0, 0.0);
-                                bullet->v = V2(sgn * 1.0, 0.0);
+                                bullet->v = V2(sgn * 2.0, 0.0);
                                 bullet->color = BLUE;
                                 bullet->size = { 2.0, 2.0 };
                                 bullet->bullet_owner = BULLET_OWNER_MIAO;
+                                bullet->is_killer = true;
                             }
                         }
                     }
@@ -736,8 +781,15 @@ void cat_game() {
                     } LEVEL { // PLAYGROUND
                     } LEVEL { // SHIVA
 
-                        // TODO: telegraph where things will spawn?
-                        // TODO: both hands coming from sides
+                        // NOTE: there may be a cool editor that looks kinda like sheet music
+                        // our current level would look something like this
+                        // 0  1  2  3  4  5  6  7
+                        // 1     1    X1    X1
+                        //          2          X2
+
+                        // LATER: telegraph where things will spawn?
+                        // LATER: draw a metronome
+                        // LATER: both hands coming from sides
 
                         // multiple phases
                         // like juggling
@@ -748,71 +800,77 @@ void cat_game() {
                         // ! the hand can be killed by time, not by your shots (shots just delay it)
                         // !! same with head
 
-                        Thing *head = Find_Live_Thing_By_Name(1);
+                        // XXX: damage -> age
+                        // XXX: timing off of level->frame_index
+                        // XXX: better way of creating things with logic (update group actually seems good)
+                        // XXX: handle bullet age as just getting far away
+                        // XXX: any way of handling child objects
 
-                        Thing *hand = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE();
-                        Thing *hand2 = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE();
-                        int &numberOfHandKills             = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
-                        int &numberOfFramesSinceHandKilled = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
-                        int &rainCounter = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
+
+                        /* Thing *hand = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE(); */
+                        /* Thing *hand2 = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE(); */
+                        /* int &numberOfHandKills             = Integer__MUST_BE_SAME_ORDER_EVERY_TIME(); */
+                        /* int &numberOfFramesSinceHandKilled = Integer__MUST_BE_SAME_ORDER_EVERY_TIME(); */
+                        // FORNOW: 4-4 time
+                        // https://soundcloud.com/soulon10/deep-beats-1-jungle-and-footwork-mix-2023-edition-160-bpm
+                        // LATER: redo with real's
+
+                        // LATER: lucy and miao should fire at the rate of the music
+
+                        Thing *head = Find_Live_Thing_By_Name(1);
+                        // TODO: how to keep the head from flying up forever?
+                        // (has to be fixgured out; but doesn't really impact gameplay)
+
+
+
+                        int bpm = 160;
+                        int frames_per_beat = (3600 / bpm);
+                        int beats_per_measure = 8;
+                        bool is_beat = false;
+                        int &_num_beats_played = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
+                        int starting_beat_index = 1;
+
+                        // TODO: get is_killer, is_platform, takes_hits worked out
+                        // (intimately tied to collision, at least eventually)
+                        // these things may become a bit field
+
 
                         RESET {
                         } WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(!head) {
                         } UPDATE {
-                            { // hand
-                                if (!hand->is_live) {
-                                    if (hand2->is_live) hand2->die();
-
-                                    if (numberOfFramesSinceHandKilled == 0 && numberOfHandKills >= 1) {
-                                        Thing *bullet = Instantiate_Prefab(5);
-                                        bullet->is_live = true;
-                                        bullet->max_age = 1024;
-                                        bullet->update_group = UPDATE_GROUP_BULLET;
-                                        if (IS_EVEN(numberOfHandKills)) bullet->x *= -1;
-                                        bullet->v = { 0.4 * ORIGIN_n[hand->origin_type].x, 0.0 };
-                                        bullet->bullet_owner = BULLET_OWNER_ENEMY;
-                                    }
-
-                                    ++numberOfFramesSinceHandKilled;
-                                    if (numberOfFramesSinceHandKilled > 60) {
-                                        numberOfFramesSinceHandKilled = 0;
-
-                                        Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(hand, 2);
-                                        Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(hand2, 4);
-                                        if (IS_ODD(numberOfHandKills++)) {
-                                            hand->x *= -1;
-                                            hand->flip_x();
-                                            hand2->x *= -1;
-                                            hand2->flip_x();
-                                        }
-                                    }
-                                } else {
-                                    vec2 ds = 0.3 * normalized(lucy->s - hand->s);
-                                    if (hand->hit_counter) ds *= 2.0 * (0.5 - NUM_DEN(hand->hit_counter, HIT_COUNTER_COOLDOWN));
-                                    hand->s += ds;
-                                    hand2->s += ds;
-                                }
-                                // if (hand->frames_since_hit < 8) hand->x += 0.1;
-                                // hand->SHIVA_UPDATE();
+                            if (IS_DIVISIBLE_BY(level->frame_index, frames_per_beat)) {
+                                is_beat = true;
+                                if (level->frame_index) ++_num_beats_played;
                             }
+                            int beat_index = (starting_beat_index + _num_beats_played) % beats_per_measure;
 
-                            { // head
-                              // head->SHIVA_UPDATE();
-                            }
 
-                            { // rain
-                                if (IS_DIVISIBLE_BY(level->frame_index, 85)) {
-                                    rainCounter = (rainCounter + 1) % 4;
-                                    Thing *bullet = Instantiate_Prefab(3);
-                                    bullet->max_age = 512;
-                                    bullet->x = ((rainCounter < 2) ? -1 : 1) * 6.0;
-                                    bullet->v = { 0.0, -0.6 };
-                                    bullet->bullet_owner = BULLET_OWNER_ENEMY;
+
+
+                            if (is_beat) {
+                                if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
+                                    Thing *raindrop = Instantiate_Prefab(1);
+                                    if (beat_index == 4 || beat_index == 6) raindrop->mirror_x();
                                 }
+                                if (beat_index == 3 || beat_index == 7) {
+                                    Thing *fireball = Instantiate_Prefab(2);
+                                    if (beat_index == 7) fireball->mirror_x();
+                                }
+                                if (beat_index == 1 || beat_index == 5) {
+                                    Thing *hand_blue = Instantiate_Prefab(3);
+                                    hand_blue->max_age = 3 * frames_per_beat;
+                                    if (beat_index == 5) hand_blue->mirror_x();
+
+                                    Thing *hand_red = Instantiate_Prefab(4);
+                                    hand_red->parent_ID = hand_blue->ID;
+
+
+                                }
+
+                                // TODO: Instantiate_Prefab(3)->transform({});
                             }
                         }
-                    }
-                    LEVEL { // KITCHEN SINK
+                    } LEVEL { // KITCHEN SINK
                         Thing *hand = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE();
                         Thing *head = Find_Live_Thing_By_Name(1);
                         int &numberOfHandKills             = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
@@ -836,7 +894,7 @@ void cat_game() {
                                         Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(hand, 2);
                                         if (IS_ODD(numberOfHandKills++)) {
                                             hand->x *= -1;
-                                            hand->flip_x();
+                                            hand->flip_origin_type_x();
                                         }
                                     }
                                 } else {
@@ -863,7 +921,7 @@ void cat_game() {
 
                             _for_each_(thing) {
                                 if (!thing->is_live) continue;
-                                if (thing->update_group == 1) {
+                                if (thing->update_group == 2) {
                                     thing->s += 0.1 * normalized(miao->s - thing->s);
                                 }
                             }
@@ -877,49 +935,75 @@ void cat_game() {
             }
             { // common update & draw
                 { // common
-                    _for_each_(thing) {
-                        if (thing->is_prefab) continue;
-                        if (!thing->is_live) continue;
-
-                        if (thing->hit_counter) --thing->hit_counter;
-                    }
-                }
-                { // killers things that kill (happens after all movement)
                     RESET {} UPDATE {
-                        // old age
-                        _for_each_(thing) { // FORNOW: includes lucy and miao
+                        _for_each_(thing) {
                             if (thing->is_prefab) continue;
                             if (!thing->is_live) continue;
 
+                            if (thing->hit_counter) --thing->hit_counter;
+
+                            if (thing->update_group == UPDATE_GROUP_BULLET) {
+                                thing->s += thing->v;
+                            }
+                            if (thing->update_group == UPDATE_GROUP_SHIVA) {
+                                thing->s += LINEAR_REMAP(thing->hit_counter, HIT_COUNTER_COOLDOWN, 0, -2.0, 1.0) * ORIGIN_n[thing->origin_type];
+                            }
+                            if (thing->update_group == UPDATE_GROUP_CHILD) {
+                                Thing *parent = Find_Live_Thing_By_ID(thing->parent_ID);
+                                if (!parent) {
+                                    thing->die();
+                                } else {
+                                    thing->s = parent->s;
+                                }
+                            }
+                        }
+                    }
+                }
+                { // ways to die killers things that kill (happens after all movement)
+                    RESET {} UPDATE {
+                        // old age
+                        _for_each_(thing) { // FORNOW: includes lucy & miao
+                            if (thing->is_prefab) continue;
+                            if (!thing->is_live) continue;
+
+                            // max_age
                             if ((thing->max_age) && (thing->age++ > thing->max_age)) {
                                 thing->die();
                             }
+
+                            // max_distance
+                            if (norm(thing->s - lucy->s) > 1024.0) {
+                                do_once printf("[max-distance]");
+                                thing->die();
+                            }
+
                         }
-                        // bullet collision
-                        _for_each_(bullet) {
-                            if (bullet->is_prefab) continue;
-                            if (!bullet->is_live) continue;
-                            if (bullet->update_group != UPDATE_GROUP_BULLET) continue;
-                            bullet->s += bullet->v;
+
+                        // TODO: split notion of killing with being a bullet !! (order matters)
+                        _for_each_(killer) {
+                            if (killer->is_prefab) continue;
+                            if (!killer->is_live) continue;
+                            if (!killer->is_killer) continue;
+
 
                             _for_each_(other) {
                                 if (other->is_prefab) continue;
                                 if (!other->is_live) continue;
                                 if (other->update_group == UPDATE_GROUP_BULLET) continue;
                                 //
-                                if (!(bullet->color & other->color)) continue;
-                                if ((bullet->bullet_owner == BULLET_OWNER_LUCY) && (other == lucy)) continue;
-                                if ((bullet->bullet_owner == BULLET_OWNER_MIAO) && (other == miao)) continue;
-                                if ((bullet->bullet_owner == BULLET_OWNER_ENEMY) && ((other != lucy) && (other != miao) && (!other->is_platform))) continue; // FORNOW
+                                if (!(killer->color & other->color)) continue;
+                                if ((killer->bullet_owner == BULLET_OWNER_LUCY) && (other == lucy)) continue;
+                                if ((killer->bullet_owner == BULLET_OWNER_MIAO) && (other == miao)) continue;
+                                if ((killer->bullet_owner == BULLET_OWNER_NONE) && ((other != lucy) && (other != miao) && (!other->is_platform))) continue; // FORNOW
 
-                                if (bullet->collidesWith(other)) {
+                                if (killer->collidesWith(other)) {
                                     other->hit_counter = HIT_COUNTER_COOLDOWN;
                                     ++other->damage;
                                     if (other->max_health) {
                                         if (other->damage >= other->max_health) other->die();
                                     }
 
-                                    bullet->die();
+                                    killer->die();
                                 }
                             }
                         }
@@ -933,9 +1017,10 @@ void cat_game() {
                             if (thing->is_prefab) continue;
                             if (!thing->is_live) continue;
 
-                            thing->soup_draw(PV, SOUP_QUADS, color);
+                            thing->soup_draw(PV, SOUP_QUADS, (thing->is_platform || thing->takes_hits) ? color : monokai.black);
+                            if (thing->is_killer) thing->soup_draw(PV, SOUP_LINE_LOOP, color);
                         } else if (game->mode == EDITOR) {
-                            if (!thing->is_prefab && !thing->is_live && !thing->is_persistent && !thing->is_WAD) continue;
+                            if (!_Slot_Is_Full(thing)) continue;
 
                             vec3 inverseColor = V3(1.0) - color;
                             real alpha = (!thing->is_WAD) ? 0.6 : 1.0;
@@ -1092,10 +1177,12 @@ void cat_game() {
                                 gui_checkbox("is_live", &thing->is_live);
                                 gui_checkbox("is_persistent", &thing->is_persistent);
                                 gui_slider("name", &thing->name, 0, 16);
-                                gui_slider("update_group", &thing->update_group, 0, 16);
+                                gui_slider("update_group", &thing->update_group, 0, 5);
                                 gui_printf("---");
                                 gui_checkbox("is_platform", &thing->is_platform);
                                 gui_checkbox("is_killer", &thing->is_killer);
+                                gui_checkbox("takes_hits", &thing->takes_hits);
+                                gui_slider("max_age", &thing->max_age, 0, 511);
                                 gui_slider("max_health", &thing->max_health, 0, 255);
                                 gui_slider("color", &thing->color, BLACK, WHITE);
                                 { // origin_type (with rect preservation)
@@ -1104,6 +1191,10 @@ void cat_game() {
                                     if (tmp != thing->origin_type) {
                                         thing->s += cwiseProduct(ORIGIN_n[thing->origin_type] - ORIGIN_n[tmp], thing->getRadius());
                                     }
+                                }
+                                {
+                                    gui_slider("v.x", &thing->v.x, -2.0, 2.0);
+                                    gui_slider("v.y", &thing->v.y, -2.0, 2.0);
                                 }
                             } else if (thing->is_instance) {
                                 gui_readout("is_instance", &thing->is_instance);
