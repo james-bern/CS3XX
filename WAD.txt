@@ -159,7 +159,7 @@ LEVEL
   update_group  2
   color       4
   layer          2
-  hits        0
+  hits        1
   max_age       89
   max_health    0
   origin_type   3
@@ -203,14 +203,14 @@ LEVEL
   name          0
   update_group  0
   color       1
-  layer          4
-  hits        0
+  layer          0
+  hits        1
   max_age       0
   max_health    0
   origin_type   1
-  s    0.32 -11.46
+  s    3.22 -58.35
   v    0.00 0.00
-  size 32.77 85.33
+  size 234.00 40.56
  THING
   is_prefab     1
   is_live       1
@@ -271,6 +271,21 @@ LEVEL
   s    -13.04 -11.92
   v    0.00 0.00
   size 9.10 60.05
+ THING
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name          0
+  update_group  0
+  color       1
+  layer          4
+  hits        0
+  max_age       0
+  max_health    0
+  origin_type   1
+  s    0.57 -11.45
+  v    0.00 0.00
+  size 32.77 85.33
 LEVEL
  LUCY
   s -5.84 1.43

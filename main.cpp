@@ -888,7 +888,7 @@ void cat_game() {
                                     if (beat_index == 1 || beat_index == 5) {
                                         sound_play_sound("codebase/sound.wav");
                                         Thing *hand_blue = Instantiate_Prefab(3);
-                                        hand_blue->max_age = 3 * frames_per_beat;
+                                        hand_blue->max_age = 4 * frames_per_beat;
                                         if (beat_index == 5) hand_blue->mirror_x();
 
                                         Thing *hand_red = Instantiate_Prefab(4);
