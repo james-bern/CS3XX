@@ -883,7 +883,7 @@ void cat_game() {
                                 if (level->frame_index) ++_num_beats_played;
                             }
                             int beat_index = (starting_beat_index + _num_beats_played) % beats_per_measure;
-                            int _beat_index_no_mod = 100;//starting_beat_index + _num_beats_played;
+                            /* int _beat_index_no_mod = 100;//starting_beat_index + _num_beats_played; */
 
 
                             if (is_beat) {
@@ -924,6 +924,8 @@ void cat_game() {
                     { // update
                         _for_each_(thing) {
                             if (!thing->is_live_non_prefab()) continue;
+
+                            ++thing->age;
 
                             if (thing->hit_counter) --thing->hit_counter;
 
@@ -992,23 +994,29 @@ void cat_game() {
 
                 { // draw
                     _for_each_(thing) {
-                        vec3 color = V3((thing->color & RED) / RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
+                        vec3 trueColor = V3((thing->color & RED) / RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
+                        vec3 inverseColor = V3(1.0) - trueColor;
 
                         if (game->mode == GAME) {
                             if (!thing->is_live_non_prefab()) continue;
 
-                            thing->soup_draw(PV, SOUP_QUADS,
+                            real f = CLAMP(INVERSE_LERP(thing->age, 0, 12), 0, 1.0);
+                            vec3 color = LERP(f, inverseColor, trueColor);
+                            mat4 T = M4_Translation(thing->getCenter());
+                            mat4 T_inv = M4_Translation(-thing->getCenter());
+                            mat4 S = M4_Scaling(LERP(f, 1.1, 1.0));
+                            mat4 PVM = PV * T * S * T_inv;
+                            thing->soup_draw(PVM, SOUP_QUADS,
                                     (thing->layer & PHYSICAL) ? ((thing->layer & PLATFORM) ? 0.6 : 1.0) * color :
                                     (thing->hits & HERO) ? monokai.black : monokai.gray);
-                            if (thing->hits & PHYSICAL) thing->soup_draw(PV, SOUP_LINE_LOOP, color);
+                            if (thing->hits & PHYSICAL) thing->soup_draw(PVM, SOUP_LINE_LOOP, color);
                         } else if (game->mode == EDITOR) {
                             thing->soup_draw(PV, SOUP_QUADS, monokai.white);
                             if (!_Slot_Is_Full(thing)) continue;
 
-                            vec3 inverseColor = V3(1.0) - color;
                             real alpha = (!thing->_is_WAD) ? 0.6 : 1.0;
 
-                            thing->soup_draw(PV, SOUP_QUADS, color, alpha);
+                            thing->soup_draw(PV, SOUP_QUADS, trueColor, alpha);
 
                             if (thing->is_prefab) { // X
                                 eso_begin(PV, SOUP_LINES, 6.0);
