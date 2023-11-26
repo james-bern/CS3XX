@@ -743,13 +743,14 @@ void cat_game() {
                             }
                         }
                         { // fire
-                            ++lucy_->frames_since_fired;
-                            ++miao_->frames_since_fired;
 
 
-                            int FIRE_COOLDOWN = int(3600.0 / 160 / 2);
+                            int FIRE_COOLDOWN = int(3600.0 / 160 / 1);
                             // lucy fire
+                            if (!cow.key_toggled['k'] && cow.key_pressed['k']) lucy_->frames_since_fired = 0;
+                            if (!cow.key_toggled['l'] && cow.key_pressed['l']) miao_->frames_since_fired = 0;
                             if ((cow.key_held['k'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(lucy_->frames_since_fired, FIRE_COOLDOWN)) {
+                                sound_play_sound("short.wav");
                                 bool firing_vertically = (cow.key_held['e']);
                                 int sgn = lucy->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
 
@@ -779,6 +780,8 @@ void cat_game() {
                                 bullet->color = BLUE;
                                 bullet->hits = ENEMY | PLATFORM;
                             }
+                            ++lucy_->frames_since_fired;
+                            ++miao_->frames_since_fired;
                         }
                     }
                 }
@@ -885,7 +888,7 @@ void cat_game() {
 
                             if (is_beat) {
                                 if (beat_index == 1 || beat_index == 5) {
-                                    sound_play_sound("codebase/sound.wav");
+                                    sound_play_sound("kick.wav");
                                     Thing *hand_blue = Instantiate_Prefab(3);
                                     hand_blue->max_age = 4.5 * frames_per_beat;
                                     if (beat_index == 5) hand_blue->mirror_x();
@@ -896,7 +899,7 @@ void cat_game() {
                                     // TODOLATER: Instantiate_Prefab(3)->variant({});
                                 }
                                 if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
-                                    sound_play_sound("codebase/sound.wav");
+                                    sound_play_sound("hat.wav");
                                     Thing *raindrop = Instantiate_Prefab(1);
                                     if (beat_index == 4 || beat_index == 6) raindrop->mirror_x();
                                     Thing *fireball = Instantiate_Prefab(2);
@@ -972,6 +975,7 @@ void cat_game() {
                                     if (!(hitter->color & target->color)) continue;
 
                                     if (hitter->collidesWith(target)) {
+                                        sound_play_sound("hit.wav");
                                         target->hit_counter = HIT_COUNTER_COOLDOWN;
                                         ++target->damage;
                                         if (target->max_health) {
