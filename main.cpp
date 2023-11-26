@@ -884,37 +884,29 @@ void cat_game() {
 
 
                             if (is_beat) {
-                                if (_beat_index_no_mod >= 0) {
-                                    if (beat_index == 1 || beat_index == 5) {
-                                        sound_play_sound("codebase/sound.wav");
-                                        Thing *hand_blue = Instantiate_Prefab(3);
-                                        hand_blue->max_age = 4 * frames_per_beat;
-                                        if (beat_index == 5) hand_blue->mirror_x();
+                                if (beat_index == 1 || beat_index == 5) {
+                                    sound_play_sound("codebase/sound.wav");
+                                    Thing *hand_blue = Instantiate_Prefab(3);
+                                    hand_blue->max_age = 4.5 * frames_per_beat;
+                                    if (beat_index == 5) hand_blue->mirror_x();
 
-                                        Thing *hand_red = Instantiate_Prefab(4);
-                                        hand_red->parent_ID = hand_blue->ID; // TODOLATER: this will happen in the editor
-                                        if (beat_index == 5) hand_red->mirror_x();
-                                        // TODOLATER: Instantiate_Prefab(3)->variant({});
-                                    }
+                                    Thing *hand_red = Instantiate_Prefab(4);
+                                    hand_red->parent_ID = hand_blue->ID; // TODOLATER: this will happen in the editor
+                                    if (beat_index == 5) hand_red->mirror_x();
+                                    // TODOLATER: Instantiate_Prefab(3)->variant({});
                                 }
-
-                                if (_beat_index_no_mod >= 8) {
-                                    if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
-                                        sound_play_sound("codebase/sound.wav");
-                                        Thing *raindrop = Instantiate_Prefab(1);
-                                        if (beat_index == 4 || beat_index == 6) raindrop->mirror_x();
-                                        Thing *fireball = Instantiate_Prefab(2);
-                                        if (beat_index == 4 || beat_index == 6) fireball->mirror_x();
-                                    }
+                                if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
+                                    sound_play_sound("codebase/sound.wav");
+                                    Thing *raindrop = Instantiate_Prefab(1);
+                                    if (beat_index == 4 || beat_index == 6) raindrop->mirror_x();
+                                    Thing *fireball = Instantiate_Prefab(2);
+                                    if (beat_index == 4 || beat_index == 6) fireball->mirror_x();
                                 }
-
-                                if (_beat_index_no_mod >= 16) {
-                                    if (beat_index == 2 || beat_index == 6) {
-                                        /* sound_play_sound("codebase/sound.wav"); */
-                                        /* Thing *fireball = Instantiate_Prefab(2); */
-                                        /* if (beat_index == 6) fireball->mirror_x(); */
-                                    }
-                                }
+                            }
+                            if (beat_index == 2 || beat_index == 6) {
+                                /* sound_play_sound("codebase/sound.wav"); */
+                                /* Thing *fireball = Instantiate_Prefab(2); */
+                                /* if (beat_index == 6) fireball->mirror_x(); */
                             }
                         }
                     } LEVEL {
