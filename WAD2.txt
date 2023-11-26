@@ -53,9 +53,9 @@ LEVEL
   size 14.53 16.03
 LEVEL
  LUCY
-  s -26.68 9.86
+  s -0.47 -3.68
  MIAO
-  s 0.00 0.00
+  s 8.53 -1.54
  THING
   is_prefab     1
   is_live       1
@@ -71,15 +71,71 @@ LEVEL
   s    -53.81 45.44
   v    0.00 0.00
   size 7.03 8.70
+ THING
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name          0
+  update_group  0
+  color       4
+  layer          4
+  hits        0
+  max_age       0
+  max_health    0
+  origin_type   1
+  s    7.83 -18.25
+  v    0.00 0.00
+  size 9.41 59.10
+ THING
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name          0
+  update_group  0
+  color       5
+  layer          4
+  hits        0
+  max_age       0
+  max_health    0
+  origin_type   1
+  s    -6.95 -43.37
+  v    0.00 0.00
+  size 15.13 46.87
+ THING
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name          0
+  update_group  0
+  color       1
+  layer          4
+  hits        0
+  max_age       0
+  max_health    0
+  origin_type   1
+  s    -1.21 -22.78
+  v    0.00 0.00
+  size 6.44 7.01
+ THING
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name          0
+  update_group  0
+  color       5
+  layer          4
+  hits        0
+  max_age       0
+  max_health    0
+  origin_type   1
+  s    18.65 -41.71
+  v    0.00 0.00
+  size 9.41 59.10
  INSTANCE 0 -25.70 -0.94
  INSTANCE 0 -18.83 -7.24
  INSTANCE 0 -9.35 -14.53
- INSTANCE 0 -0.46 -20.98
- INSTANCE 0 8.94 -26.62
  INSTANCE 0 -55.88 -36.79
  INSTANCE 0 -24.91 -44.17
- INSTANCE 0 -2.36 -49.25
- INSTANCE 0 13.38 -53.84
  INSTANCE 0 28.77 -46.31
  INSTANCE 0 34.89 -40.76
  INSTANCE 0 42.17 -34.89
@@ -92,9 +148,9 @@ LEVEL
  INSTANCE 0 -64.51 -28.71
 LEVEL
  LUCY
-  s -5.82 1.43
+  s -9.10 -3.01
  MIAO
-  s 11.11 0.44
+  s 14.84 -8.11
  THING
   is_prefab     1
   is_live       1
@@ -107,9 +163,9 @@ LEVEL
   max_age       89
   max_health    0
   origin_type   3
-  s    49.42 -9.05
-  v    0.00 0.00
-  size 6.03 7.30
+  s    51.31 -8.44
+  v    -0.53 0.00
+  size 5.54 6.92
  THING
   is_prefab     0
   is_live       1
@@ -122,9 +178,9 @@ LEVEL
   max_age       0
   max_health    0
   origin_type   5
-  s    -0.77 55.06
-  v    0.00 0.00
-  size 52.13 5.50
+  s    -0.40 53.16
+  v    0.00 -1.01
+  size 52.81 50.89
  THING
   is_prefab     1
   is_live       1
@@ -137,22 +193,22 @@ LEVEL
   max_age       0
   max_health    5
   origin_type   5
-  s    -9.94 52.64
+  s    -8.37 52.71
   v    0.00 -1.01
-  size 16.09 7.88
+  size 18.97 4.99
  THING
   is_prefab     0
   is_live       1
   is_persistent 0
   name          0
   update_group  0
-  color       7
+  color       1
   layer          4
   hits        0
   max_age       0
   max_health    0
   origin_type   1
-  s    0.30 -11.39
+  s    0.32 -11.46
   v    0.00 0.00
   size 32.77 85.33
  THING
@@ -182,9 +238,39 @@ LEVEL
   max_age       0
   max_health    0
   origin_type   3
-  s    33.94 -8.37
+  s    56.11 -9.59
   v    -1.00 0.00
-  size 3.61 3.50
+  size 4.23 4.00
+ THING
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name          0
+  update_group  0
+  color       5
+  layer          4
+  hits        0
+  max_age       0
+  max_health    0
+  origin_type   1
+  s    13.88 -11.70
+  v    0.00 0.00
+  size 8.62 53.95
+ THING
+  is_prefab     0
+  is_live       1
+  is_persistent 0
+  name          0
+  update_group  0
+  color       5
+  layer          4
+  hits        0
+  max_age       0
+  max_health    0
+  origin_type   1
+  s    -13.04 -11.92
+  v    0.00 0.00
+  size 9.10 60.05
 LEVEL
  LUCY
   s -5.84 1.43

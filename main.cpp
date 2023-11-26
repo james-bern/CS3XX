@@ -59,7 +59,7 @@ vec2 ORIGIN_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
 #define UPDATE_GROUP_SPEQV 1
 #define UPDATE_GROUP_SHIVA 2
 #define UPDATE_GROUP_CHILD 3
-#define UPDATE_GROUP_GSTEP 4
+#define UPDATE_GROUP_ASTEP 4
 
 
 struct MinMaxRect {
@@ -182,10 +182,6 @@ struct Thing {
     // hits = PLATFORM | ACTOR
 
 
-    // TODO: split for ease of typing
-    // u64 color;
-    // u64 layer;
-    // u64 hits;
 
 
     // TODO: how to gui expose a bitfield
@@ -197,7 +193,7 @@ struct Thing {
 
     // ---
 
-    void gstep();
+    void astep();
     bool on_platform;
 
     #define HIT_COUNTER_COOLDOWN 16
@@ -257,10 +253,10 @@ struct Thing {
     void soup_draw(mat4 PV, int GL_PRIMITIVE, vec3 drawColor, real drawAlpha = 1.0)  {
         MinMaxRect rect = getRect();
         if (GL_PRIMITIVE == SOUP_LINE_LOOP) {
-            eso_begin(PV, SOUP_LINE_LOOP, 4.0, true); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
+            eso_begin(PV, SOUP_LINE_LOOP, 8.0, true); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
         } else {
             ASSERT(GL_PRIMITIVE == SOUP_QUADS);
-            eso_begin(PV, SOUP_QUADS, 4.0); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
+            eso_begin(PV, SOUP_QUADS); eso_color(drawColor, drawAlpha); rect.eso(); eso_end();
         }
     }
 
@@ -275,6 +271,7 @@ struct Thing {
 struct FrameState {
     int _programmatic_things_recovery_index;
     int _Integers_recovery_index;
+    int _Reals_recovery_index;
 };
 
 struct LucyLevelState {
@@ -301,6 +298,7 @@ struct LevelState {
     int _num_programmatic_things;
 
     int _Integers[64];
+    real _Reals[64];
 
     int _next_unique_ID__FORNOW_VERY_SLOPPY;
 
@@ -334,14 +332,16 @@ MiaoLevelState *miao_ = &level->miao_;
 
 
 
-void Thing::gstep() {
+void Thing::astep() {
     /* ASSERT (!IS_ZERO(squaredNorm(v))); */
+    ASSERT(this->layer & ACTOR);
     on_platform = false;
     for_(d, 2) {
         s[d] += v[d];
         _for_each_(platform) {
             if (!platform->is_live) continue;
             if (!(platform->layer & PLATFORM)) continue;
+            if (!(this->color & platform->color)) continue;
 
             // ? something like this (jank)
             // ***T <--A-- P******P --B--> T***
@@ -428,9 +428,8 @@ void Instantiate_Prefab_Into_Persistent_Slot__MAY_SET_PERSISTENT_TO_FALSE(Thing 
     _Instantiate_Prefab_Helper(slot, name);
 }
 //
-int &Integer__MUST_BE_SAME_ORDER_EVERY_TIME() {
-    return level->_Integers[frame->_Integers_recovery_index++];
-}
+int &Integer__MUST_BE_SAME_ORDER_EVERY_TIME() { return level->_Integers[frame->_Integers_recovery_index++]; }
+real &Real__MUST_BE_SAME_ORDER_EVERY_TIME() { return level->_Reals[frame->_Reals_recovery_index++]; }
 
 
 
@@ -718,7 +717,7 @@ void cat_game() {
                                     }
                                 }
 
-                                lucy->gstep();
+                                lucy->astep();
                             }
                             { // stacking
                                 if (cow.key_pressed[' ']) {
@@ -734,7 +733,7 @@ void cat_game() {
                             { // miao
                                 if (miao->state == MIAO_STATE_NORMAL) {
                                     miao->v.y = -1.5;
-                                    miao->gstep();
+                                    miao->astep();
                                 } else if (miao->state == MIAO_STATE_STACKED) {
                                     miao->origin_type = lucy->origin_type;
                                     miao->s = lucy->s + V2(0.0, lucy->height);
@@ -850,6 +849,7 @@ void cat_game() {
                         // LATER: lucy and miao should fire at the rate of the music
 
                         Thing *head = Find_Live_Thing_By_Name(1);
+                        double &head_y0 = Real__MUST_BE_SAME_ORDER_EVERY_TIME();
                         // TODO: how to keep the head from flying up forever?
                         // (has to be fixgured out; but doesn't really impact gameplay)
 
@@ -859,8 +859,8 @@ void cat_game() {
                         int frames_per_beat = (3600 / bpm);
                         int beats_per_measure = 8;
                         bool is_beat = false;
-                        int &_num_beats_played = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
                         int starting_beat_index = 1;
+                        int &_num_beats_played = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
 
                         // TODO: get hits_actors, is_platform, is_actor worked out
                         // (intimately tied to collision, at least eventually)
@@ -868,35 +868,53 @@ void cat_game() {
 
 
                         RESET {
+                            head_y0 = head->y;
                         } WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(!head) {
                         } UPDATE {
+
+                            head->y = MIN(head->y, head_y0);
+
+
                             if (IS_DIVISIBLE_BY(level->frame_index, frames_per_beat)) {
                                 is_beat = true;
                                 if (level->frame_index) ++_num_beats_played;
                             }
                             int beat_index = (starting_beat_index + _num_beats_played) % beats_per_measure;
+                            int _beat_index_no_mod = 100;//starting_beat_index + _num_beats_played;
 
 
                             if (is_beat) {
-                                if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
-                                    Thing *raindrop = Instantiate_Prefab(1);
-                                    if (beat_index == 4 || beat_index == 6) raindrop->mirror_x();
-                                }
-                                if (beat_index == 3 || beat_index == 7) {
-                                    Thing *fireball = Instantiate_Prefab(2);
-                                    if (beat_index == 7) fireball->mirror_x();
-                                }
-                                if (beat_index == 1 || beat_index == 5) {
-                                    Thing *hand_blue = Instantiate_Prefab(3);
-                                    hand_blue->max_age = 3 * frames_per_beat;
-                                    if (beat_index == 5) hand_blue->mirror_x();
+                                if (_beat_index_no_mod >= 0) {
+                                    if (beat_index == 1 || beat_index == 5) {
+                                        sound_play_sound("codebase/sound.wav");
+                                        Thing *hand_blue = Instantiate_Prefab(3);
+                                        hand_blue->max_age = 3 * frames_per_beat;
+                                        if (beat_index == 5) hand_blue->mirror_x();
 
-                                    Thing *hand_red = Instantiate_Prefab(4);
-                                    hand_red->parent_ID = hand_blue->ID;
-                                    if (beat_index == 5) hand_red->mirror_x();
+                                        Thing *hand_red = Instantiate_Prefab(4);
+                                        hand_red->parent_ID = hand_blue->ID; // TODOLATER: this will happen in the editor
+                                        if (beat_index == 5) hand_red->mirror_x();
+                                        // TODOLATER: Instantiate_Prefab(3)->variant({});
+                                    }
                                 }
 
-                                // TODO: Instantiate_Prefab(3)->transform({});
+                                if (_beat_index_no_mod >= 8) {
+                                    if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
+                                        sound_play_sound("codebase/sound.wav");
+                                        Thing *raindrop = Instantiate_Prefab(1);
+                                        if (beat_index == 4 || beat_index == 6) raindrop->mirror_x();
+                                        Thing *fireball = Instantiate_Prefab(2);
+                                        if (beat_index == 4 || beat_index == 6) fireball->mirror_x();
+                                    }
+                                }
+
+                                if (_beat_index_no_mod >= 16) {
+                                    if (beat_index == 2 || beat_index == 6) {
+                                        /* sound_play_sound("codebase/sound.wav"); */
+                                        /* Thing *fireball = Instantiate_Prefab(2); */
+                                        /* if (beat_index == 6) fireball->mirror_x(); */
+                                    }
+                                }
                             }
                         }
                     } LEVEL {
@@ -918,7 +936,7 @@ void cat_game() {
                                 thing->s += thing->v;
                             }
                             if (thing->update_group == UPDATE_GROUP_SHIVA) {
-                                thing->s += LINEAR_REMAP(thing->hit_counter, HIT_COUNTER_COOLDOWN, 0, -2.0, 1.0) * ORIGIN_n[thing->origin_type];
+                                thing->s += LINEAR_REMAP(thing->hit_counter, HIT_COUNTER_COOLDOWN, 0, -2.0, 1.0) * thing->v;
                             }
                             if (thing->update_group == UPDATE_GROUP_CHILD) {
                                 Thing *parent = Find_Live_Thing_By_ID(thing->parent_ID);
@@ -983,7 +1001,9 @@ void cat_game() {
                         if (game->mode == GAME) {
                             if (!thing->is_live_non_prefab()) continue;
 
-                            thing->soup_draw(PV, SOUP_QUADS, (thing->layer & PHYSICAL) ? color : monokai.black);
+                            thing->soup_draw(PV, SOUP_QUADS,
+                                    (thing->layer & PHYSICAL) ? ((thing->layer & PLATFORM) ? 0.6 : 1.0) * color :
+                                    (thing->hits & HERO) ? monokai.black : monokai.gray);
                             if (thing->hits & PHYSICAL) thing->soup_draw(PV, SOUP_LINE_LOOP, color);
                         } else if (game->mode == EDITOR) {
                             thing->soup_draw(PV, SOUP_QUADS, monokai.white);
