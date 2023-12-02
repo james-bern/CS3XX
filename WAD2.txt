@@ -313,7 +313,7 @@ LEVEL
   max_age       0
   max_health    0
   origin_type   1
-  s    -44.63 -27.72
+  s    -37.25 -32.96
   v    0.00 0.00
   size 30.42 88.14
  THING

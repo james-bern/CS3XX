@@ -13,6 +13,8 @@
 // - cat following you
 // - no good graphics
 
+#include "omp.h"
+
 #define COW_PATCH_FRAMERATE
 // #define COW_PATCH_FRAMERATE_SLEEP
 typedef double real;
@@ -1233,6 +1235,8 @@ void cat_game() {
 }
 
 
+
+#include <random>
 
 int main() {
     config.hotkeys_app_next = 0;
