@@ -152,316 +152,266 @@ LEVEL
  MIAO
   s 14.86 -10.22
  THING
-  is_prefab     1
-  is_live       1
-  is_persistent 0
-  name          3
-  update_group  2
-  color       4
-  layer          2
-  hits        0
-  max_age       89
-  max_health    0
-  origin_type   3
-  s    51.28 -8.42
-  v    -0.77 0.00
-  size 5.54 6.92
+  is_prefab           1
+  is_live             1
+  is_persistent       0
+  name                3
+  update_group        2
+  color               4
+  layer               2
+  hits                0
+  max_age             89
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         3
+  s                   61.95 -8.42
+  v                   -0.77 0.00
+  size                5.54 6.92
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 1
-  name          1
-  update_group  2
-  color       1
-  layer          2
-  hits        1
-  max_age       0
-  max_health    0
-  origin_type   5
-  s    4.61 56.47
-  v    0.00 -1.01
-  size 52.81 50.89
+  is_prefab           0
+  is_live             1
+  is_persistent       1
+  name                1
+  update_group        2
+  color               1
+  layer               2
+  hits                1
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         5
+  s                   4.61 56.47
+  v                   0.00 -1.01
+  size                52.81 50.89
  THING
-  is_prefab     1
-  is_live       1
-  is_persistent 0
-  name          1
-  update_group  1
-  color       1
-  layer          0
-  hits        5
-  max_age       0
-  max_health    5
-  origin_type   5
-  s    -9.92 54.21
-  v    0.00 -1.01
-  size 15.87 5.07
+  is_prefab           1
+  is_live             1
+  is_persistent       0
+  name                1
+  update_group        1
+  color               1
+  layer               0
+  hits                5
+  max_age             0
+  max_health          5
+  is_kamikazee_hitter 1
+  origin_type         5
+  s                   -9.92 54.21
+  v                   0.00 -1.01
+  size                15.87 5.07
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name          0
-  update_group  0
-  color       1
-  layer          0
-  hits        1
-  max_age       0
-  max_health    0
-  origin_type   1
-  s    3.22 -58.35
-  v    0.00 0.00
-  size 234.00 40.56
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               1
+  layer               0
+  hits                1
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   3.22 -58.35
+  v                   0.00 0.00
+  size                234.00 40.56
  THING
-  is_prefab     1
-  is_live       1
-  is_persistent 0
-  name          4
-  update_group  3
-  color       1
-  layer          0
-  hits        1
-  max_age       0
-  max_health    0
-  origin_type   4
-  s    68.14 15.66
-  v    0.00 0.00
-  size 5.09 18.75
+  is_prefab           1
+  is_live             1
+  is_persistent       0
+  name                4
+  update_group        3
+  color               1
+  layer               0
+  hits                1
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         4
+  s                   68.14 15.66
+  v                   0.00 0.00
+  size                5.09 18.75
  THING
-  is_prefab     1
-  is_live       1
-  is_persistent 0
-  name          2
-  update_group  1
-  color       1
-  layer          0
-  hits        1
-  max_age       0
-  max_health    0
-  origin_type   3
-  s    56.11 -9.57
-  v    -1.00 0.00
-  size 4.23 4.00
+  is_prefab           1
+  is_live             1
+  is_persistent       0
+  name                2
+  update_group        1
+  color               1
+  layer               0
+  hits                1
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 1
+  origin_type         3
+  s                   56.11 -9.57
+  v                   -1.00 0.00
+  size                4.23 4.00
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name          0
-  update_group  0
-  color       5
-  layer          4
-  hits        0
-  max_age       0
-  max_health    0
-  origin_type   1
-  s    13.86 -11.70
-  v    0.00 0.00
-  size 8.62 53.95
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               5
+  layer               4
+  hits                0
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   13.86 -11.70
+  v                   0.00 0.00
+  size                8.62 53.95
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name          0
-  update_group  0
-  color       5
-  layer          4
-  hits        0
-  max_age       0
-  max_health    0
-  origin_type   1
-  s    -13.04 -11.92
-  v    0.00 0.00
-  size 9.10 60.05
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               5
+  layer               4
+  hits                0
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   -13.04 -11.92
+  v                   0.00 0.00
+  size                9.10 60.05
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name          0
-  update_group  0
-  color       1
-  layer          4
-  hits        0
-  max_age       0
-  max_health    0
-  origin_type   1
-  s    43.72 -42.07
-  v    0.00 0.00
-  size 30.42 88.14
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               1
+  layer               4
+  hits                0
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   43.72 -42.07
+  v                   0.00 0.00
+  size                30.42 88.14
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name          0
-  update_group  0
-  color       1
-  layer          4
-  hits        0
-  max_age       0
-  max_health    0
-  origin_type   1
-  s    0.58 -10.94
-  v    0.00 0.00
-  size 32.77 85.33
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               1
+  layer               4
+  hits                0
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   0.58 -10.94
+  v                   0.00 0.00
+  size                32.77 85.33
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name          0
-  update_group  0
-  color       1
-  layer          4
-  hits        0
-  max_age       0
-  max_health    0
-  origin_type   1
-  s    -37.25 -32.96
-  v    0.00 0.00
-  size 30.42 88.14
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               1
+  layer               4
+  hits                0
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   -37.25 -32.96
+  v                   0.00 0.00
+  size                30.42 88.14
  THING
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name          0
-  update_group  0
-  color       1
-  layer          4
-  hits        0
-  max_age       0
-  max_health    0
-  origin_type   1
-  s    -72.12 -42.19
-  v    0.00 0.00
-  size 30.42 88.14
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               1
+  layer               4
+  hits                0
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   -72.12 -42.19
+  v                   0.00 0.00
+  size                30.42 88.14
 LEVEL
  LUCY
-  s -5.84 1.43
+  s 0.00 0.00
  MIAO
-  s 11.11 0.44
+  s 0.00 0.00
  THING
-  color         4
-  is_prefab     1
-  is_live       1
-  is_persistent 1
-  name            2
-  update_group  0
-  is_platform   0
-  hits_actors     0
-  max_age    89
-  max_health    0
-  origin_type   4
-  s    43.46 -12.64
-  size 6.23 8.45
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        1
+  color               5
+  layer               0
+  hits                1
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         0
+  s                   55.11 3.73
+  v                   -0.51 0.00
+  size                52.26 4.27
  THING
-  color         1
-  is_prefab     0
-  is_live       1
-  is_persistent 1
-  name            1
-  update_group  0
-  is_platform   0
-  hits_actors     0
-  max_age    0
-  max_health    0
-  origin_type   5
-  s    1.52 54.19
-  size 53.33 26.93
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        1
+  color               4
+  layer               0
+  hits                1
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         0
+  s                   35.38 -35.38
+  v                   0.02 0.51
+  size                30.50 4.77
  THING
-  color         1
-  is_prefab     1
-  is_live       1
-  is_persistent 0
-  name            3
-  update_group  1
-  is_platform   0
-  hits_actors     0
-  max_age    0
-  max_health    5
-  origin_type   0
-  s    -57.45 62.33
-  size 16.83 8.75
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        1
+  color               1
+  layer               0
+  hits                1
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         0
+  s                   4.00 -31.88
+  v                   0.02 0.51
+  size                22.22 3.81
  THING
-  color         1
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name            0
-  update_group  0
-  is_platform   1
-  hits_actors     0
-  max_age    0
-  max_health    0
-  origin_type   1
-  s    0.02 -9.84
-  size 31.12 6.25
- THING
-  color         4
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name            0
-  update_group  0
-  is_platform   1
-  hits_actors     0
-  max_age    0
-  max_health    0
-  origin_type   1
-  s    8.96 -35.00
-  size 13.47 4.92
- THING
-  color         1
-  is_prefab     1
-  is_live       1
-  is_persistent 1
-  name            4
-  update_group  0
-  is_platform   0
-  hits_actors     1
-  max_age    0
-  max_health    0
-  origin_type   4
-  s    40.42 -21.77
-  size 2.48 43.84
- THING
-  color         1
-  is_prefab     1
-  is_live       1
-  is_persistent 1
-  name            5
-  update_group  0
-  is_platform   0
-  hits_actors     0
-  max_age    0
-  max_health    0
-  origin_type   5
-  s    34.55 -7.54
-  size 5.04 4.05
- THING
-  color         4
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name            0
-  update_group  0
-  is_platform   1
-  hits_actors     0
-  max_age    0
-  max_health    0
-  origin_type   1
-  s    -10.70 -10.47
-  size 8.95 8.59
- THING
-  color         4
-  is_prefab     0
-  is_live       1
-  is_persistent 0
-  name            0
-  update_group  0
-  is_platform   1
-  hits_actors     0
-  max_age    0
-  max_health    0
-  origin_type   1
-  s    10.50 -10.82
-  size 8.95 8.59
+  is_prefab           0
+  is_live             1
+  is_persistent       0
+  name                0
+  update_group        0
+  color               1
+  layer               4
+  hits                0
+  max_age             0
+  max_health          0
+  is_kamikazee_hitter 0
+  origin_type         1
+  s                   0.00 0.00
+  v                   0.00 0.00
+  size                7.29 80.89
 LEVEL
  LUCY
   s -5.84 1.43

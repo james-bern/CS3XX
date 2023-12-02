@@ -119,7 +119,7 @@ struct CW_USER_FACING_CONFIG {
     int hotkeys_app_menu = '=';
     int hotkeys_gui_hide = '-';
 
-    int tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1; // set to 2 to make gui elements bigger (automatically done if macbook retina detected)
+    real tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1; // set to 2 to make gui elements bigger (automatically done if macbook retina detected)
 
     bool tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = true;
     bool tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter = false;

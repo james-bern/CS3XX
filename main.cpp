@@ -13,16 +13,17 @@
 // - cat following you
 // - no good graphics
 
-#include "omp.h"
-
 #define COW_PATCH_FRAMERATE
 // #define COW_PATCH_FRAMERATE_SLEEP
 typedef double real;
 #define GL_REAL GL_DOUBLE
 #define JIM_IS_JIM
+#define COW_NO_SOUND
 #include "include.cpp"
 #define cow globals // FORNOW
 typedef unsigned long long int u64;
+#define MIAO_CLAMPED_LERP(f, F, a, b) LERP(CLAMP(NUM_DEN(f, F), 0, 1), a, b)
+
 
 Camera2D camera = { 128.0 }; // FORNOW
 bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
@@ -54,8 +55,11 @@ vec2 ORIGIN_n[]={{0,0},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1},{1,0},{1,1}};
 
 #define MIAO_STATE_NORMAL 0
 #define MIAO_STATE_STACKED 1
+#define MIAO_STATE_YOSHI 2
 
-#define LUCY_STATE_NOMAL 0
+#define LUCY_STATE_NORMAL 0
+#define LUCY_STATE_JUMP  1
+#define LUCY_STATE_YOSHI 2
 
 
 /* #define UPDATE_GROUP_NONE  0 */
@@ -127,7 +131,7 @@ void gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO(char *bitfield_name, char **bit_n
             sprintf(buffer, "%s %s", bitfield_name, bit_names[i]);
             gui_checkbox(buffer, &tmp[i]);
             *bitfield &= ~(1LL << i);
-            if (tmp[i]) *bitfield |= (1 << i);
+            if (tmp[i]) *bitfield |= (1LL << i);
         } else {
             *bitfield &= ~(1LL << i);
         }
@@ -167,6 +171,9 @@ struct Thing {
     bool is_live_non_prefab() { return is_live && !is_prefab; } // FORNOW
 
 
+    // FORNOW
+    int state;
+    int _state_counter;
 
 
     // // this let's you find a thing by its never-changing name
@@ -206,6 +213,7 @@ struct Thing {
     int max_age;
     int damage;
     int max_health;
+    bool is_kamikazee_hitter;
 
     union { vec2 s;    struct { real x,     y;      }; };
     vec2 v;
@@ -280,16 +288,11 @@ struct FrameState {
 };
 
 struct LucyLevelState {
-    int jump_counter;
-    int jump_released_since_last_jump;
-
     int frames_since_fired;
 
-    int state;
 };
 struct MiaoLevelState {
     int frames_since_fired;
-    int state;
 };
 struct LevelState {
     FrameState frame;
@@ -489,20 +492,21 @@ void save_WAD() {
                                 if (thing == miao) continue;
                                 if ((pass == 0) && (!thing->is_instance)) {
                                     fprintf(destination, " THING\n");
-                                    fprintf(destination, "  is_prefab     %d\n", thing->is_prefab);
-                                    fprintf(destination, "  is_live       %d\n", thing->is_live);
-                                    fprintf(destination, "  is_persistent %d\n", thing->is_persistent);
-                                    fprintf(destination, "  name          %d\n", thing->name);
-                                    fprintf(destination, "  update_group  %d\n", thing->update_group);
-                                    fprintf(destination, "  color       %lld\n", thing->color);
-                                    fprintf(destination, "  layer          %lld\n", thing->layer);
-                                    fprintf(destination, "  hits        %lld\n", thing->hits);
-                                    fprintf(destination, "  max_age       %d\n", thing->max_age);
-                                    fprintf(destination, "  max_health    %d\n", thing->max_health);
-                                    fprintf(destination, "  origin_type   %d\n", thing->origin_type);
-                                    fprintf(destination, "  s    %.2lf %.2lf\n", thing->s[0], thing->s[1]);
-                                    fprintf(destination, "  v    %.2lf %.2lf\n", thing->v[0], thing->v[1]);
-                                    fprintf(destination, "  size %.2lf %.2lf\n", thing->size[0], thing->size[1]);
+                                    fprintf(destination, "  is_prefab           %d\n", thing->is_prefab);
+                                    fprintf(destination, "  is_live             %d\n", thing->is_live);
+                                    fprintf(destination, "  is_persistent       %d\n", thing->is_persistent);
+                                    fprintf(destination, "  name                %d\n", thing->name);
+                                    fprintf(destination, "  update_group        %d\n", thing->update_group);
+                                    fprintf(destination, "  color               %lld\n", thing->color);
+                                    fprintf(destination, "  layer               %lld\n", thing->layer);
+                                    fprintf(destination, "  hits                %lld\n", thing->hits);
+                                    fprintf(destination, "  max_age             %d\n", thing->max_age);
+                                    fprintf(destination, "  max_health          %d\n", thing->max_health);
+                                    fprintf(destination, "  is_kamikazee_hitter %d\n", thing->is_kamikazee_hitter);
+                                    fprintf(destination, "  origin_type         %d\n", thing->origin_type);
+                                    fprintf(destination, "  s                   %.2lf %.2lf\n", thing->s[0], thing->s[1]);
+                                    fprintf(destination, "  v                   %.2lf %.2lf\n", thing->v[0], thing->v[1]);
+                                    fprintf(destination, "  size                %.2lf %.2lf\n", thing->size[0], thing->size[1]);
                                 } else if ((pass == 1) && (thing->is_instance)) {
                                     fprintf(destination, " INSTANCE %d %.2lf %.2lf\n", thing->name, thing->x, thing->y);
                                 }
@@ -562,7 +566,7 @@ void load_WAD() {
                         thing->y = y;
                     }
                 } else { // NOT used for instance
-                         // NOTE: we want "s " instead of "s" or else it will also match "size 5.0 10.0"
+                    // NOTE: we want "s " instead of "s" or else it will also match "size 5.0 10.0"
                     if (poe_matches_prefix(line, "is_prefab ")) {
                         int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_prefab = tmp;
                     } else if (poe_matches_prefix(line, "is_live ")) {
@@ -583,6 +587,8 @@ void load_WAD() {
                         sscanf(line, "%s %d", prefix, &thing->max_age);
                     } else if (poe_matches_prefix(line, "max_health ")) {
                         sscanf(line, "%s %d", prefix, &thing->max_health);
+                    } else if (poe_matches_prefix(line, "is_kamikazee_hitter ")) {
+                        int tmp; sscanf(line, "%s %d", prefix, &tmp); thing->is_kamikazee_hitter = tmp;
                     } else if (poe_matches_prefix(line, "origin_type ")) {
                         sscanf(line, "%s %d", prefix, &thing->origin_type);
                     } else if (poe_matches_prefix(line, "s ")) {
@@ -605,7 +611,7 @@ void load_WAD() {
 
 void cat_game() {
     bool _request_reset = true;
-    game->level_index = 2;
+    game->level_index = 3;
     window_set_clear_color(0.1, 0.1, 0.1);
     while (cow_begin_frame()) {
         camera_move(&camera);
@@ -705,56 +711,72 @@ void cat_game() {
                     if (lucy->is_live) { // lucy & miao
                         { // movement 
                             { // lucy
-                                { // v.y
-                                    lucy->v.y = -1.5;
-                                    if (cow.key_pressed['j'] && lucy->on_platform) {
-                                        lucy_->jump_released_since_last_jump = false;
-                                        if (lucy_->jump_counter == 0) {
-                                            lucy_->jump_counter = 16;
-                                        }
-                                    }
-                                    if (cow.key_released['j']) lucy_->jump_released_since_last_jump = true;
-                                    if (lucy_->jump_counter != 0) {
-                                        --lucy_->jump_counter;
-                                        if (lucy_->jump_counter > 6) {
-                                            lucy->v.y = 1.0;
-                                        } else {
-                                            if (lucy_->jump_released_since_last_jump) lucy_->jump_counter = 0;
-                                            lucy->v.y = 0.0;
-                                        }
-                                    }
-                                }
-                                { // v.x
+
+                                { // default movement
                                     lucy->v.x = 0.0;
-                                    real speed = 0.8; // TODO: rescale everything so hoodie's speed layer 1?
                                     if (cow.key_held['s']) {
+                                        lucy->v.x = -0.7;
                                         if (lucy->facing_right()) lucy->flip_origin_type_x(true);
-                                        lucy->v.x = -speed;
                                     }
                                     if (cow.key_held['f']) {
+                                        lucy->v.x = 0.7;
                                         if (lucy->facing_left()) lucy->flip_origin_type_x(true);
-                                        lucy->v.x = speed;
                                     }
                                 }
 
-                                lucy->astep();
+
+                                if (lucy->state == LUCY_STATE_NORMAL) {
+                                    lucy->v.y -= 0.3;
+                                    lucy->v.y = MAX(lucy->v.y, -1.8);
+
+                                    lucy->astep();
+
+                                    if (cow.key_pressed['j'] && lucy->on_platform) {
+                                        lucy->state = LUCY_STATE_JUMP; lucy->_state_counter = 0;
+                                    }
+
+                                    if ((!lucy->on_platform) && (miao->state == MIAO_STATE_STACKED) && (cow.key_pressed['j'])) {
+                                        lucy->state = LUCY_STATE_YOSHI; lucy->_state_counter = 0;
+                                        miao->state = MIAO_STATE_NORMAL;
+                                        miao->v.y = 1.5;
+                                    }
+                                } else if (lucy->state == LUCY_STATE_JUMP) {
+                                    lucy->v.y = 0.5 * MIAO_CLAMPED_LERP(lucy->_state_counter - 3, 10, 3, 0);
+
+                                    lucy->astep();
+
+                                    if ((!cow.key_held['j'] && lucy->_state_counter > 6) || (lucy->_state_counter == 20)) {
+                                        lucy->state = LUCY_STATE_NORMAL; lucy->_state_counter = 0;
+                                    }
+                                } else if (lucy->state == LUCY_STATE_YOSHI) {
+                                    // lucy->v.x *= 2.0;
+                                    lucy->v.y = MIAO_CLAMPED_LERP(lucy->_state_counter, 10, 7, 1) * .375;
+                                    
+                                    lucy->astep();
+
+                                    if ((!cow.key_held['j'] && lucy->_state_counter > 10) || (lucy->_state_counter == 20)) {
+                                        lucy->state = LUCY_STATE_NORMAL; lucy->_state_counter = 0;
+                                    }
+                                }
+
                             }
                             { // stacking
                                 if (cow.key_pressed[' ']) {
-                                    if ((miao_->state == MIAO_STATE_NORMAL) && (lucy->collidesWith(miao))) {
-                                        miao_->state = MIAO_STATE_STACKED;
+                                    if ((miao->state == MIAO_STATE_NORMAL) && (lucy->collidesWith(miao))) {
+                                        miao->state = MIAO_STATE_STACKED;
                                         // TODO: frames_since_last_state_transition
                                         // miao->state_transition()
-                                    } else if (miao_->state == MIAO_STATE_STACKED) {
-                                        miao_->state = MIAO_STATE_NORMAL;
+                                    } else if (miao->state == MIAO_STATE_STACKED) {
+                                        miao->state = MIAO_STATE_NORMAL;
                                     }
                                 }
                             }
                             { // miao
-                                if (miao_->state == MIAO_STATE_NORMAL) {
-                                    miao->v.y = -1.5;
+                                if (miao->state == MIAO_STATE_NORMAL) {
+                                    miao->v.y -= 0.3;
+                                    miao->v.y = MAX(miao->v.y, -1.8);
                                     miao->astep();
-                                } else if (miao_->state == MIAO_STATE_STACKED) {
+                                } else if (miao->state == MIAO_STATE_STACKED) {
                                     miao->origin_type = lucy->origin_type;
                                     miao->s = lucy->s + V2(0.0, lucy->height);
                                 } else {
@@ -782,6 +804,7 @@ void cat_game() {
                                 bullet->size = { 2.0, 2.0 };
                                 bullet->color = RED;
                                 bullet->hits = ENEMY | PLATFORM;
+                                bullet->is_kamikazee_hitter = true;
                             }
                             // miao fire
                             if ((cow.key_held['l'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(miao_->frames_since_fired, FIRE_COOLDOWN)) {
@@ -797,6 +820,7 @@ void cat_game() {
                                 bullet->size = { 2.0, 2.0 };
                                 bullet->color = BLUE;
                                 bullet->hits = ENEMY | PLATFORM;
+                                bullet->is_kamikazee_hitter = true;
                             }
                             ++lucy_->frames_since_fired;
                             ++miao_->frames_since_fired;
@@ -805,10 +829,10 @@ void cat_game() {
                             if (!miao->is_live) {
                                 miao->is_live = true;
                                 miao->s = lucy->s + V2(0.0, 6.0);
-                                if (miao_->state != MIAO_STATE_STACKED) {
-                                    miao_->state = MIAO_STATE_STACKED;
+                                if (miao->state != MIAO_STATE_STACKED) {
+                                    miao->state = MIAO_STATE_STACKED;
                                 } else {
-                                    miao_->state = MIAO_STATE_NORMAL;
+                                    miao->state = MIAO_STATE_NORMAL;
                                 }
                             }
                         }
@@ -818,22 +842,21 @@ void cat_game() {
             { // level-specific reset & update
                 int _level_index = 0;
                 { // level-specific Thing's and updates
-                  // - before adding more features, we need more levels to motivate what we're doing
-                  // - editor feature that layer still missing layer the ability to copy and paste live prefabs into the level
-                  //   bool is_instance
-                  //   (very plausible you might want a bunch of shallow copies of the exact same thing)
-                  //   ((but do we actually have a use case?)
+                    // - before adding more features, we need more levels to motivate what we're doing
+                    // - editor feature that layer still missing layer the ability to copy and paste live prefabs into the level
+                    //   bool is_instance
+                    //   (very plausible you might want a bunch of shallow copies of the exact same thing)
+                    //   ((but do we actually have a use case?)
 
 
                     if (0) {} LEVEL { // LEVEL 0
-                                      // TODO: special level with all the different kinds of everything (like blow did for sokoban)
-                                      // TODO: will this involve prefabs in some way?
-                                      // TODO: you will want to have some hotkey combo that
-                                      // "elevates" a prefab out of a level-specific prefab to 
-                                      // one that can be used on any level
+                        // TODO: special level with all the different kinds of everything (like blow did for sokoban)
+                        // TODO: will this involve prefabs in some way?
+                        // TODO: you will want to have some hotkey combo that
+                        // "elevates" a prefab out of a level-specific prefab to 
+                        // one that can be used on any level
                     } LEVEL { // PLAYGROUND
                     } LEVEL { // SHIVA
-
                         // NOTE: there may be a cool editor that looks kinda like sheet music
                         // our current level would look something like this
                         // 0  1  2  3  4  5  6  7
@@ -891,9 +914,7 @@ void cat_game() {
 
                         RESET {
                             head_y0 = head->y;
-                        } WIN_CONDITION__FORNOW_NOT_REALLY_A_CASE(!head) {
                         } UPDATE {
-
                             head->y = MIN(head->y, head_y0);
 
 
@@ -931,7 +952,11 @@ void cat_game() {
                                 /* if (beat_index == 6) fireball->mirror_x(); */
                             }
                         }
-                    } LEVEL {
+                    } LEVEL { // YOSHI
+                        RESET {
+                            miao->state = MIAO_STATE_STACKED;
+                        } UPDATE {
+                        }
                     } LEVEL {
                     } LEVEL {
                     }
@@ -939,14 +964,14 @@ void cat_game() {
             }
 
             { // common update death & draw
-              // TODO: children should die same frame as parents (clean up pass)
+                // TODO: children should die same frame as parents (clean up pass)
                 RESET {} UPDATE {
                     { // update
                         _for_each_(thing) {
                             if (!thing->is_live_non_prefab()) continue;
 
                             ++thing->age;
-
+                            ++thing->_state_counter;
                             if (thing->hit_counter) --thing->hit_counter;
 
                             if (thing->update_group == UPDATE_GROUP_SPEQV) {
@@ -1010,7 +1035,7 @@ void cat_game() {
                                             thing->die();
                                         }
                                     }
-                                    if (!(hitter->layer & ACTOR)) hitter->die(); // TODO
+                                    if (hitter->is_kamikazee_hitter) hitter->die(); // TODO
                                     break;
                                 }
                             }
@@ -1024,7 +1049,7 @@ void cat_game() {
 
                 { // draw
                     for (Thing *thing = things + THINGS_ARRAY_LENGTH - 1; thing >= things; --thing) {
-                        vec3 trueColor = V3((thing->color & RED) / RED, (thing->color & GREEN) / GREEN, (thing->color & BLUE) / BLUE);
+                        vec3 trueColor = V3(double(thing->color & RED) / RED, double(thing->color & GREEN) / GREEN, double(thing->color & BLUE) / BLUE);
                         vec3 highlightColor = monokai.yellow;
 
                         real f = CLAMP(INVERSE_LERP(thing->age, 0, 12), 0.0, 1.0);
@@ -1206,6 +1231,7 @@ void cat_game() {
                                 gui_slider("name", &thing->name, 0, 16);
                                 gui_slider("update_group", &thing->update_group, 0, 5);
                                 gui_printf("---");
+                                gui_checkbox("is_kamikazee_hitter", &thing->is_kamikazee_hitter);
                                 gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("color", COLOR_BIT_STRINGS, &thing->color, _COUNT_OF(COLOR_BIT_STRINGS));
                                 gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("layer",    LAYER_BIT_STRINGS, &thing->layer,    _COUNT_OF(LAYER_BIT_STRINGS));
                                 gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("hits",  LAYER_BIT_STRINGS, &thing->hits,  _COUNT_OF(LAYER_BIT_STRINGS));
@@ -1243,7 +1269,7 @@ int main() {
     config.hotkeys_app_prev = 0;
     config.tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = false;
     _cow_init();
-    config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1;
+    config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina /= 2.0;
     _cow_reset();
     cat_game();
     return 0;
