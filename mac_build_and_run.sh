@@ -1,7 +1,7 @@
-if [ "$1" = "--help" ]; then
-    echo "build and   run in   debug mode: [36m./mac_build_and_run.bat[0m"
-    echo "build and   run in release mode: [36m./mac_build_and_run.bat --release[0m"
-    echo "build and debug in      VS Code: [36m./mac_build_and_run.bat --debug-vscode[0m"
+if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
+    echo "build and   run in   debug mode: [35m./mac_build_and_run.bat filename.cpp [0m"
+    echo "build and   run in release mode: [35m./mac_build_and_run.bat filename.cpp  --release[0m"
+    echo "build and debug in      VS Code: [35m./mac_build_and_run.bat filename.cpp  --debug-vscode[0m"
 else
     if [ -f "executable.exe" ]; then
         rm executable.exe
@@ -11,22 +11,36 @@ else
     clear
 
     OPTARG=0
-    CONDITION=${1:-0}
-    if [ "$1" = "--release" ]; then
-        echo "[36m[cow] compiling in release mode[0m"
+    if [ "$2" = "--release" ]; then
+        echo "[35m[cow] building $1 in release mode[0m"
         OPTARG=3
     else
-        echo "[36m[cow] compiling in debug mode[0m"
+        echo "[35m[cow] building $1 in debug mode[0m"
     fi
 
-    clang++ -Wshadow -Werror=vla -fno-strict-aliasing -O$OPTARG -std=c++11 -g -Wall -Wextra -Wno-deprecated-declarations -Wno-missing-braces -Wno-missing-field-initializers -Wno-char-subscripts -Wno-writable-strings -I./codebase/ext -I./codebase/ext -L./codebase/ext -o executable.exe main.cpp -lglfw3 -framework Cocoa -framework OpenGL -framework IOKit -framework AudioUnit -framework CoreAudio -framework AudioToolbox
+    clang++ \
+        $1 \
+        -o executable.exe \
+        -std=c++11 \
+        -fno-strict-aliasing \
+        -O$OPTARG \
+        -g \
+        -Wall -Wextra \
+        -Wshadow \
+        -Werror=vla \
+        -Wno-deprecated-declarations -Wno-missing-braces -Wno-missing-field-initializers -Wno-char-subscripts -Wno-writable-strings \
+        -I./codebase/ext -I./codebase/ext \
+        -L./codebase/ext \
+        -lglfw3 \
+        -framework Cocoa -framework OpenGL -framework IOKit \
+        -framework AudioUnit -framework CoreAudio -framework AudioToolbox
 
     if [ -f "executable.exe" ]; then
-        if [ "$1" = "--debug-vscode" ]; then
-            echo "[36m[cow] debugging in Visual Studio Code[0m"
+        if [ "$2" = "--debug-vscode" ]; then
+            echo "[35m[cow] TODO: debugging $1 in Visual Studio Code[0m"
             source _xplat_debug_vscode.bat
         else
-            echo "[36m[cow] running executable[0m"
+            echo "[35m[cow] running executable.exe[0m"
             ./executable.exe
         fi
     fi
