@@ -5,7 +5,6 @@ if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
 else
     if [ -f "executable.exe" ]; then
         rm executable.exe
-        rm -r executable.exe.dSYM
     fi
 
     clear
@@ -42,6 +41,8 @@ else
         else
             echo "[35m[cow] running executable.exe[0m"
             ./executable.exe
+
+            rm -r executable.exe.dSYM
         fi
     fi
 fi
