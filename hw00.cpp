@@ -1,16 +1,16 @@
-// TODO: rename hw00.cpp (make build scripts take argument; fix up your vim to accomodate this)
-// TODO: same stuff for STL
+// TODO: debug to same giant build script (just one massive file)
+
 
 #include "cs345.cpp"
 
 
 // NOTES /////////////////////////////////
-// - positions and lengths are in inches
+// - for LAYOUT, positions and lengths are in inches
 // -- i personally think in mm, so you will see, for example, INCHES(30.0)
 // -- this returns (30.0 / 25.4), which is the number of inches in 30mm
 // - angles are in degrees
-// -- i already think in degrees, so you will see, for example,, 180.0
-// -- if you think in radians, you could use DEG(PI) to achieve the same thing
+// -- i already think in degrees, so you will see, for example, 180.0
+// -- if you would prefer to think in radians, you could use, for example, DEG(PI)
 // - color is just an integer
 // -- useful #defines for colors are below
 
@@ -64,7 +64,6 @@ struct DXF {
 
 void dxf_save(DXF *dxf, char *filename) {
     FILE *file = fopen(filename, "w");
-    ASSERT(file != NULL);
 
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
 
@@ -133,14 +132,12 @@ void dxf_save(DXF *dxf, char *filename) {
 // i already implemented these for you ///
 
 // NOTE: slits drawn as solid lines NOT dotted 
-void dxf_draw(mat4 transform, DXF *dxf);
+void dxf_draw(Camera2D *camera, DXF *dxf);
 
 
-// APP ///////////////////////////////////
+// MAIN //////////////////////////////////
 
-void app_dxf() {
-    Camera2D camera = { INCHES(300.0) };
-
+int main() {
     DXF dxf = {};
     dxf.num_lines = 3;
     dxf.num_arcs = 2;
@@ -152,11 +149,11 @@ void app_dxf() {
     dxf.arcs[0] = { INCHES(20.0), INCHES(10.0), INCHES(7.0),   0.0, 180.0, COLOR_QUALITY_2 };
     dxf.arcs[1] = { INCHES(20.0), INCHES(10.0), INCHES(7.0), 180.0, 360.0, COLOR_QUALITY_4 };
 
+    Camera2D camera = { INCHES(300.0) };
     while (cow_begin_frame()) {
         camera_move(&camera);
-        mat4 transform = camera_get_PV(&camera);
 
-        dxf_draw(transform, &dxf);
+        dxf_draw(&camera, &dxf);
 
         if (gui_button("save", 's')) {
             dxf_save(&dxf, "out.dxf");
@@ -164,59 +161,52 @@ void app_dxf() {
     }
 }
 
-int main() {
-    APPS {
-        APP(app_dxf);
-    }
-
-    return 0;
-}
-
 
 // FORWARD DELCARED FUNCTIONS ////////////
 
 void _dxf_eso_color(int color) {
-    if      (color == 0) { eso_color( 83 / 255.0, 255 / 255.0,  85 / 255.0); }
+    if      (color      == 0) { eso_color( 83 / 255.0, 255 / 255.0,  85 / 255.0); }
     else if (color % 10 == 1) { eso_color(255 / 255.0,   0 / 255.0,   0 / 255.0); }
     else if (color % 10 == 2) { eso_color(238 / 255.0,   0 / 255.0, 119 / 255.0); }
     else if (color % 10 == 3) { eso_color(255 / 255.0,   0 / 255.0, 255 / 255.0); }
     else if (color % 10 == 4) { eso_color(170 / 255.0,   1 / 255.0, 255 / 255.0); }
     else if (color % 10 == 5) { eso_color(  0 / 255.0,  85 / 255.0, 255 / 255.0); }
-    else if (color == 6) { eso_color(136 / 255.0, 136 / 255.0, 136 / 255.0); }
-    else if (color == 7) { eso_color(205 / 255.0, 205 / 255.0, 205 / 255.0); }
-    else if (color == 8) { eso_color(  0 / 255.0, 255 / 255.0, 255 / 255.0); }
-    else if (color == 9) { eso_color(204 / 255.0, 136 / 255.0,   1 / 255.0); }
+    else if (color      == 6) { eso_color(136 / 255.0, 136 / 255.0, 136 / 255.0); }
+    else if (color      == 7) { eso_color(205 / 255.0, 205 / 255.0, 205 / 255.0); }
+    else if (color      == 8) { eso_color(  0 / 255.0, 255 / 255.0, 255 / 255.0); }
+    else if (color      == 9) { eso_color(204 / 255.0, 136 / 255.0,   1 / 255.0); }
     else { eso_color(1.0, 1.0, 1.0); }
 }
 
-void dxf_draw(mat4 transform, DXF *dxf) {
-    // lines
-    eso_begin(transform, SOUP_LINES);
-    for (Line *line = dxf->lines; line < dxf->lines + dxf->num_lines; ++line) {
-        _dxf_eso_color(line->color);
-        eso_vertex(line->start_x, line->start_y);
-        eso_vertex(line->end_x,   line->end_y);
-    }
-
-    // arcs
-    int NUM_SEGMENTS_PER_CIRCLE = 64;
-    for (Arc *arc = dxf->arcs; arc < dxf->arcs + dxf->num_arcs; ++arc) {
-        _dxf_eso_color(arc->color);
-        double start_angle = RAD(arc->start_angle);
-        double end_angle = RAD(arc->end_angle);
-        double delta_angle = end_angle - start_angle;
-        int num_segments = (int) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
-        double increment = delta_angle / num_segments;
-        double current_angle = start_angle;
-        for (int i = 0; i <= num_segments; ++i) {
-            eso_vertex(
-                    arc->center_x + arc->radius * cos(current_angle),
-                    arc->center_y + arc->radius * sin(current_angle));
-            current_angle += increment;
-            eso_vertex(
-                    arc->center_x + arc->radius * cos(current_angle),
-                    arc->center_y + arc->radius * sin(current_angle));
+void dxf_draw(Camera2D *camera, DXF *dxf) {
+    eso_begin(camera_get_PV(camera), SOUP_LINES); {
+        // lines
+        for (Line *line = dxf->lines; line < dxf->lines + dxf->num_lines; ++line) {
+            _dxf_eso_color(line->color);
+            eso_vertex(line->start_x, line->start_y);
+            eso_vertex(line->end_x,   line->end_y);
         }
-    }
-    eso_end();
+
+        // arcs
+        int NUM_SEGMENTS_PER_CIRCLE = 64;
+        for (Arc *arc = dxf->arcs; arc < dxf->arcs + dxf->num_arcs; ++arc) {
+            _dxf_eso_color(arc->color);
+            double start_angle = RAD(arc->start_angle);
+            double end_angle = RAD(arc->end_angle);
+            double delta_angle = end_angle - start_angle;
+            int num_segments = (int) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
+            double increment = delta_angle / num_segments;
+            double current_angle = start_angle;
+            for (int i = 0; i <= num_segments; ++i) {
+                eso_vertex(
+                        arc->center_x + arc->radius * cos(current_angle),
+                        arc->center_y + arc->radius * sin(current_angle));
+                current_angle += increment;
+                eso_vertex(
+                        arc->center_x + arc->radius * cos(current_angle),
+                        arc->center_y + arc->radius * sin(current_angle));
+            }
+        }
+    } eso_end();
 }
+

@@ -1649,9 +1649,9 @@ void _soup_draw(
                 vertex_colors = NULL;
 
                 // FORNOW
-                r_if_vertex_colors_is_NULL = 0.0;
-                g_if_vertex_colors_is_NULL = 0.0;
-                b_if_vertex_colors_is_NULL = 0.0;
+                r_if_vertex_colors_is_NULL = 1.0;
+                g_if_vertex_colors_is_NULL = 1.0;
+                b_if_vertex_colors_is_NULL = 1.0;
                 a_if_vertex_colors_is_NULL = 1.0;
             }
         }

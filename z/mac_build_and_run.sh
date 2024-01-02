@@ -1,3 +1,11 @@
+:<<BATCH
+    @echo off
+    echo %PATH%
+    exit /b
+BATCH
+
+
+
 if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
     echo "build and   run in   debug mode: [35m./mac_build_and_run.bat filename.cpp [0m"
     echo "build and   run in release mode: [35m./mac_build_and_run.bat filename.cpp  --release[0m"
