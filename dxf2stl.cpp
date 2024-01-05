@@ -15,28 +15,32 @@
 
 // DXF
 
+struct DXFLine {
+    int color;
+    double start_x;
+    double start_y;
+    double end_x;
+    double end_y;
+    double _;
+};
+
+struct DXFArc{
+    int color;
+    double center_x;
+    double center_y;
+    double radius;
+    double start_angle;
+    double end_angle;
+};
 
 
 #define DXF_ENTITY_TYPE_LINE 0
 #define DXF_ENTITY_TYPE_ARC  1
 struct DXFEntity {
     int type;
-    int color;
     union {
-        struct {
-            double start_x;
-            double start_y;
-            double end_x;
-            double end_y;
-            double _;
-        };
-        struct {
-            double center_x;
-            double center_y;
-            double radius;
-            double start_angle;
-            double end_angle;
-        };
+        DXFLine line;
+        DXFArc arc;
     };
 };
 
@@ -77,25 +81,27 @@ void dxf_draw(Camera2D *camera, DXFGroup *dxf) {
     eso_begin(camera_get_PV(camera), SOUP_LINES);
     for (DXFEntity *entity = dxf->entities; entity < dxf->entities + dxf->num_entities; ++entity) {
         if (entity->type == DXF_ENTITY_TYPE_LINE) {
-            _dxf_eso_color(entity->color);
-            eso_vertex(entity->start_x, entity->start_y);
-            eso_vertex(entity->end_x,   entity->end_y);
+            DXFLine *line = &entity->line;
+            _dxf_eso_color(line->color);
+            eso_vertex(line->start_x, line->start_y);
+            eso_vertex(line->end_x,   line->end_y);
         } else if (entity->type == DXF_ENTITY_TYPE_ARC) {
-            _dxf_eso_color(entity->color);
-            double start_angle = RAD(entity->start_angle);
-            double end_angle = RAD(entity->end_angle);
+            DXFArc *arc = &entity->arc;
+            _dxf_eso_color(arc->color);
+            double start_angle = RAD(arc->start_angle);
+            double end_angle = RAD(arc->end_angle);
             double delta_angle = end_angle - start_angle;
             int num_segments = (int) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
             double increment = delta_angle / num_segments;
             double current_angle = start_angle;
             for (int i = 0; i <= num_segments; ++i) {
                 eso_vertex(
-                        entity->center_x + entity->radius * cos(current_angle),
-                        entity->center_y + entity->radius * sin(current_angle));
+                        arc->center_x + arc->radius * cos(current_angle),
+                        arc->center_y + arc->radius * sin(current_angle));
                 current_angle += increment;
                 eso_vertex(
-                        entity->center_x + entity->radius * cos(current_angle),
-                        entity->center_y + entity->radius * sin(current_angle));
+                        arc->center_x + arc->radius * cos(current_angle),
+                        arc->center_y + arc->radius * sin(current_angle));
             }
         } else {
             ASSERT(0);
@@ -108,7 +114,6 @@ void dxf_assemble_sorted_loops(DXFGroup *dxf, int *num_loops, DXFGroup **loops) 
     ASSERT(dxf->num_entities);
 
     StretchyBuffer<StretchyBuffer<DXFEntity>> result = {};
-
 
     // bool *visited = (bool *) calloc(dxf->num_entities, sizeof(bool));
     // StretchyBuffer<int> queue = {};
