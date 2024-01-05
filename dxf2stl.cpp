@@ -13,7 +13,12 @@
 
 #include "cs345.cpp"
 
-// DXF
+bool point_points_coincide(real32 x_A, real32 y_A, real32 x_B, real32 y_B) {
+    real32 dx = (x_A - x_B);
+    real32 dy = (y_A - y_B);
+    real32 D2 = (dx * dx) + (dy * dy);
+    return (D2 < 1e-5);
+};
 
 struct DXFLine {
     int color;
@@ -44,6 +49,20 @@ struct DXFEntity {
     };
 };
 
+void entity_get_start_and_end_points(DXFEntity *E, real32 *start_x, real32 *start_y, real32 *end_x, real32 *end_y) {
+    if (E->type == DXF_ENTITY_TYPE_LINE) {
+        *start_x = E->line.start_x;
+        *start_y = E->line.start_y;
+        *end_x   = E->line.end_x;
+        *end_y   = E->line.end_y;
+    } else { ASSERT(E->type == DXF_ENTITY_TYPE_ARC);
+        *start_x = E->arc.center_x + E->arc.radius * cos(RAD(E->arc.start_angle));
+        *start_y = E->arc.center_y + E->arc.radius * sin(RAD(E->arc.start_angle));
+        *end_x   = E->arc.center_x + E->arc.radius * cos(RAD(E->arc.end_angle));
+        *end_y   = E->arc.center_y + E->arc.radius * sin(RAD(E->arc.end_angle));
+    }
+}
+
 struct DXFGroup {
     int num_entities;
     DXFEntity *entities;
@@ -52,7 +71,7 @@ struct DXFGroup {
 void dxf_load(char *filename, DXFGroup *dxf) {
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
     *dxf = {};
-    dxf->num_entities = 6;
+    dxf->num_entities = 8;
     dxf->entities = (DXFEntity *) calloc(dxf->num_entities, sizeof(DXFEntity));
     dxf->entities[0] = { DXF_ENTITY_TYPE_LINE, 0, 0.0, 0.0, 1.0, 0.0 };
     dxf->entities[1] = { DXF_ENTITY_TYPE_LINE, 0, 1.0, 0.0, 1.0, 1.0 };
@@ -60,6 +79,8 @@ void dxf_load(char *filename, DXFGroup *dxf) {
     dxf->entities[3] = { DXF_ENTITY_TYPE_ARC,  0, 0.5, 1.0, 0.5,    0.0, 180.0 };
     dxf->entities[4] = { DXF_ENTITY_TYPE_ARC,  1, 0.5, 1.0, 0.25,   0.0, 180.0 };
     dxf->entities[5] = { DXF_ENTITY_TYPE_ARC,  1, 0.5, 1.0, 0.25, 180.0, 360.0 };
+    dxf->entities[6] = { DXF_ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.1,    0.0, 180.0 };
+    dxf->entities[7] = { DXF_ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.1,  180.0, 360.0 };
 }
 
 void _dxf_eso_color(int color) {
@@ -85,7 +106,7 @@ void dxf_draw(Camera2D *camera, DXFGroup *dxf) {
             _dxf_eso_color(line->color);
             eso_vertex(line->start_x, line->start_y);
             eso_vertex(line->end_x,   line->end_y);
-        } else if (entity->type == DXF_ENTITY_TYPE_ARC) {
+        } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
             DXFArc *arc = &entity->arc;
             _dxf_eso_color(arc->color);
             double start_angle = RAD(arc->start_angle);
@@ -103,8 +124,6 @@ void dxf_draw(Camera2D *camera, DXFGroup *dxf) {
                         arc->center_x + arc->radius * cos(current_angle),
                         arc->center_y + arc->radius * sin(current_angle));
             }
-        } else {
-            ASSERT(0);
         }
     }
     eso_end();
@@ -113,22 +132,56 @@ void dxf_draw(Camera2D *camera, DXFGroup *dxf) {
 void dxf_assemble_sorted_loops(DXFGroup *dxf, int *num_loops, DXFGroup **loops) {
     ASSERT(dxf->num_entities);
 
-    StretchyBuffer<StretchyBuffer<DXFEntity>> result = {};
+    // build loops as array list of array lists of entities
+    StretchyBuffer<StretchyBuffer<DXFEntity>> result = {}; {
+        bool *used = (bool *) calloc(dxf->num_entities, sizeof(bool));
+        while (true) {
+            { // seed loop
+                bool added = false;
+                for (int i = 0; i < dxf->num_entities; ++i) {
+                    if (!used[i]) {
+                        added = true;
+                        used[i] = true;
+                        sbuff_push_back(&result, {});
+                        sbuff_push_back(&result.data[result.length - 1], dxf->entities[i]);
+                        break;
+                    }
+                }
+                if (!added) break;
+            }
+            { // continue, complete and TODO:reverse loop
+                while (true) {
+                    bool added = false;
+                    for (int i = 0; i < dxf->num_entities; ++i) {
+                        if (used[i]) continue;
+                        real32 start_x_prev, start_y_prev, end_x_prev, end_y_prev;
+                        real32 start_x_i, start_y_i, end_x_i, end_y_i;
+                        {
+                            entity_get_start_and_end_points(
+                                    &result.data[result.length - 1].data[result.data[result.length - 1].length - 1],
+                                    &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
+                            entity_get_start_and_end_points(&dxf->entities[i], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
+                        }
+                        // NOTE: do NOT assume DXF/OMAX's loops are oriented (so need two checks);
+                        bool is_continuation = 
+                            point_points_coincide(end_x_prev, end_y_prev, start_x_i, start_y_i) ||
+                            point_points_coincide(end_x_prev, end_y_prev, end_x_i,   end_y_i);
+                        if (is_continuation) {
+                            added = true;
+                            used[i] = true;
+                            sbuff_push_back(&result.data[result.length - 1], dxf->entities[i]);
+                            break;
+                        }
+                    }
+                    if (!added) break;
+                }
+            }
+        }
+        free(used);
+    }
 
-    // bool *visited = (bool *) calloc(dxf->num_entities, sizeof(bool));
-    // StretchyBuffer<int> queue = {};
-    // squeue_add(&queue, 0);
-    // visited[0] = true;
-    // while (queue->length) {
-    //     DXFEntity *entity = &dxf->entities[queue[squeue_remove(&queue)]];
-    //     // TODO: endpoints
-    //     for (int i = 0; i < dxf->num_entities; ++i) {
-    //     }
-    // }
-
-    // free(visited);
-
-    // copy over from array lists
+    // copy over from array lists into bare arrays
+    // TODO: what would this look like with pointer as the indexing variable?
     *num_loops = result.length;
     *loops = (DXFGroup *) calloc(*num_loops, sizeof(DXFGroup));
     for (int i = 0; i < *num_loops; ++i) {
@@ -170,18 +223,16 @@ int main() {
     // part_boss(&part, loops[0]);
     // part_cut(&part, loops[1]);
 
+
+    int i = 0;
+
     Camera2D camera = { 5.0 };
     while (cow_begin_frame()) {
         camera_move(&camera);
 
         // dxf_draw(&camera, &dxf);
-        if (num_loops >= 2) {
-            if (!globals.key_toggled['a']) {
-                dxf_draw(&camera, &loops[0]);
-            } else {
-                dxf_draw(&camera, &loops[1]);
-            }
-        }
+        gui_slider("i", &i, 0, 100, 'j', 'k');
+        if (i < num_loops) dxf_draw(&camera, &loops[i]);
         // part_draw(&part);
     }
 }

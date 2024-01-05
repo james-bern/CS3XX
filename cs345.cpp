@@ -34,3 +34,5 @@ BEGIN_PRE_MAIN {
     _cow_reset();
     // stbi_set_flip_vertically_on_load(false);
 } END_PRE_MAIN 
+
+#undef real
