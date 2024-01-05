@@ -7,10 +7,15 @@
 // - 2D picking of loops by clicking on DXF
 // - compile/link manifold
 // - boss ('b') and cut ('c') -- (or 'e'/'E'?)
-// - loops have transforms
-// - planar surface picking
+// - offsetting with x
+// - planar surface picking (and if no 3D geometry yet, your choice of the xy yz and zx planes)
 // - cut has depth
 // ? how are we storing the sequence of operations
+// NOTE: for a first cut it could be destructive like omax itself
+//       basically just like a conversational mill
+//       don't store anything but the STL created so far (and maybe an undo stack eventually)
+//       could at least print to the terminal what you've done
+//       should preview the cut on the surface before you accept it (eventually) -- and let you nudge it in x, y, and z
 
 #include "cs345.cpp"
 
