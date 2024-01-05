@@ -3034,7 +3034,11 @@ template <typename T> struct StretchyBuffer {
     int _capacity;
     T *data;
 
-    T &operator [](int index) { return data[index]; }
+    // T &operator [](int index) { return data[index]; }
+    T *back() {
+        ASSERT(length >= 1);
+        return &data[length - 1];
+    }
 };
 
 template <typename T> void sbuff_push_back(StretchyBuffer<T> *buffer, T element) {
@@ -4620,7 +4624,7 @@ void eg_kitchen_sink() {
 
         {
             vec2 s_mouse = globals.mouse_position_NDC;
-            if (trace.length == 0 || squaredNorm(trace[trace.length - 1] - s_mouse) > .0001) {
+            if (trace.length == 0 || squaredNorm(trace.data[trace.length - 1] - s_mouse) > .0001) {
                 sbuff_push_back(&trace, s_mouse);
             }
             if (gui_button("clear trace", 'r')) {

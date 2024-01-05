@@ -34,6 +34,8 @@
 
 // STRUCTS ///////////////////////////////
 
+// TODO: use the discriminated union
+
 struct Line {
     double start_x;
     double start_y;
