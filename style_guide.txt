@@ -1,7 +1,25 @@
 NOTE: this is optional; just a summary of how i often code
 ----------------------------------------------------------
 
-structs just have variables; NOT functions
+no references; pass variable by pointer for function modify it
+
+no member functions; declare a globally-scoped function with struct name as prefix
+
+    // NO //////
+
+    struct Foo {
+        int bar;
+
+        void baz() {
+            bar *= 2;
+        }
+    }
+
+    int main() {
+        Foo foo = { 1.0 };
+        foo.baz();
+    }
+
 
     // YES /////
 
@@ -19,17 +37,3 @@ structs just have variables; NOT functions
     }
 
 
-    // NO //////
-
-    struct Foo {
-        int bar;
-
-        void baz() {
-            bar *= 2;
-        }
-    }
-
-    int main() {
-        Foo foo = { 1.0 };
-        foo.baz();
-    }
