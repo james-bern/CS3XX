@@ -1,4 +1,7 @@
+// Conversation STL
+
 // TODO: cow_real actually supporting real32 or real64
+
 
 // NOTE: This is a little CAD program Jim is actively developing.
 //       Feel free to ignore.
@@ -7,7 +10,8 @@
 // / import dxf
 // / detect loops
 // / 2D picking of loops by clicking on DXF
-// - multi-select
+// - omax-type selection ('s' + 'c')
+// - multi-select (no shift--follow omax style)
 // - compile/link manifold
 // - boss ('b') and cut ('c') -- (or 'e'/'E'?)
 // - offsetting with x
