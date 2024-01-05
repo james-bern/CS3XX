@@ -1,0 +1,35 @@
+NOTE: this is optional; just a summary of how i often code
+----------------------------------------------------------
+
+structs just have variables; NOT functions
+
+    // YES /////
+
+    struct Foo {
+        int bar;
+    }
+
+    void foo_baz(Foo *foo) {
+        foo->bar *= 2;
+    }
+
+    int main() {
+        Foo foo = { 1.0 };
+        foo_baz(&foo);
+    }
+
+
+    // NO //////
+
+    struct Foo {
+        int bar;
+
+        void baz() {
+            bar *= 2;
+        }
+    }
+
+    int main() {
+        Foo foo = { 1.0 };
+        foo.baz();
+    }
