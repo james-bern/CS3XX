@@ -6,7 +6,8 @@
 // roadmap
 // / import dxf
 // / detect loops
-// - 2D picking of loops by clicking on DXF
+// / 2D picking of loops by clicking on DXF
+// - multi-select
 // - compile/link manifold
 // - boss ('b') and cut ('c') -- (or 'e'/'E'?)
 // - offsetting with x
@@ -20,6 +21,8 @@
 //       should preview the cut on the surface before you accept it (eventually) -- and let you nudge it in x, y, and z
 
 #include "cs345.cpp"
+#include "poe.cpp"
+
 
 #define COLOR_TRAVERSE        0
 #define COLOR_QUALITY_1       1
@@ -40,7 +43,7 @@ real32 EPSILON_DEFAULT = 2e-3;
 
 
 
-struct DXFLineSegment {
+struct DXFLine {
     int32 color;
     real32 start_x;
     real32 start_y;
@@ -63,7 +66,7 @@ struct DXFArc {
 struct DXFEntity {
     u32 type;
     union {
-        DXFLineSegment line_segment;
+        DXFLine line;
         DXFArc arc;
     };
 };
@@ -77,11 +80,11 @@ void arc_get_start_and_end_points(real32 center_x, real32 center_y, real32 radiu
 
 void entity_get_start_and_end_points(DXFEntity *entity, real32 *start_x, real32 *start_y, real32 *end_x, real32 *end_y) {
     if (entity->type == DXF_ENTITY_TYPE_LINE) {
-        DXFLineSegment *line_segment = &entity->line_segment;
-        *start_x = line_segment->start_x;
-        *start_y = line_segment->start_y;
-        *end_x = line_segment->end_x;
-        *end_y = line_segment->end_y;
+        DXFLine *line = &entity->line;
+        *start_x = line->start_x;
+        *start_y = line->start_y;
+        *end_x = line->end_x;
+        *end_y = line->end_y;
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
@@ -120,6 +123,8 @@ real32 squared_distance_point_arc(real32 x, real32 y, real32 center_x, real32 ce
         real32 v_y = y - center_y;
         // forgive me rygorous
         real32 angle = DEG(atan2(v_y, v_x));
+        while (start_angle < -180) start_angle += 360;
+        while (end_angle < start_angle) end_angle += 360;
         point_in_sector =
             IS_BETWEEN(angle, start_angle, end_angle)
             || IS_BETWEEN(angle + 360, start_angle, end_angle)
@@ -137,8 +142,8 @@ real32 squared_distance_point_arc(real32 x, real32 y, real32 center_x, real32 ce
 
 real32 squared_distance_point_entity(real32 x, real32 y, DXFEntity *entity) {
     if (entity->type == DXF_ENTITY_TYPE_LINE) {
-        DXFLineSegment *line_segment = &entity->line_segment;
-        return squared_distance_point_line_segment(x, y, line_segment->start_x, line_segment->start_y, line_segment->end_x, line_segment->end_y);
+        DXFLine *line = &entity->line;
+        return squared_distance_point_line_segment(x, y, line->start_x, line->start_y, line->end_x, line->end_y);
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
@@ -164,6 +169,7 @@ void dxf_free(DXF *dxf) {
 }
 
 void dxf_load(char *filename, DXF *dxf) {
+    #if 0
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
     *dxf = {};
     dxf->num_entities = 8;
@@ -176,6 +182,94 @@ void dxf_load(char *filename, DXF *dxf) {
     dxf->entities[5] = { DXF_ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.25, 180.0, 360.0 };
     dxf->entities[6] = { DXF_ENTITY_TYPE_ARC,  6, 0.5, 1.0, 0.1,    0.0, 180.0 };
     dxf->entities[7] = { DXF_ENTITY_TYPE_ARC,  7, 0.5, 1.0, 0.1,  180.0, 360.0 };
+    #else
+    *dxf = {};
+
+    StretchyBuffer<DXFEntity> result = {}; {
+        FILE *file = (FILE *) fopen(filename, "r");
+        ASSERT(file);
+        {
+            #define DXF_LOAD_MODE_NONE 0
+            #define DXF_LOAD_MODE_LINE 1
+            #define DXF_LOAD_MODE_ARC  2
+            u8 mode = 0;
+            int code = 0;
+            bool code_is_hot = false;
+            DXFLine line = {};
+            DXFArc arc = {};
+            static char buffer[512];
+            while (fgets(buffer, _COUNT_OF(buffer), file)) {
+                if (mode == DXF_LOAD_MODE_NONE) {
+                    if (poe_matches_prefix(buffer, "LINE")) {
+                        mode = DXF_LOAD_MODE_LINE;
+                        code_is_hot = false;
+                        line = {};
+                    } else if (poe_matches_prefix(buffer, "ARC")) {
+                        mode = DXF_LOAD_MODE_ARC;
+                        code_is_hot = false;
+                        arc = {};
+                    }
+                } else {
+                    if (!code_is_hot) {
+                        sscanf(buffer, "%d", &code);
+                        printf("%d\n", code); // FORNOW
+                        if (code == 0) {
+                            if (mode == DXF_LOAD_MODE_LINE) {
+                                sbuff_push_back(&result, { DXF_ENTITY_TYPE_LINE, line.color, line.start_x, line.start_y, line.end_x, line.end_y });
+                            } else {
+                                ASSERT(mode == DXF_LOAD_MODE_ARC);
+                                sbuff_push_back(&result, { DXF_ENTITY_TYPE_ARC, arc.color, arc.center_x, arc.center_y, arc.radius, arc.start_angle, arc.end_angle });
+                            }
+                            mode = DXF_LOAD_MODE_NONE;
+                            code_is_hot = false;
+                        }
+                    } else {
+                        if (code == 62) {
+                            int value;
+                            sscanf(buffer, "%d", &value);
+                            printf("%    d\n", value); // FORNOW
+                            line.color = arc.color = value; 
+                        } else {
+                            float value;
+                            sscanf(buffer, "%f", &value);
+                            printf("    %f\n", value); // FORNOW
+                            if (mode == DXF_LOAD_MODE_LINE) {
+                                if (code == 10) {
+                                    line.start_x = value;
+                                } else if (code == 20) {
+                                    line.start_y = value;
+                                } else if (code == 11) {
+                                    line.end_x = value;
+                                } else if (code == 21) {
+                                    line.end_y = value;
+                                }
+                            } else {
+                                ASSERT(mode == DXF_LOAD_MODE_ARC);
+                                if (code == 10) {
+                                    arc.center_x = value;
+                                } else if (code == 20) {
+                                    arc.center_y = value;
+                                } else if (code == 40) {
+                                    arc.radius = value;
+                                } else if (code == 50) {
+                                    arc.start_angle = value;
+                                } else if (code == 51) {
+                                    arc.end_angle = value;
+                                }
+                            }
+                        }
+                    }
+                    code_is_hot = !code_is_hot;
+                }
+            }
+        } fclose(file);
+    }
+
+    dxf->num_entities = result.length;
+    dxf->entities = (DXFEntity *) calloc(dxf->num_entities, sizeof(DXFEntity));
+    memcpy(dxf->entities, result.data, dxf->num_entities * sizeof(DXFEntity));
+    sbuff_free(&result);
+    #endif
 }
 
 void _dxf_eso_color(u32 color) {
@@ -197,16 +291,17 @@ void dxf_draw(Camera2D *camera2D, DXF *dxf, int32 override_color = -1) {
     eso_begin(camera_get_PV(camera2D), SOUP_LINES);
     for (DXFEntity *entity = dxf->entities; entity < dxf->entities + dxf->num_entities; ++entity) {
         if (entity->type == DXF_ENTITY_TYPE_LINE) {
-            DXFLineSegment *line_segment = &entity->line_segment;
-            _dxf_eso_color((override_color != -1) ? override_color : line_segment->color);
-            eso_vertex(line_segment->start_x, line_segment->start_y);
-            eso_vertex(line_segment->end_x,   line_segment->end_y);
+            DXFLine *line = &entity->line;
+            _dxf_eso_color((override_color != -1) ? override_color : line->color);
+            eso_vertex(line->start_x, line->start_y);
+            eso_vertex(line->end_x,   line->end_y);
         } else {
             ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
             DXFArc *arc = &entity->arc;
             _dxf_eso_color((override_color != -1) ? override_color : arc->color);
             real32 start_angle = RAD(arc->start_angle);
             real32 end_angle = RAD(arc->end_angle);
+            while (end_angle < start_angle) end_angle += TAU; // *
             real32 delta_angle = end_angle - start_angle;
             u32 num_segments = (u32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
             real32 increment = delta_angle / num_segments;
@@ -253,7 +348,11 @@ void dxf_pick_loop(Camera2D *camera2D, u32 num_loops, DXF *loops, DXF **hot_loop
 }
 
 void dxf_assemble_sorted_loops(DXF *dxf, u32 *num_loops, DXF **loops) {
-    ASSERT(dxf->num_entities);
+    if (dxf->num_entities == 0) {
+        *num_loops = 0;
+        *loops = (DXF *) calloc(*num_loops, sizeof(DXF));
+        return;
+    }
 
     // build loops as array list of array lists of entities
     StretchyBuffer<StretchyBuffer<DXFEntity>> result = {}; {
@@ -285,11 +384,14 @@ void dxf_assemble_sorted_loops(DXF *dxf, u32 *num_loops, DXF **loops) {
                                     &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
                             entity_get_start_and_end_points(&dxf->entities[i], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
                         }
-                        // NOTE: do NOT assume DXF/OMAX's loops are oriented (so need two checks);
+                        // NOTE: do NOT assume DXF/OMAX's loops are oriented
+                        //       so need four checks; ouch
                         real32 tolerance = TOLERANCE_DEFAULT;
-                        bool is_next_entity_NOTE_DXF_NOT_oriented = 
-                            (squared_distance_point_point(end_x_prev, end_y_prev, start_x_i, start_y_i) < tolerance) ||
-                            (squared_distance_point_point(end_x_prev, end_y_prev, end_x_i,   end_y_i) < tolerance);
+                        bool is_next_entity_NOTE_DXF_NOT_oriented = false
+                            || (squared_distance_point_point(start_x_prev, start_y_prev, start_x_i, start_y_i) < tolerance)
+                            || (squared_distance_point_point(start_x_prev, start_y_prev, end_x_i,   end_y_i  ) < tolerance)
+                            || (squared_distance_point_point(end_x_prev,   end_y_prev,   end_x_i,   end_y_i  ) < tolerance)
+                            || (squared_distance_point_point(end_x_prev,   end_y_prev,   start_x_i, start_y_i) < tolerance);
                         if (is_next_entity_NOTE_DXF_NOT_oriented) {
                             added_new_entity_to_loop = true;
                             entity_already_added[i] = true;
@@ -339,7 +441,7 @@ int main() {
     DXF *loops;
     {
         DXF dxf;
-        dxf_load("...", &dxf);
+        dxf_load("omax.dxf", &dxf);
         dxf_assemble_sorted_loops(&dxf, &num_loops, &loops);
         dxf_free(&dxf);
     }
@@ -353,14 +455,21 @@ int main() {
 
 
     Camera2D camera2D = { 5.0, 3.0 };
-    Camera3D camera3D = { 5.0, RAD(0.0), RAD(0.0), RAD(0.0), -3.0 };
+    // Camera3D camera3D = { 5.0, RAD(0.0), RAD(0.0), RAD(0.0), -3.0 };
     while (cow_begin_frame()) {
         camera_move(&camera2D);
 
         // dxf_draw(&camera2D, &dxf);
         dxf_pick_loop(&camera2D, num_loops, loops, &hot_loop, &selected_loop);
+
+        // TODO: convert to big eso
         for (DXF *loop = loops; loop < loops + num_loops; ++loop) {
-            dxf_draw(&camera2D, loop, (loop == hot_loop && loop == selected_loop) ? COLOR_QUALITY_1 : (loop == hot_loop) ? COLOR_TRAVERSE : (loop == selected_loop) ? COLOR_LEAD_IO : COLOR_ETCH);
+            dxf_draw(&camera2D, loop,
+                    (globals.key_toggled[COW_KEY_TAB]) ? -1 :
+                    (loop == hot_loop && loop == selected_loop) ? COLOR_QUALITY_1 :
+                    (loop == hot_loop) ? COLOR_TRAVERSE :
+                    (loop == selected_loop) ? COLOR_LEAD_IO :
+                    COLOR_ETCH);
         }
         // part_draw(&part);
     }

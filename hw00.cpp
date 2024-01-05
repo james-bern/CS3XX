@@ -67,8 +67,6 @@ struct DXF {
 void dxf_save(DXF *dxf, char *filename) {
     FILE *file = fopen(filename, "w");
 
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
-
     // header
     fprintf(file, "  0\n");
     fprintf(file, "SECTION\n");
