@@ -7,6 +7,9 @@
 // -- u32 is an unsigned 32 bit integer (unsigned int on many platforms)
 // - for Bambu Studio, positions are in mm
 // -- 25.4 and MM(1.0) are equivalent
+// - the y-axis points up
+// - you can scale the part after the fact in Bambu Studio
+//   (keep your code simple!)
 
 
 // STRUCTS ///////////////////////////////
@@ -84,6 +87,175 @@ void stl_save_binary(STL *stl, char *filename) {
     fclose(file);
 }
 
+// y is up
+STL lithopane(char *filename) {
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
+
+    real32 *y;
+    int width;
+    int height;
+    {
+        int number_of_channels;
+        u8 *data = stbi_load(filename, &width, &height, &number_of_channels, 0);
+        y = (real32 *) calloc(width * height, sizeof(real32));
+        for (int j = 0; j < height; ++j) {
+            for (int i = 0; i < width; ++i) {
+                y[j * width + i] = LINEAR_REMAP(data[(j * width + i) * number_of_channels], 0.0, 255.0, 4.0, 0.4);
+            }
+        }
+        stbi_image_free(data);
+    }
+
+    STL stl = {};
+    stl.num_triangles = 4 * (width - 1) * (height - 1) + 4 * (width - 1) + 4 * (height - 1);
+    stl.triangles = (Triangle *) calloc(stl.num_triangles, sizeof(Triangle));
+    int k = 0;
+    for (int j = 0; j < height - 1; ++j) {
+        for (int i = 0; i < width - 1; ++i) {
+            // // TOP
+            //  3
+            // 12
+            stl.triangles[k].v1_x = i;
+            stl.triangles[k].v1_y = j;
+            stl.triangles[k].v1_z = y[(j) * width + (i)];
+            stl.triangles[k].v2_x = i + 1;
+            stl.triangles[k].v2_y = j;
+            stl.triangles[k].v2_z = y[(j) * width + (i + 1)];
+            stl.triangles[k].v3_x = i + 1;
+            stl.triangles[k].v3_y = j + 1;
+            stl.triangles[k].v3_z = y[(j + 1) * width + (i + 1)];
+            ++k;
+            // 32
+            // 1
+            stl.triangles[k].v1_x = i;
+            stl.triangles[k].v1_y = j;
+            stl.triangles[k].v1_z = y[(j) * width + i];
+            stl.triangles[k].v2_x = i + 1;
+            stl.triangles[k].v2_y = j + 1;
+            stl.triangles[k].v2_z = y[(j + 1) * width + (i + 1)];
+            stl.triangles[k].v3_x = i;
+            stl.triangles[k].v3_y = j + 1;
+            stl.triangles[k].v3_z = y[(j + 1) * width + (i)];
+            ++k;
+
+            // // BOTTOM
+            //  2
+            // 13
+            stl.triangles[k].v1_x = i;
+            stl.triangles[k].v1_y = j;
+            stl.triangles[k].v1_z = 0;
+            stl.triangles[k].v2_x = i + 1;
+            stl.triangles[k].v2_y = j + 1;
+            stl.triangles[k].v2_z = 0;
+            stl.triangles[k].v3_x = i + 1;
+            stl.triangles[k].v3_y = j;
+            stl.triangles[k].v3_z = 0;
+            ++k;
+            // 23
+            // 1
+            stl.triangles[k].v1_x = i;
+            stl.triangles[k].v1_y = j;
+            stl.triangles[k].v1_z = 0;
+            stl.triangles[k].v2_x = i;
+            stl.triangles[k].v2_y = j + 1;
+            stl.triangles[k].v2_z = 0;
+            stl.triangles[k].v3_x = i + 1;
+            stl.triangles[k].v3_y = j + 1;
+            stl.triangles[k].v3_z = 0;
+            ++k;
+        }
+    }
+
+    // LEFT & RIGHT STRIPS
+    for (int j = 0; j < height - 1; ++j) {
+        stl.triangles[k].v1_x = 0;
+        stl.triangles[k].v1_y = j;
+        stl.triangles[k].v1_z = 0;
+        stl.triangles[k].v2_x = 0;
+        stl.triangles[k].v2_y = j;
+        stl.triangles[k].v2_z = y[(j) * width];
+        stl.triangles[k].v3_x = 0;
+        stl.triangles[k].v3_y = j + 1;
+        stl.triangles[k].v3_z = 0;
+        ++k;
+        stl.triangles[k].v1_x = 0;
+        stl.triangles[k].v1_y = j;
+        stl.triangles[k].v1_z = y[(j) * width];
+        stl.triangles[k].v2_x = 0;
+        stl.triangles[k].v2_y = j + 1;
+        stl.triangles[k].v2_z = y[(j + 1) * width];
+        stl.triangles[k].v3_x = 0;
+        stl.triangles[k].v3_y = j + 1;
+        stl.triangles[k].v3_z = 0;
+        ++k;
+        stl.triangles[k].v1_x = width - 1;
+        stl.triangles[k].v1_y = j;
+        stl.triangles[k].v1_z = 0;
+        stl.triangles[k].v2_x = width - 1;
+        stl.triangles[k].v2_y = j + 1;
+        stl.triangles[k].v2_z = 0;
+        stl.triangles[k].v3_x = width - 1;
+        stl.triangles[k].v3_y = j;
+        stl.triangles[k].v3_z = y[(j) * width + (width - 1)];
+        ++k;
+        stl.triangles[k].v1_x = width - 1;
+        stl.triangles[k].v1_y = j;
+        stl.triangles[k].v1_z = y[(j) * width + (width - 1)];
+        stl.triangles[k].v2_x = width - 1;
+        stl.triangles[k].v2_y = j + 1;
+        stl.triangles[k].v2_z = 0;
+        stl.triangles[k].v3_x = width - 1;
+        stl.triangles[k].v3_y = j + 1;
+        stl.triangles[k].v3_z = y[(j + 1) * width + (width - 1)];
+        ++k;
+    }
+
+    // TOP & BOTTOM STRIPS
+    for (int i = 0; i < width - 1; ++i) {
+        stl.triangles[k].v1_x = i;
+        stl.triangles[k].v1_y = 0;
+        stl.triangles[k].v1_z = 0;
+        stl.triangles[k].v2_x = i + 1;
+        stl.triangles[k].v2_y = 0;
+        stl.triangles[k].v2_z = 0;
+        stl.triangles[k].v3_x = i;
+        stl.triangles[k].v3_y = 0;
+        stl.triangles[k].v3_z = y[i];
+        ++k;
+        stl.triangles[k].v1_x = i;
+        stl.triangles[k].v1_y = 0;
+        stl.triangles[k].v1_z = y[i];
+        stl.triangles[k].v2_x = i + 1;
+        stl.triangles[k].v2_y = 0;
+        stl.triangles[k].v2_z = 0;
+        stl.triangles[k].v3_x = i + 1;
+        stl.triangles[k].v3_y = 0;
+        stl.triangles[k].v3_z = y[i + 1];
+        ++k;
+        stl.triangles[k].v1_x = i;
+        stl.triangles[k].v1_y = height - 1;
+        stl.triangles[k].v1_z = 0;
+        stl.triangles[k].v2_x = i;
+        stl.triangles[k].v2_y = height - 1;
+        stl.triangles[k].v2_z = y[(height - 1) * width + (i)];
+        stl.triangles[k].v3_x = i + 1;
+        stl.triangles[k].v3_y = height - 1;
+        stl.triangles[k].v3_z = 0;
+        ++k;
+        stl.triangles[k].v1_x = i;
+        stl.triangles[k].v1_y = height - 1;
+        stl.triangles[k].v1_z = y[(height - 1) * width + (i)];
+        stl.triangles[k].v2_x = i + 1;
+        stl.triangles[k].v2_y = height - 1;
+        stl.triangles[k].v2_z = y[(height - 1) * width + (i + 1)];
+        stl.triangles[k].v3_x = i + 1;
+        stl.triangles[k].v3_y = height - 1;
+        stl.triangles[k].v3_z = 0;
+        ++k;
+    }
+    return stl;
+}
+
 // FORWARD DELCARATIONS //////////////////
 // i already implemented these for you ///
 
@@ -94,22 +266,28 @@ void stl_draw(Camera3D *camera, STL *stl);
 
 int main() {
     STL stl = {};
-    stl.num_triangles = 12;
-    stl.triangles = (Triangle *) calloc(stl.num_triangles, sizeof(Triangle)); {
-        int k = 0;
-        stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f,  10.0f, -10.0f };
-        stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f };
-        stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
-        stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f };
-        stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f };
-        stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f };
-        stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
-        stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f };
-        stl.triangles[k++] = {  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f };
-        stl.triangles[k++] = {  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f };
-        stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
-        stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
-    }
+
+    // stl.num_triangles = 1;
+    // stl.triangles = (Triangle *) calloc(stl.num_triangles, sizeof(Triangle));
+    // stl.triangles[0] = { 0.0, 0.0, 0.0,   10.0, 0.0, 0.0,   0.0, 10.0, 0.0 };
+
+    // stl.num_triangles = 12;
+    // stl.triangles = (Triangle *) calloc(stl.num_triangles, sizeof(Triangle));
+    // int k = 0;
+    // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f,  10.0f, -10.0f };
+    // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f };
+    // stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
+    // stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f };
+    // stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f };
+    // stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f };
+    // stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
+    // stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f };
+    // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f };
+    // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f };
+    // stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
+    // stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
+
+    stl = lithopane("jeannie.png");
 
     Camera3D camera = { 100.0 };
     while (cow_begin_frame()) {
@@ -118,7 +296,7 @@ int main() {
         stl_draw(&camera, &stl);
 
         // TODO: text box
-        
+
         // TODO: load_ASCII
         // TODO: load_binary
 
@@ -136,7 +314,6 @@ int main() {
 // FORWARD DELCARED FUNCTIONS ////////////
 
 void stl_draw(Camera3D *camera, STL *stl) {
-    // NOTE: coloring should really be done in a shader
     mat4 C_inv = camera_get_V(camera);
     eso_begin(camera_get_PV(camera), SOUP_OUTLINED_TRIANGLES);
     for (Triangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {

@@ -3078,6 +3078,17 @@ template <typename T> T sbuff_pop_back(StretchyBuffer<T> *buffer) {
     return sbuff_delete(buffer, buffer->length - 1);
 }
 
+template <typename T> T sbuff_pop_front(StretchyBuffer<T> *buffer) {
+    ASSERT(buffer->length != 0);
+    return sbuff_delete(buffer, 0);
+}
+
+#define squeue_add sbuff_push_back
+#define squeue_remove sbuff_pop_front
+
+// TODO: sstack
+
+
 ////////////////////////////////////////////////////////////////////////////////
 // #include "mesh.cpp"//////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
