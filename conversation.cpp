@@ -1,17 +1,21 @@
-// Conversation STL
+// cow soup/eso should take arbitrary sizes per entity and 
+
+// // Conversation
+// NOTE: This is a little CAD program Jim is actively developing.
+//       It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
+//       Feel free to ignore.
 
 // TODO: cow_real actually supporting real32 or real64
 
 
-// NOTE: This is a little CAD program Jim is actively developing.
-//       Feel free to ignore.
 
 // roadmap
 // / import dxf
-// / detect loops
-// / 2D picking of loops by clicking on DXF
-// - omax-type selection ('s' + 'c')
-// - multi-select (no shift--follow omax style)
+// / detect pick_loops
+// / 2D picking of pick_loops by clicking on DXF
+// / omax-type selection_mask ('s' + 'c'); ('d' + 'a')
+// / multi-select (no shift--follow omax style)
+// - turn loop into polygon (rasterize arcs into line segments)
 // - compile/link manifold
 // - boss ('b') and cut ('c') -- (or 'e'/'E'?)
 // - offsetting with x
@@ -28,27 +32,30 @@
 #include "poe.cpp"
 
 
-#define COLOR_TRAVERSE        0
-#define COLOR_QUALITY_1       1
-#define COLOR_QUALITY_2       2
-#define COLOR_QUALITY_3       3
-#define COLOR_QUALITY_4       4
-#define COLOR_QUALITY_5       5
-#define COLOR_ETCH            6
-#define COLOR_LEAD_IO         9
-#define COLOR_QUALITY_SLIT_1 21
-#define COLOR_QUALITY_SLIT_2 22
-#define COLOR_QUALITY_SLIT_3 23
-#define COLOR_QUALITY_SLIT_4 24
-#define COLOR_QUALITY_SLIT_5 25
-
 real32 TOLERANCE_DEFAULT = 1e-5;
 real32 EPSILON_DEFAULT = 2e-3;
+u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
+
+#define DXF_COLOR_TRAVERSE        0
+#define DXF_COLOR_QUALITY_1       1
+#define DXF_COLOR_QUALITY_2       2
+#define DXF_COLOR_QUALITY_3       3
+#define DXF_COLOR_QUALITY_4       4
+#define DXF_COLOR_QUALITY_5       5
+#define DXF_COLOR_ETCH            6
+#define DXF_COLOR_LEAD_IO         9
+#define DXF_COLOR_QUALITY_SLIT_1 21
+#define DXF_COLOR_QUALITY_SLIT_2 22
+#define DXF_COLOR_QUALITY_SLIT_3 23
+#define DXF_COLOR_QUALITY_SLIT_4 24
+#define DXF_COLOR_QUALITY_SLIT_5 25
+#define DXF_COLOR_SELECTION     254
+#define DXF_COLOR_DONT_OVERRIDE 255
 
 struct DXFLine {
-    int32 color;
+    u32 color;
     real32 start_x;
     real32 start_y;
     real32 end_x;
@@ -57,7 +64,7 @@ struct DXFLine {
 };
 
 struct DXFArc {
-    int32 color;
+    u32 color;
     real32 center_x;
     real32 center_y;
     real32 radius;
@@ -101,6 +108,168 @@ struct DXF {
     DXFEntity *entities;
 };
 
+void dxf_free(DXF *dxf) {
+    ASSERT(dxf->entities);
+    free(dxf->entities);
+}
+
+DXF dxf_load(char *filename) {
+    #if 0
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
+    return {};
+    #elif 0
+    DXF result = {};
+    result->num_entities = 8;
+    result->entities = (DXFEntity *) calloc(result->num_entities, sizeof(DXFEntity));
+    result->entities[0] = { DXF_ENTITY_TYPE_LINE, 0, 0.0, 0.0, 1.0, 0.0 };
+    result->entities[1] = { DXF_ENTITY_TYPE_LINE, 1, 1.0, 0.0, 1.0, 1.0 };
+    result->entities[2] = { DXF_ENTITY_TYPE_LINE, 2, 0.0, 1.0, 0.0, 0.0 };
+    result->entities[3] = { DXF_ENTITY_TYPE_ARC,  3, 0.5, 1.0, 0.5,    0.0, 180.0 };
+    result->entities[4] = { DXF_ENTITY_TYPE_ARC,  4, 0.5, 1.0, 0.25,   0.0, 180.0 };
+    result->entities[5] = { DXF_ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.25, 180.0, 360.0 };
+    result->entities[6] = { DXF_ENTITY_TYPE_ARC,  6, 0.5, 1.0, 0.1,    0.0, 180.0 };
+    result->entities[7] = { DXF_ENTITY_TYPE_ARC,  7, 0.5, 1.0, 0.1,  180.0, 360.0 };
+    return result;
+    #else
+    DXF result = {};
+
+    StretchyBuffer<DXFEntity> stretchy_buffer = {}; {
+        FILE *file = (FILE *) fopen(filename, "r");
+        ASSERT(file);
+        {
+            #define DXF_LOAD_MODE_NONE 0
+            #define DXF_LOAD_MODE_LINE 1
+            #define DXF_LOAD_MODE_ARC  2
+            u8 mode = 0;
+            int code = 0;
+            bool32 code_is_hot = false;
+            DXFLine line = {};
+            DXFArc arc = {};
+            static char buffer[512];
+            while (fgets(buffer, _COUNT_OF(buffer), file)) {
+                if (mode == DXF_LOAD_MODE_NONE) {
+                    if (poe_matches_prefix(buffer, "LINE")) {
+                        mode = DXF_LOAD_MODE_LINE;
+                        code_is_hot = false;
+                        line = {};
+                    } else if (poe_matches_prefix(buffer, "ARC")) {
+                        mode = DXF_LOAD_MODE_ARC;
+                        code_is_hot = false;
+                        arc = {};
+                    }
+                } else {
+                    if (!code_is_hot) {
+                        sscanf(buffer, "%d", &code);
+                        if (code == 0) {
+                            if (mode == DXF_LOAD_MODE_LINE) {
+                                sbuff_push_back(&stretchy_buffer, { DXF_ENTITY_TYPE_LINE, line.color, line.start_x, line.start_y, line.end_x, line.end_y });
+                            } else {
+                                ASSERT(mode == DXF_LOAD_MODE_ARC);
+                                sbuff_push_back(&stretchy_buffer, { DXF_ENTITY_TYPE_ARC, arc.color, arc.center_x, arc.center_y, arc.radius, arc.start_angle, arc.end_angle });
+                            }
+                            mode = DXF_LOAD_MODE_NONE;
+                            code_is_hot = false;
+                        }
+                    } else {
+                        if (code == 62) {
+                            int value;
+                            sscanf(buffer, "%d", &value);
+                            line.color = arc.color = value; 
+                        } else {
+                            float value;
+                            sscanf(buffer, "%f", &value);
+                            if (mode == DXF_LOAD_MODE_LINE) {
+                                if (code == 10) {
+                                    line.start_x = value;
+                                } else if (code == 20) {
+                                    line.start_y = value;
+                                } else if (code == 11) {
+                                    line.end_x = value;
+                                } else if (code == 21) {
+                                    line.end_y = value;
+                                }
+                            } else {
+                                ASSERT(mode == DXF_LOAD_MODE_ARC);
+                                if (code == 10) {
+                                    arc.center_x = value;
+                                } else if (code == 20) {
+                                    arc.center_y = value;
+                                } else if (code == 40) {
+                                    arc.radius = value;
+                                } else if (code == 50) {
+                                    arc.start_angle = value;
+                                } else if (code == 51) {
+                                    arc.end_angle = value;
+                                }
+                            }
+                        }
+                    }
+                    code_is_hot = !code_is_hot;
+                }
+            }
+        } fclose(file);
+    }
+
+    result.num_entities = stretchy_buffer.length;
+    result.entities = (DXFEntity *) calloc(result.num_entities, sizeof(DXFEntity));
+    memcpy(result.entities, stretchy_buffer.data, result.num_entities * sizeof(DXFEntity));
+    sbuff_free(&stretchy_buffer);
+    return result;
+    #endif
+}
+
+void _dxf_eso_color(u32 color) {
+    if      (color == 0) { eso_color( 83 / 255.0, 255 / 255.0,  85 / 255.0); }
+    else if (color == 1) { eso_color(255 / 255.0,   0 / 255.0,   0 / 255.0); }
+    else if (color == 2) { eso_color(238 / 255.0,   0 / 255.0, 119 / 255.0); }
+    else if (color == 3) { eso_color(255 / 255.0,   0 / 255.0, 255 / 255.0); }
+    else if (color == 4) { eso_color(170 / 255.0,   1 / 255.0, 255 / 255.0); }
+    else if (color == 5) { eso_color(  0 / 255.0,  85 / 255.0, 255 / 255.0); }
+    else if (color == 6) { eso_color(136 / 255.0, 136 / 255.0, 136 / 255.0); }
+    else if (color == 7) { eso_color(205 / 255.0, 205 / 255.0, 205 / 255.0); }
+    else if (color == 8) { eso_color(  0 / 255.0, 255 / 255.0, 255 / 255.0); }
+    else if (color == 9) { eso_color(204 / 255.0, 136 / 255.0,   1 / 255.0); }
+    else if (color == DXF_COLOR_SELECTION) { eso_color(1.0, 1.0, 0.0); }
+    else { printf("WARNING: slits not implemented\n"); eso_color(1.0, 1.0, 1.0); }
+}
+
+void eso_dxf_entity(DXFEntity *entity, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+    if (entity->type == DXF_ENTITY_TYPE_LINE) {
+        DXFLine *line = &entity->line;
+        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : line->color);
+        eso_vertex(line->start_x, line->start_y);
+        eso_vertex(line->end_x,   line->end_y);
+    } else {
+        ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+        DXFArc *arc = &entity->arc;
+        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : arc->color);
+        real32 start_angle = RAD(arc->start_angle);
+        real32 end_angle = RAD(arc->end_angle);
+        while (end_angle < start_angle) end_angle += TAU; // *
+        real32 delta_angle = end_angle - start_angle;
+        u32 num_segments = (u32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
+        real32 increment = delta_angle / num_segments;
+        real32 current_angle = start_angle;
+        for (u32 i = 0; i < num_segments; ++i) {
+            eso_vertex(
+                    arc->center_x + arc->radius * cos(current_angle),
+                    arc->center_y + arc->radius * sin(current_angle));
+            current_angle += increment;
+            eso_vertex(
+                    arc->center_x + arc->radius * cos(current_angle),
+                    arc->center_y + arc->radius * sin(current_angle));
+        }
+    }
+}
+
+void dxf_debug_draw(Camera2D *camera2D, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+    eso_begin(camera_get_PV(camera2D), SOUP_LINES);
+    for (DXFEntity *entity = dxf->entities; entity < dxf->entities + dxf->num_entities; ++entity) {
+        eso_dxf_entity(entity, override_color);
+    }
+    eso_end();
+}
+
 real32 squared_distance_point_point(real32 x_A, real32 y_A, real32 x_B, real32 y_B) {
     real32 dx = (x_A - x_B);
     real32 dy = (y_A - y_B);
@@ -122,7 +291,7 @@ real32 squared_distance_point_circle(real32 x, real32 y, real32 center_x, real32
 }
 
 real32 squared_distance_point_arc(real32 x, real32 y, real32 center_x, real32 center_y, real32 radius, real32 start_angle, real32 end_angle) {
-    bool point_in_sector = false; {
+    bool32 point_in_sector = false; {
         real32 v_x = x - center_x;
         real32 v_y = y - center_y;
         // forgive me rygorous
@@ -156,325 +325,429 @@ real32 squared_distance_point_entity(real32 x, real32 y, DXFEntity *entity) {
 }
 
 real32 squared_distance_point_dxf(real32 x, real32 y, DXF *dxf) {
-    double result = HUGE_VAL;
+    double stretchy_buffer = HUGE_VAL;
     for (DXFEntity *entity = dxf->entities; entity < dxf->entities + dxf->num_entities; ++entity) {
-        result = MIN(result, squared_distance_point_entity(x, y, entity));
+        stretchy_buffer = MIN(stretchy_buffer, squared_distance_point_entity(x, y, entity));
+    }
+    return stretchy_buffer;
+}
+
+#define TOOL_NONE 0
+#define TOOL_SELECT 1
+#define TOOL_DESELECT 2
+void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *selection_mask, u32 tool, bool tool_connected_modifier,
+        u32 *num_entities_in_pick_loops, u32 **pick_loops, u32 *pick_loop_index_from_entity_index,
+        real32 epsilon = EPSILON_DEFAULT) {
+    if (tool != TOOL_SELECT && tool != TOOL_DESELECT) return;
+    if (!globals.mouse_left_held) return;
+
+    // TODO: this is silly; i want to be able to tell cow to use a 32 bit float
+    //       (cow_real)
+    real64 PV[16];
+    _camera_get_PV(camera2D, PV);
+    real64 x, y;
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV, &x, &y, NULL, NULL);
+
+    int hot_entity_index = -1;
+    double hot_squared_distance = HUGE_VAL;
+    for (u32 i = 0; i < dxf->num_entities; ++i) {
+        DXFEntity *entity = &dxf->entities[i];
+        double squared_distance = squared_distance_point_entity(x, y, entity);
+        if (squared_distance < MIN(epsilon, hot_squared_distance)) {
+            hot_squared_distance = squared_distance;
+            hot_entity_index = i;
+        }
+    }
+
+    if (hot_entity_index != -1) {
+        if (globals.mouse_left_held) {
+            bool32 value = (tool == TOOL_SELECT);
+            if (!tool_connected_modifier) {
+                selection_mask[hot_entity_index] = value;
+            } else {
+                u32 loop_index = pick_loop_index_from_entity_index[hot_entity_index];
+                u32 *loop = pick_loops[loop_index];
+                u32 num_entities = num_entities_in_pick_loops[loop_index];
+                for (u32 *i = loop; i < loop + num_entities; ++i) {
+                    selection_mask[*i] = value;
+                }
+            }
+        }
+    }
+}
+
+struct DXFLoopAnalysisResult {
+    u32 num_loops;
+    u32 *num_entities_in_loops;
+    u32 **loops;
+    u32 *loop_index_from_entity_index;
+};
+
+DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *selection_mask = NULL) {
+    if (dxf->num_entities == 0) {
+        DXFLoopAnalysisResult result = {};
+        result.num_loops = 0;
+        result.num_entities_in_loops = (u32 *) calloc(result.num_loops, sizeof(u32));
+        result.loops = (u32 **) calloc(result.num_loops, sizeof(u32 *));
+        result.loop_index_from_entity_index = (u32 *) calloc(dxf->num_entities, sizeof(u32));
+        return result;
+    }
+
+    DXFLoopAnalysisResult result = {};
+    { // num_entities_in_loops, loops
+        StretchyBuffer<StretchyBuffer<u32>> stretchy_buffer = {}; {
+            bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
+            while (true) {
+                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!selection_mask || selection_mask[i]))
+                { // seed loop
+                    bool32 added_and_seeded_new_loop = false;
+                    for (u32 i = 0; i < dxf->num_entities; ++i) {
+                        if (MACRO_CANDIDATE_VALID(i)) {
+                            added_and_seeded_new_loop = true;
+                            entity_already_added[i] = true;
+                            sbuff_push_back(&stretchy_buffer, {});
+                            sbuff_push_back(&stretchy_buffer.data[stretchy_buffer.length - 1], i);
+                            break;
+                        }
+                    }
+                    if (!added_and_seeded_new_loop) break;
+                }
+                { // continue, complete and TODO:reverse loop
+                    while (true) {
+                        bool32 added_new_entity_to_loop = false;
+                        for (u32 i = 0; i < dxf->num_entities; ++i) {
+                            if (!MACRO_CANDIDATE_VALID(i)) continue;
+                            real32 start_x_prev, start_y_prev, end_x_prev, end_y_prev;
+                            real32 start_x_i, start_y_i, end_x_i, end_y_i;
+                            {
+                                entity_get_start_and_end_points(
+                                        &dxf->entities[stretchy_buffer.data[stretchy_buffer.length - 1].data[stretchy_buffer.data[stretchy_buffer.length - 1].length - 1]],
+                                        &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
+                                entity_get_start_and_end_points(&dxf->entities[i], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
+                            }
+                            // NOTE: do NOT assume DXF/OMAX's loops are oriented
+                            //       so need four checks; ouch
+                            real32 tolerance = TOLERANCE_DEFAULT;
+                            bool32 is_next_entity_NOTE_DXF_NOT_oriented = false
+                                || (squared_distance_point_point(start_x_prev, start_y_prev, start_x_i, start_y_i) < tolerance)
+                                || (squared_distance_point_point(start_x_prev, start_y_prev, end_x_i,   end_y_i  ) < tolerance)
+                                || (squared_distance_point_point(end_x_prev,   end_y_prev,   end_x_i,   end_y_i  ) < tolerance)
+                                || (squared_distance_point_point(end_x_prev,   end_y_prev,   start_x_i, start_y_i) < tolerance);
+                            if (is_next_entity_NOTE_DXF_NOT_oriented) {
+                                added_new_entity_to_loop = true;
+                                entity_already_added[i] = true;
+                                sbuff_push_back(&stretchy_buffer.data[stretchy_buffer.length - 1], i);
+                                break;
+                            }
+                        }
+                        if (!added_new_entity_to_loop) break;
+                    }
+                }
+                #undef MACRO_CANDIDATE_VALID
+            }
+            free(entity_already_added);
+        }
+
+        // copy over from array lists
+        result.num_loops = stretchy_buffer.length;
+        result.num_entities_in_loops = (u32 *) calloc(result.num_loops, sizeof(u32));
+        result.loops = (u32 **) calloc(result.num_loops, sizeof(u32 *));
+        for (u32 i = 0; i < result.num_loops; ++i) {
+            result.num_entities_in_loops[i] = stretchy_buffer.data[i].length;
+            result.loops[i] = (u32 *) calloc(result.num_entities_in_loops[i], sizeof(u32));
+            memcpy(result.loops[i], stretchy_buffer.data[i].data, result.num_entities_in_loops[i] * sizeof(u32));
+        }
+
+        // free array lists
+        for (int i = 0; i < stretchy_buffer.length; ++i) sbuff_free(&stretchy_buffer.data[i]);
+        sbuff_free(&stretchy_buffer);
+    }
+    // loop_index_from_entity_index (brute force)
+    result.loop_index_from_entity_index = (u32 *) calloc(dxf->num_entities, sizeof(u32));
+    for (u32 i = 0; i < dxf->num_entities; ++i) {
+        for (u32 j = 0; j < result.num_loops; ++j) {
+            for (u32 k = 0; k < result.num_entities_in_loops[j]; ++k) {
+                if (i == result.loops[j][k]) {
+                    result.loop_index_from_entity_index[i] = j;
+                    break;
+                }
+            }
+        }
     }
     return result;
 }
 
-
-
-
-
-void dxf_free(DXF *dxf) {
-    ASSERT(dxf->entities);
-    free(dxf->entities);
+void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
+    free(analysis->num_entities_in_loops);
+    for (u32 i = 0; i < analysis->num_loops; ++i) {
+        free(analysis->loops[i]);
+    }
+    free(analysis->loop_index_from_entity_index);
 }
 
-void dxf_load(char *filename, DXF *dxf) {
+
+struct Vertex2D {
+    real32 x;
+    real32 y;
+};
+
+struct PolygonalLoop {
+    u32 num_vertices;
+    Vertex2D *vertices;
+};
+
+// NOTE: even odd
+struct CrossSection {
+    u32 num_polygonal_loops;
+    PolygonalLoop *polygonal_loops;
+};
+
+CrossSection cross_section_create(DXF *dxf, bool32 *selection_mask) {
     #if 0
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
-    *dxf = {};
-    dxf->num_entities = 8;
-    dxf->entities = (DXFEntity *) calloc(dxf->num_entities, sizeof(DXFEntity));
-    dxf->entities[0] = { DXF_ENTITY_TYPE_LINE, 0, 0.0, 0.0, 1.0, 0.0 };
-    dxf->entities[1] = { DXF_ENTITY_TYPE_LINE, 1, 1.0, 0.0, 1.0, 1.0 };
-    dxf->entities[2] = { DXF_ENTITY_TYPE_LINE, 2, 0.0, 1.0, 0.0, 0.0 };
-    dxf->entities[3] = { DXF_ENTITY_TYPE_ARC,  3, 0.5, 1.0, 0.5,    0.0, 180.0 };
-    dxf->entities[4] = { DXF_ENTITY_TYPE_ARC,  4, 0.5, 1.0, 0.25,   0.0, 180.0 };
-    dxf->entities[5] = { DXF_ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.25, 180.0, 360.0 };
-    dxf->entities[6] = { DXF_ENTITY_TYPE_ARC,  6, 0.5, 1.0, 0.1,    0.0, 180.0 };
-    dxf->entities[7] = { DXF_ENTITY_TYPE_ARC,  7, 0.5, 1.0, 0.1,  180.0, 360.0 };
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(selection_mask);
+    CrossSection result = {};
+    result.num_polygonal_loops = 2;
+    result.polygonal_loops = (PolygonalLoop *) calloc(result.num_polygonal_loops, sizeof(PolygonalLoop));
+    result.polygonal_loops[0] = {};
+    result.polygonal_loops[0].num_vertices = 4;
+    result.polygonal_loops[0].vertices = (Vertex2D *) calloc(result.polygonal_loops[0].num_vertices, sizeof(Vertex2D));
+    result.polygonal_loops[0].vertices[0] = { -2.0f, -2.0f };
+    result.polygonal_loops[0].vertices[1] = {  2.0f, -2.0f };
+    result.polygonal_loops[0].vertices[2] = {  2.0f,  2.0f };
+    result.polygonal_loops[0].vertices[3] = { -2.0f,  2.0f };
+
+    result.polygonal_loops[1] = {};
+    result.polygonal_loops[1].num_vertices = 6;
+    result.polygonal_loops[1].vertices = (Vertex2D *) calloc(result.polygonal_loops[1].num_vertices, sizeof(Vertex2D));
+    result.polygonal_loops[1].vertices[0] = { cosf(RAD(  0)), sinf(RAD(  0)) };
+    result.polygonal_loops[1].vertices[1] = { cosf(RAD( 60)), sinf(RAD( 60)) };
+    result.polygonal_loops[1].vertices[2] = { cosf(RAD(120)), sinf(RAD(120)) };
+    result.polygonal_loops[1].vertices[3] = { cosf(RAD(180)), sinf(RAD(180)) };
+    result.polygonal_loops[1].vertices[4] = { cosf(RAD(240)), sinf(RAD(240)) };
+    result.polygonal_loops[1].vertices[5] = { cosf(RAD(300)), sinf(RAD(300)) };
+    return result;
     #else
-    *dxf = {};
+    CrossSection result = {};
 
-    StretchyBuffer<DXFEntity> result = {}; {
-        FILE *file = (FILE *) fopen(filename, "r");
-        ASSERT(file);
-        {
-            #define DXF_LOAD_MODE_NONE 0
-            #define DXF_LOAD_MODE_LINE 1
-            #define DXF_LOAD_MODE_ARC  2
-            u8 mode = 0;
-            int code = 0;
-            bool code_is_hot = false;
-            DXFLine line = {};
-            DXFArc arc = {};
-            static char buffer[512];
-            while (fgets(buffer, _COUNT_OF(buffer), file)) {
-                if (mode == DXF_LOAD_MODE_NONE) {
-                    if (poe_matches_prefix(buffer, "LINE")) {
-                        mode = DXF_LOAD_MODE_LINE;
-                        code_is_hot = false;
-                        line = {};
-                    } else if (poe_matches_prefix(buffer, "ARC")) {
-                        mode = DXF_LOAD_MODE_ARC;
-                        code_is_hot = false;
-                        arc = {};
-                    }
-                } else {
-                    if (!code_is_hot) {
-                        sscanf(buffer, "%d", &code);
-                        printf("%d\n", code); // FORNOW
-                        if (code == 0) {
-                            if (mode == DXF_LOAD_MODE_LINE) {
-                                sbuff_push_back(&result, { DXF_ENTITY_TYPE_LINE, line.color, line.start_x, line.start_y, line.end_x, line.end_y });
-                            } else {
-                                ASSERT(mode == DXF_LOAD_MODE_ARC);
-                                sbuff_push_back(&result, { DXF_ENTITY_TYPE_ARC, arc.color, arc.center_x, arc.center_y, arc.radius, arc.start_angle, arc.end_angle });
-                            }
-                            mode = DXF_LOAD_MODE_NONE;
-                            code_is_hot = false;
-                        }
-                    } else {
-                        if (code == 62) {
-                            int value;
-                            sscanf(buffer, "%d", &value);
-                            printf("%    d\n", value); // FORNOW
-                            line.color = arc.color = value; 
-                        } else {
-                            float value;
-                            sscanf(buffer, "%f", &value);
-                            printf("    %f\n", value); // FORNOW
-                            if (mode == DXF_LOAD_MODE_LINE) {
-                                if (code == 10) {
-                                    line.start_x = value;
-                                } else if (code == 20) {
-                                    line.start_y = value;
-                                } else if (code == 11) {
-                                    line.end_x = value;
-                                } else if (code == 21) {
-                                    line.end_y = value;
-                                }
-                            } else {
-                                ASSERT(mode == DXF_LOAD_MODE_ARC);
-                                if (code == 10) {
-                                    arc.center_x = value;
-                                } else if (code == 20) {
-                                    arc.center_y = value;
-                                } else if (code == 40) {
-                                    arc.radius = value;
-                                } else if (code == 50) {
-                                    arc.start_angle = value;
-                                } else if (code == 51) {
-                                    arc.end_angle = value;
-                                }
-                            }
-                        }
-                    }
-                    code_is_hot = !code_is_hot;
-                }
-            }
-        } fclose(file);
+    DXFLoopAnalysisResult analysis = dxf_loop_analysis_create(dxf, selection_mask);
+    {
+        // TODO: num_loops
+        // TODO: dxf_loops_free
+
+        // TODO: copy data into cross section
+        // result.num_polygonal_loops = 
     }
+    dxf_loop_analysis_free(&analysis);
 
-    dxf->num_entities = result.length;
-    dxf->entities = (DXFEntity *) calloc(dxf->num_entities, sizeof(DXFEntity));
-    memcpy(dxf->entities, result.data, dxf->num_entities * sizeof(DXFEntity));
-    sbuff_free(&result);
+    return result;
     #endif
 }
 
-void _dxf_eso_color(u32 color) {
-    if      (color      == 0) { eso_color( 83 / 255.0, 255 / 255.0,  85 / 255.0); }
-    else if (color % 10 == 1) { eso_color(255 / 255.0,   0 / 255.0,   0 / 255.0); }
-    else if (color % 10 == 2) { eso_color(238 / 255.0,   0 / 255.0, 119 / 255.0); }
-    else if (color % 10 == 3) { eso_color(255 / 255.0,   0 / 255.0, 255 / 255.0); }
-    else if (color % 10 == 4) { eso_color(170 / 255.0,   1 / 255.0, 255 / 255.0); }
-    else if (color % 10 == 5) { eso_color(  0 / 255.0,  85 / 255.0, 255 / 255.0); }
-    else if (color      == 6) { eso_color(136 / 255.0, 136 / 255.0, 136 / 255.0); }
-    else if (color      == 7) { eso_color(205 / 255.0, 205 / 255.0, 205 / 255.0); }
-    else if (color      == 8) { eso_color(  0 / 255.0, 255 / 255.0, 255 / 255.0); }
-    else if (color      == 9) { eso_color(204 / 255.0, 136 / 255.0,   1 / 255.0); }
-    else { eso_color(1.0, 1.0, 1.0); }
-}
-
-void dxf_draw(Camera2D *camera2D, DXF *dxf, int32 override_color = -1) {
-    u32 NUM_SEGMENTS_PER_CIRCLE = 64;
+void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
     eso_begin(camera_get_PV(camera2D), SOUP_LINES);
-    for (DXFEntity *entity = dxf->entities; entity < dxf->entities + dxf->num_entities; ++entity) {
-        if (entity->type == DXF_ENTITY_TYPE_LINE) {
-            DXFLine *line = &entity->line;
-            _dxf_eso_color((override_color != -1) ? override_color : line->color);
-            eso_vertex(line->start_x, line->start_y);
-            eso_vertex(line->end_x,   line->end_y);
-        } else {
-            ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-            DXFArc *arc = &entity->arc;
-            _dxf_eso_color((override_color != -1) ? override_color : arc->color);
-            real32 start_angle = RAD(arc->start_angle);
-            real32 end_angle = RAD(arc->end_angle);
-            while (end_angle < start_angle) end_angle += TAU; // *
-            real32 delta_angle = end_angle - start_angle;
-            u32 num_segments = (u32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
-            real32 increment = delta_angle / num_segments;
-            real32 current_angle = start_angle;
-            for (u32 i = 0; i <= num_segments; ++i) {
-                eso_vertex(
-                        arc->center_x + arc->radius * cos(current_angle),
-                        arc->center_y + arc->radius * sin(current_angle));
-                current_angle += increment;
-                eso_vertex(
-                        arc->center_x + arc->radius * cos(current_angle),
-                        arc->center_y + arc->radius * sin(current_angle));
-            }
+    eso_color(monokai.white);
+    for (PolygonalLoop *polygonal_loop = cross_section->polygonal_loops; polygonal_loop < cross_section->polygonal_loops + cross_section->num_polygonal_loops; ++polygonal_loop) {
+        int n = polygonal_loop->num_vertices;
+        for (int j = 0, i = n - 1; j < n; i = j++) {
+            real32 a_x = polygonal_loop->vertices[i].x;
+            real32 a_y = polygonal_loop->vertices[i].y;
+            real32 b_x = polygonal_loop->vertices[j].x;
+            real32 b_y = polygonal_loop->vertices[j].y;
+            eso_color(color_rainbow_swirl(real32(i) / (n)));
+            eso_vertex(a_x, a_y);
+            eso_color(color_rainbow_swirl(real32(i + 1) / (n)));
+            eso_vertex(b_x, b_y);
+
+            // normal
+            real32 c_x = (a_x + b_x) / 2;
+            real32 c_y = (a_y + b_y) / 2;
+            real32 n_x = b_y - a_y;
+            real32 n_y = a_x - b_x;
+            real32 norm_n = sqrt(n_x * n_x + n_y * n_y);
+            real32 L = 0.1f;
+            eso_color(color_rainbow_swirl((i + 0.5f) / (n)));
+            eso_vertex(c_x, c_y);
+            eso_vertex(c_x + L * n_x / norm_n, c_y + L * n_y / norm_n);
         }
     }
     eso_end();
 }
-void dxf_pick_loop(Camera2D *camera2D, u32 num_loops, DXF *loops, DXF **hot_loop, DXF **selected_loop, real32 epsilon = EPSILON_DEFAULT) {
-    { // hot
-      // TODO: this is silly; i want to be able to tell cow to use a 32 bit float
-      //       (cow_real)
-        real64 PV[16];
-        _camera_get_PV(camera2D, PV);
-        real64 x, y;
-        _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV, &x, &y, NULL, NULL);
 
-        *hot_loop = NULL;
-        double hot_squared_distance = HUGE_VAL;
-        for (DXF *loop = loops; loop < loops + num_loops; ++loop) {
-            double squared_distance = squared_distance_point_dxf(x, y, loop);
-            if (squared_distance < MIN(epsilon, hot_squared_distance)) {
-                hot_squared_distance = squared_distance;
-                *hot_loop = loop;
-            }
-        }
-    }
 
-    // selected
-    if (hot_loop != NULL) {
-        if (globals.mouse_left_pressed) {
-            *selected_loop = (*selected_loop != *hot_loop) ? *hot_loop : NULL;
-        }
+
+
+
+struct STLTriangle {
+    real32 v1_x;
+    real32 v1_y;
+    real32 v1_z;
+    real32 v2_x;
+    real32 v2_y;
+    real32 v2_z;
+    real32 v3_x;
+    real32 v3_y;
+    real32 v3_z;
+};
+
+struct STL {
+    u32 num_triangles;
+    STLTriangle *triangles;
+};
+
+void stl_draw(Camera3D *camera, STL *stl) {
+    mat4 C_inv = camera_get_V(camera);
+    eso_begin(camera_get_PV(camera), SOUP_OUTLINED_TRIANGLES);
+    for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
+        vec3 v1 = { triangle->v1_x, triangle->v1_y, triangle->v1_z };
+        vec3 v2 = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
+        vec3 v3 = { triangle->v3_x, triangle->v3_y, triangle->v3_z };
+        vec3 n = transformNormal(C_inv, normalized(cross(v2 - v1, v3 - v1)));
+        vec3 color = (n.z < 0) ? V3(1.0, 0.0, 0.0) : V3(0.5 + 0.5 * n.x, 0.5 + 0.5 * n.y, 1.0);
+        eso_color(color);
+        eso_vertex(v1);
+        eso_vertex(v2);
+        eso_vertex(v3);
     }
+    eso_end();
 }
 
-void dxf_assemble_sorted_loops(DXF *dxf, u32 *num_loops, DXF **loops) {
-    if (dxf->num_entities == 0) {
-        *num_loops = 0;
-        *loops = (DXF *) calloc(*num_loops, sizeof(DXF));
-        return;
-    }
+void stl_save_binary(STL *stl, char *filename) {
+    FILE *file = fopen(filename, "w");
+    ASSERT(file);
 
-    // build loops as array list of array lists of entities
-    StretchyBuffer<StretchyBuffer<DXFEntity>> result = {}; {
-        bool *entity_already_added = (bool *) calloc(dxf->num_entities, sizeof(bool));
-        while (true) {
-            { // seed loop
-                bool added_and_seeded_new_loop = false;
-                for (u32 i = 0; i < dxf->num_entities; ++i) {
-                    if (!entity_already_added[i]) {
-                        added_and_seeded_new_loop = true;
-                        entity_already_added[i] = true;
-                        sbuff_push_back(&result, {});
-                        sbuff_push_back(&result.data[result.length - 1], dxf->entities[i]);
-                        break;
-                    }
-                }
-                if (!added_and_seeded_new_loop) break;
-            }
-            { // continue, complete and TODO:reverse loop
-                while (true) {
-                    bool added_new_entity_to_loop = false;
-                    for (u32 i = 0; i < dxf->num_entities; ++i) {
-                        if (entity_already_added[i]) continue;
-                        real32 start_x_prev, start_y_prev, end_x_prev, end_y_prev;
-                        real32 start_x_i, start_y_i, end_x_i, end_y_i;
-                        {
-                            entity_get_start_and_end_points(
-                                    &result.data[result.length - 1].data[result.data[result.length - 1].length - 1],
-                                    &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
-                            entity_get_start_and_end_points(&dxf->entities[i], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
-                        }
-                        // NOTE: do NOT assume DXF/OMAX's loops are oriented
-                        //       so need four checks; ouch
-                        real32 tolerance = TOLERANCE_DEFAULT;
-                        bool is_next_entity_NOTE_DXF_NOT_oriented = false
-                            || (squared_distance_point_point(start_x_prev, start_y_prev, start_x_i, start_y_i) < tolerance)
-                            || (squared_distance_point_point(start_x_prev, start_y_prev, end_x_i,   end_y_i  ) < tolerance)
-                            || (squared_distance_point_point(end_x_prev,   end_y_prev,   end_x_i,   end_y_i  ) < tolerance)
-                            || (squared_distance_point_point(end_x_prev,   end_y_prev,   start_x_i, start_y_i) < tolerance);
-                        if (is_next_entity_NOTE_DXF_NOT_oriented) {
-                            added_new_entity_to_loop = true;
-                            entity_already_added[i] = true;
-                            sbuff_push_back(&result.data[result.length - 1], dxf->entities[i]);
-                            break;
-                        }
-                    }
-                    if (!added_new_entity_to_loop) break;
-                }
-            }
+    int num_bytes = 80 + 4 + 50 * stl->num_triangles;
+    char *buffer = (char *) calloc(num_bytes, 1); {
+        int offset = 80;
+        memcpy(buffer + offset, &stl->num_triangles, 4);
+        offset += 4;
+        for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
+            offset += 12;
+            memcpy(buffer + offset, triangle, 36);
+            offset += 38;
         }
-        free(entity_already_added);
     }
+    fwrite(buffer, 1, num_bytes, file);
+    free(buffer);
 
-    // copy over from array lists into bare arrays
-    *num_loops = result.length;
-    *loops = (DXF *) calloc(*num_loops, sizeof(DXF));
-    for (u32 i = 0; i < *num_loops; ++i) {
-        (*loops)[i].num_entities = result.data[i].length;
-        (*loops)[i].entities = (DXFEntity *) calloc((*loops)[i].num_entities, sizeof(DXFEntity));
-        memcpy((*loops)[i].entities, result.data[i].data, (*loops)[i].num_entities * sizeof(DXFEntity));
-    }
-
-    // free array lists
-    for (int i = 0; i < result.length; ++i) sbuff_free(&result.data[i]);
-    sbuff_free(&result);
+    fclose(file);
 }
 
 
-#define PART_OPERATION_TYPE_BOSS 0
-#define PART_OPERATION_TYPE_CUT  1
-struct PartOperation {
-    u32 type;
-
-};
-
-struct Part {
-    u32 num_groups;
-    DXF *groups;
-
-    StretchyBuffer<PartOperation> operations;
-};
 
 int main() {
 
-    u32 num_loops;
-    DXF *loops;
-    {
-        DXF dxf;
-        dxf_load("omax.dxf", &dxf);
-        dxf_assemble_sorted_loops(&dxf, &num_loops, &loops);
-        dxf_free(&dxf);
-    }
+    bool32 *test = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+    for (u32 i = 0; i < dxf.num_entities / 2; ++i) 
+    DXF dxf = dxf_load("omax.dxf");
+    DXFLoopAnalysisResult pick = dxf_loop_analysis_create(&dxf);
 
-    DXF *selected_loop = NULL;
-    DXF *hot_loop = NULL;
-
-    // Part part = {};
-    // part_boss(&part, loops[0]);
-    // part_cut(&part, loops[1]);
+    u32 tool = TOOL_NONE;
+    bool32 tool_connected_modifier = false;
+    bool32 *selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
 
-    Camera2D camera2D = { 5.0, 3.0 };
-    // Camera3D camera3D = { 5.0, RAD(0.0), RAD(0.0), RAD(0.0), -3.0 };
+
+    STL stl;
+    #if 1
+    stl = {};
+    stl.num_triangles = 4;
+    stl.triangles = (STLTriangle *) calloc(stl.num_triangles, sizeof(STLTriangle));
+    float h = (1.0f + sqrtf(3.0f)) / 2;
+    stl.triangles[0] = {
+        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
+        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
+        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
+    };
+    stl.triangles[1] = {
+        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
+        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
+        0.0f, h, 0.0f
+    };
+    stl.triangles[2] = {
+        (real32) cos(RAD(240.0)), 0.0f, (real32) sin(RAD(240.0)),
+        (real32) cos(RAD(120.0)), 0.0f, (real32) sin(RAD(120.0)),
+        0.0f, h, 0.0f
+    };
+    stl.triangles[3] = {
+        (real32) cos(RAD(  0.0)), 0.0f, (real32) sin(RAD(  0.0)),
+        (real32) cos(RAD(240.0)), 0.0f, (real32) sin(RAD(240.0)),
+        0.0f, h, 0.0f
+    };
+    #else
+    #endif
+
+
+
+    CrossSection cross_section = {};
+
+
+
+    Camera2D camera2D = { 5.0, 2.5 };
+    Camera3D camera3D = { 5.0, RAD(0.0), RAD(0.0), RAD(0.0), -2.5 };
     while (cow_begin_frame()) {
+        camera_move(&camera3D, true, true);
         camera_move(&camera2D);
 
-        // dxf_draw(&camera2D, &dxf);
-        dxf_pick_loop(&camera2D, num_loops, loops, &hot_loop, &selected_loop);
+        { // dxf
+            { // pick
+                if (globals.key_pressed['s']) {
+                    tool = TOOL_SELECT;
+                    tool_connected_modifier = false;
+                }
+                if (globals.key_pressed['d']) {
+                    tool = TOOL_DESELECT;
+                    tool_connected_modifier = false;
+                }
+                if (globals.key_pressed['c']) {
+                    tool_connected_modifier = true;
+                }
+                if (globals.key_pressed['a']) {
+                    if (tool == TOOL_SELECT) {
+                        for (u32 i = 0; i < dxf.num_entities; ++i) selection_mask[i] = true;
+                    } else if (tool == TOOL_DESELECT) {
+                        for (u32 i = 0; i < dxf.num_entities; ++i) selection_mask[i] = false;
+                    }
+                }
+                dxf_pick(&camera2D, &dxf, selection_mask, tool, tool_connected_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+            }
 
-        // TODO: convert to big eso
-        for (DXF *loop = loops; loop < loops + num_loops; ++loop) {
-            dxf_draw(&camera2D, loop,
-                    (globals.key_toggled[COW_KEY_TAB]) ? -1 :
-                    (loop == hot_loop && loop == selected_loop) ? COLOR_QUALITY_1 :
-                    (loop == hot_loop) ? COLOR_TRAVERSE :
-                    (loop == selected_loop) ? COLOR_LEAD_IO :
-                    COLOR_ETCH);
+            if (!globals.key_toggled['h']) { // draw
+                eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
+                for (u32 i = 0; i < dxf.num_entities; ++i) {
+                    DXFEntity *entity = &dxf.entities[i];
+                    int32 color = (selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
+                    eso_dxf_entity(entity, color);
+                }
+                eso_end();
+
+                // dots
+                if (globals.key_toggled[COW_KEY_TAB]) {
+                    eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
+                    eso_color(monokai.white);
+                    for (DXFEntity *entity = dxf.entities; entity < dxf.entities + dxf.num_entities; ++entity) {
+                        real32 start_x, start_y, end_x, end_y;
+                        entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
+                        eso_vertex(start_x, start_y);
+                        eso_vertex(end_x, end_y);
+                    }
+                    eso_end();
+                }
+            }
         }
-        // part_draw(&part);
+
+        if (0) { // stl
+            stl_draw(&camera3D, &stl);
+        }
+
+
+        if (globals.key_pressed[COW_KEY_ENTER]) {
+            cross_section = cross_section_create(&dxf, selection_mask);
+        }
+        cross_section_debug_draw(&camera2D, &cross_section);
+        // TODO: draw cross section ordered in rainbow swirl (maybe with a comb too?)
+
+
+        if (gui_button("save stl", '6')) stl_save_binary(&stl, "out_binary.stl");
     }
 }

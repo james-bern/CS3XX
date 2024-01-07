@@ -100,6 +100,7 @@ STL lithopane(char *filename) {
         y = (real32 *) calloc(width * height, sizeof(real32));
         for (int j = 0; j < height; ++j) {
             for (int i = 0; i < width; ++i) {
+                #define real real32 // TODO: FORNOW
                 y[j * width + i] = LINEAR_REMAP(data[(j * width + i) * number_of_channels], 0.0, 255.0, 4.0, 0.4);
             }
         }

@@ -1,3 +1,5 @@
+// TODO: port back from conversation.cpp (fix in eso_entity, and probably some other nice stuff)
+
 // TODO: debug to same giant build script (just one massive file)
 
 
@@ -30,6 +32,7 @@
 #define COLOR_QUALITY_SLIT_3 23
 #define COLOR_QUALITY_SLIT_4 24
 #define COLOR_QUALITY_SLIT_5 25
+#define COLOR_SELECTION     255
 
 
 // STRUCTS ///////////////////////////////
@@ -139,6 +142,14 @@ void dxf_draw(Camera2D *camera, DXF *dxf);
 
 int main() {
     DXF dxf = {};
+    #if 1
+    dxf.num_lines = 255;
+    dxf.num_arcs = 0;
+    dxf.lines = (Line *) calloc(dxf.num_lines, sizeof(Line));
+    for (int i = 0; i < dxf.num_lines; ++i) {
+        dxf.lines[i] = {  INCHES(i),  INCHES(0.0),  INCHES(i),  INCHES(10.0), i };
+    }
+    #else
     dxf.num_lines = 3;
     dxf.num_arcs = 2;
     dxf.lines = (Line *) calloc(dxf.num_lines, sizeof(Line));
@@ -148,6 +159,7 @@ int main() {
     dxf.arcs = (Arc *) calloc(dxf.num_arcs, sizeof(Arc));
     dxf.arcs[0] = { INCHES(20.0), INCHES(10.0), INCHES(7.0),   0.0, 180.0, COLOR_QUALITY_2 };
     dxf.arcs[1] = { INCHES(20.0), INCHES(10.0), INCHES(7.0), 180.0, 360.0, COLOR_QUALITY_4 };
+    #endif
 
     Camera2D camera = { INCHES(300.0) };
     while (cow_begin_frame()) {
