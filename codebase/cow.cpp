@@ -124,7 +124,7 @@ struct CW_USER_FACING_CONFIG {
     bool tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = true;
     bool tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter = false;
     bool tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE = false;
-    real tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 8.0;
+    real tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 2.0;
 };
 
 struct C2_READONLY_USER_FACING_DATA {
@@ -1649,9 +1649,9 @@ void _soup_draw(
                 vertex_colors = NULL;
 
                 // FORNOW
-                r_if_vertex_colors_is_NULL = 0.0;
-                g_if_vertex_colors_is_NULL = 0.0;
-                b_if_vertex_colors_is_NULL = 0.0;
+                r_if_vertex_colors_is_NULL = 1.0;
+                g_if_vertex_colors_is_NULL = 1.0;
+                b_if_vertex_colors_is_NULL = 1.0;
                 a_if_vertex_colors_is_NULL = 1.0;
             }
         }
@@ -3034,7 +3034,11 @@ template <typename T> struct StretchyBuffer {
     int _capacity;
     T *data;
 
-    T &operator [](int index) { return data[index]; }
+    // T &operator [](int index) { return data[index]; }
+    T *back() {
+        ASSERT(length >= 1);
+        return &data[length - 1];
+    }
 };
 
 template <typename T> void sbuff_push_back(StretchyBuffer<T> *buffer, T element) {
@@ -3077,6 +3081,17 @@ template <typename T> T sbuff_pop_back(StretchyBuffer<T> *buffer) {
     ASSERT(buffer->length != 0);
     return sbuff_delete(buffer, buffer->length - 1);
 }
+
+template <typename T> T sbuff_pop_front(StretchyBuffer<T> *buffer) {
+    ASSERT(buffer->length != 0);
+    return sbuff_delete(buffer, 0);
+}
+
+#define squeue_add sbuff_push_back
+#define squeue_remove sbuff_pop_front
+
+// TODO: sstack
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "mesh.cpp"//////////////////////////////////////////////////////////
@@ -4609,7 +4624,7 @@ void eg_kitchen_sink() {
 
         {
             vec2 s_mouse = globals.mouse_position_NDC;
-            if (trace.length == 0 || squaredNorm(trace[trace.length - 1] - s_mouse) > .0001) {
+            if (trace.length == 0 || squaredNorm(trace.data[trace.length - 1] - s_mouse) > .0001) {
                 sbuff_push_back(&trace, s_mouse);
             }
             if (gui_button("clear trace", 'r')) {
