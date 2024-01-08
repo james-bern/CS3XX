@@ -142,7 +142,7 @@ void dxf_draw(Camera2D *camera, DXF *dxf);
 
 int main() {
     DXF dxf = {};
-    #if 1
+    #if 0
     dxf.num_lines = 255;
     dxf.num_arcs = 0;
     dxf.lines = (Line *) calloc(dxf.num_lines, sizeof(Line));
