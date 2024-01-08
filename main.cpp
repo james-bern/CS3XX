@@ -37,6 +37,8 @@ bool poe_matches_prefix(char *string, char *prefix) { // FORNOW
 }
 
 
+int bpm = 160;
+int frames_per_beat() { return (3600 / bpm); }
 
 
 // FORNOW: this also stores "facing"
@@ -234,7 +236,8 @@ struct Thing {
         else { ; }
         if (preserve_rect) x += ORIGIN_n[origin_type].x * width;
     }
-    void mirror_x() {
+    void mirror_x(boolean actually_do_it = true) {
+        if (!actually_do_it) return;
         flip_origin_type_x();
         x *= -1;
         v.x *= -1;
@@ -708,6 +711,7 @@ void cat_game() {
 
                     load_WAD();
                 } UPDATE {
+                    real MIN_V_Y = -1.2;
                     if (lucy->is_live) { // lucy & miao
                         { // movement 
                             { // lucy
@@ -727,7 +731,7 @@ void cat_game() {
 
                                 if (lucy->state == LUCY_STATE_NORMAL) {
                                     lucy->v.y -= 0.3;
-                                    lucy->v.y = MAX(lucy->v.y, -1.8);
+                                    lucy->v.y = MAX(MIN_V_Y, lucy->v.y);
 
                                     lucy->astep();
 
@@ -750,507 +754,469 @@ void cat_game() {
                                     }
                                 } else if (lucy->state == LUCY_STATE_YOSHI) {
                                     // lucy->v.x *= 2.0;
-                                    lucy->v.y = MIAO_CLAMPED_LERP(lucy->_state_counter, 10, 7, 1) * .375;
-                                    
+                                    lucy->v.y = MIAO_CLAMPED_LERP(lucy->_state_counter, 10, 7, 1) * .44;
+
                                     lucy->astep();
 
-                                    if ((!cow.key_held['j'] && lucy->_state_counter > 10) || (lucy->_state_counter == 20)) {
-                                        lucy->state = LUCY_STATE_NORMAL; lucy->_state_counter = 0;
-                                    }
+                                    if
+                                        ((!cow.key_held['j'] && lucy->_state_counter > 10) || (lucy->_state_counter == 20)) {
+                                        // ((lucy->_state_counter == 20)) {
+                                            lucy->state = LUCY_STATE_NORMAL; lucy->_state_counter = 0;
+                                        }
                                 }
 
-                            }
-                            { // stacking
-                                if (cow.key_pressed[' ']) {
-                                    if ((miao->state == MIAO_STATE_NORMAL) && (lucy->collidesWith(miao))) {
-                                        miao->state = MIAO_STATE_STACKED;
-                                        // TODO: frames_since_last_state_transition
-                                        // miao->state_transition()
+                                }
+                                { // stacking
+                                    if (cow.key_pressed[' ']) {
+                                        if ((miao->state == MIAO_STATE_NORMAL) && (lucy->collidesWith(miao))) {
+                                            miao->state = MIAO_STATE_STACKED;
+                                            // TODO: frames_since_last_state_transition
+                                            // miao->state_transition()
+                                        } else if (miao->state == MIAO_STATE_STACKED) {
+                                            miao->state = MIAO_STATE_NORMAL;
+                                        }
+                                    }
+                                }
+                                { // miao
+                                    if (miao->state == MIAO_STATE_NORMAL) {
+                                        miao->v.y -= 0.3;
+                                        miao->v.y = MAX(MIN_V_Y, miao->v.y);
+                                        miao->astep();
                                     } else if (miao->state == MIAO_STATE_STACKED) {
+                                        miao->origin_type = lucy->origin_type;
+                                        miao->s = lucy->s + V2(0.0, lucy->height);
+                                    } else {
+                                        ASSERT(0);
+                                    }
+                                }
+                            }
+                            { // fire
+                                int FIRE_COOLDOWN = int(3600.0 / 160 / 1);
+                                // lucy fire
+                                if (!cow.key_toggled['k'] && cow.key_pressed['k']) lucy_->frames_since_fired = 0;
+                                if (!cow.key_toggled['l'] && cow.key_pressed['l']) miao_->frames_since_fired = 0;
+                                if ((cow.key_held['k'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(lucy_->frames_since_fired, FIRE_COOLDOWN)) {
+                                    sound_play_sound("short.wav");
+                                    bool firing_vertically = (cow.key_held['e']);
+                                    int sgn = lucy->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
+
+                                    // TODO: make lucy bullet a super prefab
+                                    lucy_->frames_since_fired = 0;
+                                    Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
+                                    bullet->is_live = true;
+                                    bullet->update_group = UPDATE_GROUP_SPEQV;
+                                    bullet->s = lucy->getCenter() + ((!firing_vertically) ? V2(sgn * 3.0, 1.0) : V2(0.0, 5.0));
+                                    bullet->v = (!firing_vertically) ? V2(sgn * 2.0, 0.0) : V2(0.0, 2.0);
+                                    bullet->size = { 2.0, 2.0 };
+                                    bullet->color = RED;
+                                    bullet->hits = ENEMY | PLATFORM;
+                                    bullet->is_kamikazee_hitter = true;
+                                }
+                                // miao fire
+                                if ((cow.key_held['l'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(miao_->frames_since_fired, FIRE_COOLDOWN)) {
+                                    int sgn = miao->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
+
+                                    // TODO: make miao bullet a super prefab
+                                    miao_->frames_since_fired = 0;
+                                    Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
+                                    bullet->is_live = true;
+                                    bullet->update_group = UPDATE_GROUP_SPEQV;
+                                    bullet->s = miao->getCenter() + V2(sgn * 3.0, 0.0);
+                                    bullet->v = V2(sgn * 2.0, 0.0);
+                                    bullet->size = { 2.0, 2.0 };
+                                    bullet->color = BLUE;
+                                    bullet->hits = ENEMY | PLATFORM;
+                                    bullet->is_kamikazee_hitter = true;
+                                }
+                                ++lucy_->frames_since_fired;
+                                ++miao_->frames_since_fired;
+                            }
+                            { // stack?
+                                if (!miao->is_live) {
+                                    miao->is_live = true;
+                                    miao->s = lucy->s + V2(0.0, 6.0);
+                                    if (miao->state != MIAO_STATE_STACKED) {
+                                        miao->state = MIAO_STATE_STACKED;
+                                    } else {
                                         miao->state = MIAO_STATE_NORMAL;
                                     }
                                 }
                             }
-                            { // miao
-                                if (miao->state == MIAO_STATE_NORMAL) {
-                                    miao->v.y -= 0.3;
-                                    miao->v.y = MAX(miao->v.y, -1.8);
-                                    miao->astep();
-                                } else if (miao->state == MIAO_STATE_STACKED) {
-                                    miao->origin_type = lucy->origin_type;
-                                    miao->s = lucy->s + V2(0.0, lucy->height);
-                                } else {
-                                    ASSERT(0);
-                                }
-                            }
-                        }
-                        { // fire
-                            int FIRE_COOLDOWN = int(3600.0 / 160 / 1);
-                            // lucy fire
-                            if (!cow.key_toggled['k'] && cow.key_pressed['k']) lucy_->frames_since_fired = 0;
-                            if (!cow.key_toggled['l'] && cow.key_pressed['l']) miao_->frames_since_fired = 0;
-                            if ((cow.key_held['k'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(lucy_->frames_since_fired, FIRE_COOLDOWN)) {
-                                sound_play_sound("short.wav");
-                                bool firing_vertically = (cow.key_held['e']);
-                                int sgn = lucy->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
-
-                                // TODO: make lucy bullet a super prefab
-                                lucy_->frames_since_fired = 0;
-                                Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
-                                bullet->is_live = true;
-                                bullet->update_group = UPDATE_GROUP_SPEQV;
-                                bullet->s = lucy->getCenter() + ((!firing_vertically) ? V2(sgn * 3.0, 1.0) : V2(0.0, 5.0));
-                                bullet->v = (!firing_vertically) ? V2(sgn * 2.0, 0.0) : V2(0.0, 2.0);
-                                bullet->size = { 2.0, 2.0 };
-                                bullet->color = RED;
-                                bullet->hits = ENEMY | PLATFORM;
-                                bullet->is_kamikazee_hitter = true;
-                            }
-                            // miao fire
-                            if ((cow.key_held['l'] || !cow.key_toggled[';']) && IS_DIVISIBLE_BY(miao_->frames_since_fired, FIRE_COOLDOWN)) {
-                                int sgn = miao->facing_right() ? 1 : -1; // TODO: down (once can fall onto platform)
-
-                                // TODO: make miao bullet a super prefab
-                                miao_->frames_since_fired = 0;
-                                Thing *bullet = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
-                                bullet->is_live = true;
-                                bullet->update_group = UPDATE_GROUP_SPEQV;
-                                bullet->s = miao->getCenter() + V2(sgn * 3.0, 0.0);
-                                bullet->v = V2(sgn * 2.0, 0.0);
-                                bullet->size = { 2.0, 2.0 };
-                                bullet->color = BLUE;
-                                bullet->hits = ENEMY | PLATFORM;
-                                bullet->is_kamikazee_hitter = true;
-                            }
-                            ++lucy_->frames_since_fired;
-                            ++miao_->frames_since_fired;
-                        }
-                        { // stack?
-                            if (!miao->is_live) {
-                                miao->is_live = true;
-                                miao->s = lucy->s + V2(0.0, 6.0);
-                                if (miao->state != MIAO_STATE_STACKED) {
-                                    miao->state = MIAO_STATE_STACKED;
-                                } else {
-                                    miao->state = MIAO_STATE_NORMAL;
-                                }
-                            }
                         }
                     }
                 }
-            }
-            { // level-specific reset & update
-                int _level_index = 0;
-                { // level-specific Thing's and updates
-                    // - before adding more features, we need more levels to motivate what we're doing
-                    // - editor feature that layer still missing layer the ability to copy and paste live prefabs into the level
-                    //   bool is_instance
-                    //   (very plausible you might want a bunch of shallow copies of the exact same thing)
-                    //   ((but do we actually have a use case?)
+                { // level-specific reset & update
+                    int _level_index = 0;
+                    { // level-specific Thing's and updates
+                        // - before adding more features, we need more levels to motivate what we're doing
+                        // - editor feature that layer still missing layer the ability to copy and paste live prefabs into the level
+                        //   bool is_instance
+                        //   (very plausible you might want a bunch of shallow copies of the exact same thing)
+                        //   ((but do we actually have a use case?)
 
-
-                    if (0) {} LEVEL { // LEVEL 0
-                        // TODO: special level with all the different kinds of everything (like blow did for sokoban)
-                        // TODO: will this involve prefabs in some way?
-                        // TODO: you will want to have some hotkey combo that
-                        // "elevates" a prefab out of a level-specific prefab to 
-                        // one that can be used on any level
-                    } LEVEL { // PLAYGROUND
-                    } LEVEL { // SHIVA
-                        // NOTE: there may be a cool editor that looks kinda like sheet music
-                        // our current level would look something like this
-                        // 0  1  2  3  4  5  6  7
-                        // 1     1    X1    X1
-                        //          2          X2
-
-                        // LATER: telegraph where things will spawn?
-                        // LATER: draw a metronome
-                        // LATER: both hands coming from sides
-
-                        // multiple phases
-                        // like juggling
-                        // todo actually learn siteswap
-                        // todo all events must be driven off the same clock
-                        // (FORNOW: don't make them reactive--the pushing things away layer fine, but may go away)
-                        // -- player shouldn't have to guess how many shots are necessary to kill something?
-                        // ! the hand can be killed by time, not by your shots (shots just delay it)
-                        // !! same with head
-
-                        // XXX: damage -> age
-                        // XXX: timing off of level->frame_index
-                        // XXX: better way of creating things with logic (update group actually seems good)
-                        // XXX: handle bullet age as just getting far away
-                        // XXX: any way of handling child objects
-
-
-                        /* Thing *hand = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE(); */
-                        /* Thing *hand2 = Acquire_Or_Recover_Slot__SETS_PERSISTENT_TO_TRUE(); */
-                        /* int &numberOfHandKills             = Integer__MUST_BE_SAME_ORDER_EVERY_TIME(); */
-                        /* int &numberOfFramesSinceHandKilled = Integer__MUST_BE_SAME_ORDER_EVERY_TIME(); */
-                        // FORNOW: 4-4 time
-                        // https://soundcloud.com/soulon10/deep-beats-1-jungle-and-footwork-mix-2023-edition-160-bpm
-                        // LATER: redo with real's
-
-                        // LATER: lucy and miao should fire at the rate of the music
-
-                        Thing *head = Find_Live_Thing_By_Name(1);
-                        double &head_y0 = Real__MUST_BE_SAME_ORDER_EVERY_TIME();
-                        // TODO: how to keep the head from flying up forever?
-                        // (has to be fixgured out; but doesn't really impact gameplay)
-
-
-
-                        int bpm = 160;
-                        int frames_per_beat = (3600 / bpm);
                         int beats_per_measure = 8;
                         bool is_beat = false;
-                        int starting_beat_index = 1;
+                        int starting_beat_index = 0; // FORNOW
                         int &_num_beats_played = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
-
-                        // TODO: get hits_actors, is_platform, is_actor worked out
-                        // (intimately tied to collision, at least eventually)
-                        // these things may become a bit field
-
-
+                        int beat_index = -1;
                         RESET {
-                            head_y0 = head->y;
-                        } UPDATE {
-                            head->y = MIN(head->y, head_y0);
-
-
-                            if (IS_DIVISIBLE_BY(level->frame_index, frames_per_beat)) {
+                        } UPDATE{
+                            if (IS_DIVISIBLE_BY(level->frame_index, frames_per_beat())) {
                                 is_beat = true;
                                 if (level->frame_index) ++_num_beats_played;
                             }
-                            int beat_index = (starting_beat_index + _num_beats_played) % beats_per_measure;
-                            /* int _beat_index_no_mod = 100;//starting_beat_index + _num_beats_played; */
+                            beat_index = (starting_beat_index + _num_beats_played) % beats_per_measure;
+                        }
 
+                        if (0) {} LEVEL { // LEVEL 0
+                            // TODO: special level with all the different kinds of everything (like blow did for sokoban)
+                            // TODO: will this involve prefabs in some way?
+                            // TODO: you will want to have some hotkey combo that
+                            // "elevates" a prefab out of a level-specific prefab to 
+                            // one that can be used on any level
+                        } LEVEL { // PLAYGROUND
+                        } LEVEL { // SHIVA
+                            Thing *head = Find_Live_Thing_By_Name(1);
+                            double &head_y0 = Real__MUST_BE_SAME_ORDER_EVERY_TIME();
+                            RESET {
+                                head_y0 = head->y;
+                            } UPDATE {
+                                head->y = MIN(head->y, head_y0);
+                                if (is_beat) {
+                                    if (beat_index == 1 || beat_index == 5) {
+                                        sound_play_sound("kick.wav");
+                                        Thing *hand_blue = Instantiate_Prefab(3);
+                                        hand_blue->max_age = 4 * frames_per_beat() - 1;
+                                        hand_blue->mirror_x(beat_index == 5);
 
-                            if (is_beat) {
-                                if (beat_index == 1 || beat_index == 5) {
-                                    sound_play_sound("kick.wav");
-                                    Thing *hand_blue = Instantiate_Prefab(3);
-                                    hand_blue->max_age = 4 * frames_per_beat - 1;
-                                    if (beat_index == 5) hand_blue->mirror_x();
-
-                                    Thing *hand_red = Instantiate_Prefab(4);
-                                    hand_red->parent_ID = hand_blue->ID; // TODOLATER: this will happen in the editor
-                                    if (beat_index == 5) hand_red->mirror_x();
-                                    // TODOLATER: Instantiate_Prefab(3)->variant({});
-                                }
-                                if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
-                                    sound_play_sound("hat.wav");
-                                    Thing *raindrop = Instantiate_Prefab(1);
-                                    if (beat_index == 4 || beat_index == 6) raindrop->mirror_x();
-                                    Thing *fireball = Instantiate_Prefab(2);
-                                    if (beat_index == 4 || beat_index == 6) fireball->mirror_x();
+                                        Thing *hand_red = Instantiate_Prefab(4);
+                                        hand_red->parent_ID = hand_blue->ID; // TODOLATER: this will happen in the editor
+                                        hand_red->mirror_x(beat_index == 5);
+                                        // TODOLATER: Instantiate_Prefab(3)->variant({});
+                                    }
+                                    if (beat_index == 0 || beat_index == 2 || beat_index == 4 || beat_index == 6) {
+                                        sound_play_sound("hat.wav");
+                                        Instantiate_Prefab(1)->mirror_x(beat_index == 4 || beat_index == 6);
+                                        Instantiate_Prefab(2)->mirror_x(beat_index == 4 || beat_index == 6);
+                                    }
                                 }
                             }
-                            if (beat_index == 2 || beat_index == 6) {
-                                /* sound_play_sound("codebase/sound.wav"); */
-                                /* Thing *fireball = Instantiate_Prefab(2); */
-                                /* if (beat_index == 6) fireball->mirror_x(); */
+                        } LEVEL { // YOSHI
+                            int &count = Integer__MUST_BE_SAME_ORDER_EVERY_TIME();
+                            RESET {
+                                bpm = 188;
+                                miao->state = MIAO_STATE_STACKED;
+                            } UPDATE {
+                                if (is_beat) {
+                                    if (IS_EVEN(beat_index)) {
+                                        Instantiate_Prefab(1)->mirror_x(beat_index >=4);
+                                        ++count;
+                                    }
+                                    if (beat_index == 0 || beat_index == 4) {
+                                        // Thing *thing = Instantiate_Prefab(3);
+                                        // Instantiate_Prefab(2)->mirror_x(IS_ODD(count));
+                                    }
+                                }
                             }
+                        } LEVEL {
+                        } LEVEL {
                         }
-                    } LEVEL { // YOSHI
-                        RESET {
-                            miao->state = MIAO_STATE_STACKED;
-                        } UPDATE {
-                        }
-                    } LEVEL {
-                    } LEVEL {
                     }
                 }
-            }
 
-            { // common update death & draw
-                // TODO: children should die same frame as parents (clean up pass)
-                RESET {} UPDATE {
-                    { // update
-                        _for_each_(thing) {
-                            if (!thing->is_live_non_prefab()) continue;
+                { // common update death & draw
+                    // TODO: children should die same frame as parents (clean up pass)
+                    RESET {} UPDATE {
+                        { // update
+                            _for_each_(thing) {
+                                if (!thing->is_live_non_prefab()) continue;
 
-                            ++thing->age;
-                            ++thing->_state_counter;
-                            if (thing->hit_counter) --thing->hit_counter;
+                                ++thing->age;
+                                ++thing->_state_counter;
+                                if (thing->hit_counter) --thing->hit_counter;
 
-                            if (thing->update_group == UPDATE_GROUP_SPEQV) {
-                                thing->s += thing->v;
+                                if (thing->update_group == UPDATE_GROUP_SPEQV) {
+                                    thing->s += thing->v;
+                                }
+                                if (thing->update_group == UPDATE_GROUP_SHIVA) {
+                                    thing->s += LINEAR_REMAP(thing->hit_counter, HIT_COUNTER_COOLDOWN, 0, -2.0, 1.0) * thing->v;
+                                }
+                                if (thing->update_group == UPDATE_GROUP_CHILD) {
+                                    Thing *parent = Find_Live_Thing_By_ID(thing->parent_ID);
+                                    ASSERT(parent);
+                                    thing->s = parent->s;
+                                }
                             }
-                            if (thing->update_group == UPDATE_GROUP_SHIVA) {
-                                thing->s += LINEAR_REMAP(thing->hit_counter, HIT_COUNTER_COOLDOWN, 0, -2.0, 1.0) * thing->v;
+                        }
+                        { // death
+                            for_(pass, 2) _for_each_(thing) { // FORNOW: includes lucy & miao
+                                if (!thing->is_live_non_prefab()) continue;
+
+                                if ((pass == 0) && (thing->update_group == UPDATE_GROUP_CHILD)) continue;
+                                if ((pass == 1) && (thing->update_group != UPDATE_GROUP_CHILD)) continue;
+
+                                if (thing->update_group == UPDATE_GROUP_CHILD) {
+                                    Thing *parent = Find_Live_Thing_By_ID(thing->parent_ID);
+                                    if (!parent) {
+                                        thing->die();
+                                        continue;
+                                    }
+                                }
+
+                                if ((thing->max_age) && (thing->age > thing->max_age)) {
+                                    thing->die();
+                                    continue;
+                                }
+
+                                { // max_distance
+                                    if (norm(thing->s - lucy->s) > 1024.0) {
+                                        do_once printf("[max-distance]");
+                                        thing->die();
+                                        continue;
+                                    }
+                                }
+
+
+                                if (!(thing->layer & PHYSICAL)) continue;
+                                _for_each_(hitter) {
+                                    if (hitter == thing) continue;
+                                    if (!(hitter->hits & thing->layer)) continue;
+                                    if (!(hitter->color & thing->color)) continue;
+                                    if (!hitter->is_live_non_prefab()) continue;
+                                    if (!(hitter->hits & PHYSICAL)) continue;
+
+
+
+                                    if (hitter->collidesWith(thing)) {
+                                        /* sound_play_sound("hit.wav"); */
+                                        thing->hit_counter = HIT_COUNTER_COOLDOWN;
+                                        ++thing->damage;
+                                        if (thing->max_health) {
+                                            if (thing->damage >= thing->max_health) {
+                                                thing->die();
+                                            }
+                                        }
+                                        if (hitter->is_kamikazee_hitter) hitter->die(); // TODO
+                                        break;
+                                    }
+                                }
                             }
-                            if (thing->update_group == UPDATE_GROUP_CHILD) {
-                                Thing *parent = Find_Live_Thing_By_ID(thing->parent_ID);
-                                ASSERT(parent);
-                                thing->s = parent->s;
+
+                            if ((!lucy->is_live) && miao->is_live) {
+                                miao->die();
                             }
                         }
                     }
-                    { // death
-                        for_(pass, 2) _for_each_(thing) { // FORNOW: includes lucy & miao
-                            if (!thing->is_live_non_prefab()) continue;
 
-                            if ((pass == 0) && (thing->update_group == UPDATE_GROUP_CHILD)) continue;
-                            if ((pass == 1) && (thing->update_group != UPDATE_GROUP_CHILD)) continue;
+                    { // draw
+                        for (Thing *thing = things + THINGS_ARRAY_LENGTH - 1; thing >= things; --thing) {
+                            vec3 trueColor = V3(double(thing->color & RED) / RED, double(thing->color & GREEN) / GREEN, double(thing->color & BLUE) / BLUE);
+                            vec3 highlightColor = monokai.yellow;
 
-                            if (thing->update_group == UPDATE_GROUP_CHILD) {
-                                Thing *parent = Find_Live_Thing_By_ID(thing->parent_ID);
-                                if (!parent) {
-                                    thing->die();
-                                    continue;
+                            real f = CLAMP(INVERSE_LERP(thing->age, 0, 12), 0.0, 1.0);
+
+
+                            if (game->mode == GAME) {
+                                if (!thing->is_live_non_prefab()) continue;
+
+                                vec3 color = LERP(f, highlightColor, trueColor);
+                                mat4 T = M4_Translation(thing->getCenter());
+                                mat4 T_inv = M4_Translation(-thing->getCenter());
+                                mat4 S = M4_Scaling(LERP(f, 1.1, 1.0), LERP(f, 1.2, 1.0));
+                                real alpha = (!(thing->layer & CORPSE)) ? 1.0 : 1.0 - f;
+
+                                vec3 black = LERP(f, color, monokai.black);
+
+                                mat4 PVM = PV * T * S * T_inv;
+                                thing->soup_draw(PVM, SOUP_QUADS,
+                                        (thing->layer & PHYSICAL) ? ((thing->layer & PLATFORM) ? 0.6 : 1.0) * color :
+                                        black, alpha);
+                                if (thing->hits & PHYSICAL) thing->soup_draw(PVM, SOUP_LINE_LOOP, color, alpha);
+                            } else if (game->mode == EDITOR) {
+                                thing->soup_draw(PV, SOUP_QUADS, monokai.white);
+                                if (!_Slot_Is_Full(thing)) continue;
+
+                                real alpha = (!thing->_is_WAD) ? 0.6 : 1.0;
+
+                                thing->soup_draw(PV, SOUP_QUADS, trueColor, alpha);
+
+                                if (thing->is_prefab) { // X
+                                    eso_begin(PV, SOUP_LINES, 6.0);
+                                    eso_color(highlightColor, 0.8);
+                                    vec2 corners[4]; thing->getRect().getCornersCCW(corners);
+                                    eso_vertex(corners[0]);
+                                    eso_vertex(corners[2]);
+                                    eso_vertex(corners[1]);
+                                    eso_vertex(corners[3]);
+                                    eso_end();
                                 }
-                            }
-
-                            if ((thing->max_age) && (thing->age > thing->max_age)) {
-                                thing->die();
-                                continue;
-                            }
-
-                            { // max_distance
-                                if (norm(thing->s - lucy->s) > 1024.0) {
-                                    do_once printf("[max-distance]");
-                                    thing->die();
-                                    continue;
+                                if (thing->is_instance) { // +
+                                    vec2 c = thing->getCenter();
+                                    vec2 r = thing->getRadius();
+                                    eso_begin(PV, SOUP_LINES, 3.0);
+                                    eso_color(highlightColor, 0.8);
+                                    eso_vertex(c + V2(0.0,  r.y));
+                                    eso_vertex(c + V2(0.0, -r.y));
+                                    eso_vertex(c + V2( r.x, 0.0));
+                                    eso_vertex(c + V2(-r.x, 0.0));
+                                    eso_end();
                                 }
-                            }
 
-
-                            if (!(thing->layer & PHYSICAL)) continue;
-                            _for_each_(hitter) {
-                                if (hitter == thing) continue;
-                                if (!(hitter->hits & thing->layer)) continue;
-                                if (!(hitter->color & thing->color)) continue;
-                                if (!hitter->is_live_non_prefab()) continue;
-                                if (!(hitter->hits & PHYSICAL)) continue;
-
-
-
-                                if (hitter->collidesWith(thing)) {
-                                    /* sound_play_sound("hit.wav"); */
-                                    thing->hit_counter = HIT_COUNTER_COOLDOWN;
-                                    ++thing->damage;
-                                    if (thing->max_health) {
-                                        if (thing->damage >= thing->max_health) {
-                                            thing->die();
+                                { // text
+                                    if (thing->_is_WAD) {
+                                        if (thing->name) {
+                                            char text[16] = {};
+                                            sprintf(text, "name: %d", thing->name);
+                                            text_draw(PV, text, thing->getCenter(), highlightColor, 12, {}, true);
                                         }
                                     }
-                                    if (hitter->is_kamikazee_hitter) hitter->die(); // TODO
-                                    break;
                                 }
-                            }
-                        }
 
-                        if ((!lucy->is_live) && miao->is_live) {
-                            miao->die();
-                        }
-                    }
-                }
-
-                { // draw
-                    for (Thing *thing = things + THINGS_ARRAY_LENGTH - 1; thing >= things; --thing) {
-                        vec3 trueColor = V3(double(thing->color & RED) / RED, double(thing->color & GREEN) / GREEN, double(thing->color & BLUE) / BLUE);
-                        vec3 highlightColor = monokai.yellow;
-
-                        real f = CLAMP(INVERSE_LERP(thing->age, 0, 12), 0.0, 1.0);
-
-
-                        if (game->mode == GAME) {
-                            if (!thing->is_live_non_prefab()) continue;
-
-                            vec3 color = LERP(f, highlightColor, trueColor);
-                            mat4 T = M4_Translation(thing->getCenter());
-                            mat4 T_inv = M4_Translation(-thing->getCenter());
-                            mat4 S = M4_Scaling(LERP(f, 1.1, 1.0), LERP(f, 1.2, 1.0));
-                            real alpha = (!(thing->layer & CORPSE)) ? 1.0 : 1.0 - f;
-
-                            vec3 black = LERP(f, color, monokai.black);
-
-                            mat4 PVM = PV * T * S * T_inv;
-                            thing->soup_draw(PVM, SOUP_QUADS,
-                                    (thing->layer & PHYSICAL) ? ((thing->layer & PLATFORM) ? 0.6 : 1.0) * color :
-                                    black, alpha);
-                            if (thing->hits & PHYSICAL) thing->soup_draw(PVM, SOUP_LINE_LOOP, color, alpha);
-                        } else if (game->mode == EDITOR) {
-                            thing->soup_draw(PV, SOUP_QUADS, monokai.white);
-                            if (!_Slot_Is_Full(thing)) continue;
-
-                            real alpha = (!thing->_is_WAD) ? 0.6 : 1.0;
-
-                            thing->soup_draw(PV, SOUP_QUADS, trueColor, alpha);
-
-                            if (thing->is_prefab) { // X
-                                eso_begin(PV, SOUP_LINES, 6.0);
-                                eso_color(highlightColor, 0.8);
-                                vec2 corners[4]; thing->getRect().getCornersCCW(corners);
-                                eso_vertex(corners[0]);
-                                eso_vertex(corners[2]);
-                                eso_vertex(corners[1]);
-                                eso_vertex(corners[3]);
-                                eso_end();
-                            }
-                            if (thing->is_instance) { // +
-                                vec2 c = thing->getCenter();
-                                vec2 r = thing->getRadius();
-                                eso_begin(PV, SOUP_LINES, 3.0);
-                                eso_color(highlightColor, 0.8);
-                                eso_vertex(c + V2(0.0,  r.y));
-                                eso_vertex(c + V2(0.0, -r.y));
-                                eso_vertex(c + V2( r.x, 0.0));
-                                eso_vertex(c + V2(-r.x, 0.0));
-                                eso_end();
-                            }
-
-                            { // text
-                                if (thing->_is_WAD) {
-                                    if (thing->name) {
-                                        char text[16] = {};
-                                        sprintf(text, "name: %d", thing->name);
-                                        text_draw(PV, text, thing->getCenter(), highlightColor, 12, {}, true);
+                                { // hot, selected annotations
+                                    if (thing == level->editor_hot_thing) {
+                                        thing->soup_draw(PV, SOUP_LINE_LOOP, highlightColor, 0.5);
                                     }
-                                }
-                            }
+                                    if (thing == level->editor_selected_thing) {
+                                        thing->soup_draw(PV, SOUP_LINE_LOOP, highlightColor);
 
-                            { // hot, selected annotations
-                                if (thing == level->editor_hot_thing) {
-                                    thing->soup_draw(PV, SOUP_LINE_LOOP, highlightColor, 0.5);
-                                }
-                                if (thing == level->editor_selected_thing) {
-                                    thing->soup_draw(PV, SOUP_LINE_LOOP, highlightColor);
-
-                                    // dot
-                                    eso_begin(PV, SOUP_POINTS, 16, true); eso_color(highlightColor); eso_vertex(thing->s); eso_end();
+                                        // dot
+                                        eso_begin(PV, SOUP_POINTS, 16, true); eso_color(highlightColor); eso_vertex(thing->s); eso_end();
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
-        }
-        { // editor
-            if (game->mode == EDITOR) {
-                // TODO: should be able to hotload game logic
-                if (gui_button("save", 's')) {
-                    save_WAD();
-                }
-
-                level->editor_hot_thing = level->_editor_mouse_currently_pressed_thing;
-                if (!level->editor_hot_thing) {
-                    _for_each_(thing) {
-                        if (!thing->_is_WAD) continue;
-
-                        if (thing->getRect().containsPoint(mouse_position)) {
-                            // TODO: closest to getCenter (do later)
-                            level->editor_hot_thing = thing;
-                            break;
-                        }
+            { // editor
+                if (game->mode == EDITOR) {
+                    // TODO: should be able to hotload game logic
+                    if (gui_button("save", 's')) {
+                        save_WAD();
                     }
-                }
 
-                { // UI
-                    { // picking
-                        if (level->editor_hot_thing && cow.mouse_left_pressed) {
-                            level->_editor_mouse_currently_pressed_thing = level->editor_hot_thing;
-                            level->editor_selected_thing = level->_editor_mouse_currently_pressed_thing;
-                        }
-                        if (cow.mouse_left_released) {
-                            level->_editor_mouse_currently_pressed_thing = NULL;
+                    level->editor_hot_thing = level->_editor_mouse_currently_pressed_thing;
+                    if (!level->editor_hot_thing) {
+                        _for_each_(thing) {
+                            if (!thing->_is_WAD) continue;
+
+                            if (thing->getRect().containsPoint(mouse_position)) {
+                                // TODO: closest to getCenter (do later)
+                                level->editor_hot_thing = thing;
+                                break;
+                            }
                         }
                     }
 
-                    { 
-                        { // dragging
-                            Thing *thing = level->editor_hot_thing;
-                            if (thing) {
-                                MinMaxRect rect = thing->getRect();
-                                widget_drag(PV, &rect, (thing == lucy) || (thing == miao) || (thing->is_instance));
-                                level->editor_hot_thing->setRect(rect);
+                    { // UI
+                        { // picking
+                            if (level->editor_hot_thing && cow.mouse_left_pressed) {
+                                level->_editor_mouse_currently_pressed_thing = level->editor_hot_thing;
+                                level->editor_selected_thing = level->_editor_mouse_currently_pressed_thing;
+                            }
+                            if (cow.mouse_left_released) {
+                                level->_editor_mouse_currently_pressed_thing = NULL;
+                            }
+                        }
+
+                        { 
+                            { // dragging
+                                Thing *thing = level->editor_hot_thing;
+                                if (thing) {
+                                    MinMaxRect rect = thing->getRect();
+                                    widget_drag(PV, &rect, (thing == lucy) || (thing == miao) || (thing->is_instance));
+                                    level->editor_hot_thing->setRect(rect);
+                                }
+
                             }
 
-                        }
-
-                        { // snaps
-                            if (gui_button("snap zero", 'z')) {
-                                if (level->editor_selected_thing) {
-                                    level->editor_selected_thing->s = {};
+                            { // snaps
+                                if (gui_button("snap zero", 'z')) {
+                                    if (level->editor_selected_thing) {
+                                        level->editor_selected_thing->s = {};
+                                    }
                                 }
                             }
-                        }
 
-                        { // cut, copy and paste (TODO: how does this work with prefabs)
-                            if (gui_button("cut", 'x')) {
-                                if (level->editor_hot_thing && (level->editor_hot_thing != lucy) && (level->editor_hot_thing != miao)) {
-                                    if (level->editor_selected_thing == level->editor_hot_thing) {
+                            { // cut, copy and paste (TODO: how does this work with prefabs)
+                                if (gui_button("cut", 'x')) {
+                                    if (level->editor_hot_thing && (level->editor_hot_thing != lucy) && (level->editor_hot_thing != miao)) {
+                                        if (level->editor_selected_thing == level->editor_hot_thing) {
+                                            level->editor_selected_thing = NULL;
+                                        }
+
+                                        memcpy(&game->editor_clipboard_thing, level->editor_hot_thing, sizeof(Thing));
+                                        *level->editor_hot_thing = {};
+                                        level->editor_hot_thing = NULL;
+                                    } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
+                                        memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
+                                        *level->editor_selected_thing = {};
                                         level->editor_selected_thing = NULL;
                                     }
-
-                                    memcpy(&game->editor_clipboard_thing, level->editor_hot_thing, sizeof(Thing));
-                                    *level->editor_hot_thing = {};
-                                    level->editor_hot_thing = NULL;
-                                } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
-                                    memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
-                                    *level->editor_selected_thing = {};
-                                    level->editor_selected_thing = NULL;
                                 }
-                            }
 
-                            if (gui_button("copy", 'c')) {
-                                if (level->editor_hot_thing && (level->editor_hot_thing != lucy) && (level->editor_hot_thing != miao)) {
-                                    memcpy(&game->editor_clipboard_thing, level->editor_hot_thing, sizeof(Thing));
-                                } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
-                                    memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
+                                if (gui_button("copy", 'c')) {
+                                    if (level->editor_hot_thing && (level->editor_hot_thing != lucy) && (level->editor_hot_thing != miao)) {
+                                        memcpy(&game->editor_clipboard_thing, level->editor_hot_thing, sizeof(Thing));
+                                    } else if (level->editor_selected_thing && (level->editor_selected_thing != lucy) && (level->editor_selected_thing != miao)) {
+                                        memcpy(&game->editor_clipboard_thing, level->editor_selected_thing, sizeof(Thing));
+                                    }
                                 }
-                            }
 
-                            // TODO: is_instance??
-                            if (gui_button("paste", 'v')) {
-                                Thing thing = game->editor_clipboard_thing;
-                                if (thing.is_live) {
-                                    Thing *slot = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
-                                    *slot = game->editor_clipboard_thing;
-                                    slot->s = mouse_position;
-                                    slot->_is_WAD = true;
-                                    slot->is_prefab = false;
-                                    if (thing.is_prefab || thing.is_instance) {
-                                        slot->is_instance = true;
+                                // TODO: is_instance??
+                                if (gui_button("paste", 'v')) {
+                                    Thing thing = game->editor_clipboard_thing;
+                                    if (thing.is_live) {
+                                        Thing *slot = _Acquire_Slot__MUST_BE_IMMEIDATELY_SET_LIVE_OR_PERSISTENT_OR_WAD_TO_TRUE();
+                                        *slot = game->editor_clipboard_thing;
+                                        slot->s = mouse_position;
+                                        slot->_is_WAD = true;
+                                        slot->is_prefab = false;
+                                        if (thing.is_prefab || thing.is_instance) {
+                                            slot->is_instance = true;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
 
-                    { //  gui checkboxes and sliders
-                        Thing *thing = level->editor_selected_thing;
-                        if (thing) {
-                            if ((thing != lucy) && (thing != miao) && (!thing->is_instance)) {
-                                ASSERT(thing->_is_WAD);
-                                gui_checkbox("is_prefab", &thing->is_prefab);
-                                gui_checkbox("is_live", &thing->is_live);
-                                gui_checkbox("is_persistent", &thing->is_persistent);
-                                gui_slider("name", &thing->name, 0, 16);
-                                gui_slider("update_group", &thing->update_group, 0, 5);
-                                gui_printf("---");
-                                gui_checkbox("is_kamikazee_hitter", &thing->is_kamikazee_hitter);
-                                gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("color", COLOR_BIT_STRINGS, &thing->color, _COUNT_OF(COLOR_BIT_STRINGS));
-                                gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("layer",    LAYER_BIT_STRINGS, &thing->layer,    _COUNT_OF(LAYER_BIT_STRINGS));
-                                gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("hits",  LAYER_BIT_STRINGS, &thing->hits,  _COUNT_OF(LAYER_BIT_STRINGS));
-                                gui_slider("max_age", &thing->max_age, 0, 511);
-                                gui_slider("max_health", &thing->max_health, 0, 255);
-                                { // origin_type (with rect preservation)
-                                    int tmp = thing->origin_type;
-                                    gui_slider("origin_type", &thing->origin_type, 0, 8);
-                                    if (tmp != thing->origin_type) {
-                                        thing->s += cwiseProduct(ORIGIN_n[thing->origin_type] - ORIGIN_n[tmp], thing->getRadius());
+                        { //  gui checkboxes and sliders
+                            Thing *thing = level->editor_selected_thing;
+                            if (thing) {
+                                if ((thing != lucy) && (thing != miao) && (!thing->is_instance)) {
+                                    ASSERT(thing->_is_WAD);
+                                    gui_checkbox("is_prefab", &thing->is_prefab);
+                                    gui_checkbox("is_live", &thing->is_live);
+                                    gui_checkbox("is_persistent", &thing->is_persistent);
+                                    gui_slider("name", &thing->name, 0, 16);
+                                    gui_slider("update_group", &thing->update_group, 0, 5);
+                                    gui_printf("---");
+                                    gui_checkbox("is_kamikazee_hitter", &thing->is_kamikazee_hitter);
+                                    gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("color", COLOR_BIT_STRINGS, &thing->color, _COUNT_OF(COLOR_BIT_STRINGS));
+                                    gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("layer",    LAYER_BIT_STRINGS, &thing->layer,    _COUNT_OF(LAYER_BIT_STRINGS));
+                                    gui_bitfield__SETS_UNEXPOSED_BITS_TO_ZERO("hits",  LAYER_BIT_STRINGS, &thing->hits,  _COUNT_OF(LAYER_BIT_STRINGS));
+                                    {
+                                        int max_age_in_beats = thing->max_age / frames_per_beat();
+                                        gui_slider("max_age_in_beats", &max_age_in_beats, 0, 8);
+                                        thing->max_age = max_age_in_beats * frames_per_beat();
                                     }
+                                    gui_slider("max_health", &thing->max_health, 0, 255);
+                                    { // origin_type (with rect preservation)
+                                        int tmp = thing->origin_type;
+                                        gui_slider("origin_type", &thing->origin_type, 0, 8);
+                                        if (tmp != thing->origin_type) {
+                                            thing->s += cwiseProduct(ORIGIN_n[thing->origin_type] - ORIGIN_n[tmp], thing->getRadius());
+                                        }
+                                    }
+                                    {
+                                        gui_slider("v.x", &thing->v.x, -2.0, 2.0);
+                                        gui_slider("v.y", &thing->v.y, -2.0, 2.0);
+                                    }
+                                } else if (thing->is_instance) {
+                                    gui_readout("is_instance", &thing->is_instance);
+                                    gui_readout("name", &thing->name);
                                 }
-                                {
-                                    gui_slider("v.x", &thing->v.x, -2.0, 2.0);
-                                    gui_slider("v.y", &thing->v.y, -2.0, 2.0);
-                                }
-                            } else if (thing->is_instance) {
-                                gui_readout("is_instance", &thing->is_instance);
-                                gui_readout("name", &thing->name);
                             }
                         }
                     }
@@ -1258,22 +1224,21 @@ void cat_game() {
             }
         }
     }
-}
 
 
 
 #include <random>
 
-int main() {
-    config.hotkeys_app_next = 0;
-    config.hotkeys_app_prev = 0;
-    config.tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = false;
-    _cow_init();
-    config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina /= 2.0;
-    _cow_reset();
-    cat_game();
-    return 0;
-}
+    int main() {
+        config.hotkeys_app_next = 0;
+        config.hotkeys_app_prev = 0;
+        config.tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = false;
+        _cow_init();
+        config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina /= 2.0;
+        _cow_reset();
+        cat_game();
+        return 0;
+    }
 
 
 

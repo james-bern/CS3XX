@@ -148,7 +148,7 @@ LEVEL
  INSTANCE 0 -64.51 -28.71
 LEVEL
  LUCY
-  s -8.98 -10.23
+  s 14.84 -10.41
  MIAO
   s 14.86 -10.22
  THING
@@ -345,57 +345,57 @@ LEVEL
   size                30.42 88.14
 LEVEL
  LUCY
-  s 0.00 0.00
+  s 21.33 21.51
  MIAO
-  s 0.00 0.00
+  s -80.36 -7.82
  THING
-  is_prefab           0
+  is_prefab           1
   is_live             1
   is_persistent       0
-  name                0
+  name                2
   update_group        1
   color               5
   layer               0
   hits                1
-  max_age             0
+  max_age             176
   max_health          0
-  is_kamikazee_hitter 0
+  is_kamikazee_hitter 1
   origin_type         0
-  s                   55.11 3.73
+  s                   60.69 -5.99
   v                   -0.51 0.00
-  size                52.26 4.27
+  size                65.12 2.59
  THING
-  is_prefab           0
+  is_prefab           1
   is_live             1
   is_persistent       0
-  name                0
+  name                1
   update_group        1
   color               4
   layer               0
   hits                1
-  max_age             0
+  max_age             176
   max_health          0
-  is_kamikazee_hitter 0
+  is_kamikazee_hitter 1
   origin_type         0
-  s                   35.38 -35.38
-  v                   0.02 0.51
-  size                30.50 4.77
+  s                   23.22 -60.89
+  v                   0.02 0.99
+  size                21.92 3.38
  THING
-  is_prefab           0
+  is_prefab           1
   is_live             1
   is_persistent       0
-  name                0
+  name                3
   update_group        1
   color               1
   layer               0
   hits                1
-  max_age             0
+  max_age             176
   max_health          0
-  is_kamikazee_hitter 0
+  is_kamikazee_hitter 1
   origin_type         0
-  s                   4.00 -31.88
-  v                   0.02 0.51
-  size                22.22 3.81
+  s                   0.09 -54.10
+  v                   0.02 0.46
+  size                15.82 3.80
  THING
   is_prefab           0
   is_live             1
@@ -403,15 +403,15 @@ LEVEL
   name                0
   update_group        0
   color               1
-  layer               4
-  hits                0
+  layer               0
+  hits                1
   max_age             0
   max_health          0
   is_kamikazee_hitter 0
   origin_type         1
-  s                   0.00 0.00
+  s                   -1.31 89.45
   v                   0.00 0.00
-  size                7.29 80.89
+  size                75.02 16.18
 LEVEL
  LUCY
   s -5.84 1.43
