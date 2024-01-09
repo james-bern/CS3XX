@@ -15,12 +15,14 @@
 // / 2D picking of pick_loops by clicking on DXF
 // / omax-type selection_mask ('s' + 'c'); ('d' + 'a')
 // / multi-select (no shift--follow omax style)
-// - turn loop into polygon (rasterize arcs into line segments)
+// / turn loop into polygon (rasterize arcs into line segments)
+// - cross-section arc discretization quality knobs (the correct knob is ??)
 // - compile/link manifold
 // - boss ('b') and cut ('c') -- (or 'e'/'E'?)
-// - offsetting with x
+// - nudging with x, y
 // - planar surface picking (and if no 3D geometry yet, your choice of the xy yz and zx planes)
 // - cut has depth
+// ? you can persist the 2D curves alongside the 3D geometry they generated and then use omax style picking on the 3D part
 // ? how are we storing the sequence of operations
 // NOTE: for a first cut it could be destructive like omax itself
 //       basically just like a conversational mill
@@ -68,8 +70,8 @@ struct DXFArc {
     real32 center_x;
     real32 center_y;
     real32 radius;
-    real32 start_angle;
-    real32 end_angle;
+    real32 start_angle_in_degrees;
+    real32 end_angle_in_degrees;
 };
 
 #define DXF_ENTITY_TYPE_LINE 0
@@ -82,24 +84,19 @@ struct DXFEntity {
     };
 };
 
-void arc_get_start_and_end_points(real32 center_x, real32 center_y, real32 radius, real32 start_angle, real32 end_angle, real32 *start_x, real32 *start_y, real32 *end_x, real32 *end_y) {
-    *start_x = center_x + radius * cos(RAD(start_angle));
-    *start_y = center_y + radius * sin(RAD(start_angle));
-    *end_x   = center_x + radius * cos(RAD(end_angle));
-    *end_y   = center_y + radius * sin(RAD(end_angle));
+void get_point_on_circle_NOTE_pass_angle_in_radians(real32 *x, real32 *y, real32 center_x, real32 center_y, real32 radius, real32 angle_in_radians) {
+    *x = center_x + radius * cosf(angle_in_radians);
+    *y = center_y + radius * sinf(angle_in_radians);
 }
 
-void arc_get_start_and_end_points(DXFArc *arc, real32 *start_x, real32 *start_y, real32 *end_x, real32 *end_y, bool flip_flag = false) {
-    if (!flip_flag) {
-        arc_get_start_and_end_points(arc->center_x, arc->center_y, arc->radius, arc->start_angle, arc->end_angle, start_x, start_y, end_x, end_y);
-    } else {
-        arc_get_start_and_end_points(arc->center_x, arc->center_y, arc->radius, arc->start_angle, arc->end_angle, end_x, end_y, start_x, start_y);
-    }
-}
-
-void arc_process_angles(DXFArc *arc, real32 *start_angle, real32 *end_angle, bool32 flip_flag) {
-    *start_angle = RAD(arc->start_angle);
-    *end_angle = RAD(arc->end_angle);
+void arc_process_angles_into_lerpable_radians_considering_flip_flag(DXFArc *arc, real32 *start_angle, real32 *end_angle, bool32 flip_flag) {
+    // The way the DXF spec works is that start_angle and end_angle define points on the circle
+    // which are connected counterclockwise from start to end with an arc
+    // (start -ccw-> end)
+    //
+    // To flip an arc entity, we need to go B -cw-> A
+    *start_angle = RAD(arc->start_angle_in_degrees);
+    *end_angle = RAD(arc->end_angle_in_degrees);
     if (!flip_flag) {
         // start -ccw-> end
         while (*end_angle < *start_angle) *end_angle += TAU;
@@ -123,7 +120,8 @@ void entity_get_start_and_end_points(DXFEntity *entity, real32 *start_x, real32 
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
-        arc_get_start_and_end_points(arc, start_x, start_y, end_x, end_y);
+        get_point_on_circle_NOTE_pass_angle_in_radians(start_x, start_y, arc->center_x, arc->center_y, arc->radius, RAD(arc->start_angle_in_degrees));
+        get_point_on_circle_NOTE_pass_angle_in_radians(  end_x,   end_y, arc->center_x, arc->center_y, arc->radius,   RAD(arc->end_angle_in_degrees));
     }
 }
 
@@ -143,16 +141,16 @@ DXF dxf_load(char *filename) {
     return {};
     #elif 0
     DXF result = {};
-    result->num_entities = 8;
-    result->entities = (DXFEntity *) calloc(result->num_entities, sizeof(DXFEntity));
-    result->entities[0] = { DXF_ENTITY_TYPE_LINE, 0, 0.0, 0.0, 1.0, 0.0 };
-    result->entities[1] = { DXF_ENTITY_TYPE_LINE, 1, 1.0, 0.0, 1.0, 1.0 };
-    result->entities[2] = { DXF_ENTITY_TYPE_LINE, 2, 0.0, 1.0, 0.0, 0.0 };
-    result->entities[3] = { DXF_ENTITY_TYPE_ARC,  3, 0.5, 1.0, 0.5,    0.0, 180.0 };
-    result->entities[4] = { DXF_ENTITY_TYPE_ARC,  4, 0.5, 1.0, 0.25,   0.0, 180.0 };
-    result->entities[5] = { DXF_ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.25, 180.0, 360.0 };
-    result->entities[6] = { DXF_ENTITY_TYPE_ARC,  6, 0.5, 1.0, 0.1,    0.0, 180.0 };
-    result->entities[7] = { DXF_ENTITY_TYPE_ARC,  7, 0.5, 1.0, 0.1,  180.0, 360.0 };
+    result.num_entities = 8;
+    result.entities = (DXFEntity *) calloc(result.num_entities, sizeof(DXFEntity));
+    result.entities[0] = { DXF_ENTITY_TYPE_LINE, 0, 0.0, 0.0, 1.0, 0.0 };
+    result.entities[1] = { DXF_ENTITY_TYPE_LINE, 1, 1.0, 0.0, 1.0, 1.0 };
+    result.entities[2] = { DXF_ENTITY_TYPE_LINE, 2, 0.0, 1.0, 0.0, 0.0 };
+    result.entities[3] = { DXF_ENTITY_TYPE_ARC,  3, 0.5, 1.0, 0.5,    0.0, 180.0 };
+    result.entities[4] = { DXF_ENTITY_TYPE_ARC,  4, 0.5, 1.0, 0.25,   0.0, 180.0 };
+    result.entities[5] = { DXF_ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.25, 180.0, 360.0 };
+    result.entities[6] = { DXF_ENTITY_TYPE_ARC,  6, 0.5, 1.0, 0.1,    0.0, 180.0 };
+    result.entities[7] = { DXF_ENTITY_TYPE_ARC,  7, 0.5, 1.0, 0.1,  180.0, 360.0 };
     return result;
     #else
     DXF result = {};
@@ -189,7 +187,7 @@ DXF dxf_load(char *filename) {
                                 sbuff_push_back(&stretchy_buffer, { DXF_ENTITY_TYPE_LINE, line.color, line.start_x, line.start_y, line.end_x, line.end_y });
                             } else {
                                 ASSERT(mode == DXF_LOAD_MODE_ARC);
-                                sbuff_push_back(&stretchy_buffer, { DXF_ENTITY_TYPE_ARC, arc.color, arc.center_x, arc.center_y, arc.radius, arc.start_angle, arc.end_angle });
+                                sbuff_push_back(&stretchy_buffer, { DXF_ENTITY_TYPE_ARC, arc.color, arc.center_x, arc.center_y, arc.radius, arc.start_angle_in_degrees, arc.end_angle_in_degrees });
                             }
                             mode = DXF_LOAD_MODE_NONE;
                             code_is_hot = false;
@@ -221,9 +219,9 @@ DXF dxf_load(char *filename) {
                                 } else if (code == 40) {
                                     arc.radius = value;
                                 } else if (code == 50) {
-                                    arc.start_angle = value;
+                                    arc.start_angle_in_degrees = value;
                                 } else if (code == 51) {
-                                    arc.end_angle = value;
+                                    arc.end_angle_in_degrees = value;
                                 }
                             }
                         }
@@ -269,22 +267,20 @@ void eso_dxf_entity(DXFEntity *entity, int32 override_color = DXF_COLOR_DONT_OVE
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
-        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : arc->color);
-        real32 start_angle = RAD(arc->start_angle);
-        real32 end_angle = RAD(arc->end_angle);
-        while (end_angle < start_angle) end_angle += TAU; // DXF spec is start_angle -ccw-> end_angle
+        real32 start_angle, end_angle;
+        arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
         real32 delta_angle = end_angle - start_angle;
         u32 num_segments = (u32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
         real32 increment = delta_angle / num_segments;
         real32 current_angle = start_angle;
+        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : arc->color);
         for (u32 i = 0; i < num_segments; ++i) {
-            eso_vertex(
-                    arc->center_x + arc->radius * cos(current_angle),
-                    arc->center_y + arc->radius * sin(current_angle));
+            real32 x, y;
+            get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
+            eso_vertex(x, y);
             current_angle += increment;
-            eso_vertex(
-                    arc->center_x + arc->radius * cos(current_angle),
-                    arc->center_y + arc->radius * sin(current_angle));
+            get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
+            eso_vertex(x, y);
         }
     }
 }
@@ -317,24 +313,25 @@ real32 squared_distance_point_circle(real32 x, real32 y, real32 center_x, real32
     return pow(sqrt(squared_distance_point_point(x, y, center_x, center_y)) - radius, 2);
 }
 
-real32 squared_distance_point_arc(real32 x, real32 y, real32 center_x, real32 center_y, real32 radius, real32 start_angle, real32 end_angle) {
+real32 squared_distance_point_arc_NOTE_pass_angles_in_radians(real32 x, real32 y, real32 center_x, real32 center_y, real32 radius, real32 start_angle_in_radians, real32 end_angle_in_radians) {
     bool32 point_in_sector = false; {
         real32 v_x = x - center_x;
         real32 v_y = y - center_y;
-        // forgive me rygorous
-        real32 angle = DEG(atan2(v_y, v_x));
-        while (start_angle < -180) start_angle += 360;
-        while (end_angle < start_angle) end_angle += 360;
+        // forgive me rygorous :(
+        real32 angle = atan2(v_y, v_x);
+        while (start_angle_in_radians < -PI) start_angle_in_radians += TAU;
+        while (end_angle_in_radians < start_angle_in_radians) end_angle_in_radians += TAU;
         point_in_sector =
-            IS_BETWEEN(angle, start_angle, end_angle)
-            || IS_BETWEEN(angle + 360, start_angle, end_angle)
-            || IS_BETWEEN(angle - 360, start_angle, end_angle);
+            IS_BETWEEN(angle, start_angle_in_radians, end_angle_in_radians)
+            || IS_BETWEEN(angle + TAU, start_angle_in_radians, end_angle_in_radians)
+            || IS_BETWEEN(angle - TAU, start_angle_in_radians, end_angle_in_radians);
     }
     if (point_in_sector) {
         return squared_distance_point_circle(x, y, center_x, center_y, radius);
     } else {
         real32 start_x, start_y, end_x, end_y;
-        arc_get_start_and_end_points(center_x, center_y, radius, start_angle, end_angle, &start_x, &start_y, &end_x, &end_y);
+        get_point_on_circle_NOTE_pass_angle_in_radians(&start_x, &start_y, center_x, center_y, radius, start_angle_in_radians);
+        get_point_on_circle_NOTE_pass_angle_in_radians(  &end_x,   &end_y, center_x, center_y, radius, end_angle_in_radians);
         return MIN(squared_distance_point_point(x, y, start_x, start_y), squared_distance_point_point(x, y, end_x, end_y));
     }
     return HUGE_VAL;
@@ -347,7 +344,7 @@ real32 squared_distance_point_entity(real32 x, real32 y, DXFEntity *entity) {
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
-        return squared_distance_point_arc(x, y, arc->center_x, arc->center_y, arc->radius, arc->start_angle, arc->end_angle);
+        return squared_distance_point_arc_NOTE_pass_angles_in_radians(x, y, arc->center_x, arc->center_y, arc->radius, RAD(arc->start_angle_in_degrees), RAD(arc->end_angle_in_degrees));
     }
 }
 
@@ -460,34 +457,26 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *selection_mask 
                                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
                                 DXFEntity *entity = &dxf->entities[entity_index];
                                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                                    // shoelace-type formula
                                     DXFLine *line = &entity->line;
+                                    // shoelace-type formula
                                     twice_the_signed_area += ((flip_flag) ? -1 : 1) * (line->start_x * line->end_y - line->end_x * line->start_y);
                                 } else {
                                     ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                                    // "Circular approximation using polygons" (area-preserving approximation of arc with two segments)
                                     DXFArc *arc = &entity->arc;
+                                    // "Circular approximation using polygons"
+                                    // - n = 2 (area-preserving approximation of arc with two segments)
                                     real32 start_angle, end_angle;
-                                    arc_process_angles(arc, &start_angle, &end_angle, flip_flag);
-
-                                    // FORNOW (API seems bad; TODO: revisit--maybe go more granular with an point_on_circle_NOTE_pass_angle_in_radians like function)
+                                    arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
                                     real32 start_x, start_y, end_x, end_y;
-                                    if (!flip_flag) {
-                                        arc_get_start_and_end_points(arc, &start_x, &start_y, &end_x, &end_y, flip_flag);
-                                    } else {
-                                        arc_get_start_and_end_points(arc, &end_x, &end_y, &start_x, &start_y);
-                                    }
-
+                                    get_point_on_circle_NOTE_pass_angle_in_radians(&start_x, &start_y, arc->center_x, arc->center_y, arc->radius, start_angle);
+                                    get_point_on_circle_NOTE_pass_angle_in_radians(  &end_x,   &end_y, arc->center_x, arc->center_y, arc->radius,   end_angle);
                                     real32 mid_angle = (start_angle + end_angle) / 2;
-                                    printf("%f %f %f\n", DEG(start_angle), DEG(mid_angle), DEG(end_angle));
                                     real32 d; {
                                         real32 alpha = ABS(start_angle - end_angle) / 2;
                                         d = arc->radius * alpha / sinf(alpha);
                                     }
-                                    real32 mid_x = arc->center_x + d * cosf(mid_angle);
-                                    real32 mid_y = arc->center_y + d * sinf(mid_angle); 
-                                    // twice_the_signed_area += (start_x * mid_y - mid_x * start_y);
-                                    // twice_the_signed_area += (  mid_x * end_y - end_x *   mid_y);
+                                    real32 mid_x, mid_y;
+                                    get_point_on_circle_NOTE_pass_angle_in_radians(&mid_x, &mid_y, arc->center_x, arc->center_y, d, mid_angle);
                                     twice_the_signed_area += mid_x * (end_y - start_y) + mid_y * (start_x - end_x);
                                 }
                             }
@@ -635,7 +624,6 @@ CrossSection cross_section_create(DXF *dxf, bool32 *selection_mask) {
     // populate StretchyBuffer's
     StretchyBuffer<StretchyBuffer<Vertex2D>> stretchy_buffer = {}; {
         DXFLoopAnalysisResult analysis = dxf_loop_analysis_create(dxf, selection_mask);
-
         for (u32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
             u32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
@@ -652,22 +640,18 @@ CrossSection cross_section_create(DXF *dxf, bool32 *selection_mask) {
                         sbuff_push_back(&stretchy_buffer.data[stretchy_buffer.length - 1], { line->end_x, line->end_y });
                     }
                 } else {
-                    // The way the DXF spec works is that start_angle and end_angle define points on the circle
-                    // which are connected counterclockwise from start to end with an arc
-                    // (start -ccw-> end)
-                    //
-                    // To flip an arc entity, we need to go B -cw-> A
                     ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                     DXFArc *arc = &entity->arc;
                     real32 start_angle, end_angle;
-                    arc_process_angles(arc, &start_angle, &end_angle, flip_flag);
+                    arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
                     real32 delta_angle = end_angle - start_angle;
-                    u32 num_segments = (u32) (1 + ABS(delta_angle) * (NUM_SEGMENTS_PER_CIRCLE / TAU)); // FORNOW
+                    u32 num_segments = (u32) (2 + ABS(delta_angle) * (NUM_SEGMENTS_PER_CIRCLE / TAU)); // FORNOW (2 + ...)
                     real32 increment = delta_angle / num_segments;
                     real32 current_angle = start_angle;
+                    real32 x, y;
                     for (u32 i = 0; i < num_segments; ++i) {
-                        sbuff_push_back(&stretchy_buffer.data[stretchy_buffer.length - 1],
-                                { arc->center_x + arc->radius * cos(current_angle), arc->center_y + arc->radius * sin(current_angle) });
+                        get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
+                        sbuff_push_back(&stretchy_buffer.data[stretchy_buffer.length - 1], { x, y });
                         current_angle += increment;
                     }
                 }
@@ -692,7 +676,7 @@ CrossSection cross_section_create(DXF *dxf, bool32 *selection_mask) {
     sbuff_free(&stretchy_buffer);
 
     return result;
-#endif
+    #endif
 }
 
 void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
@@ -717,7 +701,7 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
             real32 n_x = b_y - a_y;
             real32 n_y = a_x - b_x;
             real32 norm_n = sqrt(n_x * n_x + n_y * n_y);
-            real32 L = 0.02f;
+            real32 L = 0.013f;
             eso_color(color_rainbow_swirl((i + 0.5f) / (n)));
             eso_vertex(c_x, c_y);
             eso_vertex(c_x + L * n_x / norm_n, c_y + L * n_y / norm_n);
@@ -816,13 +800,13 @@ int main() {
         0.0f, h, 0.0f
     };
     stl.triangles[2] = {
-        (real32) cos(RAD(240.0)), 0.0f, (real32) sin(RAD(240.0)),
-        (real32) cos(RAD(120.0)), 0.0f, (real32) sin(RAD(120.0)),
+        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
+        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
         0.0f, h, 0.0f
     };
     stl.triangles[3] = {
-        (real32) cos(RAD(  0.0)), 0.0f, (real32) sin(RAD(  0.0)),
-        (real32) cos(RAD(240.0)), 0.0f, (real32) sin(RAD(240.0)),
+        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
+        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
         0.0f, h, 0.0f
     };
     #else
@@ -839,7 +823,6 @@ int main() {
     while (cow_begin_frame()) {
         camera_move(&camera3D, true, true);
         camera_move(&camera2D);
-
         { // dxf
             { // pick
                 if (globals.key_pressed['s']) {
@@ -862,43 +845,42 @@ int main() {
                 }
                 dxf_pick(&camera2D, &dxf, selection_mask, tool, tool_connected_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
             }
-
-            if (!globals.key_toggled['h']) { // draw
-                eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
-                for (u32 i = 0; i < dxf.num_entities; ++i) {
-                    DXFEntity *entity = &dxf.entities[i];
-                    int32 color = (selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
-                    eso_dxf_entity(entity, color);
-                }
-                eso_end();
-
-                // dots
-                if (globals.key_toggled[COW_KEY_TAB]) {
-                    eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
-                    eso_color(monokai.white);
-                    for (DXFEntity *entity = dxf.entities; entity < dxf.entities + dxf.num_entities; ++entity) {
-                        real32 start_x, start_y, end_x, end_y;
-                        entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
-                        eso_vertex(start_x, start_y);
-                        eso_vertex(end_x, end_y);
+            { // draw
+                if (!globals.key_toggled['h']) {
+                    eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
+                    for (u32 i = 0; i < dxf.num_entities; ++i) {
+                        DXFEntity *entity = &dxf.entities[i];
+                        int32 color = (selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
+                        eso_dxf_entity(entity, color);
                     }
                     eso_end();
+
+                    // dots
+                    if (globals.key_toggled[COW_KEY_TAB]) {
+                        eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
+                        eso_color(monokai.white);
+                        for (DXFEntity *entity = dxf.entities; entity < dxf.entities + dxf.num_entities; ++entity) {
+                            real32 start_x, start_y, end_x, end_y;
+                            entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
+                            eso_vertex(start_x, start_y);
+                            eso_vertex(end_x, end_y);
+                        }
+                        eso_end();
+                    }
                 }
             }
         }
-
-        if (0) { // stl
-            stl_draw(&camera3D, &stl);
+        { // cross_section
+            if (globals.key_pressed[COW_KEY_ENTER]) {
+                cross_section = cross_section_create(&dxf, selection_mask);
+            }
+            cross_section_debug_draw(&camera2D, &cross_section);
         }
-
-
-        if (globals.key_pressed[COW_KEY_ENTER]) {
-            cross_section = cross_section_create(&dxf, selection_mask);
+        { // stl
+            if (0) {
+                stl_draw(&camera3D, &stl);
+            }
+            if (gui_button("save stl", '6')) stl_save_binary(&stl, "out_binary.stl");
         }
-        cross_section_debug_draw(&camera2D, &cross_section);
-        // TODO: draw cross section ordered in rainbow swirl (maybe with a comb too?)
-
-
-        if (gui_button("save stl", '6')) stl_save_binary(&stl, "out_binary.stl");
     }
 }
