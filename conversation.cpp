@@ -13,7 +13,7 @@
 // / import dxf
 // / detect pick_loops
 // / 2D picking of pick_loops by clicking on DXF
-// / omax-type selection_mask ('s' + 'c'); ('d' + 'a')
+// / omax-type dxf_selection_mask ('s' + 'c'); ('d' + 'a')
 // / multi-select (no shift--follow omax style)
 // / turn loop into polygon (rasterize arcs into line segments)
 // - cross-section arc discretization quality knobs (the correct knob is ??)
@@ -34,10 +34,9 @@
 #include "poe.cpp"
 
 
-real32 TOLERANCE_DEFAULT = 1e-5;
 real32 EPSILON_DEFAULT = 2e-3;
+real32 TOLERANCE_DEFAULT = 1e-5;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
-
 
 
 #define DXF_COLOR_TRAVERSE        0
@@ -55,6 +54,7 @@ u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 #define DXF_COLOR_QUALITY_SLIT_5 25
 #define DXF_COLOR_SELECTION     254
 #define DXF_COLOR_DONT_OVERRIDE 255
+
 
 struct DXFLine {
     u32 color;
@@ -368,7 +368,7 @@ struct DXFLoopAnalysisResult {
     u32 *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *selection_mask = NULL) {
+DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_mask = NULL) {
     if (dxf->num_entities == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
@@ -384,7 +384,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *selection_mask 
         StretchyBuffer<StretchyBuffer<DXFEntityIndexAndFlipFlag>> stretchy_buffer = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
-                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!selection_mask || selection_mask[i]))
+                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!dxf_selection_mask || dxf_selection_mask[i]))
                 { // seed loop
                     bool32 added_and_seeded_new_loop = false;
                     for (u32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
@@ -541,10 +541,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define TOOL_NONE 0
 #define TOOL_SELECT 1
 #define TOOL_DESELECT 2
-void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *selection_mask, u32 tool, bool tool_connected_modifier,
-        u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index,
-        real32 epsilon = EPSILON_DEFAULT) {
-    if (tool != TOOL_SELECT && tool != TOOL_DESELECT) return;
+void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, bool deselect, bool tool_connected_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
 
     // TODO: this is silly; i want to be able to tell cow to use a 32 bit float
@@ -567,15 +564,15 @@ void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *selection_mask, u32 tool, bo
 
     if (hot_entity_index != -1) {
         if (globals.mouse_left_held) {
-            bool32 value = (tool == TOOL_SELECT);
+            bool32 value = (!deselect);
             if (!tool_connected_modifier) {
-                selection_mask[hot_entity_index] = value;
+                dxf_selection_mask[hot_entity_index] = value;
             } else {
                 u32 loop_index = pick_loop_index_from_entity_index[hot_entity_index];
                 DXFEntityIndexAndFlipFlag *loop = pick_loops[loop_index];
                 u32 num_entities = num_entities_in_pick_loops[loop_index];
                 for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
-                    selection_mask[entity_index_and_flip_flag->entity_index] = value;
+                    dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value;
                 }
             }
         }
@@ -595,10 +592,10 @@ struct CrossSection {
     Vertex2D **polygonal_loops;
 };
 
-CrossSection cross_section_create(DXF *dxf, bool32 *selection_mask) {
+CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     #if 0
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(selection_mask);
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf_selection_mask);
     CrossSection result = {};
     result.num_polygonal_loops = 2;
     result.num_vertices_in_polygonal_loops = (u32 *) calloc(result.num_polygonal_loops, sizeof(u32));
@@ -623,7 +620,7 @@ CrossSection cross_section_create(DXF *dxf, bool32 *selection_mask) {
 
     // populate StretchyBuffer's
     StretchyBuffer<StretchyBuffer<Vertex2D>> stretchy_buffer = {}; {
-        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create(dxf, selection_mask);
+        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create(dxf, dxf_selection_mask);
         for (u32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
             u32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
@@ -769,20 +766,27 @@ void stl_save_binary(STL *stl, char *filename) {
     fclose(file);
 }
 
+void stl_extrude(STL *stl, bool32 cut, DXF *dxf, bool32 *dxf_selection_mask, STLTriangle *stl_selected_triangle, real32 height) {
+
+}
+
+real32 conversation_get_real32(char *string) {
+    return 10.0;
+}
 
 
 int main() {
-
     DXF dxf = dxf_load("omax.dxf");
 
     DXFLoopAnalysisResult pick = dxf_loop_analysis_create(&dxf);
 
     u32 tool = TOOL_NONE;
     bool32 tool_connected_modifier = false;
-    bool32 *selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+    bool32 *dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
 
 
+    STLTriangle *stl_selected_triangle = NULL;
     STL stl;
     #if 1
     stl = {};
@@ -817,6 +821,8 @@ int main() {
     CrossSection cross_section = {};
 
 
+    // TODO: simple split screen with simple scissoring (move this into cow)
+
 
     Camera2D camera2D = { 5.0, 2.5 };
     Camera3D camera3D = { 5.0, RAD(0.0), RAD(0.0), RAD(0.0), -2.5 };
@@ -838,19 +844,21 @@ int main() {
                 }
                 if (globals.key_pressed['a']) {
                     if (tool == TOOL_SELECT) {
-                        for (u32 i = 0; i < dxf.num_entities; ++i) selection_mask[i] = true;
+                        for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = true;
                     } else if (tool == TOOL_DESELECT) {
-                        for (u32 i = 0; i < dxf.num_entities; ++i) selection_mask[i] = false;
+                        for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = false;
                     }
                 }
-                dxf_pick(&camera2D, &dxf, selection_mask, tool, tool_connected_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+                if (tool == TOOL_SELECT || tool == TOOL_DESELECT) {
+                    dxf_pick(&camera2D, &dxf, dxf_selection_mask, tool == TOOL_DESELECT, tool_connected_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+                }
             }
             { // draw
                 if (!globals.key_toggled['h']) {
                     eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
                         DXFEntity *entity = &dxf.entities[i];
-                        int32 color = (selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
+                        int32 color = (dxf_selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
                         eso_dxf_entity(entity, color);
                     }
                     eso_end();
@@ -872,13 +880,39 @@ int main() {
         }
         { // cross_section
             if (globals.key_pressed[COW_KEY_ENTER]) {
-                cross_section = cross_section_create(&dxf, selection_mask);
+                cross_section = cross_section_create(&dxf, dxf_selection_mask);
             }
             cross_section_debug_draw(&camera2D, &cross_section);
         }
         { // stl
-            if (0) {
+            {
                 stl_draw(&camera3D, &stl);
+            }
+
+            // TODO: we need an actual example(s)
+
+            // // TODO
+            // #define EXTRUDE_META_DATA_TYPE_MAJOR_PLANE 0
+            // #define EXTRUDE_META_DATA_TYPE_TRIANGLE 1
+            // struct ExtrudeMetaData {
+            //     bool32 type;
+            //     real32 x_offset;
+            //     real32 y_offset;
+            // }
+            
+            if (globals.key_pressed['b'] || globals.key_pressed['c']) {
+                // TODO begin operation (can use gui elements to get values from user)
+                // then press of enter to finish operation
+                // tabbing through the elements would be clutch, but not needed at first
+                real32 height = conversation_get_real32("height");
+                // TODO 'x', 'y', 'z' or other to select planes
+                // TODO-LATER: 'm' to nudge
+                stl_extrude(&stl, globals.key_pressed['c'], &dxf, dxf_selection_mask, stl_selected_triangle, height);
+            }
+            if (globals.key_pressed['r']) {
+                // TODO: revolve
+                // TODO: revolvution axes
+
             }
             if (gui_button("save stl", '6')) stl_save_binary(&stl, "out_binary.stl");
         }
