@@ -790,35 +790,33 @@ void stl_save_binary(STL *stl, char *filename) {
 
 
 
-
-
-#if 1
 #include "manifoldc.h"
-#else
-#include <stddef.h>
-typedef struct ManifoldSimplePolygon ManifoldSimplePolygon;
-typedef struct ManifoldVec2 {
-    float x;
-    float y;
-} ManifoldVec2;
-ManifoldSimplePolygon *manifold_simple_polygon(void *mem, ManifoldVec2 *ps, size_t length);
-#endif
-void poe_manifold_test(STL *stl, u32 num_vertices_in_polygonal_loop, Vertex2D *polygonal_loop) {
-    ManifoldSimplePolygon *simple_polygon = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loop, num_vertices_in_polygonal_loop);
-    ManifoldCrossSection *cross_section = manifold_cross_section_of_simple_polygon(malloc(manifold_cross_section_size()), simple_polygon, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
-    ManifoldManifold *manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, 0.3f, 0, 0.0f, 1.0f, 1.0f);
-    ManifoldMeshGL *mesh = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold);
-    u32 *tris = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(mesh) * sizeof(u32)), mesh);
-    real32 *verts = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(mesh) * sizeof(real32)), mesh);
+void manifold_extrude(STL *stl, u32 num_vertices_in_polygonal_loop, Vertex2D *polygonal_loop, real32 height) {
+    u32 num_vertices;
+    u32 num_triangles;
+    real32 *vertices;
+    u32 *triangles;
+    {
+        ManifoldMeshGL *mesh; {
+            ManifoldSimplePolygon *simple_polygon = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loop, num_vertices_in_polygonal_loop);
+            ManifoldCrossSection *cross_section = manifold_cross_section_of_simple_polygon(malloc(manifold_cross_section_size()), simple_polygon, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+            ManifoldManifold *manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, height, 0, 0.0f, 1.0f, 1.0f);
+            mesh = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold);
+        }
+        num_vertices = manifold_meshgl_num_vert(mesh);
+        num_triangles = manifold_meshgl_num_tri(mesh);
+        vertices = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(mesh) * sizeof(real32)), mesh);
+        triangles = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(mesh) * sizeof(u32)), mesh);
+    }
 
     // TODO: with holes
 
     { // stl
-        stl->num_triangles = manifold_meshgl_num_tri(mesh);
+        stl->num_triangles = num_triangles;
         stl->triangles = (STLTriangle *) realloc(stl->triangles, stl->num_triangles * sizeof(STLTriangle));
         for (u32 k = 0; k < 3 * stl->num_triangles; ++k) {
             for (u32 d = 0; d < 3; ++d) {
-                ((real32 *) stl->triangles)[3 * k + d] = verts[3 * tris[k] + d];
+                ((real32 *) stl->triangles)[3 * k + d] = vertices[3 * triangles[k] + d];
             }
         }
     }
@@ -937,7 +935,7 @@ int main() {
             if (globals.key_pressed[COW_KEY_ENTER]) {
                 cross_section = cross_section_create(&dxf, dxf_selection_mask);
                 if (cross_section.num_polygonal_loops) {
-                    poe_manifold_test(&stl, cross_section.num_vertices_in_polygonal_loops[0], cross_section.polygonal_loops[0]);
+                    manifold_extrude(&stl, cross_section.num_vertices_in_polygonal_loops[0], cross_section.polygonal_loops[0], 1.0f);
                 }
                 memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
             }
