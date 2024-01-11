@@ -743,7 +743,7 @@ struct STL {
 
 void stl_draw(Camera3D *camera, STL *stl) {
     mat4 C_inv = camera_get_V(camera);
-    eso_begin(camera_get_PV(camera), SOUP_TRIANGLES);
+    eso_begin(camera_get_PV(camera), SOUP_OUTLINED_TRIANGLES);
     for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
         vec3 v1 = { triangle->v1_x, triangle->v1_y, triangle->v1_z };
         vec3 v2 = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
@@ -791,15 +791,27 @@ void stl_save_binary(STL *stl, char *filename) {
 
 
 #include "manifoldc.h"
-void manifold_extrude(STL *stl, u32 num_vertices_in_polygonal_loop, Vertex2D *polygonal_loop, real32 height) {
+void manifold_wrapper_extrude(
+        STL *stl,
+        u32 num_polygonal_loops,
+        u32 *num_vertices_in_polygonal_loops,
+        Vertex2D **polygonal_loops,
+        real32 height) {
     u32 num_vertices;
     u32 num_triangles;
     real32 *vertices;
     u32 *triangles;
     {
         ManifoldMeshGL *mesh; {
-            ManifoldSimplePolygon *simple_polygon = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loop, num_vertices_in_polygonal_loop);
-            ManifoldCrossSection *cross_section = manifold_cross_section_of_simple_polygon(malloc(manifold_cross_section_size()), simple_polygon, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+            // ManifoldPolygons *manifold_polygons(void *mem, ManifoldSimplePolygon **ps, size_t length);
+            // ManifoldCrossSection *manifold_cross_section_of_polygons(void *mem, ManifoldPolygons *p, ManifoldFillRule fr);
+
+            ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
+            for (u32 i = 0; i < num_polygonal_loops; ++i) {
+                simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
+            }
+            ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
+            ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
             ManifoldManifold *manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, height, 0, 0.0f, 1.0f, 1.0f);
             mesh = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold);
         }
@@ -934,9 +946,7 @@ int main() {
         { // cross_section
             if (globals.key_pressed[COW_KEY_ENTER]) {
                 cross_section = cross_section_create(&dxf, dxf_selection_mask);
-                if (cross_section.num_polygonal_loops) {
-                    manifold_extrude(&stl, cross_section.num_vertices_in_polygonal_loops[0], cross_section.polygonal_loops[0], 1.0f);
-                }
+                manifold_wrapper_extrude(&stl, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, 1.0f);
                 memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
             }
             // cross_section_debug_draw(&camera2D, &cross_section);

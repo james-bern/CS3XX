@@ -25,8 +25,7 @@ extern "C" {
 // Polygons
 
 ManifoldSimplePolygon *manifold_simple_polygon(void *mem, ManifoldVec2 *ps, size_t length);
-ManifoldPolygons *manifold_polygons(void *mem, ManifoldSimplePolygon **ps,
-                                    size_t length);
+ManifoldPolygons *manifold_polygons(void *mem, ManifoldSimplePolygon **ps, size_t length);
 size_t manifold_simple_polygon_length(ManifoldSimplePolygon *p);
 size_t manifold_polygons_length(ManifoldPolygons *ps);
 size_t manifold_polygons_simple_length(ManifoldPolygons *ps, int idx);
@@ -188,11 +187,8 @@ ManifoldManifold *manifold_calculate_curvature(void *mem, ManifoldManifold *m,
 ManifoldCrossSection *manifold_cross_section_empty(void *mem);
 ManifoldCrossSection *manifold_cross_section_copy(void *mem,
                                                   ManifoldCrossSection *cs);
-ManifoldCrossSection *manifold_cross_section_of_simple_polygon(
-    void *mem, ManifoldSimplePolygon *p, ManifoldFillRule fr);
-ManifoldCrossSection *manifold_cross_section_of_polygons(void *mem,
-                                                         ManifoldPolygons *p,
-                                                         ManifoldFillRule fr);
+ManifoldCrossSection *manifold_cross_section_of_simple_polygon( void *mem, ManifoldSimplePolygon *p, ManifoldFillRule fr);
+ManifoldCrossSection *manifold_cross_section_of_polygons(void *mem, ManifoldPolygons *p, ManifoldFillRule fr);
 ManifoldCrossSection *manifold_cross_section_square(void *mem, float x, float y,
                                                     int center);
 ManifoldCrossSection *manifold_cross_section_circle(void *mem, float radius,
