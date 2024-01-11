@@ -30,8 +30,21 @@
 //       could at least print to the terminal what you've done
 //       should preview the cut on the surface before you accept it (eventually) -- and let you nudge it in x, y, and z
 
+
+
+
+
+
+
+// TODO: I think the issue is finding the dylib at runtime.
+//       Probably worth making your own simple dylib and sandboxing the problem
+
+
+
+
 #include "cs345.cpp"
 #include "poe.cpp"
+
 
 
 real32 EPSILON_DEFAULT = 2e-3;
@@ -730,7 +743,7 @@ struct STL {
 
 void stl_draw(Camera3D *camera, STL *stl) {
     mat4 C_inv = camera_get_V(camera);
-    eso_begin(camera_get_PV(camera), SOUP_OUTLINED_TRIANGLES);
+    eso_begin(camera_get_PV(camera), SOUP_TRIANGLES);
     for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
         vec3 v1 = { triangle->v1_x, triangle->v1_y, triangle->v1_z };
         vec3 v2 = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
@@ -766,16 +779,84 @@ void stl_save_binary(STL *stl, char *filename) {
     fclose(file);
 }
 
-void stl_extrude(STL *stl, bool32 cut, DXF *dxf, bool32 *dxf_selection_mask, STLTriangle *stl_selected_triangle, real32 height) {
+// void stl_extrude(STL *stl, bool32 cut, DXF *dxf, bool32 *dxf_selection_mask, STLTriangle *stl_selected_triangle, real32 height) {
+// 
+// }
+
+// real32 conversation_get_real32(char *string) {
+//     return 10.0;
+// }
+
+
+
+
+
+
+#if 1
+#include "manifoldc.h"
+#else
+#include <stddef.h>
+typedef struct ManifoldSimplePolygon ManifoldSimplePolygon;
+typedef struct ManifoldVec2 {
+    float x;
+    float y;
+} ManifoldVec2;
+ManifoldSimplePolygon *manifold_simple_polygon(void *mem, ManifoldVec2 *ps, size_t length);
+#endif
+void poe_manifold_test(STL *stl, u32 num_vertices_in_polygonal_loop, Vertex2D *polygonal_loop) {
+    ManifoldSimplePolygon *simple_polygon = (ManifoldSimplePolygon *) malloc(manifold_simple_polygon_size());
+    simple_polygon = manifold_simple_polygon(simple_polygon, (ManifoldVec2 *) polygonal_loop, num_vertices_in_polygonal_loop);
+
+    ManifoldCrossSection *cross_section = (ManifoldCrossSection *) malloc(manifold_cross_section_size());
+    cross_section = manifold_cross_section_of_simple_polygon(cross_section, simple_polygon, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+
+    ManifoldManifold *manifold  = (ManifoldManifold *) malloc(manifold_manifold_size());
+    manifold = manifold_extrude(manifold, cross_section, 0.3f, 0, 0.0f, 1.0f, 1.0f);
+
+    ManifoldMeshGL *mesh = (ManifoldMeshGL *) malloc(manifold_meshgl_size());
+    mesh = manifold_get_meshgl(mesh, manifold);
+
+    u32 *tris = (u32 *) malloc(manifold_meshgl_tri_length(mesh) * sizeof(u32));
+    tris = manifold_meshgl_tri_verts(tris, mesh);
+
+    real32 *verts = (real32 *) malloc(manifold_meshgl_vert_properties_length(mesh) * sizeof(real32));
+    verts = manifold_meshgl_vert_properties(verts, mesh);
+
+    if (0) {
+        ManifoldVec2 p2 = manifold_simple_polygon_get_point(simple_polygon, 2);
+        printf("%f %f\n", p2.x, p2.y);
+        printf("%d %d\n", manifold_num_vert(manifold), manifold_num_tri(manifold));
+        printf("%d %d %d %zu %zu\n", manifold_meshgl_num_vert(mesh), manifold_meshgl_num_tri(mesh), manifold_meshgl_num_prop(mesh), manifold_meshgl_vert_properties_length(mesh), manifold_meshgl_tri_length(mesh));
+
+        for (u32 i = 0; i < manifold_meshgl_tri_length(mesh); ++i) {
+            if (i % 3 == 0) printf("\n");
+            printf("%d ", tris[i]);
+        }
+
+        for (u32 i = 0; i < manifold_meshgl_vert_properties_length(mesh); ++i) {
+            if (i % 3 == 0) printf("\n");
+            printf("%f ", verts[i]);
+        }
+    }
+
+    { // stl
+        stl->num_triangles = manifold_meshgl_num_tri(mesh);
+        stl->triangles = (STLTriangle *) realloc(stl->triangles, stl->num_triangles * sizeof(STLTriangle));
+        for (u32 k = 0; k < 3 * stl->num_triangles; ++k) {
+            for (u32 d = 0; d < 3; ++d) {
+                ((real32 *) stl->triangles)[3 * k + d] = verts[3 * tris[k] + d];
+            }
+        }
+    }
 
 }
 
-real32 conversation_get_real32(char *string) {
-    return 10.0;
-}
+
+
 
 
 int main() {
+
     DXF dxf = dxf_load("omax.dxf");
 
     DXFLoopAnalysisResult pick = dxf_loop_analysis_create(&dxf);
@@ -786,7 +867,7 @@ int main() {
 
 
 
-    STLTriangle *stl_selected_triangle = NULL;
+    // STLTriangle *stl_selected_triangle = NULL;
     STL stl;
     #if 1
     stl = {};
@@ -825,7 +906,7 @@ int main() {
 
 
     Camera2D camera2D = { 5.0, 2.5 };
-    Camera3D camera3D = { 5.0, RAD(0.0), RAD(0.0), RAD(0.0), -2.5 };
+    Camera3D camera3D = { 10.0, RAD(0.0), RAD(0.0), RAD(0.0), -2.5 };
     while (cow_begin_frame()) {
         camera_move(&camera3D, true, true);
         camera_move(&camera2D);
@@ -881,8 +962,12 @@ int main() {
         { // cross_section
             if (globals.key_pressed[COW_KEY_ENTER]) {
                 cross_section = cross_section_create(&dxf, dxf_selection_mask);
+                if (cross_section.num_polygonal_loops) {
+                    poe_manifold_test(&stl, cross_section.num_vertices_in_polygonal_loops[0], cross_section.polygonal_loops[0]);
+                }
+                memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
             }
-            cross_section_debug_draw(&camera2D, &cross_section);
+            // cross_section_debug_draw(&camera2D, &cross_section);
         }
         { // stl
             {
@@ -899,15 +984,15 @@ int main() {
             //     real32 x_offset;
             //     real32 y_offset;
             // }
-            
+
             if (globals.key_pressed['b'] || globals.key_pressed['c']) {
                 // TODO begin operation (can use gui elements to get values from user)
                 // then press of enter to finish operation
                 // tabbing through the elements would be clutch, but not needed at first
-                real32 height = conversation_get_real32("height");
+                // real32 height = conversation_get_real32("height");
                 // TODO 'x', 'y', 'z' or other to select planes
                 // TODO-LATER: 'm' to nudge
-                stl_extrude(&stl, globals.key_pressed['c'], &dxf, dxf_selection_mask, stl_selected_triangle, height);
+                // stl_extrude(&stl, globals.key_pressed['c'], &dxf, dxf_selection_mask, stl_selected_triangle, height);
             }
             if (globals.key_pressed['r']) {
                 // TODO: revolve
