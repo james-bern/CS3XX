@@ -804,40 +804,14 @@ typedef struct ManifoldVec2 {
 ManifoldSimplePolygon *manifold_simple_polygon(void *mem, ManifoldVec2 *ps, size_t length);
 #endif
 void poe_manifold_test(STL *stl, u32 num_vertices_in_polygonal_loop, Vertex2D *polygonal_loop) {
-    ManifoldSimplePolygon *simple_polygon = (ManifoldSimplePolygon *) malloc(manifold_simple_polygon_size());
-    simple_polygon = manifold_simple_polygon(simple_polygon, (ManifoldVec2 *) polygonal_loop, num_vertices_in_polygonal_loop);
+    ManifoldSimplePolygon *simple_polygon = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loop, num_vertices_in_polygonal_loop);
+    ManifoldCrossSection *cross_section = manifold_cross_section_of_simple_polygon(malloc(manifold_cross_section_size()), simple_polygon, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+    ManifoldManifold *manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, 0.3f, 0, 0.0f, 1.0f, 1.0f);
+    ManifoldMeshGL *mesh = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold);
+    u32 *tris = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(mesh) * sizeof(u32)), mesh);
+    real32 *verts = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(mesh) * sizeof(real32)), mesh);
 
-    ManifoldCrossSection *cross_section = (ManifoldCrossSection *) malloc(manifold_cross_section_size());
-    cross_section = manifold_cross_section_of_simple_polygon(cross_section, simple_polygon, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
-
-    ManifoldManifold *manifold  = (ManifoldManifold *) malloc(manifold_manifold_size());
-    manifold = manifold_extrude(manifold, cross_section, 0.3f, 0, 0.0f, 1.0f, 1.0f);
-
-    ManifoldMeshGL *mesh = (ManifoldMeshGL *) malloc(manifold_meshgl_size());
-    mesh = manifold_get_meshgl(mesh, manifold);
-
-    u32 *tris = (u32 *) malloc(manifold_meshgl_tri_length(mesh) * sizeof(u32));
-    tris = manifold_meshgl_tri_verts(tris, mesh);
-
-    real32 *verts = (real32 *) malloc(manifold_meshgl_vert_properties_length(mesh) * sizeof(real32));
-    verts = manifold_meshgl_vert_properties(verts, mesh);
-
-    if (0) {
-        ManifoldVec2 p2 = manifold_simple_polygon_get_point(simple_polygon, 2);
-        printf("%f %f\n", p2.x, p2.y);
-        printf("%d %d\n", manifold_num_vert(manifold), manifold_num_tri(manifold));
-        printf("%d %d %d %zu %zu\n", manifold_meshgl_num_vert(mesh), manifold_meshgl_num_tri(mesh), manifold_meshgl_num_prop(mesh), manifold_meshgl_vert_properties_length(mesh), manifold_meshgl_tri_length(mesh));
-
-        for (u32 i = 0; i < manifold_meshgl_tri_length(mesh); ++i) {
-            if (i % 3 == 0) printf("\n");
-            printf("%d ", tris[i]);
-        }
-
-        for (u32 i = 0; i < manifold_meshgl_vert_properties_length(mesh); ++i) {
-            if (i % 3 == 0) printf("\n");
-            printf("%f ", verts[i]);
-        }
-    }
+    // TODO: with holes
 
     { // stl
         stl->num_triangles = manifold_meshgl_num_tri(mesh);
