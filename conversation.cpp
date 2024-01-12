@@ -8,6 +8,11 @@
 // TODO: cow_real actually supporting real32 or real64
 
 
+// FORNOW
+#define SIN sinf
+#define COS cosf
+#define SQRT sqrtf
+#define POW powf
 
 // roadmap
 // / import dxf
@@ -31,13 +36,13 @@
 //       should preview the cut on the surface before you accept it (eventually) -- and let you nudge it in x, y, and z
 
 
+// - select quality (SELECT_MODIFIER_CONNECTED SELECT_MODIFIER_QUALITY)
+// - 2D / 3D ui (2D goes it its own box)
 
 
 
 
 
-// TODO: I think the issue is finding the dylib at runtime.
-//       Probably worth making your own simple dylib and sandboxing the problem
 
 
 
@@ -47,7 +52,7 @@
 
 
 
-real32 EPSILON_DEFAULT = 2e-3;
+real32 EPSILON_DEFAULT = 2e-1; // TODO: do this in NDC
 real32 TOLERANCE_DEFAULT = 1e-5;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -98,8 +103,8 @@ struct DXFEntity {
 };
 
 void get_point_on_circle_NOTE_pass_angle_in_radians(real32 *x, real32 *y, real32 center_x, real32 center_y, real32 radius, real32 angle_in_radians) {
-    *x = center_x + radius * cosf(angle_in_radians);
-    *y = center_y + radius * sinf(angle_in_radians);
+    *x = center_x + radius * COS(angle_in_radians);
+    *y = center_y + radius * SIN(angle_in_radians);
 }
 
 void arc_process_angles_into_lerpable_radians_considering_flip_flag(DXFArc *arc, real32 *start_angle, real32 *end_angle, bool32 flip_flag) {
@@ -215,22 +220,22 @@ DXF dxf_load(char *filename) {
                             sscanf(buffer, "%f", &value);
                             if (mode == DXF_LOAD_MODE_LINE) {
                                 if (code == 10) {
-                                    line.start_x = value;
+                                    line.start_x = MM(value);
                                 } else if (code == 20) {
-                                    line.start_y = value;
+                                    line.start_y = MM(value);
                                 } else if (code == 11) {
-                                    line.end_x = value;
+                                    line.end_x = MM(value);
                                 } else if (code == 21) {
-                                    line.end_y = value;
+                                    line.end_y = MM(value);
                                 }
                             } else {
                                 ASSERT(mode == DXF_LOAD_MODE_ARC);
                                 if (code == 10) {
-                                    arc.center_x = value;
+                                    arc.center_x = MM(value);
                                 } else if (code == 20) {
-                                    arc.center_y = value;
+                                    arc.center_y = MM(value);
                                 } else if (code == 40) {
-                                    arc.radius = value;
+                                    arc.radius = MM(value);
                                 } else if (code == 50) {
                                     arc.start_angle_in_degrees = value;
                                 } else if (code == 51) {
@@ -323,7 +328,7 @@ real32 squared_distance_point_line_segment(real32 x, real32 y, real32 start_x, r
 }
 
 real32 squared_distance_point_circle(real32 x, real32 y, real32 center_x, real32 center_y, real32 radius) {
-    return pow(sqrt(squared_distance_point_point(x, y, center_x, center_y)) - radius, 2);
+    return POW(SQRT(squared_distance_point_point(x, y, center_x, center_y)) - radius, 2);
 }
 
 real32 squared_distance_point_arc_NOTE_pass_angles_in_radians(real32 x, real32 y, real32 center_x, real32 center_y, real32 radius, real32 start_angle_in_radians, real32 end_angle_in_radians) {
@@ -486,7 +491,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                                     real32 mid_angle = (start_angle + end_angle) / 2;
                                     real32 d; {
                                         real32 alpha = ABS(start_angle - end_angle) / 2;
-                                        d = arc->radius * alpha / sinf(alpha);
+                                        d = arc->radius * alpha / SIN(alpha);
                                     }
                                     real32 mid_x, mid_y;
                                     get_point_on_circle_NOTE_pass_angle_in_radians(&mid_x, &mid_y, arc->center_x, arc->center_y, d, mid_angle);
@@ -551,11 +556,18 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 }
 
 
-#define TOOL_NONE 0
-#define TOOL_SELECT 1
-#define TOOL_DESELECT 2
-void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, bool deselect, bool tool_connected_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
+#define SELECT_MODE_NONE 0
+#define SELECT_MODE_SELECT 1
+#define SELECT_MODE_DESELECT 2
+#define SELECT_MODIFIER_NONE 0
+#define SELECT_MODIFIER_CONNECTED 1
+#define SELECT_MODIFIER_QUALITY 2
+void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
+    if (select_modifier == SELECT_MODE_NONE) return;
+
+    bool32 value_to_write_to_selection_mask = (select_mode == SELECT_MODE_SELECT);
+    bool32 modifier_connected = (select_modifier == SELECT_MODIFIER_CONNECTED);
 
     // TODO: this is silly; i want to be able to tell cow to use a 32 bit float
     //       (cow_real)
@@ -577,15 +589,14 @@ void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, bool des
 
     if (hot_entity_index != -1) {
         if (globals.mouse_left_held) {
-            bool32 value = (!deselect);
-            if (!tool_connected_modifier) {
-                dxf_selection_mask[hot_entity_index] = value;
+            if (!modifier_connected) {
+                dxf_selection_mask[hot_entity_index] = value_to_write_to_selection_mask;
             } else {
                 u32 loop_index = pick_loop_index_from_entity_index[hot_entity_index];
                 DXFEntityIndexAndFlipFlag *loop = pick_loops[loop_index];
                 u32 num_entities = num_entities_in_pick_loops[loop_index];
                 for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
-                    dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value;
+                    dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value_to_write_to_selection_mask;
                 }
             }
         }
@@ -621,12 +632,12 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     result.polygonal_loops[0][1] = {  2.0f, -2.0f };
     result.polygonal_loops[0][2] = {  2.0f,  2.0f };
     result.polygonal_loops[0][3] = { -2.0f,  2.0f };
-    result.polygonal_loops[1][0] = { cosf(RAD(  0)), sinf(RAD(  0)) };
-    result.polygonal_loops[1][1] = { cosf(RAD( 60)), sinf(RAD( 60)) };
-    result.polygonal_loops[1][2] = { cosf(RAD(120)), sinf(RAD(120)) };
-    result.polygonal_loops[1][3] = { cosf(RAD(180)), sinf(RAD(180)) };
-    result.polygonal_loops[1][4] = { cosf(RAD(240)), sinf(RAD(240)) };
-    result.polygonal_loops[1][5] = { cosf(RAD(300)), sinf(RAD(300)) };
+    result.polygonal_loops[1][0] = { COS(RAD(  0)), SIN(RAD(  0)) };
+    result.polygonal_loops[1][1] = { COS(RAD( 60)), SIN(RAD( 60)) };
+    result.polygonal_loops[1][2] = { COS(RAD(120)), SIN(RAD(120)) };
+    result.polygonal_loops[1][3] = { COS(RAD(180)), SIN(RAD(180)) };
+    result.polygonal_loops[1][4] = { COS(RAD(240)), SIN(RAD(240)) };
+    result.polygonal_loops[1][5] = { COS(RAD(300)), SIN(RAD(300)) };
     return result;
     #else
 
@@ -710,7 +721,7 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
             real32 c_y = (a_y + b_y) / 2;
             real32 n_x = b_y - a_y;
             real32 n_y = a_x - b_x;
-            real32 norm_n = sqrt(n_x * n_x + n_y * n_y);
+            real32 norm_n = SQRT(n_x * n_x + n_y * n_y);
             real32 L = 0.013f;
             eso_color(color_rainbow_swirl((i + 0.5f) / (n)));
             eso_vertex(c_x, c_y);
@@ -736,49 +747,49 @@ struct STLTriangle {
     real32 v3_z;
 };
 
-struct STL {
-    u32 num_triangles;
-    STLTriangle *triangles;
-};
-
-void stl_draw(Camera3D *camera, STL *stl) {
-    mat4 C_inv = camera_get_V(camera);
-    eso_begin(camera_get_PV(camera), SOUP_OUTLINED_TRIANGLES);
-    for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
-        vec3 v1 = { triangle->v1_x, triangle->v1_y, triangle->v1_z };
-        vec3 v2 = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
-        vec3 v3 = { triangle->v3_x, triangle->v3_y, triangle->v3_z };
-        vec3 n = transformNormal(C_inv, normalized(cross(v2 - v1, v3 - v1)));
-        vec3 color = (n.z < 0) ? V3(1.0, 0.0, 0.0) : V3(0.5 + 0.5 * n.x, 0.5 + 0.5 * n.y, 1.0);
-        eso_color(color);
-        eso_vertex(v1);
-        eso_vertex(v2);
-        eso_vertex(v3);
-    }
-    eso_end();
-}
-
-void stl_save_binary(STL *stl, char *filename) {
-    FILE *file = fopen(filename, "w");
-    ASSERT(file);
-
-    int num_bytes = 80 + 4 + 50 * stl->num_triangles;
-    char *buffer = (char *) calloc(num_bytes, 1); {
-        int offset = 80;
-        memcpy(buffer + offset, &stl->num_triangles, 4);
-        offset += 4;
-        for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
-            offset += 12;
-            memcpy(buffer + offset, triangle, 36);
-            offset += 38;
-        }
-    }
-    fwrite(buffer, 1, num_bytes, file);
-    free(buffer);
-
-    fclose(file);
-}
-
+//struct STL {
+//    u32 num_triangles;
+//    STLTriangle *triangles;
+//};
+//
+//void stl_draw(Camera3D *camera, STL *stl) {
+//    mat4 C_inv = camera_get_V(camera);
+//    eso_begin(camera_get_PV(camera), SOUP_TRIANGLES);
+//    for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
+//        vec3 v1 = { triangle->v1_x, triangle->v1_y, triangle->v1_z };
+//        vec3 v2 = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
+//        vec3 v3 = { triangle->v3_x, triangle->v3_y, triangle->v3_z };
+//        vec3 n = transformNormal(C_inv, normalized(cross(v2 - v1, v3 - v1)));
+//        vec3 color = (n.z < 0) ? V3(1.0, 0.0, 0.0) : V3(0.5 + 0.5 * n.x, 0.5 + 0.5 * n.y, 1.0);
+//        eso_color(color);
+//        eso_vertex(v1);
+//        eso_vertex(v2);
+//        eso_vertex(v3);
+//    }
+//    eso_end();
+//}
+//
+//void stl_save_binary(STL *stl, char *filename) {
+//    FILE *file = fopen(filename, "w");
+//    ASSERT(file);
+//
+//    int num_bytes = 80 + 4 + 50 * stl->num_triangles;
+//    char *buffer = (char *) calloc(num_bytes, 1); {
+//        int offset = 80;
+//        memcpy(buffer + offset, &stl->num_triangles, 4);
+//        offset += 4;
+//        for (STLTriangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
+//            offset += 12;
+//            memcpy(buffer + offset, triangle, 36);
+//            offset += 38;
+//        }
+//    }
+//    fwrite(buffer, 1, num_bytes, file);
+//    free(buffer);
+//
+//    fclose(file);
+//}
+//
 // void stl_extrude(STL *stl, bool32 cut, DXF *dxf, bool32 *dxf_selection_mask, STLTriangle *stl_selected_triangle, real32 height) {
 // 
 // }
@@ -789,48 +800,95 @@ void stl_save_binary(STL *stl, char *filename) {
 
 
 
-
-#include "manifoldc.h"
-void manifold_wrapper_extrude(
-        STL *stl,
-        u32 num_polygonal_loops,
-        u32 *num_vertices_in_polygonal_loops,
-        Vertex2D **polygonal_loops,
-        real32 height) {
+struct ConversationIndexedTriangleMesh {
     u32 num_vertices;
     u32 num_triangles;
     real32 *vertices;
     u32 *triangles;
-    {
-        ManifoldMeshGL *mesh; {
-            // ManifoldPolygons *manifold_polygons(void *mem, ManifoldSimplePolygon **ps, size_t length);
-            // ManifoldCrossSection *manifold_cross_section_of_polygons(void *mem, ManifoldPolygons *p, ManifoldFillRule fr);
+};
 
+void mesh_draw(Camera3D *camera, ConversationIndexedTriangleMesh *mesh) {
+    mat4 C_inv = camera_get_V(camera);
+    eso_begin(camera_get_PV(camera), (!globals.key_toggled[COW_KEY_TAB]) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
+    for (u32 i = 0; i < mesh->num_triangles; ++i) {
+        vec3 v[3];
+        for (u32 j = 0; j < 3; ++j) {
+            for (u32 d = 0; d < 3; ++d) {
+                v[j][d] = mesh->vertices[3 * mesh->triangles[3 * i + j] + d];
+            }
+        }
+        vec3 n = transformNormal(C_inv, normalized(cross(v[1] - v[0], v[2] - v[0])));
+        vec3 color = (n.z < 0) ? V3(1.0, 0.0, 0.0) : V3(0.5 + 0.5 * n.x, 0.5 + 0.5 * n.y, 1.0);
+        eso_color(color);
+        eso_vertex(v[0]);
+        eso_vertex(v[1]);
+        eso_vertex(v[2]);
+    }
+    eso_end();
+}
+
+void mesh_save_stl(ConversationIndexedTriangleMesh *mesh, char *filename) {
+    FILE *file = fopen(filename, "w");
+    ASSERT(file);
+
+    int num_bytes = 80 + 4 + 50 * mesh->num_triangles;
+    char *buffer = (char *) calloc(num_bytes, 1); {
+        int offset = 80;
+        memcpy(buffer + offset, &mesh->num_triangles, 4);
+        offset += 4;
+        for (u32 i = 0; i < mesh->num_triangles; ++i) {
+            offset += 12;
+            real32 triangle[9];
+            for (u32 j = 0; j < 3; ++j) {
+                for (u32 d = 0; d < 3; ++d) {
+                    triangle[3 * j + d] = mesh->vertices[3 * mesh->triangles[3 * i + j] + d];
+                }
+            }
+            memcpy(buffer + offset, triangle, 36);
+            offset += 38;
+        }
+    }
+    fwrite(buffer, 1, num_bytes, file);
+    free(buffer);
+
+    fclose(file);
+}
+
+
+#include "manifoldc.h"
+void wrapper_manifold(
+        ManifoldManifold **curr__NOTE_GETS_UPDATED,
+        ConversationIndexedTriangleMesh *dest__NOTE_GETS_OVERWRITTEN,
+        u32 num_polygonal_loops,
+        u32 *num_vertices_in_polygonal_loops,
+        Vertex2D **polygonal_loops,
+        real32 height) {
+
+
+    {
+        ManifoldManifold *manifold; {
             ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
             for (u32 i = 0; i < num_polygonal_loops; ++i) {
                 simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
             }
             ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
             ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
-            ManifoldManifold *manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, height, 0, 0.0f, 1.0f, 1.0f);
-            mesh = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold);
+            manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, height, 0, 0.0f, 1.0f, 1.0f);
         }
-        num_vertices = manifold_meshgl_num_vert(mesh);
-        num_triangles = manifold_meshgl_num_tri(mesh);
-        vertices = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(mesh) * sizeof(real32)), mesh);
-        triangles = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(mesh) * sizeof(u32)), mesh);
-    }
 
-    // TODO: with holes
-
-    { // stl
-        stl->num_triangles = num_triangles;
-        stl->triangles = (STLTriangle *) realloc(stl->triangles, stl->num_triangles * sizeof(STLTriangle));
-        for (u32 k = 0; k < 3 * stl->num_triangles; ++k) {
-            for (u32 d = 0; d < 3; ++d) {
-                ((real32 *) stl->triangles)[3 * k + d] = vertices[3 * triangles[k] + d];
-            }
+        // add
+        if (!(*curr__NOTE_GETS_UPDATED)) {
+            *curr__NOTE_GETS_UPDATED = manifold;
+        } else {
+            // TODO: ? manifold_delete_manifold(curr__NOTE_GETS_UPDATED);
+            *curr__NOTE_GETS_UPDATED = manifold_boolean(malloc(manifold_manifold_size()), *curr__NOTE_GETS_UPDATED, manifold, ManifoldOpType::MANIFOLD_ADD);
         }
+
+        ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *curr__NOTE_GETS_UPDATED);
+        dest__NOTE_GETS_OVERWRITTEN->num_vertices = manifold_meshgl_num_vert(meshgl);
+        dest__NOTE_GETS_OVERWRITTEN->num_triangles = manifold_meshgl_num_tri(meshgl);
+        dest__NOTE_GETS_OVERWRITTEN->vertices = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
+        dest__NOTE_GETS_OVERWRITTEN->triangles = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
     }
 
 }
@@ -845,39 +903,52 @@ int main() {
 
     DXFLoopAnalysisResult pick = dxf_loop_analysis_create(&dxf);
 
-    u32 tool = TOOL_NONE;
-    bool32 tool_connected_modifier = false;
+    u32 select_mode = SELECT_MODE_NONE;
+    u32 select_modifier = SELECT_MODIFIER_NONE;
     bool32 *dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
 
 
     // STLTriangle *stl_selected_triangle = NULL;
-    STL stl;
+    ManifoldManifold *manifold = NULL;
+    ConversationIndexedTriangleMesh mesh = {};
     #if 1
-    stl = {};
-    stl.num_triangles = 4;
-    stl.triangles = (STLTriangle *) calloc(stl.num_triangles, sizeof(STLTriangle));
-    float h = (1.0f + sqrtf(3.0f)) / 2;
-    stl.triangles[0] = {
-        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
-        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
-        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
-    };
-    stl.triangles[1] = {
-        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
-        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
-        0.0f, h, 0.0f
-    };
-    stl.triangles[2] = {
-        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
-        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
-        0.0f, h, 0.0f
-    };
-    stl.triangles[3] = {
-        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
-        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
-        0.0f, h, 0.0f
-    };
+    mesh = {};
+    mesh.num_vertices = 4;
+    mesh.num_triangles = 4;
+    mesh.vertices = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
+    mesh.triangles = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
+    float h = (1.0f + SQRT(3.0f)) / 2;
+    {
+        u32 k = 0;
+        mesh.vertices[k++] = 100.0f * COS(RAD(0.0));
+        mesh.vertices[k++] = 100.0f * 0.0f;
+        mesh.vertices[k++] = 100.0f * SIN(RAD(0.0));
+        mesh.vertices[k++] = 100.0f * COS(RAD(120.0));
+        mesh.vertices[k++] = 100.0f * 0.0f;
+        mesh.vertices[k++] = 100.0f * SIN(RAD(120.0));
+        mesh.vertices[k++] = 100.0f * COS(RAD(240.0));
+        mesh.vertices[k++] = 100.0f * 0.0f;
+        mesh.vertices[k++] = 100.0f * SIN(RAD(240.0));
+        mesh.vertices[k++] = 100.0f * 0.0f;
+        mesh.vertices[k++] = 100.0f * h;
+        mesh.vertices[k++] = 100.0f * 0.0f;
+    }
+    {
+        u32 k = 0;
+        mesh.triangles[k++] = 0;
+        mesh.triangles[k++] = 1;
+        mesh.triangles[k++] = 2;
+        mesh.triangles[k++] = 1;
+        mesh.triangles[k++] = 0;
+        mesh.triangles[k++] = 3;
+        mesh.triangles[k++] = 2;
+        mesh.triangles[k++] = 1;
+        mesh.triangles[k++] = 3;
+        mesh.triangles[k++] = 0;
+        mesh.triangles[k++] = 2;
+        mesh.triangles[k++] = 3;
+    }
     #else
     #endif
 
@@ -889,33 +960,49 @@ int main() {
     // TODO: simple split screen with simple scissoring (move this into cow)
 
 
-    Camera2D camera2D = { 5.0, 2.5 };
-    Camera3D camera3D = { 10.0, RAD(0.0), RAD(0.0), RAD(0.0), -2.5 };
+    Camera2D camera2D = { 200.0 };
+    Camera3D camera3D = { 200.0, RAD(0.0), RAD(0.0), RAD(0.0) };
     while (cow_begin_frame()) {
         camera_move(&camera3D, true, true);
         camera_move(&camera2D);
         { // dxf
             { // pick
                 if (globals.key_pressed['s']) {
-                    tool = TOOL_SELECT;
-                    tool_connected_modifier = false;
+                    select_mode = SELECT_MODE_SELECT;
+                    select_modifier = SELECT_MODIFIER_NONE;
                 }
                 if (globals.key_pressed['d']) {
-                    tool = TOOL_DESELECT;
-                    tool_connected_modifier = false;
+                    select_mode = SELECT_MODE_DESELECT;
+                    select_modifier = SELECT_MODIFIER_NONE;
                 }
                 if (globals.key_pressed['c']) {
-                    tool_connected_modifier = true;
+                    select_modifier = SELECT_MODIFIER_CONNECTED;
                 }
-                if (globals.key_pressed['a']) {
-                    if (tool == TOOL_SELECT) {
-                        for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = true;
-                    } else if (tool == TOOL_DESELECT) {
-                        for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = false;
+                if (select_mode != SELECT_MODE_NONE) {
+
+                    bool32 value_to_write_to_selection_mask = (select_mode == SELECT_MODE_SELECT);
+
+                    if (globals.key_pressed['q']) select_modifier = SELECT_MODIFIER_QUALITY;
+
+                    if (select_modifier == SELECT_MODIFIER_QUALITY) {
+                        for (u32 color = 0; color < 6; ++color) {
+                            if (globals.key_pressed['0' + color]) {
+                                for (u32 i = 0; i < dxf.num_entities; ++i) {
+                                    if (dxf.entities[i].line.color == color) { // FORNOW (spooky)
+                                        dxf_selection_mask[i] = value_to_write_to_selection_mask;
+                                    }
+                                }
+                                select_modifier = SELECT_MODE_NONE;
+                                break;
+                            }
+                        }
+                    }
+                    if (globals.key_pressed['a']) {
+                        for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                     }
                 }
-                if (tool == TOOL_SELECT || tool == TOOL_DESELECT) {
-                    dxf_pick(&camera2D, &dxf, dxf_selection_mask, tool == TOOL_DESELECT, tool_connected_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+                if (select_mode != SELECT_MODE_NONE) {
+                    dxf_pick(&camera2D, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
                 }
             }
             { // draw
@@ -946,14 +1033,16 @@ int main() {
         { // cross_section
             if (globals.key_pressed[COW_KEY_ENTER]) {
                 cross_section = cross_section_create(&dxf, dxf_selection_mask);
-                manifold_wrapper_extrude(&stl, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, 1.0f);
+                static float height = 5.0f;
+                wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, height);
+                height += 5.0f;
                 memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
             }
             // cross_section_debug_draw(&camera2D, &cross_section);
         }
-        { // stl
+        { // mesh
             {
-                stl_draw(&camera3D, &stl);
+                mesh_draw(&camera3D, &mesh);
             }
 
             // TODO: we need an actual example(s)
@@ -981,7 +1070,10 @@ int main() {
                 // TODO: revolvution axes
 
             }
-            if (gui_button("save stl", '6')) stl_save_binary(&stl, "out_binary.stl");
+            { // gui
+                gui_printf("num_triangles %d", mesh.num_triangles);
+                if (gui_button("save stl", ' ')) mesh_save_stl(&mesh, "out.stl");
+            }
         }
     }
 }

@@ -89,12 +89,9 @@ void manifold_manifold_vec_push_back(ManifoldManifoldVec *ms,
 
 // Manifold Booleans
 
-ManifoldManifold *manifold_boolean(void *mem, ManifoldManifold *a,
-                                   ManifoldManifold *b, ManifoldOpType op);
-ManifoldManifold *manifold_batch_boolean(void *mem, ManifoldManifoldVec *ms,
-                                         ManifoldOpType op);
-ManifoldManifold *manifold_union(void *mem, ManifoldManifold *a,
-                                 ManifoldManifold *b);
+ManifoldManifold *manifold_boolean(void *mem, ManifoldManifold *a, ManifoldManifold *b, ManifoldOpType op);
+ManifoldManifold *manifold_batch_boolean(void *mem, ManifoldManifoldVec *ms, ManifoldOpType op);
+ManifoldManifold *manifold_union(void *mem, ManifoldManifold *a, ManifoldManifold *b);
 ManifoldManifold *manifold_difference(void *mem, ManifoldManifold *a,
                                       ManifoldManifold *b);
 ManifoldManifold *manifold_intersection(void *mem, ManifoldManifold *a,
