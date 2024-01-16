@@ -7,6 +7,8 @@
 
 // TODO: cow_real actually supporting real32 or real64
 
+// TODO: stl
+
 
 // FORNOW
 #define SIN sinf
@@ -52,7 +54,7 @@
 
 
 
-real32 EPSILON_DEFAULT = 2e-1; // TODO: do this in NDC
+real32 EPSILON_DEFAULT = 9e-1; // TODO: do this in NDC
 real32 TOLERANCE_DEFAULT = 1e-5;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -564,7 +566,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define SELECT_MODIFIER_QUALITY 2
 void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
-    if (select_modifier == SELECT_MODE_NONE) return;
+    if (select_mode == SELECT_MODE_NONE) return;
 
     bool32 value_to_write_to_selection_mask = (select_mode == SELECT_MODE_SELECT);
     bool32 modifier_connected = (select_modifier == SELECT_MODIFIER_CONNECTED);
@@ -912,7 +914,7 @@ int main() {
     // STLTriangle *stl_selected_triangle = NULL;
     ManifoldManifold *manifold = NULL;
     ConversationIndexedTriangleMesh mesh = {};
-    #if 1
+    #if 0
     mesh = {};
     mesh.num_vertices = 4;
     mesh.num_triangles = 4;
@@ -960,13 +962,59 @@ int main() {
     // TODO: simple split screen with simple scissoring (move this into cow)
 
 
-    Camera2D camera2D = { 200.0 };
-    Camera3D camera3D = { 200.0, RAD(0.0), RAD(0.0), RAD(0.0) };
+
+    #define MOUSE_MODE_NONE 0
+    #define MOUSE_MODE_2D   1
+    #define MOUSE_MODE_3D   2
+    u32 mouse_mode = MOUSE_MODE_NONE;
+
+    Camera2D camera2D = { 200.0f, 100.0f };
+    Camera3D camera3D = { 200.0f, RAD(0.0), RAD(0.0), RAD(0.0), -100.0f };
+
     while (cow_begin_frame()) {
-        camera_move(&camera3D, true, true);
-        camera_move(&camera2D);
-        { // dxf
-            { // pick
+
+        u32 window_width, window_height; {
+            double _window_width, _window_height; // FORNOW
+            _window_get_size(&_window_width, &_window_height);
+            window_width = (u32) _window_width;
+            window_height = (u32) _window_height;
+        }
+
+        { // gui
+            glDisable(GL_DEPTH_TEST);
+            eso_begin(globals.Identity, SOUP_QUADS);
+            eso_color(0.2f, 0.2f, 0.2f);
+            eso_vertex(0.0f,  1.0f);
+            eso_vertex(0.0f, -1.0f);
+            eso_vertex(1.0f, -1.0f);
+            eso_vertex(1.0f,  1.0f);
+            eso_end();
+            glEnable(GL_DEPTH_TEST);
+
+            eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
+            eso_color(1.0f, 1.0f, 1.0f);
+            eso_vertex(0.0f,  1.0f);
+            eso_vertex(0.0f, -1.0f);
+            eso_end();
+        }
+
+        if (globals.mouse_left_pressed || globals.mouse_right_pressed) {
+            mouse_mode = (globals.mouse_position_NDC.x < 0) ? MOUSE_MODE_2D : MOUSE_MODE_3D;
+        } else if (globals.mouse_left_released || globals.mouse_right_released) {
+            mouse_mode = MOUSE_MODE_NONE;
+        } else if (!globals.mouse_left_held && !globals.mouse_right_held) {
+            // FORNOW
+            mouse_mode = (globals.mouse_position_NDC.x < 0) ? MOUSE_MODE_2D : MOUSE_MODE_3D;
+        }
+
+        if (mouse_mode == MOUSE_MODE_2D) {
+            camera_move(&camera2D);
+        } else if (mouse_mode == MOUSE_MODE_3D) {
+            camera_move(&camera3D);
+        }
+
+        { // 2D
+            { // all mouse modes
                 if (globals.key_pressed['s']) {
                     select_mode = SELECT_MODE_SELECT;
                     select_modifier = SELECT_MODIFIER_NONE;
@@ -979,7 +1027,6 @@ int main() {
                     select_modifier = SELECT_MODIFIER_CONNECTED;
                 }
                 if (select_mode != SELECT_MODE_NONE) {
-
                     bool32 value_to_write_to_selection_mask = (select_mode == SELECT_MODE_SELECT);
 
                     if (globals.key_pressed['q']) select_modifier = SELECT_MODIFIER_QUALITY;
@@ -1001,11 +1048,13 @@ int main() {
                         for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                     }
                 }
-                if (select_mode != SELECT_MODE_NONE) {
-                    dxf_pick(&camera2D, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
-                }
+            }
+            if (mouse_mode == MOUSE_MODE_2D) { // pick
+                dxf_pick(&camera2D, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
             }
             { // draw
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(0, 0, window_width / 2, window_height);
                 if (!globals.key_toggled['h']) {
                     eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
@@ -1028,9 +1077,11 @@ int main() {
                         eso_end();
                     }
                 }
+                glDisable(GL_SCISSOR_TEST);
             }
         }
-        { // cross_section
+
+        { // 2D -> 3D
             if (globals.key_pressed[COW_KEY_ENTER]) {
                 cross_section = cross_section_create(&dxf, dxf_selection_mask);
                 static float height = 5.0f;
@@ -1040,9 +1091,13 @@ int main() {
             }
             // cross_section_debug_draw(&camera2D, &cross_section);
         }
-        { // mesh
+
+        { // 3D
             {
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(window_width / 2, 0, window_width / 2, window_height);
                 mesh_draw(&camera3D, &mesh);
+                glDisable(GL_SCISSOR_TEST);
             }
 
             // TODO: we need an actual example(s)
@@ -1071,8 +1126,9 @@ int main() {
 
             }
             { // gui
+                gui_printf("select (%d, %d)", select_mode, select_modifier);
                 gui_printf("num_triangles %d", mesh.num_triangles);
-                if (gui_button("save stl", ' ')) mesh_save_stl(&mesh, "out.stl");
+                if (gui_button("save", ' ')) mesh_save_stl(&mesh, "out.stl");
             }
         }
     }
