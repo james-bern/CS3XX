@@ -31,5 +31,8 @@ typedef double real64;
 BEGIN_PRE_MAIN {
     _cow_init();
     _cow_reset();
+    config.hotkeys_app_quit = 0;
+    config.hotkeys_app_menu = 0;
+    config.hotkeys_gui_hide = 0;
     // stbi_set_flip_vertically_on_load(false);
 } END_PRE_MAIN 

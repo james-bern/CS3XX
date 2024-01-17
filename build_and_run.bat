@@ -126,9 +126,13 @@ else
         -Wshadow \
         -Werror=vla \
         -Wno-deprecated-declarations -Wno-missing-braces -Wno-missing-field-initializers -Wno-char-subscripts -Wno-writable-strings \
-        -I./codebase/ext -I./codebase/ext \
+        -I./codebase/ext \
         -L./codebase/ext \
         -lglfw3 \
+        -I./codebase/ext/poe_manifold \
+        -L. \
+        -L./codebase/ext/poe_manifold \
+        -lmanifoldc -Wl,-rpath,./codebase/ext/poe_manifold \
         -framework Cocoa -framework OpenGL -framework IOKit \
         -framework AudioUnit -framework CoreAudio -framework AudioToolbox
 
