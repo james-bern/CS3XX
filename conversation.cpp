@@ -196,7 +196,7 @@ DXF dxf_load(char *filename) {
             DXFLine line = {};
             DXFArc arc = {};
             static char buffer[512];
-            while (fgets(buffer, _COUNT_OF(buffer), file)) {
+            while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
                 if (mode == DXF_LOAD_MODE_NONE) {
                     if (poe_matches_prefix(buffer, "LINE")) {
                         mode = DXF_LOAD_MODE_LINE;
@@ -959,7 +959,6 @@ void wrapper_manifold(
 
 
 int main() {
-
     #define MOUSE_MODE_NONE 0
     #define MOUSE_MODE_2D   1
     #define MOUSE_MODE_3D   2

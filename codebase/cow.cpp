@@ -531,7 +531,10 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 
 // // assert
 #define ASSERT(b) do { if (!(b)) { \
-    printf("ASSERT Line %d in %s\n", __LINE__, __FILE__); \
+    printf("ASSERT("); \
+    printf(STR(b)); \
+    printf("); // "); \
+    printf("Line %d in %s\n", __LINE__, __FILE__); \
     if (!config.tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter) { \
         printf("press Enter to crash"); getchar(); \
     } \
@@ -576,7 +579,10 @@ cow_real MM(cow_real inches) { return ((inches) * cow_real(25.4)); }
 // // working with int's
 #define MODULO(x, N) (((x) % (N) + (N)) % (N)) // works on negative numbers
                                                // #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
-#define _COUNT_OF(fixed_size_array) int((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
+
+#define IS_INDEXABLE(arg) (sizeof(arg[0]))
+#define IS_ARRAY(arg) (IS_INDEXABLE(arg) && (((void *) &arg) == ((void *) arg)))
+#define ARRAY_LENGTH(arr) (IS_ARRAY(arr) ? (sizeof(arr) / sizeof(arr[0])) : 0)
 
 #define IS_ODD(a) ((a) % 2 != 0)
 #define IS_EVEN(a) ((a) % 2 == 0)
@@ -1543,7 +1549,7 @@ Shader shader_create(
     Shader shader = {};
     shader._program_ID = _shader_compile_and_build_program(vertex_shader_source, fragment_shader_source, geometry_shader_source);
     glGenVertexArrays(1, &shader._VAO);
-    glGenBuffers(_COUNT_OF(shader._VBO), shader._VBO);
+    glGenBuffers(ARRAY_LENGTH(shader._VBO), shader._VBO);
     glGenBuffers(1, &shader._EBO);
     return shader;
 };
@@ -1623,9 +1629,9 @@ void _soup_init() {
     COW0._soup_shader_program_POINTS = _shader_compile_and_build_program(COWX._soup_vert, COWX._soup_frag_POINTS, COWX._soup_geom_POINTS);
     COW0._soup_shader_program_LINES = _shader_compile_and_build_program(COWX._soup_vert, COWX._soup_frag, COWX._soup_geom_LINES);
     COW0._soup_shader_program_TRIANGLES = _shader_compile_and_build_program(COWX._soup_vert, COWX._soup_frag);
-    glGenVertexArrays(_COUNT_OF(COW0._soup_VAO), COW0._soup_VAO);
-    glGenBuffers(_COUNT_OF(COW0._soup_VBO), COW0._soup_VBO);
-    glGenBuffers(_COUNT_OF(COW0._soup_EBO), COW0._soup_EBO);
+    glGenVertexArrays(ARRAY_LENGTH(COW0._soup_VAO), COW0._soup_VAO);
+    glGenBuffers(ARRAY_LENGTH(COW0._soup_VBO), COW0._soup_VBO);
+    glGenBuffers(ARRAY_LENGTH(COW0._soup_EBO), COW0._soup_EBO);
 }
 
 void _soup_draw(
@@ -2412,7 +2418,7 @@ void gui_slider(
 void _mesh_init() {
     COW0._mesh_shader_program = _shader_compile_and_build_program(COWX._mesh_vert, COWX._mesh_frag);
     glGenVertexArrays(1, &COW0._mesh_VAO);
-    glGenBuffers(_COUNT_OF(COW0._mesh_VBO), COW0._mesh_VBO);
+    glGenBuffers(ARRAY_LENGTH(COW0._mesh_VBO), COW0._mesh_VBO);
     glGenBuffers(1, &COW0._mesh_EBO);
     stbi_set_flip_vertically_on_load(true);
 }
@@ -2614,9 +2620,9 @@ void _mesh_draw(
     glUseProgram(COW0._mesh_shader_program);
 
     glBindVertexArray(COW0._mesh_VAO);
-    int i_attrib = 0;
+    unsigned int i_attrib = 0;
     auto guarded_push = [&](void *array, int dim, int sizeof_type, int GL_TYPE) {
-        ASSERT(i_attrib < _COUNT_OF(COW0._mesh_VBO));
+        ASSERT(i_attrib < ARRAY_LENGTH(COW0._mesh_VBO));
         glDisableVertexAttribArray(i_attrib);
         if (array) {
             glBindBuffer(GL_ARRAY_BUFFER, COW0._mesh_VBO[i_attrib]);
@@ -3035,7 +3041,7 @@ struct {
 #ifdef SNAIL_CPP
 vec3 color_kelly(int i) {
     static vec3 _kelly_colors[]={{255.f/255,179.f/255,0.f/255},{128.f/255,62.f/255,117.f/255},{255.f/255,104.f/255,0.f/255},{166.f/255,189.f/255,215.f/255},{193.f/255,0.f/255,32.f/255},{206.f/255,162.f/255,98.f/255},{129.f/255,112.f/255,102.f/255},{0.f/255,125.f/255,52.f/255},{246.f/255,118.f/255,142.f/255},{0.f/255,83.f/255,138.f/255},{255.f/255,122.f/255,92.f/255},{83.f/255,55.f/255,122.f/255},{255.f/255,142.f/255,0.f/255},{179.f/255,40.f/255,81.f/255},{244.f/255,200.f/255,0.f/255},{127.f/255,24.f/255,13.f/255},{147.f/255,170.f/255,0.f/255},{89.f/255,51.f/255,21.f/255},{241.f/255,58.f/255,19.f/255},{35.f/255,44.f/255,22.f/255}};
-    return _kelly_colors[MODULO(i, _COUNT_OF(_kelly_colors))];
+    return _kelly_colors[MODULO(i, ARRAY_LENGTH(_kelly_colors))];
 }
 
 vec3 color_plasma(cow_real t) {
@@ -3571,25 +3577,29 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
             FILE *fp = fopen(filename, "r");
             ASSERT(fp);
             char buffer[4096];
-            while (fgets(buffer, _COUNT_OF(buffer), fp) != NULL) {
+            while (fgets(buffer, ARRAY_LENGTH(buffer), fp) != NULL) {
                 char prefix[16] = {};
                 sscanf(buffer, "%s", prefix);
                 if (strcmp(prefix, "f") == 0) {
                     int i, j, k;
-                    ASSERT(sscanf(buffer, "%s %d %d %d", prefix, &i, &j, &k) == 4);
+                    int n = sscanf(buffer, "%s %d %d %d", prefix, &i, &j, &k);
+                    ASSERT(n == 4);
                     list_push_back(&triangle_indices, { i - 1, j - 1, k - 1 });
                 } else if (strcmp(prefix, "v") == 0) {
                     cow_real x, y, z;
                     #ifdef COW_USE_REAL_32
-                    ASSERT(sscanf(buffer, "%s %f %f %f" , prefix, &x, &y, &z) == 4);
+                    int n = sscanf(buffer, "%s %f %f %f" , prefix, &x, &y, &z);
+                    ASSERT(n == 4);
                     #else
-                    ASSERT(sscanf(buffer, "%s %lf %lf %lf" , prefix, &x, &y, &z) == 4);
+                    int n = sscanf(buffer, "%s %lf %lf %lf" , prefix, &x, &y, &z);
+                    ASSERT(n == 4);
                     #endif
                     list_push_back(&vertex_positions, { x, y, z });
                 } else if (strcmp(prefix, "#MRGB") == 0) {
                     // do_once { printf("[info] found ZBrush polypaint payload\n"); };
                     static char hexPayload[4096];
-                    ASSERT(sscanf(buffer, "%s %s", prefix, hexPayload) == 2);
+                    int n = sscanf(buffer, "%s %s", prefix, hexPayload);
+                    ASSERT(n == 2);
                     int numVertexColorEntries = int(strlen(hexPayload) / 8);
                     for (int vertexColorEntryIndex = 0; vertexColorEntryIndex <  numVertexColorEntries; ++vertexColorEntryIndex) {
                         vec3 rgb = {};
@@ -3641,12 +3651,14 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
             FILE *fp = fopen(filename, "r");
             ASSERT(fp);
             char buffer[4096];
-            while (fgets(buffer, _COUNT_OF(buffer), fp) != NULL) {
+            while (fgets(buffer, ARRAY_LENGTH(buffer), fp) != NULL) {
                 cow_real x, y, z;
                 #ifdef COW_USE_REAL_32
-                ASSERT(sscanf(buffer, "%f %f %f", &x, &y, &z) == 3);
+                int n = sscanf(buffer, "%f %f %f", &x, &y, &z);
+                ASSERT(n == 3);
                 #else
-                ASSERT(sscanf(buffer, "%lf %lf %lf", &x, &y, &z) == 3);
+                int n = sscanf(buffer, "%lf %lf %lf", &x, &y, &z);
+                ASSERT(n == 3);
                 #endif
                 list_push_back(&vertex_positions, { x, y, z });
             }
