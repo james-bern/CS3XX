@@ -1,7 +1,6 @@
 :<<BATCH
 
 
-
 @echo off
 setlocal ENABLEDELAYEDEXPANSION
 
@@ -27,7 +26,6 @@ IF "%1"=="" (
 
     cls
 
-    (
     set OPTARG=2
     set DEBARG=-Zi
     IF defined argv[--release] (
@@ -45,7 +43,6 @@ IF "%1"=="" (
         set EIGEN_DEFINE=/DUSE_EIGEN
     )
 
-    (
     cl -O!OPTARG! ^
     -W4 -wd4201 -wd4127 ^
     /nologo -fp:except !DEBARG! -GR- -EHa- -FC ^
@@ -57,8 +54,6 @@ IF "%1"=="" (
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
     codebase\ext\windows_glfw3.lib ^
     !EIGEN_LIB!
-)
-    )
 
     call :setESC
 
@@ -86,10 +81,6 @@ IF EXIST "executable.ilk" ( del executable.ilk )
 :setESC
 for /F %%a in ('"prompt $E$S & echo on & for %%b in (1) do rem"') do set "ESC=%%a"
 exit /B
-
-
-
-
 
 
 BATCH
