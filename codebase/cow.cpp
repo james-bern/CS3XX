@@ -2689,7 +2689,7 @@ struct Camera2D {
     real o_y;
 };
 
-// this is an "orbit camera" that points at the origin*  
+// this is an "orbit camera" that points at the origia*  
 //                               *unless o_x, o_y nonzero
 //                                                       
 // it is stuck to the surface of a sphere at (theta, phi)

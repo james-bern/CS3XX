@@ -120,8 +120,7 @@ ManifoldManifold *manifold_hull_pts(void *mem, ManifoldVec3 *ps, size_t length);
 
 // Manifold Transformations
 
-ManifoldManifold *manifold_translate(void *mem, ManifoldManifold *m, float x,
-                                     float y, float z);
+ManifoldManifold *manifold_translate(void *mem, ManifoldManifold *m, float x, float y, float z);
 ManifoldManifold *manifold_rotate(void *mem, ManifoldManifold *m, float x,
                                   float y, float z);
 ManifoldManifold *manifold_scale(void *mem, ManifoldManifold *m, float x,
