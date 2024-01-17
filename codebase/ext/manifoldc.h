@@ -1,3 +1,6 @@
+// NOTE: modified by Jim to be a single file (just copied types.h in place of the include)
+
+
 // Copyright 2023 The Manifold Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");

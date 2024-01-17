@@ -120,10 +120,7 @@ else
         -I./codebase/ext \
         -L./codebase/ext \
         -lglfw3 \
-        -I./codebase/ext/poe_manifold \
-        -L. \
-        -L./codebase/ext/poe_manifold \
-        -lmanifoldc -Wl,-rpath,./codebase/ext/poe_manifold \
+        -lmanifoldc -Wl,-rpath,./codebase/ext \
         -framework Cocoa -framework OpenGL -framework IOKit \
         -framework AudioUnit -framework CoreAudio -framework AudioToolbox
 
