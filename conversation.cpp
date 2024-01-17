@@ -34,8 +34,8 @@
 #include "poe.cpp"
 
 
-real32 EPSILON_DEFAULT = 2e-3;
-real32 TOLERANCE_DEFAULT = 1e-5;
+real32 EPSILON_DEFAULT = 2e-3f;
+real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
@@ -85,8 +85,8 @@ struct DXFEntity {
 };
 
 void get_point_on_circle_NOTE_pass_angle_in_radians(real32 *x, real32 *y, real32 center_x, real32 center_y, real32 radius, real32 angle_in_radians) {
-    *x = center_x + radius * cosf(angle_in_radians);
-    *y = center_y + radius * sinf(angle_in_radians);
+    *x = center_x + radius * COS(angle_in_radians);
+    *y = center_y + radius * SIN(angle_in_radians);
 }
 
 void arc_process_angles_into_lerpable_radians_considering_flip_flag(DXFArc *arc, real32 *start_angle, real32 *end_angle, bool32 flip_flag) {
@@ -241,17 +241,17 @@ DXF dxf_load(char *filename) {
 }
 
 void _dxf_eso_color(u32 color) {
-    if      (color == 0) { eso_color( 83 / 255.0, 255 / 255.0,  85 / 255.0); }
-    else if (color == 1) { eso_color(255 / 255.0,   0 / 255.0,   0 / 255.0); }
-    else if (color == 2) { eso_color(238 / 255.0,   0 / 255.0, 119 / 255.0); }
-    else if (color == 3) { eso_color(255 / 255.0,   0 / 255.0, 255 / 255.0); }
-    else if (color == 4) { eso_color(170 / 255.0,   1 / 255.0, 255 / 255.0); }
-    else if (color == 5) { eso_color(  0 / 255.0,  85 / 255.0, 255 / 255.0); }
-    else if (color == 6) { eso_color(136 / 255.0, 136 / 255.0, 136 / 255.0); }
-    else if (color == 7) { eso_color(205 / 255.0, 205 / 255.0, 205 / 255.0); }
-    else if (color == 8) { eso_color(  0 / 255.0, 255 / 255.0, 255 / 255.0); }
-    else if (color == 9) { eso_color(204 / 255.0, 136 / 255.0,   1 / 255.0); }
-    else if (color == DXF_COLOR_SELECTION) { eso_color(1.0, 1.0, 0.0); }
+    if      (color == 0) { eso_color( 83 / 255.0f, 255 / 255.0f,  85 / 255.0f); }
+    else if (color == 1) { eso_color(255 / 255.0f,   0 / 255.0f,   0 / 255.0f); }
+    else if (color == 2) { eso_color(238 / 255.0f,   0 / 255.0f, 119 / 255.0f); }
+    else if (color == 3) { eso_color(255 / 255.0f,   0 / 255.0f, 255 / 255.0f); }
+    else if (color == 4) { eso_color(170 / 255.0f,   1 / 255.0f, 255 / 255.0f); }
+    else if (color == 5) { eso_color(  0 / 255.0f,  85 / 255.0f, 255 / 255.0f); }
+    else if (color == 6) { eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f); }
+    else if (color == 7) { eso_color(205 / 255.0f, 205 / 255.0f, 205 / 255.0f); }
+    else if (color == 8) { eso_color(  0 / 255.0f, 255 / 255.0f, 255 / 255.0f); }
+    else if (color == 9) { eso_color(204 / 255.0f, 136 / 255.0f,   1 / 255.0f); }
+    else if (color == DXF_COLOR_SELECTION) { eso_color(1.0f, 1.0f, 0.0f); }
     else {
         // printf("WARNING: slits not implemented\n");
         eso_color(1.0, 1.0, 1.0);
@@ -310,7 +310,7 @@ real32 squared_distance_point_line_segment(real32 x, real32 y, real32 start_x, r
 }
 
 real32 squared_distance_point_circle(real32 x, real32 y, real32 center_x, real32 center_y, real32 radius) {
-    return pow(sqrt(squared_distance_point_point(x, y, center_x, center_y)) - radius, 2);
+    return POW(SQRT(squared_distance_point_point(x, y, center_x, center_y)) - radius, 2);
 }
 
 real32 squared_distance_point_arc_NOTE_pass_angles_in_radians(real32 x, real32 y, real32 center_x, real32 center_y, real32 radius, real32 start_angle_in_radians, real32 end_angle_in_radians) {
@@ -334,7 +334,6 @@ real32 squared_distance_point_arc_NOTE_pass_angles_in_radians(real32 x, real32 y
         get_point_on_circle_NOTE_pass_angle_in_radians(  &end_x,   &end_y, center_x, center_y, radius, end_angle_in_radians);
         return MIN(squared_distance_point_point(x, y, start_x, start_y), squared_distance_point_point(x, y, end_x, end_y));
     }
-    return HUGE_VAL;
 }
 
 real32 squared_distance_point_entity(real32 x, real32 y, DXFEntity *entity) {
@@ -349,11 +348,11 @@ real32 squared_distance_point_entity(real32 x, real32 y, DXFEntity *entity) {
 }
 
 real32 squared_distance_point_dxf(real32 x, real32 y, DXF *dxf) {
-    double stretchy_buffer = HUGE_VAL;
+    real32 result = HUGE_VAL;
     for (DXFEntity *entity = dxf->entities; entity < dxf->entities + dxf->num_entities; ++entity) {
-        stretchy_buffer = MIN(stretchy_buffer, squared_distance_point_entity(x, y, entity));
+        result = MIN(result, squared_distance_point_entity(x, y, entity));
     }
-    return stretchy_buffer;
+    return result;
 }
 
 struct DXFEntityIndexAndFlipFlag {
@@ -380,7 +379,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-      // populate StretchyBuffer's
+        // populate StretchyBuffer's
         StretchyBuffer<StretchyBuffer<DXFEntityIndexAndFlipFlag>> stretchy_buffer = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -414,7 +413,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                                 entity_get_start_and_end_points(&dxf->entities[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
                             }
                             bool32 is_next_entity = false;
-                            bool32 flip_flag;
+                            bool32 flip_flag = false;
                             if (!prev_entity_index_and_flip_flag->flip_flag) {
                                 if (squared_distance_point_point(end_x_prev, end_y_prev, start_x_i, start_y_i) < tolerance) {
                                     is_next_entity = true;
@@ -473,7 +472,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                                     real32 mid_angle = (start_angle + end_angle) / 2;
                                     real32 d; {
                                         real32 alpha = ABS(start_angle - end_angle) / 2;
-                                        d = arc->radius * alpha / sinf(alpha);
+                                        d = arc->radius * alpha / SIN(alpha);
                                     }
                                     real32 mid_x, mid_y;
                                     get_point_on_circle_NOTE_pass_angle_in_radians(&mid_x, &mid_y, arc->center_x, arc->center_y, d, mid_angle);
@@ -544,11 +543,9 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, bool deselect, bool tool_connected_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
 
-    // TODO: this is silly; i want to be able to tell cow to use a 32 bit float
-    //       (cow_real)
-    real64 PV[16];
+    real32 PV[16];
     _camera_get_PV(camera2D, PV);
-    real64 x, y;
+    real32 x, y;
     _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV, &x, &y, NULL, NULL);
 
     int hot_entity_index = -1;
@@ -608,12 +605,12 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     result.polygonal_loops[0][1] = {  2.0f, -2.0f };
     result.polygonal_loops[0][2] = {  2.0f,  2.0f };
     result.polygonal_loops[0][3] = { -2.0f,  2.0f };
-    result.polygonal_loops[1][0] = { cosf(RAD(  0)), sinf(RAD(  0)) };
-    result.polygonal_loops[1][1] = { cosf(RAD( 60)), sinf(RAD( 60)) };
-    result.polygonal_loops[1][2] = { cosf(RAD(120)), sinf(RAD(120)) };
-    result.polygonal_loops[1][3] = { cosf(RAD(180)), sinf(RAD(180)) };
-    result.polygonal_loops[1][4] = { cosf(RAD(240)), sinf(RAD(240)) };
-    result.polygonal_loops[1][5] = { cosf(RAD(300)), sinf(RAD(300)) };
+    result.polygonal_loops[1][0] = { COS(RAD(  0)), SIN(RAD(  0)) };
+    result.polygonal_loops[1][1] = { COS(RAD( 60)), SIN(RAD( 60)) };
+    result.polygonal_loops[1][2] = { COS(RAD(120)), SIN(RAD(120)) };
+    result.polygonal_loops[1][3] = { COS(RAD(180)), SIN(RAD(180)) };
+    result.polygonal_loops[1][4] = { COS(RAD(240)), SIN(RAD(240)) };
+    result.polygonal_loops[1][5] = { COS(RAD(300)), SIN(RAD(300)) };
     return result;
     #else
 
@@ -697,7 +694,7 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
             real32 c_y = (a_y + b_y) / 2;
             real32 n_x = b_y - a_y;
             real32 n_y = a_x - b_x;
-            real32 norm_n = sqrt(n_x * n_x + n_y * n_y);
+            real32 norm_n = SQRT(n_x * n_x + n_y * n_y);
             real32 L = 0.013f;
             eso_color(color_rainbow_swirl((i + 0.5f) / (n)));
             eso_vertex(c_x, c_y);
@@ -736,7 +733,7 @@ void stl_draw(Camera3D *camera, STL *stl) {
         vec3 v2 = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
         vec3 v3 = { triangle->v3_x, triangle->v3_y, triangle->v3_z };
         vec3 n = transformNormal(C_inv, normalized(cross(v2 - v1, v3 - v1)));
-        vec3 color = (n.z < 0) ? V3(1.0, 0.0, 0.0) : V3(0.5 + 0.5 * n.x, 0.5 + 0.5 * n.y, 1.0);
+        vec3 color = (n.z < 0.0f) ? V3(1.0f, 0.0f, 0.0f) : V3(0.5f + 0.5f * n.x, 0.5f + 0.5f * n.y, 1.0f);
         eso_color(color);
         eso_vertex(v1);
         eso_vertex(v2);
@@ -792,25 +789,25 @@ int main() {
     stl = {};
     stl.num_triangles = 4;
     stl.triangles = (STLTriangle *) calloc(stl.num_triangles, sizeof(STLTriangle));
-    float h = (1.0f + sqrtf(3.0f)) / 2;
+    float h = (1.0f + SQRT(3.0f)) / 2;
     stl.triangles[0] = {
-        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
-        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
-        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
+        COS(RAD(  0.0)), 0.0f, SIN(RAD(  0.0)),
+        COS(RAD(120.0)), 0.0f, SIN(RAD(120.0)),
+        COS(RAD(240.0)), 0.0f, SIN(RAD(240.0)),
     };
     stl.triangles[1] = {
-        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
-        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
+        COS(RAD(120.0)), 0.0f, SIN(RAD(120.0)),
+        COS(RAD(  0.0)), 0.0f, SIN(RAD(  0.0)),
         0.0f, h, 0.0f
     };
     stl.triangles[2] = {
-        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
-        cosf(RAD(120.0)), 0.0f, sinf(RAD(120.0)),
+        COS(RAD(240.0)), 0.0f, SIN(RAD(240.0)),
+        COS(RAD(120.0)), 0.0f, SIN(RAD(120.0)),
         0.0f, h, 0.0f
     };
     stl.triangles[3] = {
-        cosf(RAD(  0.0)), 0.0f, sinf(RAD(  0.0)),
-        cosf(RAD(240.0)), 0.0f, sinf(RAD(240.0)),
+        COS(RAD(  0.0)), 0.0f, SIN(RAD(  0.0)),
+        COS(RAD(240.0)), 0.0f, SIN(RAD(240.0)),
         0.0f, h, 0.0f
     };
     #else
@@ -899,7 +896,7 @@ int main() {
             //     real32 x_offset;
             //     real32 y_offset;
             // }
-            
+
             if (globals.key_pressed['b'] || globals.key_pressed['c']) {
                 // TODO begin operation (can use gui elements to get values from user)
                 // then press of enter to finish operation

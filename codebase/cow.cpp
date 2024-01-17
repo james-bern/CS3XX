@@ -1,6 +1,34 @@
 #ifndef COW_CPP
 #define COW_CPP
 
+#ifdef COW_USE_REAL_32
+typedef float cow_real;
+#else
+typedef double cow_real;
+#endif
+
+#ifdef COW_USE_REAL_32
+#define GL_REAL GL_FLOAT
+#else
+#define GL_REAL GL_DOUBLE
+#endif
+
+
+// simple functions
+// TODO: port the rest
+#ifdef COW_USE_REAL_32
+#define POW powf
+#define SIN sinf
+#define COS cosf
+#define SQRT sqrtf
+#else
+#define POW pow
+#define SIN sin
+#define COS cos
+#define SQRT sqrt
+#endif
+
+
 // TODO: SnailIVector<D>
 
 // sbuff_push_back(&foo, ...) -> foo.push_back(...)
@@ -8,7 +36,6 @@
 // _mouse_left_click_consumed
 // triangle_indices -> triangles
 // texture (i, j) -> (j, i)
-// / remove real world units option
 // / gui_slider should be [a, b)
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,10 +133,10 @@ typedef vec3 _vec3;
 typedef vec4 _vec4;
 typedef mat4 _mat4;
 #else
-typedef real _vec2[2];
-typedef real _vec3[3];
-typedef real _vec4[4];
-typedef real _mat4[16];
+typedef cow_real _vec2[2];
+typedef cow_real _vec3[3];
+typedef cow_real _vec4[4];
+typedef cow_real _mat4[16];
 #endif
 
 struct CW_USER_FACING_CONFIG {
@@ -119,12 +146,12 @@ struct CW_USER_FACING_CONFIG {
     int hotkeys_app_menu = '=';
     int hotkeys_gui_hide = '-';
 
-    real tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1; // set to 2 to make gui elements bigger (automatically done if macbook retina detected)
+    cow_real tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1; // set to 2 to make gui elements bigger (automatically done if macbook retina detected)
 
     bool tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = true;
     bool tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter = false;
     bool tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE = false;
-    real tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 2.0;
+    cow_real tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 2.0;
 };
 
 struct C2_READONLY_USER_FACING_DATA {
@@ -145,7 +172,7 @@ struct C2_READONLY_USER_FACING_DATA {
     bool mouse_right_held;
     bool mouse_right_released;
     bool mouse_left_double_clicked;
-    real mouse_wheel_offset;
+    cow_real mouse_wheel_offset;
     _vec2 mouse_position_Screen;
     _vec2 mouse_position_NDC;
     _vec2 mouse_change_in_position_Screen;
@@ -419,8 +446,8 @@ struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
     bool _cow_framerate_uncapped;
     bool _cow_display_fps;
 
-    real *_eso_vertex_positions;
-    real *_eso_vertex_colors;
+    cow_real *_eso_vertex_positions;
+    cow_real *_eso_vertex_colors;
 
     int _mesh_shader_program;
     u32 _mesh_VAO;
@@ -447,23 +474,23 @@ struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
 
     GLFWwindow *_window_glfw_window;
     void       *_window_hwnd__note_this_is_NULL_if_not_on_Windows;
-    real        _window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    cow_real        _window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 };
 
 struct C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset {
     bool  _eso_called_eso_begin_before_calling_eso_vertex_or_eso_end;
-    real  _eso_current_color[4];
-    real  _eso_PVM[16];
+    cow_real  _eso_current_color[4];
+    cow_real  _eso_PVM[16];
     int   _eso_primitive;
     int   _eso_num_vertices;
-    real  _eso_size_in_pixels;
+    cow_real  _eso_size_in_pixels;
     bool  _eso_overlay;
 
-    real  _gui_x_curr;
-    real  _gui_y_curr;
+    cow_real  _gui_x_curr;
+    cow_real  _gui_y_curr;
     void *_gui_selected;
     void *_gui_hot;
-    real  _gui__dx_accumulator;
+    cow_real  _gui__dx_accumulator;
     bool  _gui_hide_and_disable;
 
     void *__prev_gui_selected;
@@ -476,10 +503,10 @@ struct C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset 
     cs_audio_source_t *_sound_audio_source_ptrs[SOUND_MAX_DIFFERENT_FILES];
     char               _sound_filenames[SOUND_MAX_DIFFERENT_FILES][SOUND_MAX_FILENAME_LENGTH];
     int                _sound_num_loaded;
-    real               _sound_music_gui_1_minus_volume;
+    cow_real               _sound_music_gui_1_minus_volume;
 #endif
 
-    real _window_clear_color[4];
+    cow_real _window_clear_color[4];
 
     bool _cow_help_toggle;
 };
@@ -512,16 +539,16 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 } } while (0)
 #define STATIC_ASSERT(cond) static_assert(cond, "STATIC_ASSERT");
 
-// // working with real's
-#define PI 3.14159265359
+// // working with cow_real's
+#define PI cow_real(3.14159265359)
 #define TAU (2 * PI)
-#define TINY_VAL 1e-7
+#define TINY_VAL cow_real(1e-7)
 #undef HUGE_VAL
-#define HUGE_VAL 1e7
-#define RAD(degrees) (PI / 180 * (degrees))
-#define DEG(radians) (180. / PI * (radians))
-#define INCHES(millimeters) ((millimeters) / 25.4)
-#define MM(inches) ((inches) * 25.4)
+#define HUGE_VAL cow_real(1e7)
+cow_real RAD(cow_real degrees) { return (PI / 180 * (degrees)); }
+cow_real DEG(cow_real radians) { return (180 / PI * (radians)); }
+cow_real INCHES(cow_real mm) { return ((mm) / cow_real(25.4)); }
+cow_real MM(cow_real inches) { return ((inches) * cow_real(25.4)); }
 
 // TODO: rewrite as functions
 #define ABS(a) ((a) < 0 ? -(a) : (a))
@@ -536,7 +563,7 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 #define IS_POSITIVE(a) ((a) > TINY_VAL)
 #define IS_NEGATIVE(a) ((a) < -TINY_VAL)
 #define LERP(t, a, b) ((a) + (t) * ((b) - (a))) // works on vecX, matX
-#define INVERSE_LERP(p, a, b) (((p) - (a)) / real((b) - (a)))
+#define INVERSE_LERP(p, a, b) (((p) - (a)) / cow_real((b) - (a)))
 #define LINEAR_REMAP(p, a, b, c, d) LERP(INVERSE_LERP(p, a, b), c, d)
 #define BUCKET(p, a, b, n) LERP(round(INVERSE_LERP(p, a, b) * (n)) / (n), a, b)
 #define CLAMP(t, a, b) MIN(MAX(t, a), b)
@@ -548,7 +575,7 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 
 // // working with int's
 #define MODULO(x, N) (((x) % (N) + (N)) % (N)) // works on negative numbers
-                                               // #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
+// #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
 #define _COUNT_OF(fixed_size_array) int((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
 
 #define IS_ODD(a) ((a) % 2 != 0)
@@ -583,8 +610,8 @@ if (!CONCAT(_prev_do_once_, __LINE__) && CONCAT(_do_once_, __LINE__))
 
 #define _LINALG_4X4(A, i, j) A[4 * (i) + (j)]
 
-void _linalg_vec3_cross(real *c, real *a, real *b) { // c = a x b
-    real tmp[3] = {
+void _linalg_vec3_cross(cow_real *c, cow_real *a, cow_real *b) { // c = a x b
+    cow_real tmp[3] = {
         a[1] * b[2] - a[2] * b[1],
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0],
@@ -592,40 +619,40 @@ void _linalg_vec3_cross(real *c, real *a, real *b) { // c = a x b
     memcpy(c, tmp, sizeof(tmp));
 }
 
-real _linalg_vecX_squared_length(int D, real *a) {
-    real ret = 0;
-    for (int d = 0; d < D; ++d) ret += pow(a[d], 2);
+cow_real _linalg_vecX_squared_length(int D, cow_real *a) {
+    cow_real ret = 0;
+    for (int d = 0; d < D; ++d) ret += POW(a[d], 2);
     return ret;
 }
 
-real _linalg_vecX_squared_distance(int D, real *a, real *b) {
-    real ret = 0;
-    for (int d = 0; d < D; ++d) ret += pow(a[d] - b[d], 2);
+cow_real _linalg_vecX_squared_distance(int D, cow_real *a, cow_real *b) {
+    cow_real ret = 0;
+    for (int d = 0; d < D; ++d) ret += POW(a[d] - b[d], 2);
     return ret;
 }
 
-void _linalg_vecX_normalize(int D, real *a_hat, real *a) { // a_hat = a / |a|
-    real L = sqrt(_linalg_vecX_squared_length(D, a));
+void _linalg_vecX_normalize(int D, cow_real *a_hat, cow_real *a) { // a_hat = a / |a|
+    cow_real L = sqrt(_linalg_vecX_squared_length(D, a));
     for (int d = 0; d < D; ++d) a_hat[d] = a[d] / L;
 }
 
-void _linalg_mat4_times_mat4(real *C, real *A, real *B) { // C = A B
+void _linalg_mat4_times_mat4(cow_real *C, cow_real *A, cow_real *B) { // C = A B
     ASSERT(C);
     ASSERT(A);
     ASSERT(B);
 
-    real tmp[16] = {}; { // allows for e.g. A <- A B;
+    cow_real tmp[16] = {}; { // allows for e.g. A <- A B;
         for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) for (int k = 0; k < 4; ++k) _LINALG_4X4(tmp, i, j) += _LINALG_4X4(A, i, k) * _LINALG_4X4(B, k, j);
     }
     memcpy(C, tmp, sizeof(tmp));
 }
 
-void _linalg_mat4_times_vec4_persp_divide(real *b, real *A, real *x) { // b = A x
+void _linalg_mat4_times_vec4_persp_divide(cow_real *b, cow_real *A, cow_real *x) { // b = A x
     ASSERT(b);
     ASSERT(A);
     ASSERT(x);
 
-    real tmp[4] = {}; { // allows for x <- A x
+    cow_real tmp[4] = {}; { // allows for x <- A x
         for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) tmp[i] += _LINALG_4X4(A, i, j) * x[j];
         if (!IS_ZERO(tmp[3])) {
             // ASSERT(!IS_ZERO(x[3]));
@@ -635,43 +662,43 @@ void _linalg_mat4_times_vec4_persp_divide(real *b, real *A, real *x) { // b = A 
     memcpy(b, tmp, sizeof(tmp));
 }
 
-real _linalg_mat4_determinant(real *A) {
+cow_real _linalg_mat4_determinant(cow_real *A) {
     ASSERT(A);
-    real A2323 = _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 2);
-    real A1323 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 1);
-    real A1223 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 1);
-    real A0323 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 0);
-    real A0223 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 0);
-    real A0123 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 0);
+    cow_real A2323 = _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 2);
+    cow_real A1323 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 1);
+    cow_real A1223 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 1);
+    cow_real A0323 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 0);
+    cow_real A0223 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 0);
+    cow_real A0123 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 0);
     return _LINALG_4X4(A, 0, 0) * (_LINALG_4X4(A, 1, 1) * A2323 - _LINALG_4X4(A, 1, 2) * A1323 + _LINALG_4X4(A, 1, 3) * A1223) 
         -  _LINALG_4X4(A, 0, 1) * (_LINALG_4X4(A, 1, 0) * A2323 - _LINALG_4X4(A, 1, 2) * A0323 + _LINALG_4X4(A, 1, 3) * A0223) 
         +  _LINALG_4X4(A, 0, 2) * (_LINALG_4X4(A, 1, 0) * A1323 - _LINALG_4X4(A, 1, 1) * A0323 + _LINALG_4X4(A, 1, 3) * A0123) 
         -  _LINALG_4X4(A, 0, 3) * (_LINALG_4X4(A, 1, 0) * A1223 - _LINALG_4X4(A, 1, 1) * A0223 + _LINALG_4X4(A, 1, 2) * A0123);
 }
 
-void _linalg_mat4_inverse(real *invA, real *A) {
+void _linalg_mat4_inverse(cow_real *invA, cow_real *A) {
     ASSERT(invA);
     ASSERT(A);
-    real one_over_det = 1 / _linalg_mat4_determinant(A);
-    real tmp[16] = {}; { // allows for A <- inv(A)
-        real A2323 = _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 2);
-        real A1323 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 1);
-        real A1223 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 1);
-        real A0323 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 0);
-        real A0223 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 0);
-        real A0123 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 0);
-        real A2313 = _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 2);
-        real A1313 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 1);
-        real A1213 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 1);
-        real A2312 = _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 2);
-        real A1312 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 1);
-        real A1212 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 1);
-        real A0313 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 0);
-        real A0213 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 0);
-        real A0312 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 0);
-        real A0212 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 0);
-        real A0113 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 0);
-        real A0112 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 1) - _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 0);
+    cow_real one_over_det = 1 / _linalg_mat4_determinant(A);
+    cow_real tmp[16] = {}; { // allows for A <- inv(A)
+        cow_real A2323 = _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 2);
+        cow_real A1323 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 1);
+        cow_real A1223 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 1);
+        cow_real A0323 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 0);
+        cow_real A0223 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 0);
+        cow_real A0123 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 0);
+        cow_real A2313 = _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 2);
+        cow_real A1313 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 1);
+        cow_real A1213 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 1);
+        cow_real A2312 = _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 2);
+        cow_real A1312 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 1);
+        cow_real A1212 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 1);
+        cow_real A0313 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 0);
+        cow_real A0213 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 0);
+        cow_real A0312 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 0);
+        cow_real A0212 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 0);
+        cow_real A0113 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 0);
+        cow_real A0112 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 1) - _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 0);
 
         int i = 0;
         tmp[i++] =  one_over_det * (_LINALG_4X4(A, 1, 1) * A2323 - _LINALG_4X4(A, 1, 2) * A1323 + _LINALG_4X4(A, 1, 3) * A1223);
@@ -694,13 +721,13 @@ void _linalg_mat4_inverse(real *invA, real *A) {
     memcpy(invA, tmp, sizeof(tmp));
 }
 
-void _linalg_mat4_transpose(real *AT, real *A) { // AT = A^T
+void _linalg_mat4_transpose(cow_real *AT, cow_real *A) { // AT = A^T
     ASSERT(AT);
     ASSERT(A);
-    real tmp[16] = {}; { // allows for A <- transpose(A)
+    cow_real tmp[16] = {}; { // allows for A <- transpose(A)
         for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) _LINALG_4X4(tmp, i, j) = _LINALG_4X4(A, j, i);
     }
-    memcpy(AT, tmp, 16 * sizeof(real));
+    memcpy(AT, tmp, 16 * sizeof(cow_real));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -733,21 +760,21 @@ void _window_set_title(char *title) {
     glfwSetWindowTitle(COW0._window_glfw_window, title);
 }
 
-void _window_set_position(real x, real y) {
+void _window_set_position(cow_real x, cow_real y) {
     ASSERT(COW0._window_glfw_window);
     glfwSetWindowPos(COW0._window_glfw_window, int(x), int(y));
 }
 
-void _window_set_size(real width, real height) {
+void _window_set_size(cow_real width, cow_real height) {
     ASSERT(COW0._window_glfw_window);
     glfwSetWindowSize(COW0._window_glfw_window, int(width), int(height));
 }
 
-void _window_set_height__16_by_9_aspect(real height) {
+void _window_set_height__16_by_9_aspect(cow_real height) {
     _window_set_size(height * 16 / 9, height);
 }
 
-void window_set_clear_color(real r, real g, real b, real a = 1.0) {
+void window_set_clear_color(cow_real r, cow_real g, cow_real b, cow_real a = 1.0) {
     COW1._window_clear_color[0] = r;
     COW1._window_clear_color[1] = g;
     COW1._window_clear_color[2] = b;
@@ -830,7 +857,7 @@ void _window_init() {
         int num, den, _;
         glfwGetFramebufferSize(COW0._window_glfw_window, &num, &_);
         glfwGetWindowSize(COW0._window_glfw_window, &den, &_);
-        COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS = num / den;
+        COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS = cow_real(num / den);
         if (COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS == 2) {
             config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 2;
         }
@@ -847,28 +874,28 @@ void _window_begin_frame() {
     _window_clear_draw_buffer();
 }
 
-void _window_get_size(real *width, real *height) {
+void _window_get_size(cow_real *width, cow_real *height) {
     ASSERT(COW0._window_glfw_window);
     int _width, _height;
     glfwGetFramebufferSize(COW0._window_glfw_window, &_width, &_height);
-    *width = real(_width);
-    *height = real(_height);
+    *width = cow_real(_width);
+    *height = cow_real(_height);
 }
-real _window_get_height() {
+cow_real _window_get_height() {
     ASSERT(COW0._window_glfw_window);
-    real _, height;
+    cow_real _, height;
     _window_get_size(&_, &height);
     return height;
 }
-real _window_get_aspect() {
-    real width, height;
+cow_real _window_get_aspect() {
+    cow_real width, height;
     _window_get_size(&width, &height);
     return width / height;
 }
 
 #ifdef SNAIL_CPP
 vec2 window_get_size() {
-    real width, height;
+    cow_real width, height;
     _window_get_size(&width, &height);
     return { width, height };
 }
@@ -881,7 +908,7 @@ void window_set_position(vec2 position) {
     _window_set_position(position[0], position[1]);
 }
 
-void window_set_clear_color(vec3 rgb, real a = 1.0) {
+void window_set_clear_color(vec3 rgb, cow_real a = 1.0) {
     COW1._window_clear_color[0] = rgb[0];
     COW1._window_clear_color[1] = rgb[1];
     COW1._window_clear_color[2] = rgb[2];
@@ -914,9 +941,9 @@ void _window_reset() {
 // #include "window_tform.cpp"//////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void _window_get_P_perspective(real *P, real angle_of_view, real n = 0, real f = 0, real aspect = 0) {
-    if (IS_ZERO(n)) { n = -.1; }
-    if (IS_ZERO(f)) { f = -10000; }
+void _window_get_P_perspective(cow_real *P, cow_real angle_of_view, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
+    if (IS_ZERO(n)) { n = -.1f; }
+    if (IS_ZERO(f)) { f = -10000.f; }
     if (IS_ZERO(aspect)) { aspect = _window_get_aspect(); }
     ASSERT(P);
     ASSERT(n < 0);
@@ -977,11 +1004,11 @@ void _window_get_P_perspective(real *P, real angle_of_view, real n = 0, real f =
     // [z'] = [  0   0  a  b] [z] = [  az + b] ~> [      -a - b/z]
     // [ 1] = [  0   0 -1  0] [1] = [      -z] ~> [             1]
 
-    real angle_y = angle_of_view / 2;
-    real Q_y = 1 / tan(angle_y);
-    real Q_x = Q_y / aspect;
+    cow_real angle_y = angle_of_view / 2;
+    cow_real Q_y = 1 / tan(angle_y);
+    cow_real Q_x = Q_y / aspect;
 
-    memset(P, 0, 16 * sizeof(real));
+    memset(P, 0, 16 * sizeof(cow_real));
     _LINALG_4X4(P, 0, 0) = Q_x;
     _LINALG_4X4(P, 0, 1) = 0; // TERRIBLE PATCH
     _LINALG_4X4(P, 1, 1) = Q_y;
@@ -1006,7 +1033,7 @@ void _window_get_P_perspective(real *P, real angle_of_view, real n = 0, real f =
     _LINALG_4X4(P, 2, 3) = (2 * n * f) / (f - n); // b
 }
 
-void _window_get_P_ortho(real *P, real screen_height_World, real n = 0, real f = 0, real aspect = 0) {
+void _window_get_P_ortho(cow_real *P, cow_real screen_height_World, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
     ASSERT(P);
     // ASSERT(!IS_ZERO(screen_height_World));
     if (ARE_EQUAL(n, f)) {
@@ -1039,15 +1066,15 @@ void _window_get_P_ortho(real *P, real screen_height_World, real n = 0, real f =
 
     // => y' = y / r_y
 
-    real r_y = screen_height_World / 2;
-    real r_x = _window_get_aspect() * r_y;
+    cow_real r_y = screen_height_World / 2;
+    cow_real r_x = _window_get_aspect() * r_y;
 
     // [x'] = [1/r_x      0   0  0] [x] = [ x/r_x]
     // [y'] = [    0  1/r_y   0  0] [y] = [ y/r_y]
     // [z'] = [    0      0   a  b] [z] = [az + b]
     // [1 ] = [    0      0   0  1] [1] = [     1]
 
-    memset(P, 0, 16 * sizeof(real));
+    memset(P, 0, 16 * sizeof(cow_real));
     _LINALG_4X4(P, 0, 0) = 1 / r_x;
     _LINALG_4X4(P, 1, 1) = 1 / r_y;
 
@@ -1070,8 +1097,8 @@ void _window_get_P_ortho(real *P, real screen_height_World, real n = 0, real f =
     _LINALG_4X4(P, 3, 3) = 1;
 }
 
-void _window_get_V_ortho_2D(real *V, real eye_x, real eye_y) {
-    memset(V, 0, 16 * sizeof(real));
+void _window_get_V_ortho_2D(cow_real *V, cow_real eye_x, cow_real eye_y) {
+    memset(V, 0, 16 * sizeof(cow_real));
     _LINALG_4X4(V, 0, 0) = 1.0;
     _LINALG_4X4(V, 1, 1) = 1.0;
     _LINALG_4X4(V, 2, 2) = 1.0;
@@ -1080,16 +1107,16 @@ void _window_get_V_ortho_2D(real *V, real eye_x, real eye_y) {
     _LINALG_4X4(V, 1, 3) = -eye_y;
 }
 
-void _window_get_PV_ortho_2D(real *PV, real screen_height_World, real eye_x, real eye_y) {
+void _window_get_PV_ortho_2D(cow_real *PV, cow_real screen_height_World, cow_real eye_x, cow_real eye_y) {
     ASSERT(PV);
     // fornow slow
-    real P[16], V[16];
+    cow_real P[16], V[16];
     _window_get_P_ortho(P, screen_height_World);
     _window_get_V_ortho_2D(V, eye_x, eye_y);
     _linalg_mat4_times_mat4(PV, P, V);
 }
 
-void _window_get_NDC_from_Screen(real *NDC_from_Screen) {
+void _window_get_NDC_from_Screen(cow_real *NDC_from_Screen) {
     _window_get_P_ortho(NDC_from_Screen, _window_get_height());
     _LINALG_4X4(NDC_from_Screen, 1, 1) *= -1;
     _LINALG_4X4(NDC_from_Screen, 0, 3) -= 1;
@@ -1097,13 +1124,13 @@ void _window_get_NDC_from_Screen(real *NDC_from_Screen) {
 }
 
 #ifdef SNAIL_CPP
-mat4 _window_get_P_perspective(real angle_of_view, real n = 0, real f = 0, real aspect = 0) {
+mat4 _window_get_P_perspective(cow_real angle_of_view, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
     mat4 ret;
     _window_get_P_perspective(ret.data, angle_of_view, n, f, aspect);
     return ret;
 }
 
-mat4 _window_get_P_ortho(real screen_height_World, real n = 0, real f = 0, real aspect = 0) {
+mat4 _window_get_P_ortho(cow_real screen_height_World, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
     mat4 ret;
     _window_get_P_ortho(ret.data, screen_height_World, n, f, aspect);
     return ret;
@@ -1154,16 +1181,16 @@ void _input_begin_frame() {
 }
 
 void _input_get_mouse_position_and_change_in_position_in_world_coordinates(
-        real *PV,
-        real *mouse_x_world,
-        real *mouse_y_world,
-        real *mouse_dx_world,
-        real *mouse_dy_world) {
+        cow_real *PV,
+        cow_real *mouse_x_world,
+        cow_real *mouse_y_world,
+        cow_real *mouse_dx_world,
+        cow_real *mouse_dy_world) {
     ASSERT(PV);
-    real World_from_NDC[16] = {};
+    cow_real World_from_NDC[16] = {};
     _linalg_mat4_inverse(World_from_NDC, PV);
-    real   xy[4] = { globals.mouse_position_NDC[0],  globals.mouse_position_NDC[1],  0.0, 1.0 }; // point
-    real dxdy[4] = { globals.mouse_change_in_position_NDC[0], globals.mouse_change_in_position_NDC[1], 0.0, 0.0 }; // vector
+    cow_real   xy[4] = { globals.mouse_position_NDC[0],  globals.mouse_position_NDC[1],  0.0, 1.0 }; // point
+    cow_real dxdy[4] = { globals.mouse_change_in_position_NDC[0], globals.mouse_change_in_position_NDC[1], 0.0, 0.0 }; // vector
     _linalg_mat4_times_vec4_persp_divide(xy, World_from_NDC, xy);
     _linalg_mat4_times_vec4_persp_divide(dxdy, World_from_NDC, dxdy);
     if (mouse_x_world) *mouse_x_world = xy[0];
@@ -1205,11 +1232,14 @@ void _callback_key(GLFWwindow *, int key, int, int action, int mods) {
     globals.key_alt_held     = (mods & GLFW_MOD_ALT);
 }
 
-void _callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
-    real tmp_mouse_s_NDC_0 = globals.mouse_position_NDC[0];
-    real tmp_mouse_s_NDC_1 = globals.mouse_position_NDC[1];
-    real tmp_mouse_s_Screen_0 = globals.mouse_position_Screen[0];
-    real tmp_mouse_s_Screen_1 = globals.mouse_position_Screen[1];
+void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
+    cow_real xpos = (cow_real) _xpos;
+    cow_real ypos = (cow_real) _ypos;
+
+    cow_real tmp_mouse_s_NDC_0 = globals.mouse_position_NDC[0];
+    cow_real tmp_mouse_s_NDC_1 = globals.mouse_position_NDC[1];
+    cow_real tmp_mouse_s_Screen_0 = globals.mouse_position_Screen[0];
+    cow_real tmp_mouse_s_Screen_1 = globals.mouse_position_Screen[1];
 
     { // macbook retina nonsense
         xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
@@ -1218,9 +1248,9 @@ void _callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 
     globals.mouse_position_Screen[0] = xpos;
     globals.mouse_position_Screen[1] = ypos;
-    real s_NDC[4] = {}; {
-        real s_Screen[4] = { xpos, ypos, 0, 1 };
-        _linalg_mat4_times_vec4_persp_divide(s_NDC, (real *) &globals.NDC_from_Screen, s_Screen);
+    cow_real s_NDC[4] = {}; {
+        cow_real s_Screen[4] = { xpos, ypos, 0, 1 };
+        _linalg_mat4_times_vec4_persp_divide(s_NDC, (cow_real *) &globals.NDC_from_Screen, s_Screen);
     }
     globals.mouse_position_NDC[0] = s_NDC[0];
     globals.mouse_position_NDC[1] = s_NDC[1];
@@ -1251,7 +1281,9 @@ void _callback_mouse_button(GLFWwindow *, int button, int action, int) {
     }
 }
 
-void _callback_scroll(GLFWwindow *, double, double yoffset) {
+void _callback_scroll(GLFWwindow *, double, double _yoffset) {
+    cow_real yoffset = (cow_real) _yoffset;
+
     globals.mouse_wheel_offset += yoffset;
 }
 
@@ -1389,26 +1421,26 @@ void _shader_set_uniform_int(int shader_program_ID, char *name, int value) {
     glUniform1i(_shader_get_uniform_location(shader_program_ID, name), value);
 }
 
-void _shader_set_uniform_real(int shader_program_ID, char *name, real value) {
+void _shader_set_uniform_real(int shader_program_ID, char *name, cow_real value) {
     glUniform1f(_shader_get_uniform_location(shader_program_ID, name), float(value));
 }
 
-void _shader_set_uniform_vec2(int shader_program_ID, char *name, real *value) {
+void _shader_set_uniform_vec2(int shader_program_ID, char *name, cow_real *value) {
     ASSERT(value);
     glUniform2f(_shader_get_uniform_location(shader_program_ID, name), float(value[0]), float(value[1]));
 }
 
-void _shader_set_uniform_vec3(int shader_program_ID, char *name, real *value) {
+void _shader_set_uniform_vec3(int shader_program_ID, char *name, cow_real *value) {
     ASSERT(value);
     glUniform3f(_shader_get_uniform_location(shader_program_ID, name), float(value[0]), float(value[1]), float(value[2]));
 }
 
-void _shader_set_uniform_vec4(int shader_program_ID, char *name, real *value) {
+void _shader_set_uniform_vec4(int shader_program_ID, char *name, cow_real *value) {
     ASSERT(value);
     glUniform4f(_shader_get_uniform_location(shader_program_ID, name), float(value[0]), float(value[1]), float(value[2]), float(value[3]));
 }
 
-void _shader_set_uniform_mat4(int shader_program_ID, char *name, real *value) {
+void _shader_set_uniform_mat4(int shader_program_ID, char *name, cow_real *value) {
     ASSERT(value);
     float tmp[16] = {}; {
         for (int k = 0; k < 16; ++k) tmp[k] = float(value[k]);
@@ -1416,7 +1448,7 @@ void _shader_set_uniform_mat4(int shader_program_ID, char *name, real *value) {
     glUniformMatrix4fv(_shader_get_uniform_location(shader_program_ID, name), 1, GL_TRUE, tmp);
 }
 
-void _shader_set_uniform_vec3_array(int shader_program_ID, char *name, int count, real *value) {
+void _shader_set_uniform_vec3_array(int shader_program_ID, char *name, int count, cow_real *value) {
     ASSERT(value);
     float *tmp = (float *) malloc(count * 3 * sizeof(float)); 
     for (int i = 0; i < count; ++i) {
@@ -1428,7 +1460,7 @@ void _shader_set_uniform_vec3_array(int shader_program_ID, char *name, int count
     free(tmp);
 }
 
-void _shader_set_uniform_vec4_array(int shader_program_ID, char *name, int count, real *value) {
+void _shader_set_uniform_vec4_array(int shader_program_ID, char *name, int count, cow_real *value) {
     ASSERT(value);
     float *tmp = (float *) malloc(count * 4 * sizeof(float)); 
     for (int i = 0; i < count; ++i) {
@@ -1440,7 +1472,7 @@ void _shader_set_uniform_vec4_array(int shader_program_ID, char *name, int count
     free(tmp);
 }
 
-void _shader_set_uniform_mat4_array(int shader_program_ID, char *name, int count, real *value) {
+void _shader_set_uniform_mat4_array(int shader_program_ID, char *name, int count, cow_real *value) {
     ASSERT(value);
     float *tmp = (float *) malloc(count * 16 * sizeof(float)); 
     for (int i = 0; i < count; ++i) {
@@ -1453,7 +1485,7 @@ void _shader_set_uniform_mat4_array(int shader_program_ID, char *name, int count
 }
 
 #ifdef SNAIL_CPP
-void _shader_set_uniform(int shader_program_ID, char *name, real value) {
+void _shader_set_uniform(int shader_program_ID, char *name, cow_real value) {
     _shader_set_uniform_real(shader_program_ID, name, value);
 }
 
@@ -1466,15 +1498,15 @@ void _shader_set_uniform(int shader_program_ID, char *name, bool value) {
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, vec2 value) {
-    _shader_set_uniform_vec2(shader_program_ID, name, (real *) &value);
+    _shader_set_uniform_vec2(shader_program_ID, name, (cow_real *) &value);
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, vec3 value) {
-    _shader_set_uniform_vec3(shader_program_ID, name, (real *) &value);
+    _shader_set_uniform_vec3(shader_program_ID, name, (cow_real *) &value);
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, vec4 value) {
-    _shader_set_uniform_vec4(shader_program_ID, name, (real *) &value);
+    _shader_set_uniform_vec4(shader_program_ID, name, (cow_real *) &value);
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, mat4 value) {
@@ -1482,15 +1514,15 @@ void _shader_set_uniform(int shader_program_ID, char *name, mat4 value) {
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, int count, vec3 *value) {
-    _shader_set_uniform_vec3_array(shader_program_ID, name, count, (real *) value);
+    _shader_set_uniform_vec3_array(shader_program_ID, name, count, (cow_real *) value);
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, int count, vec4 *value) {
-    _shader_set_uniform_vec4_array(shader_program_ID, name, count, (real *) value);
+    _shader_set_uniform_vec4_array(shader_program_ID, name, count, (cow_real *) value);
 }
 
 void _shader_set_uniform(int shader_program_ID, char *name, int count, mat4 *value) {
-    _shader_set_uniform_mat4_array(shader_program_ID, name, count, (real *) value);
+    _shader_set_uniform_mat4_array(shader_program_ID, name, count, (cow_real *) value);
 }
 
 struct Shader {
@@ -1534,7 +1566,7 @@ template <int D> void shader_pass_vertex_attribute(Shader *shader, int num_verti
     glUseProgram(shader->_program_ID);
     glBindVertexArray(shader->_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, shader->_VBO[shader->_attribute_counter]);
-    glBufferData(GL_ARRAY_BUFFER, num_vertices * D * sizeof(real), vertex_attribute, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, num_vertices * D * sizeof(cow_real), vertex_attribute, GL_DYNAMIC_DRAW);
     glVertexAttribPointer(shader->_attribute_counter, D, GL_REAL, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(shader->_attribute_counter);
     ++shader->_attribute_counter;
@@ -1597,18 +1629,18 @@ void _soup_init() {
 }
 
 void _soup_draw(
-        real *PVM,
+        cow_real *PVM,
         int primitive,
         int dimension_of_positions,
         int dimension_of_colors,
         int num_vertices,
-        real *vertex_positions,
-        real *vertex_colors,
-        real r_if_vertex_colors_is_NULL,
-        real g_if_vertex_colors_is_NULL,
-        real b_if_vertex_colors_is_NULL,
-        real a_if_vertex_colors_is_NULL,
-        real size_in_pixels,
+        cow_real *vertex_positions,
+        cow_real *vertex_colors,
+        cow_real r_if_vertex_colors_is_NULL,
+        cow_real g_if_vertex_colors_is_NULL,
+        cow_real b_if_vertex_colors_is_NULL,
+        cow_real a_if_vertex_colors_is_NULL,
+        cow_real size_in_pixels,
         bool force_draw_on_top) {
 
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
@@ -1679,7 +1711,7 @@ void _soup_draw(
     size_in_pixels *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
 
 
-    real color_if_vertex_colors_is_NULL[4] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL, a_if_vertex_colors_is_NULL };
+    cow_real color_if_vertex_colors_is_NULL[4] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL, a_if_vertex_colors_is_NULL };
 
     glBindVertexArray(COW0._soup_VAO[mesh_special_case]);
     int i_attrib = 0;
@@ -1693,8 +1725,8 @@ void _soup_draw(
         }
         ++i_attrib;
     };
-    int vvv_size = int(num_vertices * dimension_of_positions * sizeof(real));
-    int ccc_size = int(num_vertices * dimension_of_colors * sizeof(real));
+    int vvv_size = int(num_vertices * dimension_of_positions * sizeof(cow_real));
+    int ccc_size = int(num_vertices * dimension_of_colors * sizeof(cow_real));
     guarded_push(vvv_size, vertex_positions, dimension_of_positions);
     guarded_push(ccc_size, vertex_colors, dimension_of_colors);
 
@@ -1711,7 +1743,7 @@ void _soup_draw(
     glUseProgram(shader_program_ID);
 
     _shader_set_uniform_real(shader_program_ID, "aspect", _window_get_aspect());
-    _shader_set_uniform_real(shader_program_ID, "primitive_radius_NDC", 0.5 * size_in_pixels / _window_get_height());
+    _shader_set_uniform_real(shader_program_ID, "primitive_radius_NDC", 0.5f * size_in_pixels / _window_get_height());
     _shader_set_uniform_bool(shader_program_ID, "has_vertex_colors", vertex_colors != NULL);
     _shader_set_uniform_bool(shader_program_ID, "force_draw_on_top", force_draw_on_top);
     _shader_set_uniform_mat4(shader_program_ID, "PVM", PVM);
@@ -1798,7 +1830,7 @@ template <int D_pos, int D_color = 3> void soup_draw(
         SnailVector<D_pos> *vertex_positions,
         SnailVector<D_color> *vertex_colors,
         SnailVector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-        real size_in_pixels = 0,
+        cow_real size_in_pixels = 0,
         bool force_draw_on_top = false) {
     STATIC_ASSERT(D_pos == 2 || D_pos == 3 || D_pos == 4);
     STATIC_ASSERT(D_color == 3 || D_color == 4);
@@ -1809,8 +1841,8 @@ template <int D_pos, int D_color = 3> void soup_draw(
             D_pos,
             D_color,
             num_vertices,
-            (real *) vertex_positions,
-            (real *) vertex_colors,
+            (cow_real *) vertex_positions,
+            (cow_real *) vertex_colors,
             color_if_vertex_colors_is_NULL[0],
             color_if_vertex_colors_is_NULL[1],
             color_if_vertex_colors_is_NULL[2],
@@ -1827,7 +1859,7 @@ template <int D_pos, int D_color = 3> void soup_draw(
         SnailVector<D_pos> *vertex_positions,
         void *vertex_colors = NULL,
         SnailVector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-        real size_in_pixels = 0,
+        cow_real size_in_pixels = 0,
         bool force_draw_on_top = false) {
 
     ASSERT(vertex_colors == NULL);
@@ -1838,8 +1870,8 @@ template <int D_pos, int D_color = 3> void soup_draw(
             D_pos,
             D_color,
             num_vertices,
-            (real *) vertex_positions,
-            (real *) vertex_colors,
+            (cow_real *) vertex_positions,
+            (cow_real *) vertex_colors,
             color_if_vertex_colors_is_NULL[0],
             color_if_vertex_colors_is_NULL[1],
             color_if_vertex_colors_is_NULL[2],
@@ -1864,12 +1896,12 @@ void _eso_reset() {
 }
 
 void _eso_init() {
-    COW0._eso_vertex_positions = (real *) calloc(ESO_MAX_VERTICES, 3 * sizeof(real));
-    COW0._eso_vertex_colors = (real *) calloc(ESO_MAX_VERTICES, 4 * sizeof(real));
+    COW0._eso_vertex_positions = (cow_real *) calloc(ESO_MAX_VERTICES, 3 * sizeof(cow_real));
+    COW0._eso_vertex_colors = (cow_real *) calloc(ESO_MAX_VERTICES, 4 * sizeof(cow_real));
     _eso_reset();
 }
 
-void _eso_begin(real *PVM, int primitive, real size_in_pixels, bool force_draw_on_top) {
+void _eso_begin(cow_real *PVM, int primitive, cow_real size_in_pixels, bool force_draw_on_top) {
     ASSERT(!COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end);
     COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
     COW1._eso_primitive = primitive;
@@ -1877,7 +1909,7 @@ void _eso_begin(real *PVM, int primitive, real size_in_pixels, bool force_draw_o
     COW1._eso_overlay = force_draw_on_top;
     COW1._eso_num_vertices = 0;
     ASSERT(PVM);
-    memcpy(COW1._eso_PVM, PVM, 16 * sizeof(real));
+    memcpy(COW1._eso_PVM, PVM, 16 * sizeof(cow_real));
 }
 
 void eso_end() {
@@ -1900,16 +1932,16 @@ void eso_end() {
             );
 }
 
-void eso_vertex(real x, real y, real z = 0.0) {
+void eso_vertex(cow_real x, cow_real y, cow_real z = 0.0) {
     ASSERT(COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end);
     ASSERT(COW1._eso_num_vertices < ESO_MAX_VERTICES);
-    real p[3] = { x, y, z };
-    memcpy(COW0._eso_vertex_positions + 3 * COW1._eso_num_vertices, p, 3 * sizeof(real));
-    memcpy(COW0._eso_vertex_colors + 4 * COW1._eso_num_vertices, COW1._eso_current_color, 4 * sizeof(real));
+    cow_real p[3] = { x, y, z };
+    memcpy(COW0._eso_vertex_positions + 3 * COW1._eso_num_vertices, p, 3 * sizeof(cow_real));
+    memcpy(COW0._eso_vertex_colors + 4 * COW1._eso_num_vertices, COW1._eso_current_color, 4 * sizeof(cow_real));
     ++COW1._eso_num_vertices;
 }
 
-void eso_color(real r, real g, real b, real a = 1.0) {
+void eso_color(cow_real r, cow_real g, cow_real b, cow_real a = 1.0) {
     COW1._eso_current_color[0] = r;
     COW1._eso_current_color[1] = g;
     COW1._eso_current_color[2] = b;
@@ -1917,7 +1949,7 @@ void eso_color(real r, real g, real b, real a = 1.0) {
 }
 
 #ifdef SNAIL_CPP
-void eso_begin(mat4 PVM, int primitive, real size_in_pixels = 0, bool force_draw_on_top = false) {
+void eso_begin(mat4 PVM, int primitive, cow_real size_in_pixels = 0, bool force_draw_on_top = false) {
     _eso_begin(PVM.data, primitive, size_in_pixels, force_draw_on_top);
 }
 
@@ -1929,7 +1961,7 @@ void eso_vertex(vec3 xyz) {
     eso_vertex(xyz[0], xyz[1], xyz[2]);
 }
 
-void eso_color(vec3 rgb, real a = 1.0) {
+void eso_color(vec3 rgb, cow_real a = 1.0) {
     eso_color(rgb[0], rgb[1], rgb[2], a);
 }
 
@@ -1942,24 +1974,24 @@ void eso_color(vec3 rgb, real a = 1.0) {
 // TODO no_billboard
 
 void _text_draw(
-        real *PV,
+        cow_real *PV,
         char *text,
-        real x_world,
-        real y_world,
-        real z_world,
-        real r,
-        real g,
-        real b,
-        real a,
-        real font_size_in_pixels,
-        real dx_in_pixels,
-        real dy_in_pixels,
+        cow_real x_world,
+        cow_real y_world,
+        cow_real z_world,
+        cow_real r,
+        cow_real g,
+        cow_real b,
+        cow_real a,
+        cow_real font_size_in_pixels,
+        cow_real dx_in_pixels,
+        cow_real dy_in_pixels,
         bool force_draw_on_top
         ) {
     ASSERT(PV);
     ASSERT(text);
 
-    real window_width_in_pixels, window_height_in_pixels;
+    cow_real window_width_in_pixels, window_height_in_pixels;
     _window_get_size(&window_width_in_pixels, &window_height_in_pixels);
 
     if (IS_ZERO(font_size_in_pixels)) { font_size_in_pixels = 24; }
@@ -1968,7 +2000,7 @@ void _text_draw(
     static char buffer[99999]; // ~500 chars
     int num_quads = stb_easy_font_print(0, 0, text, NULL, buffer, sizeof(buffer));
     int num_vertices = 4 * num_quads;
-    static real vertex_positions[99999];
+    static cow_real vertex_positions[99999];
 
     char *read_head = buffer;
     for (int k = 0; k < num_vertices; ++k) {
@@ -1978,23 +2010,23 @@ void _text_draw(
         read_head += (3 * sizeof(float) + 4);
     }
 
-    real s_NDC[4] = {}; {
-        real position_World[4] = { x_world, y_world, z_world, 1 };
+    cow_real s_NDC[4] = {}; {
+        cow_real position_World[4] = { x_world, y_world, z_world, 1 };
         _linalg_mat4_times_vec4_persp_divide(s_NDC, PV, position_World);
     }
 
     if (IS_BETWEEN(s_NDC[2], -1, 1)) {
-        real transform[16] = {}; {
+        cow_real transform[16] = {}; {
             // M4_Translation(s_NDC) * app_NDC_from_Screen() * M4_Translation(ds_Screen + dims / 2) * M4_Scaling(size, size);
 
-            real TS[16] = {
+            cow_real TS[16] = {
                 font_size_in_pixels / 12, 0, 0, dx_in_pixels + window_width_in_pixels / 2,
                 0, font_size_in_pixels / 12, 0, dy_in_pixels + window_height_in_pixels / 2,
                 0, 0, 1, 0,
                 0, 0, 0, 1,
             };
 
-            _linalg_mat4_times_mat4(transform, (real *) &globals.NDC_from_Screen, TS);
+            _linalg_mat4_times_mat4(transform, (cow_real *) &globals.NDC_from_Screen, TS);
             for (int d = 0; d < 3; ++d) transform[4 * d + 3] += s_NDC[d];
         }
 
@@ -2022,7 +2054,7 @@ template<int D_pos = 3, int D_color = 3> void text_draw(
         char *text,
         SnailVector<D_pos> position_World,
         SnailVector<D_color> color = { 1.0, 1.0, 1.0 },
-        real font_size_in_pixels = 0,
+        cow_real font_size_in_pixels = 0,
         vec2 nudge_in_pixels = { 0.0, 0.0 },
         bool force_draw_on_top = false
         ) {
@@ -2033,11 +2065,11 @@ template<int D_pos = 3, int D_color = 3> void text_draw(
             text,
             position_World[0],
             position_World[1],
-            D_pos == 3 ? position_World[2] : 0.0,
+            (D_pos == 3) ? position_World[2] : 0.0f,
             color[0],
             color[1],
             color[2],
-            D_color == 4 ? color[3] : 1.0,
+            (D_color == 4) ? color[3] : 1.0f,
             font_size_in_pixels,
             nudge_in_pixels[0],
             nudge_in_pixels[1],
@@ -2080,22 +2112,22 @@ void gui_printf(const char *format, ...) {
     char *text = _text;
     char *sep = strchr(text, '`'); // fornow hacking in two color text
     if (!sep) {
-        _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
+        _text_draw((cow_real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
                 1.0,
                 1.0,
                 1.0,
                 1.0, 0, 0.0, 0.0, true);
     } else {
-        real tmp = COW1._gui_x_curr; {
+        cow_real tmp = COW1._gui_x_curr; {
             *sep = 0;
-            _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
+            _text_draw((cow_real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
                     1.0,
                     1.0,
                     1.0,
                     1.0, 0, 0.0, 0.0, true);
             COW1._gui_x_curr += 2 * stb_easy_font_width(text);
             text = sep + 1;
-            _text_draw((real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
+            _text_draw((cow_real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
         } COW1._gui_x_curr = tmp;
     }
 
@@ -2114,7 +2146,7 @@ void gui_readout(char *name, int *variable) {
     gui_printf("%s%s%d", name, join, *variable);
 }
 
-void gui_readout(char *name, real *variable) {
+void gui_readout(char *name, cow_real *variable) {
     if (!name) name = "";
     char *join = (char *)((name) ? " " : "");
     gui_printf("%s%s%.4lf", name, join, *variable);
@@ -2158,8 +2190,8 @@ char *_gui_hotkey2string(int hotkey) {
 
 bool gui_button(char *name, int hotkey = '\0') {
     if (COW1._gui_hide_and_disable) { return false; }
-    real s_mouse[2];
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    cow_real s_mouse[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
 
     // fornow
     static char text[256];
@@ -2168,11 +2200,11 @@ bool gui_button(char *name, int hotkey = '\0') {
     } else {
         strcpy(text, name);
     }
-    real L = (2 * stb_easy_font_width(text) + 16); // fornow
+    cow_real L = cow_real(2 * stb_easy_font_width(text) + 16); // fornow
     if (hotkey) L -= 12;
 
-    real H = 24;
-    real box[8] = {
+    cow_real H = 24;
+    cow_real box[8] = {
         COW1._gui_x_curr    , COW1._gui_y_curr    ,
         COW1._gui_x_curr + L, COW1._gui_y_curr    ,
         COW1._gui_x_curr + L, COW1._gui_y_curr + H,
@@ -2201,15 +2233,15 @@ bool gui_button(char *name, int hotkey = '\0') {
         }
     }
 
-    real r = (COW1._gui_selected != name) ? 0 : .8;
+    cow_real r = (COW1._gui_selected != name) ? 0 : .8f;
     if (COW1._gui_selected != name) {
-        real nudge = SGN(.5 - r) * .1;
+        cow_real nudge = SGN(.5f - r) * .1f;
         r += nudge; 
         if ((COW1._gui_hot == name) || globals.key_held[hotkey]) r += nudge; 
     }
     {
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 8;
     COW1._gui_y_curr += 4;
@@ -2223,10 +2255,10 @@ bool gui_button(char *name, int hotkey = '\0') {
 
 void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
     if (COW1._gui_hide_and_disable) { return; }
-    real s_mouse[2];
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
-    real L = 16;
-    real box[8] = {
+    cow_real s_mouse[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    cow_real L = 16;
+    cow_real box[8] = {
         COW1._gui_x_curr    , COW1._gui_y_curr    ,
         COW1._gui_x_curr + L, COW1._gui_y_curr    ,
         COW1._gui_x_curr + L, COW1._gui_y_curr + L,
@@ -2256,15 +2288,15 @@ void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
         }
     }
 
-    real r = (!*variable) ? 0 : 1;
+    cow_real r = cow_real((!*variable) ? 0 : 1);
     if (COW1._gui_selected != variable) {
-        real nudge = SGN(.5 - r) * .1;
+        cow_real nudge = SGN(.5f - r) * .1f;
         r += nudge; 
         if ((COW1._gui_hot == variable) || globals.key_held[hotkey]) r += nudge; 
     }
     {
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 2 * L;
     if (hotkey) {
@@ -2275,13 +2307,13 @@ void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
     COW1._gui_x_curr -= 2 * L;
 }
 
-void _gui_slider(char *text, void *variable__for_ID_must_persist, real *_variable__for_out_must_be_real, real lower_bound, real upper_bound) {
+void _gui_slider(char *text, void *variable__for_ID_must_persist, cow_real *_variable__for_out_must_be_real, cow_real lower_bound, cow_real upper_bound) {
     COW1._gui_y_curr += 8;
-    real s_mouse[2];
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates((real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
-    real w = 166;
-    real band[4] = { COW1._gui_x_curr, COW1._gui_y_curr, COW1._gui_x_curr + w, COW1._gui_y_curr };
-    real s_dot[2] = { LERP(INVERSE_LERP(*_variable__for_out_must_be_real, lower_bound, upper_bound), band[0], band[2]), band[1] };
+    cow_real s_mouse[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    cow_real w = 166;
+    cow_real band[4] = { COW1._gui_x_curr, COW1._gui_y_curr, COW1._gui_x_curr + w, COW1._gui_y_curr };
+    cow_real s_dot[2] = { LERP(INVERSE_LERP(*_variable__for_out_must_be_real, lower_bound, upper_bound), band[0], band[2]), band[1] };
 
     if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
         bool is_near = _linalg_vecX_squared_distance(2, s_dot, s_mouse) < 16;
@@ -2308,9 +2340,9 @@ void _gui_slider(char *text, void *variable__for_ID_must_persist, real *_variabl
         }
     }
     {
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6, .6, .6, 1, 6, true);
-        real r = (COW1._gui_selected == variable__for_ID_must_persist) ? 1 : (COW1._gui_hot == variable__for_ID_must_persist) ? .9 : .8;
-        _soup_draw((real *) &globals._gui_NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17 : 14, true);
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6f, .6f, .6f, 1.f, 6.f, true);
+        cow_real r = (COW1._gui_selected == variable__for_ID_must_persist) ? 1.f : (COW1._gui_hot == variable__for_ID_must_persist) ? .9f : .8f;
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1.f, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17.f : 14.f, true);
     }
     COW1._gui_y_curr -= 8;
     COW1._gui_x_curr += w + 16;
@@ -2327,7 +2359,7 @@ void gui_slider(
         int increment_hotkey = '\0',
         bool loop = false) {
     if (COW1._gui_hide_and_disable) { return; }
-    real tmp = real(*variable);
+    cow_real tmp = cow_real(*variable);
     static char text[256]; {
         if (!decrement_hotkey && !increment_hotkey) {
             snprintf(text, sizeof(text), "%s %d", name, *variable);
@@ -2335,7 +2367,7 @@ void gui_slider(
             snprintf(text, sizeof(text), "%s %d `%s %s", name, *variable, decrement_hotkey ? _gui_hotkey2string(decrement_hotkey) : "", increment_hotkey ? _gui_hotkey2string(increment_hotkey) : "");
         }
     }
-    _gui_slider(text, variable, &tmp, lower_bound, upper_bound);
+    _gui_slider(text, variable, &tmp, (cow_real) lower_bound, (cow_real) upper_bound);
     *variable = int(round(tmp));
     if (globals.key_pressed[increment_hotkey]) ++(*variable);
     if (globals.key_pressed[decrement_hotkey]) --(*variable);
@@ -2346,9 +2378,9 @@ void gui_slider(
 
 void gui_slider(
         char *name,
-        real *variable,
-        real lower_bound,
-        real upper_bound,
+        cow_real *variable,
+        cow_real lower_bound,
+        cow_real upper_bound,
         bool slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW = false,
         bool slide_variable_in_log10__NOTE_pass_bounds_in_log10 = false) {
 
@@ -2358,10 +2390,10 @@ void gui_slider(
 
     static char text[256];
     if (slide_variable_in_log10__NOTE_pass_bounds_in_log10) {
-        real tmp = log10(*variable);
+        cow_real tmp = log10(*variable);
         snprintf(text, sizeof(text), "%s %lf", name, *variable);
         _gui_slider(text, variable, &tmp, lower_bound, upper_bound);
-        *variable = pow(10.0, tmp);
+        *variable = POW(10.0, tmp);
     } else {
         if (slide_variable_in_degrees_NOTE_pass_bounds_in_radians_FORNOW) {
             snprintf(text, sizeof(text), "%s %d deg", name, (int) round(DEG(*variable)));
@@ -2496,7 +2528,7 @@ Texture texture_load(char *texture_filename) {
     return texture;
 }
 
-void texture_set_pixel(Texture *texture, int i, int j, real r, real g = 0.0, real b = 0.0, real a = 1.0) {
+void texture_set_pixel(Texture *texture, int i, int j, cow_real r, cow_real g = 0.0, cow_real b = 0.0, cow_real a = 1.0) {
     #define REAL2U8(r) (u8(CLAMP(r, 0.0, 1.0) * 255.0))
     int pixel = i * texture->width + j;
     texture->data[pixel * texture->number_of_channels + 0]  = REAL2U8(r);
@@ -2510,30 +2542,30 @@ void texture_set_pixel(Texture *texture, int i, int j, real r, real g = 0.0, rea
     #undef REAL2U8
 }
 
-void texture_get_pixel(Texture *texture, int i, int j, real *r, real *g = NULL, real *b = NULL, real *a = NULL) {
+void texture_get_pixel(Texture *texture, int i, int j, cow_real *r, cow_real *g = NULL, cow_real *b = NULL, cow_real *a = NULL) {
     ASSERT(r != NULL);
 
-    #define U82REAL(r) ((r) / 255.0)
+    #define U82COW_REAL(r) cow_real((r) / 255.0f)
     int pixel = i * texture->width + j;
-    *r = U82REAL(texture->data[pixel * texture->number_of_channels + 0]);
+    *r = U82COW_REAL(texture->data[pixel * texture->number_of_channels + 0]);
     if (texture->number_of_channels > 1) {
         if (g != NULL) {
-            *g = U82REAL(texture->data[pixel * texture->number_of_channels + 1]);
+            *g = U82COW_REAL(texture->data[pixel * texture->number_of_channels + 1]);
         }
         if (b != NULL) {
-            *b = U82REAL(texture->data[pixel * texture->number_of_channels + 2]);
+            *b = U82COW_REAL(texture->data[pixel * texture->number_of_channels + 2]);
         }
     }
     if (texture->number_of_channels > 3) {
         if (a != NULL) {
-            *a = U82REAL(texture->data[pixel * texture->number_of_channels + 3]);
+            *a = U82COW_REAL(texture->data[pixel * texture->number_of_channels + 3]);
         }
     }
     #undef REAL2U8
 }
 
 #ifdef SNAIL_CPP
-void texture_set_pixel(Texture *texture, int i, int j, vec3 rgb, real a = 1.0) {
+void texture_set_pixel(Texture *texture, int i, int j, vec3 rgb, cow_real a = 1.0) {
     texture_set_pixel(texture, i, j, rgb.x, rgb.y, rgb.z, a);
 }
 #endif
@@ -2543,31 +2575,31 @@ void texture_sync_to_GPU(Texture *texture) {
 }
 
 void _mesh_draw(
-        real *P,
-        real *V,
-        real *M,
+        cow_real *P,
+        cow_real *V,
+        cow_real *M,
         int num_triangles,
         int *triangle_indices,
         int num_vertices,
-        real *vertex_positions,
-        real *vertex_normals = NULL,
-        real *vertex_colors = NULL,
-        real r_if_vertex_colors_is_NULL = 1,
-        real g_if_vertex_colors_is_NULL = 1,
-        real b_if_vertex_colors_is_NULL = 1,
-        real *vertex_texture_coordinates = NULL,
+        cow_real *vertex_positions,
+        cow_real *vertex_normals = NULL,
+        cow_real *vertex_colors = NULL,
+        cow_real r_if_vertex_colors_is_NULL = 1,
+        cow_real g_if_vertex_colors_is_NULL = 1,
+        cow_real b_if_vertex_colors_is_NULL = 1,
+        cow_real *vertex_texture_coordinates = NULL,
         char *texture_filename = NULL,
         int num_bones = 0,
-        real *bones__NUM_BONES_MAT4S = NULL,
+        cow_real *bones__NUM_BONES_MAT4S = NULL,
         int *bone_indices__INT4_PER_VERTEX = NULL,
-        real *bone_weights__VEC4_PER_VERTEX = NULL
+        cow_real *bone_weights__VEC4_PER_VERTEX = NULL
         ) {
     if (num_triangles == 0) { return; } // NOTE: num_triangles zero is now valid input
     ASSERT(P);
     ASSERT(V);
     ASSERT(M);
     ASSERT(vertex_positions);
-    real color_if_vertex_colors_is_NULL[3] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL };
+    cow_real color_if_vertex_colors_is_NULL[3] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL };
 
     int i_texture = -1;
     if (texture_filename) {
@@ -2602,12 +2634,12 @@ void _mesh_draw(
     };
 
     // TODO: assert sizeof's match
-    guarded_push(vertex_positions,              3, sizeof(real), GL_REAL);
-    guarded_push(vertex_normals,                3, sizeof(real), GL_REAL);
-    guarded_push(vertex_colors,                 3, sizeof(real), GL_REAL);
-    guarded_push(vertex_texture_coordinates,    2, sizeof(real), GL_REAL);
+    guarded_push(vertex_positions,              3, sizeof(cow_real), GL_REAL);
+    guarded_push(vertex_normals,                3, sizeof(cow_real), GL_REAL);
+    guarded_push(vertex_colors,                 3, sizeof(cow_real), GL_REAL);
+    guarded_push(vertex_texture_coordinates,    2, sizeof(cow_real), GL_REAL);
     guarded_push(bone_indices__INT4_PER_VERTEX, 4, sizeof(int ), GL_INT);
-    guarded_push(bone_weights__VEC4_PER_VERTEX, 4, sizeof(real), GL_REAL);
+    guarded_push(bone_weights__VEC4_PER_VERTEX, 4, sizeof(cow_real), GL_REAL);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, COW0._mesh_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * num_triangles * sizeof(u32), triangle_indices, GL_DYNAMIC_DRAW);
@@ -2616,9 +2648,9 @@ void _mesh_draw(
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "V", V);
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "M", M);
     { // fornow scavenge the camera position from V
-        real C[16];
+        cow_real C[16];
         _linalg_mat4_inverse(C, V);
-        real eye_World[4] = { C[3], C[7], C[11], 1 };
+        cow_real eye_World[4] = { C[3], C[7], C[11], 1 };
         _shader_set_uniform_vec4(COW0._mesh_shader_program, "eye_World", eye_World);
     }
     _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_colors", vertex_colors != NULL);
@@ -2662,18 +2694,18 @@ void mesh_draw(
             num_triangles,
             (int *) triangle_indices,
             num_vertices,
-            (real *) vertex_positions,
-            (real *) vertex_normals,
-            (real *) vertex_colors,
+            (cow_real *) vertex_positions,
+            (cow_real *) vertex_normals,
+            (cow_real *) vertex_colors,
             color_if_vertex_colors_is_NULL[0],
             color_if_vertex_colors_is_NULL[1],
             color_if_vertex_colors_is_NULL[2],
-            (real *) vertex_texture_coordinates,
+            (cow_real *) vertex_texture_coordinates,
             texture_filename,
             num_bones,
-            (real *) bones,
+            (cow_real *) bones,
             (int *) bone_indices,
-            (real *) bone_weights
+            (cow_real *) bone_weights
             );
 }
 #endif
@@ -2684,9 +2716,9 @@ void mesh_draw(
 
 // this is an "ortho camera" that points at (o_x, o_y)   
 struct Camera2D {
-    real screen_height_World;
-    real o_x;
-    real o_y;
+    cow_real screen_height_World;
+    cow_real o_x;
+    cow_real o_y;
 };
 
 // this is an "orbit camera" that points at the origin*  
@@ -2700,27 +2732,27 @@ struct Camera2D {
 // *we define it this way for compatability with Camera2D
 struct Camera3D {
     union {
-        real persp_distance_to_origin;
-        real ortho_screen_height_World;
+        cow_real persp_distance_to_origin;
+        cow_real ortho_screen_height_World;
     };
-    real angle_of_view; // set to 0 to use an ortho camera
-    real theta; // yaw
-    real phi; // pitch
-    real o_x;
-    real o_y;
+    cow_real angle_of_view; // set to 0 to use an ortho camera
+    cow_real theta; // yaw
+    cow_real phi; // pitch
+    cow_real o_x;
+    cow_real o_y;
 };
 
 void camera_attach_to_gui(Camera2D *camera) {
-    gui_slider("screen_height_World", &camera->screen_height_World, 0.1, 100.0, false);
+    gui_slider("screen_height_World", &camera->screen_height_World, 0.1f, 100.0f, false);
     gui_slider("o_x", &camera->o_x, -camera->screen_height_World, camera->screen_height_World, false);
     gui_slider("o_y", &camera->o_y, -camera->screen_height_World, camera->screen_height_World, false);
 }
 
 void camera_attach_to_gui(Camera3D *camera) {
     if (IS_ZERO(camera->angle_of_view)) { // ortho
-        gui_slider("ortho_screen_height_World", &camera->ortho_screen_height_World, 0.1, 100.0, false);
+        gui_slider("ortho_screen_height_World", &camera->ortho_screen_height_World, 0.1f, 100.0f, false);
     } else {
-        gui_slider("persp_distance_to_origin", &camera->persp_distance_to_origin, 0.1, 100.0, false);
+        gui_slider("persp_distance_to_origin", &camera->persp_distance_to_origin, 0.1f, 100.0f, false);
     }
     gui_slider("angle_of_view", &camera->angle_of_view, RAD(0.0), RAD(180.0), true);
     gui_slider("theta", &camera->theta, RAD(-180.0), RAD(180.0), true);
@@ -2729,48 +2761,48 @@ void camera_attach_to_gui(Camera3D *camera) {
     gui_slider("o_y", &camera->o_y, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
 }
 
-void _camera_get_P(Camera2D *camera, real *P) {
+void _camera_get_P(Camera2D *camera, cow_real *P) {
     _window_get_P_ortho(P, camera->screen_height_World);
 }
 
-void _camera_get_V(Camera2D *camera, real *V) {
+void _camera_get_V(Camera2D *camera, cow_real *V) {
     _window_get_V_ortho_2D(V, camera->o_x, camera->o_y);
 }
 
-void _camera_get_PV(Camera2D *camera, real *PV) {
+void _camera_get_PV(Camera2D *camera, cow_real *PV) {
     _window_get_PV_ortho_2D(PV, camera->screen_height_World, camera->o_x, camera->o_y);
 }
 
-real camera_get_screen_height_World(Camera3D *camera) {
+cow_real camera_get_screen_height_World(Camera3D *camera) {
     if (IS_ZERO(camera->angle_of_view)) { // ortho
         return camera->ortho_screen_height_World;
     } else { // persp
-        real theta = camera->angle_of_view / 2;
+        cow_real theta = camera->angle_of_view / 2;
         return 2 * tan(theta) * camera->persp_distance_to_origin;
     }
 }
 
-void _camera_get_coordinate_system(Camera3D *camera, real *C_out, real *x_out = NULL, real *y_out = NULL, real *z_out = NULL, real *o_out = NULL, real *R_out = NULL) {
-    real camera_o_z = camera->persp_distance_to_origin;
+void _camera_get_coordinate_system(Camera3D *camera, cow_real *C_out, cow_real *x_out = NULL, cow_real *y_out = NULL, cow_real *z_out = NULL, cow_real *o_out = NULL, cow_real *R_out = NULL) {
+    cow_real camera_o_z = camera->persp_distance_to_origin;
 
-    real C[16]; {
-        real T[16] = {
+    cow_real C[16]; {
+        cow_real T[16] = {
             1, 0, 0, camera->o_x,
             0, 1, 0, camera->o_y, // fornow
             0, 0, 1, camera_o_z,
             0, 0, 0, 1,
         };
-        real c_x = cos(camera->phi);
-        real s_x = sin(camera->phi);
-        real c_y = cos(camera->theta);
-        real s_y = sin(camera->theta);
-        real R_y[16] = {
+        cow_real c_x = cos(camera->phi);
+        cow_real s_x = sin(camera->phi);
+        cow_real c_y = cos(camera->theta);
+        cow_real s_y = sin(camera->theta);
+        cow_real R_y[16] = {
             c_y , 0, s_y, 0,
             0   , 1, 0  , 0,
             -s_y, 0, c_y, 0,
             0   , 0, 0  , 1,
         };
-        real R_x[16] = {
+        cow_real R_x[16] = {
             1,   0,    0, 0, 
             0, c_x, -s_x, 0,
             0, s_x,  c_x, 0,
@@ -2780,18 +2812,18 @@ void _camera_get_coordinate_system(Camera3D *camera, real *C_out, real *x_out = 
         _linalg_mat4_times_mat4(C, R_y, C     );
     }
 
-    real xyzo[4][3] = {}; {
+    cow_real xyzo[4][3] = {}; {
         for (int c = 0; c < 4; ++c) for (int r = 0; r < 3; ++r) xyzo[c][r] = _LINALG_4X4(C, r, c);
     }
     if (C_out) memcpy(C_out, C, sizeof(C));
     {
-        if (x_out) memcpy(x_out, xyzo[0], 3 * sizeof(real));
-        if (y_out) memcpy(y_out, xyzo[1], 3 * sizeof(real));
-        if (z_out) memcpy(z_out, xyzo[2], 3 * sizeof(real));
-        if (o_out) memcpy(o_out, xyzo[3], 3 * sizeof(real));
+        if (x_out) memcpy(x_out, xyzo[0], 3 * sizeof(cow_real));
+        if (y_out) memcpy(y_out, xyzo[1], 3 * sizeof(cow_real));
+        if (z_out) memcpy(z_out, xyzo[2], 3 * sizeof(cow_real));
+        if (o_out) memcpy(o_out, xyzo[3], 3 * sizeof(cow_real));
     }
     if (R_out) {
-        real tmp[] = {
+        cow_real tmp[] = {
             C[0], C[1], C[ 2], 0,
             C[4], C[5], C[ 6], 0,
             C[8], C[9], C[10], 0,
@@ -2801,7 +2833,7 @@ void _camera_get_coordinate_system(Camera3D *camera, real *C_out, real *x_out = 
     }
 }
 
-void _camera_get_P(Camera3D *camera, real *P) {
+void _camera_get_P(Camera3D *camera, cow_real *P) {
     if (IS_ZERO(camera->angle_of_view)) {
         _window_get_P_ortho(P, camera->ortho_screen_height_World);
     } else {
@@ -2809,30 +2841,30 @@ void _camera_get_P(Camera3D *camera, real *P) {
     }
 }
 
-void _camera_get_V(Camera3D *camera, real *V) {
+void _camera_get_V(Camera3D *camera, cow_real *V) {
     _camera_get_coordinate_system(camera, V);
     _linalg_mat4_inverse(V, V);
 }
 
-void _camera_get_PV(Camera3D *camera, real *PV) {
+void _camera_get_PV(Camera3D *camera, cow_real *PV) {
     ASSERT(PV);
-    real P[16], V[16];
+    cow_real P[16], V[16];
     _camera_get_P(camera, P);
     _camera_get_V(camera, V);
     _linalg_mat4_times_mat4(PV, P, V);
 }
 
 void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom = false) {
-    real NDC_from_World[16] = {};
+    cow_real NDC_from_World[16] = {};
     _camera_get_PV(camera, NDC_from_World);
     if (!disable_pan && globals.mouse_right_held) {
-        real dx, dy;
+        cow_real dx, dy;
         _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, NULL, NULL, &dx, &dy);
         camera->o_x -= dx;
         camera->o_y -= dy;
     }
     else if (!disable_zoom && !IS_ZERO(globals.mouse_wheel_offset)) {
-        camera->screen_height_World *= (1 - .1 * globals.mouse_wheel_offset);
+        camera->screen_height_World *= (1.f - .1f * globals.mouse_wheel_offset);
 
         // zoom while preserving mouse position                
         //                                                     
@@ -2847,17 +2879,17 @@ void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom =
         //               eye' = mouse_World - inv(P') mouse_NDC
         //                                    ^----- a -------^
 
-        real x, y;
+        cow_real x, y;
         _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, &x, &y, NULL, NULL);
 
-        real mouse_World[4] = { x, y, 0, 1 };
-        real a[4] = {};
-        real inv_P_prime[16] = {}; {
+        cow_real mouse_World[4] = { x, y, 0, 1 };
+        cow_real a[4] = {};
+        cow_real inv_P_prime[16] = {}; {
             Camera2D tmp = { camera->screen_height_World };
             _camera_get_PV(&tmp, inv_P_prime);
             _linalg_mat4_inverse(inv_P_prime, inv_P_prime);
         }
-        real mouse_NDC[4] = {}; {
+        cow_real mouse_NDC[4] = {}; {
             _linalg_mat4_times_vec4_persp_divide(mouse_NDC, NDC_from_World, mouse_World); 
         }
         _linalg_mat4_times_vec4_persp_divide(a, inv_P_prime, mouse_NDC);
@@ -2874,15 +2906,15 @@ void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom =
         if (IS_ZERO(camera->angle_of_view)) { // ortho
             camera->ortho_screen_height_World = tmp2D.screen_height_World;
         } else { // persp
-                 //                   r_y
-                 //               -   |  
-                 //            -      |  
-                 //         -         |  
-                 //      - ) theta    |  
-                 // eye-------------->o  
-                 //         D            
-            real r_y = tmp2D.screen_height_World / 2;
-            real theta = camera->angle_of_view / 2;
+            //                   r_y
+            //               -   |  
+            //            -      |  
+            //         -         |  
+            //      - ) theta    |  
+            // eye-------------->o  
+            //         D            
+            cow_real r_y = tmp2D.screen_height_World / 2;
+            cow_real theta = camera->angle_of_view / 2;
             camera->persp_distance_to_origin = r_y / tan(theta);
         }
 
@@ -2890,7 +2922,7 @@ void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom =
         camera->o_y = tmp2D.o_y;
     }
     if (!disable_rotate && globals.mouse_left_held) {
-        real fac = 2;
+        cow_real fac = 2;
         camera->theta -= fac * globals.mouse_change_in_position_NDC[0];
         camera->phi += fac * globals.mouse_change_in_position_NDC[1];
         camera->phi = CLAMP(camera->phi, -RAD(90), RAD(90));
@@ -2909,9 +2941,9 @@ struct OrthogonalCoordinateSystem3D {
     vec3 z;
     vec3 o;
     mat4 R; // stored as [\ | / |]
-            //           [- R - 0]
-            //           [/ | \ |]
-            //           [- 0 - 1]
+    //           [- R - 0]
+    //           [/ | \ |]
+    //           [- 0 - 1]
 };
 
 mat4 camera_get_PV(Camera2D *camera) {
@@ -2937,13 +2969,13 @@ OrthogonalCoordinateSystem3D camera_get_coordinate_system(Camera3D *camera) {
     mat4 C;
     vec3 x, y, z, o;
     mat4 R;
-    _camera_get_coordinate_system(camera, (real *) &C, (real *) &x, (real *) &y, (real *) &z, (real *) &o, (real *) &R);
+    _camera_get_coordinate_system(camera, (cow_real *) &C, (cow_real *) &x, (cow_real *) &y, (cow_real *) &z, (cow_real *) &o, (cow_real *) &R);
     return { C, x, y, z, o, R };
 }
 
 vec3 camera_get_position(Camera3D *camera) {
     vec3 o;
-    _camera_get_coordinate_system(camera, NULL, NULL, NULL, NULL, (real *) &o, NULL);
+    _camera_get_coordinate_system(camera, NULL, NULL, NULL, NULL, (cow_real *) &o, NULL);
     return o;
 }
 
@@ -2988,39 +3020,39 @@ vec3 camera_get_mouse_ray(Camera3D *camera) {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct {
-    _vec3 red    = { 249./255,  38./255, 114./255 }; /** red */
-    _vec3 orange = { 253./255, 151./255,  31./255 }; /** orange */
-    _vec3 yellow = { 255./255, 255./255,  50./255 }; /** not the actual monokai yellow cause i don't like it */
-    _vec3 green  = { 166./255, 226./255,  46./255 }; /** green */
-    _vec3 blue   = { 102./255, 217./255, 239./255 }; /** blue */
-    _vec3 purple = { 174./255, 129./255, 255./255 }; /** purple */
-    _vec3 white  = { 255./255, 255./255, 255./255 }; /** full white */
-    _vec3 gray   = { 127./255, 127./255, 127./255 }; /** 50% gray */
-    _vec3 black  = {   0./255,   0./255,   0./255 }; /** full black */
-    _vec3 brown  = { 123./255,  63./255,   0./255 }; /** monokai doesn't actually define a brown so i made this one up */
+    _vec3 red    = { 249.f/255,  38.f/255, 114.f/255 }; /** red */
+    _vec3 orange = { 253.f/255, 151.f/255,  31.f/255 }; /** orange */
+    _vec3 yellow = { 255.f/255, 255.f/255,  50.f/255 }; /** not the actual monokai yellow cause i don't like it */
+    _vec3 green  = { 166.f/255, 226.f/255,  46.f/255 }; /** green */
+    _vec3 blue   = { 102.f/255, 217.f/255, 239.f/255 }; /** blue */
+    _vec3 purple = { 174.f/255, 129.f/255, 255.f/255 }; /** purple */
+    _vec3 white  = { 255.f/255, 255.f/255, 255.f/255 }; /** full white */
+    _vec3 gray   = { 127.f/255, 127.f/255, 127.f/255 }; /** 50% gray */
+    _vec3 black  = {   0.f/255,   0.f/255,   0.f/255 }; /** full black */
+    _vec3 brown  = { 123.f/255,  63.f/255,   0.f/255 }; /** monokai doesn't actually define a brown so i made this one up */
 } monokai;
 
 #ifdef SNAIL_CPP
 vec3 color_kelly(int i) {
-    static vec3 _kelly_colors[]={{255./255,179./255,0./255},{128./255,62./255,117./255},{255./255,104./255,0./255},{166./255,189./255,215./255},{193./255,0./255,32./255},{206./255,162./255,98./255},{129./255,112./255,102./255},{0./255,125./255,52./255},{246./255,118./255,142./255},{0./255,83./255,138./255},{255./255,122./255,92./255},{83./255,55./255,122./255},{255./255,142./255,0./255},{179./255,40./255,81./255},{244./255,200./255,0./255},{127./255,24./255,13./255},{147./255,170./255,0./255},{89./255,51./255,21./255},{241./255,58./255,19./255},{35./255,44./255,22./255}};
+    static vec3 _kelly_colors[]={{255.f/255,179.f/255,0.f/255},{128.f/255,62.f/255,117.f/255},{255.f/255,104.f/255,0.f/255},{166.f/255,189.f/255,215.f/255},{193.f/255,0.f/255,32.f/255},{206.f/255,162.f/255,98.f/255},{129.f/255,112.f/255,102.f/255},{0.f/255,125.f/255,52.f/255},{246.f/255,118.f/255,142.f/255},{0.f/255,83.f/255,138.f/255},{255.f/255,122.f/255,92.f/255},{83.f/255,55.f/255,122.f/255},{255.f/255,142.f/255,0.f/255},{179.f/255,40.f/255,81.f/255},{244.f/255,200.f/255,0.f/255},{127.f/255,24.f/255,13.f/255},{147.f/255,170.f/255,0.f/255},{89.f/255,51.f/255,21.f/255},{241.f/255,58.f/255,19.f/255},{35.f/255,44.f/255,22.f/255}};
     return _kelly_colors[MODULO(i, _COUNT_OF(_kelly_colors))];
 }
 
-vec3 color_plasma(real t) {
-    t = CLAMP(t, 0.0, 1.0);
-    const vec3 c0 = { 0.05873234392399702, 0.02333670892565664, 0.5433401826748754 };
-    const vec3 c1 = { 2.176514634195958, 0.2383834171260182, 0.7539604599784036 };
-    const vec3 c2 = { -2.689460476458034, -7.455851135738909, 3.110799939717086 };
-    const vec3 c3 = { 6.130348345893603, 42.3461881477227, -28.51885465332158 };
-    const vec3 c4 = { -11.10743619062271, -82.66631109428045, 60.13984767418263 };
-    const vec3 c5 = { 10.02306557647065, 71.41361770095349, -54.07218655560067 };
-    const vec3 c6 = { -3.658713842777788, -22.93153465461149, 18.19190778539828 };
+vec3 color_plasma(cow_real t) {
+    t = CLAMP(t, 0.0f, 1.0f);
+    const vec3 c0 = { 0.058732343923997f, 0.023336708925656f, 0.543340182674875f };
+    const vec3 c1 = { 2.176514634195958f, 0.238383417126018f, 0.753960459978403f };
+    const vec3 c2 = { -2.68946047645803f, -7.45585113573890f, 3.110799939717086f };
+    const vec3 c3 = { 6.130348345893603f, 42.34618814772270f, -28.5188546533215f };
+    const vec3 c4 = { -11.1074361906227f, -82.6663110942804f, 60.13984767418263f };
+    const vec3 c5 = { 10.02306557647065f, 71.41361770095349f, -54.0721865556006f };
+    const vec3 c6 = { -3.65871384277778f, -22.9315346546114f, 18.19190778539828f };
     return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
 }
 
-vec3 color_rainbow_swirl(real t) {
-    #define Q(o) (.5 + .5 * cos(6.28 * ((o) - t)))
-    return V3(Q(0), Q(.33), Q(-.33));
+vec3 color_rainbow_swirl(cow_real t) {
+    #define Q(o) (.5f + .5f * cos(6.28f * ((o) - t)))
+    return V3(Q(0.0f), Q(.33f), Q(-.33f));
     #undef Q
 }
 #endif
@@ -3107,14 +3139,14 @@ struct Soup3D {
     void draw(
             mat4 PVM,
             vec3 color_if_vertex_colors_is_NULL,
-            real size_in_pixels,
+            cow_real size_in_pixels,
             bool force_draw_on_top);
 
     // fornow
     void draw(
             mat4 PVM,
             vec4 color_if_vertex_colors_is_NULL,
-            real size_in_pixels,
+            cow_real size_in_pixels,
             bool force_draw_on_top);
 
     void _dump_for_library(char *filename, char *name);
@@ -3224,7 +3256,7 @@ IndexedTriangleMesh3D operator +(IndexedTriangleMesh3D &A, IndexedTriangleMesh3D
 void Soup3D::draw(
         mat4 PVM,
         vec3 color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-        real size_in_pixels = 0,
+        cow_real size_in_pixels = 0,
         bool force_draw_on_top = false) {
     soup_draw(
             PVM,
@@ -3240,7 +3272,7 @@ void Soup3D::draw(
 void Soup3D::draw(
         mat4 PVM,
         vec4 color_if_vertex_colors_is_NULL,
-        real size_in_pixels = 0,
+        cow_real size_in_pixels = 0,
         bool force_draw_on_top = false) {
     soup_draw(
             PVM,
@@ -3335,7 +3367,7 @@ void _meshutil_transform_vertex_positions_to_double_unit_box(int num_vertices, v
     }
     vec3 center = .5 * (L + R);
     vec3 size = R - L;
-    real largest = MAX(MAX(size[0], size[1]), size[2]);
+    cow_real largest = MAX(MAX(size[0], size[1]), size[2]);
     for (int i = 0; i < num_vertices; ++i) {
         vertex_positions[i] -= center;
         vertex_positions[i] *= (2 / largest);
@@ -3345,12 +3377,12 @@ void _meshutil_transform_vertex_positions_to_double_unit_box(int num_vertices, v
 void _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(IndexedTriangleMesh3D *mesh_mesh) {
     ASSERT(mesh_mesh->vertex_normals == NULL);
     if (1) { // () _mesh_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals
-             // TODO allocate mesh_mesh->vertex_normals        
-             // TODO write entries of mesh_mesh->vertex_normals
+        // TODO allocate mesh_mesh->vertex_normals        
+        // TODO write entries of mesh_mesh->vertex_normals
         mesh_mesh->vertex_normals = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3));
         for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
             int3 ijk = mesh_mesh->triangle_indices[i_triangle];
-            real A;
+            cow_real A;
             vec3 n_hat;
             {
                 vec3 abc[3];
@@ -3358,7 +3390,7 @@ void _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_verte
                     abc[d] = mesh_mesh->vertex_positions[ijk[d]];
                 }
                 vec3 n = cross(abc[1] - abc[0], abc[2] - abc[0]);
-                real mag_n = norm(n);
+                cow_real mag_n = norm(n);
                 A = norm(n) / 2;
                 n_hat = n / mag_n;
             }
@@ -3376,10 +3408,10 @@ void _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(IndexedTriangleMe
     int new_num_vertices = 0;
     vec3 *new_vertex_positions = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3)); // (more space than we'll need)
     if (1) { // [] _mesh_mesh_merge_duplicated_vertices
-             // TODO set new_num_vertices and entries of new_vertex_positions                   
-             // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
-             // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
-             // NOTE please don't worry about space efficiency at all                           
+        // TODO set new_num_vertices and entries of new_vertex_positions                   
+        // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
+        // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
+        // NOTE please don't worry about space efficiency at all                           
         int *primal  = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         int *new_index = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
@@ -3445,8 +3477,12 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                     ASSERT(sscanf(buffer, "%s %d %d %d", prefix, &i, &j, &k) == 4);
                     sbuff_push_back(&triangle_indices, { i - 1, j - 1, k - 1 });
                 } else if (strcmp(prefix, "v") == 0) {
-                    real x, y, z;
-                    ASSERT(sscanf(buffer, "%s %lf %lf %lf", prefix, &x, &y, &z) == 4);
+                    cow_real x, y, z;
+                    #ifdef COW_USE_REAL_32
+                    ASSERT(sscanf(buffer, "%s %f %f %f" , prefix, &x, &y, &z) == 4);
+                    #else
+                    ASSERT(sscanf(buffer, "%s %lf %lf %lf" , prefix, &x, &y, &z) == 4);
+                    #endif
                     sbuff_push_back(&vertex_positions, { x, y, z });
                 } else if (strcmp(prefix, "#MRGB") == 0) {
                     // do_once { printf("[info] found ZBrush polypaint payload\n"); };
@@ -3462,7 +3498,7 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                                 channelContribution__255 += (('0' <= hexCharacter) && (hexCharacter <= '9')) ? (hexCharacter - '0') : (10 + hexCharacter - 'a');
                                 if (bitIndex == 0) channelContribution__255 *= 16;
                             }
-                            rgb[channel - 1] = channelContribution__255 / 255.0;
+                            rgb[channel - 1] = channelContribution__255 / 255.0f;
                         }
                         sbuff_push_back(&vertex_colors, rgb);
                     }
@@ -3504,8 +3540,12 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
             ASSERT(fp);
             char buffer[4096];
             while (fgets(buffer, _COUNT_OF(buffer), fp) != NULL) {
-                real x, y, z;
+                cow_real x, y, z;
+                #ifdef COW_USE_REAL_32
+                ASSERT(sscanf(buffer, "%f %f %f", &x, &y, &z) == 3);
+                #else
                 ASSERT(sscanf(buffer, "%lf %lf %lf", &x, &y, &z) == 3);
+                #endif
                 sbuff_push_back(&vertex_positions, { x, y, z });
             }
             fclose(fp);
@@ -3525,8 +3565,8 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
 // #include "util.cpp"/////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-real random_real(real lower_bound, real upper_bound) {
-    real t = real(rand()) / RAND_MAX;
+cow_real random_real(cow_real lower_bound, cow_real upper_bound) {
+    cow_real t = cow_real(rand()) / RAND_MAX;
     return LERP(t, lower_bound, upper_bound);
 }
 
@@ -3574,9 +3614,9 @@ char *_load_file_into_char_array(char *filename) {
 // #include "widget.cpp"////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void *_widget_drag(real *PV, int num_vertices, real *vertex_positions, real size_in_pixels, real r, real g, real b, real a) {
+void *_widget_drag(cow_real *PV, int num_vertices, cow_real *vertex_positions, cow_real size_in_pixels, cow_real r, cow_real g, cow_real b, cow_real a) {
     if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return NULL;
-    static real *selected;
+    static cow_real *selected;
     if (selected) { // fornow: allows multiple calls to this function between begin_frame
         bool found = false;
         for (int i = 0; i < num_vertices; ++i) {
@@ -3587,15 +3627,15 @@ void *_widget_drag(real *PV, int num_vertices, real *vertex_positions, real size
         }
         if (!found) return NULL;
     }
-    real *hot = selected;
+    cow_real *hot = selected;
     if (!selected) {
         {
             for (int i = 0; i < num_vertices; ++i) {
-                real *ptr = vertex_positions + 2 * i;
-                real tmp[4] = { ptr[0], ptr[1], 0, 1 };
+                cow_real *ptr = vertex_positions + 2 * i;
+                cow_real tmp[4] = { ptr[0], ptr[1], 0, 1 };
                 _linalg_mat4_times_vec4_persp_divide(tmp, PV, tmp);
                 for (int d = 0; d < 2; ++d) tmp[d] -= globals.mouse_position_NDC[d];
-                if (_linalg_vecX_squared_length(2, tmp) < pow(.02, 2)) { // todo comparison in pixels
+                if (_linalg_vecX_squared_length(2, tmp) < POW(.02f, 2)) { // todo comparison in pixels
                     hot = ptr;
                 }
             }
@@ -3607,7 +3647,7 @@ void *_widget_drag(real *PV, int num_vertices, real *vertex_positions, real size
         }
     }
 
-    real mouse_xy_World[2];
+    cow_real mouse_xy_World[2];
     _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV, mouse_xy_World, mouse_xy_World + 1, NULL, NULL);
     if (globals.mouse_left_held && selected) {
         for (int d = 0; d < 2; ++d) *(selected + d) = mouse_xy_World[d];
@@ -3629,7 +3669,7 @@ struct WidgetLineEditorResult {
     int index;
     vec2 vertex_position;
 };
-WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive, int num_vertices, vec2 *vertices, real size = 0, real tolerance_NDC = 0.02) {
+WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive, int num_vertices, vec2 *vertices, cow_real size = 0, cow_real tolerance_NDC = 0.02) {
     ASSERT(primitive == SOUP_LINE_STRIP || primitive == SOUP_LINE_LOOP);
     int N = (primitive == SOUP_LINE_STRIP) ? num_vertices - 1 : num_vertices;
     for (int i = 0; i < N; ++i) {
@@ -3638,12 +3678,12 @@ WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive,
         vec2 t = transformPoint(PV, vertices[j]);
         vec2 a = globals.mouse_position_NDC - s;
         vec2 b = t - s;
-        real norm_b = norm(b);
+        cow_real norm_b = norm(b);
         vec2 b_hat = b / norm_b;
-        real a1 = dot(a, b_hat);
-        real f = a1 / norm(b);
+        cow_real a1 = dot(a, b_hat);
+        cow_real f = a1 / norm(b);
         if (IS_BETWEEN(a1, tolerance_NDC, norm_b - tolerance_NDC)) {
-            real a2 = sqrt(squaredNorm(a) - pow(a1, 2));
+            cow_real a2 = sqrt(squaredNorm(a) - POW(a1, 2));
             if (a2 < tolerance_NDC) {
                 vec2 vertex_position = LERP(f, vertices[i], vertices[j]);
                 soup_draw(PV, SOUP_POINTS, 1, &vertex_position, NULL, monokai.green, size);
@@ -3653,7 +3693,7 @@ WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive,
             if (IS_BETWEEN(a1, -tolerance_NDC, norm_b + tolerance_NDC)) {
                 int k = (f < .5) ? i : j;
                 vec2 s_t = (k == 0) ? s : t;
-                real dist = norm(globals.mouse_position_NDC - s_t);
+                cow_real dist = norm(globals.mouse_position_NDC - s_t);
                 if (dist < tolerance_NDC) {
                     vec2 vertex_position = vertices[k];
                     soup_draw(PV, SOUP_POINTS, 1, &vertex_position, NULL, monokai.red, size);
@@ -3666,11 +3706,11 @@ WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive,
 }
 
 #ifdef SNAIL_CPP
-template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *vertex_positions, real size_in_pixels = 0, SnailVector<D_color> color = { 1.0, 1.0, 1.0 }) {
+template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *vertex_positions, cow_real size_in_pixels = 0, SnailVector<D_color> color = { 1.0, 1.0, 1.0 }) {
     STATIC_ASSERT(D_color == 3 || D_color == 4);
-    return (vec2 *) _widget_drag(PV.data, num_vertices, (real *) vertex_positions, size_in_pixels, color[0], color[1], color[2], D_color == 4 ? color[3] : 1);
+    return (vec2 *) _widget_drag(PV.data, num_vertices, (cow_real *) vertex_positions, size_in_pixels, color[0], color[1], color[2], D_color == 4 ? color[3] : 1);
 }
-void widget_line_editor(mat4 PV, int primitive, StretchyBuffer<vec2> *vertices, real size = 0) {
+void widget_line_editor(mat4 PV, int primitive, StretchyBuffer<vec2> *vertices, cow_real size = 0) {
     WidgetLineEditorResult result = _widget_line_editor__NOTE_no_drag(PV, primitive, vertices->length, vertices->data, size);
     if (result.success) {
         if (!result.add_delete) {
@@ -3690,14 +3730,14 @@ void _line_line_closest_points(vec3 a1, vec3 a2, vec3 b1, vec3 b2, vec3 *out_a_s
     vec3 u = a2 - a1;
     vec3 v = b2 - b1;
     vec3 w = a1 - b1;
-    double a = dot(u, u);         // always >= 0
-    double b = dot(u, v);
-    double c = dot(v, v);         // always >= 0
-    double d = dot(u, w);
-    double e = dot(v, w);
-    double sc, sN, sD = a*c - b*b;  // sc = sN / sD, sD >= 0
-    double tc, tN, tD = a*c - b*b;  // tc = tN / tD, tD >= 0
-    double tol = 1e-15;
+    cow_real a = dot(u, u);         // always >= 0
+    cow_real b = dot(u, v);
+    cow_real c = dot(v, v);         // always >= 0
+    cow_real d = dot(u, w);
+    cow_real e = dot(v, w);
+    cow_real sc, sN, sD = a*c - b*b;  // sc = sN / sD, sD >= 0
+    cow_real tc, tN, tD = a*c - b*b;  // tc = tN / tD, tD >= 0
+    cow_real tol = 1e-15f;
     // compute the line parameters of the two closest points
     if (sD < tol) {            // the lines are almost parallel
         sN = 0.0;              // force using point a1 on segment AB
@@ -3710,8 +3750,8 @@ void _line_line_closest_points(vec3 a1, vec3 a2, vec3 b1, vec3 b2, vec3 *out_a_s
         tN = (a*e - b*d);
     }
     // finally do the division to get sc and tc
-    sc = (fabs(sN) < tol ? 0.0 : sN / sD);
-    tc = (fabs(tN) < tol ? 0.0 : tN / tD);
+    sc = (fabs(sN) < tol ? 0.0f : sN / sD);
+    tc = (fabs(tN) < tol ? 0.0f : tN / tD);
     if (out_a_star) *out_a_star = a1 + (sc * u);
     if (out_b_star) *out_b_star = b1 + (tc * v);
 }
@@ -3720,8 +3760,8 @@ bool _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 
     if (globals._mouse_owner != COW_MOUSE_OWNER_NONE && globals._mouse_owner != COW_MOUSE_OWNER_WIDGET) return false;
     static vec3 *selected_point;
     static vec3 *selected_handle;
-    double _L_handle_NDC = .07;
-    double tol = .02;
+    cow_real _L_handle_NDC = .07f;
+    cow_real tol = .02f;
 
     vec3 *hot = NULL; {
         for (int i = 0; i < num_points; ++i) {
@@ -3746,7 +3786,7 @@ bool _widget_translate_3D(mat4 PV, int num_points, vec3 *vertex_positions, vec3 
     }
 
     if (selected_point) {
-        double L_handle = norm(*selected_point - transformPoint(inverse(PV), transformPoint(PV, *selected_point) + V3(_L_handle_NDC, 0, 0)));
+        cow_real L_handle = norm(*selected_point - transformPoint(inverse(PV), transformPoint(PV, *selected_point) + V3(_L_handle_NDC, 0, 0)));
 
         vec3 selected_color = (vertex_colors == NULL) ? monokai.white : vertex_colors[selected_point - vertex_positions];
 
@@ -3859,7 +3899,7 @@ int _sound_find_load(char *filename) { // fornow O(n)
 }
 
 void sound_attach_to_gui() {
-    real tmp = COW1._sound_music_gui_1_minus_volume;
+    cow_real tmp = COW1._sound_music_gui_1_minus_volume;
     gui_slider("music volume                                                                                                                                ", &COW1._sound_music_gui_1_minus_volume, 1.0, 0.0, false);
     if (COW1._sound_music_gui_1_minus_volume != tmp) {
         cs_music_set_volume(1.0f - float(COW1._sound_music_gui_1_minus_volume));
@@ -3885,16 +3925,16 @@ void sound_loop_music(char *filename) {
 #define RECORDER_DAT_FILENAME "codebase/recordings/tmp.dat"
 #define MAX_SCRATCH_FILESIZE Gigabytes(25)
 
-void _recorder_draw_pacman(real r, real g, real b, real a, real f) {
-    real aspect = _window_get_aspect();
-    _eso_begin((real *) &globals.Identity, SOUP_TRIANGLE_FAN, 0.0, true);
-    real o[2] = { (aspect - .25) / aspect, .75 };
-    real radius = .125;
+void _recorder_draw_pacman(cow_real r, cow_real g, cow_real b, cow_real a, cow_real f) {
+    cow_real aspect = _window_get_aspect();
+    _eso_begin((cow_real *) &globals.Identity, SOUP_TRIANGLE_FAN, 0.0, true);
+    cow_real o[2] = { (aspect - .25f) / aspect, .75f };
+    cow_real radius = .125f;
     int N = 32;
     eso_color(r, g, b, a);
     eso_vertex(o[0], o[1]);
     for (int i = 0; i < N; ++i) {
-        real theta = f * 2 * PI * i / (N - 1);
+        cow_real theta = f * 2 * PI * i / (N - 1);
         eso_vertex(o[0] + radius * cos(theta) / aspect, o[1] + radius * sin(theta));
     }
     eso_end();
@@ -3904,7 +3944,7 @@ void _recorder_begin_frame() { // record
     if ((globals.key_shift_held && globals.key_pressed['`']) || COW0._recorder_out_of_space) {
         COW0._recorder_recording = !COW0._recorder_recording;
         if (COW0._recorder_recording) { // start
-            real _width, _height;
+            cow_real _width, _height;
             _window_get_size(&_width, &_height);
             COW0._recorder_width = int(_width);
             COW0._recorder_height = int(_height);
@@ -3937,8 +3977,8 @@ void _recorder_begin_frame() { // record
 
                     { // progress foo
                         _window_clear_draw_buffer();
-                        _recorder_draw_pacman(1.0, 0.0, 0.0, 1.0, 1.0);
-                        _recorder_draw_pacman(0.0, 1.0, 0.0, 1.0, LINEAR_REMAP(frame, 0, COW0._recorder_num_frames_recorded - 1, 0.0, 1.0));
+                        _recorder_draw_pacman(1.0f, 0.0f, 0.0f, 1.0f, 1.0f);
+                        _recorder_draw_pacman(0.0f, 1.0f, 0.0f, 1.0f, LINEAR_REMAP(frame, 0, COW0._recorder_num_frames_recorded - 1, 0.0f, 1.0f));
                         _window_swap_draw_buffers();
                         glfwPollEvents(); // must poll events to avoid a crash
                     }
@@ -3959,16 +3999,16 @@ void _recorder_begin_frame() { // record
     }
     if (COW0._recorder_recording) { // save frame
         if (!window_is_pointer_locked()) { // draw mouse draw cursor
-            double f = config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
-            eso_color(1.0, 1.0, 1.0, 1.0);
-            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_TRIANGLE_FAN, 10.0, true);
+            cow_real f = config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
+            eso_color(1.0f, 1.0f, 1.0f, 1.0f);
+            _eso_begin((cow_real *) &globals.NDC_from_Screen, SOUP_TRIANGLE_FAN, 10.0, true);
             eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f *  0);
             eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f * 14);
             eso_vertex(globals.mouse_position_Screen[0] + f *  4, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] + f *  6, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] + f * 12, globals.mouse_position_Screen[1] + f * 11);
             eso_end();
-            _eso_begin((real *) &globals.NDC_from_Screen, SOUP_QUADS, 10.0, true);
+            _eso_begin((cow_real *) &globals.NDC_from_Screen, SOUP_QUADS, 10.0, true);
             eso_vertex(globals.mouse_position_Screen[0] +  f * 4, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] +  f * 6, globals.mouse_position_Screen[1] + f * 11);
             eso_vertex(globals.mouse_position_Screen[0] +  f * 9, globals.mouse_position_Screen[1] + f * 17);
@@ -3998,7 +4038,7 @@ void _recorder_begin_frame() { // record
             ++COW0._recorder_num_frames_recorded;
         }
 
-        _recorder_draw_pacman(1.0, 0.0, 0.0, 0.9, 1.0);
+        _recorder_draw_pacman(1.0f, 0.0f, 0.0f, 0.9f, 1.0f);
     }
 }
 
@@ -4014,15 +4054,15 @@ void _recorder_begin_frame() { // record
 struct Plot {
     int num_samples;
     int num_traces;
-    real y_min[PLOT_MAX_NUM_TRACES];
-    real y_max[PLOT_MAX_NUM_TRACES];
+    cow_real y_min[PLOT_MAX_NUM_TRACES];
+    cow_real y_max[PLOT_MAX_NUM_TRACES];
     vec2 *vertex_positions[PLOT_MAX_NUM_TRACES];
     vec3 trace_colors[PLOT_MAX_NUM_TRACES];
-    real trace_sizes_in_pixels[PLOT_MAX_NUM_TRACES];
+    cow_real trace_sizes_in_pixels[PLOT_MAX_NUM_TRACES];
 };
 
-real plot_get(Plot *plot, int trace_i, int sample_j) {
-    return LINEAR_REMAP(plot->vertex_positions[trace_i][sample_j].y, 0.0, 1.0, plot->y_min[trace_i], plot->y_max[trace_i]);
+cow_real plot_get(Plot *plot, int trace_i, int sample_j) {
+    return LINEAR_REMAP(plot->vertex_positions[trace_i][sample_j].y, 0.0f, 1.0f, plot->y_min[trace_i], plot->y_max[trace_i]);
 }
 
 void plot_init(Plot *plot, int num_samples = 64) {
@@ -4030,7 +4070,7 @@ void plot_init(Plot *plot, int num_samples = 64) {
     plot->num_samples = num_samples;
 }
 
-void plot_add_trace(Plot *plot, real y_min, real y_max, vec3 color = { 1.0, 1.0, 1.0 }, real size_in_pixels = 0.0) {
+void plot_add_trace(Plot *plot, cow_real y_min, cow_real y_max, vec3 color = { 1.0, 1.0, 1.0 }, cow_real size_in_pixels = 0.0) {
     ASSERT(plot->num_traces < PLOT_MAX_NUM_TRACES);
     plot->y_min[plot->num_traces] = y_min;
     plot->y_max[plot->num_traces] = y_max;
@@ -4038,17 +4078,17 @@ void plot_add_trace(Plot *plot, real y_min, real y_max, vec3 color = { 1.0, 1.0,
     plot->trace_colors[plot->num_traces] = color;
     plot->trace_sizes_in_pixels[plot->num_traces] = size_in_pixels;
     for (int j = 0; j < plot->num_samples; ++j) {
-        plot->vertex_positions[plot->num_traces][j] = { real(j) / (plot->num_samples - 1), INFINITY };
+        plot->vertex_positions[plot->num_traces][j] = { cow_real(j) / (plot->num_samples - 1), INFINITY };
     }
     ++(plot->num_traces);
 }
 
-void plot_data_point(Plot *plot, int trace_i, real y) {
+void plot_data_point(Plot *plot, int trace_i, cow_real y) {
     ASSERT(0 <= trace_i && trace_i < plot->num_traces);
     for (int j = plot->num_samples - 1; j > 0; --j) {
         plot->vertex_positions[trace_i][j].y = plot->vertex_positions[trace_i][j - 1].y;
     }
-    plot->vertex_positions[trace_i][0].y = LINEAR_REMAP(y, plot->y_min[trace_i], plot->y_max[trace_i], 0.0, 1.0);
+    plot->vertex_positions[trace_i][0].y = LINEAR_REMAP(y, plot->y_min[trace_i], plot->y_max[trace_i], 0.0f, 1.0f);
 }
 
 void plot_draw(Plot *plot, mat4 PV) {
@@ -4075,11 +4115,11 @@ void plot_clear(Plot *plot) {
 }
 
 // single trace API
-real plot_get(Plot *plot, int sample_j) {
+cow_real plot_get(Plot *plot, int sample_j) {
     ASSERT(plot->num_traces == 1);
     return plot_get(plot, 0, sample_j);
 }
-void plot_data_point(Plot *plot, real y) {
+void plot_data_point(Plot *plot, cow_real y) {
     ASSERT(plot->num_traces == 1);
     return plot_data_point(plot, 0, y);
 }
@@ -4107,14 +4147,14 @@ void plot_data_point(Plot *plot, real y) {
 struct OptEntry {
     int i;
     int j;
-    real val;
+    cow_real val;
     /*const*/ unsigned int col() const { return j;   } // FORNOW
     /*const*/ unsigned int row() const { return i;   } // FORNOW
-    /*const*/ real       value() const { return val; } // FORNOW
+    /*const*/ cow_real       value() const { return val; } // FORNOW
 };
 
-real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
-    real *dense = (real *) calloc(R * C, sizeof(real));
+cow_real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
+    cow_real *dense = (cow_real *) calloc(R * C, sizeof(cow_real));
     #define RXC(M, row, col) ((M)[C * (row) + (col)])
     for (int k = 0; k < num_entries; ++k) { RXC(dense, sparse[k].i, sparse[k].j) += sparse[k].val; }
     #undef RXC
@@ -4122,10 +4162,10 @@ real *_opt_sparse2dense(int R, int C, int num_entries, OptEntry *sparse) {
 }
 
 #ifdef USE_EIGEN
-struct EigenTriplet { int row, col; real val; };
-void eigenSimplicialCholesky(int N, real *x, int A_length, EigenTriplet *A_data, real *b);
+struct EigenTriplet { int row, col; cow_real val; };
+void eigenSimplicialCholesky(int N, cow_real *x, int A_length, EigenTriplet *A_data, cow_real *b);
 #endif
-void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry *_A, real *b) {
+void opt_solve_sparse_linear_system(int N, cow_real *x, int _A_num_entries, OptEntry *_A, cow_real *b) {
     { // checks
         ASSERT(x);
         ASSERT(N);
@@ -4135,7 +4175,7 @@ void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry
 
     if (_A_num_entries == 0) {
         printf("A empty\n");
-        memset(x, 0, N * sizeof(real));
+        memset(x, 0, N * sizeof(cow_real));
         return;
     }
 
@@ -4148,24 +4188,24 @@ void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry
         do_once { printf("[warn] USE_EIGEN not #define'd; falling back to dense gauss-jordan\n"); };
 
         // build the augmented matrix
-        real *A = _opt_sparse2dense(N, N + 1, _A_num_entries, _A);
+        cow_real *A = _opt_sparse2dense(N, N + 1, _A_num_entries, _A);
         #define NXNP1(M, row, col) ((M)[(N + 1) * (row) + (col)])
         for (int k = 0; k < N; ++k) { NXNP1(A, k, N) = b[k]; }
 
         { // convert to triangular form (in place)
-          // https://en.wikipedia.org/wiki/Gaussian_elimination
+            // https://en.wikipedia.org/wiki/Gaussian_elimination
             int m = N;
             int n = N + 1;
             int h = 0;
             int k = 0;
 
-            real *scratch = (real *) malloc(n * sizeof(real));
+            cow_real *scratch = (cow_real *) malloc(n * sizeof(cow_real));
             while (h < m && k < n) {
                 int max_i = -1;
-                real max_abs = -INFINITY;
+                cow_real max_abs = -INFINITY;
                 {
                     for (int i = h; i < m; ++i) {
-                        real tmp = ABS(NXNP1(A, i, k));
+                        cow_real tmp = ABS(NXNP1(A, i, k));
                         if (tmp > max_abs) {
                             max_abs = tmp;
                             max_i = i;
@@ -4177,15 +4217,15 @@ void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry
                     ++k;
                 } else {
                     { // for_(c, n) { SWAP(NXNP1(A, h, c), NXNP1(A, max_i, c)); }
-                        real *row_a = A + n * h;
-                        real *row_b = A + n * max_i;
-                        int size = n * sizeof(real);
+                        cow_real *row_a = A + n * h;
+                        cow_real *row_b = A + n * max_i;
+                        int size = n * sizeof(cow_real);
                         memcpy(scratch, row_a, size);
                         memcpy(row_a, row_b, size);
                         memcpy(row_b, scratch, size);
                     }
                     for (int i = h + 1; i < m; ++i) {
-                        real f = NXNP1(A, i, k) / NXNP1(A, h, k);
+                        cow_real f = NXNP1(A, i, k) / NXNP1(A, h, k);
                         NXNP1(A, i, k) = 0;
                         for (int j = k + 1; j < n; ++j) {
                             NXNP1(A, i, j) = NXNP1(A, i, j) - NXNP1(A, h, j) * f;
@@ -4200,7 +4240,7 @@ void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry
 
         // back substitue and store result in x
         {
-            memset(x, 0, N * sizeof(real));
+            memset(x, 0, N * sizeof(cow_real));
             for (int row = N - 1; row >= 0; --row) {
                 for (int col = N - 1; col >= row; --col) {
                     x[row] += NXNP1(A, row, col) * NXNP1(A, col, N);
@@ -4213,13 +4253,13 @@ void opt_solve_sparse_linear_system(int N, real *x, int _A_num_entries, OptEntry
     #endif
 }
 
-void opt_add(real *U, real a) {
+void opt_add(cow_real *U, cow_real a) {
     if (U != NULL) {
         *U += a;
     }
 };
 
-void opt_add(real *a, int i, vec2 a_i) {
+void opt_add(cow_real *a, int i, vec2 a_i) {
     if (a != NULL) {
         a[2 * i + 0] += a_i[0];
         a[2 * i + 1] += a_i[1];
@@ -4235,8 +4275,8 @@ void opt_add(StretchyBuffer<OptEntry> *A, int i, int j, mat2 A_ij) {
     }
 };
 
-real opt_Vector_dot(int N, real *u, real *v) {
-    real ret = 0;
+cow_real opt_Vector_dot(int N, cow_real *u, cow_real *v) {
+    cow_real ret = 0;
     for (int i = 0; i < N; ++i) {
         ret += u[i] * v[i];
     }
@@ -4285,13 +4325,13 @@ bool cow_begin_frame() {
 
 
     { // cow
-        _window_get_NDC_from_Screen((real *) &globals.NDC_from_Screen);
+        _window_get_NDC_from_Screen((cow_real *) &globals.NDC_from_Screen);
         { // _gui_NDC_from_Screen
-            memcpy((real *) &globals._gui_NDC_from_Screen, (real *) &globals.NDC_from_Screen, 16 * sizeof(real));
+            memcpy((cow_real *) &globals._gui_NDC_from_Screen, (cow_real *) &globals.NDC_from_Screen, 16 * sizeof(cow_real));
             if (config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina != 1) {
                 for (int i = 0; i < 3; ++i) {
                     for (int j = 0; j < 3; ++j) {
-                        _LINALG_4X4(((real *) &globals._gui_NDC_from_Screen), i, j) *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
+                        _LINALG_4X4(((cow_real *) &globals._gui_NDC_from_Screen), i, j) *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
                     }
                 }
             }
@@ -4309,12 +4349,12 @@ bool cow_begin_frame() {
                 }
             }
             if (COW1._cow_help_toggle) {
-                real box[] = { -1, -1, 1, -1, 1, 1, -1, 1 };
-                _soup_draw((real *) &globals.Identity, SOUP_QUADS, 2, 4, 4, box, NULL,
+                cow_real box[] = { -1, -1, 1, -1, 1, 1, -1, 1 };
+                _soup_draw((cow_real *) &globals.Identity, SOUP_QUADS, 2, 4, 4, box, NULL,
                         COW1._window_clear_color[0],
                         COW1._window_clear_color[1],
                         COW1._window_clear_color[2],
-                        0.8, 0, true);
+                        0.8f, 0, true);
                 COW1._gui_hide_and_disable = false; {
                     _gui_begin_frame();
                     gui_printf("config.hotkeys_*");
@@ -4372,7 +4412,7 @@ bool cow_begin_frame() {
                     }
                     char text[16] = {};
                     snprintf(text, sizeof(text), "fps: %d", fps);
-                    _text_draw((real *) &globals.NDC_from_Screen, text, 0.0, 0.0, 0.0, (fps < 45) ? 1.0 : 0.0, (fps > 30) ? 1.0 : 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, true);
+                    _text_draw((cow_real *) &globals.NDC_from_Screen, text, 0.0f, 0.0f, 0.0f, (fps < 45) ? 1.0f : 0.0f, (fps > 30) ? 1.0f : 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, true);
                 }
             }
             // grab and smooth fps
@@ -4440,7 +4480,7 @@ bool cow_begin_frame() {
 #ifdef SNAIL_CPP
 void eg_library() {
     Camera3D camera = { 5.0, RAD(0.0) };
-    real time = 0.0;
+    cow_real time = 0.0;
     bool paused = false;
     bool draw_axes = false;
 
@@ -4455,9 +4495,9 @@ void eg_library() {
 
         mat4 R = M4_RotationAboutYAxis(time);
 
-        mat4 M_wire = M4_Translation(-2.2, 0.0, 0.0) * R;
-        mat4 M_smooth = M4_Translation(0.0, 0.0, 0.0) * R;
-        mat4 M_matcap = M4_Translation( 2.2, 0.0, 0.0) * R;
+        mat4 M_wire = M4_Translation(-2.2f, 0.0f, 0.0f) * R;
+        mat4 M_smooth = M4_Translation(0.0f, 0.0f, 0.0f) * R;
+        mat4 M_matcap = M4_Translation( 2.2f, 0.0f, 0.0f) * R;
 
         library.soups.bunny.draw(PV * M_wire, monokai.purple);
         library.meshes.bunny.draw(P, V, M_smooth, monokai.purple);
@@ -4469,14 +4509,14 @@ void eg_library() {
         }
 
         if (!paused) {
-            time += 0.0167;
+            time += 0.0167f;
         }
     }
 }
 
 void eg_text() {
-    Camera3D camera = { 5.0, RAD(45.0) };
-    real time = 0;
+    Camera3D camera = { 5.0f, RAD(45.0f) };
+    cow_real time = 0;
     bool paused = false;
 
     while (cow_begin_frame()) {
@@ -4490,18 +4530,18 @@ void eg_text() {
             int N = int(strlen(text));
             for (int i = 0; i < N; ++i) {
                 char buffer[] = { text[i], '\0' };
-                real theta = 5 * LINEAR_REMAP(i, 0, N, 0.0, 2 * PI) - time;
+                cow_real theta = 5 * LINEAR_REMAP(i, 0, N, 0.0f, TAU) - time;
                 text_draw(
                         PV,
                         buffer,
-                        V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
-                        color_plasma(.5 + .5 * sin(theta))
+                        V3(COS(theta), LINEAR_REMAP(i, 0, N - 1, 2.5f, -2.5f), SIN(theta)),
+                        color_plasma(.5f + .5f * SIN(theta))
                         ); 
             }
         }
 
         if (!paused) {
-            time += 0.0167;
+            time += 0.0167f;
         }
     }
 }
@@ -4517,10 +4557,10 @@ void eg_sound() {
 }
 
 void eg_soup() {
-    Camera2D camera = { 20.0, -4.0 };
+    Camera2D camera = { 20.0f, -4.0f };
     int num_polygon_sides = 16;
-    vec2 foo[] = { { -6.0, -6.0 }, { -6.0, 6.0 }, { 6.0, 6.0 }, { 6.0, -6.0 } };
-    real size_in_pixels = 12.0;
+    vec2 foo[] = { { -6.0f, -6.0f }, { -6.0f, 6.0f }, { 6.0f, 6.0f }, { 6.0f, -6.0f } };
+    cow_real size_in_pixels = 12.0;
     bool force_draw_on_top = false;
 
     while (cow_begin_frame()) {
@@ -4534,14 +4574,14 @@ void eg_soup() {
         eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, force_draw_on_top); {
             eso_color(monokai.green);
             for (int i = 0; i < num_polygon_sides; ++i) {
-                real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
-                real r = 6.0 * sqrt(2.0);
+                cow_real theta = cow_real(i) / cow_real(num_polygon_sides) * TAU;
+                cow_real r = 6.0f * SQRT(2.0f);
                 eso_vertex(r * V2(cos(theta), sin(theta)));
             }
         } eso_end();
 
         widget_drag(PV, 4, foo, size_in_pixels, monokai.yellow);
-        soup_draw(PV, SOUP_QUADS, 4, foo, NULL, V4(monokai.red, .5), 0, force_draw_on_top);
+        soup_draw(PV, SOUP_QUADS, 4, foo, NULL, V4(monokai.red, .5f), 0, force_draw_on_top);
 
         vec2 s_mouse = mouse_get_position(PV);
         eso_begin(PV, SOUP_POINTS, size_in_pixels, force_draw_on_top);
@@ -4553,7 +4593,7 @@ void eg_soup() {
 
 void eg_kitchen_sink() {
     Camera3D camera = { 8.0, RAD(0.0) };
-    real time = 0.0;
+    cow_real time = 0.0;
     bool paused = false;
     bool draw_axes = true;
 
@@ -4607,9 +4647,9 @@ void eg_kitchen_sink() {
         {
             mat4 R = M4_RotationAboutYAxis(time);
 
-            mat4 M_wire = M4_Translation(-2.2, 0.0, 0.0) * R;
-            mat4 M_smooth = M4_Translation(0.0, 0.0, 0.0) * R;
-            mat4 M_matcap = M4_Translation( 2.2, 0.0, 0.0) * R;
+            mat4 M_wire = M4_Translation(-2.2f, 0.0f, 0.0f) * R;
+            mat4 M_smooth = M4_Translation(0.0f, 0.0f, 0.0f) * R;
+            mat4 M_matcap = M4_Translation( 2.2f, 0.0f, 0.0f) * R;
 
             vec3 color = !(globals.mouse_left_held && !globals._mouse_owner) ? color_kelly(kelly_i) : monokai.white;
             library.soups.bunny.draw(PV * M_wire, color);
@@ -4636,8 +4676,8 @@ void eg_kitchen_sink() {
             //     }
             // }
             for (int pass = 0; pass < 3; ++pass ) {
-                mat4 transform = (pass < 2) ? globals.Identity : PV * M4_Translation(0.0, 0.0, 0.01) * M;
-                soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.data, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0, 1.0, 0.0, 1.0)), (pass == 0) ? 30.0 : 0, pass < 2);
+                mat4 transform = (pass < 2) ? globals.Identity : PV * M4_Translation(0.0f, 0.0f, 0.01f) * M;
+                soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.data, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0f, 1.0f, 0.0f, 1.0f)), (pass == 0) ? 30.0f : 0.0f, pass < 2);
             }
 
             text_draw(globals.NDC_from_Screen, "  :3", globals.mouse_position_Screen); 
@@ -4646,22 +4686,22 @@ void eg_kitchen_sink() {
             int N = int(strlen(text));
             for (int i = 0; i < N; ++i) {
                 char buffer[] = { text[i], '\0' };
-                real theta = time - 5.0 * LINEAR_REMAP(i, 0, N, 0.0, 2 * PI);
+                cow_real theta = time - 5.0f * LINEAR_REMAP(i, 0, N, 0.0f, TAU);
                 text_draw(
                         PV,
                         buffer,
-                        V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5, -2.5), sin(theta)),
-                        color_rainbow_swirl(double(i) / 24.0)); 
+                        V3(cos(theta), LINEAR_REMAP(i, 0, N - 1, 2.5f, -2.5f), SIN(theta)),
+                        color_rainbow_swirl(i / 24.0f)); 
             }
         }
 
         if (0) {
             vec3 o, x, y, z;
 
-            o = { 0.0, 2.0, 0.0 };
-            x = { 0.1, 0.0, 0.0 };
-            y = { 0.0, 0.1, 0.0 };
-            z = { 0.0, 0.0, 0.1 };
+            o = { 0.0f, 2.0f, 0.0f };
+            x = { 0.1f, 0.0f, 0.0f };
+            y = { 0.0f, 0.1f, 0.0f };
+            z = { 0.0f, 0.0f, 0.1f };
 
             eso_begin(PV, SOUP_LINES);
             eso_color(monokai.red);
@@ -4678,10 +4718,10 @@ void eg_kitchen_sink() {
         if (0) {
             {
                 for (int i = 0; i < texture.height; ++i) {
-                    real v = real(i) / (texture.height - 1);
+                    cow_real v = cow_real(i) / (texture.height - 1);
                     for (int j = 0; j < texture.width; ++j) {
-                        real u = real(j) / (texture.width - 1);
-                        texture_set_pixel(&texture, i, j, V3(0.5) + 0.5 * V3(cos(time + u), cos(time + v + 2.0), cos(time + u + 4.0)));
+                        cow_real u = cow_real(j) / (texture.width - 1);
+                        texture_set_pixel(&texture, i, j, V3(0.5f) + 0.5f * V3(COS(time + u), COS(time + v + 2.0f), cos(time + u + 4.0f)));
                     }
                 }
                 texture_sync_to_GPU(&texture);
@@ -4708,7 +4748,7 @@ void eg_kitchen_sink() {
         }
 
         if (!paused) {
-            time += 0.0167;
+            time += 0.0167f;
         }
 
     }
@@ -4759,7 +4799,7 @@ void eg_texture() {
     Camera2D camera = { 3.0 };
     Texture texture = texture_create("shader toy tribute act", 16, 16, 3);
     bool paused = false;
-    real time = 0.0;
+    cow_real time = 0.0;
     while (cow_begin_frame()) {
         camera_move(&camera);
         mat4 P = camera_get_P(&camera);
@@ -4769,15 +4809,15 @@ void eg_texture() {
 
         if (!paused) {
             for (int i = 0; i < texture.height; ++i) {
-                real v = real(i) / (texture.height - 1);
+                cow_real v = cow_real(i) / (texture.height - 1);
                 for (int j = 0; j < texture.width; ++j) {
-                    real u = real(j) / (texture.width - 1);
-                    texture_set_pixel(&texture, i, j, V3(0.5) + 0.5 * V3(cos(time + u), cos(time + v + 2.0), cos(time + u + 4.0)));
+                    cow_real u = cow_real(j) / (texture.width - 1);
+                    texture_set_pixel(&texture, i, j, V3(0.5f) + 0.5f * V3(cos(time + u), cos(time + v + 2.0f), cos(time + u + 4.0f)));
                 }
             }
             texture_sync_to_GPU(&texture);
 
-            time += 0.0167;
+            time += 0.0167f;
         }
         library.meshes.square.draw(P, V, globals.Identity, {}, texture.name);
     }
@@ -4787,11 +4827,11 @@ void eg_texture() {
 #endif
 
 void _eg_no_snail() {
-    Camera2D camera = { 5.0, -1.0 };
+    Camera2D camera = { 5.0f, -1.0f };
     int num_polygon_sides = 16;
-    real foo[] = { -1.5, -1.5, -1.5, 1.5, 1.5, 1.5, 1.5, -1.5 };
-    real size_in_pixels = 12.0;
-    real PV[16];
+    cow_real foo[] = { -1.5f, -1.5f, -1.5f, 1.5f, 1.5f, 1.5f, 1.5f, -1.5f };
+    cow_real size_in_pixels = 12.0f;
+    cow_real PV[16];
 
     while (cow_begin_frame()) {
         camera_move(&camera);
@@ -4803,16 +4843,16 @@ void _eg_no_snail() {
         _eso_begin(PV, SOUP_LINE_LOOP, size_in_pixels, false); {
             eso_color(0.0, 1.0, 0.0);
             for (int i = 0; i < num_polygon_sides; ++i) {
-                real theta = real(i) / real(num_polygon_sides) * 2.0 * PI;
-                real r = 1.5 * sqrt(2.0);
-                eso_vertex(r * cos(theta), r * sin(theta));
+                cow_real theta = cow_real(i) / cow_real(num_polygon_sides) * TAU;
+                cow_real r = 1.5f * SQRT(2.0f);
+                eso_vertex(r * COS(theta), r * SIN(theta));
             }
         } eso_end();
 
         _widget_drag(PV, 4, foo, size_in_pixels, 1.0, 1.0, 0.0, 1.0);
         _soup_draw(PV, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, foo, NULL, 1.0, 0.0, 0.0, 1.0, 0, false);
 
-        real s_mouse[2];
+        cow_real s_mouse[2];
         _input_get_mouse_position_and_change_in_position_in_world_coordinates(
                 PV,
                 s_mouse,

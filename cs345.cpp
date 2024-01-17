@@ -1,6 +1,5 @@
 #define _CRT_SECURE_NO_WARNINGS
-#define real double
-#define GL_REAL GL_DOUBLE
+#define COW_USE_REAL_32
 
 #include "codebase/snail.cpp"
 #include "codebase/cow.cpp"
@@ -34,5 +33,3 @@ BEGIN_PRE_MAIN {
     _cow_reset();
     // stbi_set_flip_vertically_on_load(false);
 } END_PRE_MAIN 
-
-#undef real
