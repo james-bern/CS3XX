@@ -31,7 +31,7 @@ typedef double cow_real;
 
 // TODO: SnailIVector<D>
 
-// sbuff_push_back(&foo, ...) -> foo.push_back(...)
+// list_push_back(&foo, ...) -> foo.push_back(...)
 
 // _mouse_left_click_consumed
 // triangle_indices -> triangles
@@ -575,7 +575,7 @@ cow_real MM(cow_real inches) { return ((inches) * cow_real(25.4)); }
 
 // // working with int's
 #define MODULO(x, N) (((x) % (N) + (N)) % (N)) // works on negative numbers
-// #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
+                                               // #define int(sizeof(fixed_size_array) / sizeof((fixed_size_array)[0]))
 #define _COUNT_OF(fixed_size_array) int((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
 
 #define IS_ODD(a) ((a) % 2 != 0)
@@ -2906,13 +2906,13 @@ void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom =
         if (IS_ZERO(camera->angle_of_view)) { // ortho
             camera->ortho_screen_height_World = tmp2D.screen_height_World;
         } else { // persp
-            //                   r_y
-            //               -   |  
-            //            -      |  
-            //         -         |  
-            //      - ) theta    |  
-            // eye-------------->o  
-            //         D            
+                 //                   r_y
+                 //               -   |  
+                 //            -      |  
+                 //         -         |  
+                 //      - ) theta    |  
+                 // eye-------------->o  
+                 //         D            
             cow_real r_y = tmp2D.screen_height_World / 2;
             cow_real theta = camera->angle_of_view / 2;
             camera->persp_distance_to_origin = r_y / tan(theta);
@@ -2941,9 +2941,9 @@ struct OrthogonalCoordinateSystem3D {
     vec3 z;
     vec3 o;
     mat4 R; // stored as [\ | / |]
-    //           [- R - 0]
-    //           [/ | \ |]
-    //           [- 0 - 1]
+            //           [- R - 0]
+            //           [/ | \ |]
+            //           [- 0 - 1]
 };
 
 mat4 camera_get_PV(Camera2D *camera) {
@@ -3058,71 +3058,173 @@ vec3 color_rainbow_swirl(cow_real t) {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// #include "sbuff.cpp"/////////////////////////////////////////////////////////
+// #include "list.cpp"/////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-template <typename T> struct StretchyBuffer {
+template <typename T> struct List {
     int length;
     int _capacity;
     T *data;
-
     // T &operator [](int index) { return data[index]; }
-    T *back() {
-        ASSERT(length >= 1);
-        return &data[length - 1];
-    }
 };
 
-template <typename T> void sbuff_push_back(StretchyBuffer<T> *buffer, T element) {
-    if (buffer->_capacity == 0) {
-        ASSERT(!buffer->data);
-        ASSERT(buffer->length == 0);
-        buffer->_capacity = 16;
-        buffer->data = (T *) malloc(buffer->_capacity * sizeof(T));
+template <typename T> void list_push_back(List<T> *list, T element) {
+    if (list->_capacity == 0) {
+        ASSERT(!list->data);
+        ASSERT(list->length == 0);
+        list->_capacity = 16;
+        list->data = (T *) malloc(list->_capacity * sizeof(T));
     }
-    if (buffer->length == buffer->_capacity) {
-        buffer->_capacity *= 2;
-        buffer->data = (T *) realloc(buffer->data, buffer->_capacity * sizeof(T));
+    if (list->length == list->_capacity) {
+        list->_capacity *= 2;
+        list->data = (T *) realloc(list->data, list->_capacity * sizeof(T));
     }
-    buffer->data[buffer->length++] = element;
+    list->data[list->length++] = element;
 }
 
-template <typename T> void sbuff_free(StretchyBuffer<T> *buffer) {
-    if (buffer->data) {
-        free(buffer->data);
-    }
-    *buffer = {};
+template <typename T> void list_free(List<T> *list) {
+    if (list->data) free(list->data);
+    *list = {};
 }
 
-template <typename T> void sbuff_insert(StretchyBuffer<T> *buffer, int i, T element) {
-    sbuff_push_back(buffer, element); // shrug-emoji
-    memmove(buffer->data + i + 1, buffer->data + i, (buffer->length - i) * sizeof(T));
-    buffer->data[i] = element;
+template <typename T> void list_insert(List<T> *list, int i, T element) {
+    list_push_back(list, element); // shrug-emoji
+    memmove(list->data + i + 1, list->data + i, (list->length - i) * sizeof(T));
+    list->data[i] = element;
 }
 
-template <typename T> T sbuff_delete(StretchyBuffer<T> *buffer, int i) {
+template <typename T> T list_delete(List<T> *list, int i) {
     ASSERT(i >= 0);
-    ASSERT(i < buffer->length);
-    T result = buffer->data[i];
-    memmove(&buffer->data[i], &buffer->data[i + 1], (buffer->length - i - 1) * sizeof(T));
-    --buffer->length;
+    ASSERT(i < list->length);
+    T result = list->data[i];
+    memmove(&list->data[i], &list->data[i + 1], (list->length - i - 1) * sizeof(T));
+    --list->length;
     return result;
 }
 
-template <typename T> T sbuff_pop_back(StretchyBuffer<T> *buffer) {
-    ASSERT(buffer->length != 0);
-    return sbuff_delete(buffer, buffer->length - 1);
+template <typename T> T list_pop_back(List<T> *list) {
+    ASSERT(list->length != 0);
+    return list_delete(list, list->length - 1);
 }
 
-template <typename T> T sbuff_pop_front(StretchyBuffer<T> *buffer) {
-    ASSERT(buffer->length != 0);
-    return sbuff_delete(buffer, 0);
+template <typename T> T list_pop_front(List<T> *list) {
+    ASSERT(list->length != 0);
+    return list_delete(list, 0);
 }
 
-#define squeue_add sbuff_push_back
-#define squeue_remove sbuff_pop_front
 
-// TODO: sstack
+
+
+template <typename Key, typename Value> struct Pair {
+    union {
+        struct {
+            Key key;
+            Value value;
+        };
+        struct {
+            Key first;
+            Key second;
+        };
+    };
+};
+
+template <typename Key, typename Value> struct Map {
+    int num_buckets;
+    List<Pair<Key, Value>> *buckets;
+    // T &operator [](int index) { return data[index]; }
+};
+
+// http://www.azillionmonkeys.com/qed/hash.html
+#undef get16bits
+#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__) \
+    || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
+#define get16bits(d) (*((const uint16_t *) (d)))
+#endif
+#if !defined (get16bits)
+#define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8)\
+        +(uint32_t)(((const uint8_t *)(d))[0]) )
+#endif
+uint32_t paul_hsieh_SuperFastHash(void *_data, int len) {
+    char *data = (char *) _data;
+
+    uint32_t hash = len, tmp;
+    int rem;
+
+    if (len <= 0 || data == NULL) return 0;
+
+    rem = len & 3;
+    len >>= 2;
+
+    /* Main loop */
+    for (;len > 0; len--) {
+        hash  += get16bits (data);
+        tmp    = (get16bits (data+2) << 11) ^ hash;
+        hash   = (hash << 16) ^ tmp;
+        data  += 2*sizeof (uint16_t);
+        hash  += hash >> 11;
+    }
+
+    /* Handle end cases */
+    switch (rem) {
+        case 3: hash += get16bits (data);
+                hash ^= hash << 16;
+                hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
+                hash += hash >> 11;
+                break;
+        case 2: hash += get16bits (data);
+                hash ^= hash << 11;
+                hash += hash >> 17;
+                break;
+        case 1: hash += (signed char)*data;
+                hash ^= hash << 10;
+                hash += hash >> 1;
+    }
+
+    /* Force "avalanching" of final 127 bits */
+    hash ^= hash << 3;
+    hash += hash >> 5;
+    hash ^= hash << 4;
+    hash += hash >> 17;
+    hash ^= hash << 25;
+    hash += hash >> 6;
+
+    return hash;
+}
+
+template <typename Key, typename Value> void map_put(Map<Key, Value> *map, Key key, Value value) {
+    if (!map->buckets) {
+        map->num_buckets = 100003;
+        map->buckets = (List<Pair<Key, Value>> *) calloc(map->num_buckets, sizeof(List<Pair<Key, Value>>));
+    }
+    { // TODO resizing; load factor; ...
+    }
+    List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
+    for (Pair<Key, Value> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+        if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
+            pair->value = value;
+            return;
+        }
+    }
+    list_push_back(bucket, { key, value });
+}
+
+template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key key, Value default_value = {}) {
+    if (map->num_buckets == 0) return default_value;
+    ASSERT(map->buckets);
+    List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
+    for (Pair<Key, Value> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+        if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
+            return pair->value;
+        }
+    }
+    return default_value;
+}
+
+template <typename Key, typename Value> void map_free(Map<Key, Value> *map) {
+    for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free(bucket);
+    if (map->num_buckets) free(map->buckets);
+    *map = {};
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3377,8 +3479,8 @@ void _meshutil_transform_vertex_positions_to_double_unit_box(int num_vertices, v
 void _meshutil_indexed_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals(IndexedTriangleMesh3D *mesh_mesh) {
     ASSERT(mesh_mesh->vertex_normals == NULL);
     if (1) { // () _mesh_triangle_mesh_alloc_compute_and_store_area_weighted_vertex_normals
-        // TODO allocate mesh_mesh->vertex_normals        
-        // TODO write entries of mesh_mesh->vertex_normals
+             // TODO allocate mesh_mesh->vertex_normals        
+             // TODO write entries of mesh_mesh->vertex_normals
         mesh_mesh->vertex_normals = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3));
         for (int i_triangle = 0; i_triangle < mesh_mesh->num_triangles; ++i_triangle) {
             int3 ijk = mesh_mesh->triangle_indices[i_triangle];
@@ -3408,10 +3510,10 @@ void _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(IndexedTriangleMe
     int new_num_vertices = 0;
     vec3 *new_vertex_positions = (vec3 *) calloc(mesh_mesh->num_vertices, sizeof(vec3)); // (more space than we'll need)
     if (1) { // [] _mesh_mesh_merge_duplicated_vertices
-        // TODO set new_num_vertices and entries of new_vertex_positions                   
-        // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
-        // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
-        // NOTE please don't worry about space efficiency at all                           
+             // TODO set new_num_vertices and entries of new_vertex_positions                   
+             // TODO overwrite entries of mesh_mesh->triangle_indices with new triangle indices
+             // NOTE it is OK if your implementation is slow (mine takes ~5 seconds to run)     
+             // NOTE please don't worry about space efficiency at all                           
         int *primal  = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         int *new_index = (int *) calloc(mesh_mesh->num_vertices, sizeof(int));
         for (int i = 0; i < mesh_mesh->num_vertices; ++i) {
@@ -3462,9 +3564,9 @@ void _meshutil_indexed_triangle_mesh_merge_duplicated_vertices(IndexedTriangleMe
 IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool transform_vertex_positions_to_double_unit_box, bool compute_normals, bool merge_duplicated_vertices) {
     IndexedTriangleMesh3D mesh_mesh = {};
     {
-        StretchyBuffer<vec3> vertex_positions = {};
-        StretchyBuffer<vec3> vertex_colors = {};
-        StretchyBuffer<int3> triangle_indices = {};
+        List<vec3> vertex_positions = {};
+        List<vec3> vertex_colors = {};
+        List<int3> triangle_indices = {};
         {
             FILE *fp = fopen(filename, "r");
             ASSERT(fp);
@@ -3475,7 +3577,7 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                 if (strcmp(prefix, "f") == 0) {
                     int i, j, k;
                     ASSERT(sscanf(buffer, "%s %d %d %d", prefix, &i, &j, &k) == 4);
-                    sbuff_push_back(&triangle_indices, { i - 1, j - 1, k - 1 });
+                    list_push_back(&triangle_indices, { i - 1, j - 1, k - 1 });
                 } else if (strcmp(prefix, "v") == 0) {
                     cow_real x, y, z;
                     #ifdef COW_USE_REAL_32
@@ -3483,7 +3585,7 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                     #else
                     ASSERT(sscanf(buffer, "%s %lf %lf %lf" , prefix, &x, &y, &z) == 4);
                     #endif
-                    sbuff_push_back(&vertex_positions, { x, y, z });
+                    list_push_back(&vertex_positions, { x, y, z });
                 } else if (strcmp(prefix, "#MRGB") == 0) {
                     // do_once { printf("[info] found ZBrush polypaint payload\n"); };
                     static char hexPayload[4096];
@@ -3500,7 +3602,7 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                             }
                             rgb[channel - 1] = channelContribution__255 / 255.0f;
                         }
-                        sbuff_push_back(&vertex_colors, rgb);
+                        list_push_back(&vertex_colors, rgb);
                     }
                 }
             }
@@ -3534,7 +3636,7 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
     {
         soup_mesh.primitive = SOUP_OUTLINED_TRIANGLES;
 
-        StretchyBuffer<vec3> vertex_positions = {};
+        List<vec3> vertex_positions = {};
         {
             FILE *fp = fopen(filename, "r");
             ASSERT(fp);
@@ -3546,7 +3648,7 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
                 #else
                 ASSERT(sscanf(buffer, "%lf %lf %lf", &x, &y, &z) == 3);
                 #endif
-                sbuff_push_back(&vertex_positions, { x, y, z });
+                list_push_back(&vertex_positions, { x, y, z });
             }
             fclose(fp);
         }
@@ -3710,13 +3812,13 @@ template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *ver
     STATIC_ASSERT(D_color == 3 || D_color == 4);
     return (vec2 *) _widget_drag(PV.data, num_vertices, (cow_real *) vertex_positions, size_in_pixels, color[0], color[1], color[2], D_color == 4 ? color[3] : 1);
 }
-void widget_line_editor(mat4 PV, int primitive, StretchyBuffer<vec2> *vertices, cow_real size = 0) {
+void widget_line_editor(mat4 PV, int primitive, List<vec2> *vertices, cow_real size = 0) {
     WidgetLineEditorResult result = _widget_line_editor__NOTE_no_drag(PV, primitive, vertices->length, vertices->data, size);
     if (result.success) {
         if (!result.add_delete) {
-            sbuff_insert(vertices, result.index, result.vertex_position);
+            list_insert(vertices, result.index, result.vertex_position);
         } else {
-            sbuff_delete(vertices, result.index);
+            list_delete(vertices, result.index);
         }
     }
     widget_drag(PV, vertices->length, vertices->data);
@@ -4193,7 +4295,7 @@ void opt_solve_sparse_linear_system(int N, cow_real *x, int _A_num_entries, OptE
         for (int k = 0; k < N; ++k) { NXNP1(A, k, N) = b[k]; }
 
         { // convert to triangular form (in place)
-            // https://en.wikipedia.org/wiki/Gaussian_elimination
+          // https://en.wikipedia.org/wiki/Gaussian_elimination
             int m = N;
             int n = N + 1;
             int h = 0;
@@ -4266,12 +4368,12 @@ void opt_add(cow_real *a, int i, vec2 a_i) {
     }
 };
 
-void opt_add(StretchyBuffer<OptEntry> *A, int i, int j, mat2 A_ij) {
+void opt_add(List<OptEntry> *A, int i, int j, mat2 A_ij) {
     if (A != NULL) {
-        sbuff_push_back(A, { 2 * i + 0, 2 * j + 0, A_ij(0, 0) });
-        sbuff_push_back(A, { 2 * i + 1, 2 * j + 0, A_ij(1, 0) });
-        sbuff_push_back(A, { 2 * i + 1, 2 * j + 1, A_ij(1, 1) });
-        sbuff_push_back(A, { 2 * i + 0, 2 * j + 1, A_ij(0, 1) });
+        list_push_back(A, { 2 * i + 0, 2 * j + 0, A_ij(0, 0) });
+        list_push_back(A, { 2 * i + 1, 2 * j + 0, A_ij(1, 0) });
+        list_push_back(A, { 2 * i + 1, 2 * j + 1, A_ij(1, 1) });
+        list_push_back(A, { 2 * i + 0, 2 * j + 1, A_ij(0, 1) });
     }
 };
 
@@ -4597,7 +4699,7 @@ void eg_kitchen_sink() {
     bool paused = false;
     bool draw_axes = true;
 
-    StretchyBuffer<vec2> trace = {};
+    List<vec2> trace = {};
 
     Texture texture = texture_create("shader toy tribute act", 16, 16, 3);
 
@@ -4665,10 +4767,10 @@ void eg_kitchen_sink() {
         {
             vec2 s_mouse = globals.mouse_position_NDC;
             if (trace.length == 0 || squaredNorm(trace.data[trace.length - 1] - s_mouse) > .0001) {
-                sbuff_push_back(&trace, s_mouse);
+                list_push_back(&trace, s_mouse);
             }
             if (gui_button("clear trace", 'r')) {
-                sbuff_free(&trace);
+                list_free(&trace);
             }
             // if (globals.mouse_left_double_clicked) {
             //     for (int i = 0; i < trace.length; ++i) {
