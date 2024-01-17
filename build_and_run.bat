@@ -52,7 +52,7 @@ IF "%1"=="" (
     /Feexecutable.exe ^
     /link /NODEFAULTLIB:MSVCRT ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
-    codebase\ext\windows_glfw3.lib ^
+    codebase\ext\glfw3.lib ^
     !EIGEN_LIB!
 
     call :setESC
