@@ -57,13 +57,7 @@
 
 #include "cs345.cpp"
 #include "poe.cpp"
-// FORNOW
-#define SIN sinf
-#define COS cosf
-#define SQRT sqrtf
-#define POW powf
-#define real double
-
+#undef real // ???
 
 
 real32 EPSILON_DEFAULT = 0.03f;
@@ -1021,7 +1015,7 @@ int main() {
         }
 
         u32 window_width, window_height; {
-            double _window_width, _window_height; // FORNOW
+            real32 _window_width, _window_height; // FORNOW
             _window_get_size(&_window_width, &_window_height);
             window_width = (u32) _window_width;
             window_height = (u32) _window_height;
@@ -1173,7 +1167,7 @@ int main() {
                         int32 selected_triangle_index = -1;
                         {
                             vec3 minus_dir;
-                            _camera_get_coordinate_system(&camera3D, NULL, NULL, NULL, (real *) &minus_dir, NULL, NULL);
+                            _camera_get_coordinate_system(&camera3D, NULL, NULL, NULL, (real32 *) &minus_dir, NULL, NULL);
                             vec3 o = transformPoint(inverse(camera_get_PV(&camera3D)), V3(globals.mouse_position_NDC, -0.99f));
                             vec3 p[3];
                             real32 min_distance = HUGE_VAL;
