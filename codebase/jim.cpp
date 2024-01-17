@@ -5,10 +5,10 @@
 #include <stdlib.h>
 
 #ifndef COW_CPP
-#define ASSERT(b) do { if (!(b)) { \
-    *((volatile int *) 0) = 0; \
-} } while (0)
-#define _COUNT_OF(fixed_size_array) ((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
+// #define ASSERT(b) do { if (!(b)) { \
+//     *((volatile int *) 0) = 0; \
+// } } while (0)
+// #define ARRAY_SIZE(fixed_size_array) ((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
 #endif
 
 // msvc details switches /Bt /d2cgsummary 
@@ -116,7 +116,7 @@ FILE *jim_hot_fopen(char *filename, char *mode = "r") {
         time_t mod_time;
     };
 
-    static int num_stamps;
+    static unsigned int num_stamps;
     static Stamp stamps[64];
 
     time_t mod_time = 0; {
@@ -137,7 +137,7 @@ FILE *jim_hot_fopen(char *filename, char *mode = "r") {
 
 
     if (!stamp) {
-        ASSERT(num_stamps < _COUNT_OF(stamps));
+        ASSERT(num_stamps < ARRAY_LENGTH(stamps));
         stamp = &stamps[num_stamps++];
         strcpy(stamp->filename, filename);
         stamp->mod_time = mod_time;
