@@ -267,6 +267,7 @@ DXF dxf_load(char *filename) {
     return result;
 }
 
+// TODO: Port this into a function mutating a real32 *
 void _dxf_eso_color(u32 color) {
     if      (color == 0) { eso_color( 83 / 255.0f, 255 / 255.0f,  85 / 255.0f); }
     else if (color == 1) { eso_color(255 / 255.0f,   0 / 255.0f,   0 / 255.0f); }
@@ -567,9 +568,19 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define SELECT_MODE_NONE 0
 #define SELECT_MODE_SELECT 1
 #define SELECT_MODE_DESELECT 2
+char *_SELECT_MODE_[] = {
+    "SELECT_MODE_NONE",
+    "SELECT_MODE_SELECT",
+    "SELECT_MODE_DESELECT"
+};
 #define SELECT_MODIFIER_NONE 0
 #define SELECT_MODIFIER_CONNECTED 1
 #define SELECT_MODIFIER_QUALITY 2
+char *_SELECT_MODIFIER_[] = {
+    "SELECT_MODIFIER_NONE",
+    "SELECT_MODIFIER_CONNECTED",
+    "SELECT_MODIFIER_QUALITY"
+};
 void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
     if (select_mode == SELECT_MODE_NONE) return;
@@ -740,12 +751,13 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
 
 
 
-struct ConversationIndexedTriangleMesh {
+struct ConversationMesh {
     u32 num_vertices;
     u32 num_triangles;
     real32 *vertex_positions;
-    real32 *face_normals;
     u32 *triangle_indices;
+    real32 *face_normals;
+    u32 *face_colors;
 
     u32 num_cosmetic_edges;
     u32 *cosmetic_edges;
@@ -759,7 +771,7 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void mesh_draw(Camera3D *camera, ConversationIndexedTriangleMesh *mesh, bool32 some_triangle_selected, vec3 n_selected, real32 x_n_selected) {
+void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_selected, vec3 n_selected, real32 x_n_selected) {
     mat4 V = camera_get_V(camera);
     mat4 PV = camera_get_P(camera) * V;
 
@@ -794,11 +806,15 @@ void mesh_draw(Camera3D *camera, ConversationIndexedTriangleMesh *mesh, bool32 s
             } else {
                 color = V3(1.0f, 0.0f, 0.0f);
             }
-            eso_color(color);
-            eso_vertex(p[0]);
-            eso_vertex(p[1]);
-            eso_vertex(p[2]);
         }
+        if (mesh->face_colors) {
+            _dxf_eso_color(mesh->face_colors[i]);
+        } else {
+            eso_color(color);
+        }
+        eso_vertex(p[0]);
+        eso_vertex(p[1]);
+        eso_vertex(p[2]);
 
     }
     eso_end();
@@ -812,7 +828,7 @@ void mesh_draw(Camera3D *camera, ConversationIndexedTriangleMesh *mesh, bool32 s
     }
 }
 
-void mesh_save_stl(ConversationIndexedTriangleMesh *mesh, char *filename) {
+void mesh_save_stl(ConversationMesh *mesh, char *filename) {
     FILE *file = fopen(filename, "w");
     ASSERT(file);
 
@@ -839,10 +855,11 @@ void mesh_save_stl(ConversationIndexedTriangleMesh *mesh, char *filename) {
     fclose(file);
 }
 
-void mesh_free(ConversationIndexedTriangleMesh *mesh) {
+void mesh_free(ConversationMesh *mesh) {
     if (mesh->vertex_positions) free(mesh->vertex_positions);
-    if (mesh->face_normals) free(mesh->face_normals);
     if (mesh->triangle_indices) free(mesh->triangle_indices);
+    if (mesh->face_normals) free(mesh->face_normals);
+    if (mesh->face_colors) free(mesh->face_colors);
     if (mesh->cosmetic_edges) free(mesh->cosmetic_edges);
     *mesh = {};
 }
@@ -850,7 +867,7 @@ void mesh_free(ConversationIndexedTriangleMesh *mesh) {
 #include "manifoldc.h"
 void wrapper_manifold(
         ManifoldManifold **curr__NOTE_GETS_UPDATED,
-        ConversationIndexedTriangleMesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
+        ConversationMesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
         u32 num_polygonal_loops,
         u32 *num_vertices_in_polygonal_loops,
         Vertex2D **polygonal_loops,
@@ -955,13 +972,20 @@ void wrapper_manifold(
 }
 
 
-
+bool *key_pressed = globals.key_pressed;
+bool *key_toggled = globals.key_toggled;
 
 
 int main() {
     #define MOUSE_MODE_NONE 0
     #define MOUSE_MODE_2D   1
     #define MOUSE_MODE_3D   2
+    char *_MOUSE_MODE_[] = {
+        "MOUSE_MODE_NONE",
+        "MOUSE_MODE_2D",
+        "MOUSE_MODE_3D"
+    };
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_MOUSE_MODE_);
     u32 mouse_mode;
 
     u32 select_mode;
@@ -977,14 +1001,32 @@ int main() {
     bool32 *dxf_selection_mask;
 
     ManifoldManifold *manifold;
-    ConversationIndexedTriangleMesh mesh;
+    ConversationMesh mesh;
+
+    #define FEATURE_MODE_NONE    0
+    #define FEATURE_MODE_EXTRUDE    1
+    #define FEATURE_MODE_REVOLVE 2
+    char *_FEATURE_MODE_[] = {
+        "FEATURE_MODE_NONE",
+        "FEATURE_MODE_EXTRUDE",
+        "FEATURE_MODE_REVOLVE"
+    };
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_FEATURE_MODE_);
+    u32 feature_mode;
+    real32 feature_param;
+    char feature_param_buffer[256];
+    char *feature_param_buffer_write_head;
+    auto feature_param_buffer_reset = [&]() {
+        memset(feature_param_buffer, 0, ARRAY_LENGTH(feature_param_buffer) * sizeof(char));
+        feature_param_buffer_write_head = feature_param_buffer;
+    };
 
     Camera2D camera2D;
     Camera3D camera3D;
 
     bool32 reset = true;
     while (cow_begin_frame()) {
-        if (globals.key_pressed['r']) reset = true;
+        if (key_pressed['z']) reset = true;
         if (reset) {
             reset = false;
 
@@ -1045,8 +1087,12 @@ int main() {
             }
             #endif
 
-            camera2D = { 200.0f, 100.0f };
-            camera3D = { 200.0f, RAD(0.0), RAD(0.0), RAD(0.0), -100.0f };
+            feature_mode = FEATURE_MODE_NONE;
+            feature_param = 0.0f;
+            feature_param_buffer_reset();
+
+            camera2D = { 300.0f, 100.0f };
+            camera3D = { 300.0f, RAD(0.0), RAD(0.0), RAD(0.0), -100.0f };
         }
 
         u32 window_width, window_height; {
@@ -1084,28 +1130,85 @@ int main() {
             camera_move(&camera3D);
         }
 
+        { // 2D -> 3D
+            if (feature_mode == FEATURE_MODE_NONE) {
+                if (key_pressed['e']) {
+                    feature_mode = FEATURE_MODE_EXTRUDE;
+                    feature_param_buffer_reset();
+                }
+            } else if (feature_mode == FEATURE_MODE_EXTRUDE) {
+                if (globals.key_any_key_pressed && (select_modifier != SELECT_MODIFIER_QUALITY)) {
+                    bool32 valid_key_pressed; {
+                        valid_key_pressed = false;
+                        valid_key_pressed |= key_pressed['.'];
+                        valid_key_pressed |= key_pressed['-'];
+                        for (u32 i = 0; i < 10; ++i) valid_key_pressed |= key_pressed['0' + i];
+                    }
+                    if (valid_key_pressed) {
+                        *feature_param_buffer_write_head++ = (char) globals.key_last_key_pressed;
+                    }
+                }
+                if (key_pressed[COW_KEY_ENTER]) {
+                    // feature_mode = FEATURE_MODE_NONE;
+                    // NOTE: holds over previous
+                    if (feature_param_buffer_write_head != feature_param_buffer) {
+                        feature_param = strtof(feature_param_buffer, NULL);
+                        feature_param_buffer_reset();
+                    }
+                    CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
+                    // cross_section_debug_draw(&camera2D, &cross_section);
+                    {
+                        wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, some_triangle_selected, n_selected, x_n_selected, feature_param);
+                        memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
+                        { // detect whether any such triangle_indices still exist; if not, clear out some_triangle_selected
+                          // FORNOW: this code heavily repeats mesh_draw
+                            some_triangle_selected = false;
+                            for (u32 i = 0; i < mesh.num_triangles; ++i) {
+                                // FORNOW
+                                vec3 n = { mesh.face_normals[3 * i + 0], mesh.face_normals[3 * i + 1], mesh.face_normals[3 * i + 2] };
+
+                                // FORNOW
+                                vec3 p[3];
+                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
+                                real32 x_n = dot(n, p[0]);
+
+                                if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - x_n_selected) < 0.001f)) {
+                                    some_triangle_selected = true;
+                                    break;
+                                }
+                            }
+                            if (!some_triangle_selected) {
+                                n_selected = {};
+                                x_n_selected = {};
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         { // 2D
             { // pick
                 { // all mouse modes
-                    if (globals.key_pressed['s']) {
+                    if (key_pressed['s']) {
                         select_mode = SELECT_MODE_SELECT;
                         select_modifier = SELECT_MODIFIER_NONE;
                     }
-                    if (globals.key_pressed['d']) {
+                    if (key_pressed['d']) {
                         select_mode = SELECT_MODE_DESELECT;
                         select_modifier = SELECT_MODIFIER_NONE;
                     }
-                    if (globals.key_pressed['c']) {
+                    if (key_pressed['c']) {
                         select_modifier = SELECT_MODIFIER_CONNECTED;
                     }
                     if (select_mode != SELECT_MODE_NONE) {
                         bool32 value_to_write_to_selection_mask = (select_mode == SELECT_MODE_SELECT);
 
-                        if (globals.key_pressed['q']) select_modifier = SELECT_MODIFIER_QUALITY;
+                        if (key_pressed['q']) select_modifier = SELECT_MODIFIER_QUALITY;
 
                         if (select_modifier == SELECT_MODIFIER_QUALITY) {
                             for (u32 color = 0; color < 6; ++color) {
-                                if (globals.key_pressed['0' + color]) {
+                                if (key_pressed['0' + color]) {
                                     for (u32 i = 0; i < dxf.num_entities; ++i) {
                                         if (dxf.entities[i].line.color == color) { // FORNOW (spooky)
                                             dxf_selection_mask[i] = value_to_write_to_selection_mask;
@@ -1116,7 +1219,7 @@ int main() {
                                 }
                             }
                         }
-                        if (globals.key_pressed['a']) {
+                        if (key_pressed['a']) {
                             for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                         }
                     }
@@ -1128,7 +1231,7 @@ int main() {
             { // draw
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(0, 0, window_width / 2, window_height);
-                if (!globals.key_toggled['h']) {
+                if (!key_toggled['h']) {
                     eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
                         DXFEntity *entity = &dxf.entities[i];
@@ -1138,7 +1241,7 @@ int main() {
                     eso_end();
 
                     // dots
-                    if (globals.key_toggled[COW_KEY_TAB]) {
+                    if (key_toggled[COW_KEY_TAB]) {
                         eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
                         eso_color(monokai.white);
                         for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
@@ -1154,45 +1257,6 @@ int main() {
             }
         }
 
-        { // 2D -> 3D
-            if (globals.key_pressed[COW_KEY_ENTER]) {
-                CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
-                // cross_section_debug_draw(&camera2D, &cross_section);
-
-                static float FORNOW_height = 5.0f;
-
-                wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, some_triangle_selected, n_selected, x_n_selected, FORNOW_height);
-                memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
-                { // TODO: detect whether any such triangle_indices still exist; if not, clear out some_triangle_selected
-                  //
-                  //       (you will probably want a function that computes triangle normals)
-                  //
-
-                  // FORNOW: this code heavily repeats mesh_draw
-                    some_triangle_selected = false;
-                    for (u32 i = 0; i < mesh.num_triangles; ++i) {
-
-
-                        // FORNOW
-                        vec3 n = { mesh.face_normals[3 * i + 0], mesh.face_normals[3 * i + 1], mesh.face_normals[3 * i + 2] };
-
-                        // FORNOW
-                        vec3 p[3];
-                        for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
-                        real32 x_n = dot(n, p[0]);
-
-                        if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - x_n_selected) < 0.001f)) {
-                            some_triangle_selected = true;
-                            break;
-                        }
-                    }
-                    if (!some_triangle_selected) {
-                        n_selected = {};
-                        x_n_selected = {};
-                    }
-                }
-            }
-        }
 
         { // 3D
             { // pick
@@ -1267,16 +1331,16 @@ int main() {
                 //     real32 x_offset;
                 //     real32 y_offset;
                 // }
-                if (globals.key_pressed['b'] || globals.key_pressed['c']) {
+                if (key_pressed['b'] || key_pressed['c']) {
                     // TODO begin operation (can use gui elements to get values from user)
                     // then press of enter to finish operation
                     // tabbing through the elements would be clutch, but not needed at first
                     // real32 height = conversation_get_real32("height");
                     // TODO 'x', 'y', 'z' or other to select planes
                     // TODO-LATER: 'm' to nudge
-                    // stl_extrude(&stl, globals.key_pressed['c'], &dxf, dxf_selection_mask, stl_selected_triangle, height);
+                    // stl_extrude(&stl, key_pressed['c'], &dxf, dxf_selection_mask, stl_selected_triangle, height);
                 }
-                if (globals.key_pressed['r']) {
+                if (key_pressed['z']) {
                     // TODO: revolve
                     // TODO: revolvution axes
 
@@ -1284,11 +1348,34 @@ int main() {
             }
         }
         { // gui
-            gui_printf("mouse %d", mouse_mode);
-            gui_printf("select (%d, %d)", select_mode, select_modifier);
-            gui_printf("num_triangles %d", mesh.num_triangles);
-            if (gui_button("save", ' ')) mesh_save_stl(&mesh, "out.stl");
-            gui_printf("some_triangle_selected %d", some_triangle_selected);
+          // gui_printf(_MOUSE_MODE_[mouse_mode]);
+          // gui_printf(_SELECT_MODE_[select_mode]);
+          // gui_printf(_SELECT_MODIFIER_[select_modifier]);
+          // gui_printf(_FEATURE_MODE_[feature_mode]);
+            gui_printf("%s %s", (select_mode == SELECT_MODE_NONE) ? "" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "QUALITY");
+
+            char tmp[256]; {
+                if (feature_param_buffer_write_head == feature_param_buffer) {
+                    if (feature_mode == FEATURE_MODE_NONE) {
+                        sprintf(tmp, "%gmm", feature_param);
+                    } else {
+                        sprintf(tmp, "`%gmm", feature_param);
+                    }
+                } else {
+                    if (feature_mode == FEATURE_MODE_NONE) {
+                        sprintf(tmp, "%smm", feature_param_buffer);
+                    } else {
+                        sprintf(tmp, "`%smm", feature_param_buffer);
+                    }
+                }
+            }
+            gui_printf("%s %s", (feature_mode == FEATURE_MODE_NONE) ? "" : (feature_mode == FEATURE_MODE_EXTRUDE) ? "EXTRUDE" : "REVOLVE", (feature_mode == FEATURE_MODE_NONE) ? "" : tmp);
+
+            // gui_printf("some_triangle_selected %d", some_triangle_selected);
+            // gui_printf("---");
+            // gui_printf("---");
+            if (key_toggled[COW_KEY_TAB]) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
+            // if (gui_button("save", ' ')) mesh_save_stl(&mesh, "out.stl");
         }
     }
 }
