@@ -1065,7 +1065,7 @@ int main() {
             n_selected = {};
             x_n_selected = 0.0f;
 
-            dxf = dxf_load("omax.dxf");
+            dxf = dxf_load("box00.dxf");
             pick = dxf_loop_analysis_create(&dxf);
 
             dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
