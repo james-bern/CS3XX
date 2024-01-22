@@ -1,4 +1,7 @@
+// TODO: dump stl normals
+// TODO: rotate on export
 // TODO make Jenna a visualization of the Cantor set
+// TODO: selecting entity to say extrude height
 
 // cow soup/eso should take arbitrary sizes per entity and 
 
@@ -864,9 +867,10 @@ void mesh_free(ConversationMesh *mesh) {
     *mesh = {};
 }
 
-#define FEATURE_MODE_NONE    0
-#define FEATURE_MODE_EXTRUDE    1
-#define FEATURE_MODE_REVOLVE 2
+#define FEATURE_MODE_NONE         0
+#define FEATURE_MODE_EXTRUDE_BOSS 1
+#define FEATURE_MODE_EXTRUDE_CUT  2
+#define FEATURE_MODE_REVOLVE      3
 
 #include "manifoldc.h"
 void wrapper_manifold(
@@ -881,7 +885,7 @@ void wrapper_manifold(
         u32 feature_mode,
         real32 feature_param) {
 
-    ASSERT((feature_mode == FEATURE_MODE_EXTRUDE) || (feature_mode == FEATURE_MODE_REVOLVE));
+    ASSERT(feature_mode != FEATURE_MODE_NONE);
 
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(n_selected);
     real32 x_n = (!some_triangle_selected) ? 0.0f : _x_n_selected;
@@ -897,7 +901,7 @@ void wrapper_manifold(
 
 
 
-            if (feature_mode == FEATURE_MODE_EXTRUDE) {
+            if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS || feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
                 manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, ABS(feature_param), 0, 0.0f, 1.0f, 1.0f);
                 if (feature_param < 0.0f) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
                 manifold = manifold_translate(manifold, manifold, 0.0f, 0.0f, x_n);
@@ -908,9 +912,10 @@ void wrapper_manifold(
         }
 
         bool32 subtract;
-        if (feature_mode == FEATURE_MODE_EXTRUDE) {
-            // FORNOW
-            subtract = (feature_param < 0.0f);
+        if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) {
+            subtract = false;
+        } else if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
+            subtract = true;
         } else {
             subtract = false;
         }
@@ -1065,7 +1070,7 @@ int main() {
             n_selected = {};
             x_n_selected = 0.0f;
 
-            dxf = dxf_load("box00.dxf");
+            dxf = dxf_load("box01.dxf");
             pick = dxf_loop_analysis_create(&dxf);
 
             dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
@@ -1158,9 +1163,15 @@ int main() {
         }
 
         { // 2D -> 3D
-            if (feature_mode != FEATURE_MODE_EXTRUDE) {
-                if (key_pressed['e']) {
-                    feature_mode = FEATURE_MODE_EXTRUDE;
+            if (feature_mode != FEATURE_MODE_EXTRUDE_BOSS) {
+                if (key_pressed['e'] && !globals.key_shift_held) {
+                    feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
+                    feature_param_buffer_reset();
+                }
+            }
+            if (feature_mode != FEATURE_MODE_EXTRUDE_CUT) {
+                if (key_pressed['e'] && globals.key_shift_held) {
+                    feature_mode = FEATURE_MODE_EXTRUDE_CUT;
                     feature_param_buffer_reset();
                 }
             }
@@ -1410,14 +1421,14 @@ int main() {
             gui_printf("mouse %s %s", (select_mode == SELECT_MODE_NONE) ? "" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "QUALITY");
 
             char tmp[256]; {
-                char *units = (char *) ((feature_mode == FEATURE_MODE_EXTRUDE) ? "mm" : "deg");
+                char *units = (char *) (((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) || (feature_mode == FEATURE_MODE_EXTRUDE_CUT)) ? "mm" : "deg");
                 if (feature_param_buffer_write_head == feature_param_buffer) {
                     sprintf(tmp, "`%g%s", feature_param, units);
                 } else {
                     sprintf(tmp, "`%s%s", feature_param_buffer, units);
                 }
             }
-            gui_printf("enter %s %s", (feature_mode == FEATURE_MODE_NONE) ? "" : (feature_mode == FEATURE_MODE_EXTRUDE) ? "EXTRUDE" : "REVOLVE", (feature_mode == FEATURE_MODE_NONE) ? "" : tmp);
+            gui_printf("enter %s %s", (feature_mode == FEATURE_MODE_NONE) ? "" : (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? "EXTRUDE BOSS" : (feature_mode == FEATURE_MODE_EXTRUDE_CUT) ? "EXTRUDE CUT" : "REVOLVE", (feature_mode == FEATURE_MODE_NONE) ? "" : tmp);
 
             // gui_printf("some_triangle_selected %d", some_triangle_selected);
             // gui_printf("---");
