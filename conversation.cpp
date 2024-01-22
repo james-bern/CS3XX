@@ -1349,7 +1349,7 @@ int main() {
                 mesh_draw(&camera3D, &mesh, some_triangle_selected, n_selected, x_n_selected);
                 { // 2D selection
                     mat4 M = M4_Translation(x_n_selected * n_selected);
-                    eso_begin(camera_get_PV(&camera3D) * M * M4_RotationAboutXAxis(RAD(90.0f)), SOUP_LINES, 4.0f);
+                    eso_begin(camera_get_PV(&camera3D) * M * M4_RotationAboutXAxis(RAD(-90.0f)), SOUP_LINES, 4.0f);
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
                         DXFEntity *entity = &dxf.entities[i];
                         if (dxf_selection_mask[i]) {
