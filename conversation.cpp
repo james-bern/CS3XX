@@ -1,18 +1,18 @@
-// TODO: dump stl normals
-// TODO: rotate on export
-// TODO make Jenna a visualization of the Cantor set
-// TODO: selecting entity to say extrude height
-
-// cow soup/eso should take arbitrary sizes per entity and 
-
 // // Conversation
 // NOTE: This is a little CAD program Jim is actively developing.
 //       It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
-//       Feel free to ignore.
 
-// TODO: cow_real actually supporting real32 or real64
 
-// TODO: stl
+// TODO: <leader>c comment toggle
+// TODO: selecting xy yz and xz planes
+// TODO: visualize normal of selected plane (3D arrow)
+// TODO: '+'/'-' (cut of +5/-2)
+// TODO: bosses on non-y-up geometry
+// TODO: loading STL
+// TODO: load file dialogue
+// TODO: save file dialogue
+// TODO make Jenna a physical visualization of the Cantor set
+// TODO: selecting line entity to say extrude height (maybe using 'M')
 
 
 // TODO: work plane
@@ -23,6 +23,7 @@
 
 
 // TODO: usage of vec3 is sus af (at least try to keep it contained to like...cross)
+// TODO: cow soup/eso should take arbitrary sizes per entity (dots)
 
 
 // roadmap
@@ -32,28 +33,24 @@
 // / omax-type dxf_selection_mask ('s' + 'c'); ('d' + 'a')
 // / multi-select (no shift--follow omax style)
 // / turn loop into polygon (rasterize arcs into line segments)
+// / cut has depth
+// / compile/link manifold
+// / boss ('b') and cut ('c') -- (or 'e'/'E'?)
+// / select quality (SELECT_MODIFIER_CONNECTED SELECT_MODIFIER_QUALITY)
+// / 2D / 3D ui (2D goes it its own box)
 // - cross-section arc discretization quality knobs (the correct knob is ??)
-// - compile/link manifold
-// - boss ('b') and cut ('c') -- (or 'e'/'E'?)
-// - nudging with x, y
 // - planar surface picking (and if no 3D geometry yet, your choice of the xy yz and zx planes)
-// - cut has depth
+// ---
+// ? nudging with x, y
 // ? you can persist the 2D curves alongside the 3D geometry they generated and then use omax style picking on the 3D part
 // ? how are we storing the sequence of operations
+
+
 // NOTE: for a first cut it could be destructive like omax itself
 //       basically just like a conversational mill
 //       don't store anything but the STL created so far (and maybe an undo stack eventually)
 //       could at least print to the terminal what you've done
 //       should preview the cut on the surface before you accept it (eventually) -- and let you nudge it in x, y, and z
-
-
-// - select quality (SELECT_MODIFIER_CONNECTED SELECT_MODIFIER_QUALITY)
-// - 2D / 3D ui (2D goes it its own box)
-
-
-
-
-
 
 
 
@@ -774,7 +771,7 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_selected, vec3 n_selected, real32 x_n_selected) {
+void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_selected, vec3 n_selected, real32 r_n_selected) {
     mat4 V = camera_get_V(camera);
     mat4 PV = camera_get_P(camera) * V;
 
@@ -801,7 +798,7 @@ void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_se
         {
             vec3 n_camera = transformNormal(V, n);
             if (n_camera.z > 0) {
-                if (some_triangle_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - x_n_selected) < 0.001f)) {
+                if (some_triangle_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                     color = monokai.yellow;
                 } else {
                     color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
@@ -841,14 +838,29 @@ void mesh_save_stl(ConversationMesh *mesh, char *filename) {
         memcpy(buffer + offset, &mesh->num_triangles, 4);
         offset += 4;
         for (u32 i = 0; i < mesh->num_triangles; ++i) {
-            offset += 12;
-            real32 triangle[9];
-            for (u32 j = 0; j < 3; ++j) {
-                for (u32 d = 0; d < 3; ++d) {
-                    triangle[3 * j + d] = mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + d];
-                }
+            real32 triangle_normal[3];
+            {
+                // // NOTE: 90-degree rotation about x
+                // x <- x
+                // y <- -z
+                // z <- y
+                triangle_normal[0] =  mesh->face_normals[3 * i + 0];
+                triangle_normal[1] = -mesh->face_normals[3 * i + 2];
+                triangle_normal[2] =  mesh->face_normals[3 * i + 1];
             }
-            memcpy(buffer + offset, triangle, 36);
+            memcpy(buffer + offset, &triangle_normal, 12);
+            offset += 12;
+            real32 triangle_vertex_positions[9];
+            for (u32 j = 0; j < 3; ++j) {
+                // // NOTE: 90-degree rotation about x
+                // x <- x
+                // y <- -z
+                // z <- y
+                triangle_vertex_positions[3 * j + 0] =  mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 0];
+                triangle_vertex_positions[3 * j + 1] = -mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 2];
+                triangle_vertex_positions[3 * j + 2] =  mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 1];
+            }
+            memcpy(buffer + offset, triangle_vertex_positions, 36);
             offset += 38;
         }
     }
@@ -1026,9 +1038,9 @@ int main() {
     u32 select_mode;
     u32 select_modifier;
 
-    bool32 some_triangle_selected;
+    bool32 some_triangle_selected; // NOTE: if this is false, then a plane is selected
     vec3 n_selected;
-    real32 x_n_selected; // coordinate along n_selected
+    real32 r_n_selected; // coordinate along n_selected
 
     DXF dxf;
     DXFLoopAnalysisResult pick;
@@ -1067,8 +1079,8 @@ int main() {
             select_modifier = SELECT_MODIFIER_NONE;
 
             some_triangle_selected = false;
-            n_selected = {};
-            x_n_selected = 0.0f;
+            n_selected = { 0.0, 1.0, 0.0 };
+            r_n_selected = 0.0f;
 
             dxf = dxf_load("box01.dxf");
             pick = dxf_loop_analysis_create(&dxf);
@@ -1207,7 +1219,7 @@ int main() {
                     CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
                     {
-                        wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, some_triangle_selected, n_selected, x_n_selected, feature_mode, feature_param);
+                        wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, some_triangle_selected, n_selected, r_n_selected, feature_mode, feature_param);
                         memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                         { // detect whether any such triangle_indices still exist; if not, clear out some_triangle_selected
                           // FORNOW: this code heavily repeats mesh_draw
@@ -1221,14 +1233,14 @@ int main() {
                                 for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
                                 real32 x_n = dot(n, p[0]);
 
-                                if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - x_n_selected) < 0.001f)) {
+                                if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                     some_triangle_selected = true;
                                     break;
                                 }
                             }
                             if (!some_triangle_selected) {
-                                n_selected = {};
-                                x_n_selected = {};
+                                n_selected = { 0.0, 1.0, 0.0 };
+                                r_n_selected = {};
                             }
                         }
                     }
@@ -1309,10 +1321,17 @@ int main() {
 
         { // 3D
             { // pick
-                if (key_pressed['x']) {
-                    some_triangle_selected = false;
-                    n_selected = {};
-                    x_n_selected = 0.0f;
+                {
+                    real32 sign;
+                    if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
+                        some_triangle_selected = false;
+                        r_n_selected = 0.0f;
+                        sign = (!globals.key_shift_held) ? 1.0f : -1.0f;
+                    }
+                    if (key_pressed['x']) n_selected = { sign, 0.0f, 0.0f };
+                    if (key_pressed['y']) n_selected = { 0.0f, sign, 0.0f };
+                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
+
                 }
                 if (mouse_mode == MOUSE_MODE_3D) {
                     if (globals.mouse_left_pressed) {
@@ -1348,7 +1367,7 @@ int main() {
                             vec3 p_selected[3];
                             for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p_selected[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * selected_triangle_index + j] + d];
 
-                            x_n_selected = dot(n_selected, p_selected[0]);
+                            r_n_selected = dot(n_selected, p_selected[0]);
                         }
 
                     }
@@ -1357,10 +1376,16 @@ int main() {
             { // draw
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
-                mesh_draw(&camera3D, &mesh, some_triangle_selected, n_selected, x_n_selected);
+                mesh_draw(&camera3D, &mesh, some_triangle_selected, n_selected, r_n_selected);
                 { // 2D selection
-                    mat4 M = M4_Translation(x_n_selected * n_selected);
-                    eso_begin(camera_get_PV(&camera3D) * M * M4_RotationAboutXAxis(RAD(-90.0f)), SOUP_LINES, 4.0f);
+                  // FORNOW this matrix/transform is computed both here and in the manifold wrapper
+                    vec3 up = { 0.0f, 1.0f, 0.0f };
+                    real32 dot_product = dot(n_selected, up);
+                    vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0)) ? V3(0.0,  0.0, -SGN(dot_product)) : up;
+                    vec3 x = normalized(cross(y, n_selected));
+                    vec3 z = cross(x, y);
+                    mat4 M = M4_xyzo(x, y, z, r_n_selected * n_selected);
+                    eso_begin(camera_get_PV(&camera3D) * M, SOUP_LINES, 4.0f);
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
                         DXFEntity *entity = &dxf.entities[i];
                         if (dxf_selection_mask[i]) {
@@ -1435,6 +1460,7 @@ int main() {
             // gui_printf("---");
             if (key_toggled[COW_KEY_TAB]) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
             gui_printf("");
+            gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
         }
 
     }
