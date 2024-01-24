@@ -11,7 +11,6 @@
 // TODO: loading STL
 // TODO: load file dialogue
 // TODO: save file dialogue
-// TODO make Jenna a physical visualization of the Cantor set
 // TODO: selecting line entity to say extrude height (maybe using 'M')
 
 
@@ -771,7 +770,7 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_selected, vec3 n_selected, real32 r_n_selected) {
+void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected, vec3 n_selected, real32 r_n_selected) {
     mat4 V = camera_get_V(camera);
     mat4 PV = camera_get_P(camera) * V;
 
@@ -798,7 +797,7 @@ void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_se
         {
             vec3 n_camera = transformNormal(V, n);
             if (n_camera.z > 0) {
-                if (some_triangle_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
+                if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                     color = monokai.yellow;
                 } else {
                     color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
@@ -891,18 +890,22 @@ void wrapper_manifold(
         u32 num_polygonal_loops,
         u32 *num_vertices_in_polygonal_loops,
         Vertex2D **polygonal_loops,
-        bool32 some_triangle_selected,
-        vec3 n_selected,
-        real32 _x_n_selected,
+        mat4 M_selected,
         u32 feature_mode,
         real32 feature_param) {
 
     ASSERT(feature_mode != FEATURE_MODE_NONE);
 
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(n_selected);
-    real32 x_n = (!some_triangle_selected) ? 0.0f : _x_n_selected;
-
     {
+        bool32 subtract;
+        if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) {
+            subtract = false;
+        } else if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
+            subtract = true;
+        } else {
+            subtract = false;
+        }
+
         ManifoldManifold *manifold; {
             ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
             for (u32 i = 0; i < num_polygonal_loops; ++i) {
@@ -914,22 +917,23 @@ void wrapper_manifold(
 
 
             if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS || feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
+                if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) feature_param = -feature_param; // FORNOW
                 manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, ABS(feature_param), 0, 0.0f, 1.0f, 1.0f);
                 if (feature_param < 0.0f) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
-                manifold = manifold_translate(manifold, manifold, 0.0f, 0.0f, x_n);
-                manifold = manifold_rotate(manifold, manifold, -90.0f, 0.0f, 0.0f);
+
+                { // TODO transform
+                  // manifold = manifold_translate(manifold, manifold, 0.0f, 0.0f, x_n);
+                  // manifold = manifold_rotate(manifold, manifold, -90.0f, 0.0f, 0.0f);
+                    manifold = manifold_transform(manifold, manifold,
+                            M_selected(0, 0), M_selected(1, 0), M_selected(2, 0),
+                            M_selected(0, 1), M_selected(1, 1), M_selected(2, 1),
+                            M_selected(0, 2), M_selected(1, 2), M_selected(2, 2),
+                            M_selected(0, 3), M_selected(1, 3), M_selected(2, 3));
+                }
+
             } else {
                 manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
             }
-        }
-
-        bool32 subtract;
-        if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) {
-            subtract = false;
-        } else if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
-            subtract = true;
-        } else {
-            subtract = false;
         }
 
         // add
@@ -1023,6 +1027,17 @@ bool *key_pressed = globals.key_pressed;
 bool *key_toggled = globals.key_toggled;
 
 
+// FORNOW
+mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
+    vec3 up = { 0.0f, 1.0f, 0.0f };
+    real32 dot_product = dot(n_selected, up);
+    vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0)) ? V3(0.0,  0.0, -SGN(dot_product)) : up;
+    vec3 x = normalized(cross(y, n_selected));
+    vec3 z = cross(x, y);
+    return M4_xyzo(x, y, z, r_n_selected * n_selected);
+}
+
+
 int main() {
     #define MOUSE_MODE_NONE 0
     #define MOUSE_MODE_2D   1
@@ -1038,9 +1053,10 @@ int main() {
     u32 select_mode;
     u32 select_modifier;
 
-    bool32 some_triangle_selected; // NOTE: if this is false, then a plane is selected
+    bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: if this is false, then a plane is selected
     vec3 n_selected;
     real32 r_n_selected; // coordinate along n_selected
+    mat4 M_selected;
 
     DXF dxf;
     DXFLoopAnalysisResult pick;
@@ -1078,9 +1094,10 @@ int main() {
             select_mode = SELECT_MODE_NONE;
             select_modifier = SELECT_MODIFIER_NONE;
 
-            some_triangle_selected = false;
+            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
             n_selected = { 0.0, 1.0, 0.0 };
             r_n_selected = 0.0f;
+            M_selected = get_M_selected(n_selected, r_n_selected);
 
             dxf = dxf_load("box01.dxf");
             pick = dxf_loop_analysis_create(&dxf);
@@ -1219,11 +1236,11 @@ int main() {
                     CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
                     {
-                        wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, some_triangle_selected, n_selected, r_n_selected, feature_mode, feature_param);
+                        wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, M_selected, feature_mode, feature_param);
                         memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
-                        { // detect whether any such triangle_indices still exist; if not, clear out some_triangle_selected
+                        { // some_triangle_exists_that_matches_n_selected_and_r_n_selected
                           // FORNOW: this code heavily repeats mesh_draw
-                            some_triangle_selected = false;
+                            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                             for (u32 i = 0; i < mesh.num_triangles; ++i) {
                                 // FORNOW
                                 vec3 n = { mesh.face_normals[3 * i + 0], mesh.face_normals[3 * i + 1], mesh.face_normals[3 * i + 2] };
@@ -1234,13 +1251,9 @@ int main() {
                                 real32 x_n = dot(n, p[0]);
 
                                 if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
-                                    some_triangle_selected = true;
+                                    some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
                                     break;
                                 }
-                            }
-                            if (!some_triangle_selected) {
-                                n_selected = { 0.0, 1.0, 0.0 };
-                                r_n_selected = {};
                             }
                         }
                     }
@@ -1324,14 +1337,14 @@ int main() {
                 {
                     real32 sign;
                     if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
-                        some_triangle_selected = false;
+                        some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                         r_n_selected = 0.0f;
                         sign = (!globals.key_shift_held) ? 1.0f : -1.0f;
                     }
                     if (key_pressed['x']) n_selected = { sign, 0.0f, 0.0f };
                     if (key_pressed['y']) n_selected = { 0.0f, sign, 0.0f };
                     if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
-
+                    M_selected = get_M_selected(n_selected, r_n_selected);
                 }
                 if (mouse_mode == MOUSE_MODE_3D) {
                     if (globals.mouse_left_pressed) {
@@ -1358,16 +1371,15 @@ int main() {
 
 
                         if (selected_triangle_index != -1) {
-                            some_triangle_selected = true;
+                            some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
+                            { // FORNOW (gross) calculateion of n_selected, r_n_selected
+                                n_selected = { mesh.face_normals[3 * selected_triangle_index + 0], mesh.face_normals[3 * selected_triangle_index + 1], mesh.face_normals[3 * selected_triangle_index + 2] };
+                                vec3 p_selected[3];
+                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p_selected[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * selected_triangle_index + j] + d];
+                                r_n_selected = dot(n_selected, p_selected[0]);
+                            }
+                            M_selected = get_M_selected(n_selected, r_n_selected);
 
-                            // FORNOW
-                            n_selected = { mesh.face_normals[3 * selected_triangle_index + 0], mesh.face_normals[3 * selected_triangle_index + 1], mesh.face_normals[3 * selected_triangle_index + 2] };
-
-                            // FORNOW
-                            vec3 p_selected[3];
-                            for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p_selected[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * selected_triangle_index + j] + d];
-
-                            r_n_selected = dot(n_selected, p_selected[0]);
                         }
 
                     }
@@ -1376,16 +1388,9 @@ int main() {
             { // draw
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
-                mesh_draw(&camera3D, &mesh, some_triangle_selected, n_selected, r_n_selected);
+                mesh_draw(&camera3D, &mesh, some_triangle_exists_that_matches_n_selected_and_r_n_selected, n_selected, r_n_selected);
                 { // 2D selection
-                  // FORNOW this matrix/transform is computed both here and in the manifold wrapper
-                    vec3 up = { 0.0f, 1.0f, 0.0f };
-                    real32 dot_product = dot(n_selected, up);
-                    vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0)) ? V3(0.0,  0.0, -SGN(dot_product)) : up;
-                    vec3 x = normalized(cross(y, n_selected));
-                    vec3 z = cross(x, y);
-                    mat4 M = M4_xyzo(x, y, z, r_n_selected * n_selected);
-                    eso_begin(camera_get_PV(&camera3D) * M, SOUP_LINES, 4.0f);
+                    eso_begin(camera_get_PV(&camera3D) * M_selected, SOUP_LINES, 4.0f);
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
                         DXFEntity *entity = &dxf.entities[i];
                         if (dxf_selection_mask[i]) {
@@ -1394,18 +1399,19 @@ int main() {
                     }
                     eso_end();
                 }
-                { // planes
+                { // axes, plane
                     mat4 PV_3D = camera_get_PV(&camera3D);
                     library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
-                    real32 r = 100.0f;
-                    real32 a = (!some_triangle_selected) ? 0.3f : 0.1f;
-                    eso_begin(PV_3D, SOUP_OUTLINED_QUADS);
-                    eso_color(0.0, 1.0, 0.0, a);
-                    eso_vertex( r, 0.0f,  r);
-                    eso_vertex( r, 0.0f, -r);
-                    eso_vertex(-r, 0.0f, -r);
-                    eso_vertex(-r, 0.0f,  r);
-                    eso_end();
+                    if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
+                        real32 r = 50.0f;
+                        eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
+                        eso_color(monokai.yellow, 0.5f);
+                        eso_vertex( r,  r, 0.0f);
+                        eso_vertex( r, -r, 0.0f);
+                        eso_vertex(-r, -r, 0.0f);
+                        eso_vertex(-r,  r, 0.0f);
+                        eso_end();
+                    }
                 }
                 glDisable(GL_SCISSOR_TEST);
             }
@@ -1455,12 +1461,12 @@ int main() {
             }
             gui_printf("enter %s %s", (feature_mode == FEATURE_MODE_NONE) ? "" : (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? "EXTRUDE BOSS" : (feature_mode == FEATURE_MODE_EXTRUDE_CUT) ? "EXTRUDE CUT" : "REVOLVE", (feature_mode == FEATURE_MODE_NONE) ? "" : tmp);
 
-            // gui_printf("some_triangle_selected %d", some_triangle_selected);
+            // gui_printf("some_triangle_exists_that_matches_n_selected_and_r_n_selected %d", some_triangle_exists_that_matches_n_selected_and_r_n_selected);
             // gui_printf("---");
             // gui_printf("---");
             if (key_toggled[COW_KEY_TAB]) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
             gui_printf("");
-            gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
+            // gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
         }
 
     }
