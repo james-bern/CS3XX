@@ -567,19 +567,9 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define SELECT_MODE_NONE 0
 #define SELECT_MODE_SELECT 1
 #define SELECT_MODE_DESELECT 2
-char *_SELECT_MODE_[] = {
-    "SELECT_MODE_NONE",
-    "SELECT_MODE_SELECT",
-    "SELECT_MODE_DESELECT"
-};
 #define SELECT_MODIFIER_NONE 0
 #define SELECT_MODIFIER_CONNECTED 1
 #define SELECT_MODIFIER_QUALITY 2
-char *_SELECT_MODIFIER_[] = {
-    "SELECT_MODIFIER_NONE",
-    "SELECT_MODIFIER_CONNECTED",
-    "SELECT_MODIFIER_QUALITY"
-};
 void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
     if (select_mode == SELECT_MODE_NONE) return;
@@ -895,7 +885,6 @@ void wrapper_manifold(
         real32 feature_param) {
 
     ASSERT(feature_mode != FEATURE_MODE_NONE);
-
     {
         bool32 subtract;
         if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) {
@@ -1039,16 +1028,10 @@ mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
 
 
 int main() {
-    #define MOUSE_MODE_NONE 0
-    #define MOUSE_MODE_2D   1
-    #define MOUSE_MODE_3D   2
-    char *_MOUSE_MODE_[] = {
-        "MOUSE_MODE_NONE",
-        "MOUSE_MODE_2D",
-        "MOUSE_MODE_3D"
-    };
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_MOUSE_MODE_);
-    u32 mouse_mode;
+    #define HOT_PANE_NONE 0
+    #define HOT_PANE_2D   1
+    #define HOT_PANE_3D   2
+    u32 hot_pane;
 
     u32 select_mode;
     u32 select_modifier;
@@ -1066,12 +1049,6 @@ int main() {
     ManifoldManifold *manifold;
     ConversationMesh mesh;
 
-    char *_FEATURE_MODE_[] = {
-        "FEATURE_MODE_NONE",
-        "FEATURE_MODE_EXTRUDE",
-        "FEATURE_MODE_REVOLVE"
-    };
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_FEATURE_MODE_);
     u32 feature_mode;
     real32 feature_param;
     char feature_param_buffer[256];
@@ -1089,10 +1066,10 @@ int main() {
         if (!initialized || gui_button("reset")) {
             initialized = true;
 
-            mouse_mode = MOUSE_MODE_NONE;
+            hot_pane = HOT_PANE_NONE;
 
-            select_mode = SELECT_MODE_NONE;
-            select_modifier = SELECT_MODIFIER_NONE;
+            select_mode = SELECT_MODE_SELECT;
+            select_modifier = SELECT_MODIFIER_CONNECTED;
 
             some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
             n_selected = { 0.0, 1.0, 0.0 };
@@ -1147,7 +1124,7 @@ int main() {
             }
             #endif
 
-            feature_mode = FEATURE_MODE_NONE;
+            feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
             feature_param = 0.0f;
             feature_param_buffer_reset();
 
@@ -1182,12 +1159,12 @@ int main() {
         }
 
         if (globals.mouse_left_pressed || globals.mouse_right_pressed || (!globals.mouse_left_held && !globals.mouse_right_held)) {
-            mouse_mode = (globals.mouse_position_NDC.x < 0) ? MOUSE_MODE_2D : MOUSE_MODE_3D;
+            hot_pane = (globals.mouse_position_NDC.x < 0) ? HOT_PANE_2D : HOT_PANE_3D;
         }
 
-        if (mouse_mode == MOUSE_MODE_2D) {
+        if (hot_pane == HOT_PANE_2D) {
             camera_move(&camera2D);
-        } else if (mouse_mode == MOUSE_MODE_3D) {
+        } else if (hot_pane == HOT_PANE_3D) {
             camera_move(&camera3D);
         }
 
@@ -1298,7 +1275,7 @@ int main() {
                         }
                     }
                 }
-                if (mouse_mode == MOUSE_MODE_2D) {
+                if (hot_pane == HOT_PANE_2D) {
                     dxf_pick(&camera2D, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
                 }
             }
@@ -1331,9 +1308,16 @@ int main() {
             }
         }
 
+        real32 feature_param_preview;
+        if (feature_param_buffer_write_head == feature_param_buffer) {
+            feature_param_preview = feature_param;
+        } else {
+            feature_param_preview = strtof(feature_param_buffer, NULL);
+        }
+
 
         { // 3D
-            { // pick
+            { // 3D pick
                 {
                     real32 sign;
                     if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
@@ -1346,7 +1330,7 @@ int main() {
                     if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
                     M_selected = get_M_selected(n_selected, r_n_selected);
                 }
-                if (mouse_mode == MOUSE_MODE_3D) {
+                if (hot_pane == HOT_PANE_3D) {
                     if (globals.mouse_left_pressed) {
 
                         int32 selected_triangle_index = -1;
@@ -1385,7 +1369,10 @@ int main() {
                     }
                 }
             }
-            { // draw
+            { // 3D draw
+                mat4 P_3D = camera_get_P(&camera3D);
+                mat4 V_3D = camera_get_V(&camera3D);
+                mat4 PV_3D = P_3D * V_3D;
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
                 mesh_draw(&camera3D, &mesh, some_triangle_exists_that_matches_n_selected_and_r_n_selected, n_selected, r_n_selected);
@@ -1399,9 +1386,24 @@ int main() {
                     }
                     eso_end();
                 }
-                { // axes, plane
-                    mat4 PV_3D = camera_get_PV(&camera3D);
-                    library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
+                { // arrow
+                    if (!IS_ZERO(feature_param_preview)) {
+                        vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.blue : monokai.red;
+                        mat4 N = (
+                                ((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) && feature_param_preview > 0.0f) ||
+                                ((feature_mode == FEATURE_MODE_EXTRUDE_CUT) && feature_param_preview < 0.0f))
+                            ? M4_Identity() : M4_Translation(0.0f, 0.0f, feature_param_preview) * M4_Scaling(1.0f, 1.0f, -1.0f);
+                        mat4 R = M4_RotationAboutXAxis(RAD(90));
+                        mat4 M_cyl  = M_selected * N * M4_Scaling(1.0f, 1.0f, (feature_param_preview - 5.0f)) * R;
+                        mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, (feature_param_preview - 5.0f)) * M4_Scaling(2.0f, 2.0f, 5.0f) * R;
+                        library.meshes.cylinder.draw(P_3D, V_3D, M_cyl, color);
+                        library.meshes.cone.draw(P_3D, V_3D, M_cone, color);
+                    }
+                }
+                { // axes
+                  // library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
+                }
+                { // plane
                     if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
                         real32 r = 50.0f;
                         eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
@@ -1444,11 +1446,6 @@ int main() {
             }
         }
         { // gui
-            ;
-            // gui_printf(_MOUSE_MODE_[mouse_mode]);
-            // gui_printf(_SELECT_MODE_[select_mode]);
-            // gui_printf(_SELECT_MODIFIER_[select_modifier]);
-            // gui_printf(_FEATURE_MODE_[feature_mode]);
             gui_printf("mouse %s %s", (select_mode == SELECT_MODE_NONE) ? "" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "QUALITY");
 
             char tmp[256]; {
