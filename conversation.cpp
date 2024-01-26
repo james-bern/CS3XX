@@ -64,6 +64,13 @@ real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
+
+////////////////////////////////////////
+// 2D //////////////////////////////////
+////////////////////////////////////////
+
+
+
 #define DXF_COLOR_TRAVERSE        0
 #define DXF_COLOR_QUALITY_1       1
 #define DXF_COLOR_QUALITY_2       2
@@ -740,13 +747,27 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
 
 
 
+////////////////////////////////////////
+// 3D //////////////////////////////////
+////////////////////////////////////////
+
+
+
+
+#define FEATURE_MODE_NONE         0
+#define FEATURE_MODE_EXTRUDE_BOSS 1
+#define FEATURE_MODE_EXTRUDE_CUT  2
+#define FEATURE_MODE_REVOLVE      3
+
+
+
+
 struct ConversationMesh {
     u32 num_vertices;
     u32 num_triangles;
     real32 *vertex_positions;
     u32 *triangle_indices;
     real32 *face_normals;
-    u32 *face_colors;
 
     u32 num_cosmetic_edges;
     u32 *cosmetic_edges;
@@ -760,53 +781,10 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected, vec3 n_selected, real32 r_n_selected) {
+void conversation_mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected, vec3 n_selected, real32 r_n_selected) {
     mat4 V = camera_get_V(camera);
     mat4 PV = camera_get_P(camera) * V;
 
-
-
-    eso_begin(PV, (!globals.key_toggled[COW_KEY_TAB]) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
-    for (u32 i = 0; i < mesh->num_triangles; ++i) {
-
-
-        // FORNOW (all this crap)
-        // TODO 
-
-        vec3 n;
-        for (u32 d = 0; d < 3; ++d) n[d] = mesh->face_normals[3 * i + d];
-
-        vec3 p[3];
-        real32 x_n;
-        {
-            for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + d];
-            x_n = dot(n, p[0]);
-        }
-
-        vec3 color; 
-        {
-            vec3 n_camera = transformNormal(V, n);
-            if (n_camera.z > 0) {
-                if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
-                    color = monokai.yellow;
-                } else {
-                    color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
-                }
-            } else {
-                color = V3(1.0f, 0.0f, 0.0f);
-            }
-        }
-        if (mesh->face_colors) {
-            _dxf_eso_color(mesh->face_colors[i]);
-        } else {
-            eso_color(color);
-        }
-        eso_vertex(p[0]);
-        eso_vertex(p[1]);
-        eso_vertex(p[2]);
-
-    }
-    eso_end();
 
     if (mesh->cosmetic_edges) {
         eso_begin(PV, SOUP_LINES, 3.0f); 
@@ -815,6 +793,54 @@ void mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_ex
         for (u32 k = 0; k < 2 * mesh->num_cosmetic_edges; ++k) eso_vertex(mesh->vertex_positions, mesh->cosmetic_edges[k]);
         eso_end();
     }
+
+    for (u32 pass = 0; pass <= 1; ++pass) {
+        eso_begin(PV, (!globals.key_toggled['h']) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
+        for (u32 i = 0; i < mesh->num_triangles; ++i) {
+            // FORNOW (all this crap)
+            // TODO 
+
+            vec3 n;
+            for (u32 d = 0; d < 3; ++d) n[d] = mesh->face_normals[3 * i + d];
+
+            vec3 p[3];
+            real32 x_n;
+            {
+                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + d];
+                x_n = dot(n, p[0]);
+            }
+
+            vec3 color; 
+            real32 alpha;
+            {
+                vec3 n_camera = transformNormal(V, n);
+                // if (n_camera.z > 0)
+                {
+                    if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
+                        if (pass == 0) continue;
+                        color = monokai.yellow;
+                        alpha = 0.5f;
+                    } else {
+                        if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
+                        if (pass == 1) continue;
+                        color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
+                        alpha = 1.0f;
+                    }
+                }
+                // else {
+                //     color = V3(1.0f, 0.0f, 0.0f);
+                //     alpha = 1.0f;
+                // }
+            }
+            eso_color(color, alpha);
+            eso_vertex(p[0]);
+            eso_vertex(p[1]);
+            eso_vertex(p[2]);
+
+        }
+        eso_end();
+    }
+
 }
 
 void mesh_save_stl(ConversationMesh *mesh, char *filename) {
@@ -863,15 +889,10 @@ void mesh_free(ConversationMesh *mesh) {
     if (mesh->vertex_positions) free(mesh->vertex_positions);
     if (mesh->triangle_indices) free(mesh->triangle_indices);
     if (mesh->face_normals) free(mesh->face_normals);
-    if (mesh->face_colors) free(mesh->face_colors);
     if (mesh->cosmetic_edges) free(mesh->cosmetic_edges);
     *mesh = {};
 }
 
-#define FEATURE_MODE_NONE         0
-#define FEATURE_MODE_EXTRUDE_BOSS 1
-#define FEATURE_MODE_EXTRUDE_CUT  2
-#define FEATURE_MODE_REVOLVE      3
 
 #include "manifoldc.h"
 void wrapper_manifold(
@@ -906,7 +927,7 @@ void wrapper_manifold(
 
 
             if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS || feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
-                if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) feature_param = -feature_param; // FORNOW
+                // if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) feature_param = -feature_param; // FORNOW
                 manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, ABS(feature_param), 0, 0.0f, 1.0f, 1.0f);
                 if (feature_param < 0.0f) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
 
@@ -927,7 +948,9 @@ void wrapper_manifold(
 
         // add
         if (!(*curr__NOTE_GETS_UPDATED)) {
-            *curr__NOTE_GETS_UPDATED = manifold; // FORNOW (this lets you use a negative height (param) to boss)
+            if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) { return; } // FORNOW
+
+            *curr__NOTE_GETS_UPDATED = manifold;
         } else {
             // TODO: ? manifold_delete_manifold(curr__NOTE_GETS_UPDATED);
             *curr__NOTE_GETS_UPDATED =
@@ -1057,6 +1080,7 @@ int main() {
         memset(feature_param_buffer, 0, ARRAY_LENGTH(feature_param_buffer) * sizeof(char));
         feature_param_buffer_write_head = feature_param_buffer;
     };
+    bool32 feature_param_sign_toggle;
 
     Camera2D camera2D;
     Camera3D camera3D;
@@ -1126,10 +1150,11 @@ int main() {
 
             feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
             feature_param = 0.0f;
+            feature_param_sign_toggle = false;
             feature_param_buffer_reset();
 
             camera2D = { 300.0f, 150.0f };
-            camera3D = { 300.0f, RAD(0.0), RAD(0.0), RAD(-30.0), -150.0f };
+            camera3D = { 300.0f, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -150.0f };
         }
         if (gui_button("save")) mesh_save_stl(&mesh, "out.stl");
 
@@ -1173,12 +1198,14 @@ int main() {
                 if (key_pressed['e'] && !globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
                     feature_param_buffer_reset();
+                    feature_param_sign_toggle = false;
                 }
             }
             if (feature_mode != FEATURE_MODE_EXTRUDE_CUT) {
-                if (key_pressed['e'] && globals.key_shift_held) {
+                if (key_pressed['E'] && globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_EXTRUDE_CUT;
                     feature_param_buffer_reset();
+                    feature_param_sign_toggle = true;
                 }
             }
             if (feature_mode != FEATURE_MODE_REVOLVE) {
@@ -1195,7 +1222,6 @@ int main() {
                         bool32 valid_key_pressed; {
                             valid_key_pressed = false;
                             valid_key_pressed |= key_pressed['.'];
-                            valid_key_pressed |= key_pressed['-'];
                             for (u32 i = 0; i < 10; ++i) valid_key_pressed |= key_pressed['0' + i];
                         }
                         if (valid_key_pressed) {
@@ -1203,6 +1229,7 @@ int main() {
                         }
                     }
                 } 
+                if (key_pressed[COW_KEY_TAB]) feature_param_sign_toggle = !feature_param_sign_toggle;
                 if (key_pressed[COW_KEY_ENTER]) {
                     // feature_mode = FEATURE_MODE_NONE;
                     // NOTE: holds over previous
@@ -1213,10 +1240,19 @@ int main() {
                     CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
                     {
-                        wrapper_manifold(&manifold, &mesh, cross_section.num_polygonal_loops, cross_section.num_vertices_in_polygonal_loops, cross_section.polygonal_loops, M_selected, feature_mode, feature_param);
-                        memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
+                        wrapper_manifold(
+                                &manifold,
+                                &mesh,
+                                cross_section.num_polygonal_loops,
+                                cross_section.num_vertices_in_polygonal_loops,
+                                cross_section.polygonal_loops,
+                                M_selected,
+                                feature_mode,
+                                ((!feature_param_sign_toggle) ? 1.0f : -1.0f) * feature_param
+                                );
+                        // memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                         { // some_triangle_exists_that_matches_n_selected_and_r_n_selected
-                          // FORNOW: this code heavily repeats mesh_draw
+                          // FORNOW: this code heavily repeats conversation_mesh_draw
                             some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                             for (u32 i = 0; i < mesh.num_triangles; ++i) {
                                 // FORNOW
@@ -1282,7 +1318,7 @@ int main() {
             { // draw
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(0, 0, window_width / 2, window_height);
-                if (!key_toggled['h']) {
+                {
                     eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
                         DXFEntity *entity = &dxf.entities[i];
@@ -1292,7 +1328,7 @@ int main() {
                     eso_end();
 
                     // dots
-                    if (key_toggled[COW_KEY_TAB]) {
+                    if (key_toggled['h']) {
                         eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
                         eso_color(monokai.white);
                         for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
@@ -1308,11 +1344,13 @@ int main() {
             }
         }
 
-        real32 feature_param_preview;
-        if (feature_param_buffer_write_head == feature_param_buffer) {
-            feature_param_preview = feature_param;
-        } else {
-            feature_param_preview = strtof(feature_param_buffer, NULL);
+        real32 feature_param_preview; {
+            if (feature_param_buffer_write_head == feature_param_buffer) {
+                feature_param_preview = feature_param;
+            } else {
+                feature_param_preview = strtof(feature_param_buffer, NULL);
+            }
+            if (feature_param_sign_toggle) feature_param_preview *= -1;
         }
 
 
@@ -1375,33 +1413,41 @@ int main() {
                 mat4 PV_3D = P_3D * V_3D;
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
-                mesh_draw(&camera3D, &mesh, some_triangle_exists_that_matches_n_selected_and_r_n_selected, n_selected, r_n_selected);
                 { // 2D selection
-                    eso_begin(camera_get_PV(&camera3D) * M_selected, SOUP_LINES, 4.0f);
-                    for (u32 i = 0; i < dxf.num_entities; ++i) {
-                        DXFEntity *entity = &dxf.entities[i];
-                        if (dxf_selection_mask[i]) {
-                            eso_dxf_entity__SOUP_LINES(entity);
+                    for (u32 pass = 0; pass <= 1; ++pass) {
+                        u32 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? DXF_COLOR_TRAVERSE : DXF_COLOR_QUALITY_1; // FORNOW
+                        mat4 M = M_selected;
+                        if (pass == 1) {
+                            if (feature_mode == FEATURE_MODE_NONE) break;
+                            M = M * M4_Translation(0.0f, 0.0f, feature_param_preview);
                         }
+                        eso_begin(camera_get_PV(&camera3D) * M, SOUP_LINES, 5.0f);
+                        for (u32 i = 0; i < dxf.num_entities; ++i) {
+                            DXFEntity *entity = &dxf.entities[i];
+                            if (dxf_selection_mask[i]) {
+                                eso_dxf_entity__SOUP_LINES(entity, color);
+                            }
+                        }
+                        eso_end();
                     }
-                    eso_end();
                 }
                 { // arrow
                     if (!IS_ZERO(feature_param_preview)) {
-                        vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.blue : monokai.red;
-                        mat4 N = (
-                                ((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) && feature_param_preview > 0.0f) ||
-                                ((feature_mode == FEATURE_MODE_EXTRUDE_CUT) && feature_param_preview < 0.0f))
-                            ? M4_Identity() : M4_Translation(0.0f, 0.0f, feature_param_preview) * M4_Scaling(1.0f, 1.0f, -1.0f);
+                        real32 total_height = ABS(feature_param_preview);
+                        real32 cap_height = (total_height > 10.0) ? 5.0f : (0.5 * total_height);
+                        real32 shaft_height = total_height - cap_height;
+                        real32 s = (total_height > 10.0f) ? 1.0f : SQRT(total_height / 10.0f);
+                        vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.green : monokai.red;
+                        mat4 N = (feature_param_preview > 0.0f) ? M4_Identity() : /* M4_Translation(0.0f, 0.0f, total_height) * */ M4_Scaling(1.0f, 1.0f, -1.0f);
                         mat4 R = M4_RotationAboutXAxis(RAD(90));
-                        mat4 M_cyl  = M_selected * N * M4_Scaling(1.0f, 1.0f, (feature_param_preview - 5.0f)) * R;
-                        mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, (feature_param_preview - 5.0f)) * M4_Scaling(2.0f, 2.0f, 5.0f) * R;
+                        mat4 M_cyl  = M_selected * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
+                        mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
                         library.meshes.cylinder.draw(P_3D, V_3D, M_cyl, color);
                         library.meshes.cone.draw(P_3D, V_3D, M_cone, color);
                     }
                 }
                 { // axes
-                  // library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
+                    library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
                 }
                 { // plane
                     if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
@@ -1415,6 +1461,10 @@ int main() {
                         eso_end();
                     }
                 }
+
+                // NOTE: includes transparency; has to come last
+                conversation_mesh_draw(&camera3D, &mesh, some_triangle_exists_that_matches_n_selected_and_r_n_selected, n_selected, r_n_selected);
+
                 glDisable(GL_SCISSOR_TEST);
             }
             { // notes
@@ -1451,7 +1501,7 @@ int main() {
             char tmp[256]; {
                 char *units = (char *) (((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) || (feature_mode == FEATURE_MODE_EXTRUDE_CUT)) ? "mm" : "deg");
                 if (feature_param_buffer_write_head == feature_param_buffer) {
-                    sprintf(tmp, "`%g%s", feature_param, units);
+                    sprintf(tmp, "%g%s", feature_param, units);
                 } else {
                     sprintf(tmp, "`%s%s", feature_param_buffer, units);
                 }
@@ -1461,7 +1511,7 @@ int main() {
             // gui_printf("some_triangle_exists_that_matches_n_selected_and_r_n_selected %d", some_triangle_exists_that_matches_n_selected_and_r_n_selected);
             // gui_printf("---");
             // gui_printf("---");
-            if (key_toggled[COW_KEY_TAB]) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
+            if (key_toggled['h']) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
             gui_printf("");
             // gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
         }
