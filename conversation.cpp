@@ -1092,8 +1092,11 @@ int main() {
             feature_param_sign_toggle = false;
             feature_param_buffer_reset();
 
-            camera2D = { 300.0f, 150.0f };
-            camera3D = { 300.0f, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -150.0f };
+            {
+                real32 height = 150.f;
+            camera2D = { height, height / 2 };
+            camera3D = { height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height / 2 };
+            }
         }
         if (gui_button("save")) mesh_save_stl(&mesh, "out.stl");
 
