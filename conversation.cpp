@@ -818,7 +818,7 @@ void conversation_mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 som
                 {
                     if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                         if (pass == 0) continue;
-                        color = monokai.yellow;
+                        color = AVG(monokai.yellow, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f));
                         alpha = 0.5f;
                     } else {
                         if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
@@ -1239,6 +1239,10 @@ int main() {
                     }
                     CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
+
+
+                    real32 feature_param_signed = ((!feature_param_sign_toggle) ? 1.0f : -1.0f) * feature_param;
+
                     {
                         wrapper_manifold(
                                 &manifold,
@@ -1248,11 +1252,16 @@ int main() {
                                 cross_section.polygonal_loops,
                                 M_selected,
                                 feature_mode,
-                                ((!feature_param_sign_toggle) ? 1.0f : -1.0f) * feature_param
+                                feature_param_signed
                                 );
                         // memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                         { // some_triangle_exists_that_matches_n_selected_and_r_n_selected
                           // FORNOW: this code heavily repeats conversation_mesh_draw
+
+                            // FORNOW
+                            r_n_selected += feature_param_signed;
+
+
                             some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                             for (u32 i = 0; i < mesh.num_triangles; ++i) {
                                 // FORNOW
