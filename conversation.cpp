@@ -60,6 +60,7 @@
 
 
 real32 EPSILON_DEFAULT = 0.03f;
+real32 Z_FIGHT_EPS = 0.01f;
 real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -781,68 +782,6 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void conversation_mesh_draw(Camera3D *camera, ConversationMesh *mesh, bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected, vec3 n_selected, real32 r_n_selected) {
-    mat4 V = camera_get_V(camera);
-    mat4 PV = camera_get_P(camera) * V;
-
-
-    if (mesh->cosmetic_edges) {
-        eso_begin(PV, SOUP_LINES, 3.0f); 
-        eso_color(monokai.black);
-        // 3 * num_triangles * 2 / 2
-        for (u32 k = 0; k < 2 * mesh->num_cosmetic_edges; ++k) eso_vertex(mesh->vertex_positions, mesh->cosmetic_edges[k]);
-        eso_end();
-    }
-
-    for (u32 pass = 0; pass <= 1; ++pass) {
-        eso_begin(PV, (!globals.key_toggled['h']) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
-        for (u32 i = 0; i < mesh->num_triangles; ++i) {
-            // FORNOW (all this crap)
-            // TODO 
-
-            vec3 n;
-            for (u32 d = 0; d < 3; ++d) n[d] = mesh->face_normals[3 * i + d];
-
-            vec3 p[3];
-            real32 x_n;
-            {
-                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + d];
-                x_n = dot(n, p[0]);
-            }
-
-            vec3 color; 
-            real32 alpha;
-            {
-                vec3 n_camera = transformNormal(V, n);
-                // if (n_camera.z > 0)
-                {
-                    if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
-                        if (pass == 0) continue;
-                        color = AVG(monokai.yellow, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f));
-                        alpha = 0.5f;
-                    } else {
-                        if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
-                        if (pass == 1) continue;
-                        color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
-                        alpha = 1.0f;
-                    }
-                }
-                // else {
-                //     color = V3(1.0f, 0.0f, 0.0f);
-                //     alpha = 1.0f;
-                // }
-            }
-            eso_color(color, alpha);
-            eso_vertex(p[0]);
-            eso_vertex(p[1]);
-            eso_vertex(p[2]);
-
-        }
-        eso_end();
-    }
-
-}
-
 void mesh_save_stl(ConversationMesh *mesh, char *filename) {
     FILE *file = fopen(filename, "w");
     ASSERT(file);
@@ -1254,11 +1193,11 @@ int main() {
                                 feature_mode,
                                 feature_param_signed
                                 );
-                        // memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
+                        memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                         { // some_triangle_exists_that_matches_n_selected_and_r_n_selected
                           // FORNOW: this code heavily repeats conversation_mesh_draw
 
-                            // FORNOW
+                          // FORNOW
                             r_n_selected += feature_param_signed;
 
 
@@ -1422,32 +1361,40 @@ int main() {
                 mat4 PV_3D = P_3D * V_3D;
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
-                { // 2D selection
-                    for (u32 pass = 0; pass <= 1; ++pass) {
-                        u32 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? DXF_COLOR_TRAVERSE : DXF_COLOR_QUALITY_1; // FORNOW
-                        mat4 M = M_selected;
-                        if (pass == 1) {
-                            if (feature_mode == FEATURE_MODE_NONE) break;
-                            M = M * M4_Translation(0.0f, 0.0f, feature_param_preview);
-                        }
-                        eso_begin(camera_get_PV(&camera3D) * M, SOUP_LINES, 5.0f);
+
+                { // 2D selection (FORNOW: ew)
+                    u32 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? DXF_COLOR_TRAVERSE : DXF_COLOR_QUALITY_1;
+                    mat4 M = M_selected * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS);
+                    u32 NUM_TUBE_STACKS_INCLUSIVE = roundf(ABS(feature_param_preview) / 2.54f) + 2;
+                    for (u32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
+                        eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
                         for (u32 i = 0; i < dxf.num_entities; ++i) {
                             DXFEntity *entity = &dxf.entities[i];
-                            if (dxf_selection_mask[i]) {
-                                eso_dxf_entity__SOUP_LINES(entity, color);
-                            }
+                            if (dxf_selection_mask[i]) eso_dxf_entity__SOUP_LINES(entity, color);
                         }
                         eso_end();
+                        M *= M4_Translation(0.0f, 0.0f, feature_param_preview / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                     }
                 }
-                { // arrow
+
+                bool32 dxf_anything_selected; {
+                    dxf_anything_selected = false;
+                    for (u32 i = 0; i < dxf.num_entities; ++i) {
+                        if (dxf_selection_mask[i]) {
+                            dxf_anything_selected = true;
+                            break;
+                        }
+                    }
+                }
+                if (dxf_anything_selected) { // arrow
                     if (!IS_ZERO(feature_param_preview)) {
                         real32 total_height = ABS(feature_param_preview);
                         real32 cap_height = (total_height > 10.0) ? 5.0f : (0.5 * total_height);
                         real32 shaft_height = total_height - cap_height;
-                        real32 s = (total_height > 10.0f) ? 1.0f : SQRT(total_height / 10.0f);
+                        real32 s = 1.5f * ((total_height > 10.0f) ? 1.0f : SQRT(total_height / 10.0f));
                         vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.green : monokai.red;
-                        mat4 N = (feature_param_preview > 0.0f) ? M4_Identity() : /* M4_Translation(0.0f, 0.0f, total_height) * */ M4_Scaling(1.0f, 1.0f, -1.0f);
+                        mat4 N = M4_Translation(0.0, 0.0, -Z_FIGHT_EPS);
+                        if (feature_param_preview < 0.0f) N = M4_Scaling(1.0f, 1.0f, -1.0f) * N;
                         mat4 R = M4_RotationAboutXAxis(RAD(90));
                         mat4 M_cyl  = M_selected * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
                         mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
@@ -1458,21 +1405,74 @@ int main() {
                 { // axes
                     library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
                 }
-                { // plane
-                    if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
-                        real32 r = 50.0f;
-                        eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
-                        eso_color(monokai.yellow, 0.5f);
-                        eso_vertex( r,  r, 0.0f);
-                        eso_vertex( r, -r, 0.0f);
-                        eso_vertex(-r, -r, 0.0f);
-                        eso_vertex(-r,  r, 0.0f);
+                { // mesh; NOTE: includes transparency
+                    if (mesh.cosmetic_edges) {
+                        eso_begin(PV_3D, SOUP_LINES, 3.0f); 
+                        eso_color(monokai.black);
+                        // 3 * num_triangles * 2 / 2
+                        for (u32 k = 0; k < 2 * mesh.num_cosmetic_edges; ++k) eso_vertex(mesh.vertex_positions, mesh.cosmetic_edges[k]);
+                        eso_end();
+                    }
+                    for (u32 pass = 0; pass <= 1; ++pass) {
+                        eso_begin(PV_3D, (!globals.key_toggled['h']) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
+                        for (u32 i = 0; i < mesh.num_triangles; ++i) {
+                            // FORNOW (all this crap)
+                            // TODO 
+
+                            vec3 n;
+                            for (u32 d = 0; d < 3; ++d) n[d] = mesh.face_normals[3 * i + d];
+
+                            vec3 p[3];
+                            real32 x_n;
+                            {
+                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
+                                x_n = dot(n, p[0]);
+                            }
+
+                            vec3 color; 
+                            real32 alpha;
+                            {
+                                vec3 n_camera = transformNormal(V_3D, n);
+                                // if (n_camera.z > 0)
+                                {
+                                    if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
+                                        if (pass == 0) continue;
+                                        color = monokai.yellow;
+                                        alpha = (dxf_anything_selected && feature_param_sign_toggle) ? 0.7f : 1.0f;
+                                    } else {
+                                        if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
+                                        if (pass == 1) continue;
+                                        color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
+                                        alpha = 1.0f;
+                                    }
+                                }
+                                // else {
+                                //     color = V3(1.0f, 0.0f, 0.0f);
+                                //     alpha = 1.0f;
+                                // }
+                            }
+                            eso_color(color, alpha);
+                            eso_vertex(p[0]);
+                            eso_vertex(p[1]);
+                            eso_vertex(p[2]);
+
+                        }
                         eso_end();
                     }
                 }
 
-                // NOTE: includes transparency; has to come last
-                conversation_mesh_draw(&camera3D, &mesh, some_triangle_exists_that_matches_n_selected_and_r_n_selected, n_selected, r_n_selected);
+                { // plane; NOTE: transparent
+                    if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
+                        real32 r = 50.0f;
+                        eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
+                        eso_color(monokai.yellow, 0.5f);
+                        eso_vertex( r,  r, -Z_FIGHT_EPS);
+                        eso_vertex( r, -r, -Z_FIGHT_EPS);
+                        eso_vertex(-r, -r, -Z_FIGHT_EPS);
+                        eso_vertex(-r,  r, -Z_FIGHT_EPS);
+                        eso_end();
+                    }
+                }
 
                 glDisable(GL_SCISSOR_TEST);
             }
