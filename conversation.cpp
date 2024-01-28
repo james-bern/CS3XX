@@ -2,29 +2,6 @@
 // NOTE: This is a little CAD program Jim is actively developing.
 //       It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
 
-
-// TODO: <leader>c comment toggle
-// TODO: selecting xy yz and xz planes
-// TODO: visualize normal of selected plane (3D arrow)
-// TODO: '+'/'-' (cut of +5/-2)
-// TODO: bosses on non-y-up geometry
-// TODO: loading STL
-// TODO: load file dialogue
-// TODO: save file dialogue
-// TODO: selecting line entity to say extrude height (maybe using 'M')
-
-
-// TODO: work plane
-// TODO: selecting surface for plane
-// TODO: planar offsets
-// TODO: preview
-// TODO: some sort of BVH or grid
-
-
-// TODO: usage of vec3 is sus af (at least try to keep it contained to like...cross)
-// TODO: cow soup/eso should take arbitrary sizes per entity (dots)
-
-
 // roadmap
 // / import dxf
 // / detect pick_loops
@@ -45,11 +22,6 @@
 // ? how are we storing the sequence of operations
 
 
-// NOTE: for a first cut it could be destructive like omax itself
-//       basically just like a conversational mill
-//       don't store anything but the STL created so far (and maybe an undo stack eventually)
-//       could at least print to the terminal what you've done
-//       should preview the cut on the surface before you accept it (eventually) -- and let you nudge it in x, y, and z
 
 
 
@@ -842,7 +814,9 @@ void wrapper_manifold(
         Vertex2D **polygonal_loops,
         mat4 M_selected,
         u32 feature_mode,
-        real32 feature_param) {
+        bool32 feature_param_sign_toggle,
+        real32 feature_param,
+        real32 feature_param_2) {
 
     ASSERT(feature_mode != FEATURE_MODE_NONE);
     {
@@ -867,8 +841,9 @@ void wrapper_manifold(
 
             if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS || feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
                 // if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) feature_param = -feature_param; // FORNOW
-                manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, ABS(feature_param), 0, 0.0f, 1.0f, 1.0f);
-                if (feature_param < 0.0f) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
+                manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, feature_param + feature_param_2, 0, 0.0f, 1.0f, 1.0f);
+                manifold = manifold_translate(manifold, manifold, 0.0, 0.0, -feature_param_2);
+                if (feature_param_sign_toggle) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
 
                 { // TODO transform
                   // manifold = manifold_translate(manifold, manifold, 0.0f, 0.0f, x_n);
@@ -1013,6 +988,7 @@ int main() {
 
     u32 feature_mode;
     real32 feature_param;
+    real32 feature_param_2;
     char feature_param_buffer[256];
     char *feature_param_buffer_write_head;
     auto feature_param_buffer_reset = [&]() {
@@ -1089,13 +1065,14 @@ int main() {
 
             feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
             feature_param = 0.0f;
+            feature_param_2 = 0.0f;
             feature_param_sign_toggle = false;
             feature_param_buffer_reset();
 
             {
                 real32 height = 150.f;
-            camera2D = { height, height / 2 };
-            camera3D = { height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height / 2 };
+                camera2D = { height, height / 2 };
+                camera3D = { height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height / 2 };
             }
         }
         if (gui_button("save")) mesh_save_stl(&mesh, "out.stl");
@@ -1135,6 +1112,29 @@ int main() {
             camera_move(&camera3D);
         }
 
+        real32 feature_param_preview;
+        real32 feature_param_2_preview;
+        {
+            if (feature_param_buffer_write_head == feature_param_buffer) {
+                feature_param_preview = feature_param;
+                feature_param_2_preview = feature_param_2;
+            } else {
+                char buffs[2][64] = {};
+                u32 buff_i = 0;
+                u32 i = 0;
+                for (char *c = feature_param_buffer; (*c) != '\0'; ++c) {
+                    if (*c == '/') {
+                        ++buff_i;
+                        i = 0;
+                        continue;
+                    }
+                    buffs[buff_i][i++] = (*c);
+                }
+                feature_param_preview = strtof(buffs[0], NULL);
+                feature_param_2_preview = strtof(buffs[1], NULL);
+            }
+        }
+
         { // 2D -> 3D
             if (feature_mode != FEATURE_MODE_EXTRUDE_BOSS) {
                 if (key_pressed['e'] && !globals.key_shift_held) {
@@ -1164,6 +1164,7 @@ int main() {
                         bool32 valid_key_pressed; {
                             valid_key_pressed = false;
                             valid_key_pressed |= key_pressed['.'];
+                            valid_key_pressed |= key_pressed['/'];
                             for (u32 i = 0; i < 10; ++i) valid_key_pressed |= key_pressed['0' + i];
                         }
                         if (valid_key_pressed) {
@@ -1176,14 +1177,13 @@ int main() {
                     // feature_mode = FEATURE_MODE_NONE;
                     // NOTE: holds over previous
                     if (feature_param_buffer_write_head != feature_param_buffer) {
-                        feature_param = strtof(feature_param_buffer, NULL);
+                        feature_param = feature_param_preview;
+                        feature_param_2 = feature_param_2_preview;
                         feature_param_buffer_reset();
                     }
                     CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
 
-
-                    real32 feature_param_signed = ((!feature_param_sign_toggle) ? 1.0f : -1.0f) * feature_param;
 
                     {
                         wrapper_manifold(
@@ -1194,29 +1194,40 @@ int main() {
                                 cross_section.polygonal_loops,
                                 M_selected,
                                 feature_mode,
-                                feature_param_signed
+                                feature_param_sign_toggle,
+                                feature_param,
+                                feature_param_2
                                 );
                         memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                         { // some_triangle_exists_that_matches_n_selected_and_r_n_selected
-                          // FORNOW: this code heavily repeats conversation_mesh_draw
+                            ;
 
-                          // FORNOW
-                            r_n_selected += feature_param_signed;
+                            // FORNOW
+                            // r_n_selected += ((!feature_param_sign_toggle) ? 1.0f : -1.0f) * feature_param;
+
+                            // { // FORNOW
+                            //     some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+                            //     n_selected = { 0.0, 1.0, 0.0 };
+                            //     r_n_selected = 0.0f;
+                            //     M_selected = get_M_selected(n_selected, r_n_selected);
+                            // }
 
 
-                            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-                            for (u32 i = 0; i < mesh.num_triangles; ++i) {
-                                // FORNOW
-                                vec3 n = { mesh.face_normals[3 * i + 0], mesh.face_normals[3 * i + 1], mesh.face_normals[3 * i + 2] };
+                            { // FORNOW: this code heavily repeats conversation_mesh_draw
+                                some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+                                for (u32 i = 0; i < mesh.num_triangles; ++i) {
+                                    // FORNOW
+                                    vec3 n = { mesh.face_normals[3 * i + 0], mesh.face_normals[3 * i + 1], mesh.face_normals[3 * i + 2] };
 
-                                // FORNOW
-                                vec3 p[3];
-                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
-                                real32 x_n = dot(n, p[0]);
+                                    // FORNOW
+                                    vec3 p[3];
+                                    for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
+                                    real32 x_n = dot(n, p[0]);
 
-                                if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
-                                    some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
-                                    break;
+                                    if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
+                                        some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1295,14 +1306,6 @@ int main() {
             }
         }
 
-        real32 feature_param_preview; {
-            if (feature_param_buffer_write_head == feature_param_buffer) {
-                feature_param_preview = feature_param;
-            } else {
-                feature_param_preview = strtof(feature_param_buffer, NULL);
-            }
-            if (feature_param_sign_toggle) feature_param_preview *= -1;
-        }
 
 
         { // 3D
@@ -1367,16 +1370,22 @@ int main() {
 
                 { // 2D selection (FORNOW: ew)
                     u32 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? DXF_COLOR_TRAVERSE : DXF_COLOR_QUALITY_1;
-                    mat4 M = M_selected * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS);
-                    u32 NUM_TUBE_STACKS_INCLUSIVE = roundf(ABS(feature_param_preview) / 2.54f) + 2;
+                    real32 sign = (!feature_param_sign_toggle) ? 1.0f : -1.0f;
+                    real32 a = sign * -feature_param_2_preview;
+                    real32 b = sign * feature_param_preview;
+                    real32 total_height = (feature_param_2_preview + feature_param_preview);
+                    mat4 M = M_selected * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
+                    u32 NUM_TUBE_STACKS_INCLUSIVE = roundf(total_height / 2.5f) + 2;
                     for (u32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
-                        eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
-                        for (u32 i = 0; i < dxf.num_entities; ++i) {
-                            DXFEntity *entity = &dxf.entities[i];
-                            if (dxf_selection_mask[i]) eso_dxf_entity__SOUP_LINES(entity, color);
+                        {
+                            eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
+                            for (u32 i = 0; i < dxf.num_entities; ++i) {
+                                DXFEntity *entity = &dxf.entities[i];
+                                if (dxf_selection_mask[i]) eso_dxf_entity__SOUP_LINES(entity, color);
+                            }
+                            eso_end();
                         }
-                        eso_end();
-                        M *= M4_Translation(0.0f, 0.0f, feature_param_preview / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                        M *= M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                     }
                 }
 
@@ -1390,19 +1399,23 @@ int main() {
                     }
                 }
                 if (dxf_anything_selected) { // arrow
-                    if (!IS_ZERO(feature_param_preview)) {
-                        real32 total_height = ABS(feature_param_preview);
-                        real32 cap_height = (total_height > 10.0) ? 5.0f : (0.5 * total_height);
-                        real32 shaft_height = total_height - cap_height;
-                        real32 s = 1.5f * ((total_height > 10.0f) ? 1.0f : SQRT(total_height / 10.0f));
-                        vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.green : monokai.red;
-                        mat4 N = M4_Translation(0.0, 0.0, -Z_FIGHT_EPS);
-                        if (feature_param_preview < 0.0f) N = M4_Scaling(1.0f, 1.0f, -1.0f) * N;
-                        mat4 R = M4_RotationAboutXAxis(RAD(90));
-                        mat4 M_cyl  = M_selected * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
-                        mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
-                        library.meshes.cylinder.draw(P_3D, V_3D, M_cyl, color);
-                        library.meshes.cone.draw(P_3D, V_3D, M_cone, color);
+                    real32 H[2] = { feature_param_preview, feature_param_2_preview };
+                    bool32 toggle[2] = { feature_param_sign_toggle, !feature_param_sign_toggle };
+                    for (u32 i = 0; i < 2; ++i) {
+                        if (!IS_ZERO(H[i])) {
+                            real32 total_height = ABS(H[i]);
+                            real32 cap_height = (total_height > 10.0) ? 5.0f : (0.5 * total_height);
+                            real32 shaft_height = total_height - cap_height;
+                            real32 s = 1.5f;
+                            vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.green : monokai.red;
+                            mat4 N = M4_Translation(0.0, 0.0, -Z_FIGHT_EPS);
+                            if (toggle[i]) N = M4_Scaling(1.0f, 1.0f, -1.0f) * N;
+                            mat4 R = M4_RotationAboutXAxis(RAD(90));
+                            mat4 M_cyl  = M_selected * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
+                            mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
+                            library.meshes.cylinder.draw(P_3D, V_3D, M_cyl, color);
+                            library.meshes.cone.draw(P_3D, V_3D, M_cone, color);
+                        }
                     }
                 }
                 { // axes
@@ -1440,7 +1453,7 @@ int main() {
                                 {
                                     if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                         if (pass == 0) continue;
-                                        color = monokai.yellow;
+                                        color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
                                         alpha = (dxf_anything_selected && feature_param_sign_toggle) ? 0.7f : 1.0f;
                                     } else {
                                         if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
@@ -1513,7 +1526,11 @@ int main() {
             char tmp[256]; {
                 char *units = (char *) (((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) || (feature_mode == FEATURE_MODE_EXTRUDE_CUT)) ? "mm" : "deg");
                 if (feature_param_buffer_write_head == feature_param_buffer) {
-                    sprintf(tmp, "%g%s", feature_param, units);
+                    if (feature_param_2 == 0) {
+                        sprintf(tmp, "%g%s", feature_param, units);
+                    } else {
+                        sprintf(tmp, "%g/%g%s", feature_param, feature_param_2, units);
+                    }
                 } else {
                     sprintf(tmp, "`%s%s", feature_param_buffer, units);
                 }
