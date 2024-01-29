@@ -791,9 +791,9 @@ void wrapper_manifold(
         Vertex2D **polygonal_loops,
         mat4 M_selected,
         u32 feature_mode,
-        bool32 feature_param_sign_toggle,
-        real32 feature_param,
-        real32 feature_param_2) {
+        bool32 extrude_param_sign_toggle,
+        real32 extrude_param,
+        real32 extrude_param_2) {
 
     ASSERT(feature_mode != FEATURE_MODE_NONE);
     {
@@ -815,25 +815,20 @@ void wrapper_manifold(
             ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
 
 
-
-            if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS || feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
-                // if (feature_mode == FEATURE_MODE_EXTRUDE_CUT) feature_param = -feature_param; // FORNOW
-                manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, feature_param + feature_param_2, 0, 0.0f, 1.0f, 1.0f);
-                manifold = manifold_translate(manifold, manifold, 0.0, 0.0, -feature_param_2);
-                if (feature_param_sign_toggle) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
-
-                { // TODO transform
-                  // manifold = manifold_translate(manifold, manifold, 0.0f, 0.0f, x_n);
-                  // manifold = manifold_rotate(manifold, manifold, -90.0f, 0.0f, 0.0f);
-                    manifold = manifold_transform(manifold, manifold,
-                            M_selected(0, 0), M_selected(1, 0), M_selected(2, 0),
-                            M_selected(0, 1), M_selected(1, 1), M_selected(2, 1),
-                            M_selected(0, 2), M_selected(1, 2), M_selected(2, 2),
-                            M_selected(0, 3), M_selected(1, 3), M_selected(2, 3));
+            { // manifold
+                if (feature_mode == FEATURE_MODE_EXTRUDE_BOSS || feature_mode == FEATURE_MODE_EXTRUDE_CUT) {
+                    manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
+                    manifold = manifold_translate(manifold, manifold, 0.0, 0.0, -extrude_param_2);
+                    if (extrude_param_sign_toggle) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
+                } else {
+                    manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                    manifold = manifold_rotate(manifold, manifold, -90.0f, 0.0f, 0.0f);
                 }
-
-            } else {
-                manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                manifold = manifold_transform(manifold, manifold,
+                        M_selected(0, 0), M_selected(1, 0), M_selected(2, 0),
+                        M_selected(0, 1), M_selected(1, 1), M_selected(2, 1),
+                        M_selected(0, 2), M_selected(1, 2), M_selected(2, 2),
+                        M_selected(0, 3), M_selected(1, 3), M_selected(2, 3));
             }
         }
 
@@ -862,9 +857,8 @@ void wrapper_manifold(
         mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
 
         { // face_normals
-
-            // FORNOW: uses snail
-            // TODO: remove dependency
+          // FORNOW: uses snail
+          // TODO: remove dependency
             mesh->face_normals = (real32 *) malloc(mesh->num_triangles * 3 * sizeof(real32));
             vec3 p[3];
             for (u32 i = 0; i < mesh->num_triangles; ++i) {
@@ -964,15 +958,15 @@ int main() {
     ConversationMesh mesh;
 
     u32 feature_mode;
-    real32 feature_param;
-    real32 feature_param_2;
-    char feature_param_buffer[256];
-    char *feature_param_buffer_write_head;
-    auto feature_param_buffer_reset = [&]() {
-        memset(feature_param_buffer, 0, ARRAY_LENGTH(feature_param_buffer) * sizeof(char));
-        feature_param_buffer_write_head = feature_param_buffer;
+    real32 extrude_param;
+    real32 extrude_param_2;
+    char extrude_param_buffer[256];
+    char *extrude_param_buffer_write_head;
+    auto extrude_param_buffer_reset = [&]() {
+        memset(extrude_param_buffer, 0, ARRAY_LENGTH(extrude_param_buffer) * sizeof(char));
+        extrude_param_buffer_write_head = extrude_param_buffer;
     };
-    bool32 feature_param_sign_toggle;
+    bool32 extrude_param_sign_toggle;
 
     Camera2D camera2D;
     Camera3D camera3D;
@@ -992,7 +986,7 @@ int main() {
             r_n_selected = 0.0f;
             M_selected = get_M_selected(n_selected, r_n_selected);
 
-            dxf = dxf_load("omax.dxf");
+            dxf = dxf_load("omax copy.dxf");
             pick = dxf_loop_analysis_create(&dxf);
 
             dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
@@ -1041,10 +1035,10 @@ int main() {
             #endif
 
             feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
-            feature_param = 0.0f;
-            feature_param_2 = 0.0f;
-            feature_param_sign_toggle = false;
-            feature_param_buffer_reset();
+            extrude_param = 0.0f;
+            extrude_param_2 = 0.0f;
+            extrude_param_sign_toggle = false;
+            extrude_param_buffer_reset();
 
             {
                 real32 height = 150.f;
@@ -1089,17 +1083,17 @@ int main() {
             camera_move(&camera3D);
         }
 
-        real32 feature_param_preview;
-        real32 feature_param_2_preview;
+        real32 extrude_param_preview;
+        real32 extrude_param_2_preview;
         {
-            if (feature_param_buffer_write_head == feature_param_buffer) {
-                feature_param_preview = feature_param;
-                feature_param_2_preview = feature_param_2;
+            if (extrude_param_buffer_write_head == extrude_param_buffer) {
+                extrude_param_preview = extrude_param;
+                extrude_param_2_preview = extrude_param_2;
             } else {
                 char buffs[2][64] = {};
                 u32 buff_i = 0;
                 u32 i = 0;
-                for (char *c = feature_param_buffer; (*c) != '\0'; ++c) {
+                for (char *c = extrude_param_buffer; (*c) != '\0'; ++c) {
                     if (*c == '/') {
                         ++buff_i;
                         i = 0;
@@ -1107,8 +1101,8 @@ int main() {
                     }
                     buffs[buff_i][i++] = (*c);
                 }
-                feature_param_preview = strtof(buffs[0], NULL);
-                feature_param_2_preview = strtof(buffs[1], NULL);
+                extrude_param_preview = strtof(buffs[0], NULL);
+                extrude_param_2_preview = strtof(buffs[1], NULL);
             }
         }
 
@@ -1116,27 +1110,27 @@ int main() {
             if (feature_mode != FEATURE_MODE_EXTRUDE_BOSS) {
                 if (key_pressed['e'] && !globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
-                    // feature_param_buffer_reset();
-                    feature_param_sign_toggle = false;
+                    // extrude_param_buffer_reset();
+                    extrude_param_sign_toggle = false;
                 }
             }
             if (feature_mode != FEATURE_MODE_EXTRUDE_CUT) {
                 if (key_pressed['E'] && globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_EXTRUDE_CUT;
-                    // feature_param_buffer_reset();
-                    feature_param_sign_toggle = true;
+                    // extrude_param_buffer_reset();
+                    extrude_param_sign_toggle = true;
                 }
             }
             if (feature_mode != FEATURE_MODE_REVOLVE) {
                 if (key_pressed['r']) {
                     feature_mode = FEATURE_MODE_REVOLVE;
-                    // feature_param_buffer_reset();
+                    // extrude_param_buffer_reset();
                 }
             } 
             if (feature_mode != FEATURE_MODE_NONE) {
                 if (globals.key_any_key_pressed) {
                     if (key_pressed[COW_KEY_BACKSPACE]) {
-                        if (feature_param_buffer_write_head != feature_param_buffer) *--feature_param_buffer_write_head = 0;
+                        if (extrude_param_buffer_write_head != extrude_param_buffer) *--extrude_param_buffer_write_head = 0;
                     } else if (select_modifier != SELECT_MODIFIER_QUALITY) {
                         bool32 valid_key_pressed; {
                             valid_key_pressed = false;
@@ -1145,18 +1139,18 @@ int main() {
                             for (u32 i = 0; i < 10; ++i) valid_key_pressed |= key_pressed['0' + i];
                         }
                         if (valid_key_pressed) {
-                            *feature_param_buffer_write_head++ = (char) globals.key_last_key_pressed;
+                            *extrude_param_buffer_write_head++ = (char) globals.key_last_key_pressed;
                         }
                     }
                 } 
-                if (key_pressed[COW_KEY_TAB]) feature_param_sign_toggle = !feature_param_sign_toggle;
+                if (key_pressed[COW_KEY_TAB]) extrude_param_sign_toggle = !extrude_param_sign_toggle;
                 if (key_pressed[COW_KEY_ENTER]) {
                     // feature_mode = FEATURE_MODE_NONE;
                     // NOTE: holds over previous
-                    if (feature_param_buffer_write_head != feature_param_buffer) {
-                        feature_param = feature_param_preview;
-                        feature_param_2 = feature_param_2_preview;
-                        feature_param_buffer_reset();
+                    if (extrude_param_buffer_write_head != extrude_param_buffer) {
+                        extrude_param = extrude_param_preview;
+                        extrude_param_2 = extrude_param_2_preview;
+                        extrude_param_buffer_reset();
                     }
                     CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
@@ -1171,16 +1165,16 @@ int main() {
                                 cross_section.polygonal_loops,
                                 M_selected,
                                 feature_mode,
-                                feature_param_sign_toggle,
-                                feature_param,
-                                feature_param_2
+                                extrude_param_sign_toggle,
+                                extrude_param,
+                                extrude_param_2
                                 );
                         memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                         { // some_triangle_exists_that_matches_n_selected_and_r_n_selected
                             ;
 
                             // FORNOW
-                            // r_n_selected += ((!feature_param_sign_toggle) ? 1.0f : -1.0f) * feature_param;
+                            // r_n_selected += ((!extrude_param_sign_toggle) ? 1.0f : -1.0f) * extrude_param;
 
                             // { // FORNOW
                             //     some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
@@ -1339,33 +1333,6 @@ int main() {
                 }
             }
             { // 3D draw
-                mat4 P_3D = camera_get_P(&camera3D);
-                mat4 V_3D = camera_get_V(&camera3D);
-                mat4 PV_3D = P_3D * V_3D;
-                glEnable(GL_SCISSOR_TEST);
-                glScissor(window_width / 2, 0, window_width / 2, window_height);
-
-                { // 2D selection (FORNOW: ew)
-                    u32 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? DXF_COLOR_TRAVERSE : DXF_COLOR_QUALITY_1;
-                    real32 sign = (!feature_param_sign_toggle) ? 1.0f : -1.0f;
-                    real32 a = sign * -feature_param_2_preview;
-                    real32 b = sign * feature_param_preview;
-                    real32 total_height = (feature_param_2_preview + feature_param_preview);
-                    mat4 M = M_selected * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
-                    u32 NUM_TUBE_STACKS_INCLUSIVE = roundf(total_height / 2.5f) + 2;
-                    for (u32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
-                        {
-                            eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
-                            for (u32 i = 0; i < dxf.num_entities; ++i) {
-                                DXFEntity *entity = &dxf.entities[i];
-                                if (dxf_selection_mask[i]) eso_dxf_entity__SOUP_LINES(entity, color);
-                            }
-                            eso_end();
-                        }
-                        M *= M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
-                    }
-                }
-
                 bool32 dxf_anything_selected; {
                     dxf_anything_selected = false;
                     for (u32 i = 0; i < dxf.num_entities; ++i) {
@@ -1375,26 +1342,77 @@ int main() {
                         }
                     }
                 }
-                if (dxf_anything_selected) { // arrow
-                    real32 H[2] = { feature_param_preview, feature_param_2_preview };
-                    bool32 toggle[2] = { feature_param_sign_toggle, !feature_param_sign_toggle };
-                    for (u32 i = 0; i < 2; ++i) {
-                        if (!IS_ZERO(H[i])) {
-                            real32 total_height = ABS(H[i]);
-                            real32 cap_height = (total_height > 10.0) ? 5.0f : (0.5 * total_height);
-                            real32 shaft_height = total_height - cap_height;
-                            real32 s = 1.5f;
-                            vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.green : monokai.red;
-                            mat4 N = M4_Translation(0.0, 0.0, -Z_FIGHT_EPS);
-                            if (toggle[i]) N = M4_Scaling(1.0f, 1.0f, -1.0f) * N;
-                            mat4 R = M4_RotationAboutXAxis(RAD(90));
-                            mat4 M_cyl  = M_selected * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
-                            mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
-                            library.meshes.cylinder.draw(P_3D, V_3D, M_cyl, color);
-                            library.meshes.cone.draw(P_3D, V_3D, M_cone, color);
+
+                mat4 P_3D = camera_get_P(&camera3D);
+                mat4 V_3D = camera_get_V(&camera3D);
+                mat4 PV_3D = P_3D * V_3D;
+
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(window_width / 2, 0, window_width / 2, window_height);
+
+                { // 2D selection (FORNOW: ew)
+                    u32 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? DXF_COLOR_TRAVERSE : (feature_mode == FEATURE_MODE_EXTRUDE_CUT) ? DXF_COLOR_QUALITY_1 : DXF_COLOR_LEAD_IO;
+
+                    u32 NUM_TUBE_STACKS_INCLUSIVE;
+                    mat4 M;
+                    mat4 M_incr;
+                    {
+                        if ((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) || (feature_mode == FEATURE_MODE_EXTRUDE_CUT)) {
+                            real32 sign = (!extrude_param_sign_toggle) ? 1.0f : -1.0f;
+                            real32 a = sign * -extrude_param_2_preview;
+                            real32 b = sign * extrude_param_preview;
+                            real32 total_height = (extrude_param_2_preview + extrude_param_preview);
+                            NUM_TUBE_STACKS_INCLUSIVE = roundf(total_height / 2.5f) + 2;
+                            M = M_selected * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
+                            M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                        } else {
+                            NUM_TUBE_STACKS_INCLUSIVE = 64;
+                            M = M_selected;
+                            real32 a = 0.0f;
+                            real32 b = TAU;
+                            M_incr = M4_RotationAboutYAxis((b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                         }
                     }
+                    for (u32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
+                        {
+                            eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
+                            for (u32 i = 0; i < dxf.num_entities; ++i) {
+                                DXFEntity *entity = &dxf.entities[i];
+                                if (dxf_selection_mask[i]) eso_dxf_entity__SOUP_LINES(entity, color);
+                            }
+                            eso_end();
+                        }
+                        M *= M_incr;
+                    }
                 }
+
+
+                { // arrow
+                    if ((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) || (feature_mode == FEATURE_MODE_EXTRUDE_CUT)) {
+                        if (dxf_anything_selected) {
+                            real32 H[2] = { extrude_param_preview, extrude_param_2_preview };
+                            bool32 toggle[2] = { extrude_param_sign_toggle, !extrude_param_sign_toggle };
+                            for (u32 i = 0; i < 2; ++i) {
+                                if (!IS_ZERO(H[i])) {
+                                    real32 total_height = ABS(H[i]);
+                                    real32 cap_height = (total_height > 10.0) ? 5.0f : (0.5 * total_height);
+                                    real32 shaft_height = total_height - cap_height;
+                                    real32 s = 1.5f;
+                                    vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.green : monokai.red;
+                                    mat4 N = M4_Translation(0.0, 0.0, -Z_FIGHT_EPS);
+                                    if (toggle[i]) N = M4_Scaling(1.0f, 1.0f, -1.0f) * N;
+                                    mat4 R = M4_RotationAboutXAxis(RAD(90));
+                                    mat4 M_cyl  = M_selected * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
+                                    mat4 M_cone = M_selected * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
+                                    library.meshes.cylinder.draw(P_3D, V_3D, M_cyl, color);
+                                    library.meshes.cone.draw(P_3D, V_3D, M_cone, color);
+                                }
+                            }
+                        }
+                    } else {
+                    }
+                }
+
                 { // axes
                     library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
                 }
@@ -1431,7 +1449,7 @@ int main() {
                                     if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                         if (pass == 0) continue;
                                         color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
-                                        alpha = (dxf_anything_selected && ((feature_param_sign_toggle) || (feature_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
+                                        alpha = ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f)) ? 0.7f : 1.0f;
                                     } else {
                                         if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
                                         if (pass == 1) continue;
@@ -1502,14 +1520,14 @@ int main() {
 
             char tmp[256]; {
                 char *units = (char *) (((feature_mode == FEATURE_MODE_EXTRUDE_BOSS) || (feature_mode == FEATURE_MODE_EXTRUDE_CUT)) ? "mm" : "deg");
-                if (feature_param_buffer_write_head == feature_param_buffer) {
-                    if (feature_param_2 == 0) {
-                        sprintf(tmp, "%g%s", feature_param, units);
+                if (extrude_param_buffer_write_head == extrude_param_buffer) {
+                    if (extrude_param_2 == 0) {
+                        sprintf(tmp, "%g%s", extrude_param, units);
                     } else {
-                        sprintf(tmp, "%g/%g%s", feature_param, feature_param_2, units);
+                        sprintf(tmp, "%g/%g%s", extrude_param, extrude_param_2, units);
                     }
                 } else {
-                    sprintf(tmp, "`%s%s", feature_param_buffer, units);
+                    sprintf(tmp, "`%s%s", extrude_param_buffer, units);
                 }
             }
             gui_printf("enter %s %s", (feature_mode == FEATURE_MODE_NONE) ? "" : (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? "EXTRUDE BOSS" : (feature_mode == FEATURE_MODE_EXTRUDE_CUT) ? "EXTRUDE CUT" : "REVOLVE", (feature_mode == FEATURE_MODE_NONE) ? "" : tmp);
