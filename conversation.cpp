@@ -1,29 +1,6 @@
 // // Conversation
-// NOTE: This is a little CAD program Jim is actively developing.
-//       It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
-
-// roadmap
-// / import dxf
-// / detect pick_loops
-// / 2D picking of pick_loops by clicking on DXF
-// / omax-type dxf_selection_mask ('s' + 'c'); ('d' + 'a')
-// / multi-select (no shift--follow omax style)
-// / turn loop into polygon (rasterize arcs into line segments)
-// / cut has depth
-// / compile/link manifold
-// / boss ('b') and cut ('c') -- (or 'e'/'E'?)
-// / select quality (SELECT_MODIFIER_CONNECTED SELECT_MODIFIER_QUALITY)
-// / 2D / 3D ui (2D goes it its own box)
-// - cross-section arc discretization quality knobs (the correct knob is ??)
-// - planar surface picking (and if no 3D geometry yet, your choice of the xy yz and zx planes)
-// ---
-// ? nudging with x, y
-// ? you can persist the 2D curves alongside the 3D geometry they generated and then use omax style picking on the 3D part
-// ? how are we storing the sequence of operations
-
-
-
-
+// This is a little CAD program Jim is making :)
+//  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
 
 
 #include "cs345.cpp"
@@ -1139,21 +1116,21 @@ int main() {
             if (feature_mode != FEATURE_MODE_EXTRUDE_BOSS) {
                 if (key_pressed['e'] && !globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
-                    feature_param_buffer_reset();
+                    // feature_param_buffer_reset();
                     feature_param_sign_toggle = false;
                 }
             }
             if (feature_mode != FEATURE_MODE_EXTRUDE_CUT) {
                 if (key_pressed['E'] && globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_EXTRUDE_CUT;
-                    feature_param_buffer_reset();
+                    // feature_param_buffer_reset();
                     feature_param_sign_toggle = true;
                 }
             }
             if (feature_mode != FEATURE_MODE_REVOLVE) {
                 if (key_pressed['r']) {
                     feature_mode = FEATURE_MODE_REVOLVE;
-                    feature_param_buffer_reset();
+                    // feature_param_buffer_reset();
                 }
             } 
             if (feature_mode != FEATURE_MODE_NONE) {
@@ -1454,7 +1431,7 @@ int main() {
                                     if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                         if (pass == 0) continue;
                                         color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
-                                        alpha = (dxf_anything_selected && feature_param_sign_toggle) ? 0.7f : 1.0f;
+                                        alpha = (dxf_anything_selected && ((feature_param_sign_toggle) || (feature_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                     } else {
                                         if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
                                         if (pass == 1) continue;
