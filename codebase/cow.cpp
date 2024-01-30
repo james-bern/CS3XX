@@ -533,7 +533,7 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 #define ASSERT(b) do { if (!(b)) { \
     printf("ASSERT("); \
     printf(STR(b)); \
-    printf("); // "); \
+    printf("); <- "); \
     printf("Line %d in %s\n", __LINE__, __FILE__); \
     if (!config.tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter) { \
         printf("press Enter to crash"); getchar(); \
@@ -2095,14 +2095,14 @@ void _gui_begin_frame() {
         COW1._gui_hide_and_disable = !COW1._gui_hide_and_disable;
     }
 
-    // FORNOW: HACK (kinda messes up hotkey holding visuals
-    // we need this for the case when pressing a button with the mouse makes that button not get drawn again (in which case, the gui never lets go of the mouse)
-    if (globals.mouse_left_released) {
-        COW1._gui_selected = NULL;
-        if (globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
-            globals._mouse_owner = COW_MOUSE_OWNER_NONE;
-        }
-    }
+    // // FORNOW: HACK (kinda messes up hotkey holding visuals
+    // // we need this for the case when pressing a button with the mouse makes that button not get drawn again (in which case, the gui never lets go of the mouse)
+    // if (globals.mouse_left_released) {
+    //     COW1._gui_selected = NULL;
+    //     if (globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
+    //         globals._mouse_owner = COW_MOUSE_OWNER_NONE;
+    //     }
+    // }
 }
 
 void gui_printf(const char *format, ...) {
@@ -2408,7 +2408,66 @@ void gui_slider(
         }
         _gui_slider(text, variable, variable, lower_bound, upper_bound);
     }
+}
 
+bool gui_textbox(char *text_buffer, char *message_to_display_if_buffer_empty = "") {
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(message_to_display_if_buffer_empty);
+
+    if (COW1._gui_hide_and_disable) { return false; }
+    cow_real s_mouse[2];
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+
+    // fornow
+    cow_real L = 128;
+    cow_real H = 24;
+    cow_real box[8] = {
+        COW1._gui_x_curr    , COW1._gui_y_curr    ,
+        COW1._gui_x_curr + L, COW1._gui_y_curr    ,
+        COW1._gui_x_curr + L, COW1._gui_y_curr + H,
+        COW1._gui_x_curr    , COW1._gui_y_curr + H,
+    };
+
+    if (globals._mouse_owner == COW_MOUSE_OWNER_NONE || globals._mouse_owner == COW_MOUSE_OWNER_GUI) {
+        bool is_near = IS_BETWEEN(s_mouse[0], box[0], box[2]) && IS_BETWEEN(s_mouse[1], box[1], box[5]);
+        if (is_near) {
+            COW1._gui_hot = text_buffer;
+            globals._mouse_owner = COW_MOUSE_OWNER_GUI;
+        }
+        if (COW1._gui_hot == text_buffer && !is_near) {
+            COW1._gui_hot = NULL;
+            if (COW1._gui_selected != text_buffer) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
+        }
+    }
+    if (!COW1._gui_selected && ((COW1._gui_hot == text_buffer) && globals.mouse_left_pressed)) {
+        globals._mouse_owner = COW_MOUSE_OWNER_GUI;
+        COW1._gui_selected = text_buffer;
+    }
+    if (COW1._gui_selected == text_buffer) {
+        if (globals.key_pressed[COW_KEY_ENTER]) {
+            if (COW1._gui_hot != text_buffer) { globals._mouse_owner = COW_MOUSE_OWNER_NONE; }
+            COW1._gui_selected = 0;
+        }
+    }
+
+    {
+        cow_real r = (COW1._gui_selected != text_buffer) ? 0.0f : 0.8f;
+        if (COW1._gui_selected != text_buffer) {
+            cow_real nudge = SGN(.5f - r) * .1f;
+            r += nudge; 
+            if (COW1._gui_hot == text_buffer) r += nudge; 
+        }
+
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+    }
+    COW1._gui_x_curr += 8;
+    COW1._gui_y_curr += 4;
+    gui_printf(text_buffer);
+    COW1._gui_y_curr += 8;
+    COW1._gui_x_curr -= 8;
+
+    bool result = (COW1._gui_selected == text_buffer) && (globals.mouse_left_pressed);
+    return result;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
