@@ -363,7 +363,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-      // populate List's
+        // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -857,8 +857,8 @@ void wrapper_manifold(
         mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
 
         { // face_normals
-          // FORNOW: uses snail
-          // TODO: remove dependency
+            // FORNOW: uses snail
+            // TODO: remove dependency
             mesh->face_normals = (real32 *) malloc(mesh->num_triangles * 3 * sizeof(real32));
             vec3 p[3];
             for (u32 i = 0; i < mesh->num_triangles; ++i) {
@@ -928,123 +928,131 @@ bool *key_toggled = globals.key_toggled;
 mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real32 dot_product = dot(n_selected, up);
-    vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0)) ? V3(0.0,  0.0, -SGN(dot_product)) : up;
+    vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
     vec3 x = normalized(cross(y, n_selected));
     vec3 z = cross(x, y);
     return M4_xyzo(x, y, z, r_n_selected * n_selected);
 }
 
 
+
+#define HOT_PANE_NONE 0
+#define HOT_PANE_2D   1
+#define HOT_PANE_3D   2
+u32 hot_pane;
+
+u32 select_mode;
+u32 select_modifier;
+
+bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: if this is false, then a plane is selected
+vec3 n_selected;
+real32 r_n_selected; // coordinate along n_selected
+mat4 M_selected;
+
+DXF dxf;
+DXFLoopAnalysisResult pick;
+
+bool32 *dxf_selection_mask;
+
+ManifoldManifold *manifold;
+ConversationMesh mesh;
+
+u32 feature_mode;
+real32 extrude_param;
+real32 extrude_param_2;
+char extrude_param_buffer[256];
+char *extrude_param_buffer_write_head;
+auto extrude_param_buffer_reset = [&]() {
+    memset(extrude_param_buffer, 0, ARRAY_LENGTH(extrude_param_buffer) * sizeof(char));
+    extrude_param_buffer_write_head = extrude_param_buffer;
+};
+bool32 extrude_param_sign_toggle;
+
+Camera2D camera2D;
+Camera3D camera3D;
+
+
+
+void reset_app() {
+    hot_pane = HOT_PANE_NONE;
+
+    select_mode = SELECT_MODE_SELECT;
+    select_modifier = SELECT_MODIFIER_CONNECTED;
+
+    some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+    n_selected = { 0.0, 1.0, 0.0 };
+    r_n_selected = 0.0f;
+    M_selected = get_M_selected(n_selected, r_n_selected);
+
+    dxf = dxf_load("omax.dxf");
+    pick = dxf_loop_analysis_create(&dxf);
+
+    dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+
+    manifold = NULL;
+    mesh = {};
+    #if 0
+    {
+        mesh = {};
+        mesh.num_vertices = 4;
+        mesh.num_triangles = 4;
+        mesh.vertex_positions = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
+        mesh.triangle_indices = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
+        float h = (1.0f + SQRT(3.0f)) / 2;
+        {
+            u32 k = 0;
+            mesh.vertex_positions[k++] = 100.0f * COS(RAD(0.0));
+            mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            mesh.vertex_positions[k++] = 100.0f * SIN(RAD(0.0));
+            mesh.vertex_positions[k++] = 100.0f * COS(RAD(120.0));
+            mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            mesh.vertex_positions[k++] = 100.0f * SIN(RAD(120.0));
+            mesh.vertex_positions[k++] = 100.0f * COS(RAD(240.0));
+            mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            mesh.vertex_positions[k++] = 100.0f * SIN(RAD(240.0));
+            mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            mesh.vertex_positions[k++] = 100.0f * h;
+            mesh.vertex_positions[k++] = 100.0f * 0.0f;
+        }
+        {
+            u32 k = 0;
+            mesh.triangle_indices[k++] = 0;
+            mesh.triangle_indices[k++] = 1;
+            mesh.triangle_indices[k++] = 2;
+            mesh.triangle_indices[k++] = 1;
+            mesh.triangle_indices[k++] = 0;
+            mesh.triangle_indices[k++] = 3;
+            mesh.triangle_indices[k++] = 2;
+            mesh.triangle_indices[k++] = 1;
+            mesh.triangle_indices[k++] = 3;
+            mesh.triangle_indices[k++] = 0;
+            mesh.triangle_indices[k++] = 2;
+            mesh.triangle_indices[k++] = 3;
+        }
+    }
+    #endif
+
+    feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
+    extrude_param = 0.0f;
+    extrude_param_2 = 0.0f;
+    extrude_param_sign_toggle = false;
+    extrude_param_buffer_reset();
+
+    {
+        real32 height = 150.f;
+        camera2D = { height, height / 2 };
+        camera3D = { height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height / 2 };
+    }
+}
+
+
+
 int main() {
-    #define HOT_PANE_NONE 0
-    #define HOT_PANE_2D   1
-    #define HOT_PANE_3D   2
-    u32 hot_pane;
-
-    u32 select_mode;
-    u32 select_modifier;
-
-    bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: if this is false, then a plane is selected
-    vec3 n_selected;
-    real32 r_n_selected; // coordinate along n_selected
-    mat4 M_selected;
-
-    DXF dxf;
-    DXFLoopAnalysisResult pick;
-
-    bool32 *dxf_selection_mask;
-
-    ManifoldManifold *manifold;
-    ConversationMesh mesh;
-
-    u32 feature_mode;
-    real32 extrude_param;
-    real32 extrude_param_2;
-    char extrude_param_buffer[256];
-    char *extrude_param_buffer_write_head;
-    auto extrude_param_buffer_reset = [&]() {
-        memset(extrude_param_buffer, 0, ARRAY_LENGTH(extrude_param_buffer) * sizeof(char));
-        extrude_param_buffer_write_head = extrude_param_buffer;
-    };
-    bool32 extrude_param_sign_toggle;
-
-    Camera2D camera2D;
-    Camera3D camera3D;
-
     bool32 initialized = false;
     while (cow_begin_frame()) {
         if (!initialized || gui_button("reset")) {
             initialized = true;
-
-            hot_pane = HOT_PANE_NONE;
-
-            select_mode = SELECT_MODE_SELECT;
-            select_modifier = SELECT_MODIFIER_CONNECTED;
-
-            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-            n_selected = { 0.0, 1.0, 0.0 };
-            r_n_selected = 0.0f;
-            M_selected = get_M_selected(n_selected, r_n_selected);
-
-            dxf = dxf_load("omax.dxf");
-            pick = dxf_loop_analysis_create(&dxf);
-
-            dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
-
-            manifold = NULL;
-            mesh = {};
-            #if 0
-            {
-                mesh = {};
-                mesh.num_vertices = 4;
-                mesh.num_triangles = 4;
-                mesh.vertex_positions = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
-                mesh.triangle_indices = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
-                float h = (1.0f + SQRT(3.0f)) / 2;
-                {
-                    u32 k = 0;
-                    mesh.vertex_positions[k++] = 100.0f * COS(RAD(0.0));
-                    mesh.vertex_positions[k++] = 100.0f * 0.0f;
-                    mesh.vertex_positions[k++] = 100.0f * SIN(RAD(0.0));
-                    mesh.vertex_positions[k++] = 100.0f * COS(RAD(120.0));
-                    mesh.vertex_positions[k++] = 100.0f * 0.0f;
-                    mesh.vertex_positions[k++] = 100.0f * SIN(RAD(120.0));
-                    mesh.vertex_positions[k++] = 100.0f * COS(RAD(240.0));
-                    mesh.vertex_positions[k++] = 100.0f * 0.0f;
-                    mesh.vertex_positions[k++] = 100.0f * SIN(RAD(240.0));
-                    mesh.vertex_positions[k++] = 100.0f * 0.0f;
-                    mesh.vertex_positions[k++] = 100.0f * h;
-                    mesh.vertex_positions[k++] = 100.0f * 0.0f;
-                }
-                {
-                    u32 k = 0;
-                    mesh.triangle_indices[k++] = 0;
-                    mesh.triangle_indices[k++] = 1;
-                    mesh.triangle_indices[k++] = 2;
-                    mesh.triangle_indices[k++] = 1;
-                    mesh.triangle_indices[k++] = 0;
-                    mesh.triangle_indices[k++] = 3;
-                    mesh.triangle_indices[k++] = 2;
-                    mesh.triangle_indices[k++] = 1;
-                    mesh.triangle_indices[k++] = 3;
-                    mesh.triangle_indices[k++] = 0;
-                    mesh.triangle_indices[k++] = 2;
-                    mesh.triangle_indices[k++] = 3;
-                }
-            }
-            #endif
-
-            feature_mode = FEATURE_MODE_EXTRUDE_BOSS;
-            extrude_param = 0.0f;
-            extrude_param_2 = 0.0f;
-            extrude_param_sign_toggle = false;
-            extrude_param_buffer_reset();
-
-            {
-                real32 height = 150.f;
-                camera2D = { height, height / 2 };
-                camera3D = { height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height / 2 };
-            }
+            reset_app();
         }
         if (gui_button("save")) mesh_save_stl(&mesh, "out.stl");
 
@@ -1134,9 +1142,9 @@ int main() {
                     } else if (select_modifier != SELECT_MODIFIER_QUALITY) {
                         bool32 valid_key_pressed; {
                             valid_key_pressed = false;
-                            valid_key_pressed |= key_pressed['.'];
-                            valid_key_pressed |= key_pressed['/'];
-                            for (u32 i = 0; i < 10; ++i) valid_key_pressed |= key_pressed['0' + i];
+                            valid_key_pressed = (valid_key_pressed || key_pressed['.']);
+                            valid_key_pressed = (valid_key_pressed || key_pressed['/']);
+                            for (u32 i = 0; i < 10; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['0' + i]);
                         }
                         if (valid_key_pressed) {
                             *extrude_param_buffer_write_head++ = (char) globals.key_last_key_pressed;
@@ -1282,16 +1290,15 @@ int main() {
         { // 3D
             { // 3D pick
                 {
-                    real32 sign;
                     if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
                         some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                         r_n_selected = 0.0f;
-                        sign = (!globals.key_shift_held) ? 1.0f : -1.0f;
+                        real32 sign = (!globals.key_shift_held) ? 1.0f : -1.0f;
+                        if (key_pressed['x']) n_selected = { sign, 0.0f, 0.0f };
+                        if (key_pressed['y']) n_selected = { 0.0f, sign, 0.0f };
+                        if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
+                        M_selected = get_M_selected(n_selected, r_n_selected);
                     }
-                    if (key_pressed['x']) n_selected = { sign, 0.0f, 0.0f };
-                    if (key_pressed['y']) n_selected = { 0.0f, sign, 0.0f };
-                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
-                    M_selected = get_M_selected(n_selected, r_n_selected);
                 }
                 if (hot_pane == HOT_PANE_3D) {
                     if (globals.mouse_left_pressed) {
@@ -1362,7 +1369,7 @@ int main() {
                             real32 a = sign * -extrude_param_2_preview;
                             real32 b = sign * extrude_param_preview;
                             real32 total_height = (extrude_param_2_preview + extrude_param_preview);
-                            NUM_TUBE_STACKS_INCLUSIVE = roundf(total_height / 2.5f) + 2;
+                            NUM_TUBE_STACKS_INCLUSIVE = u32(roundf(total_height / 2.5f)) + 2;
                             M = M_selected * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                             M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                         } else {
@@ -1395,7 +1402,7 @@ int main() {
                             for (u32 i = 0; i < 2; ++i) {
                                 if (!IS_ZERO(H[i])) {
                                     real32 total_height = ABS(H[i]);
-                                    real32 cap_height = (total_height > 10.0) ? 5.0f : (0.5 * total_height);
+                                    real32 cap_height = (total_height > 10.0f) ? 5.0f : (0.5f * total_height);
                                     real32 shaft_height = total_height - cap_height;
                                     real32 s = 1.5f;
                                     vec3 color = (feature_mode == FEATURE_MODE_EXTRUDE_BOSS) ? monokai.green : monokai.red;
