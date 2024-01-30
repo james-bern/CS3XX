@@ -962,7 +962,7 @@ real32 extrude_param;
 real32 extrude_param_2;
 char extrude_param_buffer[256];
 char *extrude_param_buffer_write_head;
-auto extrude_param_buffer_reset = [&]() {
+void extrude_param_buffer_reset() {
     memset(extrude_param_buffer, 0, ARRAY_LENGTH(extrude_param_buffer) * sizeof(char));
     extrude_param_buffer_write_head = extrude_param_buffer;
 };
