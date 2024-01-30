@@ -732,7 +732,7 @@ void eso_vertex(real32 *p, u32 j) {
 }
 
 void mesh_save_stl(ConversationMesh *mesh, char *filename) {
-    FILE *file = fopen(filename, "w");
+    FILE *file = fopen(filename, "wb");
     ASSERT(file);
 
     int num_bytes = 80 + 4 + 50 * mesh->num_triangles;
