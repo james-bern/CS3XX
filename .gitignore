@@ -18,3 +18,4 @@ hw.obj
 remedybg.exe
 *.lib
 conversation.obj
+*.stl
