@@ -53,6 +53,7 @@ IF "%1"=="" (
     /link /NODEFAULTLIB:MSVCRT ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
     codebase\ext\glfw3.lib ^
+    codebase\ext\Clipper2.lib codebase\ext\tbb12_debug.lib codebase\ext\tbb12.lib codebase\ext\manifold.lib codebase\ext\manifoldc.lib ^
     !EIGEN_LIB!
 
     call :setESC
