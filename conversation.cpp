@@ -969,7 +969,7 @@ char save_filename_buffer[256];
 
 
 void reset_app() {
-    strcpy(load_filename_buffer, "in.dxf");
+    strcpy(load_filename_buffer, "omax copy.dxf");
     strcpy(save_filename_buffer, "out.stl");
 
     hot_pane = HOT_PANE_NONE;

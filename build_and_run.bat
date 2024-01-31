@@ -122,7 +122,10 @@ else
         -L./codebase/ext \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
-        -framework AudioUnit -framework CoreAudio -framework AudioToolbox
+        -framework AudioUnit -framework CoreAudio -framework AudioToolbox \
+        -mmacosx-version-min=11.0 \
+        -arch x86_64 -arch arm64 \
+        # -arch x86_64 -masm=intel \
         # -mmacosx-version-min=13.5 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
 
     if [ -f "executable.exe" ]; then
