@@ -1,10 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define COW_USE_REAL_32
 
-#include "codebase/snail.cpp"
-#include "codebase/cow.cpp"
-#include "codebase/jim.cpp"
-
 #include <iostream>
 #include <fenv.h>
 #include <stdlib.h>
@@ -13,6 +9,10 @@
 #include <cstdio>
 #include <cstring>
 #include <cmath>
+
+#include "codebase/snail.cpp"
+#include "codebase/cow.cpp"
+#include "codebase/jim.cpp"
 
 typedef int8_t int8;
 typedef int16_t int16;
