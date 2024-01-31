@@ -2458,7 +2458,7 @@ bool gui_textbox(char *text_buffer, char *message_to_display_if_buffer_empty = "
         }
 
         _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+        // _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 8;
     COW1._gui_y_curr += 4;

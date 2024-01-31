@@ -1546,11 +1546,11 @@ int main() {
             // gui_printf("---");
             if (key_toggled['h']) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
             gui_printf("");
-            gui_textbox(save_filename_buffer);
-            if (gui_button("save")) mesh_save_stl(&mesh, save_filename_buffer);
-            gui_printf("");
             gui_textbox(load_filename_buffer);
             if (gui_button("load")) dxf = dxf_load(load_filename_buffer);
+            gui_printf("");
+            gui_textbox(save_filename_buffer);
+            if (gui_button("save")) mesh_save_stl(&mesh, save_filename_buffer);
             gui_printf("");
             // gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
             if (gui_button("reset")) reset = true;

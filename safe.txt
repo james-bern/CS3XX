@@ -1,0 +1,2 @@
+-lmanifoldc -Wl,-rpath,./codebase/ext \
+

@@ -53,8 +53,8 @@ IF "%1"=="" (
     /link /NODEFAULTLIB:MSVCRT ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
     codebase\ext\glfw3.lib ^
-    codebase\ext\Clipper2.lib codebase\ext\tbb12_debug.lib codebase\ext\tbb12.lib codebase\ext\manifold.lib codebase\ext\manifoldc.lib ^
     !EIGEN_LIB!
+    rem codebase\ext\Clipper2.lib codebase\ext\tbb12_debug.lib codebase\ext\tbb12.lib codebase\ext\manifold.lib codebase\ext\manifoldc.lib ^
 
     call :setESC
 
@@ -121,9 +121,9 @@ else
         -I./codebase/ext \
         -L./codebase/ext \
         -lglfw3 \
-        -lmanifoldc -Wl,-rpath,./codebase/ext \
         -framework Cocoa -framework OpenGL -framework IOKit \
         -framework AudioUnit -framework CoreAudio -framework AudioToolbox
+        # -mmacosx-version-min=13.5 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
 
     if [ -f "executable.exe" ]; then
         if [ "$2" = "--debug" ]; then
@@ -137,3 +137,4 @@ else
         fi
     fi
 fi
+
