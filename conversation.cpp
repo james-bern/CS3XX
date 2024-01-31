@@ -113,8 +113,7 @@ struct DXF {
 };
 
 void dxf_free(DXF *dxf) {
-    ASSERT(dxf->entities);
-    free(dxf->entities);
+    if (dxf->entities) free(dxf->entities);
 }
 
 DXF dxf_load(char *filename) {
@@ -139,9 +138,13 @@ DXF dxf_load(char *filename) {
     #endif
     DXF result = {};
 
+    FILE *file = (FILE *) fopen(filename, "r");
+    if (!file) {
+        printf("\"%s\" not found.\n", filename);
+        return result;
+    }
+
     List<DXFEntity> stretchy_list = {}; {
-        FILE *file = (FILE *) fopen(filename, "r");
-        ASSERT(file);
         {
             #define DXF_LOAD_MODE_NONE 0
             #define DXF_LOAD_MODE_LINE 1
@@ -213,8 +216,10 @@ DXF dxf_load(char *filename) {
                     code_is_hot = !code_is_hot;
                 }
             }
-        } fclose(file);
+        }
     }
+
+    fclose(file);
 
     result.num_entities = stretchy_list.length;
     result.entities = (DXFEntity *) calloc(result.num_entities, sizeof(DXFEntity));
@@ -969,7 +974,7 @@ char save_filename_buffer[256];
 
 
 void reset_app() {
-    strcpy(load_filename_buffer, "omax copy.dxf");
+    strcpy(load_filename_buffer, "in.dxf");
     strcpy(save_filename_buffer, "out.stl");
 
     hot_pane = HOT_PANE_NONE;
@@ -984,7 +989,6 @@ void reset_app() {
 
     dxf = dxf_load(load_filename_buffer);
     pick = dxf_loop_analysis_create(&dxf);
-
     dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
     manifold = NULL;
@@ -1046,47 +1050,11 @@ void reset_app() {
 
 
 int main() {
-    bool32 initialized = false;
-    bool32 reset = false;
+    bool32 reset = true;
     while (cow_begin_frame()) {
-        if (!initialized || reset) {
-            initialized = true;
+        if (reset) {
+            reset = false;
             reset_app();
-        }
-
-        u32 window_width, window_height; {
-            real32 _window_width, _window_height; // FORNOW
-            _window_get_size(&_window_width, &_window_height);
-            window_width = (u32) _window_width;
-            window_height = (u32) _window_height;
-        }
-
-        { // gui
-            glDisable(GL_DEPTH_TEST);
-            eso_begin(globals.Identity, SOUP_QUADS);
-            eso_color(0.9f, 0.9f, 0.9f);
-            eso_vertex(0.0f,  1.0f);
-            eso_vertex(0.0f, -1.0f);
-            eso_vertex(1.0f, -1.0f);
-            eso_vertex(1.0f,  1.0f);
-            eso_end();
-            glEnable(GL_DEPTH_TEST);
-
-            eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
-            eso_color(0.0f, 1.0f, 1.0f);
-            eso_vertex(0.0f,  1.0f);
-            eso_vertex(0.0f, -1.0f);
-            eso_end();
-        }
-
-        if (globals.mouse_left_pressed || globals.mouse_right_pressed || (!globals.mouse_left_held && !globals.mouse_right_held)) {
-            hot_pane = (globals.mouse_position_NDC.x < 0) ? HOT_PANE_2D : HOT_PANE_3D;
-        }
-
-        if (hot_pane == HOT_PANE_2D) {
-            camera_move(&camera2D);
-        } else if (hot_pane == HOT_PANE_3D) {
-            camera_move(&camera3D);
         }
 
         real32 extrude_param_preview;
@@ -1112,8 +1080,17 @@ int main() {
             }
         }
 
-        { // 2D -> 3D
-            {
+        if (globals._input_owner == COW_INPUT_OWNER_NONE) {
+            { // keyboard input
+                if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
+                    some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+                    r_n_selected = 0.0f;
+                    real32 sign = (!globals.key_shift_held) ? 1.0f : -1.0f;
+                    if (key_pressed['x']) n_selected = { sign, 0.0f, 0.0f };
+                    if (key_pressed['y']) n_selected = { 0.0f, sign, 0.0f };
+                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
+                    M_selected = get_M_selected(n_selected, r_n_selected);
+                }
                 if (key_pressed['e'] && !globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_EXTRUDE_ADD;
                     // extrude_param_buffer_reset();
@@ -1130,8 +1107,6 @@ int main() {
                 if (key_pressed['R'] && globals.key_shift_held) {
                     feature_mode = FEATURE_MODE_REVOLVE_SUBTRACT;
                 }
-            }
-            if (feature_mode != FEATURE_MODE_NONE) { // keyboard input
                 if (globals.key_any_key_pressed) {
                     if (key_pressed[COW_KEY_BACKSPACE]) {
                         if (extrude_param_buffer_write_head != extrude_param_buffer) *--extrude_param_buffer_write_head = 0;
@@ -1208,11 +1183,10 @@ int main() {
                         }
                     }
                 }
-            }
-        }
 
-        { // 2D
-            { // pick
+            }
+
+            { // 2D picking
                 { // all mouse modes
                     if (key_pressed['s']) {
                         select_mode = SELECT_MODE_SELECT;
@@ -1252,53 +1226,10 @@ int main() {
                     dxf_pick(&camera2D, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
                 }
             }
-            { // draw
-                glEnable(GL_SCISSOR_TEST);
-                glScissor(0, 0, window_width / 2, window_height);
-                {
-                    eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
-                    for (u32 i = 0; i < dxf.num_entities; ++i) {
-                        DXFEntity *entity = &dxf.entities[i];
-                        int32 color = (dxf_selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
-                        eso_dxf_entity__SOUP_LINES(entity, color);
-                    }
-                    eso_end();
 
-                    // dots
-                    if (key_toggled['h']) {
-                        eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
-                        eso_color(monokai.white);
-                        for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
-                            real32 start_x, start_y, end_x, end_y;
-                            entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
-                            eso_vertex(start_x, start_y);
-                            eso_vertex(end_x, end_y);
-                        }
-                        eso_end();
-                    }
-                }
-                glDisable(GL_SCISSOR_TEST);
-            }
-        }
-
-
-
-        { // 3D
-            { // 3D pick
-                {
-                    if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
-                        some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-                        r_n_selected = 0.0f;
-                        real32 sign = (!globals.key_shift_held) ? 1.0f : -1.0f;
-                        if (key_pressed['x']) n_selected = { sign, 0.0f, 0.0f };
-                        if (key_pressed['y']) n_selected = { 0.0f, sign, 0.0f };
-                        if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
-                        M_selected = get_M_selected(n_selected, r_n_selected);
-                    }
-                }
+            { // 3D picking
                 if (hot_pane == HOT_PANE_3D) {
                     if (globals.mouse_left_pressed) {
-
                         int32 selected_triangle_index = -1;
                         {
                             vec3 minus_dir;
@@ -1335,6 +1266,74 @@ int main() {
                     }
                 }
             }
+        }
+
+        { // draw
+            u32 window_width, window_height; {
+                real32 _window_width, _window_height; // FORNOW
+                _window_get_size(&_window_width, &_window_height);
+                window_width = (u32) _window_width;
+                window_height = (u32) _window_height;
+            }
+
+            { // panes
+                { // draw
+                    glDisable(GL_DEPTH_TEST);
+                    eso_begin(globals.Identity, SOUP_QUADS);
+                    eso_color(0.9f, 0.9f, 0.9f);
+                    eso_vertex(0.0f,  1.0f);
+                    eso_vertex(0.0f, -1.0f);
+                    eso_vertex(1.0f, -1.0f);
+                    eso_vertex(1.0f,  1.0f);
+                    eso_end();
+                    glEnable(GL_DEPTH_TEST);
+
+                    eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
+                    eso_color(0.0f, 1.0f, 1.0f);
+                    eso_vertex(0.0f,  1.0f);
+                    eso_vertex(0.0f, -1.0f);
+                    eso_end();
+                }
+
+                if (globals.mouse_left_pressed || globals.mouse_right_pressed || (!globals.mouse_left_held && !globals.mouse_right_held)) {
+                    hot_pane = (globals.mouse_position_NDC.x < 0) ? HOT_PANE_2D : HOT_PANE_3D;
+                }
+
+                if (hot_pane == HOT_PANE_2D) {
+                    camera_move(&camera2D);
+                } else if (hot_pane == HOT_PANE_3D) {
+                    camera_move(&camera3D);
+                }
+            }
+
+            { // 2D draw
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(0, 0, window_width / 2, window_height);
+                {
+                    eso_begin(camera_get_PV(&camera2D), SOUP_LINES);
+                    for (u32 i = 0; i < dxf.num_entities; ++i) {
+                        DXFEntity *entity = &dxf.entities[i];
+                        int32 color = (dxf_selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
+                        eso_dxf_entity__SOUP_LINES(entity, color);
+                    }
+                    eso_end();
+
+                    // dots
+                    if (key_toggled['h']) {
+                        eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
+                        eso_color(monokai.white);
+                        for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
+                            real32 start_x, start_y, end_x, end_y;
+                            entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
+                            eso_vertex(start_x, start_y);
+                            eso_vertex(end_x, end_y);
+                        }
+                        eso_end();
+                    }
+                }
+                glDisable(GL_SCISSOR_TEST);
+            }
+
             { // 3D draw
                 bool32 dxf_anything_selected; {
                     dxf_anything_selected = false;
@@ -1365,7 +1364,7 @@ int main() {
                             real32 a = sign * -extrude_param_2_preview;
                             real32 b = sign * extrude_param_preview;
                             real32 total_height = (extrude_param_2_preview + extrude_param_preview);
-                            NUM_TUBE_STACKS_INCLUSIVE = u32(roundf(total_height / 2.5f)) + 2;
+                            NUM_TUBE_STACKS_INCLUSIVE = MIN(64, u32(roundf(total_height / 2.5f)) + 2);
                             M = M_selected * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                             M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                         } else {
@@ -1495,66 +1494,44 @@ int main() {
 
                 glDisable(GL_SCISSOR_TEST);
             }
-            { // notes
-                ;
-                // TODO: we need an actual example(s)
 
-                // // TODO
-                // #define EXTRUDE_META_DATA_TYPE_MAJOR_PLANE 0
-                // #define EXTRUDE_META_DATA_TYPE_TRIANGLE 1
-                // struct ExtrudeMetaData {
-                //     bool32 type;
-                //     real32 x_offset;
-                //     real32 y_offset;
-                // }
-                if (key_pressed['b'] || key_pressed['c']) {
-                    // TODO begin operation (can use gui elements to get values from user)
-                    // then press of enter to finish operation
-                    // tabbing through the elements would be clutch, but not needed at first
-                    // real32 height = conversation_get_real32("height");
-                    // TODO 'x', 'y', 'z' or other to select planes
-                    // TODO-LATER: 'm' to nudge
-                    // stl_extrude(&stl, key_pressed['c'], &dxf, dxf_selection_mask, stl_selected_triangle, height);
-                }
-                if (key_pressed['z']) {
-                    // TODO: revolve
-                    // TODO: revolvution axes
+            { // gui
+                gui_printf("mouse %s %s", (select_mode == SELECT_MODE_NONE) ? "" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "QUALITY");
 
-                }
-            }
-        }
-        { // gui
-
-            gui_printf("mouse %s %s", (select_mode == SELECT_MODE_NONE) ? "" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "QUALITY");
-
-            char tmp[256] = {};
-            if ((feature_mode == FEATURE_MODE_EXTRUDE_ADD) || (feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT)) {
-                if (extrude_param_buffer_write_head == extrude_param_buffer) {
-                    if (extrude_param_2 == 0) {
-                        sprintf(tmp, "%gmm", extrude_param);
+                char tmp[256] = {};
+                if ((feature_mode == FEATURE_MODE_EXTRUDE_ADD) || (feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT)) {
+                    if (extrude_param_buffer_write_head == extrude_param_buffer) {
+                        if (extrude_param_2 == 0) {
+                            sprintf(tmp, "%gmm", extrude_param);
+                        } else {
+                            sprintf(tmp, "%g/%gmm", extrude_param, extrude_param_2);
+                        }
                     } else {
-                        sprintf(tmp, "%g/%gmm", extrude_param, extrude_param_2);
+                        sprintf(tmp, "`%smm", extrude_param_buffer);
                     }
-                } else {
-                    sprintf(tmp, "`%smm", extrude_param_buffer);
                 }
+                gui_printf("enter %s %s", (feature_mode == FEATURE_MODE_NONE) ? "" : (feature_mode == FEATURE_MODE_EXTRUDE_ADD) ? "EXTRUDE ADD" : (feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) ? "EXTRUDE SUBTRACT" : (feature_mode == FEATURE_MODE_REVOLVE_ADD) ? "REVOLVE ADD" : "REVOLVE SUBTRACT", (feature_mode == FEATURE_MODE_NONE) ? "" : tmp);
+
+                // gui_printf("some_triangle_exists_that_matches_n_selected_and_r_n_selected %d", some_triangle_exists_that_matches_n_selected_and_r_n_selected);
+                // gui_printf("---");
+                // gui_printf("---");
+                if (key_toggled['h']) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
+                gui_printf("");
+                gui_textbox(load_filename_buffer);
+                if (gui_button("load")) {
+                    dxf_free(&dxf);
+                    free(dxf_selection_mask);
+                    dxf = dxf_load(load_filename_buffer);
+                    pick = dxf_loop_analysis_create(&dxf);
+                    dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+                }
+                gui_printf("");
+                gui_textbox(save_filename_buffer);
+                if (gui_button("save")) mesh_save_stl(&mesh, save_filename_buffer);
+                gui_printf("");
+                // gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
+                if (gui_button("reset")) reset = true;
             }
-            gui_printf("enter %s %s", (feature_mode == FEATURE_MODE_NONE) ? "" : (feature_mode == FEATURE_MODE_EXTRUDE_ADD) ? "EXTRUDE ADD" : (feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) ? "EXTRUDE SUBTRACT" : (feature_mode == FEATURE_MODE_REVOLVE_ADD) ? "REVOLVE ADD" : "REVOLVE SUBTRACT", (feature_mode == FEATURE_MODE_NONE) ? "" : tmp);
-
-            // gui_printf("some_triangle_exists_that_matches_n_selected_and_r_n_selected %d", some_triangle_exists_that_matches_n_selected_and_r_n_selected);
-            // gui_printf("---");
-            // gui_printf("---");
-            if (key_toggled['h']) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
-            gui_printf("");
-            gui_textbox(load_filename_buffer);
-            if (gui_button("load")) dxf = dxf_load(load_filename_buffer);
-            gui_printf("");
-            gui_textbox(save_filename_buffer);
-            if (gui_button("save")) mesh_save_stl(&mesh, save_filename_buffer);
-            gui_printf("");
-            // gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
-            if (gui_button("reset")) reset = true;
         }
-
     }
 }
