@@ -2418,7 +2418,7 @@ bool gui_textbox(char *text_buffer, char *message_to_display_if_buffer_empty = "
     _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
 
     // fornow
-    cow_real L = MAX(64, 2 * stb_easy_font_width(text_buffer) + 16);
+    cow_real L = (cow_real) MAX(64, 2 * stb_easy_font_width(text_buffer) + 16);
     cow_real H = 24;
     cow_real box[8] = {
         COW1._gui_x_curr    , COW1._gui_y_curr    ,

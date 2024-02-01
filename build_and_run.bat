@@ -11,8 +11,8 @@ for %%a in (%*) do set "argv[%%a]=1"
 IF "%1"=="" (
     echo build and   run in   debug mode: [36mwindows_build_and_run.bat[0m
     echo build and   run in release mode: [36mwindows_build_and_run.bat --release[0m
+    echo build and debug in     remedyBG: [36mwindows_build_and_run.bat --debug[0m
     echo build and debug in      VS Code: [36mwindows_build_and_run.bat --debug-vscode[0m
-    echo build and debug in     remedyBG: [36mwindows_build_and_run.bat --debug-remedybg[0m
     echo ---
     echo include [36m--eigen[0m to use Eigen's sparse linear solver
 ) ELSE (
@@ -53,18 +53,18 @@ IF "%1"=="" (
     /link /NODEFAULTLIB:MSVCRT ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
     codebase\ext\glfw3.lib ^
-    !EIGEN_LIB!
-    rem codebase\ext\Clipper2.lib codebase\ext\tbb12_debug.lib codebase\ext\tbb12.lib codebase\ext\manifold.lib codebase\ext\manifoldc.lib ^
+    !EIGEN_LIB! ^
+    codebase\ext\Clipper2.lib codebase\ext\tbb12_debug.lib codebase\ext\tbb12.lib codebase\ext\manifold.lib codebase\ext\manifoldc.lib
 
     call :setESC
 
     IF EXIST "executable.exe" (
-        IF defined argv[--debug-vscode] (
-            echo [36m[cow] debugging in Visual Studio Code[0m
-            _xplat_debug_vscode.bat
-        ) ELSE IF defined argv[--debug-remedybg] (
+        IF defined argv[--debug] (
             echo [36m[cow] debugging in remedyBG[0m
             call _windows_debug_remedybg.bat
+        ) ELSE IF defined argv[--debug-vscode] (
+            echo [36m[cow] debugging in Visual Studio Code[0m
+            _xplat_debug_vscode.bat
         ) ELSE (
             echo [36m[cow] running executable[0m
             @echo on

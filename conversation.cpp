@@ -1531,10 +1531,10 @@ int main() {
 
                         // FORNOW (TODO: unify)
                         Soup3D bunny = _meshutil_soup_TRIANGLES_load(load_stl_filename_buffer, false);
-                        mesh.num_vertices = 30;//bunny.num_vertices;
+                        mesh.num_vertices = bunny.num_vertices;
                         mesh.num_triangles = mesh.num_vertices / 3;
                         mesh.vertex_positions = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
-                        for (u32 i = 0; i < mesh.num_vertices; ++i) for (u32 d = 0; d < 3; ++d) mesh.vertex_positions[3 * i + d] = bunny.vertex_positions[i][d];
+                        for (u32 i = 0; i < mesh.num_vertices; ++i) for (u32 d = 0; d < 3; ++d) mesh.vertex_positions[3 * i + d] = 10.0f * bunny.vertex_positions[i][d];
                         mesh.triangle_indices = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
                         for (u32 k = 0; k < 3 * mesh.num_triangles; ++k) mesh.triangle_indices[k] = k;
                         mesh.face_normals = (real32 *) calloc(3 * mesh.num_triangles, sizeof(real32));
