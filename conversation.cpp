@@ -737,7 +737,7 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void mesh_save_stl(ConversationMesh *mesh, char *filename) {
+void conversation_mesh_save_stl(ConversationMesh *mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     ASSERT(file);
 
@@ -779,7 +779,7 @@ void mesh_save_stl(ConversationMesh *mesh, char *filename) {
     fclose(file);
 }
 
-void mesh_free(ConversationMesh *mesh) {
+void conversation_mesh_free(ConversationMesh *mesh) {
     if (mesh->vertex_positions) free(mesh->vertex_positions);
     if (mesh->triangle_indices) free(mesh->triangle_indices);
     if (mesh->face_normals) free(mesh->face_normals);
@@ -800,120 +800,116 @@ void wrapper_manifold(
         bool32 feature_param_sign_toggle,
         real32 extrude_param,
         real32 extrude_param_2) {
-
     ASSERT(feature_mode != FEATURE_MODE_NONE);
-    {
-        ManifoldManifold *manifold; {
-            ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
-            for (u32 i = 0; i < num_polygonal_loops; ++i) {
-                simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
-            }
-            ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
-            ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
-
-
-            { // manifold
-                if (feature_mode == FEATURE_MODE_EXTRUDE_ADD || feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) {
-                    manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
-                    manifold = manifold_translate(manifold, manifold, 0.0, 0.0, -extrude_param_2);
-                    if (feature_param_sign_toggle) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
-                } else {
-                    manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
-                    manifold = manifold_rotate(manifold, manifold, -90.0f, 0.0f, 0.0f);
-                }
-                manifold = manifold_transform(manifold, manifold,
-                        M_selected(0, 0), M_selected(1, 0), M_selected(2, 0),
-                        M_selected(0, 1), M_selected(1, 1), M_selected(2, 1),
-                        M_selected(0, 2), M_selected(1, 2), M_selected(2, 2),
-                        M_selected(0, 3), M_selected(1, 3), M_selected(2, 3));
-            }
+    ManifoldManifold *manifold; {
+        ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
+        for (u32 i = 0; i < num_polygonal_loops; ++i) {
+            simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
         }
+        ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
+        ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
 
-        // add
-        if (!(*curr__NOTE_GETS_UPDATED)) {
-            if (feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) { return; } // FORNOW
 
-            *curr__NOTE_GETS_UPDATED = manifold;
-        } else {
-            // TODO: ? manifold_delete_manifold(curr__NOTE_GETS_UPDATED);
-            *curr__NOTE_GETS_UPDATED =
-                manifold_boolean(
-                        malloc(manifold_manifold_size()),
-                        *curr__NOTE_GETS_UPDATED,
-                        manifold,
-                        ((feature_mode == FEATURE_MODE_EXTRUDE_ADD) || (feature_mode == FEATURE_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
-                        );
-        }
-
-        ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *curr__NOTE_GETS_UPDATED);
-
-        mesh_free(mesh);
-        mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
-        mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
-        mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
-        mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
-
-        { // face_normals
-          // FORNOW: uses snail
-          // TODO: remove dependency
-            mesh->face_normals = (real32 *) malloc(mesh->num_triangles * 3 * sizeof(real32));
-            vec3 p[3];
-            for (u32 i = 0; i < mesh->num_triangles; ++i) {
-                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + d];
-                vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
-                for (u32 d = 0; d < 3; ++d) mesh->face_normals[3 * i + d] = n[d];
+        { // manifold
+            if (feature_mode == FEATURE_MODE_EXTRUDE_ADD || feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) {
+                manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
+                manifold = manifold_translate(manifold, manifold, 0.0, 0.0, -extrude_param_2);
+                if (feature_param_sign_toggle) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
+            } else {
+                manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                manifold = manifold_rotate(manifold, manifold, -90.0f, 0.0f, 0.0f);
             }
-        }
-
-        { // cosmetic_edges
-
-            // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
-            //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
-            //           then go back through the array and sum the components; if below some threshold (maybe...0.9?) add that index to a stretchy buffer
-
-            // TODO: a linalg library that operates directly on real32 *'s (like you used in soft_robot.h)
-
-            List<u32> list = {}; {
-                Map<Pair<u32, u32>, vec3> map = {}; {
-                    for (u32 i = 0; i < mesh->num_triangles; ++i) {
-                        vec3 n = { mesh->face_normals[3 * i + 0], mesh->face_normals[3 * i + 1], mesh->face_normals[3 * i + 2] };
-                        for (u32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
-                            u32 j0 = mesh->triangle_indices[3 * i + jj0];
-                            u32 j1 = mesh->triangle_indices[3 * i + jj1];
-                            if (j0 > j1) {
-                                u32 tmp = j0;
-                                j0 = j1;
-                                j1 = tmp;
-                            }
-                            Pair<u32, u32> key = { j0, j1 };
-                            map_put(&map, key, cwiseProduct(n, map_get(&map, key, { 1.0f, 1.0f, 1.0f })));
-                        }
-                    }
-                }
-                {
-                    for (List<Pair<Pair<u32, u32>, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
-                        for (Pair<Pair<u32, u32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
-                            vec3 n2 = pair->value;
-                            // pprint(n2);
-                            if ((n2.x + n2.y + n2.z) < 0.9f) {
-                                list_push_back(&list, pair->key.first); // FORNOW
-                                list_push_back(&list, pair->key.second); // FORNOW
-                            }
-                        }
-                    }
-                    // TODO: move this elsewhere
-                }
-                map_free(&map);
-            }
-            {
-                mesh->num_cosmetic_edges = list.length / 2;
-                mesh->cosmetic_edges = (u32 *) calloc(2 * mesh->num_cosmetic_edges, sizeof(u32));
-                memcpy(mesh->cosmetic_edges, list.data, 2 * mesh->num_cosmetic_edges * sizeof(u32)); 
-            }
-            list_free(&list);
+            manifold = manifold_transform(manifold, manifold,
+                    M_selected(0, 0), M_selected(1, 0), M_selected(2, 0),
+                    M_selected(0, 1), M_selected(1, 1), M_selected(2, 1),
+                    M_selected(0, 2), M_selected(1, 2), M_selected(2, 2),
+                    M_selected(0, 3), M_selected(1, 3), M_selected(2, 3));
         }
     }
 
+    // add
+    if (!(*curr__NOTE_GETS_UPDATED)) {
+        if (feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) { return; } // FORNOW
+
+        *curr__NOTE_GETS_UPDATED = manifold;
+    } else {
+        // TODO: ? manifold_delete_manifold(curr__NOTE_GETS_UPDATED);
+        *curr__NOTE_GETS_UPDATED =
+            manifold_boolean(
+                    malloc(manifold_manifold_size()),
+                    *curr__NOTE_GETS_UPDATED,
+                    manifold,
+                    ((feature_mode == FEATURE_MODE_EXTRUDE_ADD) || (feature_mode == FEATURE_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                    );
+    }
+
+    ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *curr__NOTE_GETS_UPDATED);
+
+    conversation_mesh_free(mesh);
+    mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
+    mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
+    mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
+    mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
+
+    { // face_normals
+      // FORNOW: uses snail
+      // TODO: remove dependency
+        mesh->face_normals = (real32 *) malloc(mesh->num_triangles * 3 * sizeof(real32));
+        vec3 p[3];
+        for (u32 i = 0; i < mesh->num_triangles; ++i) {
+            for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + d];
+            vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
+            for (u32 d = 0; d < 3; ++d) mesh->face_normals[3 * i + d] = n[d];
+        }
+    }
+
+    { // cosmetic_edges
+
+        // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
+        //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
+        //           then go back through the array and sum the components; if below some threshold (maybe...0.9?) add that index to a stretchy buffer
+
+        // TODO: a linalg library that operates directly on real32 *'s (like you used in soft_robot.h)
+
+        List<u32> list = {}; {
+            Map<Pair<u32, u32>, vec3> map = {}; {
+                for (u32 i = 0; i < mesh->num_triangles; ++i) {
+                    vec3 n = { mesh->face_normals[3 * i + 0], mesh->face_normals[3 * i + 1], mesh->face_normals[3 * i + 2] };
+                    for (u32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
+                        u32 j0 = mesh->triangle_indices[3 * i + jj0];
+                        u32 j1 = mesh->triangle_indices[3 * i + jj1];
+                        if (j0 > j1) {
+                            u32 tmp = j0;
+                            j0 = j1;
+                            j1 = tmp;
+                        }
+                        Pair<u32, u32> key = { j0, j1 };
+                        map_put(&map, key, cwiseProduct(n, map_get(&map, key, { 1.0f, 1.0f, 1.0f })));
+                    }
+                }
+            }
+            {
+                for (List<Pair<Pair<u32, u32>, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
+                    for (Pair<Pair<u32, u32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+                        vec3 n2 = pair->value;
+                        // pprint(n2);
+                        if ((n2.x + n2.y + n2.z) < 0.9f) {
+                            list_push_back(&list, pair->key.first); // FORNOW
+                            list_push_back(&list, pair->key.second); // FORNOW
+                        }
+                    }
+                }
+                // TODO: move this elsewhere
+            }
+            map_free(&map);
+        }
+        {
+            mesh->num_cosmetic_edges = list.length / 2;
+            mesh->cosmetic_edges = (u32 *) calloc(2 * mesh->num_cosmetic_edges, sizeof(u32));
+            memcpy(mesh->cosmetic_edges, list.data, 2 * mesh->num_cosmetic_edges * sizeof(u32)); 
+        }
+        list_free(&list);
+    }
 }
 
 
@@ -968,13 +964,15 @@ bool32 feature_param_sign_toggle;
 Camera2D camera2D;
 Camera3D camera3D;
 
-char load_filename_buffer[256];
+char load_dxf_filename_buffer[256];
+char load_stl_filename_buffer[256];
 char save_filename_buffer[256];
 
 
 
 void reset_app() {
-    strcpy(load_filename_buffer, "in.dxf");
+    strcpy(load_dxf_filename_buffer, "in.dxf");
+    strcpy(load_stl_filename_buffer, "bunny.stl");
     strcpy(save_filename_buffer, "out.stl");
 
     hot_pane = HOT_PANE_NONE;
@@ -987,7 +985,7 @@ void reset_app() {
     r_n_selected = 0.0f;
     M_selected = get_M_selected(n_selected, r_n_selected);
 
-    dxf = dxf_load(load_filename_buffer);
+    dxf = dxf_load(load_dxf_filename_buffer);
     pick = dxf_loop_analysis_create(&dxf);
     dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
@@ -1517,17 +1515,44 @@ int main() {
                 // gui_printf("---");
                 if (key_toggled['h']) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
                 gui_printf("");
-                gui_textbox(load_filename_buffer);
-                if (gui_button("load")) {
+                gui_textbox(load_dxf_filename_buffer);
+                if (gui_button("load dxf")) {
                     dxf_free(&dxf);
                     free(dxf_selection_mask);
-                    dxf = dxf_load(load_filename_buffer);
+                    dxf = dxf_load(load_dxf_filename_buffer);
                     pick = dxf_loop_analysis_create(&dxf);
                     dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
                 }
                 gui_printf("");
+                gui_textbox(load_stl_filename_buffer);
+                if (gui_button("load stl")) {
+                    { // mesh
+                        conversation_mesh_free(&mesh);
+
+                        // FORNOW (TODO: unify)
+                        Soup3D bunny = _meshutil_soup_TRIANGLES_load(load_stl_filename_buffer, false);
+                        mesh.num_vertices = 30;//bunny.num_vertices;
+                        mesh.num_triangles = mesh.num_vertices / 3;
+                        mesh.vertex_positions = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
+                        for (u32 i = 0; i < mesh.num_vertices; ++i) for (u32 d = 0; d < 3; ++d) mesh.vertex_positions[3 * i + d] = bunny.vertex_positions[i][d];
+                        mesh.triangle_indices = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
+                        for (u32 k = 0; k < 3 * mesh.num_triangles; ++k) mesh.triangle_indices[k] = k;
+                        mesh.face_normals = (real32 *) calloc(3 * mesh.num_triangles, sizeof(real32));
+                        mesh.num_cosmetic_edges = 0;
+                        mesh.cosmetic_edges = NULL;
+
+                    }
+
+
+                    // TODO: ManifoldManifold *manifold;
+                    { // manifold
+                      // ManifoldMeshGL *manifold_meshgl(malloc(manifold_meshgl_size()), vert_props, _verts, n_props, tri_verts, n_tris);
+                      // manifold = manifold_of_meshgl(manifold, mesh);
+                    }
+                }
+                gui_printf("");
                 gui_textbox(save_filename_buffer);
-                if (gui_button("save")) mesh_save_stl(&mesh, save_filename_buffer);
+                if (gui_button("save stl")) conversation_mesh_save_stl(&mesh, save_filename_buffer);
                 gui_printf("");
                 // gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
                 if (gui_button("reset")) reset = true;

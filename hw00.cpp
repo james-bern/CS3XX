@@ -19,20 +19,20 @@
 
 // DEFINES ///////////////////////////////
 
-#define COLOR_TRAVERSE        0
-#define COLOR_QUALITY_1       1
-#define COLOR_QUALITY_2       2
-#define COLOR_QUALITY_3       3
-#define COLOR_QUALITY_4       4
-#define COLOR_QUALITY_5       5
-#define COLOR_ETCH            6
-#define COLOR_LEAD_IO         9
-#define COLOR_QUALITY_SLIT_1 21
-#define COLOR_QUALITY_SLIT_2 22
-#define COLOR_QUALITY_SLIT_3 23
-#define COLOR_QUALITY_SLIT_4 24
-#define COLOR_QUALITY_SLIT_5 25
-#define COLOR_SELECTION     255
+#define COLOR_TRAVERSE         0
+#define COLOR_QUALITY_1        1
+#define COLOR_QUALITY_2        2
+#define COLOR_QUALITY_3        3
+#define COLOR_QUALITY_4        4
+#define COLOR_QUALITY_5        5
+#define COLOR_ETCH             6
+#define COLOR_LEAD_IO          9
+#define COLOR_QUALITY_SLIT_1  21
+#define COLOR_QUALITY_SLIT_2  22
+#define COLOR_QUALITY_SLIT_3  23
+#define COLOR_QUALITY_SLIT_4  24
+#define COLOR_QUALITY_SLIT_5  25
+#define COLOR_SELECTION      255
 
 
 // STRUCTS ///////////////////////////////

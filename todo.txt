@@ -1,0 +1,19 @@
+topics
+======
+
+mechanical
+----------
+
+making dxf and stl's in a text editor
+
+making a drawing of a part by hand
+
+1D measurements with callipers (internal external depth)
+introduction of core pieces of software--layout, solidworks
+exploration of a wide range of software?--zbrush, openscad
+
+projects
+--------
+making a part that fits into a hole
+
+
