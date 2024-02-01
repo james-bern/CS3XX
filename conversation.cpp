@@ -1039,9 +1039,9 @@ void reset_app() {
     extrude_param_buffer_reset();
 
     {
-        real32 height = 150.f;
+        real32 height = 256.0f;
         camera2D = { height, height / 2 };
-        camera3D = { height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height / 2 };
+        camera3D = { 2 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height };
     }
 }
 
@@ -1479,7 +1479,7 @@ int main() {
 
                 { // plane; NOTE: transparent
                     if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
-                        real32 r = 50.0f;
+                        real32 r = 256.0f;
                         eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
                         eso_color(monokai.yellow, 0.5f);
                         eso_vertex( r,  r, -Z_FIGHT_EPS);
@@ -1534,7 +1534,7 @@ int main() {
                         mesh.num_vertices = bunny.num_vertices;
                         mesh.num_triangles = mesh.num_vertices / 3;
                         mesh.vertex_positions = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
-                        for (u32 i = 0; i < mesh.num_vertices; ++i) for (u32 d = 0; d < 3; ++d) mesh.vertex_positions[3 * i + d] = 10.0f * bunny.vertex_positions[i][d];
+                        for (u32 i = 0; i < mesh.num_vertices; ++i) for (u32 d = 0; d < 3; ++d) mesh.vertex_positions[3 * i + d] = 32.0f * bunny.vertex_positions[i][d];
                         mesh.triangle_indices = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
                         for (u32 k = 0; k < 3 * mesh.num_triangles; ++k) mesh.triangle_indices[k] = k;
                         mesh.face_normals = (real32 *) calloc(3 * mesh.num_triangles, sizeof(real32));
