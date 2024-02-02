@@ -572,17 +572,11 @@ void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, u32 sele
     }
 }
 
-
-struct Vertex2D {
-    real32 x;
-    real32 y;
-};
-
 // NOTE: even odd
 struct CrossSection {
     u32 num_polygonal_loops;
     u32 *num_vertices_in_polygonal_loops;
-    Vertex2D **polygonal_loops;
+    vec2 **polygonal_loops;
 };
 
 CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
@@ -595,9 +589,9 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
         result.num_vertices_in_polygonal_loops = (u32 *) calloc(result.num_polygonal_loops, sizeof(u32));
         result.num_vertices_in_polygonal_loops[0] = 4;
         result.num_vertices_in_polygonal_loops[1] = 6;
-        result.polygonal_loops = (Vertex2D **) calloc(result.num_polygonal_loops, sizeof(Vertex2D *));
-        result.polygonal_loops[0] = (Vertex2D *) calloc(result.num_vertices_in_polygonal_loops[0], sizeof(Vertex2D));
-        result.polygonal_loops[1] = (Vertex2D *) calloc(result.num_vertices_in_polygonal_loops[1], sizeof(Vertex2D));
+        result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
+        result.polygonal_loops[0] = (vec2 *) calloc(result.num_vertices_in_polygonal_loops[0], sizeof(vec2));
+        result.polygonal_loops[1] = (vec2 *) calloc(result.num_vertices_in_polygonal_loops[1], sizeof(vec2));
         result.polygonal_loops[0][0] = { -2.0f, -2.0f };
         result.polygonal_loops[0][1] = {  2.0f, -2.0f };
         result.polygonal_loops[0][2] = {  2.0f,  2.0f };
@@ -612,7 +606,7 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     }
     #endif
     // populate List's
-    List<List<Vertex2D>> stretchy_list = {}; {
+    List<List<vec2>> stretchy_list = {}; {
         DXFLoopAnalysisResult analysis = dxf_loop_analysis_create(dxf, dxf_selection_mask);
         for (u32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
             u32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
@@ -654,11 +648,11 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     CrossSection result = {};
     result.num_polygonal_loops = stretchy_list.length;
     result.num_vertices_in_polygonal_loops = (u32 *) calloc(result.num_polygonal_loops, sizeof(u32));
-    result.polygonal_loops = (Vertex2D **) calloc(result.num_polygonal_loops, sizeof(Vertex2D *));
+    result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
     for (u32 i = 0; i < result.num_polygonal_loops; ++i) {
         result.num_vertices_in_polygonal_loops[i] = stretchy_list.data[i].length;
-        result.polygonal_loops[i] = (Vertex2D *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(Vertex2D));
-        memcpy(result.polygonal_loops[i], stretchy_list.data[i].data, result.num_vertices_in_polygonal_loops[i] * sizeof(Vertex2D));
+        result.polygonal_loops[i] = (vec2 *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(vec2));
+        memcpy(result.polygonal_loops[i], stretchy_list.data[i].data, result.num_vertices_in_polygonal_loops[i] * sizeof(vec2));
     }
 
     // free List's
@@ -672,7 +666,7 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
     eso_begin(camera_get_PV(camera2D), SOUP_LINES);
     eso_color(monokai.white);
     for (u32 loop_index = 0; loop_index < cross_section->num_polygonal_loops; ++loop_index) {
-        Vertex2D *polygonal_loop = cross_section->polygonal_loops[loop_index];
+        vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
         for (int j = 0, i = n - 1; j < n; i = j++) {
             real32 a_x = polygonal_loop[i].x;
@@ -723,7 +717,7 @@ struct ConversationMesh {
     u32 num_triangles;
     real32 *vertex_positions;
     u32 *triangle_indices;
-    real32 *face_normals;
+    real32 *triangle_normals;
 
     u32 num_cosmetic_edges;
     u32 *cosmetic_edges;
@@ -737,25 +731,25 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void conversation_mesh_save_stl(ConversationMesh *mesh, char *filename) {
+void conversation_mesh_save_stl(ConversationMesh *conversation_mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     ASSERT(file);
 
-    int num_bytes = 80 + 4 + 50 * mesh->num_triangles;
+    int num_bytes = 80 + 4 + 50 * conversation_mesh->num_triangles;
     char *buffer = (char *) calloc(num_bytes, 1); {
         int offset = 80;
-        memcpy(buffer + offset, &mesh->num_triangles, 4);
+        memcpy(buffer + offset, &conversation_mesh->num_triangles, 4);
         offset += 4;
-        for (u32 i = 0; i < mesh->num_triangles; ++i) {
+        for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
             real32 triangle_normal[3];
             {
                 // // NOTE: 90-degree rotation about x
                 // x <- x
                 // y <- -z
                 // z <- y
-                triangle_normal[0] =  mesh->face_normals[3 * i + 0];
-                triangle_normal[1] = -mesh->face_normals[3 * i + 2];
-                triangle_normal[2] =  mesh->face_normals[3 * i + 1];
+                triangle_normal[0] =  conversation_mesh->triangle_normals[3 * i + 0];
+                triangle_normal[1] = -conversation_mesh->triangle_normals[3 * i + 2];
+                triangle_normal[2] =  conversation_mesh->triangle_normals[3 * i + 1];
             }
             memcpy(buffer + offset, &triangle_normal, 12);
             offset += 12;
@@ -765,9 +759,9 @@ void conversation_mesh_save_stl(ConversationMesh *mesh, char *filename) {
                 // x <- x
                 // y <- -z
                 // z <- y
-                triangle_vertex_positions[3 * j + 0] =  mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 0];
-                triangle_vertex_positions[3 * j + 1] = -mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 2];
-                triangle_vertex_positions[3 * j + 2] =  mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 1];
+                triangle_vertex_positions[3 * j + 0] =  conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + 0];
+                triangle_vertex_positions[3 * j + 1] = -conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + 2];
+                triangle_vertex_positions[3 * j + 2] =  conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + 1];
             }
             memcpy(buffer + offset, triangle_vertex_positions, 36);
             offset += 38;
@@ -779,29 +773,29 @@ void conversation_mesh_save_stl(ConversationMesh *mesh, char *filename) {
     fclose(file);
 }
 
-void conversation_mesh_free(ConversationMesh *mesh) {
-    if (mesh->vertex_positions) free(mesh->vertex_positions);
-    if (mesh->triangle_indices) free(mesh->triangle_indices);
-    if (mesh->face_normals) free(mesh->face_normals);
-    if (mesh->cosmetic_edges) free(mesh->cosmetic_edges);
-    *mesh = {};
+void conversation_mesh_free(ConversationMesh *conversation_mesh) {
+    if (conversation_mesh->vertex_positions) free(conversation_mesh->vertex_positions);
+    if (conversation_mesh->triangle_indices) free(conversation_mesh->triangle_indices);
+    if (conversation_mesh->triangle_normals) free(conversation_mesh->triangle_normals);
+    if (conversation_mesh->cosmetic_edges) free(conversation_mesh->cosmetic_edges);
+    *conversation_mesh = {};
 }
 
 
 #include "manifoldc.h"
 void wrapper_manifold(
-        ManifoldManifold **curr__NOTE_GETS_UPDATED,
-        ConversationMesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
+        ManifoldManifold **curr_manifold,
+        ConversationMesh *conversation_mesh, // dest__NOTE_GETS_OVERWRITTEN,
         u32 num_polygonal_loops,
         u32 *num_vertices_in_polygonal_loops,
-        Vertex2D **polygonal_loops,
+        vec2 **polygonal_loops,
         mat4 M_selected,
         u32 feature_mode,
         bool32 feature_param_sign_toggle,
         real32 extrude_param,
         real32 extrude_param_2) {
     ASSERT(feature_mode != FEATURE_MODE_NONE);
-    ManifoldManifold *manifold; {
+    ManifoldManifold *other_manifold; {
         ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
         for (u32 i = 0; i < num_polygonal_loops; ++i) {
             simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
@@ -810,16 +804,16 @@ void wrapper_manifold(
         ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
 
 
-        { // manifold
+        { // other_manifold
             if (feature_mode == FEATURE_MODE_EXTRUDE_ADD || feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) {
-                manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
-                manifold = manifold_translate(manifold, manifold, 0.0, 0.0, -extrude_param_2);
-                if (feature_param_sign_toggle) manifold = manifold_mirror(manifold, manifold, 0.0, 0.0, 1.0);
+                other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
+                other_manifold = manifold_translate(other_manifold, other_manifold, 0.0, 0.0, -extrude_param_2);
+                if (feature_param_sign_toggle) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0, 0.0, 1.0);
             } else {
-                manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
-                manifold = manifold_rotate(manifold, manifold, -90.0f, 0.0f, 0.0f);
+                other_manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
             }
-            manifold = manifold_transform(manifold, manifold,
+            other_manifold = manifold_transform(other_manifold, other_manifold,
                     M_selected(0, 0), M_selected(1, 0), M_selected(2, 0),
                     M_selected(0, 1), M_selected(1, 1), M_selected(2, 1),
                     M_selected(0, 2), M_selected(1, 2), M_selected(2, 2),
@@ -828,38 +822,38 @@ void wrapper_manifold(
     }
 
     // add
-    if (!(*curr__NOTE_GETS_UPDATED)) {
+    if (!(*curr_manifold)) {
         if (feature_mode == FEATURE_MODE_EXTRUDE_SUBTRACT) { return; } // FORNOW
 
-        *curr__NOTE_GETS_UPDATED = manifold;
+        *curr_manifold = other_manifold;
     } else {
-        // TODO: ? manifold_delete_manifold(curr__NOTE_GETS_UPDATED);
-        *curr__NOTE_GETS_UPDATED =
+        // TODO: ? manifold_delete_manifold(curr_manifold);
+        *curr_manifold =
             manifold_boolean(
                     malloc(manifold_manifold_size()),
-                    *curr__NOTE_GETS_UPDATED,
-                    manifold,
+                    *curr_manifold,
+                    other_manifold,
                     ((feature_mode == FEATURE_MODE_EXTRUDE_ADD) || (feature_mode == FEATURE_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
                     );
     }
 
-    ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *curr__NOTE_GETS_UPDATED);
+    ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *curr_manifold);
 
-    conversation_mesh_free(mesh);
-    mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
-    mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
-    mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
-    mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
+    conversation_mesh_free(conversation_mesh);
+    conversation_mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
+    conversation_mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
+    conversation_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
+    conversation_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
 
-    { // face_normals
+    { // triangle_normals
       // FORNOW: uses snail
       // TODO: remove dependency
-        mesh->face_normals = (real32 *) malloc(mesh->num_triangles * 3 * sizeof(real32));
+        conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
         vec3 p[3];
-        for (u32 i = 0; i < mesh->num_triangles; ++i) {
-            for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + d];
+        for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
+            for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + d];
             vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
-            for (u32 d = 0; d < 3; ++d) mesh->face_normals[3 * i + d] = n[d];
+            for (u32 d = 0; d < 3; ++d) conversation_mesh->triangle_normals[3 * i + d] = n[d];
         }
     }
 
@@ -873,11 +867,11 @@ void wrapper_manifold(
 
         List<u32> list = {}; {
             Map<Pair<u32, u32>, vec3> map = {}; {
-                for (u32 i = 0; i < mesh->num_triangles; ++i) {
-                    vec3 n = { mesh->face_normals[3 * i + 0], mesh->face_normals[3 * i + 1], mesh->face_normals[3 * i + 2] };
+                for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
+                    vec3 n = { conversation_mesh->triangle_normals[3 * i + 0], conversation_mesh->triangle_normals[3 * i + 1], conversation_mesh->triangle_normals[3 * i + 2] };
                     for (u32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
-                        u32 j0 = mesh->triangle_indices[3 * i + jj0];
-                        u32 j1 = mesh->triangle_indices[3 * i + jj1];
+                        u32 j0 = conversation_mesh->triangle_indices[3 * i + jj0];
+                        u32 j1 = conversation_mesh->triangle_indices[3 * i + jj1];
                         if (j0 > j1) {
                             u32 tmp = j0;
                             j0 = j1;
@@ -904,13 +898,106 @@ void wrapper_manifold(
             map_free(&map);
         }
         {
-            mesh->num_cosmetic_edges = list.length / 2;
-            mesh->cosmetic_edges = (u32 *) calloc(2 * mesh->num_cosmetic_edges, sizeof(u32));
-            memcpy(mesh->cosmetic_edges, list.data, 2 * mesh->num_cosmetic_edges * sizeof(u32)); 
+            conversation_mesh->num_cosmetic_edges = list.length / 2;
+            conversation_mesh->cosmetic_edges = (u32 *) calloc(2 * conversation_mesh->num_cosmetic_edges, sizeof(u32));
+            memcpy(conversation_mesh->cosmetic_edges, list.data, 2 * conversation_mesh->num_cosmetic_edges * sizeof(u32)); 
         }
         list_free(&list);
     }
 }
+
+
+real32 get(real32 *x, u32 i, u32 d) {
+    return x[3 * i + d];
+}
+vec3 get(real32 *x, u32 i) {
+    vec3 result;
+    for (u32 d = 0; d < 3; ++d) result.data[d] = get(x, i, d);
+    return result;
+}
+void add(real32 *x, u32 i, vec3 v) {
+    for (u32 d = 0; d < 3; ++d) x[3 * i + d] += v.data[d];
+}
+
+// TODO: more of this
+// TODO: cow_unsigned_int
+union uzi3 {
+    struct {
+        u32 i;
+        u32 j;
+        u32 k;
+    };
+    u32 data[3];
+};
+
+u32 get(u32 *x, u32 i, u32 d) {
+    return x[3 * i + d];
+}
+uzi3 get(u32 *x, u32 i) {
+    uzi3 result;
+    for (u32 d = 0; d < 3; ++d) result.data[d] = get(x, i, d);
+    return result;
+}
+
+
+void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversation_mesh) {
+    u32 num_triangles;
+    real32 *soup;
+    {
+        List<real32> _soup = {}; {
+            FILE *file = fopen(filename, "r");
+            ASSERT(file);
+            char buffer[4096];
+            while (fgets(buffer, ARRAY_LENGTH(buffer), file) != NULL) {
+                cow_real x, y, z;
+                sscanf(buffer, "%f %f %f", &x, &y, &z);
+                list_push_back(&_soup, 48.0f * x);
+                list_push_back(&_soup, 48.0f * y);
+                list_push_back(&_soup, 48.0f * z);
+            }
+            fclose(file);
+        }
+        num_triangles = _soup.length / 9; // / 3 / 3
+        u32 size = _soup.length * sizeof(real32);
+        soup = (real32 *) malloc(size);
+        memcpy(soup, _soup.data, size);
+        list_free(&_soup);
+    }
+
+    // TODO (harder): unify nearby vertices (NOTE: take this as an opportunity to write an implicit chunking linalg library)
+    u32 num_vertices = 3 * num_triangles;
+    real32 *vertex_positions = soup;
+    u32 *triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
+    for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = k;
+
+
+    real32 *triangle_normals; {
+        triangle_normals = (real32 *) calloc(3 * num_triangles, sizeof(real32));;
+        for (u32 triangle_index = 0; triangle_index < num_triangles; ++triangle_index) {
+            vec3 a = get(vertex_positions, get(triangle_indices, triangle_index, 0));
+            vec3 b = get(vertex_positions, get(triangle_indices, triangle_index, 1));
+            vec3 c = get(vertex_positions, get(triangle_indices, triangle_index, 2));
+            add(triangle_normals, triangle_index, normalized(cross(b - a, c - a)));
+        }
+    }
+
+    conversation_mesh->num_vertices = num_vertices;
+    conversation_mesh->num_triangles = num_triangles;
+    conversation_mesh->vertex_positions = vertex_positions;
+    conversation_mesh->triangle_indices = triangle_indices;
+    conversation_mesh->triangle_normals = triangle_normals;
+    // TODO (easy--just strip out code you already have into a function): cosmetic edges
+    conversation_mesh->num_cosmetic_edges = 0;
+    conversation_mesh->cosmetic_edges = NULL;
+}
+
+
+
+
+
+
+
+
 
 
 bool *key_pressed = globals.key_pressed;
@@ -948,7 +1035,7 @@ DXFLoopAnalysisResult pick;
 bool32 *dxf_selection_mask;
 
 ManifoldManifold *manifold;
-ConversationMesh mesh;
+ConversationMesh conversation_mesh;
 
 u32 feature_mode;
 real32 extrude_param;
@@ -990,44 +1077,44 @@ void reset_app() {
     dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
     manifold = NULL;
-    mesh = {};
+    conversation_mesh = {};
     #if 0
     {
-        mesh = {};
-        mesh.num_vertices = 4;
-        mesh.num_triangles = 4;
-        mesh.vertex_positions = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
-        mesh.triangle_indices = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
+        conversation_mesh = {};
+        conversation_mesh.num_vertices = 4;
+        conversation_mesh.num_triangles = 4;
+        conversation_mesh.vertex_positions = (real32 *) calloc(3 * conversation_mesh.num_vertices, sizeof(real32));
+        conversation_mesh.triangle_indices = (u32 *) calloc(3 * conversation_mesh.num_triangles, sizeof(u32));
         float h = (1.0f + SQRT(3.0f)) / 2;
         {
             u32 k = 0;
-            mesh.vertex_positions[k++] = 100.0f * COS(RAD(0.0));
-            mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            mesh.vertex_positions[k++] = 100.0f * SIN(RAD(0.0));
-            mesh.vertex_positions[k++] = 100.0f * COS(RAD(120.0));
-            mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            mesh.vertex_positions[k++] = 100.0f * SIN(RAD(120.0));
-            mesh.vertex_positions[k++] = 100.0f * COS(RAD(240.0));
-            mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            mesh.vertex_positions[k++] = 100.0f * SIN(RAD(240.0));
-            mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            mesh.vertex_positions[k++] = 100.0f * h;
-            mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(0.0));
+            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(0.0));
+            conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(120.0));
+            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(120.0));
+            conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(240.0));
+            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(240.0));
+            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+            conversation_mesh.vertex_positions[k++] = 100.0f * h;
+            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
         }
         {
             u32 k = 0;
-            mesh.triangle_indices[k++] = 0;
-            mesh.triangle_indices[k++] = 1;
-            mesh.triangle_indices[k++] = 2;
-            mesh.triangle_indices[k++] = 1;
-            mesh.triangle_indices[k++] = 0;
-            mesh.triangle_indices[k++] = 3;
-            mesh.triangle_indices[k++] = 2;
-            mesh.triangle_indices[k++] = 1;
-            mesh.triangle_indices[k++] = 3;
-            mesh.triangle_indices[k++] = 0;
-            mesh.triangle_indices[k++] = 2;
-            mesh.triangle_indices[k++] = 3;
+            conversation_mesh.triangle_indices[k++] = 0;
+            conversation_mesh.triangle_indices[k++] = 1;
+            conversation_mesh.triangle_indices[k++] = 2;
+            conversation_mesh.triangle_indices[k++] = 1;
+            conversation_mesh.triangle_indices[k++] = 0;
+            conversation_mesh.triangle_indices[k++] = 3;
+            conversation_mesh.triangle_indices[k++] = 2;
+            conversation_mesh.triangle_indices[k++] = 1;
+            conversation_mesh.triangle_indices[k++] = 3;
+            conversation_mesh.triangle_indices[k++] = 0;
+            conversation_mesh.triangle_indices[k++] = 2;
+            conversation_mesh.triangle_indices[k++] = 3;
         }
     }
     #endif
@@ -1136,7 +1223,7 @@ int main() {
                     {
                         wrapper_manifold(
                                 &manifold,
-                                &mesh,
+                                &conversation_mesh,
                                 cross_section.num_polygonal_loops,
                                 cross_section.num_vertices_in_polygonal_loops,
                                 cross_section.polygonal_loops,
@@ -1163,13 +1250,13 @@ int main() {
 
                             { // FORNOW: this code heavily repeats conversation_mesh_draw
                                 some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-                                for (u32 i = 0; i < mesh.num_triangles; ++i) {
+                                for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
                                     // FORNOW
-                                    vec3 n = { mesh.face_normals[3 * i + 0], mesh.face_normals[3 * i + 1], mesh.face_normals[3 * i + 2] };
+                                    vec3 n = { conversation_mesh.triangle_normals[3 * i + 0], conversation_mesh.triangle_normals[3 * i + 1], conversation_mesh.triangle_normals[3 * i + 2] };
 
                                     // FORNOW
                                     vec3 p[3];
-                                    for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
+                                    for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * i + j] + d];
                                     real32 x_n = dot(n, p[0]);
 
                                     if ((dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
@@ -1235,8 +1322,8 @@ int main() {
                             vec3 o = transformPoint(inverse(camera_get_PV(&camera3D)), V3(globals.mouse_position_NDC, -0.99f));
                             vec3 p[3];
                             real32 min_distance = HUGE_VAL;
-                            for (u32 i = 0; i < mesh.num_triangles; ++i) {
-                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
+                            for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
+                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * i + j] + d];
                                 vec4 w_t = inverse(hstack(V4(p[0], 1.0f), V4(p[1], 1.0f), V4(p[2], 1.0f), V4(minus_dir, 0.0f))) * V4(o, 1.0f);
                                 if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0)) {
                                     real32 distance = w_t[3];
@@ -1252,9 +1339,9 @@ int main() {
                         if (selected_triangle_index != -1) {
                             some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
                             { // FORNOW (gross) calculateion of n_selected, r_n_selected
-                                n_selected = { mesh.face_normals[3 * selected_triangle_index + 0], mesh.face_normals[3 * selected_triangle_index + 1], mesh.face_normals[3 * selected_triangle_index + 2] };
+                                n_selected = { conversation_mesh.triangle_normals[3 * selected_triangle_index + 0], conversation_mesh.triangle_normals[3 * selected_triangle_index + 1], conversation_mesh.triangle_normals[3 * selected_triangle_index + 2] };
                                 vec3 p_selected[3];
-                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p_selected[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * selected_triangle_index + j] + d];
+                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p_selected[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * selected_triangle_index + j] + d];
                                 r_n_selected = dot(n_selected, p_selected[0]);
                             }
                             M_selected = get_M_selected(n_selected, r_n_selected);
@@ -1421,27 +1508,27 @@ int main() {
                 { // axes
                     library.soups.axes.draw(PV_3D * M4_Scaling(10.0f));
                 }
-                { // mesh; NOTE: includes transparency
-                    if (mesh.cosmetic_edges) {
+                { // conversation_mesh; NOTE: includes transparency
+                    if (conversation_mesh.cosmetic_edges) {
                         eso_begin(PV_3D, SOUP_LINES, 3.0f); 
                         eso_color(monokai.black);
                         // 3 * num_triangles * 2 / 2
-                        for (u32 k = 0; k < 2 * mesh.num_cosmetic_edges; ++k) eso_vertex(mesh.vertex_positions, mesh.cosmetic_edges[k]);
+                        for (u32 k = 0; k < 2 * conversation_mesh.num_cosmetic_edges; ++k) eso_vertex(conversation_mesh.vertex_positions, conversation_mesh.cosmetic_edges[k]);
                         eso_end();
                     }
                     for (u32 pass = 0; pass <= 1; ++pass) {
                         eso_begin(PV_3D, (!globals.key_toggled['h']) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
-                        for (u32 i = 0; i < mesh.num_triangles; ++i) {
+                        for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
                             // FORNOW (all this crap)
                             // TODO 
 
                             vec3 n;
-                            for (u32 d = 0; d < 3; ++d) n[d] = mesh.face_normals[3 * i + d];
+                            for (u32 d = 0; d < 3; ++d) n[d] = conversation_mesh.triangle_normals[3 * i + d];
 
                             vec3 p[3];
                             real32 x_n;
                             {
-                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = mesh.vertex_positions[3 * mesh.triangle_indices[3 * i + j] + d];
+                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * i + j] + d];
                                 x_n = dot(n, p[0]);
                             }
 
@@ -1513,7 +1600,7 @@ int main() {
                 // gui_printf("some_triangle_exists_that_matches_n_selected_and_r_n_selected %d", some_triangle_exists_that_matches_n_selected_and_r_n_selected);
                 // gui_printf("---");
                 // gui_printf("---");
-                if (key_toggled['h']) gui_printf("NUMBER OF TRIANGLES %d", mesh.num_triangles);
+                if (key_toggled['h']) gui_printf("NUMBER OF TRIANGLES %d", conversation_mesh.num_triangles);
                 gui_printf("");
                 gui_textbox(load_dxf_filename_buffer);
                 if (gui_button("load dxf")) {
@@ -1526,35 +1613,24 @@ int main() {
                 gui_printf("");
                 gui_textbox(load_stl_filename_buffer);
                 if (gui_button("load stl")) {
-                    { // mesh
-                        conversation_mesh_free(&mesh);
-
-                        // FORNOW (TODO: unify)
-                        Soup3D bunny = _meshutil_soup_TRIANGLES_load(load_stl_filename_buffer, false);
-                        mesh.num_vertices = bunny.num_vertices;
-                        mesh.num_triangles = mesh.num_vertices / 3;
-                        mesh.vertex_positions = (real32 *) calloc(3 * mesh.num_vertices, sizeof(real32));
-                        for (u32 i = 0; i < mesh.num_vertices; ++i) for (u32 d = 0; d < 3; ++d) mesh.vertex_positions[3 * i + d] = 32.0f * bunny.vertex_positions[i][d];
-                        mesh.triangle_indices = (u32 *) calloc(3 * mesh.num_triangles, sizeof(u32));
-                        for (u32 k = 0; k < 3 * mesh.num_triangles; ++k) mesh.triangle_indices[k] = k;
-                        mesh.face_normals = (real32 *) calloc(3 * mesh.num_triangles, sizeof(real32));
-                        mesh.num_cosmetic_edges = 0;
-                        mesh.cosmetic_edges = NULL;
-
+                    { // conversation_mesh
+                        conversation_mesh_free(&conversation_mesh);
+                        stl_load(load_stl_filename_buffer, &manifold, &conversation_mesh);
                     }
 
 
                     // TODO: ManifoldManifold *manifold;
                     { // manifold
                       // ManifoldMeshGL *manifold_meshgl(malloc(manifold_meshgl_size()), vert_props, _verts, n_props, tri_verts, n_tris);
-                      // manifold = manifold_of_meshgl(manifold, mesh);
+                      // manifold = manifold_of_meshgl(manifold, conversation_mesh);
                     }
                 }
                 gui_printf("");
                 gui_textbox(save_filename_buffer);
-                if (gui_button("save stl")) conversation_mesh_save_stl(&mesh, save_filename_buffer);
+                if (gui_button("save stl")) conversation_mesh_save_stl(&conversation_mesh, save_filename_buffer);
                 gui_printf("");
-                // gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
+                gui_printf("n_selected %f %f %f", n_selected.x, n_selected.y, n_selected.z);
+                gui_printf("r_n_selected %f", r_n_selected);
                 if (gui_button("reset")) reset = true;
             }
         }

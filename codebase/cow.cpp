@@ -3488,35 +3488,35 @@ void IndexedTriangleMesh3D::draw(
 
 void Soup3D::_dump_for_library(char *filename, char *name) {
     ASSERT(primitive == SOUP_OUTLINED_TRIANGLES);
-    FILE *fp = fopen(filename, "w");
-    ASSERT(fp);
-    fprintf(fp, "int _library_soup_%s_num_vertices = %d;\n", name, num_vertices); 
-    fprintf(fp, "vec3 _library_soup_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
-    fclose(fp);
+    FILE *file = fopen(filename, "w");
+    ASSERT(file);
+    fprintf(file, "int _library_soup_%s_num_vertices = %d;\n", name, num_vertices); 
+    fprintf(file, "vec3 _library_soup_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(file, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(file, "};\n");
+    fclose(file);
 }
 
 void IndexedTriangleMesh3D::_dump_for_library(char *filename, char *name) {
-    FILE *fp = fopen(filename, "w");
-    ASSERT(fp);
-    fprintf(fp, "int _library_mesh_%s_num_triangles = %d;\n", name, num_triangles); 
-    fprintf(fp, "int _library_mesh_%s_num_vertices = %d;\n", name, num_vertices); 
-    fprintf(fp, "int3 _library_mesh_%s_triangle_indices[] = {\n    ", name); for (int i = 0; i < num_triangles; ++i) fprintf(fp, "{%d,%d,%d},",triangle_indices[i].i,triangle_indices[i].j,triangle_indices[i].k); fprintf(fp, "};\n");
-    fprintf(fp, "vec3 _library_mesh_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(fp, "};\n");
-    fprintf(fp, "vec3 _library_mesh_%s_vertex_normals  [] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf},",vertex_normals[i][0],vertex_normals[i][1],vertex_normals[i][2]); fprintf(fp, "};\n");
+    FILE *file = fopen(filename, "w");
+    ASSERT(file);
+    fprintf(file, "int _library_mesh_%s_num_triangles = %d;\n", name, num_triangles); 
+    fprintf(file, "int _library_mesh_%s_num_vertices = %d;\n", name, num_vertices); 
+    fprintf(file, "int3 _library_mesh_%s_triangle_indices[] = {\n    ", name); for (int i = 0; i < num_triangles; ++i) fprintf(file, "{%d,%d,%d},",triangle_indices[i].i,triangle_indices[i].j,triangle_indices[i].k); fprintf(file, "};\n");
+    fprintf(file, "vec3 _library_mesh_%s_vertex_positions[] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(file, "{%.3lf,%.3lf,%.3lf},",vertex_positions[i][0],vertex_positions[i][1],vertex_positions[i][2]); fprintf(file, "};\n");
+    fprintf(file, "vec3 _library_mesh_%s_vertex_normals  [] = {\n    ", name); for (int i = 0; i < num_vertices; ++i) fprintf(file, "{%.3lf,%.3lf,%.3lf},",vertex_normals[i][0],vertex_normals[i][1],vertex_normals[i][2]); fprintf(file, "};\n");
 
     // TODO: vertex_colors
 
-    fprintf(fp, "int _library_mesh_%s_num_bones = %d;\n", name, num_bones); 
+    fprintf(file, "int _library_mesh_%s_num_bones = %d;\n", name, num_bones); 
     if (num_bones != 0) {
         ASSERT(bones);
         ASSERT(bone_indices);
         ASSERT(bone_weights);
     }
-    fprintf(fp, "mat4 _library_mesh_%s_bones[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_bones; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf},",bones[i].data[0],bones[i].data[1],bones[i].data[2],bones[i].data[3],bones[i].data[4],bones[i].data[5],bones[i].data[6],bones[i].data[7],bones[i].data[8],bones[i].data[9],bones[i].data[10],bones[i].data[11],bones[i].data[12],bones[i].data[13],bones[i].data[14],bones[i].data[15]); } fprintf(fp, "};\n");
-    fprintf(fp, "int4 _library_mesh_%s_bone_indices[] = {", name); if (num_bones != 0) { fprintf(fp, "\n"); for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%d,%d,%d,%d},",bone_indices[i][0],bone_indices[i][1],bone_indices[i][2],bone_indices[i][3]); } fprintf(fp, "};\n");
-    fprintf(fp, "vec4 _library_mesh_%s_bone_weights[] = {", name); if (num_bones != 0) { fprintf(fp, "\n");  for (int i = 0; i < num_vertices; ++i) fprintf(fp, "{%.3lf,%.3lf,%.3lf,%.3lf},",bone_weights[i][0],bone_weights[i][1],bone_weights[i][2],bone_weights[i][3]); } fprintf(fp, "};\n");
+    fprintf(file, "mat4 _library_mesh_%s_bones[] = {", name); if (num_bones != 0) { fprintf(file, "\n"); for (int i = 0; i < num_bones; ++i) fprintf(file, "{%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf,%.3lf},",bones[i].data[0],bones[i].data[1],bones[i].data[2],bones[i].data[3],bones[i].data[4],bones[i].data[5],bones[i].data[6],bones[i].data[7],bones[i].data[8],bones[i].data[9],bones[i].data[10],bones[i].data[11],bones[i].data[12],bones[i].data[13],bones[i].data[14],bones[i].data[15]); } fprintf(file, "};\n");
+    fprintf(file, "int4 _library_mesh_%s_bone_indices[] = {", name); if (num_bones != 0) { fprintf(file, "\n"); for (int i = 0; i < num_vertices; ++i) fprintf(file, "{%d,%d,%d,%d},",bone_indices[i][0],bone_indices[i][1],bone_indices[i][2],bone_indices[i][3]); } fprintf(file, "};\n");
+    fprintf(file, "vec4 _library_mesh_%s_bone_weights[] = {", name); if (num_bones != 0) { fprintf(file, "\n");  for (int i = 0; i < num_vertices; ++i) fprintf(file, "{%.3lf,%.3lf,%.3lf,%.3lf},",bone_weights[i][0],bone_weights[i][1],bone_weights[i][2],bone_weights[i][3]); } fprintf(file, "};\n");
 
-    fclose(fp);
+    fclose(file);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3641,10 +3641,10 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
         List<vec3> vertex_colors = {};
         List<int3> triangle_indices = {};
         {
-            FILE *fp = fopen(filename, "r");
-            ASSERT(fp);
+            FILE *file = fopen(filename, "r");
+            ASSERT(file);
             char buffer[4096];
-            while (fgets(buffer, ARRAY_LENGTH(buffer), fp) != NULL) {
+            while (fgets(buffer, ARRAY_LENGTH(buffer), file) != NULL) {
                 char prefix[16] = {};
                 sscanf(buffer, "%s", prefix);
                 if (strcmp(prefix, "f") == 0) {
@@ -3683,7 +3683,7 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
                     }
                 }
             }
-            fclose(fp);
+            fclose(file);
         }
 
         // note: don't free the data pointers! (we're stealing them)
@@ -3715,10 +3715,10 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
 
         List<vec3> vertex_positions = {};
         {
-            FILE *fp = fopen(filename, "r");
-            ASSERT(fp);
+            FILE *file = fopen(filename, "r");
+            ASSERT(file);
             char buffer[4096];
-            while (fgets(buffer, ARRAY_LENGTH(buffer), fp) != NULL) {
+            while (fgets(buffer, ARRAY_LENGTH(buffer), file) != NULL) {
                 cow_real x, y, z;
                 #ifdef COW_USE_REAL_32
                 int n = sscanf(buffer, "%f %f %f", &x, &y, &z);
@@ -3729,7 +3729,7 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
                 #endif
                 list_push_back(&vertex_positions, { x, y, z });
             }
-            fclose(fp);
+            fclose(file);
         }
         // note: don't free the data pointers! (we're stealing them)
         soup_mesh.num_vertices = vertex_positions.length;
@@ -3767,26 +3767,26 @@ long util_timestamp_in_milliseconds() { // no promises this is even a little bit
 
 char *_load_file_into_char_array(char *filename) {
     // https://stackoverflow.com/questions/3747086/reading-the-whole-text-file-into-a-char-array-in-c
-    FILE *fp;
+    FILE *file;
     long lSize;
     char *buffer;
 
-    fp = fopen (filename, "rb" );
-    if( !fp ) perror(filename),exit(1);
+    file = fopen (filename, "rb" );
+    if( !file ) perror(filename),exit(1);
 
-    fseek( fp , 0L , SEEK_END);
-    lSize = ftell( fp );
-    rewind( fp );
+    fseek( file , 0L , SEEK_END);
+    lSize = ftell( file );
+    rewind( file );
 
     /* allocate memory for entire content */
     buffer = (char *) calloc( 1, lSize+1 );
-    if( !buffer ) fclose(fp),fputs("memory alloc fails",stderr),exit(1);
+    if( !buffer ) fclose(file),fputs("memory alloc fails",stderr),exit(1);
 
     /* copy the file into the buffer */
-    if( 1!=fread( buffer , lSize, 1 , fp) )
-        fclose(fp),free(buffer),fputs("entire read fails",stderr),exit(1);
+    if( 1!=fread( buffer , lSize, 1 , file) )
+        fclose(file),free(buffer),fputs("entire read fails",stderr),exit(1);
 
-    fclose(fp);
+    fclose(file);
     return buffer;
 }
 

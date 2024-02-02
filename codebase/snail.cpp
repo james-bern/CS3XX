@@ -192,8 +192,8 @@ template <> union SnailVector<3> {
     #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
     struct { cow_real row, g, b; };
     struct { SnailVector<2> xy; cow_real _; };
-    cow_real data[3];
     #endif
+    cow_real data[3]; // FORNOW outside the guards
     cow_real &operator [](int index) { return ((cow_real *)(this))[index]; }
 };
 template <> union SnailVector<4> {
