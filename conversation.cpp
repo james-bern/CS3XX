@@ -1205,6 +1205,7 @@ int main() {
             { // keyboard input
                 if (key_pressed[COW_KEY_ESCAPE]) {
                     enter_mode = ENTER_MODE_NONE;
+                    console_buffer_reset();
                 } if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
                     if (key_pressed[COW_KEY_BACKSPACE]) {
                         if (console_buffer_write_head != console_buffer) *--console_buffer_write_head = 0;
@@ -1226,7 +1227,13 @@ int main() {
                             enter_mode = _ENTER_MODE_DEFAULT;
                         } else {
                             ASSERT(enter_mode == ENTER_MODE_SAVE);
-                            conversation_mesh_save_stl(&conversation_mesh, console_buffer);
+                            if (poe_suffix_match(console_buffer, ".stl")) {
+                                conversation_mesh_save_stl(&conversation_mesh, console_buffer);
+                            } else {
+                                printf("%s filetype not supported.\n", console_buffer);
+                            }
+                            console_buffer_reset();
+                            enter_mode = _ENTER_MODE_DEFAULT;
                         }
                     } else {
                         bool32 valid_key_pressed; {
@@ -1286,7 +1293,7 @@ int main() {
                     enter_mode = ENTER_MODE_LOAD;
                 } else if (key_pressed['f']) {
                     extrude_param_sign_toggle = !extrude_param_sign_toggle;
-                } else if (key_pressed[COW_KEY_ENTER] && (!IS_ZERO(M_selected(3, 3)))) {
+                } else if (key_pressed[COW_KEY_ENTER] && (enter_mode != ENTER_MODE_NONE) && (!IS_ZERO(M_selected(3, 3)))) {
                     // enter_mode = ENTER_MODE_NONE;
                     // NOTE: holds over previous
                     if (console_buffer_write_head != console_buffer) {
