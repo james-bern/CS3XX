@@ -3293,6 +3293,8 @@ template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key 
     return default_value;
 }
 
+
+
 template <typename Key, typename Value> void map_free(Map<Key, Value> *map) {
     for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free(bucket);
     if (map->num_buckets) free(map->buckets);
