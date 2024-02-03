@@ -2,9 +2,13 @@
 // This is a little CAD program Jim is making :)
 //  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
 
-// TODO: grid and build volume
+// ~: cameras shouldn't be moved
+// TODO make 3D pick work with perspective camera
+// TODO extend cameras and camera_move to have a post-projection NDC offset
+//
 // TODO: zoom to extents as part of load (pass camera2D to load)
 // TODO: app needs its own key_toggled :)
+// TODO: build volume
 
 
 #include "cs345.cpp"
@@ -538,24 +542,22 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define SELECT_MODIFIER_CONNECTED 1
 #define SELECT_MODIFIER_QUALITY 2
 #define _SELECT_MODIFIER_DEFAULT SELECT_MODIFIER_CONNECTED
-void dxf_pick(Camera2D *camera2D, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
+void dxf_pick(mat4 PV_2D, real32 camera2D_screen_height_World, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
     if (select_mode == SELECT_MODE_NONE) return;
 
     bool32 value_to_write_to_selection_mask = (select_mode == SELECT_MODE_SELECT);
     bool32 modifier_connected = (select_modifier == SELECT_MODIFIER_CONNECTED);
 
-    real32 PV[16];
-    _camera_get_PV(camera2D, PV);
     real32 x, y;
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV, &x, &y, NULL, NULL);
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &x, &y, NULL, NULL);
 
     int hot_entity_index = -1;
     double hot_squared_distance = HUGE_VAL;
     for (u32 i = 0; i < dxf->num_entities; ++i) {
         DXFEntity *entity = &dxf->entities[i];
         double squared_distance = squared_distance_point_entity(x, y, entity);
-        squared_distance /= (camera2D->screen_height_World * camera2D->screen_height_World / 4); // NDC
+        squared_distance /= (camera2D_screen_height_World * camera2D_screen_height_World / 4); // NDC
         if (squared_distance < MIN(epsilon * epsilon, hot_squared_distance)) {
             hot_squared_distance = squared_distance;
             hot_entity_index = i;
@@ -1163,8 +1165,8 @@ void reset_app() {
 
     {
         real32 height = 128.0f;
-        camera2D = { height, height / 2 };
-        camera3D = { 2 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), -height };
+        camera2D = { height };
+        camera3D = { 3 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f) };
     }
 }
 
@@ -1177,6 +1179,21 @@ int main() {
             reset = false;
             reset_app();
         }
+
+
+        if (hot_pane == HOT_PANE_2D) {
+            camera_move(&camera2D);
+        } else if (hot_pane == HOT_PANE_3D) {
+            camera_move(&camera3D);
+        }
+        mat4 P_2D = M4_Translation(-0.5, 0.0) * camera_get_P(&camera2D);
+        mat4 V_2D = camera_get_V(&camera2D);
+        mat4 P_3D = M4_Translation(0.5, 0.0) * camera_get_P(&camera3D);
+        mat4 V_3D = camera_get_V(&camera3D);
+        mat4 PV_2D = P_2D * V_2D;
+        mat4 PV_3D = P_3D * V_3D;
+
+
 
         real32 extrude_param_preview;
         real32 extrude_param_2_preview;
@@ -1203,7 +1220,9 @@ int main() {
 
         if (globals._input_owner == COW_INPUT_OWNER_NONE) {
             { // keyboard input
-                if (key_pressed[COW_KEY_ESCAPE]) {
+                if (key_pressed[COW_KEY_TAB]) {
+                    camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? RAD(60.0f) : 0.0f;
+                } else if (key_pressed[COW_KEY_ESCAPE]) {
                     enter_mode = ENTER_MODE_NONE;
                     console_buffer_reset();
                 } if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
@@ -1387,7 +1406,7 @@ int main() {
 
             { // pick 2D pick 2d pick
                 if (hot_pane == HOT_PANE_2D) {
-                    dxf_pick(&camera2D, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+                    dxf_pick(PV_2D, camera2D.screen_height_World, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
                 }
             }
 
@@ -1398,7 +1417,7 @@ int main() {
                         {
                             vec3 minus_dir;
                             _camera_get_coordinate_system(&camera3D, NULL, NULL, NULL, (real32 *) &minus_dir, NULL, NULL);
-                            vec3 o = transformPoint(inverse(camera_get_PV(&camera3D)), V3(globals.mouse_position_NDC, -0.99f));
+                            vec3 o = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -0.99f));
                             vec3 p[3];
                             real32 min_distance = HUGE_VAL;
                             for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
@@ -1437,6 +1456,7 @@ int main() {
         }
 
         { // draw
+
             u32 window_width, window_height; {
                 real32 _window_width, _window_height; // FORNOW
                 _window_get_size(&_window_width, &_window_height);
@@ -1466,19 +1486,12 @@ int main() {
                 if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
                     hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
                 }
-
-                if (hot_pane == HOT_PANE_2D) {
-                    camera_move(&camera2D);
-                } else if (hot_pane == HOT_PANE_3D) {
-                    camera_move(&camera3D);
-                }
             }
 
             { // draw 2D draw 2d draw
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(0, 0, window_width / 2, window_height);
                 {
-                    mat4 PV_2D = camera_get_PV(&camera2D);
                     { // grid 2D grid 2d grid
                         eso_begin(PV_2D, SOUP_LINES, 2.0f);
                         eso_color(0.2f, 0.2f, 0.2f);
@@ -1538,9 +1551,6 @@ int main() {
                     }
                 }
 
-                mat4 P_3D = camera_get_P(&camera3D);
-                mat4 V_3D = camera_get_V(&camera3D);
-                mat4 PV_3D = P_3D * V_3D;
 
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
@@ -1732,8 +1742,8 @@ int main() {
 
                 if (key_toggled['i']) {
                     gui_printf("");
-                    gui_printf("NUMBER OF ELEMENTS  IN DXF %d", dxf.num_entities);
-                    gui_printf("NUMBER OF TRIANGLES IN STL %d", conversation_mesh.num_triangles);
+                    gui_printf("%d dxf elements", dxf.num_entities);
+                    gui_printf("%d stl triangles", conversation_mesh.num_triangles);
                 }
                 {
                     gui_printf("");
