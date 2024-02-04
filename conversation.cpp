@@ -6,8 +6,8 @@
 // / extend cameras and camera_move to have a post-projection NDC offset
 
 // TODO: finish load_stl
-// TODO: zoom to extents as part of load (pass camera2D to load)
-// TODO: app needs its own key_toggled :)
+// / zoom to extents as part of load (pass camera2D to load)
+// app gets its own key_toggled
 // TODO: build volume
 
 
@@ -1061,27 +1061,46 @@ mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
     return M4_xyzo(x, y, z, r_n_selected * n_selected);
 }
 
-void camera2D_zoom_to_extends(Camera2D *camera2D, DXF *dxf) {
+void camera2D_zoom_to_dxf_extents(Camera2D *camera2D, DXF *dxf) {
     real32 min[] = {  HUGE_VAL,  HUGE_VAL };
     real32 max[] = { -HUGE_VAL, -HUGE_VAL };
     for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
-        if (entity->type == DXF_ENTITY_TYPE_LINE) {
-            DXFLine *line = &entity->line;
-            real32 s[2][2] = { { line->start_x, line->start_y }, { line->start_x, line->start_y } };
-            for (u32 i = 0; i < 2; ++i) {
-                for (u32 d = 0; d < 2; ++d) {
-                    min[d] = MIN(min[d], s[i][d]);
-                    max[d] = MAX(max[d], s[i][d]);
+        real32 s[2][2];
+        u32 n = 2;
+        entity_get_start_and_end_points(entity, &s[0][0], &s[0][1], &s[1][0], &s[1][1]);
+        for (u32 i = 0; i < n; ++i) {
+            for (u32 d = 0; d < 2; ++d) {
+                min[d] = MIN(min[d], s[i][d]);
+                max[d] = MAX(max[d], s[i][d]);
+            }
+        }
+
+        if (entity->type == DXF_ENTITY_TYPE_ARC) {
+            DXFArc *arc = &entity->arc;
+            // NOTE: endpoints already taken are of
+            real32 start_angle = RAD(arc->start_angle_in_degrees);
+            real32 end_angle = RAD(arc->end_angle_in_degrees);
+            { // FORNOW
+                while (start_angle < 0.0f) {
+                    start_angle += TAU;
+                    end_angle += TAU;
+                }
+                while (start_angle > TAU) {
+                    start_angle -= TAU;
+                    end_angle -= TAU;
                 }
             }
-        } else {
-            ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-            DXFArc *arc = &entity->arc;
+            if (IS_BETWEEN(         0, start_angle, end_angle)) max[0] = MAX(max[0], arc->center_x + arc->radius);
+            if (IS_BETWEEN(    PI / 2, start_angle, end_angle)) max[1] = MAX(max[1], arc->center_y + arc->radius);
+            if (IS_BETWEEN(    PI    , start_angle, end_angle)) min[0] = MIN(min[0], arc->center_x - arc->radius);
+            if (IS_BETWEEN(3 * PI / 2, start_angle, end_angle)) min[1] = MIN(min[1], arc->center_y - arc->radius);
+
         }
     }
     real32 new_o_x = AVG(min[0], max[0]);
     real32 new_o_y = AVG(min[1], max[1]);
     real32 new_height = MAX((max[0] - min[0]) * 2 / _window_get_aspect(), (max[1] - min[1])); // factor of 2 since splitscreen
+    new_height *= 1.3; // FORNOW: border
     camera2D->screen_height_World = new_height;
     camera2D->o_x = new_o_x;
     camera2D->o_y = new_o_y;
@@ -1127,6 +1146,7 @@ int main() {
     bool32 reset = true;
     while (cow_begin_frame()) {
         if (reset) {
+            reset = false;
             hot_pane = HOT_PANE_NONE;
 
             select_mode = _SELECT_MODE_DEFAULT;
@@ -1193,23 +1213,10 @@ int main() {
             { // cameras
                 real32 height = 128.0f;
                 camera2D = { height, 0.0f, 0.0f, -0.5f, 0.0f };
-                camera2D_zoom_to_extends(&camera2D, &dxf);
+                camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
                 camera3D = { 3 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), 0.0, 0.0, 0.5f, 0.0f };
             }
         }
-
-
-        if (hot_pane == HOT_PANE_2D) {
-            camera_move(&camera2D);
-        } else if (hot_pane == HOT_PANE_3D) {
-            camera_move(&camera3D);
-        }
-        mat4 PV_2D = camera_get_PV(&camera2D);
-        mat4 P_3D = camera_get_P(&camera3D);
-        mat4 V_3D = camera_get_V(&camera3D);
-        mat4 PV_3D = P_3D * V_3D;
-
-
 
         real32 extrude_param_preview;
         real32 extrude_param_2_preview;
@@ -1234,8 +1241,8 @@ int main() {
             }
         }
 
-        if (globals._input_owner == COW_INPUT_OWNER_NONE) {
-            { // keyboard input
+        { // keyboard input
+            if (globals._input_owner == COW_INPUT_OWNER_NONE) {
                 if (key_pressed[COW_KEY_TAB]) {
                     camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? RAD(60.0f) : 0.0f;
                 } else if (key_pressed[COW_KEY_ESCAPE]) {
@@ -1252,7 +1259,7 @@ int main() {
                                 dxf = dxf_load(console_buffer);
                                 pick = dxf_loop_analysis_create(&dxf);
                                 dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
-                                camera2D_zoom_to_extends(&camera2D, &dxf);
+                                camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
                             } else if (poe_suffix_match(console_buffer, ".stl")) {
                                 conversation_mesh_free(&conversation_mesh);
                                 stl_load(console_buffer, &manifold, &conversation_mesh);
@@ -1286,6 +1293,8 @@ int main() {
                             *console_buffer_write_head++ = (char) globals.key_last_key_pressed;
                         }
                     }
+                } else if (key_pressed['Z'] && globals.key_shift_held) {
+                    camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
                 } else if (key_pressed['S'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_SAVE;
                 } else if (key_pressed['s']) {
@@ -1308,10 +1317,9 @@ int main() {
                 } else if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
                     some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                     r_n_selected = 0.0f;
-                    real32 sign = (!globals.key_shift_held) ? 1.0f : -1.0f;
-                    if (key_pressed['x']) n_selected = { sign, 0.0f, 0.0f };
-                    if (key_pressed['y']) n_selected = { 0.0f, sign, 0.0f };
-                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, sign };
+                    if (key_pressed['x']) n_selected = { 1.0f, 0.0f, 0.0f };
+                    if (key_pressed['y']) n_selected = { 0.0f, 1.0f, 0.0f };
+                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
                     M_selected = get_M_selected(n_selected, r_n_selected);
                 } else if (key_pressed['e'] && !globals.key_shift_held) {
                     enter_mode = ENTER_MODE_EXTRUDE_ADD;
@@ -1321,10 +1329,10 @@ int main() {
                     enter_mode = ENTER_MODE_EXTRUDE_SUBTRACT;
                     // console_buffer_reset();
                     extrude_param_sign_toggle = true;
-                } else if (key_pressed['r']) {
-                    enter_mode = ENTER_MODE_REVOLVE_ADD;
                 } else if (key_pressed['R'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_REVOLVE_SUBTRACT;
+                } else if (key_pressed['r']) {
+                    enter_mode = ENTER_MODE_REVOLVE_ADD;
                 } else if (key_pressed['L'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_LOAD;
                 } else if (key_pressed['f']) {
@@ -1406,7 +1414,7 @@ int main() {
                                 }
                             }
                         }
-                    } else {
+                    } else if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)){
                         bool32 valid_key_pressed; {
                             valid_key_pressed = false;
                             valid_key_pressed = (valid_key_pressed || key_pressed['.']);
@@ -1418,60 +1426,77 @@ int main() {
                         }
                     }
                 } 
-
             }
+        }
 
-            { // pick 2D pick 2d pick
-                if (hot_pane == HOT_PANE_2D) {
-                    dxf_pick(PV_2D, camera2D.screen_height_World, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+
+        if (hot_pane == HOT_PANE_2D) {
+            camera_move(&camera2D);
+        } else if (hot_pane == HOT_PANE_3D) {
+            camera_move(&camera3D);
+        }
+        mat4 PV_2D = camera_get_PV(&camera2D);
+        mat4 P_3D = camera_get_P(&camera3D);
+        mat4 V_3D = camera_get_V(&camera3D);
+        mat4 PV_3D = P_3D * V_3D;
+
+
+
+
+        { // ui
+            if (globals._input_owner == COW_INPUT_OWNER_NONE) {
+                { // pick 2D pick 2d pick
+                    if (hot_pane == HOT_PANE_2D) {
+                        dxf_pick(PV_2D, camera2D.screen_height_World, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+                    }
                 }
-            }
 
-            { // pick 3D pick 3d pick
-                if (hot_pane == HOT_PANE_3D) {
-                    if (globals.mouse_left_pressed) {
-                        int32 selected_triangle_index = -1;
-                        {
-                            vec3 a = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -1.0f));
-                            vec3 b = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f));
-                            vec3 o = a;
-                            vec3 minus_dir = normalized(a - b);
-                            vec3 p[3];
-                            real32 min_distance = HUGE_VAL;
-                            for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
-                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * i + j] + d];
-                                vec4 w_t = inverse(hstack(V4(p[0], 1.0f), V4(p[1], 1.0f), V4(p[2], 1.0f), V4(minus_dir, 0.0f))) * V4(o, 1.0f);
-                                if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0)
-                                        // && (w_t.w > 0)
-                                   ) {
-                                    real32 distance = w_t[3];
-                                    if (distance < min_distance) {
-                                        min_distance = distance;
-                                        selected_triangle_index = i; // FORNOW
+                { // pick 3D pick 3d pick
+                    if (hot_pane == HOT_PANE_3D) {
+                        if (globals.mouse_left_pressed) {
+                            int32 selected_triangle_index = -1;
+                            {
+                                vec3 a = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -1.0f));
+                                vec3 b = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f));
+                                vec3 o = a;
+                                vec3 minus_dir = normalized(a - b);
+                                vec3 p[3];
+                                real32 min_distance = HUGE_VAL;
+                                for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
+                                    for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * i + j] + d];
+                                    vec4 w_t = inverse(hstack(V4(p[0], 1.0f), V4(p[1], 1.0f), V4(p[2], 1.0f), V4(minus_dir, 0.0f))) * V4(o, 1.0f);
+                                    if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0)
+                                            // && (w_t.w > 0)
+                                       ) {
+                                        real32 distance = w_t[3];
+                                        if (distance < min_distance) {
+                                            min_distance = distance;
+                                            selected_triangle_index = i; // FORNOW
+                                        }
                                     }
                                 }
                             }
-                        }
 
-                        if (selected_triangle_index != -1) {
-                            some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
-                            { // FORNOW (gross) calculateion of n_selected, r_n_selected
-                                n_selected = { conversation_mesh.triangle_normals[3 * selected_triangle_index + 0], conversation_mesh.triangle_normals[3 * selected_triangle_index + 1], conversation_mesh.triangle_normals[3 * selected_triangle_index + 2] };
-                                vec3 p_selected[3];
-                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p_selected[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * selected_triangle_index + j] + d];
-                                r_n_selected = dot(n_selected, p_selected[0]);
+                            if (selected_triangle_index != -1) {
+                                some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
+                                { // FORNOW (gross) calculateion of n_selected, r_n_selected
+                                    n_selected = { conversation_mesh.triangle_normals[3 * selected_triangle_index + 0], conversation_mesh.triangle_normals[3 * selected_triangle_index + 1], conversation_mesh.triangle_normals[3 * selected_triangle_index + 2] };
+                                    vec3 p_selected[3];
+                                    for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p_selected[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * selected_triangle_index + j] + d];
+                                    r_n_selected = dot(n_selected, p_selected[0]);
+                                }
+                                M_selected = get_M_selected(n_selected, r_n_selected);
+
                             }
-                            M_selected = get_M_selected(n_selected, r_n_selected);
 
                         }
-
                     }
+                    // if (key_pressed[COW_KEY_ESCAPE]) {
+                    //     r_n_selected = 0.0f;
+                    //     n_selected = {};
+                    //     M_selected = {};
+                    // }
                 }
-                // if (key_pressed[COW_KEY_ESCAPE]) {
-                //     r_n_selected = 0.0f;
-                //     n_selected = {};
-                //     M_selected = {};
-                // }
             }
         }
 
@@ -1757,7 +1782,11 @@ int main() {
                         (enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
                         "",
                         ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) ? extrude_message : "");
-                gui_printf("`> %s", console_buffer);
+                if ((enter_mode == ENTER_MODE_NONE) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
+                    gui_printf("> %s", console_buffer);
+                } else {
+                    gui_printf("`> %s", console_buffer);
+                }
 
 
                 if (key_toggled['i']) {
@@ -1770,11 +1799,13 @@ int main() {
                     if (!key_toggled['h']) {
                         gui_printf("(h)elp");
                     } else {
-                        gui_printf("(s)elect (d)eselect (c)onnected (a)ll (q)uality + (012345)");
-                        gui_printf("(e)trude-add (E)xtrude-cut (f)lip-direction");
+                        gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
+                        gui_printf("(y)-plane (z)-plane (x)-plane");
+                        gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
                         gui_printf("(r)evolve-add (R)evolve-cut");
                         gui_printf("(L)oad (S)ave");
-                        gui_printf("(i)inspect");
+                        gui_printf("(i)nspect");
+                        gui_printf("(Z)oom-to-extents");
                     }
                 }
 
