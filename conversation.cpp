@@ -2,8 +2,7 @@
 // This is a little CAD program Jim is making :)
 //  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
 
-// ~: cameras shouldn't be moved
-// TODO make 3D pick work with perspective camera
+// / make 3D pick work with perspective camera
 // TODO extend cameras and camera_move to have a post-projection NDC offset
 //
 // TODO: zoom to extents as part of load (pass camera2D to load)
@@ -1165,8 +1164,8 @@ void reset_app() {
 
     {
         real32 height = 128.0f;
-        camera2D = { height };
-        camera3D = { 3 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f) };
+        camera2D = { height, 0.0f, 0.0f, -0.5f, 0.0f };
+        camera3D = { 3 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), 0.0, 0.0, 0.5f, 0.0f };
     }
 }
 
@@ -1186,11 +1185,9 @@ int main() {
         } else if (hot_pane == HOT_PANE_3D) {
             camera_move(&camera3D);
         }
-        mat4 P_2D = M4_Translation(-0.5, 0.0) * camera_get_P(&camera2D);
-        mat4 V_2D = camera_get_V(&camera2D);
-        mat4 P_3D = M4_Translation(0.5, 0.0) * camera_get_P(&camera3D);
+        mat4 PV_2D = camera_get_PV(&camera2D);
+        mat4 P_3D = camera_get_P(&camera3D);
         mat4 V_3D = camera_get_V(&camera3D);
-        mat4 PV_2D = P_2D * V_2D;
         mat4 PV_3D = P_3D * V_3D;
 
 
@@ -1415,15 +1412,18 @@ int main() {
                     if (globals.mouse_left_pressed) {
                         int32 selected_triangle_index = -1;
                         {
-                            vec3 minus_dir;
-                            _camera_get_coordinate_system(&camera3D, NULL, NULL, NULL, (real32 *) &minus_dir, NULL, NULL);
-                            vec3 o = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -0.99f));
+                            vec3 a = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -1.0f));
+                            vec3 b = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f));
+                            vec3 o = a;
+                            vec3 minus_dir = normalized(a - b);
                             vec3 p[3];
                             real32 min_distance = HUGE_VAL;
                             for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
                                 for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * i + j] + d];
                                 vec4 w_t = inverse(hstack(V4(p[0], 1.0f), V4(p[1], 1.0f), V4(p[2], 1.0f), V4(minus_dir, 0.0f))) * V4(o, 1.0f);
-                                if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0)) {
+                                if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0)
+                                        // && (w_t.w > 0)
+                                        ) {
                                     real32 distance = w_t[3];
                                     if (distance < min_distance) {
                                         min_distance = distance;
@@ -1550,7 +1550,6 @@ int main() {
                         }
                     }
                 }
-
 
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);

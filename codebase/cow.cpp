@@ -946,7 +946,7 @@ void _window_reset() {
 // #include "window_tform.cpp"//////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void _window_get_P_perspective(cow_real *P, cow_real angle_of_view, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
+void _window_get_P_perspective(cow_real *P, cow_real angle_of_view, cow_real t_x_NDC = 0, cow_real t_y_NDC = 0, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
     if (IS_ZERO(n)) { n = -.1f; }
     if (IS_ZERO(f)) { f = -10000.f; }
     if (IS_ZERO(aspect)) { aspect = _window_get_aspect(); }
@@ -1034,11 +1034,18 @@ void _window_get_P_perspective(cow_real *P, cow_real angle_of_view, cow_real n =
     // => a + (2 * f) / (f - n) = 1    
     // => a = -(n + f) / (f - n)       
     //       = (n + f) / (n - f)       
-    _LINALG_4X4(P, 2, 2) = (n + f) / (n - f);     // a
-    _LINALG_4X4(P, 2, 3) = (2 * n * f) / (f - n); // b
+    _LINALG_4X4(P, 2, 2) = (n + f) / (n - f);
+    _LINALG_4X4(P, 2, 3) = (2 * n * f) / (f - n);
+
+    // [1 0 0  t_x_NDC] [Q_x   0  0  0]
+    // [0 1 0  t_y_NDC] [  0 Q_y  0  0]
+    // [0 0 1        0] [  0   0  a  b]
+    // [0 0 0        1] [  0   0 -1  0]
+    _LINALG_4X4(P, 0, 2) = -t_x_NDC;
+    _LINALG_4X4(P, 1, 2) = -t_y_NDC;
 }
 
-void _window_get_P_ortho(cow_real *P, cow_real screen_height_World, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
+void _window_get_P_ortho(cow_real *P, cow_real screen_height_World, cow_real t_x_NDC = 0, cow_real t_y_NDC = 0, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
     ASSERT(P);
     // ASSERT(!IS_ZERO(screen_height_World));
     if (ARE_EQUAL(n, f)) {
@@ -1093,31 +1100,37 @@ void _window_get_P_ortho(cow_real *P, cow_real screen_height_World, cow_real n =
     //                                 
     // (2 * f) / (f - n) + b = 1       
     // => b = (n + f) / (n - f)        
-    _LINALG_4X4(P, 2, 2) = 2 / (f - n);
-    _LINALG_4X4(P, 2, 3) = (n + f) / (n - f);
+    cow_real a = 2 / (f - n);
+    cow_real b = (n + f) / (n - f);
+    _LINALG_4X4(P, 2, 2) = a;
+    _LINALG_4X4(P, 2, 3) = b;
 
-    // ???
-    // _LINALG_4X4(P, 2, 2) *= -1; // sign flip
-    // _LINALG_4X4(P, 2, 3) *= -1; //          
     _LINALG_4X4(P, 3, 3) = 1;
+
+    // [1 0 0  t_x_NDC] [1/r_x      0   0  0]
+    // [0 1 0  t_y_NDC] [    0  1/r_y   0  0]
+    // [0 0 1        0] [    0      0   a  b]
+    // [0 0 0        1] [    0      0   0  1]
+    _LINALG_4X4(P, 0, 3) = t_x_NDC;
+    _LINALG_4X4(P, 1, 3) = t_y_NDC;
 }
 
-void _window_get_V_ortho_2D(cow_real *V, cow_real eye_x, cow_real eye_y) {
+void _window_get_V_ortho_2D(cow_real *V, cow_real o_x, cow_real o_y) {
     memset(V, 0, 16 * sizeof(cow_real));
     _LINALG_4X4(V, 0, 0) = 1.0;
     _LINALG_4X4(V, 1, 1) = 1.0;
     _LINALG_4X4(V, 2, 2) = 1.0;
     _LINALG_4X4(V, 3, 3) = 1.0;
-    _LINALG_4X4(V, 0, 3) = -eye_x;
-    _LINALG_4X4(V, 1, 3) = -eye_y;
+    _LINALG_4X4(V, 0, 3) = -o_x;
+    _LINALG_4X4(V, 1, 3) = -o_y;
 }
 
-void _window_get_PV_ortho_2D(cow_real *PV, cow_real screen_height_World, cow_real eye_x, cow_real eye_y) {
+void _window_get_PV_ortho_2D(cow_real *PV, cow_real screen_height_World, cow_real o_x, cow_real o_y, cow_real t_x_NDC, cow_real t_y_NDC) {
     ASSERT(PV);
     // fornow slow
     cow_real P[16], V[16];
-    _window_get_P_ortho(P, screen_height_World);
-    _window_get_V_ortho_2D(V, eye_x, eye_y);
+    _window_get_P_ortho(P, screen_height_World, t_x_NDC, t_y_NDC);
+    _window_get_V_ortho_2D(V, o_x, o_y);
     _linalg_mat4_times_mat4(PV, P, V);
 }
 
@@ -2792,6 +2805,8 @@ struct Camera2D {
     cow_real screen_height_World;
     cow_real o_x;
     cow_real o_y;
+    cow_real t_x_NDC;
+    cow_real t_y_NDC;
 };
 
 // this is an "orbit camera" that points at the origia*  
@@ -2813,6 +2828,8 @@ struct Camera3D {
     cow_real phi; // pitch
     cow_real o_x;
     cow_real o_y;
+    cow_real t_x_NDC;
+    cow_real t_y_NDC;
 };
 
 void camera_attach_to_gui(Camera2D *camera) {
@@ -2835,7 +2852,7 @@ void camera_attach_to_gui(Camera3D *camera) {
 }
 
 void _camera_get_P(Camera2D *camera, cow_real *P) {
-    _window_get_P_ortho(P, camera->screen_height_World);
+    _window_get_P_ortho(P, camera->screen_height_World, camera->t_x_NDC, camera->t_y_NDC);
 }
 
 void _camera_get_V(Camera2D *camera, cow_real *V) {
@@ -2843,7 +2860,7 @@ void _camera_get_V(Camera2D *camera, cow_real *V) {
 }
 
 void _camera_get_PV(Camera2D *camera, cow_real *PV) {
-    _window_get_PV_ortho_2D(PV, camera->screen_height_World, camera->o_x, camera->o_y);
+    _window_get_PV_ortho_2D(PV, camera->screen_height_World, camera->o_x, camera->o_y, camera->t_x_NDC, camera->t_y_NDC);
 }
 
 cow_real camera_get_screen_height_World(Camera3D *camera) {
@@ -2908,9 +2925,9 @@ void _camera_get_coordinate_system(Camera3D *camera, cow_real *C_out, cow_real *
 
 void _camera_get_P(Camera3D *camera, cow_real *P) {
     if (IS_ZERO(camera->angle_of_view)) {
-        _window_get_P_ortho(P, camera->ortho_screen_height_World);
+        _window_get_P_ortho(P, camera->ortho_screen_height_World, camera->t_x_NDC, camera->t_y_NDC);
     } else {
-        _window_get_P_perspective(P, camera->angle_of_view);
+        _window_get_P_perspective(P, camera->angle_of_view, camera->t_x_NDC, camera->t_y_NDC);
     }
 }
 
@@ -2945,21 +2962,22 @@ void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom =
         // mouse_NDC'   = mouse_NDC                            
         //                                                     
         // mouse_NDC'         = mouse_NDC                      
-        // P' V' mouse_World'  = mouse_NDC                     
-        // P' V' mouse_World   = mouse_NDC                     
+        // P' V' mouse_World' = mouse_NDC                     
+        // P' V' mouse_World  = mouse_NDC                     
         // V' mouse_World     = inv(P') mouse_NDC              
         // mouse_World - eye' = inv(P') mouse_NDC              
         //               eye' = mouse_World - inv(P') mouse_NDC
         //                                    ^----- a -------^
 
+        // TODO: this can (and should) be simplified a lot
         cow_real x, y;
         _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, &x, &y, NULL, NULL);
 
         cow_real mouse_World[4] = { x, y, 0, 1 };
         cow_real a[4] = {};
         cow_real inv_P_prime[16] = {}; {
-            Camera2D tmp = { camera->screen_height_World };
-            _camera_get_PV(&tmp, inv_P_prime);
+            Camera2D tmp = *camera;
+            _camera_get_P(&tmp, inv_P_prime);
             _linalg_mat4_inverse(inv_P_prime, inv_P_prime);
         }
         cow_real mouse_NDC[4] = {}; {
@@ -2973,7 +2991,7 @@ void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom =
 void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom = false, bool disable_rotate = false) {
     disable_rotate |= (globals._input_owner != COW_INPUT_OWNER_NONE);
     { // 2D transforms
-        Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->o_x, camera->o_y };
+        Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->o_x, camera->o_y, camera->t_x_NDC, camera->t_y_NDC };
         camera_move(&tmp2D, disable_pan, disable_zoom);
 
         if (IS_ZERO(camera->angle_of_view)) { // ortho
