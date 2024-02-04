@@ -3,8 +3,9 @@
 //  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
 
 // / make 3D pick work with perspective camera
-// TODO extend cameras and camera_move to have a post-projection NDC offset
-//
+// / extend cameras and camera_move to have a post-projection NDC offset
+
+// TODO: finish load_stl
 // TODO: zoom to extents as part of load (pass camera2D to load)
 // TODO: app needs its own key_toggled :)
 // TODO: build volume
@@ -1060,6 +1061,31 @@ mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
     return M4_xyzo(x, y, z, r_n_selected * n_selected);
 }
 
+void camera2D_zoom_to_extends(Camera2D *camera2D, DXF *dxf) {
+    real32 min[] = {  HUGE_VAL,  HUGE_VAL };
+    real32 max[] = { -HUGE_VAL, -HUGE_VAL };
+    for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
+        if (entity->type == DXF_ENTITY_TYPE_LINE) {
+            DXFLine *line = &entity->line;
+            real32 s[2][2] = { { line->start_x, line->start_y }, { line->start_x, line->start_y } };
+            for (u32 i = 0; i < 2; ++i) {
+                for (u32 d = 0; d < 2; ++d) {
+                    min[d] = MIN(min[d], s[i][d]);
+                    max[d] = MAX(max[d], s[i][d]);
+                }
+            }
+        } else {
+            ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+            DXFArc *arc = &entity->arc;
+        }
+    }
+    real32 new_o_x = AVG(min[0], max[0]);
+    real32 new_o_y = AVG(min[1], max[1]);
+    real32 new_height = MAX((max[0] - min[0]) * 2 / _window_get_aspect(), (max[1] - min[1])); // factor of 2 since splitscreen
+    camera2D->screen_height_World = new_height;
+    camera2D->o_x = new_o_x;
+    camera2D->o_y = new_o_y;
+}
 
 
 #define HOT_PANE_NONE 0
@@ -1097,86 +1123,79 @@ bool32 extrude_param_sign_toggle;
 Camera2D camera2D;
 Camera3D camera3D;
 
-void reset_app() {
-
-    hot_pane = HOT_PANE_NONE;
-
-    select_mode = _SELECT_MODE_DEFAULT;
-    select_modifier = _SELECT_MODIFIER_DEFAULT;
-
-    some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-    n_selected = { 0.0, 1.0, 0.0 };
-    r_n_selected = 0.0f;
-    M_selected = get_M_selected(n_selected, r_n_selected);
-
-    dxf = dxf_load("in.dxf");
-    pick = dxf_loop_analysis_create(&dxf);
-    dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
-
-    manifold = NULL;
-    conversation_mesh = {};
-    #if 0
-    {
-        conversation_mesh = {};
-        conversation_mesh.num_vertices = 4;
-        conversation_mesh.num_triangles = 4;
-        conversation_mesh.vertex_positions = (real32 *) calloc(3 * conversation_mesh.num_vertices, sizeof(real32));
-        conversation_mesh.triangle_indices = (u32 *) calloc(3 * conversation_mesh.num_triangles, sizeof(u32));
-        float h = (1.0f + SQRT(3.0f)) / 2;
-        {
-            u32 k = 0;
-            conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(0.0));
-            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(0.0));
-            conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(120.0));
-            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(120.0));
-            conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(240.0));
-            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(240.0));
-            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
-            conversation_mesh.vertex_positions[k++] = 100.0f * h;
-            conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
-        }
-        {
-            u32 k = 0;
-            conversation_mesh.triangle_indices[k++] = 0;
-            conversation_mesh.triangle_indices[k++] = 1;
-            conversation_mesh.triangle_indices[k++] = 2;
-            conversation_mesh.triangle_indices[k++] = 1;
-            conversation_mesh.triangle_indices[k++] = 0;
-            conversation_mesh.triangle_indices[k++] = 3;
-            conversation_mesh.triangle_indices[k++] = 2;
-            conversation_mesh.triangle_indices[k++] = 1;
-            conversation_mesh.triangle_indices[k++] = 3;
-            conversation_mesh.triangle_indices[k++] = 0;
-            conversation_mesh.triangle_indices[k++] = 2;
-            conversation_mesh.triangle_indices[k++] = 3;
-        }
-    }
-    #endif
-
-    enter_mode = _ENTER_MODE_DEFAULT;
-    extrude_param = 0.0f;
-    extrude_param_2 = 0.0f;
-    extrude_param_sign_toggle = false;
-    console_buffer_reset();
-
-    {
-        real32 height = 128.0f;
-        camera2D = { height, 0.0f, 0.0f, -0.5f, 0.0f };
-        camera3D = { 3 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), 0.0, 0.0, 0.5f, 0.0f };
-    }
-}
-
-
-
 int main() {
     bool32 reset = true;
     while (cow_begin_frame()) {
         if (reset) {
-            reset = false;
-            reset_app();
+            hot_pane = HOT_PANE_NONE;
+
+            select_mode = _SELECT_MODE_DEFAULT;
+            select_modifier = _SELECT_MODIFIER_DEFAULT;
+
+            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+            n_selected = { 0.0, 1.0, 0.0 };
+            r_n_selected = 0.0f;
+            M_selected = get_M_selected(n_selected, r_n_selected);
+
+            dxf = dxf_load("in.dxf");
+            pick = dxf_loop_analysis_create(&dxf);
+            dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+
+            manifold = NULL;
+            conversation_mesh = {};
+            #if 0
+            {
+                conversation_mesh = {};
+                conversation_mesh.num_vertices = 4;
+                conversation_mesh.num_triangles = 4;
+                conversation_mesh.vertex_positions = (real32 *) calloc(3 * conversation_mesh.num_vertices, sizeof(real32));
+                conversation_mesh.triangle_indices = (u32 *) calloc(3 * conversation_mesh.num_triangles, sizeof(u32));
+                float h = (1.0f + SQRT(3.0f)) / 2;
+                {
+                    u32 k = 0;
+                    conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(0.0));
+                    conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+                    conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(0.0));
+                    conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(120.0));
+                    conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+                    conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(120.0));
+                    conversation_mesh.vertex_positions[k++] = 100.0f * COS(RAD(240.0));
+                    conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+                    conversation_mesh.vertex_positions[k++] = 100.0f * SIN(RAD(240.0));
+                    conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+                    conversation_mesh.vertex_positions[k++] = 100.0f * h;
+                    conversation_mesh.vertex_positions[k++] = 100.0f * 0.0f;
+                }
+                {
+                    u32 k = 0;
+                    conversation_mesh.triangle_indices[k++] = 0;
+                    conversation_mesh.triangle_indices[k++] = 1;
+                    conversation_mesh.triangle_indices[k++] = 2;
+                    conversation_mesh.triangle_indices[k++] = 1;
+                    conversation_mesh.triangle_indices[k++] = 0;
+                    conversation_mesh.triangle_indices[k++] = 3;
+                    conversation_mesh.triangle_indices[k++] = 2;
+                    conversation_mesh.triangle_indices[k++] = 1;
+                    conversation_mesh.triangle_indices[k++] = 3;
+                    conversation_mesh.triangle_indices[k++] = 0;
+                    conversation_mesh.triangle_indices[k++] = 2;
+                    conversation_mesh.triangle_indices[k++] = 3;
+                }
+            }
+            #endif
+
+            enter_mode = _ENTER_MODE_DEFAULT;
+            extrude_param = 0.0f;
+            extrude_param_2 = 0.0f;
+            extrude_param_sign_toggle = false;
+            console_buffer_reset();
+
+            { // cameras
+                real32 height = 128.0f;
+                camera2D = { height, 0.0f, 0.0f, -0.5f, 0.0f };
+                camera2D_zoom_to_extends(&camera2D, &dxf);
+                camera3D = { 3 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), 0.0, 0.0, 0.5f, 0.0f };
+            }
         }
 
 
@@ -1233,6 +1252,7 @@ int main() {
                                 dxf = dxf_load(console_buffer);
                                 pick = dxf_loop_analysis_create(&dxf);
                                 dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+                                camera2D_zoom_to_extends(&camera2D, &dxf);
                             } else if (poe_suffix_match(console_buffer, ".stl")) {
                                 conversation_mesh_free(&conversation_mesh);
                                 stl_load(console_buffer, &manifold, &conversation_mesh);
@@ -1423,7 +1443,7 @@ int main() {
                                 vec4 w_t = inverse(hstack(V4(p[0], 1.0f), V4(p[1], 1.0f), V4(p[2], 1.0f), V4(minus_dir, 0.0f))) * V4(o, 1.0f);
                                 if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0)
                                         // && (w_t.w > 0)
-                                        ) {
+                                   ) {
                                     real32 distance = w_t[3];
                                     if (distance < min_distance) {
                                         min_distance = distance;
@@ -1526,8 +1546,8 @@ int main() {
                             eso_end();
                         }
                     }
-                    { // axes 2D axes 2d axes
-                        real32 r = camera2D.screen_height_World / 100.0f;
+                    { // axes 2D axes 2d axes axis 2D axis 2d axes
+                        real32 r = camera2D.screen_height_World / 70.0f;
                         eso_begin(PV_2D, SOUP_LINES, 4.0f);
                         eso_color(1.0f, 1.0f, 1.0f);
                         eso_vertex(-r, 0.0f);
@@ -1623,8 +1643,8 @@ int main() {
                     }
                 }
 
-                { // axes 3D axes 3d axes
-                    real32 r = camera3D.ortho_screen_height_World / 50.0f;
+                { // axes 3D axes 3d axes axis 3D axis 3d axis
+                    real32 r = camera3D.ortho_screen_height_World / 30.0f;
                     eso_begin(PV_3D, SOUP_LINES, 4.0f);
                     eso_color(1.0f, 0.0f, 0.0f);
                     eso_vertex(0.0f, 0.0f, 0.0f);
@@ -1637,6 +1657,7 @@ int main() {
                     eso_vertex(0.0f, 0.0f,    r);
                     eso_end();
                 }
+
                 { // conversation_mesh; NOTE: includes transparency
                     if (conversation_mesh.cosmetic_edges) {
                         eso_begin(PV_3D, SOUP_LINES, 3.0f); 
