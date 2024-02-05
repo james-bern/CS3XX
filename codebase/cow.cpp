@@ -187,6 +187,8 @@ struct C2_READONLY_USER_FACING_DATA {
     _mat4 _gui_NDC_from_Screen;
 };
 
+// constants
+// shaders
 struct CX_INTERNAL_CONSTANTS {
     char *_soup_vert = R""(
         #version 330 core
@@ -1049,8 +1051,8 @@ void _window_get_P_ortho(cow_real *P, cow_real screen_height_World, cow_real t_x
     ASSERT(P);
     // ASSERT(!IS_ZERO(screen_height_World));
     if (ARE_EQUAL(n, f)) {
-        n = 1000.0;
-        f =  -1000.0; 
+        n = 10000.0f;
+        f = -n;
     }
     if (IS_ZERO(aspect)) { aspect = _window_get_aspect(); }
 

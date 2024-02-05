@@ -9,6 +9,7 @@
 // / zoom to extents as part of load (pass camera2D to load)
 // app gets its own key_toggled
 // TODO: build volume
+// TODO: the Hard problem of avoiding the creation of ultra-thin features
 
 
 #include "cs345.cpp"
@@ -17,7 +18,7 @@
 
 
 real32 EPSILON_DEFAULT = 0.03f;
-real32 Z_FIGHT_EPS = 0.01f;
+real32 Z_FIGHT_EPS = 0.1f;
 real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -816,10 +817,18 @@ void wrapper_manifold(
 
 
         { // other_manifold
+
+            // FORNOW: HACK
+            if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) {
+                do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_SUBTRACT\n");};
+                extrude_param += TOLERANCE_DEFAULT;
+                extrude_param_2 += TOLERANCE_DEFAULT;
+            }
+
             if (enter_mode == ENTER_MODE_EXTRUDE_ADD || enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) {
                 other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
-                other_manifold = manifold_translate(other_manifold, other_manifold, 0.0, 0.0, -extrude_param_2);
-                if (extrude_param_sign_toggle) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0, 0.0, 1.0);
+                other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, -extrude_param_2);
+                if (extrude_param_sign_toggle) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0f, 0.0f, 1.0f);
             } else {
                 other_manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
                 other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
@@ -1051,7 +1060,7 @@ bool *key_pressed = globals.key_pressed;
 bool *key_toggled = globals.key_toggled;
 
 
-// FORNOW
+// FORNOW M_selected
 mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real32 dot_product = dot(n_selected, up);
@@ -1283,14 +1292,15 @@ int main() {
                             valid_key_pressed = false;
                             valid_key_pressed = (valid_key_pressed || key_pressed['.']);
                             valid_key_pressed = (valid_key_pressed || key_pressed[' ']);
-                            valid_key_pressed = (valid_key_pressed || key_pressed['_']);
                             valid_key_pressed = (valid_key_pressed || key_pressed['-']);
                             for (u32 i = 0; i < 10; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['0' + i]);
                             for (u32 i = 0; i < 26; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['a' + i]);
                             for (u32 i = 0; i < 26; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['A' + i]);
                         }
                         if (valid_key_pressed) {
-                            *console_buffer_write_head++ = (char) globals.key_last_key_pressed;
+                            char c = (char) globals.key_last_key_pressed;
+                            if (globals.key_shift_held && key_pressed['-']) c = '_';
+                            *console_buffer_write_head++ = c;
                         }
                     }
                 } else if (key_pressed['Z'] && globals.key_shift_held) {
@@ -1513,7 +1523,7 @@ int main() {
                 { // draw
                     glDisable(GL_DEPTH_TEST);
                     eso_begin(globals.Identity, SOUP_QUADS);
-                    eso_color(0.9f, 0.9f, 0.9f);
+                    eso_color(0.3f, 0.3f, 0.3f);
                     eso_vertex(0.0f,  1.0f);
                     eso_vertex(0.0f, -1.0f);
                     eso_vertex(1.0f, -1.0f);
@@ -1537,7 +1547,7 @@ int main() {
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(0, 0, window_width / 2, window_height);
                 {
-                    { // grid 2D grid 2d grid
+                    if (key_toggled['g']) { // grid 2D grid 2d grid
                         eso_begin(PV_2D, SOUP_LINES, 2.0f);
                         eso_color(0.2f, 0.2f, 0.2f);
                         for (u32 i = 0; i <= 30; ++i) {
@@ -1683,6 +1693,14 @@ int main() {
                     eso_end();
                 }
 
+                if (key_toggled['g']) { // grid 3D grid 3d grid
+                    glEnable(GL_CULL_FACE);
+                    glCullFace(GL_FRONT);
+                    real32 r = 256.0f;
+                    library.meshes.box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {}, "codebase/matcap.png");
+                    glDisable(GL_CULL_FACE);
+                }
+
                 { // conversation_mesh; NOTE: includes transparency
                     if (conversation_mesh.cosmetic_edges) {
                         eso_begin(PV_3D, SOUP_LINES, 3.0f); 
@@ -1713,7 +1731,7 @@ int main() {
                                 vec3 n_camera = transformNormal(V_3D, n);
                                 // if (n_camera.z > 0)
                                 {
-                                    if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
+                                    if (((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                         if (pass == 0) continue;
                                         color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
                                         alpha = ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f)) ? 0.7f : 1.0f;
@@ -1739,11 +1757,12 @@ int main() {
                     }
                 }
 
+
                 { // plane; NOTE: transparent
                     if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
                         real32 r = 256.0f / 2;
                         eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
-                        eso_color(monokai.yellow, 0.5f);
+                        eso_color(V3(0.5f) + 0.5 * n_selected, 0.5f);
                         eso_vertex( r,  r, -Z_FIGHT_EPS);
                         eso_vertex( r, -r, -Z_FIGHT_EPS);
                         eso_vertex(-r, -r, -Z_FIGHT_EPS);
@@ -1796,16 +1815,16 @@ int main() {
                 }
                 {
                     gui_printf("");
-                    if (!key_toggled['h']) {
-                        gui_printf("(h)elp");
-                    } else {
+                    gui_printf("(h)elp");
+                    if (key_toggled['h']) {
                         gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
                         gui_printf("(y)-plane (z)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
                         gui_printf("(r)evolve-add (R)evolve-cut");
                         gui_printf("(L)oad (S)ave");
-                        gui_printf("(i)nspect");
+                        gui_printf("(g)rid (i)nspect");
                         gui_printf("(Z)oom-to-extents");
+                        gui_printf("(Tab)-orthographic-perspective-view");
                     }
                 }
 

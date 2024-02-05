@@ -10,14 +10,14 @@ library.soups.teapot
 // IndexedTriangleMesh3D
 library.meshes.triangle
 library.meshes.square   // [-1.0, 1.0]^2; has texture coordinates!
-library.meshes.box      // [-1.0, 1.0]^3;
+library.meshes.box      // [-1.0, 1.0]^3; has (single image unwrapped box) texture coordinates!
 library.meshes.cone     // unit radius and height; base is centered at origin (on xz-plane)
 library.meshes.cylinder // unit radius and height; base is centered at origin (on xz-plane)
 library.meshes.sphere   // unit radius; centered at origin
 library.meshes.bunny
 library.meshes.teapot
 library.meshes.bean     // has (2)bones!
- */
+*/
 
 int _library_soup_axes_primitive = SOUP_LINES;
 int _library_soup_axes_num_vertices = 6;
@@ -61,16 +61,16 @@ int _library_mesh_square_num_vertices = 4;
 int3 _library_mesh_square_triangle_indices[] = { { 0, 1, 2 }, { 0, 2, 3 } };
 vec3 _library_mesh_square_vertex_positions[] = { { -1, -1, 0 }, { 1, -1, 0 }, { 1, 1, 0 }, { -1, 1, 0 } };
 vec3 _library_mesh_square_vertex_normals[] = { { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 } };
-vec2 _library_mesh_square_texCoords[] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+vec2 _library_mesh_square_vertex_texCoords[] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
 
 int _library_mesh_box_num_triangles = 12;
 int _library_mesh_box_num_vertices = 24;
 int3 _library_mesh_box_triangle_indices[] = {
-    { 0, 1, 2},{ 0, 2, 3},
+    { 1, 0, 2},{ 2, 0, 3},
     { 4, 5, 6},{ 4, 6, 7},
     { 8, 9,10},{ 8,10,11},
-    {12,13,14},{12,14,15},
-    {16,17,18},{16,18,19},
+    {13,12,14},{14,12,15},
+    {17,16,18},{18,16,19},
     {20,21,22},{20,22,23}, };
 vec3 _library_mesh_box_vertex_positions[] = {
     { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
@@ -191,23 +191,22 @@ struct {
         (int3 *) _library_mesh_##name##_triangle_indices, \
         NULL \
     };
+
+    #define INDEXED_TRIANGLE_MESH_3D_NO_COLOR_YES_TEXTURE(name) \
+    IndexedTriangleMesh3D name = { \
+        _library_mesh_##name##_num_vertices, \
+        _library_mesh_##name##_num_triangles, \
+        (vec3 *) _library_mesh_##name##_vertex_positions, \
+        (vec3 *) _library_mesh_##name##_vertex_normals, \
+        NULL, \
+        (int3 *) _library_mesh_##name##_triangle_indices, \
+        (vec2 *) _library_mesh_##name##_vertex_texCoords \
+    };
+
     struct {
-        IndexedTriangleMesh3D tri = {
-            _library_mesh_tri_num_vertices,
-            _library_mesh_tri_num_triangles,
-            _library_mesh_tri_vertex_positions,
-            _library_mesh_tri_vertex_normals,
-            NULL,
-            _library_mesh_tri_triangle_indices };
-        IndexedTriangleMesh3D square = {
-            _library_mesh_square_num_vertices,
-            _library_mesh_square_num_triangles,
-            _library_mesh_square_vertex_positions,
-            _library_mesh_square_vertex_normals,
-            NULL,
-            _library_mesh_square_triangle_indices,
-            _library_mesh_square_texCoords };
-        INDEXED_TRIANGLE_MESH_3D_NO_COLOR_NO_TEXTURE(box);
+        INDEXED_TRIANGLE_MESH_3D_NO_COLOR_NO_TEXTURE(tri);
+        INDEXED_TRIANGLE_MESH_3D_NO_COLOR_YES_TEXTURE(square);
+        INDEXED_TRIANGLE_MESH_3D_NO_COLOR_YES_TEXTURE(box);
         INDEXED_TRIANGLE_MESH_3D_NO_COLOR_NO_TEXTURE(cylinder);
         INDEXED_TRIANGLE_MESH_3D_NO_COLOR_NO_TEXTURE(sphere);
         INDEXED_TRIANGLE_MESH_3D_NO_COLOR_NO_TEXTURE(cone);
