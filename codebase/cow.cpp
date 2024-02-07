@@ -560,7 +560,7 @@ cow_real MM(cow_real inches) { return ((inches) * cow_real(25.4)); }
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MID(a, b, c) MAX(MIN(a, b), MIN(MAX(a, b), c))
-#define AVG(a, b) (.5 * (a) + .5 * (b))
+#define AVG(a, b) (0.5f * (a) + 0.5f * (b))
 #define IS_ZERO(a) (ABS(a) < TINY_VAL)
 #define ARE_EQUAL(a, b) (IS_ZERO(ABS((a) - (b))))
 #define IS_BETWEEN(p, a, b) (((a) - TINY_VAL < (p)) && ((p) < (b) + TINY_VAL))
@@ -949,7 +949,7 @@ void _window_reset() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void _window_get_P_perspective(cow_real *P, cow_real angle_of_view, cow_real t_x_NDC = 0, cow_real t_y_NDC = 0, cow_real n = 0, cow_real f = 0, cow_real aspect = 0) {
-    if (IS_ZERO(n)) { n = -.1f; }
+    if (IS_ZERO(n)) { n = -10.f; }
     if (IS_ZERO(f)) { f = -10000.f; }
     if (IS_ZERO(aspect)) { aspect = _window_get_aspect(); }
     ASSERT(P);

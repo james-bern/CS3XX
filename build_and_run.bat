@@ -44,6 +44,7 @@ IF "%1"=="" (
     )
 
     cl -O!OPTARG! ^
+    /d2FH4- ^
     -W4 -wd4201 -wd4127 ^
     /nologo -fp:except !DEBARG! -GR- -EHa- -FC ^
     /I.\codebase\ext\ ^
