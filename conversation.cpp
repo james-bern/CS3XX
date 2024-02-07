@@ -1207,6 +1207,32 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 
 bool32 show_grid, show_details, show_help;
 
+
+void conversation_load_file(char *filename) {
+    if (poe_suffix_match(filename, ".dxf")) {
+        dxf_free(&dxf);
+        free(dxf_selection_mask);
+        dxf = dxf_load(filename);
+        pick = dxf_loop_analysis_create(&dxf);
+        dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+        camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
+    } else if (poe_suffix_match(filename, ".stl")) {
+        conversation_mesh_free(&conversation_mesh);
+        stl_load(filename, &manifold, &conversation_mesh);
+    } else {
+        printf("%s filetype not supported.\n", filename);
+    }
+}
+
+void drop_callback(GLFWwindow *, int count, const char** paths) {
+    if (count > 0) {
+        conversation_load_file((char *) paths[0]);
+    }
+}
+BEGIN_PRE_MAIN {
+    glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
+} END_PRE_MAIN;
+
 int main() {
 
     bool32 reset = true;
@@ -1323,19 +1349,7 @@ int main() {
                         if (console_buffer_write_head != console_buffer) *--console_buffer_write_head = 0;
                     } else if (key_pressed[COW_KEY_ENTER]) {
                         if (enter_mode == ENTER_MODE_LOAD) {
-                            if (poe_suffix_match(console_buffer, ".dxf")) {
-                                dxf_free(&dxf);
-                                free(dxf_selection_mask);
-                                dxf = dxf_load(console_buffer);
-                                pick = dxf_loop_analysis_create(&dxf);
-                                dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
-                                camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
-                            } else if (poe_suffix_match(console_buffer, ".stl")) {
-                                conversation_mesh_free(&conversation_mesh);
-                                stl_load(console_buffer, &manifold, &conversation_mesh);
-                            } else {
-                                printf("%s filetype not supported.\n", console_buffer);
-                            }
+                            conversation_load_file(console_buffer);
                             console_buffer_reset();
                             enter_mode = _ENTER_MODE_DEFAULT;
                         } else {
@@ -1563,7 +1577,6 @@ int main() {
                                     r_n_selected = dot(n_selected, p_selected[0]);
                                 }
                                 M_selected = get_M_selected(n_selected, r_n_selected);
-
                             }
 
                         }
@@ -1578,7 +1591,6 @@ int main() {
         }
 
         { // draw
-
             u32 window_width, window_height; {
                 real32 _window_width, _window_height; // FORNOW
                 _window_get_size(&_window_width, &_window_height);
@@ -1798,7 +1810,7 @@ int main() {
                                 vec3 n_camera = transformNormal(V_3D, n);
                                 // if (n_camera.z > 0)
                                 {
-                                    if (((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
+                                    if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                         if (pass == 0) continue;
                                         color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
                                         alpha = ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f)) ? 0.7f : 1.0f;

@@ -1,5 +1,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define COW_USE_REAL_32
+#define COW_NO_SOUND
 
 #include "codebase/snail.cpp"
 #include "codebase/cow.cpp"
