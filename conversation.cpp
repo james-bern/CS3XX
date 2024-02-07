@@ -18,7 +18,7 @@
 
 
 real32 EPSILON_DEFAULT = 0.03f;
-real32 Z_FIGHT_EPS = 0.1f;
+real32 Z_FIGHT_EPS = 0.2f;
 real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -377,7 +377,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-      // populate List's
+        // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -866,8 +866,8 @@ void wrapper_manifold(
     conversation_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
 
     { // triangle_normals
-      // FORNOW: uses snail
-      // TODO: remove dependency
+        // FORNOW: uses snail
+        // TODO: remove dependency
         conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
         vec3 p[3];
         for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
@@ -988,7 +988,7 @@ void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversatio
 
     // unify nearby vertices
     // FORNOW: O(n^2)
-    real32 MERGE_THRESHOLD_SQUARED_DISTANCE = pow(0.001f, 2);
+    real32 MERGE_THRESHOLD_SQUARED_DISTANCE = powf(0.001f, 2);
     u32 num_vertices;
     real32 *vertex_positions;
     u32 *triangle_indices;
@@ -1109,11 +1109,63 @@ void camera2D_zoom_to_dxf_extents(Camera2D *camera2D, DXF *dxf) {
     real32 new_o_x = AVG(min[0], max[0]);
     real32 new_o_y = AVG(min[1], max[1]);
     real32 new_height = MAX((max[0] - min[0]) * 2 / _window_get_aspect(), (max[1] - min[1])); // factor of 2 since splitscreen
-    new_height *= 1.3; // FORNOW: border
+    new_height *= 1.3f; // FORNOW: border
     camera2D->screen_height_World = new_height;
     camera2D->o_x = new_o_x;
     camera2D->o_y = new_o_y;
 }
+
+
+
+
+int _grid_box_num_triangles = 12;
+int _grid_box_num_vertices = 24;
+int3 _grid_box_triangle_indices[] = {
+    { 1, 0, 2},{ 2, 0, 3},
+    { 4, 5, 6},{ 4, 6, 7},
+    { 8, 9,10},{ 8,10,11},
+    {13,12,14},{14,12,15},
+    {17,16,18},{18,16,19},
+    {20,21,22},{20,22,23},
+};
+vec3 _grid_box_vertex_positions[] = {
+    { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
+    {-1, 1, 1},{-1, 1,-1},{-1,-1,-1},{-1,-1, 1},
+    { 1, 1, 1},{ 1, 1,-1},{-1, 1,-1},{-1, 1, 1},
+    { 1,-1, 1},{ 1,-1,-1},{-1,-1,-1},{-1,-1, 1},
+    { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
+    { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
+};
+vec3 _grid_box_vertex_colors[] = {
+    { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{ 0.8f,0.4f, 0.8f},
+    {0.4f, 0.8f, 0.8f},{0.4f, 0.8f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
+    { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{0.4f, 0.8f,0.4f},{0.4f, 0.8f, 0.8f},
+    { 0.8f,0.4f, 0.8f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
+    { 0.8f, 0.8f, 0.8f},{ 0.8f,0.4f, 0.8f},{0.4f,0.4f, 0.8f},{0.4f, 0.8f, 0.8f},
+    { 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f, 0.8f,0.4f},
+};
+vec2 _grid_box_vertex_texCoords[] = {
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+};
+
+IndexedTriangleMesh3D grid_box = {
+    _grid_box_num_vertices,
+    _grid_box_num_triangles,
+    _grid_box_vertex_positions,
+    NULL,
+    _grid_box_vertex_colors,
+    _grid_box_triangle_indices,
+    _grid_box_vertex_texCoords
+};
+
+
+
+
 
 
 #define HOT_PANE_NONE 0
@@ -1150,8 +1202,13 @@ bool32 extrude_param_sign_toggle;
 
 Camera2D camera2D;
 Camera3D camera3D;
+real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
+
+
+bool32 show_grid, show_details, show_help;
 
 int main() {
+
     bool32 reset = true;
     while (cow_begin_frame()) {
         if (reset) {
@@ -1221,10 +1278,14 @@ int main() {
 
             { // cameras
                 real32 height = 128.0f;
-                camera2D = { height, 0.0f, 0.0f, -0.5f, 0.0f };
+                camera2D = { height, 0.0, 0.0f, -0.5f, 0.0f };
                 camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
-                camera3D = { 3 * height, RAD(0.0f), RAD(15.0f), RAD(-30.0f), 0.0, 0.0, 0.5f, 0.0f };
+                camera3D = { 500.0, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(40), RAD(-30.0f), 0.0f, 70.0f, 0.5f, 0.0f };
             }
+
+            show_grid = true;
+            show_details = false;
+            show_help = false;
         }
 
         real32 extrude_param_preview;
@@ -1250,10 +1311,10 @@ int main() {
             }
         }
 
-        { // keyboard input
+        { // keyboard input keyboard shortuts
             if (globals._input_owner == COW_INPUT_OWNER_NONE) {
                 if (key_pressed[COW_KEY_TAB]) {
-                    camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? RAD(60.0f) : 0.0f;
+                    camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
                 } else if (key_pressed[COW_KEY_ESCAPE]) {
                     enter_mode = ENTER_MODE_NONE;
                     console_buffer_reset();
@@ -1307,6 +1368,12 @@ int main() {
                     camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
                 } else if (key_pressed['S'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_SAVE;
+                } else if (key_pressed['g']) {
+                    show_grid = !show_grid;
+                } else if (key_pressed['h']) {
+                    show_help = !show_help;
+                } else if (key_pressed['i']) {
+                    show_details = !show_details;
                 } else if (key_pressed['s']) {
                     select_mode = SELECT_MODE_SELECT;
                     select_modifier = SELECT_MODIFIER_NONE;
@@ -1547,7 +1614,7 @@ int main() {
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(0, 0, window_width / 2, window_height);
                 {
-                    if (key_toggled['g']) { // grid 2D grid 2d grid
+                    if (show_grid) { // grid 2D grid 2d grid
                         eso_begin(PV_2D, SOUP_LINES, 2.0f);
                         eso_color(0.2f, 0.2f, 0.2f);
                         for (u32 i = 0; i <= 30; ++i) {
@@ -1569,7 +1636,7 @@ int main() {
                         eso_end();
                     }
                     { // dots
-                        if (key_toggled['i']) {
+                        if (show_details) {
                             eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
                             eso_color(monokai.white);
                             for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
@@ -1693,11 +1760,11 @@ int main() {
                     eso_end();
                 }
 
-                if (key_toggled['g']) { // grid 3D grid 3d grid
+                if (show_grid) { // grid 3D grid 3d grid
                     glEnable(GL_CULL_FACE);
                     glCullFace(GL_FRONT);
                     real32 r = 256.0f;
-                    library.meshes.box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {}, "box.png");
+                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {});
                     glDisable(GL_CULL_FACE);
                 }
 
@@ -1710,7 +1777,7 @@ int main() {
                         eso_end();
                     }
                     for (u32 pass = 0; pass <= 1; ++pass) {
-                        eso_begin(PV_3D, (!globals.key_toggled['i']) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
+                        eso_begin(PV_3D, (!show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
                         for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
                             // FORNOW (all this crap)
                             // TODO 
@@ -1808,7 +1875,7 @@ int main() {
                 }
 
 
-                if (key_toggled['i']) {
+                if (show_details) {
                     gui_printf("");
                     gui_printf("%d dxf elements", dxf.num_entities);
                     gui_printf("%d stl triangles", conversation_mesh.num_triangles);
@@ -1816,7 +1883,7 @@ int main() {
                 {
                     gui_printf("");
                     gui_printf("(h)elp");
-                    if (key_toggled['h']) {
+                    if (show_help) {
                         gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
                         gui_printf("(y)-plane (z)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
