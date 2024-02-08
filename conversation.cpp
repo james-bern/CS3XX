@@ -1777,7 +1777,7 @@ int main() {
                     glEnable(GL_CULL_FACE);
                     glCullFace(GL_FRONT);
                     real32 r = 256.0f;
-                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {});
+                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(r / 2), {}, "grid.png");
                     glDisable(GL_CULL_FACE);
                 }
 
@@ -1814,7 +1814,7 @@ int main() {
                                     if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                         if (pass == 0) continue;
                                         color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
-                                        alpha = ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f)) ? 0.7f : 1.0f;
+                                        alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                     } else {
                                         if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
                                         if (pass == 1) continue;
@@ -1842,7 +1842,8 @@ int main() {
                     if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
                         real32 r = 256.0f / 2;
                         eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
-                        eso_color(V3(0.5f) + 0.5 * n_selected, 0.5f);
+                        // eso_color(V3(0.5f) + 0.5 * n_selected, 0.5f);
+                        eso_color(monokai.yellow, 0.5f);
                         eso_vertex( r,  r, -Z_FIGHT_EPS);
                         eso_vertex( r, -r, -Z_FIGHT_EPS);
                         eso_vertex(-r, -r, -Z_FIGHT_EPS);
