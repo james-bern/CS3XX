@@ -35,6 +35,11 @@ IF "%1"=="" (
         set OPTARG=d
     )
 
+    set MD_VERSUS_MDD_FLAG=/MDd
+    rem IF defined argv[--release] (
+    rem     set MD_VERSUS_MDD_FLAG=/MD
+    rem )
+
     set EIGEN_LIB=
     set EIGEN_DEFINE=
     IF defined argv[--eigen] (
@@ -49,7 +54,9 @@ IF "%1"=="" (
     /nologo -fp:except !DEBARG! -GR- -EHa- -FC ^
     /I.\codebase\ext\ ^
     !EIGEN_DEFINE! ^
-    /EHsc /MDd %1 ^
+    /EHsc ^
+    !MD_VERSUS_MDD_FLAG! ^
+    %1 ^
     /Feexecutable.exe ^
     /link /NODEFAULTLIB:MSVCRT ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
