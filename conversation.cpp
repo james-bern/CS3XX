@@ -1165,6 +1165,25 @@ IndexedTriangleMesh3D grid_box = {
 };
 
 
+BEGIN_PRE_MAIN {
+    u32 width = 1024;
+    u32 height = 1024;
+    u32 number_of_channels = 3;
+    u8 *data = (u8 *) malloc(width * height * 3 * sizeof(u8));
+    for (u32 j = 0; j < height; ++j) {
+        for (u32 i = 0; i < width; ++i) {
+            u32 k = number_of_channels * (j * width + i);
+            u32 n = 1024 / 10;
+            u32 t = 4;
+            bool32 stripe = ((i % n < t) || (j % n < t));
+            u8 value = (stripe) ? 80 : 0;
+            data[k + 0] = value;
+            data[k + 1] = value;
+            data[k + 2] = value;
+        }
+    }
+    _mesh_texture_create("procedural grid", width, height, number_of_channels, data);
+} END_PRE_MAIN;
 
 
 
@@ -1777,7 +1796,7 @@ int main() {
                     glEnable(GL_CULL_FACE);
                     glCullFace(GL_FRONT);
                     real32 r = 256.0f;
-                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {});
+                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {}, "procedural grid");
                     glDisable(GL_CULL_FACE);
                 }
 
