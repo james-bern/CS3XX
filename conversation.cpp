@@ -1796,11 +1796,7 @@ int main() {
                     glEnable(GL_CULL_FACE);
                     glCullFace(GL_FRONT);
                     real32 r = 256.0f;
-<<<<<<< HEAD
                     grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {}, "procedural grid");
-=======
-                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(r / 2), {}, "grid.png");
->>>>>>> d75dac7bd15511a7b717edc120035f4cfc686c19
                     glDisable(GL_CULL_FACE);
                 }
 
