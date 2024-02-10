@@ -1,3 +1,8 @@
+// TODO: conversation_drop_path shows up in line above console when saving
+// TODO: messages from app (messagef) for missing path, etc.
+// TODO: click on the bottom plane in the box
+// TODO: undo
+
 // // Conversation
 // This is a little CAD program Jim is making :)
 //  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
@@ -378,7 +383,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-        // populate List's
+      // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -539,11 +544,11 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define SELECT_MODE_NONE 0
 #define SELECT_MODE_SELECT 1
 #define SELECT_MODE_DESELECT 2
-#define _SELECT_MODE_DEFAULT SELECT_MODE_SELECT
+#define _SELECT_MODE_DEFAULT SELECT_MODE_NONE
 #define SELECT_MODIFIER_NONE 0
 #define SELECT_MODIFIER_CONNECTED 1
 #define SELECT_MODIFIER_QUALITY 2
-#define _SELECT_MODIFIER_DEFAULT SELECT_MODIFIER_CONNECTED
+#define _SELECT_MODIFIER_DEFAULT SELECT_MODIFIER_NONE
 void dxf_pick(mat4 PV_2D, real32 camera2D_screen_height_World, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
     if (!globals.mouse_left_held) return;
     if (select_mode == SELECT_MODE_NONE) return;
@@ -867,8 +872,8 @@ void wrapper_manifold(
     conversation_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
 
     { // triangle_normals
-        // FORNOW: uses snail
-        // TODO: remove dependency
+      // FORNOW: uses snail
+      // TODO: remove dependency
         conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
         vec3 p[3];
         for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
@@ -1200,6 +1205,12 @@ bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: i
 vec3 n_selected;
 real32 r_n_selected; // coordinate along n_selected
 mat4 M_selected;
+void selected_reset() {
+    some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+    r_n_selected = 0.0f;
+    n_selected = {};
+    M_selected = {}; // FORNOW: implicit no selection
+}
 
 DXF dxf;
 DXFLoopAnalysisResult pick;
@@ -1212,13 +1223,14 @@ ConversationMesh conversation_mesh;
 u32 enter_mode;
 real32 extrude_param;
 real32 extrude_param_2;
+bool32 extrude_param_sign_toggle;
+
 char console_buffer[256];
 char *console_buffer_write_head;
 void console_buffer_reset() {
     memset(console_buffer, 0, ARRAY_LENGTH(console_buffer) * sizeof(char));
     console_buffer_write_head = console_buffer;
 };
-bool32 extrude_param_sign_toggle;
 
 Camera2D camera2D;
 Camera3D camera3D;
@@ -1227,6 +1239,7 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 
 bool32 show_grid, show_details, show_help;
 
+char conversation_drop_path[512];
 
 void conversation_load_file(char *filename) {
     if (poe_suffix_match(filename, ".dxf")) {
@@ -1236,6 +1249,17 @@ void conversation_load_file(char *filename) {
         pick = dxf_loop_analysis_create(&dxf);
         dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
         camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
+
+        for (u32 i = 0; i < strlen(filename); ++i) {
+            conversation_drop_path[i] = filename[i];
+            if (filename[i] == '.') {
+                --i;
+                while (conversation_drop_path[i] != '\\' && conversation_drop_path[i] != '/') {
+                    conversation_drop_path[i--] = '\0';
+                }
+                break;
+            }
+        }
     } else if (poe_suffix_match(filename, ".stl")) {
         conversation_mesh_free(&conversation_mesh);
         stl_load(filename, &manifold, &conversation_mesh);
@@ -1264,10 +1288,11 @@ int main() {
             select_mode = _SELECT_MODE_DEFAULT;
             select_modifier = _SELECT_MODIFIER_DEFAULT;
 
-            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-            n_selected = { 0.0, 1.0, 0.0 };
-            r_n_selected = 0.0f;
-            M_selected = get_M_selected(n_selected, r_n_selected);
+            selected_reset(); 
+            // some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+            // n_selected = { 0.0, 1.0, 0.0 };
+            // r_n_selected = 0.0f;
+            // M_selected = get_M_selected(n_selected, r_n_selected);
 
             dxf = dxf_load("in.dxf");
             pick = dxf_loop_analysis_create(&dxf);
@@ -1364,7 +1389,9 @@ int main() {
                 } else if (key_pressed[COW_KEY_ESCAPE]) {
                     enter_mode = ENTER_MODE_NONE;
                     console_buffer_reset();
-                } if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
+
+                    selected_reset(); // FORNOW
+                } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
                     if (key_pressed[COW_KEY_BACKSPACE]) {
                         if (console_buffer_write_head != console_buffer) *--console_buffer_write_head = 0;
                     } else if (key_pressed[COW_KEY_ENTER]) {
@@ -1448,7 +1475,11 @@ int main() {
                     enter_mode = ENTER_MODE_LOAD;
                 } else if (key_pressed['f']) {
                     extrude_param_sign_toggle = !extrude_param_sign_toggle;
-                } else if (key_pressed[COW_KEY_ENTER] && (enter_mode != ENTER_MODE_NONE) && (!IS_ZERO(M_selected(3, 3)))) {
+                } else if (key_pressed[COW_KEY_ENTER]
+                        && (enter_mode != ENTER_MODE_NONE)
+                        && (!IS_ZERO(M_selected(3, 3)))
+                        && (((enter_mode != ENTER_MODE_EXTRUDE_ADD) && (enter_mode != ENTER_MODE_EXTRUDE_SUBTRACT)) || !IS_ZERO(extrude_param_preview) || !IS_ZERO(extrude_param_2_preview))
+                        ) {
                     // enter_mode = ENTER_MODE_NONE;
                     // NOTE: holds over previous
                     if (console_buffer_write_head != console_buffer) {
@@ -1486,6 +1517,7 @@ int main() {
                             //     r_n_selected = 0.0f;
                             //     M_selected = get_M_selected(n_selected, r_n_selected);
                             // }
+                            selected_reset();
 
 
                             { // FORNOW: this code heavily repeats conversation_mesh_draw
@@ -1537,6 +1569,10 @@ int main() {
                         }
                     }
                 } 
+
+
+                // FORNOW
+                if ((select_modifier == SELECT_MODIFIER_QUALITY) && (globals.key_any_key_pressed) && !key_pressed['q']) select_modifier = SELECT_MODE_NONE;
             }
         }
 
@@ -1562,7 +1598,7 @@ int main() {
                     }
                 }
 
-                { // pick 3D pick 3d pick
+                { // pick 3D pick 3d pick (TODO: allow clicking on grid)
                     if (hot_pane == HOT_PANE_3D) {
                         if (globals.mouse_left_pressed) {
                             int32 selected_triangle_index = -1;
@@ -1796,7 +1832,7 @@ int main() {
                     glEnable(GL_CULL_FACE);
                     glCullFace(GL_FRONT);
                     real32 r = 256.0f;
-                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2, 0.0f) * M4_Scaling(r / 2), {}, "procedural grid");
+                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(r / 2), {}, "procedural grid");
                     glDisable(GL_CULL_FACE);
                 }
 
@@ -1835,7 +1871,7 @@ int main() {
                                         color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
                                         alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                     } else {
-                                        if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
+                                        // if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
                                         if (pass == 1) continue;
                                         color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
                                         alpha = 1.0f;
@@ -1907,6 +1943,15 @@ int main() {
                     gui_printf("`> %s", console_buffer);
                 }
 
+                {
+                    if (strlen(conversation_drop_path) == 0) {
+                        gui_printf("drag and drop dxf...");
+                    }
+                    // else {
+                    //     gui_printf("`%s", conversation_drop_path);
+                    // }
+                }
+
 
                 if (show_details) {
                     gui_printf("");
@@ -1921,7 +1966,7 @@ int main() {
                         gui_printf("(y)-plane (z)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
                         gui_printf("(r)evolve-add (R)evolve-cut");
-                        gui_printf("(L)oad (S)ave");
+                        gui_printf("(L)oad (S)ave // must include file extension");
                         gui_printf("(g)rid (i)nspect");
                         gui_printf("(Z)oom-to-extents");
                         gui_printf("(Tab)-orthographic-perspective-view");
