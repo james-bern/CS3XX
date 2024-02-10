@@ -1,5 +1,6 @@
-// TODO: conversation_drop_path shows up in line above console when saving (used to SAVE)`
+// / conversation_drop_path shows up in line above console when saving (used to SAVE)`
 // TODO: undo
+// TODO: color codes instead of ` in gui_printf
 // TODO: click on the bottom plane in the box
 // TODO: messages from app (messagef) for missing path, etc.
 
@@ -1507,6 +1508,8 @@ int main() {
                             valid_key_pressed = (valid_key_pressed || key_pressed['.']);
                             valid_key_pressed = (valid_key_pressed || key_pressed[' ']);
                             valid_key_pressed = (valid_key_pressed || key_pressed['-']);
+                            valid_key_pressed = (valid_key_pressed || key_pressed['/']);
+                            valid_key_pressed = (valid_key_pressed || key_pressed['\\']);
                             for (u32 i = 0; i < 10; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['0' + i]);
                             for (u32 i = 0; i < 26; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['a' + i]);
                             for (u32 i = 0; i < 26; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['A' + i]);
@@ -1993,7 +1996,7 @@ int main() {
                 gui_printf("[Click] %s %s", (select_mode == SELECT_MODE_NONE) ? "NONE" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
 
 
-                char extrude_message[256] = {};
+                char enter_message[256] = {};
                 if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) {
                     bool32 show_old_command = (console_buffer_write_head == console_buffer);
                     real32 p = (show_old_command) ? extrude_param : extrude_param_preview;
@@ -2001,10 +2004,12 @@ int main() {
                     char sign  = (!extrude_param_sign_toggle) ? '^' : 'v';
                     char sign2 =  (extrude_param_sign_toggle) ? '^' : 'v';
                     if (p2 == 0) {
-                        sprintf(extrude_message, "%gmm%c", p, sign);
+                        sprintf(enter_message, "%gmm%c", p, sign);
                     } else {
-                        sprintf(extrude_message, "%gmm%c %gmm%c", p, sign, p2, sign2);
+                        sprintf(enter_message, "%gmm%c %gmm%c", p, sign, p2, sign2);
                     }
+                } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
+                    sprintf(enter_message, "%s%s", conversation_drop_path, console_buffer);
                 }
 
                 gui_printf("[Enter] %s %s",
@@ -2015,7 +2020,8 @@ int main() {
                         (enter_mode == ENTER_MODE_LOAD) ? "LOAD" :
                         (enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
                         "NONE",
-                        ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) ? extrude_message : "");
+                        enter_message);
+
                 if ((enter_mode == ENTER_MODE_NONE) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
                     gui_printf("> %s", console_buffer);
                 } else {
