@@ -1253,10 +1253,12 @@ void conversation_load_file(char *filename) {
         for (u32 i = 0; i < strlen(filename); ++i) {
             conversation_drop_path[i] = filename[i];
             if (filename[i] == '.') {
-                --i;
-                while (conversation_drop_path[i] != '\\' && conversation_drop_path[i] != '/') {
-                    conversation_drop_path[i--] = '\0';
-                }
+                while (
+                        (i != 0) &&
+                        (conversation_drop_path[i - 1] != '\\') &&
+                        (conversation_drop_path[i - 1] != '/')
+                      ) --i;
+                conversation_drop_path[i] = '\0';
                 break;
             }
         }
@@ -1947,9 +1949,9 @@ int main() {
                     if (strlen(conversation_drop_path) == 0) {
                         gui_printf("drag and drop dxf...");
                     }
-                    // else {
-                    //     gui_printf("`%s", conversation_drop_path);
-                    // }
+                    else {
+                        gui_printf("`%s", conversation_drop_path);
+                    }
                 }
 
 
