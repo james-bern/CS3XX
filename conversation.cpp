@@ -29,6 +29,15 @@ real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
+char conversation_message_buffer[256];
+u32 conversation_message_buffer_cooldown;
+void conversation_messagef(char *format, ...) {
+    va_list arg;
+    va_start(arg, format);
+    vsnprintf(conversation_message_buffer, sizeof(conversation_message_buffer), format, arg);
+    va_end(arg);
+    conversation_message_buffer_cooldown = 600;
+}
 
 ////////////////////////////////////////
 // 2D //////////////////////////////////
@@ -155,9 +164,10 @@ DXF dxf_load(char *filename) {
 
     FILE *file = (FILE *) fopen(filename, "r");
     if (!file) {
-        printf("\"%s\" not found.\n", filename);
+        conversation_messagef("\"%s\" not found", filename);
         return result;
     }
+    conversation_messagef("loaded %s", filename);
 
     List<DXFEntity> stretchy_list = {}; {
         {
@@ -725,7 +735,7 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
 #define ENTER_MODE_REVOLVE_SUBTRACT 4
 #define ENTER_MODE_LOAD             5
 #define ENTER_MODE_SAVE             6
-#define _ENTER_MODE_DEFAULT ENTER_MODE_EXTRUDE_ADD
+#define _ENTER_MODE_DEFAULT ENTER_MODE_NONE
 
 
 
@@ -751,7 +761,10 @@ void eso_vertex(real32 *p, u32 j) {
 
 void conversation_mesh_save_stl(ConversationMesh *conversation_mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
-    ASSERT(file);
+    if (!file) {
+        conversation_messagef("Could not save open %s for writing.", filename);
+        return;
+    }
 
     int num_bytes = 80 + 4 + 50 * conversation_mesh->num_triangles;
     char *buffer = (char *) calloc(num_bytes, 1); {
@@ -974,7 +987,11 @@ void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversatio
     {
         List<real32> _soup = {}; {
             FILE *file = fopen(filename, "r");
-            ASSERT(file);
+            if (!file) {
+                conversation_messagef("\"%s\" not found.", filename);
+                return;
+            }
+            conversation_messagef("loaded %s", filename);
             char buffer[4096];
             while (fgets(buffer, ARRAY_LENGTH(buffer), file) != NULL) {
                 cow_real x, y, z;
@@ -1239,6 +1256,9 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 
 bool32 show_grid, show_details, show_help;
 
+
+
+
 char conversation_drop_path[512];
 
 void conversation_load_file(char *filename) {
@@ -1266,7 +1286,7 @@ void conversation_load_file(char *filename) {
         conversation_mesh_free(&conversation_mesh);
         stl_load(filename, &manifold, &conversation_mesh);
     } else {
-        printf("%s filetype not supported.\n", filename);
+        conversation_messagef("%s not supported; must be *.dxf or *.stl", filename);
     }
 }
 
@@ -1275,6 +1295,9 @@ void drop_callback(GLFWwindow *, int count, const char** paths) {
         conversation_load_file((char *) paths[0]);
     }
 }
+
+
+
 BEGIN_PRE_MAIN {
     glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
 } END_PRE_MAIN;
@@ -1359,7 +1382,14 @@ int main() {
             show_grid = true;
             show_details = false;
             show_help = false;
+
+            conversation_messagef("drag and drop dxf");
         }
+
+
+
+
+
 
         real32 extrude_param_preview;
         real32 extrude_param_2_preview;
@@ -1384,14 +1414,74 @@ int main() {
             }
         }
 
+        bool32 dxf_anything_selected; {
+            dxf_anything_selected = false;
+            for (u32 i = 0; i < dxf.num_entities; ++i) {
+                if (dxf_selection_mask[i]) {
+                    dxf_anything_selected = true;
+                    break;
+                }
+            }
+        }
+
+
+
+
         { // keyboard input keyboard shortuts
             if (globals._input_owner == COW_INPUT_OWNER_NONE) {
+
+
+                // FORNOW: invalid enter messages
+                bool32 valid_feature_enter = false;
+                if (key_pressed[COW_KEY_ENTER]) {
+                    valid_feature_enter = true;
+                    bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT));
+                    bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT));
+                    do {
+                        if (enter_mode == ENTER_MODE_NONE) {
+                            conversation_messagef("enter mode is none");
+                            valid_feature_enter = false;
+                            break;
+                        }
+
+                        if (extrude || revolve) {
+
+                            if (!dxf_anything_selected) {
+                                conversation_messagef("dxf selection is empty");
+                                valid_feature_enter = false;
+                                break;
+                            }
+
+                            if (IS_ZERO(M_selected(3, 3))) { // FORNOW
+                                conversation_messagef("no work-plane is selected");
+                                valid_feature_enter = false;
+                                break;
+                            }
+
+                            if (extrude) {
+                                if (IS_ZERO(extrude_param_preview) && IS_ZERO(extrude_param_2_preview)) {
+                                    conversation_messagef("extrude height is zero");
+                                    valid_feature_enter = false;
+                                    break;
+                                }
+                            } else {
+                                ASSERT(revolve);
+                            }
+                        }
+                    } while (false);
+                }
+
+                // FORNOW
+                if (valid_feature_enter) {
+                    conversation_messagef("");
+                }
+
+
                 if (key_pressed[COW_KEY_TAB]) {
                     camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
                 } else if (key_pressed[COW_KEY_ESCAPE]) {
                     enter_mode = ENTER_MODE_NONE;
                     console_buffer_reset();
-
                     selected_reset(); // FORNOW
                 } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
                     if (key_pressed[COW_KEY_BACKSPACE]) {
@@ -1406,7 +1496,7 @@ int main() {
                             if (poe_suffix_match(console_buffer, ".stl")) {
                                 conversation_mesh_save_stl(&conversation_mesh, console_buffer);
                             } else {
-                                printf("%s filetype not supported.\n", console_buffer);
+                                conversation_messagef("%s filetype not supported; must be *.stl", console_buffer);
                             }
                             console_buffer_reset();
                             enter_mode = _ENTER_MODE_DEFAULT;
@@ -1477,11 +1567,7 @@ int main() {
                     enter_mode = ENTER_MODE_LOAD;
                 } else if (key_pressed['f']) {
                     extrude_param_sign_toggle = !extrude_param_sign_toggle;
-                } else if (key_pressed[COW_KEY_ENTER]
-                        && (enter_mode != ENTER_MODE_NONE)
-                        && (!IS_ZERO(M_selected(3, 3)))
-                        && (((enter_mode != ENTER_MODE_EXTRUDE_ADD) && (enter_mode != ENTER_MODE_EXTRUDE_SUBTRACT)) || !IS_ZERO(extrude_param_preview) || !IS_ZERO(extrude_param_2_preview))
-                        ) {
+                } else if (key_pressed[COW_KEY_ENTER] && valid_feature_enter) {
                     // enter_mode = ENTER_MODE_NONE;
                     // NOTE: holds over previous
                     if (console_buffer_write_head != console_buffer) {
@@ -1648,6 +1734,7 @@ int main() {
             }
         }
 
+
         { // draw
             u32 window_width, window_height; {
                 real32 _window_width, _window_height; // FORNOW
@@ -1733,16 +1820,6 @@ int main() {
             }
 
             { // 3D draw 3D 3d draw 3d
-                bool32 dxf_anything_selected; {
-                    dxf_anything_selected = false;
-                    for (u32 i = 0; i < dxf.num_entities; ++i) {
-                        if (dxf_selection_mask[i]) {
-                            dxf_anything_selected = true;
-                            break;
-                        }
-                    }
-                }
-
                 glEnable(GL_SCISSOR_TEST);
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
 
@@ -1913,7 +1990,7 @@ int main() {
             }
 
             { // gui
-                gui_printf("[Mouse] %s %s", (select_mode == SELECT_MODE_NONE) ? "" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
+                gui_printf("[Click] %s %s", (select_mode == SELECT_MODE_NONE) ? "NONE" : (select_mode == SELECT_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == SELECT_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
 
 
                 char extrude_message[256] = {};
@@ -1937,7 +2014,7 @@ int main() {
                         (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT) ? "REVOLVE SUBTRACT" :
                         (enter_mode == ENTER_MODE_LOAD) ? "LOAD" :
                         (enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
-                        "",
+                        "NONE",
                         ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) ? extrude_message : "");
                 if ((enter_mode == ENTER_MODE_NONE) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
                     gui_printf("> %s", console_buffer);
@@ -1946,11 +2023,20 @@ int main() {
                 }
 
                 {
-                    if (strlen(conversation_drop_path) == 0) {
-                        gui_printf("drag and drop dxf...");
-                    }
-                    else {
-                        gui_printf("`%s", conversation_drop_path);
+                    // if (strlen(conversation_drop_path) == 0) {
+                    //     gui_printf("drag and drop dxf...");
+                    // }
+                    // else {
+                    //    gui_printf("`%s", conversation_drop_path);
+                    // }
+
+                    {
+                        if (conversation_message_buffer_cooldown > 0) {
+                            --conversation_message_buffer_cooldown;
+                        } else {
+                            conversation_message_buffer[0] = '\0';
+                        }
+                        gui_printf("< %s", conversation_message_buffer);
                     }
                 }
 
@@ -1964,6 +2050,7 @@ int main() {
                     gui_printf("");
                     gui_printf("(h)elp");
                     if (show_help) {
+                        gui_printf("(Escape)-from-current-enter_mode");
                         gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
                         gui_printf("(y)-plane (z)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
