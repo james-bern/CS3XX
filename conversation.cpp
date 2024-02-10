@@ -1448,7 +1448,7 @@ int main() {
                             }
 
                             if (IS_ZERO(M_selected(3, 3))) { // FORNOW
-                                conversation_messagef("no work-plane is selected");
+                                conversation_messagef("no plane selected");
                                 valid_feature_enter = false;
                                 break;
                             }
