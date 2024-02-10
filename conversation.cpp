@@ -1,7 +1,7 @@
-// TODO: conversation_drop_path shows up in line above console when saving
-// TODO: messages from app (messagef) for missing path, etc.
-// TODO: click on the bottom plane in the box
+// TODO: conversation_drop_path shows up in line above console when saving (used to SAVE)`
 // TODO: undo
+// TODO: click on the bottom plane in the box
+// TODO: messages from app (messagef) for missing path, etc.
 
 // // Conversation
 // This is a little CAD program Jim is making :)
