@@ -1,22 +1,16 @@
-// / conversation_drop_path shows up in line above console when saving (used to SAVE)`
-// TODO: undo
-// TODO: color codes instead of ` in gui_printf
-// TODO: click on the bottom plane in the box
-// TODO: messages from app (messagef) for missing path, etc.
-
 // // Conversation
 // This is a little CAD program Jim is making :)
 //  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
 
-// / make 3D pick work with perspective camera
-// / extend cameras and camera_move to have a post-projection NDC offset
+// TODO: basic undo (chain of stls and manifold)
+// TODO: color codes instead of ` in gui_printf
+// TODO: click on the bottom plane in the box
+// TODO: messages from app (messagef) for missing path, etc.
 
 // TODO: finish load_stl
-// / zoom to extents as part of load (pass camera2D to load)
-// app gets its own key_toggled
+// TODO 3D zoom to extents as part of load (pass camera2D to load)
 
-// TODO: build volume
-// TODO: the Hard problem of avoiding the creation of ultra-thin features
+// ? TODO: the Hard problem of avoiding the creation of ultra-thin features
 
 
 #include "cs345.cpp"
