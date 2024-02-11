@@ -35,5 +35,7 @@ BEGIN_PRE_MAIN {
     config.hotkeys_app_quit = 0;
     config.hotkeys_app_menu = 0;
     config.hotkeys_gui_hide = 0;
+    config.hotkeys_app_next = 0;
+    config.hotkeys_app_prev = 0;
     // stbi_set_flip_vertically_on_load(false);
 } END_PRE_MAIN 
