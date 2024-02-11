@@ -5,7 +5,7 @@
 // / basic undo (chain of stls and manifold_manifold)
 // / messages from app (messagef) for missing path, etc.
 
-// TODO: click on the bottom plane in the box
+// / click on the bottom plane in the box
 // TODO 3D zoom to extents as part of load (pass camera2D to load)
 // TODO: finish load_stl
 // TODO: color codes instead of ` in gui_printf
@@ -25,22 +25,6 @@ real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
-struct RayTriangleIntersectionResult {
-    bool32 hit;
-    real32 distance;
-};
-RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a, vec3 b, vec3 c) {
-    RayTriangleIntersectionResult result = {};
-    vec4 w_t = inverse(M4(
-                a[0], b[0], c[0], -dir[0],
-                a[1], b[1], c[1], -dir[1],
-                a[2], b[2], c[2], -dir[2],
-                1.0f, 1.0f, 1.0f,     0.0))
-        * V4(o, 1.0f);
-    result.hit = ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0));
-    result.distance = w_t.w;
-    return result;
-}
 
 
 char conversation_message_buffer[256];

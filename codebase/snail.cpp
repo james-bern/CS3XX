@@ -743,6 +743,25 @@ template <int T> void pprint(SnailMatrix<T> M) {
     }
 }
 
+// math math ///////////////////////////////////////////////////////////////////
+
+struct RayTriangleIntersectionResult {
+    bool hit;
+    cow_real distance;
+};
+RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a, vec3 b, vec3 c) {
+    RayTriangleIntersectionResult result = {};
+    vec4 w_t = inverse(M4(
+                a[0], b[0], c[0], -dir[0],
+                a[1], b[1], c[1], -dir[1],
+                a[2], b[2], c[2], -dir[2],
+                1.0f, 1.0f, 1.0f,     0.0))
+        * V4(o, 1.0f);
+    result.hit = ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0));
+    result.distance = w_t.w;
+    return result;
+}
+
 #undef SNAIL_ASSERT
 #undef SNAIL_ABS
 #undef SNAIL_MIN
