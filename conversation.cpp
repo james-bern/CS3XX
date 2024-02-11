@@ -2,7 +2,7 @@
 // This is a little CAD program Jim is making :)
 //  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
 
-// TODO: basic undo (chain of stls and manifold)
+// TODO: basic undo (chain of stls and manifold_manifold)
 // TODO: color codes instead of ` in gui_printf
 // TODO: click on the bottom plane in the box
 // TODO: messages from app (messagef) for missing path, etc.
@@ -519,7 +519,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
         }
 
         // free List's
-        for (int i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
+        for (u32 i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
         list_free(&stretchy_list);
     }
     // loop_index_from_entity_index (brute force)
@@ -676,7 +676,7 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     }
 
     // free List's
-    for (int i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
+    for (u32 i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
     list_free(&stretchy_list);
 
     return result;
@@ -809,6 +809,59 @@ void conversation_mesh_free(ConversationMesh *conversation_mesh) {
 
 
 #include "manifoldc.h"
+
+
+
+struct HistoryState {
+    ManifoldManifold *manifold_manifold;
+    ConversationMesh conversation_mesh;
+};
+
+struct History {
+    List<HistoryState> undo_stack;
+    List<HistoryState> redo_stack;
+};
+
+void history_record_state(History *history, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
+    list_push_back(&history->undo_stack, { *manifold_manifold, *conversation_mesh });
+    for (u32 i = 0; i < history->redo_stack.length; ++i) {
+        // manifold_destruct_manifold(history->redo_stack.data[i].manifold_manifold);
+        conversation_mesh_free(&history->redo_stack.data[i].conversation_mesh);
+    }
+    list_free(&history->redo_stack);
+}
+
+void history_undo(History *history, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
+    if (history->undo_stack.length != 0) {
+        list_push_back(&history->redo_stack, { *manifold_manifold, *conversation_mesh });
+        HistoryState state = list_pop_back(&history->undo_stack);
+        *manifold_manifold = state.manifold_manifold;
+        *conversation_mesh = state.conversation_mesh;
+    } else {
+        conversation_messagef("[history] undo stack is empty");
+    }
+}
+
+void history_redo(History *history, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
+    if (history->redo_stack.length != 0) {
+        list_push_back(&history->undo_stack, { *manifold_manifold, *conversation_mesh });
+        HistoryState state = list_pop_back(&history->redo_stack);
+        *manifold_manifold = state.manifold_manifold;
+        *conversation_mesh = state.conversation_mesh;
+    } else {
+        conversation_messagef("[history] redo stack is empty");
+    }
+}
+
+void history_free(History *history) {
+    list_free(&history->undo_stack);
+    list_free(&history->redo_stack);
+}
+
+
+
+
+
 void wrapper_manifold(
         ManifoldManifold **curr_manifold,
         ConversationMesh *conversation_mesh, // dest__NOTE_GETS_OVERWRITTEN,
@@ -819,8 +872,16 @@ void wrapper_manifold(
         u32 enter_mode,
         bool32 extrude_param_sign_toggle,
         real32 extrude_param,
-        real32 extrude_param_2) {
+        real32 extrude_param_2,
+        History *history) {
+
+
+    // FORNOW: this function call isn't a no-op
+    history_record_state(history, curr_manifold, conversation_mesh);
+
+
     ASSERT(enter_mode != ENTER_MODE_NONE);
+
     ManifoldManifold *other_manifold; {
         ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
         for (u32 i = 0; i < num_polygonal_loops; ++i) {
@@ -831,8 +892,7 @@ void wrapper_manifold(
 
 
         { // other_manifold
-
-            // FORNOW: HACK
+          // FORNOW: HACK
             if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) {
                 do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_SUBTRACT\n");};
                 extrude_param += TOLERANCE_DEFAULT;
@@ -873,7 +933,9 @@ void wrapper_manifold(
 
     ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *curr_manifold);
 
-    conversation_mesh_free(conversation_mesh);
+    // // NOTE: don't free!--putting on undo stack
+    // conversation_mesh_free(conversation_mesh);
+
     conversation_mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
     conversation_mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
     conversation_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
@@ -1229,7 +1291,7 @@ DXFLoopAnalysisResult pick;
 
 bool32 *dxf_selection_mask;
 
-ManifoldManifold *manifold;
+ManifoldManifold *manifold_manifold;
 ConversationMesh conversation_mesh;
 
 u32 enter_mode;
@@ -1279,7 +1341,7 @@ void conversation_load_file(char *filename) {
         }
     } else if (poe_suffix_match(filename, ".stl")) {
         conversation_mesh_free(&conversation_mesh);
-        stl_load(filename, &manifold, &conversation_mesh);
+        stl_load(filename, &manifold_manifold, &conversation_mesh);
     } else {
         conversation_messagef("%s not supported; must be *.dxf or *.stl", filename);
     }
@@ -1289,13 +1351,16 @@ void drop_callback(GLFWwindow *, int count, const char** paths) {
     if (count > 0) {
         conversation_load_file((char *) paths[0]);
     }
-}
+} BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
 
 
 
-BEGIN_PRE_MAIN {
-    glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
-} END_PRE_MAIN;
+
+
+
+History history;
+
+
 
 int main() {
 
@@ -1318,7 +1383,7 @@ int main() {
             pick = dxf_loop_analysis_create(&dxf);
             dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
-            manifold = NULL;
+            manifold_manifold = NULL;
             conversation_mesh = {};
             #if 0
             {
@@ -1379,6 +1444,8 @@ int main() {
             show_help = false;
 
             conversation_messagef("drag and drop dxf");
+
+            history_free(&history);
         }
 
 
@@ -1514,6 +1581,10 @@ int main() {
                             *console_buffer_write_head++ = c;
                         }
                     }
+                } else if (key_pressed['U'] && globals.key_shift_held) {
+                    history_redo(&history, &manifold_manifold, &conversation_mesh);
+                } else if (key_pressed['u']) {
+                    history_undo(&history, &manifold_manifold, &conversation_mesh);
                 } else if (key_pressed['Z'] && globals.key_shift_held) {
                     camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
                 } else if (key_pressed['S'] && globals.key_shift_held) {
@@ -1578,7 +1649,7 @@ int main() {
 
                     {
                         wrapper_manifold(
-                                &manifold,
+                                &manifold_manifold,
                                 &conversation_mesh,
                                 cross_section.num_polygonal_loops,
                                 cross_section.num_vertices_in_polygonal_loops,
@@ -1587,7 +1658,8 @@ int main() {
                                 enter_mode,
                                 extrude_param_sign_toggle,
                                 extrude_param,
-                                extrude_param_2
+                                extrude_param_2,
+                                &history
                                 );
                         memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                         { // some_triangle_exists_that_matches_n_selected_and_r_n_selected
@@ -2055,7 +2127,8 @@ int main() {
                         gui_printf("(y)-plane (z)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
                         gui_printf("(r)evolve-add (R)evolve-cut");
-                        gui_printf("(L)oad (S)ave // must include file extension");
+                        gui_printf("(u)ndo (U)ndo-undo--redo");
+                        gui_printf("(L)oad (S)ave");
                         gui_printf("(g)rid (i)nspect");
                         gui_printf("(Z)oom-to-extents");
                         gui_printf("(Tab)-orthographic-perspective-view");
