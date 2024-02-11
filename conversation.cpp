@@ -25,6 +25,24 @@ real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
+struct RayTriangleIntersectionResult {
+    bool32 hit;
+    real32 distance;
+};
+RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a, vec3 b, vec3 c) {
+    RayTriangleIntersectionResult result = {};
+    vec4 w_t = inverse(M4(
+                a[0], b[0], c[0], -dir[0],
+                a[1], b[1], c[1], -dir[1],
+                a[2], b[2], c[2], -dir[2],
+                1.0f, 1.0f, 1.0f,     0.0))
+        * V4(o, 1.0f);
+    result.hit = ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0));
+    result.distance = w_t.w;
+    return result;
+}
+
+
 char conversation_message_buffer[256];
 u32 conversation_message_buffer_cooldown;
 void conversation_messagef(char *format, ...) {
@@ -1760,24 +1778,19 @@ int main() {
                     if (hot_pane == HOT_PANE_3D) {
                         if (globals.mouse_left_pressed) {
                             vec3 o = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -1.0f));
-                            vec3 minus_dir = normalized(o - transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f)));
+                            vec3 dir = normalized(transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f)) - o);
 
                             int32 index_of_first_triangle_hit_by_ray = -1;
                             {
                                 real32 min_distance = HUGE_VAL;
                                 for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
-                                    vec3 p[3];
-                                    for (u32 j = 0; j < 3; ++j) p[j] = get(conversation_mesh.vertex_positions, conversation_mesh.triangle_indices[3 * i + j]);
-                                    vec4 w_t = inverse(M4(
-                                                p[0][0], p[1][0], p[2][0], minus_dir[0],
-                                                p[0][1], p[1][1], p[2][1], minus_dir[1],
-                                                p[0][2], p[1][2], p[2][2], minus_dir[2],
-                                                1.0f, 1.0f, 1.0f, 0.0))
-                                        * V4(o, 1.0f);
-                                    if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0)) {
-                                        real32 distance = w_t[3];
-                                        if (distance < min_distance) {
-                                            min_distance = distance;
+                                    vec3 p[3]; {
+                                        for (u32 j = 0; j < 3; ++j) p[j] = get(conversation_mesh.vertex_positions, conversation_mesh.triangle_indices[3 * i + j]);
+                                    }
+                                    RayTriangleIntersectionResult result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
+                                    if (result.hit) {
+                                        if (result.distance < min_distance) {
+                                            min_distance = result.distance;
                                             index_of_first_triangle_hit_by_ray = i; // FORNOW
                                         }
                                     }
@@ -1800,9 +1813,9 @@ int main() {
                                 // TODO: #define 256
                                 vec3 bottom_square_of_3D_grid_box_triangles[][3] = {
                                     {
-                                        { -128.0f, 0.0f ,-128.0f },
-                                        {  128.0f, 0.0f ,-128.0f },
-                                        {  128.0f, 0.0f , 128.0f },
+                                        { -128.0f, 0.0f, -128.0f },
+                                        {  128.0f, 0.0f, -128.0f },
+                                        {  128.0f, 0.0f,  128.0f },
                                     },
                                     {
                                         { -128.0f, 0.0f, -128.0f },
@@ -1810,16 +1823,12 @@ int main() {
                                         { -128.0f, 0.0f,  128.0f },
                                     },
                                 };
-                                // TODO: strip
+
+
                                 for (u32 i = 0; i < 2; ++i) {
                                     vec3 *p = bottom_square_of_3D_grid_box_triangles[i];
-                                    vec4 w_t = inverse(M4(
-                                                p[0][0], p[1][0], p[2][0], minus_dir[0],
-                                                p[0][1], p[1][1], p[2][1], minus_dir[1],
-                                                p[0][2], p[1][2], p[2][2], minus_dir[2],
-                                                1.0f, 1.0f, 1.0f, 0.0))
-                                        * V4(o, 1.0f);
-                                    if ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0)) {
+                                    RayTriangleIntersectionResult result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
+                                    if (result.hit) {
                                         n_selected = V3(0.0f, 1.0f, 0.0f);
                                         r_n_selected = 0.0f;
                                         M_selected = get_M_selected(n_selected, r_n_selected);
@@ -1964,7 +1973,7 @@ int main() {
 
 
                 { // arrow
-                    {
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
                         if (dxf_anything_selected) {
                             real32 H[2] = { extrude_param_preview, extrude_param_2_preview };
                             bool32 toggle[2] = { extrude_param_sign_toggle, !extrude_param_sign_toggle };
