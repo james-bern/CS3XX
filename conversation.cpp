@@ -388,7 +388,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-      // populate List's
+        // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -757,7 +757,7 @@ void eso_vertex(real32 *p, u32 j) {
 void conversation_mesh_save_stl(ConversationMesh *conversation_mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     if (!file) {
-        conversation_messagef("Could not save open %s for writing.", filename);
+        conversation_messagef("[save] could not save open %s for writing.", filename);
         return;
     }
 
@@ -797,6 +797,7 @@ void conversation_mesh_save_stl(ConversationMesh *conversation_mesh, char *filen
     free(buffer);
 
     fclose(file);
+    conversation_messagef("[save] saved %s", filename);
 }
 
 void conversation_mesh_free(ConversationMesh *conversation_mesh) {
@@ -880,8 +881,8 @@ void wrapper_manifold(
     conversation_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
 
     { // triangle_normals
-      // FORNOW: uses snail
-      // TODO: remove dependency
+        // FORNOW: uses snail
+        // TODO: remove dependency
         conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
         vec3 p[3];
         for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
@@ -983,10 +984,9 @@ void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversatio
         List<real32> _soup = {}; {
             FILE *file = fopen(filename, "r");
             if (!file) {
-                conversation_messagef("\"%s\" not found.", filename);
+                conversation_messagef("[load] \"%s\" not found.", filename);
                 return;
             }
-            conversation_messagef("loaded %s", filename);
             char buffer[4096];
             while (fgets(buffer, ARRAY_LENGTH(buffer), file) != NULL) {
                 cow_real x, y, z;
@@ -1063,6 +1063,8 @@ void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversatio
     // TODO (easy--just strip out code you already have into a function): cosmetic edges
     conversation_mesh->num_cosmetic_edges = 0;
     conversation_mesh->cosmetic_edges = NULL;
+
+    conversation_messagef("[load] loaded %s", filename);
 }
 
 
@@ -1281,7 +1283,7 @@ void conversation_load_file(char *filename) {
         conversation_mesh_free(&conversation_mesh);
         stl_load(filename, &manifold, &conversation_mesh);
     } else {
-        conversation_messagef("%s not supported; must be *.dxf or *.stl", filename);
+        conversation_messagef("[load] %s not supported; must be *.dxf or *.stl", filename);
     }
 }
 
@@ -1378,7 +1380,7 @@ int main() {
             show_details = false;
             show_help = false;
 
-            conversation_messagef("drag and drop dxf");
+            conversation_messagef("drag and drop *.dxf");
         }
 
 
@@ -1426,7 +1428,7 @@ int main() {
             if (globals._input_owner == COW_INPUT_OWNER_NONE) {
 
 
-                // FORNOW: invalid enter messages
+                // FORNOW: invalid Enter messages
                 bool32 valid_feature_enter = false;
                 if (key_pressed[COW_KEY_ENTER]) {
                     valid_feature_enter = true;
@@ -1434,7 +1436,7 @@ int main() {
                     bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT));
                     do {
                         if (enter_mode == ENTER_MODE_NONE) {
-                            conversation_messagef("enter mode is none");
+                            conversation_messagef("[Enter] mode is NONE");
                             valid_feature_enter = false;
                             break;
                         }
@@ -1442,20 +1444,20 @@ int main() {
                         if (extrude || revolve) {
 
                             if (!dxf_anything_selected) {
-                                conversation_messagef("no dxf elements selected");
+                                conversation_messagef("[Enter] no dxf elements selected");
                                 valid_feature_enter = false;
                                 break;
                             }
 
                             if (IS_ZERO(M_selected(3, 3))) { // FORNOW
-                                conversation_messagef("no sketch plane selected");
+                                conversation_messagef("[Enter] no sketch plane selected");
                                 valid_feature_enter = false;
                                 break;
                             }
 
                             if (extrude) {
                                 if (IS_ZERO(extrude_param_preview) && IS_ZERO(extrude_param_2_preview)) {
-                                    conversation_messagef("extrude height is zero");
+                                    conversation_messagef("[Enter] extrude height is zero");
                                     valid_feature_enter = false;
                                     break;
                                 }
@@ -1482,16 +1484,18 @@ int main() {
                     if (key_pressed[COW_KEY_BACKSPACE]) {
                         if (console_buffer_write_head != console_buffer) *--console_buffer_write_head = 0;
                     } else if (key_pressed[COW_KEY_ENTER]) {
+                        static char full_filename_including_path[512];
+                        sprintf(full_filename_including_path, "%s%s", conversation_drop_path, console_buffer);
                         if (enter_mode == ENTER_MODE_LOAD) {
-                            conversation_load_file(console_buffer);
+                            conversation_load_file(full_filename_including_path);
                             console_buffer_reset();
                             enter_mode = _ENTER_MODE_DEFAULT;
                         } else {
                             ASSERT(enter_mode == ENTER_MODE_SAVE);
                             if (poe_suffix_match(console_buffer, ".stl")) {
-                                conversation_mesh_save_stl(&conversation_mesh, console_buffer);
+                                conversation_mesh_save_stl(&conversation_mesh, full_filename_including_path);
                             } else {
-                                conversation_messagef("%s filetype not supported; must be *.stl", console_buffer);
+                                conversation_messagef("[save] %s filetype not supported; must be *.stl", console_buffer);
                             }
                             console_buffer_reset();
                             enter_mode = _ENTER_MODE_DEFAULT;
