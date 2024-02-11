@@ -3155,8 +3155,8 @@ vec3 color_rainbow_swirl(cow_real t) {
 ////////////////////////////////////////////////////////////////////////////////
 
 template <typename T> struct List {
-    int length;
-    int _capacity;
+    u32 length;
+    u32 _capacity;
     T *data;
     // T &operator [](int index) { return data[index]; }
 };
@@ -3186,7 +3186,7 @@ template <typename T> void list_insert(List<T> *list, int i, T element) {
     list->data[i] = element;
 }
 
-template <typename T> T list_delete(List<T> *list, int i) {
+template <typename T> T list_delete(List<T> *list, u32 i) {
     ASSERT(i >= 0);
     ASSERT(i < list->length);
     T result = list->data[i];
@@ -3222,7 +3222,7 @@ template <typename Key, typename Value> struct Pair {
 };
 
 template <typename Key, typename Value> struct Map {
-    int num_buckets;
+    u32 num_buckets;
     List<Pair<Key, Value>> *buckets;
     // T &operator [](int index) { return data[index]; }
 };
