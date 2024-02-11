@@ -1442,13 +1442,13 @@ int main() {
                         if (extrude || revolve) {
 
                             if (!dxf_anything_selected) {
-                                conversation_messagef("dxf selection is empty");
+                                conversation_messagef("no dxf elements selected");
                                 valid_feature_enter = false;
                                 break;
                             }
 
                             if (IS_ZERO(M_selected(3, 3))) { // FORNOW
-                                conversation_messagef("no plane selected");
+                                conversation_messagef("no sketch plane selected");
                                 valid_feature_enter = false;
                                 break;
                             }
