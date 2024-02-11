@@ -1794,31 +1794,31 @@ int main() {
                                     M_selected = get_M_selected(n_selected, r_n_selected);
                                 }
                             } else {
-                                // TODO: #define 256
-                                vec3 bottom_square_of_3D_grid_box_triangles[][3] = {
-                                    {
-                                        { -128.0f, 0.0f, -128.0f },
-                                        {  128.0f, 0.0f, -128.0f },
-                                        {  128.0f, 0.0f,  128.0f },
-                                    },
-                                    {
-                                        { -128.0f, 0.0f, -128.0f },
-                                        {  128.0f, 0.0f,  128.0f },
-                                        { -128.0f, 0.0f,  128.0f },
-                                    },
-                                };
+                                // // TODO: #define 256
+                                // vec3 bottom_square_of_3D_grid_box_triangles[][3] = {
+                                //     {
+                                //         { -128.0f, 0.0f, -128.0f },
+                                //         {  128.0f, 0.0f, -128.0f },
+                                //         {  128.0f, 0.0f,  128.0f },
+                                //     },
+                                //     {
+                                //         { -128.0f, 0.0f, -128.0f },
+                                //         {  128.0f, 0.0f,  128.0f },
+                                //         { -128.0f, 0.0f,  128.0f },
+                                //     },
+                                // };
 
 
-                                for (u32 i = 0; i < 2; ++i) {
-                                    vec3 *p = bottom_square_of_3D_grid_box_triangles[i];
-                                    RayTriangleIntersectionResult result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
-                                    if (result.hit) {
-                                        n_selected = V3(0.0f, 1.0f, 0.0f);
-                                        r_n_selected = 0.0f;
-                                        M_selected = get_M_selected(n_selected, r_n_selected);
-                                        break;
-                                    }
-                                }
+                                // for (u32 i = 0; i < 2; ++i) {
+                                //     vec3 *p = bottom_square_of_3D_grid_box_triangles[i];
+                                //     RayTriangleIntersectionResult result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
+                                //     if (result.hit) {
+                                //         n_selected = V3(0.0f, 1.0f, 0.0f);
+                                //         r_n_selected = 0.0f;
+                                //         M_selected = get_M_selected(n_selected, r_n_selected);
+                                //         break;
+                                //     }
+                                // }
                             }
                         }
                     }
