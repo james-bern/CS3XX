@@ -19,8 +19,7 @@
 #undef real // ???
 
 
-real32 EPSILON_DEFAULT = 0.03f;
-real32 Z_FIGHT_EPS = 0.2f;
+real32 Z_FIGHT_EPS = 0.02f;
 real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -557,7 +556,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define SELECT_MODIFIER_CONNECTED 1
 #define SELECT_MODIFIER_QUALITY 2
 #define _SELECT_MODIFIER_DEFAULT SELECT_MODIFIER_NONE
-void dxf_pick(mat4 PV_2D, real32 camera2D_screen_height_World, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 epsilon = EPSILON_DEFAULT) {
+void dxf_pick(mat4 PV_2D, real32 camera2D_screen_height_World, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index) {
     if (!globals.mouse_left_held) return;
     if (select_mode == SELECT_MODE_NONE) return;
 
@@ -573,7 +572,10 @@ void dxf_pick(mat4 PV_2D, real32 camera2D_screen_height_World, DXF *dxf, bool32 
         DXFEntity *entity = &dxf->entities[i];
         double squared_distance = squared_distance_point_entity(x, y, entity);
         squared_distance /= (camera2D_screen_height_World * camera2D_screen_height_World / 4); // NDC
-        if (squared_distance < MIN(epsilon * epsilon, hot_squared_distance)) {
+        if (squared_distance <
+                //MIN(epsilon * epsilon, hot_squared_distance)
+                hot_squared_distance
+                ) {
             hot_squared_distance = squared_distance;
             hot_entity_index = i;
         }

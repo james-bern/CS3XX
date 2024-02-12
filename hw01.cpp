@@ -67,12 +67,12 @@ void stl_save_ASCII(STL *stl, char *filename) {
 }
 
 void stl_save_binary(STL *stl, char *filename) {
-    FILE *file = fopen(filename, "w");
+    FILE *file = fopen(filename, "wb");
     ASSERT(file);
 
     int num_bytes = 80 + 4 + 50 * stl->num_triangles;
     char *buffer = (char *) calloc(num_bytes, 1); {
-        int offset = 80;
+        u32 offset = 80;
         memcpy(buffer + offset, &stl->num_triangles, 4);
         offset += 4;
         for (Triangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
@@ -100,8 +100,7 @@ STL lithopane(char *filename) {
         y = (real32 *) calloc(width * height, sizeof(real32));
         for (int j = 0; j < height; ++j) {
             for (int i = 0; i < width; ++i) {
-                #define real real32 // TODO: FORNOW
-                y[j * width + i] = LINEAR_REMAP(data[(j * width + i) * number_of_channels], 0.0, 255.0, 4.0, 0.4);
+                y[j * width + i] = LINEAR_REMAP(data[(j * width + i) * number_of_channels], 0.0f, 255.0f, 3.0f, 0.2f);
             }
         }
         stbi_image_free(data);
@@ -116,142 +115,142 @@ STL lithopane(char *filename) {
             // // TOP
             //  3
             // 12
-            stl.triangles[k].v1_x = i;
-            stl.triangles[k].v1_y = j;
-            stl.triangles[k].v1_z = y[(j) * width + (i)];
-            stl.triangles[k].v2_x = i + 1;
-            stl.triangles[k].v2_y = j;
-            stl.triangles[k].v2_z = y[(j) * width + (i + 1)];
-            stl.triangles[k].v3_x = i + 1;
-            stl.triangles[k].v3_y = j + 1;
-            stl.triangles[k].v3_z = y[(j + 1) * width + (i + 1)];
+            stl.triangles[k].v1_x = (real32) i;
+            stl.triangles[k].v1_y = (real32) j;
+            stl.triangles[k].v1_z = (real32) y[(j) * width + (i)];
+            stl.triangles[k].v2_x = (real32) i + 1;
+            stl.triangles[k].v2_y = (real32) j;
+            stl.triangles[k].v2_z = (real32) y[(j) * width + (i + 1)];
+            stl.triangles[k].v3_x = (real32) i + 1;
+            stl.triangles[k].v3_y = (real32) j + 1;
+            stl.triangles[k].v3_z = (real32) y[(j + 1) * width + (i + 1)];
             ++k;
             // 32
             // 1
-            stl.triangles[k].v1_x = i;
-            stl.triangles[k].v1_y = j;
-            stl.triangles[k].v1_z = y[(j) * width + i];
-            stl.triangles[k].v2_x = i + 1;
-            stl.triangles[k].v2_y = j + 1;
-            stl.triangles[k].v2_z = y[(j + 1) * width + (i + 1)];
-            stl.triangles[k].v3_x = i;
-            stl.triangles[k].v3_y = j + 1;
-            stl.triangles[k].v3_z = y[(j + 1) * width + (i)];
+            stl.triangles[k].v1_x = (real32) i;
+            stl.triangles[k].v1_y = (real32) j;
+            stl.triangles[k].v1_z = (real32) y[(j) * width + i];
+            stl.triangles[k].v2_x = (real32) i + 1;
+            stl.triangles[k].v2_y = (real32) j + 1;
+            stl.triangles[k].v2_z = (real32) y[(j + 1) * width + (i + 1)];
+            stl.triangles[k].v3_x = (real32) i;
+            stl.triangles[k].v3_y = (real32) j + 1;
+            stl.triangles[k].v3_z = (real32) y[(j + 1) * width + (i)];
             ++k;
 
             // // BOTTOM
             //  2
             // 13
-            stl.triangles[k].v1_x = i;
-            stl.triangles[k].v1_y = j;
-            stl.triangles[k].v1_z = 0;
-            stl.triangles[k].v2_x = i + 1;
-            stl.triangles[k].v2_y = j + 1;
-            stl.triangles[k].v2_z = 0;
-            stl.triangles[k].v3_x = i + 1;
-            stl.triangles[k].v3_y = j;
-            stl.triangles[k].v3_z = 0;
+            stl.triangles[k].v1_x = (real32) i;
+            stl.triangles[k].v1_y = (real32) j;
+            stl.triangles[k].v1_z = (real32) 0;
+            stl.triangles[k].v2_x = (real32) i + 1;
+            stl.triangles[k].v2_y = (real32) j + 1;
+            stl.triangles[k].v2_z = (real32) 0;
+            stl.triangles[k].v3_x = (real32) i + 1;
+            stl.triangles[k].v3_y = (real32) j;
+            stl.triangles[k].v3_z = (real32) 0;
             ++k;
             // 23
             // 1
-            stl.triangles[k].v1_x = i;
-            stl.triangles[k].v1_y = j;
-            stl.triangles[k].v1_z = 0;
-            stl.triangles[k].v2_x = i;
-            stl.triangles[k].v2_y = j + 1;
-            stl.triangles[k].v2_z = 0;
-            stl.triangles[k].v3_x = i + 1;
-            stl.triangles[k].v3_y = j + 1;
-            stl.triangles[k].v3_z = 0;
+            stl.triangles[k].v1_x = (real32) i;
+            stl.triangles[k].v1_y = (real32) j;
+            stl.triangles[k].v1_z = (real32) 0;
+            stl.triangles[k].v2_x = (real32) i;
+            stl.triangles[k].v2_y = (real32) j + 1;
+            stl.triangles[k].v2_z = (real32) 0;
+            stl.triangles[k].v3_x = (real32) i + 1;
+            stl.triangles[k].v3_y = (real32) j + 1;
+            stl.triangles[k].v3_z = (real32) 0;
             ++k;
         }
     }
 
     // LEFT & RIGHT STRIPS
     for (int j = 0; j < height - 1; ++j) {
-        stl.triangles[k].v1_x = 0;
-        stl.triangles[k].v1_y = j;
-        stl.triangles[k].v1_z = 0;
-        stl.triangles[k].v2_x = 0;
-        stl.triangles[k].v2_y = j;
-        stl.triangles[k].v2_z = y[(j) * width];
-        stl.triangles[k].v3_x = 0;
-        stl.triangles[k].v3_y = j + 1;
-        stl.triangles[k].v3_z = 0;
+        stl.triangles[k].v1_x = (real32) 0;
+        stl.triangles[k].v1_y = (real32) j;
+        stl.triangles[k].v1_z = (real32) 0;
+        stl.triangles[k].v2_x = (real32) 0;
+        stl.triangles[k].v2_y = (real32) j;
+        stl.triangles[k].v2_z = (real32) y[(j) * width];
+        stl.triangles[k].v3_x = (real32) 0;
+        stl.triangles[k].v3_y = (real32) j + 1;
+        stl.triangles[k].v3_z = (real32) 0;
         ++k;
-        stl.triangles[k].v1_x = 0;
-        stl.triangles[k].v1_y = j;
-        stl.triangles[k].v1_z = y[(j) * width];
-        stl.triangles[k].v2_x = 0;
-        stl.triangles[k].v2_y = j + 1;
-        stl.triangles[k].v2_z = y[(j + 1) * width];
-        stl.triangles[k].v3_x = 0;
-        stl.triangles[k].v3_y = j + 1;
-        stl.triangles[k].v3_z = 0;
+        stl.triangles[k].v1_x = (real32) 0;
+        stl.triangles[k].v1_y = (real32) j;
+        stl.triangles[k].v1_z = (real32) y[(j) * width];
+        stl.triangles[k].v2_x = (real32) 0;
+        stl.triangles[k].v2_y = (real32) j + 1;
+        stl.triangles[k].v2_z = (real32) y[(j + 1) * width];
+        stl.triangles[k].v3_x = (real32) 0;
+        stl.triangles[k].v3_y = (real32) j + 1;
+        stl.triangles[k].v3_z = (real32) 0;
         ++k;
-        stl.triangles[k].v1_x = width - 1;
-        stl.triangles[k].v1_y = j;
-        stl.triangles[k].v1_z = 0;
-        stl.triangles[k].v2_x = width - 1;
-        stl.triangles[k].v2_y = j + 1;
-        stl.triangles[k].v2_z = 0;
-        stl.triangles[k].v3_x = width - 1;
-        stl.triangles[k].v3_y = j;
-        stl.triangles[k].v3_z = y[(j) * width + (width - 1)];
+        stl.triangles[k].v1_x = (real32) width - 1;
+        stl.triangles[k].v1_y = (real32) j;
+        stl.triangles[k].v1_z = (real32) 0;
+        stl.triangles[k].v2_x = (real32) width - 1;
+        stl.triangles[k].v2_y = (real32) j + 1;
+        stl.triangles[k].v2_z = (real32) 0;
+        stl.triangles[k].v3_x = (real32) width - 1;
+        stl.triangles[k].v3_y = (real32) j;
+        stl.triangles[k].v3_z = (real32) y[(j) * width + (width - 1)];
         ++k;
-        stl.triangles[k].v1_x = width - 1;
-        stl.triangles[k].v1_y = j;
-        stl.triangles[k].v1_z = y[(j) * width + (width - 1)];
-        stl.triangles[k].v2_x = width - 1;
-        stl.triangles[k].v2_y = j + 1;
-        stl.triangles[k].v2_z = 0;
-        stl.triangles[k].v3_x = width - 1;
-        stl.triangles[k].v3_y = j + 1;
-        stl.triangles[k].v3_z = y[(j + 1) * width + (width - 1)];
+        stl.triangles[k].v1_x = (real32) width - 1;
+        stl.triangles[k].v1_y = (real32) j;
+        stl.triangles[k].v1_z = (real32) y[(j) * width + (width - 1)];
+        stl.triangles[k].v2_x = (real32) width - 1;
+        stl.triangles[k].v2_y = (real32) j + 1;
+        stl.triangles[k].v2_z = (real32) 0;
+        stl.triangles[k].v3_x = (real32) width - 1;
+        stl.triangles[k].v3_y = (real32) j + 1;
+        stl.triangles[k].v3_z = (real32) y[(j + 1) * width + (width - 1)];
         ++k;
     }
 
     // TOP & BOTTOM STRIPS
     for (int i = 0; i < width - 1; ++i) {
-        stl.triangles[k].v1_x = i;
-        stl.triangles[k].v1_y = 0;
-        stl.triangles[k].v1_z = 0;
-        stl.triangles[k].v2_x = i + 1;
-        stl.triangles[k].v2_y = 0;
-        stl.triangles[k].v2_z = 0;
-        stl.triangles[k].v3_x = i;
-        stl.triangles[k].v3_y = 0;
-        stl.triangles[k].v3_z = y[i];
+        stl.triangles[k].v1_x = (real32) i;
+        stl.triangles[k].v1_y = (real32) 0;
+        stl.triangles[k].v1_z = (real32) 0;
+        stl.triangles[k].v2_x = (real32) i + 1;
+        stl.triangles[k].v2_y = (real32) 0;
+        stl.triangles[k].v2_z = (real32) 0;
+        stl.triangles[k].v3_x = (real32) i;
+        stl.triangles[k].v3_y = (real32) 0;
+        stl.triangles[k].v3_z = (real32) y[i];
         ++k;
-        stl.triangles[k].v1_x = i;
-        stl.triangles[k].v1_y = 0;
-        stl.triangles[k].v1_z = y[i];
-        stl.triangles[k].v2_x = i + 1;
-        stl.triangles[k].v2_y = 0;
-        stl.triangles[k].v2_z = 0;
-        stl.triangles[k].v3_x = i + 1;
-        stl.triangles[k].v3_y = 0;
-        stl.triangles[k].v3_z = y[i + 1];
+        stl.triangles[k].v1_x = (real32) i;
+        stl.triangles[k].v1_y = (real32) 0;
+        stl.triangles[k].v1_z = (real32) y[i];
+        stl.triangles[k].v2_x = (real32) i + 1;
+        stl.triangles[k].v2_y = (real32) 0;
+        stl.triangles[k].v2_z = (real32) 0;
+        stl.triangles[k].v3_x = (real32) i + 1;
+        stl.triangles[k].v3_y = (real32) 0;
+        stl.triangles[k].v3_z = (real32) y[i + 1];
         ++k;
-        stl.triangles[k].v1_x = i;
-        stl.triangles[k].v1_y = height - 1;
-        stl.triangles[k].v1_z = 0;
-        stl.triangles[k].v2_x = i;
-        stl.triangles[k].v2_y = height - 1;
-        stl.triangles[k].v2_z = y[(height - 1) * width + (i)];
-        stl.triangles[k].v3_x = i + 1;
-        stl.triangles[k].v3_y = height - 1;
-        stl.triangles[k].v3_z = 0;
+        stl.triangles[k].v1_x = (real32) i;
+        stl.triangles[k].v1_y = (real32) height - 1;
+        stl.triangles[k].v1_z = (real32) 0;
+        stl.triangles[k].v2_x = (real32) i;
+        stl.triangles[k].v2_y = (real32) height - 1;
+        stl.triangles[k].v2_z = (real32) y[(height - 1) * width + (i)];
+        stl.triangles[k].v3_x = (real32) i + 1;
+        stl.triangles[k].v3_y = (real32) height - 1;
+        stl.triangles[k].v3_z = (real32) 0;
         ++k;
-        stl.triangles[k].v1_x = i;
-        stl.triangles[k].v1_y = height - 1;
-        stl.triangles[k].v1_z = y[(height - 1) * width + (i)];
-        stl.triangles[k].v2_x = i + 1;
-        stl.triangles[k].v2_y = height - 1;
-        stl.triangles[k].v2_z = y[(height - 1) * width + (i + 1)];
-        stl.triangles[k].v3_x = i + 1;
-        stl.triangles[k].v3_y = height - 1;
-        stl.triangles[k].v3_z = 0;
+        stl.triangles[k].v1_x = (real32) i;
+        stl.triangles[k].v1_y = (real32) height - 1;
+        stl.triangles[k].v1_z = (real32) y[(height - 1) * width + (i)];
+        stl.triangles[k].v2_x = (real32) i + 1;
+        stl.triangles[k].v2_y = (real32) height - 1;
+        stl.triangles[k].v2_z = (real32) y[(height - 1) * width + (i + 1)];
+        stl.triangles[k].v3_x = (real32) i + 1;
+        stl.triangles[k].v3_y = (real32) height - 1;
+        stl.triangles[k].v3_z = (real32) 0;
         ++k;
     }
     return stl;
@@ -288,7 +287,13 @@ int main() {
     // stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
     // stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
 
-    stl = lithopane("jeannie.png");
+    // stl = lithopane("jeannie128x128.png");
+    stl = lithopane("jeannie1024x1024.png");
+    // stl_save_ASCII(&stl, "ignore.stl");
+    stl_save_binary(&stl, "ignore.stl");
+    return 0;
+
+    // stl = lithopane("jeannie128x128.png");
 
     Camera3D camera = { 100.0 };
     while (cow_begin_frame()) {
@@ -322,7 +327,7 @@ void stl_draw(Camera3D *camera, STL *stl) {
         vec3 v2 = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
         vec3 v3 = { triangle->v3_x, triangle->v3_y, triangle->v3_z };
         vec3 n = transformNormal(C_inv, normalized(cross(v2 - v1, v3 - v1)));
-        vec3 color = (n.z < 0) ? V3(1.0, 0.0, 0.0) : V3(0.5 + 0.5 * n.x, 0.5 + 0.5 * n.y, 1.0);
+        vec3 color = (n.z < 0) ? V3(1.0f, 0.0f, 0.0f) : V3(0.5f + 0.5f * n.x, 0.5f + 0.5f * n.y, 1.0f);
         eso_color(color);
         eso_vertex(v1);
         eso_vertex(v2);
