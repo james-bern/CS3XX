@@ -27,13 +27,13 @@ u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
 char conversation_message_buffer[256];
-u32 conversation_message_buffer_cooldown;
+u32 conversation_message_cooldown;
 void conversation_messagef(char *format, ...) {
     va_list arg;
     va_start(arg, format);
     vsnprintf(conversation_message_buffer, sizeof(conversation_message_buffer), format, arg);
     va_end(arg);
-    conversation_message_buffer_cooldown = 600;
+    conversation_message_cooldown = 600;
 }
 
 ////////////////////////////////////////
@@ -2135,8 +2135,8 @@ int main() {
                     // }
 
                     {
-                        if (conversation_message_buffer_cooldown > 0) {
-                            --conversation_message_buffer_cooldown;
+                        if (conversation_message_cooldown > 0) {
+                            --conversation_message_cooldown;
                         } else {
                             conversation_message_buffer[0] = '\0';
                         }

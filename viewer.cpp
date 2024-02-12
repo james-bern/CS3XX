@@ -1,17 +1,10 @@
 #include "cs345.cpp"
 #include "poe.cpp"
+#undef real // ???
 
-
-char viewer_message_buffer[512];
-u32 viewer_message_cooldown;
-void viewer_messagef(char *format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    vsnprintf(viewer_message_buffer, sizeof(viewer_message_buffer), format, arg);
-    va_end(arg);
-    viewer_message_cooldown = 600;
-}
-
+////////////////////////////////////////
+// 2D //////////////////////////////////
+////////////////////////////////////////
 
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -148,11 +141,11 @@ DXF dxf_load(char *filename) {
             static char buffer[512];
             while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
                 if (mode == DXF_LOAD_MODE_NONE) {
-                    if (poe_prefix_match(buffer, "LINE")) {
+                    if (poe_matches_prefix(buffer, "LINE")) {
                         mode = DXF_LOAD_MODE_LINE;
                         code_is_hot = false;
                         line = {};
-                    } else if (poe_prefix_match(buffer, "ARC")) {
+                    } else if (poe_matches_prefix(buffer, "ARC")) {
                         mode = DXF_LOAD_MODE_ARC;
                         code_is_hot = false;
                         arc = {};
@@ -271,93 +264,41 @@ void dxf_debug_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVE
     eso_end();
 }
 
-
-
-struct STL {
-    u32 num_triangles;
-    real32 *data;
-};
-
-
-void stl_free(STL *stl) {
-    if (stl->data) free(stl->data);
-    *stl = {};
-}
-
-void stl_debug_draw(mat4 PV, STL *stl) {
-}
-
-STL stl_load(char *filename) {
-    // TODO: LOAD STL ASCII
-    // TODO: LOAD STL BINARY
-    return {};
-}
-
-
 DXF dxf;
-STL stl;
-
-#define VIEWER_MODE_NONE 0
-#define VIEWER_MODE_DXF  1
-#define VIEWER_MODE_STL  2
-u32 viewer_mode;
 
 
 void drop_callback(GLFWwindow *, int count, const char** paths) {
-    if (count > 0) {
-        char *filename = (char *) paths[0]; 
-        if (poe_suffix_match(filename, ".dxf")) {
-            viewer_mode = VIEWER_MODE_DXF;
-            dxf = dxf_load(filename);
-        } else if (poe_suffix_match(filename, ".stl")) {
-            viewer_mode = VIEWER_MODE_STL;
-            stl = stl_load(filename);
-        } else {
-            viewer_messagef("%s filetype not recognized\n");
-        }
-    }
-} BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
+    if (count > 0) dxf = dxf_load((char *) paths[0]);
+}
+
+BEGIN_PRE_MAIN {
+    glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
+} END_PRE_MAIN;
 
 
 int main() {
-    viewer_messagef("drag and drop *.dxf or *.stl...");
     Camera2D camera = { 400.0f, 150.0f, 150.0f };
     bool show_grid = false;
-    bool part_is_in_inches_not_mm = false;;
+    bool dxf_is_in_inches_not_mm = false;;
     while (cow_begin_frame()) {
         camera_move(&camera);
-        {
-            if (viewer_message_cooldown > 0) {
-                --viewer_message_cooldown;
-            } else {
-                viewer_message_buffer[0] = '\0';
-            }
-            gui_printf("< %s", viewer_message_buffer);
-        }
-
+        if (dxf.num_entities == 0) gui_printf("drag and drop dxf file into window...");
         gui_printf("pan by right-click and drag");
         gui_printf("zoom by scrolling");
-        gui_checkbox("part_is_in_inches_not_mm", &part_is_in_inches_not_mm, 'i');
-        gui_checkbox("show grid", &show_grid, 'g');
-
+        gui_checkbox("dxf_is_in_inches_not_mm", &dxf_is_in_inches_not_mm, 'i');
+        gui_checkbox("show 300mm x 300mm grid", &show_grid, 'g');
         if (show_grid) {
-            if (viewer_mode == VIEWER_MODE_DXF) {
-                eso_begin(camera_get_PV(&camera), SOUP_LINES, 2.0f);
-                eso_color(monokai.gray);
-                for (u32 i = 0; i <= 30; ++i) {
-                    real32 tmp = i * 10.0f;
-                    eso_vertex(tmp,   0.0f);
-                    eso_vertex(tmp, 300.0f);
-                    eso_vertex(  0.0f, tmp);
-                    eso_vertex(300.0f, tmp);
-                }
-                eso_end();
-            } else if (viewer_mode == VIEWER_MODE_STL) {
+            eso_begin(camera_get_PV(&camera), SOUP_LINES, 2.0f);
+            eso_color(monokai.gray);
+            for (u32 i = 0; i <= 30; ++i) {
+                real32 tmp = i * 10.0f;
+                eso_vertex(tmp,   0.0f);
+                eso_vertex(tmp, 300.0f);
+                eso_vertex(  0.0f, tmp);
+                eso_vertex(300.0f, tmp);
             }
+            eso_end();
         }
-        if (viewer_mode == VIEWER_MODE_DXF) {
-            dxf_debug_draw(camera_get_PV(&camera) * M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &dxf);
-        } else if (viewer_mode == VIEWER_MODE_STL) {
-        }
+        dxf_debug_draw(camera_get_PV(&camera) * M4_Scaling((!dxf_is_in_inches_not_mm) ? 1.0f : 25.4f), &dxf);
     }
 }
