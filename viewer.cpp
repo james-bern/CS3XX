@@ -357,7 +357,7 @@ STL stl_load(char *filename) {
 
         for (u32 i = 0; i < result.num_triangles; ++i) {
             offset += 12;
-            memcpy(result.data + i * 36, entire_file + offset, 36);
+            memcpy(result.data + i * 9, entire_file + offset, 36);
             offset += 38;
         }
     }

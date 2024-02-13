@@ -1386,7 +1386,7 @@ int main() {
             // r_n_selected = 0.0f;
             // M_selected = get_M_selected(n_selected, r_n_selected);
 
-            dxf = dxf_load("in.dxf");
+            dxf = dxf_load("splash.dxf");
             pick = dxf_loop_analysis_create(&dxf);
             dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
 
