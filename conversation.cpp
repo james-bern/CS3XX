@@ -390,7 +390,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-        // populate List's
+      // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -575,7 +575,7 @@ void dxf_pick(mat4 PV_2D, real32 camera2D_screen_height_World, DXF *dxf, bool32 
         if (squared_distance <
                 //MIN(epsilon * epsilon, hot_squared_distance)
                 hot_squared_distance
-                ) {
+           ) {
             hot_squared_distance = squared_distance;
             hot_entity_index = i;
         }
@@ -948,8 +948,8 @@ void wrapper_manifold(
     conversation_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
 
     { // triangle_normals
-        // FORNOW: uses snail
-        // TODO: remove dependency
+      // FORNOW: uses snail
+      // TODO: remove dependency
         conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
         vec3 p[3];
         for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
@@ -1154,6 +1154,12 @@ mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
     vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
     vec3 x = normalized(cross(y, n_selected));
     vec3 z = cross(x, y);
+
+    // FORNOW
+    if (ARE_EQUAL(ABS(dot_product), 1.0f) && SGN(dot_product) < 0.0f) {
+        y *= -1;
+    }
+
     return M4_xyzo(x, y, z, r_n_selected * n_selected);
 }
 

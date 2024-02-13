@@ -131,10 +131,10 @@ else
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
         -framework AudioUnit -framework CoreAudio -framework AudioToolbox \
-        -mmacosx-version-min=11.0 \
         -arch arm64 \
         -mmacosx-version-min=13.5 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
         # -arch x86_64 \
+        # -mmacosx-version-min=11.0 \
 
     if [ -f "executable.exe" ]; then
         if [ "$2" = "--debug" ]; then
