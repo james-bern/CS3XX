@@ -353,7 +353,7 @@ STL stl_load(char *filename) {
         offset += 4;
 
         u32 size = result.num_triangles * 36;
-        result.data = (real32 *) malloc(size);
+        result.data = (real32 *) calloc(1, size);
 
         for (u32 i = 0; i < result.num_triangles; ++i) {
             offset += 12;
