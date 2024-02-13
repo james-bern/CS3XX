@@ -1,10 +1,17 @@
 #include "cs345.cpp"
 #include "poe.cpp"
-#undef real // ???
 
-////////////////////////////////////////
-// 2D //////////////////////////////////
-////////////////////////////////////////
+
+char viewer_message_buffer[512];
+u32 viewer_message_cooldown;
+void viewer_messagef(char *format, ...) {
+    va_list arg;
+    va_start(arg, format);
+    vsnprintf(viewer_message_buffer, sizeof(viewer_message_buffer), format, arg);
+    va_end(arg);
+    viewer_message_cooldown = 600;
+}
+
 
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -138,21 +145,21 @@ DXF dxf_load(char *filename) {
             bool32 code_is_hot = false;
             DXFLine line = {};
             DXFArc arc = {};
-            static char buffer[512];
-            while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
+            static char line_of_file[512];
+            while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
                 if (mode == DXF_LOAD_MODE_NONE) {
-                    if (poe_matches_prefix(buffer, "LINE")) {
+                    if (poe_prefix_match(line_of_file, "LINE")) {
                         mode = DXF_LOAD_MODE_LINE;
                         code_is_hot = false;
                         line = {};
-                    } else if (poe_matches_prefix(buffer, "ARC")) {
+                    } else if (poe_prefix_match(line_of_file, "ARC")) {
                         mode = DXF_LOAD_MODE_ARC;
                         code_is_hot = false;
                         arc = {};
                     }
                 } else {
                     if (!code_is_hot) {
-                        sscanf(buffer, "%d", &code);
+                        sscanf(line_of_file, "%d", &code);
                         if (code == 0) {
                             if (mode == DXF_LOAD_MODE_LINE) {
                                 list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_LINE, line.color, line.start_x, line.start_y, line.end_x, line.end_y });
@@ -166,11 +173,11 @@ DXF dxf_load(char *filename) {
                     } else {
                         if (code == 62) {
                             int value;
-                            sscanf(buffer, "%d", &value);
+                            sscanf(line_of_file, "%d", &value);
                             line.color = arc.color = value; 
                         } else {
                             float value;
-                            sscanf(buffer, "%f", &value);
+                            sscanf(line_of_file, "%f", &value);
                             if (mode == DXF_LOAD_MODE_LINE) {
                                 if (code == 10) {
                                     line.start_x = (value);
@@ -256,7 +263,7 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
     }
 }
 
-void dxf_debug_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+void dxf_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
     eso_begin(PV, SOUP_LINES);
     for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);
@@ -264,41 +271,186 @@ void dxf_debug_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVE
     eso_end();
 }
 
-DXF dxf;
 
 
-void drop_callback(GLFWwindow *, int count, const char** paths) {
-    if (count > 0) dxf = dxf_load((char *) paths[0]);
+struct STL {
+    u32 num_triangles;
+    real32 *data;
+};
+
+
+void stl_free(STL *stl) {
+    if (stl->data) free(stl->data);
+    *stl = {};
 }
 
-BEGIN_PRE_MAIN {
-    glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
-} END_PRE_MAIN;
+void stl_draw(mat4 P, mat4 V, mat4 M, STL *stl) {
+    eso_begin(P * V * M, SOUP_OUTLINED_TRIANGLES);
+    for (real32 *ptr = stl->data; ptr < stl->data + 9 * stl->num_triangles; ptr += 9) {
+        vec3 a = { ptr[0], ptr[1], ptr[2] };
+        vec3 b = { ptr[3], ptr[4], ptr[5] };
+        vec3 c = { ptr[6], ptr[7], ptr[8] };
+        vec3 n = transformNormal(V, normalized(cross(b - a, c - a)));
+        vec3 color = (n.z < 0) ? V3(1.0f, 0.0f, 0.0f) : V3(0.5f + 0.5f * n.x, 0.5f + 0.5f * n.y, 1.0f);
+        eso_color(color);
+        eso_vertex(a);
+        eso_vertex(b);
+        eso_vertex(c);
+    }
+    eso_end();
+}
+
+STL stl_load(char *filename) {
+    static char line_of_file[512];
+
+    #define STL_FILETYPE_UNKNOWN 0
+    #define STL_FILETYPE_ASCII   1
+    #define STL_FILETYPE_BINARY  2
+    u32 filetype; {
+        FILE *file = (FILE *) fopen(filename, "r");
+        fgets(line_of_file, 80, file);
+        filetype = (poe_prefix_match(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
+        fclose(file);
+    }
+
+    STL result = {};
+    if (filetype == STL_FILETYPE_ASCII) {
+        u8 ascii_scan_dummy[64];
+        real32 ascii_scan_p[3];
+        List<real32> ascii_data = {};
+
+        FILE *file = (FILE *) fopen(filename, "r");
+        while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
+            if (filetype == STL_FILETYPE_ASCII) {
+                if (poe_prefix_match(line_of_file, "vertex")) {
+                    sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
+                    for (u32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
+                }
+            } else if (filetype == STL_FILETYPE_BINARY) {
+            }
+        }
+        fclose(file);
+
+        result.num_triangles = ascii_data.length / 9;
+        u32 size = ascii_data.length * sizeof(real32);
+        result.data = (real32 *) malloc(size);
+        memcpy(result.data, ascii_data.data, size);
+        list_free(&ascii_data);
+    } else if (filetype == STL_FILETYPE_BINARY) {
+        char *entire_file; {
+            FILE *file = fopen(filename, "rb");
+            fseek(file, 0, SEEK_END);
+            long fsize = ftell(file);
+            fseek(file, 0, SEEK_SET);
+            entire_file = (char *) malloc(fsize + 1);
+            fread(entire_file, fsize, 1, file);
+            fclose(file);
+            entire_file[fsize] = 0;
+        }
+
+        u32 offset = 80;
+        memcpy(&result.num_triangles, entire_file + offset, 4);
+        offset += 4;
+
+        u32 size = result.num_triangles * 36;
+        result.data = (real32 *) malloc(size);
+
+        for (u32 i = 0; i < result.num_triangles; ++i) {
+            offset += 12;
+            memcpy(result.data + i * 36, entire_file + offset, 36);
+            offset += 38;
+        }
+    }
+    return result;
+}
+
+
+DXF dxf;
+STL stl;
+
+#define VIEWER_MODE_NONE 0
+#define VIEWER_MODE_DXF  1
+#define VIEWER_MODE_STL  2
+u32 viewer_mode;
+
+bool part_is_in_inches_not_mm;
+
+void drop_callback(GLFWwindow *, int count, const char** paths) {
+    if (count > 0) {
+        char *filename = (char *) paths[0]; 
+        if (poe_suffix_match(filename, ".dxf")) {
+            part_is_in_inches_not_mm = true;
+            viewer_mode = VIEWER_MODE_DXF;
+            dxf = dxf_load(filename);
+            viewer_messagef("loaded %s\n", filename);
+        } else if (poe_suffix_match(filename, ".stl")) {
+            part_is_in_inches_not_mm = false;
+            viewer_mode = VIEWER_MODE_STL;
+            stl = stl_load(filename);
+            viewer_messagef("loaded %s\n", filename);
+        } else {
+            viewer_messagef("%s filetype not recognized", filename);
+        }
+    }
+} BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
 
 
 int main() {
-    Camera2D camera = { 400.0f, 150.0f, 150.0f };
-    bool show_grid = false;
-    bool dxf_is_in_inches_not_mm = false;;
+    viewer_messagef("drag and drop *.dxf or *.stl...");
+    Camera2D camera2D = { 400.0f, 150.0f, 150.0f };
+    Camera3D camera3D = { 256.0f };
+    bool show_grid = true;
     while (cow_begin_frame()) {
-        camera_move(&camera);
-        if (dxf.num_entities == 0) gui_printf("drag and drop dxf file into window...");
-        gui_printf("pan by right-click and drag");
-        gui_printf("zoom by scrolling");
-        gui_checkbox("dxf_is_in_inches_not_mm", &dxf_is_in_inches_not_mm, 'i');
-        gui_checkbox("show 300mm x 300mm grid", &show_grid, 'g');
-        if (show_grid) {
-            eso_begin(camera_get_PV(&camera), SOUP_LINES, 2.0f);
-            eso_color(monokai.gray);
-            for (u32 i = 0; i <= 30; ++i) {
-                real32 tmp = i * 10.0f;
-                eso_vertex(tmp,   0.0f);
-                eso_vertex(tmp, 300.0f);
-                eso_vertex(  0.0f, tmp);
-                eso_vertex(300.0f, tmp);
+        if (viewer_mode == VIEWER_MODE_DXF) camera_move(&camera2D);
+        if (viewer_mode == VIEWER_MODE_STL) camera_move(&camera3D);
+
+        {
+            if (viewer_message_cooldown > 0) {
+                --viewer_message_cooldown;
+            } else {
+                viewer_message_buffer[0] = '\0';
             }
-            eso_end();
+            gui_printf("< %s", viewer_message_buffer);
         }
-        dxf_debug_draw(camera_get_PV(&camera) * M4_Scaling((!dxf_is_in_inches_not_mm) ? 1.0f : 25.4f), &dxf);
+
+        if (viewer_mode != VIEWER_MODE_NONE) {
+            gui_checkbox("part_is_in_inches_not_mm", &part_is_in_inches_not_mm, 'i');
+            if (viewer_mode == VIEWER_MODE_DXF) {
+                gui_checkbox("show grid", &show_grid, 'g');
+            } else if (viewer_mode == VIEWER_MODE_STL) {
+                gui_printf("rotate: left-click and drag");
+            }
+            gui_printf("pan: right-click and drag");
+            gui_printf("zoom: scroll");
+        }
+
+        if (show_grid) {
+            if (viewer_mode == VIEWER_MODE_DXF) {
+                eso_begin(camera_get_PV(&camera2D), SOUP_LINES, 2.0f);
+                eso_color(monokai.gray);
+                for (u32 i = 0; i <= 30; ++i) {
+                    real32 tmp = i * 10.0f;
+                    eso_vertex(tmp,   0.0f);
+                    eso_vertex(tmp, 300.0f);
+                    eso_vertex(  0.0f, tmp);
+                    eso_vertex(300.0f, tmp);
+                }
+                eso_end();
+            } else if (viewer_mode == VIEWER_MODE_STL) {
+                // TODO: 3D box (LATER)
+            }
+        }
+
+        if (viewer_mode == VIEWER_MODE_DXF) {
+            gui_printf("num_entities %d", dxf.num_entities);
+        } else if (viewer_mode == VIEWER_MODE_STL) {
+            gui_printf("num_triangles %d", stl.num_triangles);
+        }
+
+        if (viewer_mode == VIEWER_MODE_DXF) {
+            dxf_draw(camera_get_PV(&camera2D) * M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &dxf);
+        } else if (viewer_mode == VIEWER_MODE_STL) {
+            stl_draw(camera_get_P(&camera3D), camera_get_V(&camera3D), M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &stl);
+        }
     }
 }

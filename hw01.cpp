@@ -53,7 +53,13 @@ void stl_save_ASCII(STL *stl, char *filename) {
 
     fprintf(file, "solid\n");
     for (Triangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
-        fprintf(file, "   facet normal 0.0 0.0 0.0\n");
+        vec3 normal; {
+            vec3 a = { triangle->v1_x, triangle->v1_y, triangle->v1_z };
+            vec3 b = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
+            vec3 c = { triangle->v3_x, triangle->v3_y, triangle->v3_z };
+            normal = normalized(cross(b - a, c - a));
+        }
+        fprintf(file, "   facet normal %f %f %f\n", normal.x, normal.y, normal.z);
         fprintf(file, "   outer loop\n");
         fprintf(file, "      vertex %f %f %f\n", triangle->v1_x, triangle->v1_y, triangle->v1_z);
         fprintf(file, "      vertex %f %f %f\n", triangle->v2_x, triangle->v2_y, triangle->v2_z);
@@ -76,6 +82,13 @@ void stl_save_binary(STL *stl, char *filename) {
         memcpy(buffer + offset, &stl->num_triangles, 4);
         offset += 4;
         for (Triangle *triangle = stl->triangles; triangle < stl->triangles + stl->num_triangles; ++triangle) {
+            vec3 normal; {
+                vec3 a = { triangle->v1_x, triangle->v1_y, triangle->v1_z };
+                vec3 b = { triangle->v2_x, triangle->v2_y, triangle->v2_z };
+                vec3 c = { triangle->v3_x, triangle->v3_y, triangle->v3_z };
+                normal = normalized(cross(b - a, c - a));
+            }
+            memcpy(buffer + offset, normal.data, 12);
             offset += 12;
             memcpy(buffer + offset, triangle, 36);
             offset += 38;
@@ -271,28 +284,27 @@ int main() {
     // stl.triangles = (Triangle *) calloc(stl.num_triangles, sizeof(Triangle));
     // stl.triangles[0] = { 0.0, 0.0, 0.0,   10.0, 0.0, 0.0,   0.0, 10.0, 0.0 };
 
-    // stl.num_triangles = 12;
-    // stl.triangles = (Triangle *) calloc(stl.num_triangles, sizeof(Triangle));
-    // int k = 0;
-    // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f,  10.0f, -10.0f };
-    // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f };
-    // stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
-    // stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f };
-    // stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f };
-    // stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f };
-    // stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
-    // stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f };
+    stl.num_triangles = 11;
+    stl.triangles = (Triangle *) calloc(stl.num_triangles, sizeof(Triangle));
+    int k = 0;
+    stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f,  10.0f, -10.0f };
+    stl.triangles[k++] = {  10.0f,  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f };
+    stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
+    stl.triangles[k++] = { -10.0f, -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f };
+    stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f };
+    stl.triangles[k++] = { -10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f,  10.0f, -10.0f };
+    stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
+    stl.triangles[k++] = {  10.0f, -10.0f,  10.0f, -10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f };
     // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f };
-    // stl.triangles[k++] = {  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f };
-    // stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
-    // stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
+    stl.triangles[k++] = {  10.0f,  10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f, -10.0f,  10.0f };
+    stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
+    stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
 
     // stl = lithopane("jeannie128x128.png");
-    stl = lithopane("jeannie1024x1024.png");
+    // stl = lithopane("jeannie1024x1024.png");
     // stl_save_ASCII(&stl, "ignore.stl");
-    stl_save_binary(&stl, "ignore.stl");
-    return 0;
-
+    // stl_save_binary(&stl, "ignore.stl");
+    // return 0;
     // stl = lithopane("jeannie128x128.png");
 
     Camera3D camera = { 100.0 };
@@ -306,12 +318,12 @@ int main() {
         // TODO: load_ASCII
         // TODO: load_binary
 
-        if (gui_button("save ASCII")) {
-            stl_save_ASCII(&stl, "out_ASCII.stl");
+        if (gui_button("save ascii")) {
+            stl_save_ASCII(&stl, "ascii.stl");
         }
 
         if (gui_button("save binary")) {
-            stl_save_binary(&stl, "out_binary.stl");
+            stl_save_binary(&stl, "binary.stl");
         }
     }
 }

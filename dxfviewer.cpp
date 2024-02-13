@@ -263,7 +263,7 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
     }
 }
 
-void dxf_debug_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+void dxf_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
     eso_begin(PV, SOUP_LINES);
     for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);
@@ -284,13 +284,32 @@ void stl_free(STL *stl) {
     *stl = {};
 }
 
-void stl_debug_draw(mat4 PV, STL *stl) {
+void stl_draw(mat4 P, mat4 V, mat4 M, STL *stl) {
+    eso_begin(P * V * M, SOUP_OUTLINED_TRIANGLES);
+    for (real32 *ptr = stl->data; ptr < stl->data + 9 * stl->num_triangles; ptr += 9) {
+        vec3 a = { ptr[0], ptr[1], ptr[2] };
+        vec3 b = { ptr[3], ptr[4], ptr[5] };
+        vec3 c = { ptr[6], ptr[7], ptr[8] };
+        vec3 n = transformNormal(V, normalized(cross(b - a, c - a)));
+        vec3 color = (n.z < 0) ? V3(1.0f, 0.0f, 0.0f) : V3(0.5f + 0.5f * n.x, 0.5f + 0.5f * n.y, 1.0f);
+        eso_color(color);
+        eso_vertex(a);
+        eso_vertex(b);
+        eso_vertex(c);
+    }
+    eso_end();
 }
 
 STL stl_load(char *filename) {
+    STL result = {};
+    FILE *file = (FILE *) fopen(filename, "rb");
+    static char buffer[512];
+    while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
+    }
+    fclose(file);
     // TODO: LOAD STL ASCII
     // TODO: LOAD STL BINARY
-    return {};
+    return result;
 }
 
 
@@ -309,11 +328,13 @@ void drop_callback(GLFWwindow *, int count, const char** paths) {
         if (poe_suffix_match(filename, ".dxf")) {
             viewer_mode = VIEWER_MODE_DXF;
             dxf = dxf_load(filename);
+            viewer_messagef("loaded %s\n", filename);
         } else if (poe_suffix_match(filename, ".stl")) {
             viewer_mode = VIEWER_MODE_STL;
             stl = stl_load(filename);
+            viewer_messagef("loaded %s\n", filename);
         } else {
-            viewer_messagef("%s filetype not recognized\n");
+            viewer_messagef("%s filetype not recognized", filename);
         }
     }
 } BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
@@ -321,11 +342,14 @@ void drop_callback(GLFWwindow *, int count, const char** paths) {
 
 int main() {
     viewer_messagef("drag and drop *.dxf or *.stl...");
-    Camera2D camera = { 400.0f, 150.0f, 150.0f };
-    bool show_grid = false;
+    Camera2D camera2D = { 400.0f, 150.0f, 150.0f };
+    Camera3D camera3D = { 400.0f };
+    bool show_grid = true;
     bool part_is_in_inches_not_mm = false;;
     while (cow_begin_frame()) {
-        camera_move(&camera);
+        if (viewer_mode == VIEWER_MODE_DXF) camera_move(&camera2D);
+        if (viewer_mode == VIEWER_MODE_STL) camera_move(&camera3D);
+
         {
             if (viewer_message_cooldown > 0) {
                 --viewer_message_cooldown;
@@ -335,14 +359,20 @@ int main() {
             gui_printf("< %s", viewer_message_buffer);
         }
 
-        gui_printf("pan by right-click and drag");
-        gui_printf("zoom by scrolling");
-        gui_checkbox("part_is_in_inches_not_mm", &part_is_in_inches_not_mm, 'i');
-        gui_checkbox("show grid", &show_grid, 'g');
+        if (viewer_mode != VIEWER_MODE_NONE) {
+            gui_checkbox("part_is_in_inches_not_mm", &part_is_in_inches_not_mm, 'i');
+            if (viewer_mode == VIEWER_MODE_DXF) {
+                gui_checkbox("show grid", &show_grid, 'g');
+            } else if (viewer_mode == VIEWER_MODE_STL) {
+                gui_printf("rotate by left-click and drag");
+            }
+            gui_printf("pan by right-click and drag");
+            gui_printf("zoom by scrolling");
+        }
 
         if (show_grid) {
             if (viewer_mode == VIEWER_MODE_DXF) {
-                eso_begin(camera_get_PV(&camera), SOUP_LINES, 2.0f);
+                eso_begin(camera_get_PV(&camera2D), SOUP_LINES, 2.0f);
                 eso_color(monokai.gray);
                 for (u32 i = 0; i <= 30; ++i) {
                     real32 tmp = i * 10.0f;
@@ -353,11 +383,13 @@ int main() {
                 }
                 eso_end();
             } else if (viewer_mode == VIEWER_MODE_STL) {
+                // TODO: 3D box (LATER)
             }
         }
         if (viewer_mode == VIEWER_MODE_DXF) {
-            dxf_debug_draw(camera_get_PV(&camera) * M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &dxf);
+            dxf_draw(camera_get_PV(&camera2D) * M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &dxf);
         } else if (viewer_mode == VIEWER_MODE_STL) {
+            stl_draw(camera_get_P(&camera3D), camera_get_V(&camera3D), M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &stl);
         }
     }
 }
