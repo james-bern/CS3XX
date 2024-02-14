@@ -301,10 +301,11 @@ int main() {
     stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
 
     // stl = lithopane("jeannie128x128.png");
-    // stl = lithopane("jeannie1024x1024.png");
+    stl = lithopane("jeannie1024x1024.png");
     // stl_save_ASCII(&stl, "ignore.stl");
-    // stl_save_binary(&stl, "ignore.stl");
-    // return 0;
+    // stl = lithopane("minnie.jpg");
+    stl_save_binary(&stl, "ignore.stl");
+    return 0;
     // stl = lithopane("jeannie128x128.png");
 
     Camera3D camera = { 100.0 };

@@ -125,7 +125,7 @@ else
         -Wall -Wextra \
         -Wshadow \
         -Werror=vla \
-        -Wno-deprecated-declarations -Wno-missing-braces -Wno-missing-field-initializers -Wno-char-subscripts -Wno-writable-strings \
+        -Wno-deprecated-declarations -Wno-missing-braces -Wno-missing-field-initializers -Wno-char-subscripts -Wno-write-strings -Wno-c++11-narrowing \
         -I./codebase/ext \
         -L./codebase/ext \
         -lglfw3 \
