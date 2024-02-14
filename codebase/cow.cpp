@@ -2703,16 +2703,16 @@ void _mesh_draw(
 
     glBindVertexArray(COW0._mesh_VAO);
     unsigned int i_attrib = 0;
-    auto guarded_push = [&](void *array, int dim, int sizeof_type, int GL_TYPE) {
+    auto guarded_push = [&](void *array, int dim, int sizeof_type, int GL_TYPE_VAR) {
         ASSERT(i_attrib < ARRAY_LENGTH(COW0._mesh_VBO));
         glDisableVertexAttribArray(i_attrib);
         if (array) {
             glBindBuffer(GL_ARRAY_BUFFER, COW0._mesh_VBO[i_attrib]);
             glBufferData(GL_ARRAY_BUFFER, num_vertices * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
-            if (GL_TYPE == GL_REAL) {
-                glVertexAttribPointer(i_attrib, dim, GL_TYPE, GL_FALSE, 0, NULL);
-            } else if (GL_TYPE == GL_INT) {
-                glVertexAttribIPointer(i_attrib, dim, GL_TYPE, 0, NULL);
+            if (GL_TYPE_VAR == GL_REAL) {
+                glVertexAttribPointer(i_attrib, dim, GL_TYPE_VAR, GL_FALSE, 0, NULL);
+            } else if (GL_TYPE_VAR == GL_INT) {
+                glVertexAttribIPointer(i_attrib, dim, GL_TYPE_VAR, 0, NULL);
             } else {
                 ASSERT(0);
             }
@@ -4606,10 +4606,10 @@ bool cow_begin_frame() {
                 }
                 if (COW0._cow_display_fps) {
                     static int fps;
-                    static std::chrono::steady_clock::time_point timestamp = std::chrono::high_resolution_clock::now();
-                    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - timestamp);
+                    static std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
+                    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - timestamp);
                     if (nanos.count() > 166666666 / 1.5) {
-                        timestamp = std::chrono::high_resolution_clock::now();
+                        timestamp = std::chrono::steady_clock::now();
                         fps = measured_fps;
                         // printf("fps: %d\n", display_fps);
                     }
@@ -4622,7 +4622,7 @@ bool cow_begin_frame() {
             {
                 const int N_MOVING_WINDOW = 5;
                 static std::chrono::steady_clock::time_point prev_timestamps[N_MOVING_WINDOW];
-                std::chrono::steady_clock::time_point timestamp = std::chrono::high_resolution_clock::now();
+                std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
                 auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp - prev_timestamps[N_MOVING_WINDOW - 1]);
                 measured_fps = (int) round(N_MOVING_WINDOW / (nanos.count() / 1000000000.));
 
