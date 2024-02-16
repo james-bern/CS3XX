@@ -1,3 +1,5 @@
+// IDEA: Translating and Rotating and scaling the (3D) work piece (like in a mill)
+
 // // Conversation
 // This is a little CAD program Jim is making :)
 //  It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
@@ -18,7 +20,7 @@
 #undef real // ???
 
 
-real32 Z_FIGHT_EPS = 0.02f;
+real32 Z_FIGHT_EPS = 0.05f;
 real32 TOLERANCE_DEFAULT = 1e-5f;
 u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
@@ -2004,7 +2006,11 @@ int main() {
                                 eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
                                 for (u32 i = 0; i < dxf.num_entities; ++i) {
                                     DXFEntity *entity = &dxf.entities[i];
-                                    if (dxf_selection_mask[i]) eso_dxf_entity__SOUP_LINES(entity, color);
+                                    if (dxf_selection_mask[i]) {
+                                        eso_dxf_entity__SOUP_LINES(entity, color);
+                                    } else if (tube_stack_index == 0) {
+                                        // eso_dxf_entity__SOUP_LINES(entity, DXF_COLOR_SELECTION);
+                                    }
                                 }
                                 eso_end();
                             }
