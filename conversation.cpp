@@ -5,9 +5,8 @@
 // / basic undo (chain of stls and manifold_manifold)
 // / messages from app (messagef) for missing path, etc.
 
-// / click on the bottom plane in the box
 // TODO 3D zoom to extents as part of load (pass camera2D to load)
-// TODO: finish load_stl
+// TODO: finish stl_load
 // TODO: color codes instead of ` in gui_printf
 
 
@@ -751,6 +750,70 @@ struct ConversationMesh {
     u32 *cosmetic_edges;
 };
 
+void conversation_mesh_triangle_normals_calculate(ConversationMesh *conversation_mesh) {
+    if (conversation_mesh->triangle_normals) {
+        free(conversation_mesh->triangle_normals);
+    }
+
+    conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
+    vec3 p[3];
+    for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
+        // TODO: use get()
+        for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + d];
+        vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
+        for (u32 d = 0; d < 3; ++d) conversation_mesh->triangle_normals[3 * i + d] = n[d];
+    }
+}
+
+void conversation_mesh_cosmetic_edges_calculate(ConversationMesh *conversation_mesh) {
+    if (conversation_mesh->cosmetic_edges) {
+        conversation_mesh->cosmetic_edges = 0;
+        free(conversation_mesh->cosmetic_edges);
+    }
+    // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
+    //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
+    //           then go back through the array and sum the components; if below some threshold (maybe...0.9?) add that index to a stretchy buffer
+    // TODO: a linalg library that operates directly on real32 *'s (like you used in soft_robot.h)
+    List<u32> list = {}; {
+        Map<Pair<u32, u32>, vec3> map = {}; {
+            for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
+                vec3 n = { conversation_mesh->triangle_normals[3 * i + 0], conversation_mesh->triangle_normals[3 * i + 1], conversation_mesh->triangle_normals[3 * i + 2] };
+                for (u32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
+                    u32 j0 = conversation_mesh->triangle_indices[3 * i + jj0];
+                    u32 j1 = conversation_mesh->triangle_indices[3 * i + jj1];
+                    if (j0 > j1) {
+                        u32 tmp = j0;
+                        j0 = j1;
+                        j1 = tmp;
+                    }
+                    Pair<u32, u32> key = { j0, j1 };
+                    map_put(&map, key, cwiseProduct(n, map_get(&map, key, { 1.0f, 1.0f, 1.0f })));
+                }
+            }
+        }
+        {
+            for (List<Pair<Pair<u32, u32>, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
+                for (Pair<Pair<u32, u32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+                    vec3 n2 = pair->value;
+                    // pprint(n2);
+                    if ((n2.x + n2.y + n2.z) < 0.9f) {
+                        list_push_back(&list, pair->key.first); // FORNOW
+                        list_push_back(&list, pair->key.second); // FORNOW
+                    }
+                }
+            }
+            // TODO: move this elsewhere
+        }
+        map_free(&map);
+    }
+    {
+        conversation_mesh->num_cosmetic_edges = list.length / 2;
+        conversation_mesh->cosmetic_edges = (u32 *) calloc(2 * conversation_mesh->num_cosmetic_edges, sizeof(u32));
+        memcpy(conversation_mesh->cosmetic_edges, list.data, 2 * conversation_mesh->num_cosmetic_edges * sizeof(u32)); 
+    }
+    list_free(&list);
+}
+
 void eso_vertex(real32 *p_j) {
     eso_vertex(p_j[0], p_j[1], p_j[2]);
 }
@@ -759,7 +822,7 @@ void eso_vertex(real32 *p, u32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
-void conversation_mesh_save_stl(ConversationMesh *conversation_mesh, char *filename) {
+void stl_save(ConversationMesh *conversation_mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     if (!file) {
         conversation_messagef("[save] could not save open %s for writing.", filename);
@@ -774,10 +837,7 @@ void conversation_mesh_save_stl(ConversationMesh *conversation_mesh, char *filen
         for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
             real32 triangle_normal[3];
             {
-                // // NOTE: 90-degree rotation about x
-                // x <- x
-                // y <- -z
-                // z <- y
+                // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
                 triangle_normal[0] =  conversation_mesh->triangle_normals[3 * i + 0];
                 triangle_normal[1] = -conversation_mesh->triangle_normals[3 * i + 2];
                 triangle_normal[2] =  conversation_mesh->triangle_normals[3 * i + 1];
@@ -786,10 +846,7 @@ void conversation_mesh_save_stl(ConversationMesh *conversation_mesh, char *filen
             offset += 12;
             real32 triangle_vertex_positions[9];
             for (u32 j = 0; j < 3; ++j) {
-                // // NOTE: 90-degree rotation about x
-                // x <- x
-                // y <- -z
-                // z <- y
+                // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
                 triangle_vertex_positions[3 * j + 0] =  conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + 0];
                 triangle_vertex_positions[3 * j + 1] = -conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + 2];
                 triangle_vertex_positions[3 * j + 2] =  conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + 1];
@@ -946,75 +1003,17 @@ void wrapper_manifold(
     conversation_mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
     conversation_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
     conversation_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
-
-    { // triangle_normals
-      // FORNOW: uses snail
-      // TODO: remove dependency
-        conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
-        vec3 p[3];
-        for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
-            for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + d];
-            vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
-            for (u32 d = 0; d < 3; ++d) conversation_mesh->triangle_normals[3 * i + d] = n[d];
-        }
-    }
-
-    { // cosmetic_edges
-
-        // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
-        //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
-        //           then go back through the array and sum the components; if below some threshold (maybe...0.9?) add that index to a stretchy buffer
-
-        // TODO: a linalg library that operates directly on real32 *'s (like you used in soft_robot.h)
-
-        List<u32> list = {}; {
-            Map<Pair<u32, u32>, vec3> map = {}; {
-                for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
-                    vec3 n = { conversation_mesh->triangle_normals[3 * i + 0], conversation_mesh->triangle_normals[3 * i + 1], conversation_mesh->triangle_normals[3 * i + 2] };
-                    for (u32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
-                        u32 j0 = conversation_mesh->triangle_indices[3 * i + jj0];
-                        u32 j1 = conversation_mesh->triangle_indices[3 * i + jj1];
-                        if (j0 > j1) {
-                            u32 tmp = j0;
-                            j0 = j1;
-                            j1 = tmp;
-                        }
-                        Pair<u32, u32> key = { j0, j1 };
-                        map_put(&map, key, cwiseProduct(n, map_get(&map, key, { 1.0f, 1.0f, 1.0f })));
-                    }
-                }
-            }
-            {
-                for (List<Pair<Pair<u32, u32>, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
-                    for (Pair<Pair<u32, u32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
-                        vec3 n2 = pair->value;
-                        // pprint(n2);
-                        if ((n2.x + n2.y + n2.z) < 0.9f) {
-                            list_push_back(&list, pair->key.first); // FORNOW
-                            list_push_back(&list, pair->key.second); // FORNOW
-                        }
-                    }
-                }
-                // TODO: move this elsewhere
-            }
-            map_free(&map);
-        }
-        {
-            conversation_mesh->num_cosmetic_edges = list.length / 2;
-            conversation_mesh->cosmetic_edges = (u32 *) calloc(2 * conversation_mesh->num_cosmetic_edges, sizeof(u32));
-            memcpy(conversation_mesh->cosmetic_edges, list.data, 2 * conversation_mesh->num_cosmetic_edges * sizeof(u32)); 
-        }
-        list_free(&list);
-    }
+    conversation_mesh_triangle_normals_calculate(conversation_mesh);
+    conversation_mesh_cosmetic_edges_calculate(conversation_mesh);
 }
 
 
-real32 get(real32 *x, u32 i, u32 d) {
-    return x[3 * i + d];
-}
+// real32 get(real32 *x, u32 i, u32 d) {
+//     return x[3 * i + d];
+// }
 vec3 get(real32 *x, u32 i) {
     vec3 result;
-    for (u32 d = 0; d < 3; ++d) result.data[d] = get(x, i, d);
+    for (u32 d = 0; d < 3; ++d) result.data[d] = x[3 * i + d];
     return result;
 }
 void add(real32 *x, u32 i, vec3 v) {
@@ -1048,36 +1047,88 @@ void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversatio
     u32 num_triangles;
     real32 *soup;
     {
-        List<real32> _soup = {}; {
-            FILE *file = fopen(filename, "r");
-            if (!file) {
-                conversation_messagef("[load] \"%s\" not found.", filename);
-                return;
-            }
-            char buffer[4096];
-            while (fgets(buffer, ARRAY_LENGTH(buffer), file) != NULL) {
-                cow_real x, y, z;
-                sscanf(buffer, "%f %f %f", &x, &y, &z);
-                list_push_back(&_soup, 48.0f * x);
-                list_push_back(&_soup, 48.0f * y);
-                list_push_back(&_soup, 48.0f * z);
-            }
+        static char line_of_file[512];
+
+        #define STL_FILETYPE_UNKNOWN 0
+        #define STL_FILETYPE_ASCII   1
+        #define STL_FILETYPE_BINARY  2
+        u32 filetype; {
+            FILE *file = (FILE *) fopen(filename, "r");
+            fgets(line_of_file, 80, file);
+            filetype = (poe_prefix_match(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
             fclose(file);
         }
-        num_triangles = _soup.length / 9; // / 3 / 3
-        u32 size = _soup.length * sizeof(real32);
-        soup = (real32 *) malloc(size);
-        memcpy(soup, _soup.data, size);
-        list_free(&_soup);
+
+        if (filetype == STL_FILETYPE_ASCII) {
+            u8 ascii_scan_dummy[64];
+            real32 ascii_scan_p[3];
+            List<real32> ascii_data = {};
+
+            FILE *file = (FILE *) fopen(filename, "r");
+            while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
+                if (filetype == STL_FILETYPE_ASCII) {
+                    if (poe_prefix_match(line_of_file, "vertex")) {
+                        sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
+                        for (u32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
+                    }
+                } else if (filetype == STL_FILETYPE_BINARY) {
+                }
+            }
+            fclose(file);
+
+            num_triangles = ascii_data.length / 9;
+            u32 size = ascii_data.length * sizeof(real32);
+            soup = (real32 *) malloc(size);
+            memcpy(soup, ascii_data.data, size);
+            list_free(&ascii_data);
+        } else {
+            ASSERT(filetype == STL_FILETYPE_BINARY);
+            char *entire_file; {
+                FILE *file = fopen(filename, "rb");
+                fseek(file, 0, SEEK_END);
+                long fsize = ftell(file);
+                fseek(file, 0, SEEK_SET);
+                entire_file = (char *) malloc(fsize + 1);
+                fread(entire_file, fsize, 1, file);
+                fclose(file);
+                entire_file[fsize] = 0;
+            }
+
+            u32 offset = 80;
+            memcpy(&num_triangles, entire_file + offset, 4);
+            offset += 4;
+
+            u32 size = num_triangles * 36;
+            soup = (real32 *) calloc(1, size);
+
+            for (u32 i = 0; i < num_triangles; ++i) {
+                offset += 12;
+                memcpy(soup + i * 9, entire_file + offset, 36);
+                offset += 38;
+            }
+        }
+        { // -90 degree rotation about x: (x, y, z) <- (x, z, -y)
+            u32 num_vertices = 3 * num_triangles;
+            for (u32 i = 0; i < num_vertices; ++i) {
+                real32 tmp = soup[3 * i + 1];
+                soup[3 * i + 1] = soup[3 * i + 2];
+                soup[3 * i + 2] = -tmp;
+            }
+        }
     }
 
-    // unify nearby vertices
-    // FORNOW: O(n^2)
-    real32 MERGE_THRESHOLD_SQUARED_DISTANCE = powf(0.001f, 2);
     u32 num_vertices;
     real32 *vertex_positions;
     u32 *triangle_indices;
-    {
+    { // merge vertices
+
+        #if 0
+        // TODO: new O(n) version that only merges vertices with EXACTLY the same position
+        Map<vec3, u32> map = {};
+        free(soup);
+        #elif 1
+        // old O(n^2) approximate version
+        real32 MERGE_THRESHOLD_SQUARED_DISTANCE = powf(0.001f, 2);
         Map<u32, u32> map = {};
         {
             List<vec3> list = {};
@@ -1108,29 +1159,24 @@ void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversatio
         }
         triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
         for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = map_get(&map, k);
-    }
+        map_free(&map);
+        free(soup);
+        #else
+        // no merging
+        num_vertices = 3 * num_triangles;
+        vertex_positions = soup;
+        triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
+        for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = k;
+        #endif
 
-
-
-    real32 *triangle_normals; {
-        triangle_normals = (real32 *) calloc(3 * num_triangles, sizeof(real32));;
-        for (u32 triangle_index = 0; triangle_index < num_triangles; ++triangle_index) {
-            vec3 a = get(vertex_positions, get(triangle_indices, triangle_index, 0));
-            vec3 b = get(vertex_positions, get(triangle_indices, triangle_index, 1));
-            vec3 c = get(vertex_positions, get(triangle_indices, triangle_index, 2));
-            add(triangle_normals, triangle_index, normalized(cross(b - a, c - a)));
-        }
     }
 
     conversation_mesh->num_vertices = num_vertices;
     conversation_mesh->num_triangles = num_triangles;
     conversation_mesh->vertex_positions = vertex_positions;
     conversation_mesh->triangle_indices = triangle_indices;
-    conversation_mesh->triangle_normals = triangle_normals;
-    // TODO (easy--just strip out code you already have into a function): cosmetic edges
-    conversation_mesh->num_cosmetic_edges = 0;
-    conversation_mesh->cosmetic_edges = NULL;
-
+    conversation_mesh_triangle_normals_calculate(conversation_mesh);
+    conversation_mesh_cosmetic_edges_calculate(conversation_mesh);
     conversation_messagef("[load] loaded %s", filename);
 }
 
@@ -1571,7 +1617,7 @@ int main() {
                         } else {
                             ASSERT(enter_mode == ENTER_MODE_SAVE);
                             if (poe_suffix_match(console_buffer, ".stl")) {
-                                conversation_mesh_save_stl(&conversation_mesh, full_filename_including_path);
+                                stl_save(&conversation_mesh, full_filename_including_path);
                             } else {
                                 conversation_messagef("[save] %s filetype not supported; must be *.stl", console_buffer);
                             }
