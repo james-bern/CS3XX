@@ -1447,9 +1447,9 @@ int main() {
 
             { // cameras
                 real32 height = 128.0f;
-                camera2D = { height, 0.0, 0.0f, -0.5f, 0.0f };
+                camera2D = { height, 0.0, 0.0f, -0.5f, -0.25f };
                 camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
-                camera3D = { 500.0, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(40), RAD(-30.0f), 0.0f, 70.0f, 0.5f, 0.0f };
+                camera3D = { 200.0f, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-33.0f), 0.0f, 70.0f, 0.5f, 0.25f };
             }
 
             show_grid = true;
@@ -1860,7 +1860,7 @@ int main() {
                     glEnable(GL_DEPTH_TEST);
 
                     eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
-                    eso_color(0.0f, 1.0f, 1.0f);
+                    eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f);
                     eso_vertex(0.0f,  1.0f);
                     eso_vertex(0.0f, -1.0f);
                     eso_end();
@@ -1909,14 +1909,14 @@ int main() {
                             eso_end();
                         }
                     }
-                    { // axes 2D axes 2d axes axis 2D axis 2d axes
-                        real32 r = camera2D.screen_height_World / 70.0f;
-                        eso_begin(PV_2D, SOUP_LINES, 4.0f);
+                    { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs
+                        real32 r = camera2D.screen_height_World / 120.0f;
+                        eso_begin(PV_2D, SOUP_LINES, 3.0f);
                         eso_color(1.0f, 1.0f, 1.0f);
-                        eso_vertex(-r, 0.0f);
+                        eso_vertex(-r*.8f, 0.0f);
                         eso_vertex( r, 0.0f);
                         eso_vertex(0.0f, -r);
-                        eso_vertex(0.0f,  r);
+                        eso_vertex(0.0f,  r*.8f);
                         eso_end();
                     }
                 }
@@ -2152,12 +2152,10 @@ int main() {
 
 
                 if (show_details) {
-                    gui_printf("");
                     gui_printf("%d dxf elements", dxf.num_entities);
                     gui_printf("%d stl triangles", conversation_mesh.num_triangles);
                 }
                 {
-                    gui_printf("");
                     gui_printf("(h)elp");
                     if (show_help) {
                         gui_printf("(Escape)-from-current-enter_mode");
