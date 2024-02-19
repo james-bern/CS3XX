@@ -1,3 +1,6 @@
+// TODO: i don't really understand how memory works with the C bindings (malloc, etc.)
+// TODO: biiiig careful clean up pass
+
 // IDEA: Translating and Rotating and scaling the (3D) work piece (like in a mill)
 
 // // Conversation
@@ -928,7 +931,7 @@ void history_free(History *history) {
 
 
 void wrapper_manifold(
-        ManifoldManifold **curr_manifold,
+        ManifoldManifold **manifold_manifold,
         ConversationMesh *conversation_mesh, // dest__NOTE_GETS_OVERWRITTEN,
         u32 num_polygonal_loops,
         u32 *num_vertices_in_polygonal_loops,
@@ -942,7 +945,7 @@ void wrapper_manifold(
 
 
     // FORNOW: this function call isn't a no-op
-    history_record_state(history, curr_manifold, conversation_mesh);
+    history_record_state(history, manifold_manifold, conversation_mesh);
 
 
     ASSERT(enter_mode != ENTER_MODE_NONE);
@@ -981,22 +984,22 @@ void wrapper_manifold(
     }
 
     // add
-    if (!(*curr_manifold)) {
+    if (!(*manifold_manifold)) {
         if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) { return; } // FORNOW
 
-        *curr_manifold = other_manifold;
+        *manifold_manifold = other_manifold;
     } else {
-        // TODO: ? manifold_delete_manifold(curr_manifold);
-        *curr_manifold =
+        // TODO: ? manifold_delete_manifold(manifold_manifold);
+        *manifold_manifold =
             manifold_boolean(
                     malloc(manifold_manifold_size()),
-                    *curr_manifold,
+                    *manifold_manifold,
                     other_manifold,
                     ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
                     );
     }
 
-    ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *curr_manifold);
+    ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *manifold_manifold);
 
     // // NOTE: don't free!--putting on undo stack
     // conversation_mesh_free(conversation_mesh);
@@ -1043,143 +1046,185 @@ uzi3 get(u32 *x, u32 i) {
 }
 
 
-void stl_load(char *filename, ManifoldManifold **, ConversationMesh *conversation_mesh) {
-    // TODO: actually load an STL (currently the rabbit is an obj)
-
-    u32 num_triangles;
-    real32 *soup;
-    {
-        static char line_of_file[512];
-
-        #define STL_FILETYPE_UNKNOWN 0
-        #define STL_FILETYPE_ASCII   1
-        #define STL_FILETYPE_BINARY  2
-        u32 filetype; {
-            FILE *file = (FILE *) fopen(filename, "r");
-            fgets(line_of_file, 80, file);
-            filetype = (poe_prefix_match(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
-            fclose(file);
+void stl_load(char *filename, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
+    { // FORNOW check file exists
+        FILE *file = (FILE *) fopen(filename, "r");
+        if (!file) {
+            conversation_messagef("[load] %s not found", filename);
+            return;
         }
-
-        if (filetype == STL_FILETYPE_ASCII) {
-            u8 ascii_scan_dummy[64];
-            real32 ascii_scan_p[3];
-            List<real32> ascii_data = {};
-
-            FILE *file = (FILE *) fopen(filename, "r");
-            while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
-                if (filetype == STL_FILETYPE_ASCII) {
-                    if (poe_prefix_match(line_of_file, "vertex")) {
-                        sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
-                        for (u32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
-                    }
-                } else if (filetype == STL_FILETYPE_BINARY) {
-                }
-            }
-            fclose(file);
-
-            num_triangles = ascii_data.length / 9;
-            u32 size = ascii_data.length * sizeof(real32);
-            soup = (real32 *) malloc(size);
-            memcpy(soup, ascii_data.data, size);
-            list_free(&ascii_data);
-        } else {
-            ASSERT(filetype == STL_FILETYPE_BINARY);
-            char *entire_file; {
-                FILE *file = fopen(filename, "rb");
-                fseek(file, 0, SEEK_END);
-                long fsize = ftell(file);
-                fseek(file, 0, SEEK_SET);
-                entire_file = (char *) malloc(fsize + 1);
-                fread(entire_file, fsize, 1, file);
-                fclose(file);
-                entire_file[fsize] = 0;
-            }
-
-            u32 offset = 80;
-            memcpy(&num_triangles, entire_file + offset, 4);
-            offset += 4;
-
-            u32 size = num_triangles * 36;
-            soup = (real32 *) calloc(1, size);
-
-            for (u32 i = 0; i < num_triangles; ++i) {
-                offset += 12;
-                memcpy(soup + i * 9, entire_file + offset, 36);
-                offset += 38;
-            }
-        }
-        { // -90 degree rotation about x: (x, y, z) <- (x, z, -y)
-            u32 num_vertices = 3 * num_triangles;
-            for (u32 i = 0; i < num_vertices; ++i) {
-                real32 tmp = soup[3 * i + 1];
-                soup[3 * i + 1] = soup[3 * i + 2];
-                soup[3 * i + 2] = -tmp;
-            }
-        }
+        fclose(file);
     }
-
-    u32 num_vertices;
-    real32 *vertex_positions;
-    u32 *triangle_indices;
-    { // merge vertices
-
-        #if 0
-        // TODO: new O(n) version that only merges vertices with EXACTLY the same position
-        Map<vec3, u32> map = {};
-        free(soup);
-        #elif 1
-        // old O(n^2) approximate version
-        real32 MERGE_THRESHOLD_SQUARED_DISTANCE = powf(0.001f, 2);
-        Map<u32, u32> map = {};
+    { // conversation_mesh
+      // TODO: actually load an STL (currently the rabbit is an obj)
+        u32 num_triangles;
+        real32 *soup;
         {
-            List<vec3> list = {};
-            num_vertices = 0;
-            u32 _num_vertices = 3 * num_triangles;
-            for (u32 i = 0; i < _num_vertices; ++i) {
-                bool32 found = false;
-                vec3 p_i = get(soup, i);
-                for (u32 h = 0; h < i; ++h) {
-                    vec3 p_h = get(soup, h);
-                    if (squaredNorm(p_i - p_h) < MERGE_THRESHOLD_SQUARED_DISTANCE) {
-                        found = true;
-                        map_put(&map, i, map_get(&map, h));
-                        break;
+            static char line_of_file[512];
+
+            #define STL_FILETYPE_UNKNOWN 0
+            #define STL_FILETYPE_ASCII   1
+            #define STL_FILETYPE_BINARY  2
+            u32 filetype; {
+                FILE *file = (FILE *) fopen(filename, "r");
+                fgets(line_of_file, 80, file);
+                filetype = (poe_prefix_match(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
+                fclose(file);
+            }
+
+            if (filetype == STL_FILETYPE_ASCII) {
+                u8 ascii_scan_dummy[64];
+                real32 ascii_scan_p[3];
+                List<real32> ascii_data = {};
+
+                FILE *file = (FILE *) fopen(filename, "r");
+                while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
+                    if (filetype == STL_FILETYPE_ASCII) {
+                        if (poe_prefix_match(line_of_file, "vertex")) {
+                            sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
+                            for (u32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
+                        }
+                    } else if (filetype == STL_FILETYPE_BINARY) {
                     }
                 }
-                if (!found) {
-                    map_put(&map, i, num_vertices++);
-                    list_push_back(&list, p_i);
+                fclose(file);
+
+                num_triangles = ascii_data.length / 9;
+                u32 size = ascii_data.length * sizeof(real32);
+                soup = (real32 *) malloc(size);
+                memcpy(soup, ascii_data.data, size);
+                list_free(&ascii_data);
+            } else {
+                ASSERT(filetype == STL_FILETYPE_BINARY);
+                char *entire_file; {
+                    FILE *file = fopen(filename, "rb");
+                    fseek(file, 0, SEEK_END);
+                    long fsize = ftell(file);
+                    fseek(file, 0, SEEK_SET);
+                    entire_file = (char *) malloc(fsize + 1);
+                    fread(entire_file, fsize, 1, file);
+                    fclose(file);
+                    entire_file[fsize] = 0;
+                }
+
+                u32 offset = 80;
+                memcpy(&num_triangles, entire_file + offset, 4);
+                offset += 4;
+
+                u32 size = num_triangles * 36;
+                soup = (real32 *) calloc(1, size);
+
+                for (u32 i = 0; i < num_triangles; ++i) {
+                    offset += 12;
+                    memcpy(soup + i * 9, entire_file + offset, 36);
+                    offset += 38;
                 }
             }
+            { // -90 degree rotation about x: (x, y, z) <- (x, z, -y)
+                u32 num_vertices = 3 * num_triangles;
+                for (u32 i = 0; i < num_vertices; ++i) {
+                    real32 tmp = soup[3 * i + 1];
+                    soup[3 * i + 1] = soup[3 * i + 2];
+                    soup[3 * i + 2] = -tmp;
+                }
+            }
+        }
+
+        u32 num_vertices;
+        real32 *vertex_positions;
+        u32 *triangle_indices;
+        { // merge vertices
+            #if 1
+            // new O(n) version that only merges vertices with EXACTLY the same position
+            num_vertices = 0;
+            Map<vec3, u32> map = {};
+            u32 _3_TIMES_num_triangles = 3 * num_triangles;
             {
-                u32 size = num_vertices * sizeof(vec3);
-                vertex_positions = (real32 *) malloc(size);
-                memcpy(vertex_positions, list.data, size);
+                List<vec3> list = {};
+                for (u32 i = 0; i < _3_TIMES_num_triangles; ++i) {
+                    vec3 p = get(soup, i);
+                    u32 default_value = _3_TIMES_num_triangles + 1;
+                    u32 j = map_get(&map, p, default_value);
+                    if (j == default_value) {
+                        map_put(&map, p, num_vertices++);
+                        list_push_back(&list, p);
+                    }
+                }
+                {
+                    u32 size = list.length * sizeof(vec3);
+                    vertex_positions = (real32 *) malloc(size);
+                    memcpy(vertex_positions, list.data, size);
+                }
                 list_free(&list);
             }
+            triangle_indices = (u32 *) malloc(_3_TIMES_num_triangles * sizeof(u32));
+            for (u32 k = 0; k < _3_TIMES_num_triangles; ++k) triangle_indices[k] = map_get(&map, ((vec3 *) soup)[k]);
+            map_free(&map);
+            free(soup);
+            #elif 1
+            // old O(n^2) approximate version
+            real32 MERGE_THRESHOLD_SQUARED_DISTANCE = powf(0.001f, 2);
+            Map<u32, u32> map = {};
+            {
+                List<vec3> list = {};
+                num_vertices = 0;
+                u32 _num_vertices = 3 * num_triangles;
+                for (u32 i = 0; i < _num_vertices; ++i) {
+                    bool32 found = false;
+                    vec3 p_i = get(soup, i);
+                    for (u32 h = 0; h < i; ++h) {
+                        vec3 p_h = get(soup, h);
+                        if (squaredNorm(p_i - p_h) < MERGE_THRESHOLD_SQUARED_DISTANCE) {
+                            found = true;
+                            map_put(&map, i, map_get(&map, h));
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        map_put(&map, i, num_vertices++);
+                        list_push_back(&list, p_i);
+                    }
+                }
+                {
+                    u32 size = num_vertices * sizeof(vec3);
+                    vertex_positions = (real32 *) malloc(size);
+                    memcpy(vertex_positions, list.data, size);
+                    list_free(&list);
+                }
+            }
+            triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
+            for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = map_get(&map, k);
+            map_free(&map);
+            free(soup);
+            #else
+            // no merging
+            num_vertices = 3 * num_triangles;
+            vertex_positions = soup;
+            triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
+            for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = k;
+            #endif
         }
-        triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
-        for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = map_get(&map, k);
-        map_free(&map);
-        free(soup);
-        #else
-        // no merging
-        num_vertices = 3 * num_triangles;
-        vertex_positions = soup;
-        triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
-        for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = k;
-        #endif
 
+        conversation_mesh->num_vertices = num_vertices;
+        conversation_mesh->num_triangles = num_triangles;
+        conversation_mesh->vertex_positions = vertex_positions;
+        conversation_mesh->triangle_indices = triangle_indices;
+        conversation_mesh_triangle_normals_calculate(conversation_mesh);
+        conversation_mesh_cosmetic_edges_calculate(conversation_mesh);
+        conversation_messagef("[load] loaded %s", filename);
     }
-
-    conversation_mesh->num_vertices = num_vertices;
-    conversation_mesh->num_triangles = num_triangles;
-    conversation_mesh->vertex_positions = vertex_positions;
-    conversation_mesh->triangle_indices = triangle_indices;
-    conversation_mesh_triangle_normals_calculate(conversation_mesh);
-    conversation_mesh_cosmetic_edges_calculate(conversation_mesh);
-    conversation_messagef("[load] loaded %s", filename);
+    { // manifold_manifold
+      // FORNOW
+        ManifoldMeshGL *meshgl = manifold_meshgl(
+                malloc(manifold_meshgl_size()),
+                conversation_mesh->vertex_positions,
+                conversation_mesh->num_vertices,
+                3,
+                conversation_mesh->triangle_indices,
+                conversation_mesh->num_triangles);
+        *manifold_manifold = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
+        manifold_delete_meshgl(meshgl);
+    }
 }
 
 

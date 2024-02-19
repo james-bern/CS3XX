@@ -1906,7 +1906,7 @@ template <int D_pos, int D_color = 3> void soup_draw(
 // #include "easy_soup.cpp"/////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-#define ESO_MAX_VERTICES 999999
+#define ESO_MAX_VERTICES 9999999
 
 void _eso_reset() {
     COW1._eso_current_color[0] = 1.0;
@@ -3312,7 +3312,6 @@ template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key 
     }
     return default_value;
 }
-
 
 
 template <typename Key, typename Value> void map_free(Map<Key, Value> *map) {
