@@ -1,8 +1,11 @@
-// TODO: window selection
+// / window selection
+
+// IDEA: Translating and Rotating and scaling the (3D) work piece (like in a mill)
+
 // TODO: i don't really understand how memory works with the C bindings (malloc, etc.)
 // TODO: biiiig careful clean up pass
 
-// IDEA: Translating and Rotating and scaling the (3D) work piece (like in a mill)
+
 
 // // Conversation
 // This is a little CAD program Jim is making :)
@@ -22,6 +25,9 @@
 #include "cs345.cpp"
 #include "poe.cpp"
 #undef real // ???
+bool *key_pressed = globals.key_pressed;
+bool *key_toggled = globals.key_toggled;
+
 
 
 real32 Z_FIGHT_EPS = 0.05f;
@@ -1124,16 +1130,12 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, Conversation
 
                 FILE *file = (FILE *) fopen(filename, "r");
                 while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
-                    if (filetype == STL_FILETYPE_ASCII) {
-                        if (poe_prefix_match(line_of_file, "vertex")) {
-                            sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
-                            for (u32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
-                        }
-                    } else if (filetype == STL_FILETYPE_BINARY) {
+                    if (poe_prefix_match(line_of_file, "vertex")) {
+                        sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
+                        for (u32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
                     }
                 }
                 fclose(file);
-
                 num_triangles = ascii_data.length / 9;
                 u32 size = ascii_data.length * sizeof(real32);
                 soup = (real32 *) malloc(size);
@@ -1151,14 +1153,11 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, Conversation
                     fclose(file);
                     entire_file[fsize] = 0;
                 }
-
                 u32 offset = 80;
                 memcpy(&num_triangles, entire_file + offset, 4);
                 offset += 4;
-
                 u32 size = num_triangles * 36;
                 soup = (real32 *) calloc(1, size);
-
                 for (u32 i = 0; i < num_triangles; ++i) {
                     offset += 12;
                     memcpy(soup + i * 9, entire_file + offset, 36);
@@ -1179,8 +1178,6 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, Conversation
         real32 *vertex_positions;
         u32 *triangle_indices;
         { // merge vertices
-            #if 1
-            // new O(n) version that only merges vertices with EXACTLY the same position
             num_vertices = 0;
             Map<vec3, u32> map = {};
             u32 _3_TIMES_num_triangles = 3 * num_triangles;
@@ -1206,50 +1203,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, Conversation
             for (u32 k = 0; k < _3_TIMES_num_triangles; ++k) triangle_indices[k] = map_get(&map, ((vec3 *) soup)[k]);
             map_free(&map);
             free(soup);
-            #elif 1
-            // old O(n^2) approximate version
-            real32 MERGE_THRESHOLD_SQUARED_DISTANCE = powf(0.001f, 2);
-            Map<u32, u32> map = {};
-            {
-                List<vec3> list = {};
-                num_vertices = 0;
-                u32 _num_vertices = 3 * num_triangles;
-                for (u32 i = 0; i < _num_vertices; ++i) {
-                    bool32 found = false;
-                    vec3 p_i = get(soup, i);
-                    for (u32 h = 0; h < i; ++h) {
-                        vec3 p_h = get(soup, h);
-                        if (squaredNorm(p_i - p_h) < MERGE_THRESHOLD_SQUARED_DISTANCE) {
-                            found = true;
-                            map_put(&map, i, map_get(&map, h));
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        map_put(&map, i, num_vertices++);
-                        list_push_back(&list, p_i);
-                    }
-                }
-                {
-                    u32 size = num_vertices * sizeof(vec3);
-                    vertex_positions = (real32 *) malloc(size);
-                    memcpy(vertex_positions, list.data, size);
-                    list_free(&list);
-                }
-            }
-            triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
-            for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = map_get(&map, k);
-            map_free(&map);
-            free(soup);
-            #else
-            // no merging
-            num_vertices = 3 * num_triangles;
-            vertex_positions = soup;
-            triangle_indices = (u32 *) malloc(3 * num_triangles * sizeof(u32));
-            for (u32 k = 0; k < 3 * num_triangles; ++k) triangle_indices[k] = k;
-            #endif
         }
-
         conversation_mesh->num_vertices = num_vertices;
         conversation_mesh->num_triangles = num_triangles;
         conversation_mesh->vertex_positions = vertex_positions;
@@ -1272,17 +1226,6 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, Conversation
     }
 }
 
-
-
-
-
-
-
-
-
-
-bool *key_pressed = globals.key_pressed;
-bool *key_toggled = globals.key_toggled;
 
 
 // FORNOW M_selected
@@ -2243,23 +2186,15 @@ int main() {
                             real32 alpha;
                             {
                                 vec3 n_camera = transformNormal(V_3D, n);
-                                // if (n_camera.z > 0)
-                                {
-                                    if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
-                                        if (pass == 0) continue;
-                                        color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
-                                        alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
-                                    } else {
-                                        // if (n_camera.z < 0.0f) n_camera *= -1; // FORNOW
-                                        if (pass == 1) continue;
-                                        color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
-                                        alpha = 1.0f;
-                                    }
+                                if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
+                                    if (pass == 0) continue;
+                                    color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
+                                    alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
+                                } else {
+                                    if (pass == 1) continue;
+                                    color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
+                                    alpha = 1.0f;
                                 }
-                                // else {
-                                //     color = V3(1.0f, 0.0f, 0.0f);
-                                //     alpha = 1.0f;
-                                // }
                             }
                             eso_color(color, alpha);
                             eso_vertex(p[0]);
@@ -2326,13 +2261,6 @@ int main() {
                 }
 
                 {
-                    // if (strlen(conversation_drop_path) == 0) {
-                    //     gui_printf("drag and drop dxf...");
-                    // }
-                    // else {
-                    //    gui_printf("`%s", conversation_drop_path);
-                    // }
-
                     {
                         if (conversation_message_cooldown > 0) {
                             --conversation_message_cooldown;
@@ -2342,7 +2270,6 @@ int main() {
                         gui_printf("< %s", conversation_message_buffer);
                     }
                 }
-
 
                 if (show_details) {
                     gui_printf("%d dxf elements", dxf.num_entities);
@@ -2363,10 +2290,6 @@ int main() {
                         gui_printf("(Tab)-orthographic-perspective-view");
                     }
                 }
-
-
-                // gui_printf("---");
-                // if (gui_button("reset")) reset = true;
             }
         }
     }
