@@ -30,6 +30,30 @@ u32 NUM_SEGMENTS_PER_CIRCLE = 64;
 
 
 
+struct BoundingBox {
+    real32 min[2];
+    real32 max[2];
+};
+BoundingBox bounding_box_union(u32 num_bounding_boxes, BoundingBox *bounding_boxes) {
+    BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
+    for (u32 i = 0; i < num_bounding_boxes; ++i) {
+        for (u32 d = 0; d < 2; ++d) {
+            result.min[d] = MIN(result.min[d], bounding_boxes[i].min[d]);
+            result.max[d] = MAX(result.max[d], bounding_boxes[i].max[d]);
+        }
+    }
+    return result;
+}
+bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
+    for (u32 d = 0; d < 2; ++d) {
+        if (outer.min[d] > inner.min[d]) return false;
+        if (outer.max[d] < inner.max[d]) return false;
+    }
+    return true;
+}
+
+
+
 
 char conversation_message_buffer[256];
 u32 conversation_message_cooldown;
@@ -383,7 +407,7 @@ struct DXFLoopAnalysisResult {
     u32 *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_mask = NULL) {
+DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_mask_NOTE_pass_NULL_for_pick = NULL) {
     if (dxf->num_entities == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
@@ -399,7 +423,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
-                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!dxf_selection_mask || dxf_selection_mask[i]))
+                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!dxf_selection_mask_NOTE_pass_NULL_for_pick || dxf_selection_mask_NOTE_pass_NULL_for_pick[i]))
                 { // seed loop
                     bool32 added_and_seeded_new_loop = false;
                     for (u32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
@@ -545,11 +569,13 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 }
 
 void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
-    free(analysis->num_entities_in_loops);
-    for (u32 i = 0; i < analysis->num_loops; ++i) {
-        free(analysis->loops[i]);
+    if (analysis->num_entities_in_loops) { // FORNOW
+        free(analysis->num_entities_in_loops);
+        for (u32 i = 0; i < analysis->num_loops; ++i) {
+            free(analysis->loops[i]);
+        }
+        free(analysis->loop_index_from_entity_index);
     }
-    free(analysis->loop_index_from_entity_index);
 }
 
 
@@ -560,42 +586,60 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define SELECT_MODIFIER_NONE 0
 #define SELECT_MODIFIER_CONNECTED 1
 #define SELECT_MODIFIER_QUALITY 2
+#define SELECT_MODIFIER_WINDOW 3
 #define _SELECT_MODIFIER_DEFAULT SELECT_MODIFIER_NONE
-void dxf_pick(mat4 PV_2D, real32 camera2D_screen_height_World, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index) {
+void dxf_pick(real32 mouse_x, real32 mouse_y, real32 camera2D_screen_height_World, DXF *dxf, bool32 *dxf_selection_mask, u32 select_mode, u32 select_modifier, u32 *num_entities_in_pick_loops, DXFEntityIndexAndFlipFlag **pick_loops, u32 *pick_loop_index_from_entity_index, real32 *window_select_x, real32 *window_select_y, u32 *window_select_click_count, BoundingBox *bbox) {
     if (!globals.mouse_left_held) return;
     if (select_mode == SELECT_MODE_NONE) return;
 
     bool32 value_to_write_to_selection_mask = (select_mode == SELECT_MODE_SELECT);
     bool32 modifier_connected = (select_modifier == SELECT_MODIFIER_CONNECTED);
 
-    real32 x, y;
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &x, &y, NULL, NULL);
 
-    int hot_entity_index = -1;
-    double hot_squared_distance = HUGE_VAL;
-    for (u32 i = 0; i < dxf->num_entities; ++i) {
-        DXFEntity *entity = &dxf->entities[i];
-        double squared_distance = squared_distance_point_entity(x, y, entity);
-        squared_distance /= (camera2D_screen_height_World * camera2D_screen_height_World / 4); // NDC
-        if (squared_distance <
-                //MIN(epsilon * epsilon, hot_squared_distance)
-                hot_squared_distance
-           ) {
-            hot_squared_distance = squared_distance;
-            hot_entity_index = i;
+    if (select_modifier != SELECT_MODIFIER_WINDOW) {
+        int hot_entity_index = -1;
+        double hot_squared_distance = HUGE_VAL;
+        for (u32 i = 0; i < dxf->num_entities; ++i) {
+            DXFEntity *entity = &dxf->entities[i];
+            double squared_distance = squared_distance_point_entity(mouse_x, mouse_y, entity);
+            squared_distance /= (camera2D_screen_height_World * camera2D_screen_height_World / 4); // NDC
+            if (squared_distance < hot_squared_distance) {
+                hot_squared_distance = squared_distance;
+                hot_entity_index = i;
+            }
         }
-    }
-
-    if (hot_entity_index != -1) {
-        if (globals.mouse_left_held) {
-            if (!modifier_connected) {
-                dxf_selection_mask[hot_entity_index] = value_to_write_to_selection_mask;
+        if (hot_entity_index != -1) {
+            if (globals.mouse_left_held) {
+                if (!modifier_connected) {
+                    dxf_selection_mask[hot_entity_index] = value_to_write_to_selection_mask;
+                } else {
+                    u32 loop_index = pick_loop_index_from_entity_index[hot_entity_index];
+                    DXFEntityIndexAndFlipFlag *loop = pick_loops[loop_index];
+                    u32 num_entities = num_entities_in_pick_loops[loop_index];
+                    for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
+                        dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value_to_write_to_selection_mask;
+                    }
+                }
+            }
+        }
+    } else {
+        if (globals.mouse_left_pressed) {
+            if (*window_select_click_count == 0) {
+                ++*window_select_click_count;
+                *window_select_x = mouse_x;
+                *window_select_y = mouse_y;
             } else {
-                u32 loop_index = pick_loop_index_from_entity_index[hot_entity_index];
-                DXFEntityIndexAndFlipFlag *loop = pick_loops[loop_index];
-                u32 num_entities = num_entities_in_pick_loops[loop_index];
-                for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
-                    dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value_to_write_to_selection_mask;
+                *window_select_click_count = 0;
+                BoundingBox window = {
+                    MIN(*window_select_x, mouse_x),
+                    MIN(*window_select_y, mouse_y),
+                    MAX(*window_select_x, mouse_x),
+                    MAX(*window_select_y, mouse_y)
+                };
+                for (u32 i = 0; i < dxf->num_entities; ++i) {
+                    if (bounding_box_contains(window, bbox[i])) {
+                        dxf_selection_mask[i] = value_to_write_to_selection_mask;
+                    }
                 }
             }
         }
@@ -986,7 +1030,7 @@ void wrapper_manifold(
 
     // add
     if (!(*manifold_manifold)) {
-        if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) { return; } // FORNOW
+        if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT || enter_mode == ENTER_MODE_REVOLVE_SUBTRACT) { return; } // FORNOW
 
         *manifold_manifold = other_manifold;
     } else {
@@ -1257,20 +1301,23 @@ mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
     return M4_xyzo(x, y, z, r_n_selected * n_selected);
 }
 
-void camera2D_zoom_to_dxf_extents(Camera2D *camera2D, DXF *dxf) {
-    real32 min[] = {  HUGE_VAL,  HUGE_VAL };
-    real32 max[] = { -HUGE_VAL, -HUGE_VAL };
-    for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
+
+
+BoundingBox *dxf_entity_bounding_boxes_create(DXF *dxf) {
+    BoundingBox *result = (BoundingBox *) malloc(dxf->num_entities * sizeof(BoundingBox));
+
+    for (u32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
+        DXFEntity *entity = &dxf->entities[entity_index];
+        result[entity_index] = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
         real32 s[2][2];
         u32 n = 2;
         entity_get_start_and_end_points(entity, &s[0][0], &s[0][1], &s[1][0], &s[1][1]);
         for (u32 i = 0; i < n; ++i) {
             for (u32 d = 0; d < 2; ++d) {
-                min[d] = MIN(min[d], s[i][d]);
-                max[d] = MAX(max[d], s[i][d]);
+                result[entity_index].min[d] = MIN(result[entity_index].min[d], s[i][d]);
+                result[entity_index].max[d] = MAX(result[entity_index].max[d], s[i][d]);
             }
         }
-
         if (entity->type == DXF_ENTITY_TYPE_ARC) {
             DXFArc *arc = &entity->arc;
             // NOTE: endpoints already taken are of
@@ -1286,16 +1333,22 @@ void camera2D_zoom_to_dxf_extents(Camera2D *camera2D, DXF *dxf) {
                     end_angle -= TAU;
                 }
             }
-            if (IS_BETWEEN(         0, start_angle, end_angle)) max[0] = MAX(max[0], arc->center_x + arc->radius);
-            if (IS_BETWEEN(    PI / 2, start_angle, end_angle)) max[1] = MAX(max[1], arc->center_y + arc->radius);
-            if (IS_BETWEEN(    PI    , start_angle, end_angle)) min[0] = MIN(min[0], arc->center_x - arc->radius);
-            if (IS_BETWEEN(3 * PI / 2, start_angle, end_angle)) min[1] = MIN(min[1], arc->center_y - arc->radius);
-
+            if (IS_BETWEEN(         0, start_angle, end_angle)) result[entity_index].max[0] = MAX(result[entity_index].max[0], arc->center_x + arc->radius);
+            if (IS_BETWEEN(    PI / 2, start_angle, end_angle)) result[entity_index].max[1] = MAX(result[entity_index].max[1], arc->center_y + arc->radius);
+            if (IS_BETWEEN(    PI    , start_angle, end_angle)) result[entity_index].min[0] = MIN(result[entity_index].min[0], arc->center_x - arc->radius);
+            if (IS_BETWEEN(3 * PI / 2, start_angle, end_angle)) result[entity_index].min[1] = MIN(result[entity_index].min[1], arc->center_y - arc->radius);
         }
     }
-    real32 new_o_x = AVG(min[0], max[0]);
-    real32 new_o_y = AVG(min[1], max[1]);
-    real32 new_height = MAX((max[0] - min[0]) * 2 / _window_get_aspect(), (max[1] - min[1])); // factor of 2 since splitscreen
+
+    return result;
+}
+
+void camera2D_zoom_to_dxf_extents(Camera2D *camera2D, u32 dxf_num_entities, BoundingBox *bbox) {
+    BoundingBox extents = bounding_box_union(dxf_num_entities, bbox);
+
+    real32 new_o_x = AVG(extents.min[0], extents.max[0]);
+    real32 new_o_y = AVG(extents.min[1], extents.max[1]);
+    real32 new_height = MAX((extents.max[0] - extents.min[0]) * 2 / _window_get_aspect(), (extents.max[1] - extents.min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
     camera2D->screen_height_World = new_height;
     camera2D->o_x = new_o_x;
@@ -1350,7 +1403,8 @@ IndexedTriangleMesh3D grid_box = {
     _grid_box_vertex_texCoords
 };
 
-real32 GRID_3D_LENGTH = 256.0f;
+real32 GRID_SIDE_LENGTH = 256.0f;
+real32 GRID_SPACING = 10.0f;
 
 BEGIN_PRE_MAIN {
     u32 texture_side_length = 1024;
@@ -1360,7 +1414,7 @@ BEGIN_PRE_MAIN {
     for (u32 j = 0; j < texture_side_length; ++j) {
         for (u32 i = 0; i < texture_side_length; ++i) {
             u32 k = number_of_channels * (j * texture_side_length + i);
-            u32 n = texture_side_length / GRID_3D_LENGTH * 10;
+            u32 n = texture_side_length / GRID_SIDE_LENGTH * 10;
             u32 t = 2;
             bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
             u8 value = 0;
@@ -1375,6 +1429,7 @@ BEGIN_PRE_MAIN {
 
 
 
+
 #define HOT_PANE_NONE 0
 #define HOT_PANE_2D   1
 #define HOT_PANE_3D   2
@@ -1382,6 +1437,9 @@ u32 hot_pane;
 
 u32 select_mode;
 u32 select_modifier;
+u32 window_select_click_count;
+real32 window_select_x;
+real32 window_select_y;
 
 bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: if this is false, then a plane is selected
 vec3 n_selected;
@@ -1394,8 +1452,32 @@ void selected_reset() {
     M_selected = {}; // FORNOW: implicit no selection
 }
 
+
+
+
+
+
+void dxf_free_and_load(char *filename, DXF *dxf, DXFLoopAnalysisResult *pick, bool32 **dxf_selection_mask, BoundingBox **bbox, Camera2D *camera2D) {
+    dxf_free(dxf);
+    dxf_loop_analysis_free(pick);
+    free(*dxf_selection_mask);
+    free(*bbox);
+
+    *dxf = dxf_load(filename);
+    *dxf_selection_mask = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
+    *pick = dxf_loop_analysis_create(dxf);
+    *bbox = dxf_entity_bounding_boxes_create(dxf);
+
+    camera2D_zoom_to_dxf_extents(camera2D, dxf->num_entities, *bbox);
+}
+
+
+
+
+
 DXF dxf;
 DXFLoopAnalysisResult pick;
+BoundingBox *bbox;
 
 bool32 *dxf_selection_mask;
 
@@ -1424,16 +1506,12 @@ bool32 show_grid, show_details, show_help;
 
 
 
+
 char conversation_drop_path[512];
 
 void conversation_load_file(char *filename) {
     if (poe_suffix_match(filename, ".dxf")) {
-        dxf_free(&dxf);
-        free(dxf_selection_mask);
-        dxf = dxf_load(filename);
-        pick = dxf_loop_analysis_create(&dxf);
-        dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
-        camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
+        dxf_free_and_load(filename, &dxf, &pick, &dxf_selection_mask, &bbox, &camera2D);
 
         for (u32 i = 0; i < strlen(filename); ++i) {
             conversation_drop_path[i] = filename[i];
@@ -1482,14 +1560,8 @@ int main() {
             select_modifier = _SELECT_MODIFIER_DEFAULT;
 
             selected_reset(); 
-            // some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-            // n_selected = { 0.0, 1.0, 0.0 };
-            // r_n_selected = 0.0f;
-            // M_selected = get_M_selected(n_selected, r_n_selected);
 
-            dxf = dxf_load("splash.dxf");
-            pick = dxf_loop_analysis_create(&dxf);
-            dxf_selection_mask = (bool32 *) calloc(dxf.num_entities, sizeof(bool32));
+            dxf_free_and_load("splash.dxf", &dxf, &pick, &dxf_selection_mask, &bbox, &camera2D);
 
             manifold_manifold = NULL;
             conversation_mesh = {};
@@ -1543,7 +1615,7 @@ int main() {
             { // cameras
                 real32 height = 128.0f;
                 camera2D = { height, 0.0, 0.0f, -0.5f, -0.25f };
-                camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
+                camera2D_zoom_to_dxf_extents(&camera2D, dxf.num_entities, bbox);
                 camera3D = { 200.0f, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-33.0f), 0.0f, 70.0f, 0.5f, 0.25f };
             }
 
@@ -1696,7 +1768,7 @@ int main() {
                 } else if (key_pressed['u']) {
                     history_undo(&history, &manifold_manifold, &conversation_mesh);
                 } else if (key_pressed['Z'] && globals.key_shift_held) {
-                    camera2D_zoom_to_dxf_extents(&camera2D, &dxf);
+                    camera2D_zoom_to_dxf_extents(&camera2D, dxf.num_entities, bbox);
                 } else if (key_pressed['S'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_SAVE;
                 } else if (key_pressed['g']) {
@@ -1708,6 +1780,9 @@ int main() {
                 } else if (key_pressed['s']) {
                     select_mode = SELECT_MODE_SELECT;
                     select_modifier = SELECT_MODIFIER_NONE;
+                } else if (key_pressed['w']) {
+                    select_modifier = SELECT_MODIFIER_WINDOW;
+                    window_select_click_count = 0;
                 } else if (key_pressed['d']) {
                     select_mode = SELECT_MODE_DESELECT;
                     select_modifier = SELECT_MODIFIER_NONE;
@@ -1853,15 +1928,13 @@ int main() {
         mat4 P_3D = camera_get_P(&camera3D);
         mat4 V_3D = camera_get_V(&camera3D);
         mat4 PV_3D = P_3D * V_3D;
-
-
-
+        real32 mouse_x, mouse_y;{ _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
 
         { // ui
             if (globals._input_owner == COW_INPUT_OWNER_NONE) {
                 { // pick 2D pick 2d pick
                     if (hot_pane == HOT_PANE_2D) {
-                        dxf_pick(PV_2D, camera2D.screen_height_World, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index);
+                        dxf_pick(mouse_x, mouse_y, camera2D.screen_height_World, &dxf, dxf_selection_mask, select_mode, select_modifier, pick.num_entities_in_loops, pick.loops, pick.loop_index_from_entity_index, &window_select_x, &window_select_y, &window_select_click_count, bbox);
                     }
                 }
 
@@ -1972,14 +2045,20 @@ int main() {
                 {
                     if (show_grid) { // grid 2D grid 2d grid
                         eso_begin(PV_2D, SOUP_LINES, 2.0f);
-                        eso_color(0.2f, 0.2f, 0.2f);
-                        for (u32 i = 0; i <= 30; ++i) {
-                            real32 tmp = i * 10.0f;
-                            eso_vertex(tmp,   0.0f);
-                            eso_vertex(tmp, 300.0f);
-                            eso_vertex(  0.0f, tmp);
-                            eso_vertex(300.0f, tmp);
+                        eso_color(80.0f / 255, 80.0f / 255, 80.0f / 255);
+                        for (u32 i = 0; i <= u32(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
+                            real32 tmp = i * GRID_SPACING;
+                            eso_vertex(tmp, 0.0f);
+                            eso_vertex(tmp, GRID_SIDE_LENGTH);
+                            eso_vertex(0.0f, tmp);
+                            eso_vertex(GRID_SIDE_LENGTH, tmp);
                         }
+                        eso_end();
+                        eso_begin(PV_2D, SOUP_LINE_LOOP, 2.0f);
+                        eso_vertex(0.0f, 0.0f);
+                        eso_vertex(0.0f, GRID_SIDE_LENGTH);
+                        eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
+                        eso_vertex(GRID_SIDE_LENGTH, 0.0f);
                         eso_end();
                     }
                     { // entities
@@ -2013,6 +2092,21 @@ int main() {
                         eso_vertex(0.0f, -r);
                         eso_vertex(0.0f,  r*.8f);
                         eso_end();
+                    }
+                    if (select_modifier == SELECT_MODIFIER_WINDOW) { // select window
+                        if (window_select_click_count == 1) {
+                            eso_begin(PV_2D, SOUP_LINE_LOOP, 2.0f);
+                            eso_color(0.0f, 1.0f, 1.0f);
+                            real32 x0 = window_select_x;
+                            real32 y0 = window_select_y;
+                            real32 x1 = mouse_x;
+                            real32 y1 = mouse_y;
+                            eso_vertex(x0, y0);
+                            eso_vertex(x1, y0);
+                            eso_vertex(x1, y1);
+                            eso_vertex(x0, y1);
+                            eso_end();
+                        }
                     }
                 }
                 glDisable(GL_SCISSOR_TEST);
@@ -2116,7 +2210,7 @@ int main() {
                 if (show_grid) { // grid 3D grid 3d grid
                     glEnable(GL_CULL_FACE);
                     glCullFace(GL_FRONT);
-                    real32 L = GRID_3D_LENGTH;
+                    real32 L = GRID_SIDE_LENGTH;
                     grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
                     glDisable(GL_CULL_FACE);
                 }
