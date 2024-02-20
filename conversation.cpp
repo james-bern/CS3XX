@@ -1,3 +1,4 @@
+// TODO: window selection
 // TODO: i don't really understand how memory works with the C bindings (malloc, etc.)
 // TODO: biiiig careful clean up pass
 
@@ -1349,25 +1350,26 @@ IndexedTriangleMesh3D grid_box = {
     _grid_box_vertex_texCoords
 };
 
+real32 GRID_3D_LENGTH = 256.0f;
 
 BEGIN_PRE_MAIN {
-    u32 width = 1024;
-    u32 height = 1024;
+    u32 texture_side_length = 1024;
     u32 number_of_channels = 3;
-    u8 *data = (u8 *) malloc(width * height * 3 * sizeof(u8));
-    for (u32 j = 0; j < height; ++j) {
-        for (u32 i = 0; i < width; ++i) {
-            u32 k = number_of_channels * (j * width + i);
-            u32 n = 1024 / 10;
-            u32 t = 4;
-            bool32 stripe = ((i % n < t) || (j % n < t));
-            u8 value = (stripe) ? 80 : 0;
-            data[k + 0] = value;
-            data[k + 1] = value;
-            data[k + 2] = value;
+    u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * 3 * sizeof(u8));
+    u32 o = 9;
+    for (u32 j = 0; j < texture_side_length; ++j) {
+        for (u32 i = 0; i < texture_side_length; ++i) {
+            u32 k = number_of_channels * (j * texture_side_length + i);
+            u32 n = texture_side_length / GRID_3D_LENGTH * 10;
+            u32 t = 2;
+            bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
+            u8 value = 0;
+            if (stripe) value = 80;
+            if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
+            for (u32 d = 0; d < 3; ++d) data[k + d] = value;
         }
     }
-    _mesh_texture_create("procedural grid", width, height, number_of_channels, data);
+    _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
 } END_PRE_MAIN;
 
 
@@ -2114,8 +2116,8 @@ int main() {
                 if (show_grid) { // grid 3D grid 3d grid
                     glEnable(GL_CULL_FACE);
                     glCullFace(GL_FRONT);
-                    real32 r = 256.0f;
-                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, r / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(r / 2), {}, "procedural grid");
+                    real32 L = GRID_3D_LENGTH;
+                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
                     glDisable(GL_CULL_FACE);
                 }
 
