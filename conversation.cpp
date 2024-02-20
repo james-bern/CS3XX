@@ -2,6 +2,10 @@
 
 // IDEA: Translating and Rotating and scaling the (3D) work piece (like in a mill)
 
+// TODO: set (Z)ero
+
+
+
 // TODO: i don't really understand how memory works with the C bindings (malloc, etc.)
 // TODO: biiiig careful clean up pass
 
@@ -14,25 +18,36 @@
 // / basic undo (chain of stls and manifold_manifold)
 // / messages from app (messagef) for missing path, etc.
 
-// TODO 3D zoom to extents as part of load (pass camera2D to load)
-// TODO: finish stl_load
 // TODO: color codes instead of ` in gui_printf
 
 
 // ? TODO: the Hard problem of avoiding the creation of ultra-thin features
 
 
+#include "manifoldc.h"
 #include "cs345.cpp"
 #include "poe.cpp"
 #undef real // ???
 bool *key_pressed = globals.key_pressed;
 bool *key_toggled = globals.key_toggled;
 
+vec3 get(real32 *x, u32 i) {
+    vec3 result;
+    for (u32 d = 0; d < 3; ++d) result.data[d] = x[3 * i + d];
+    return result;
+}
+void add(real32 *x, u32 i, vec3 v) {
+    for (u32 d = 0; d < 3; ++d) x[3 * i + d] += v.data[d];
+}
+void eso_vertex(real32 *p_j) {
+    eso_vertex(p_j[0], p_j[1], p_j[2]);
+}
+void eso_vertex(real32 *p, u32 j) {
+    eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
+}
 
 
-real32 Z_FIGHT_EPS = 0.05f;
-real32 TOLERANCE_DEFAULT = 1e-5f;
-u32 NUM_SEGMENTS_PER_CIRCLE = 64;
+
 
 
 
@@ -59,6 +74,11 @@ bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
 }
 
 
+real32 Z_FIGHT_EPS = 0.05f;
+real32 TOLERANCE_DEFAULT = 1e-5f;
+u32 NUM_SEGMENTS_PER_CIRCLE = 64;
+
+
 
 
 char conversation_message_buffer[256];
@@ -70,6 +90,77 @@ void conversation_messagef(char *format, ...) {
     va_end(arg);
     conversation_message_cooldown = 600;
 }
+
+
+
+
+int _grid_box_num_triangles = 12;
+int _grid_box_num_vertices = 24;
+int3 _grid_box_triangle_indices[] = {
+    { 1, 0, 2},{ 2, 0, 3},
+    { 4, 5, 6},{ 4, 6, 7},
+    { 8, 9,10},{ 8,10,11},
+    {13,12,14},{14,12,15},
+    {17,16,18},{18,16,19},
+    {20,21,22},{20,22,23},
+};
+vec3 _grid_box_vertex_positions[] = {
+    { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
+    {-1, 1, 1},{-1, 1,-1},{-1,-1,-1},{-1,-1, 1},
+    { 1, 1, 1},{ 1, 1,-1},{-1, 1,-1},{-1, 1, 1},
+    { 1,-1, 1},{ 1,-1,-1},{-1,-1,-1},{-1,-1, 1},
+    { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
+    { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
+};
+vec3 _grid_box_vertex_colors[] = {
+    { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{ 0.8f,0.4f, 0.8f},
+    {0.4f, 0.8f, 0.8f},{0.4f, 0.8f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
+    { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{0.4f, 0.8f,0.4f},{0.4f, 0.8f, 0.8f},
+    { 0.8f,0.4f, 0.8f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
+    { 0.8f, 0.8f, 0.8f},{ 0.8f,0.4f, 0.8f},{0.4f,0.4f, 0.8f},{0.4f, 0.8f, 0.8f},
+    { 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f, 0.8f,0.4f},
+};
+vec2 _grid_box_vertex_texCoords[] = {
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+};
+IndexedTriangleMesh3D grid_box = {
+    _grid_box_num_vertices,
+    _grid_box_num_triangles,
+    _grid_box_vertex_positions,
+    NULL,
+    _grid_box_vertex_colors,
+    _grid_box_triangle_indices,
+    _grid_box_vertex_texCoords
+};
+real32 GRID_SIDE_LENGTH = 256.0f;
+real32 GRID_SPACING = 10.0f;
+BEGIN_PRE_MAIN {
+    u32 texture_side_length = 1024;
+    u32 number_of_channels = 3;
+    u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * 3 * sizeof(u8));
+    u32 o = 9;
+    for (u32 j = 0; j < texture_side_length; ++j) {
+        for (u32 i = 0; i < texture_side_length; ++i) {
+            u32 k = number_of_channels * (j * texture_side_length + i);
+            u32 n = texture_side_length / GRID_SIDE_LENGTH * 10;
+            u32 t = 2;
+            bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
+            u8 value = 0;
+            if (stripe) value = 80;
+            if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
+            for (u32 d = 0; d < 3; ++d) data[k + d] = value;
+        }
+    }
+    _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
+} END_PRE_MAIN;
+
+
+
 
 ////////////////////////////////////////
 // 2D //////////////////////////////////
@@ -170,9 +261,10 @@ struct DXF {
 
 void dxf_free(DXF *dxf) {
     if (dxf->entities) free(dxf->entities);
+    *dxf = {};
 }
 
-DXF dxf_load(char *filename) {
+void dxf_load(char *filename, DXF *dxf) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
@@ -192,12 +284,12 @@ DXF dxf_load(char *filename) {
         return result;
     }
     #endif
-    DXF result = {};
+    dxf_free(dxf);
 
     FILE *file = (FILE *) fopen(filename, "r");
     if (!file) {
         conversation_messagef("\"%s\" not found", filename);
-        return result;
+        return;
     }
     conversation_messagef("loaded %s", filename);
 
@@ -278,14 +370,12 @@ DXF dxf_load(char *filename) {
 
     fclose(file);
 
-    result.num_entities = stretchy_list.length;
-    result.entities = (DXFEntity *) calloc(result.num_entities, sizeof(DXFEntity));
-    memcpy(result.entities, stretchy_list.data, result.num_entities * sizeof(DXFEntity));
+    dxf->num_entities = stretchy_list.length;
+    dxf->entities = (DXFEntity *) calloc(dxf->num_entities, sizeof(DXFEntity));
+    memcpy(dxf->entities, stretchy_list.data, dxf->num_entities * sizeof(DXFEntity));
     list_free(&stretchy_list);
-    return result;
 }
 
-// TODO: Port this into a function mutating a real32 *
 void _dxf_eso_color(u32 color) {
     if      (color == 0) { eso_color( 83 / 255.0f, 255 / 255.0f,  85 / 255.0f); }
     else if (color == 1) { eso_color(255 / 255.0f,   0 / 255.0f,   0 / 255.0f); }
@@ -338,6 +428,9 @@ void dxf_debug_draw(Camera2D *camera2D, DXF *dxf, int32 override_color = DXF_COL
     }
     eso_end();
 }
+
+
+
 
 real32 squared_distance_point_point(real32 x_A, real32 y_A, real32 x_B, real32 y_B) {
     real32 dx = (x_A - x_B);
@@ -400,6 +493,9 @@ real32 squared_distance_point_dxf(real32 x, real32 y, DXF *dxf) {
     }
     return result;
 }
+
+
+
 
 struct DXFEntityIndexAndFlipFlag {
     u32 entity_index;
@@ -585,6 +681,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 }
 
 
+
 #define SELECT_MODE_NONE 0
 #define SELECT_MODE_SELECT 1
 #define SELECT_MODE_DESELECT 2
@@ -652,19 +749,18 @@ void dxf_pick(real32 mouse_x, real32 mouse_y, real32 camera2D_screen_height_Worl
     }
 }
 
-// NOTE: even odd
-struct CrossSection {
+struct CrossSectionEvenOdd {
     u32 num_polygonal_loops;
     u32 *num_vertices_in_polygonal_loops;
     vec2 **polygonal_loops;
 };
 
-CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
+CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf_selection_mask);
-        CrossSection result = {};
+        CrossSectionEvenOdd result = {};
         result.num_polygonal_loops = 2;
         result.num_vertices_in_polygonal_loops = (u32 *) calloc(result.num_polygonal_loops, sizeof(u32));
         result.num_vertices_in_polygonal_loops[0] = 4;
@@ -725,7 +821,7 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     }
 
     // copy over from List's
-    CrossSection result = {};
+    CrossSectionEvenOdd result = {};
     result.num_polygonal_loops = stretchy_list.length;
     result.num_vertices_in_polygonal_loops = (u32 *) calloc(result.num_polygonal_loops, sizeof(u32));
     result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
@@ -742,7 +838,7 @@ CrossSection cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     return result;
 }
 
-void cross_section_debug_draw(Camera2D *camera2D, CrossSection *cross_section) {
+void cross_section_debug_draw(Camera2D *camera2D, CrossSectionEvenOdd *cross_section) {
     eso_begin(camera_get_PV(camera2D), SOUP_LINES);
     eso_color(monokai.white);
     for (u32 loop_index = 0; loop_index < cross_section->num_polygonal_loops; ++loop_index) {
@@ -814,8 +910,7 @@ void conversation_mesh_triangle_normals_calculate(ConversationMesh *conversation
     conversation_mesh->triangle_normals = (real32 *) malloc(conversation_mesh->num_triangles * 3 * sizeof(real32));
     vec3 p[3];
     for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
-        // TODO: use get()
-        for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh->vertex_positions[3 * conversation_mesh->triangle_indices[3 * i + j] + d];
+        for (u32 j = 0; j < 3; ++j) p[j] = get(conversation_mesh->vertex_positions, conversation_mesh->triangle_indices[3 * i + j]);
         vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
         for (u32 d = 0; d < 3; ++d) conversation_mesh->triangle_normals[3 * i + d] = n[d];
     }
@@ -829,11 +924,10 @@ void conversation_mesh_cosmetic_edges_calculate(ConversationMesh *conversation_m
     // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
     //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
     //           then go back through the array and sum the components; if below some threshold (maybe...0.9?) add that index to a stretchy buffer
-    // TODO: a linalg library that operates directly on real32 *'s (like you used in soft_robot.h)
     List<u32> list = {}; {
         Map<Pair<u32, u32>, vec3> map = {}; {
             for (u32 i = 0; i < conversation_mesh->num_triangles; ++i) {
-                vec3 n = { conversation_mesh->triangle_normals[3 * i + 0], conversation_mesh->triangle_normals[3 * i + 1], conversation_mesh->triangle_normals[3 * i + 2] };
+                vec3 n = get(conversation_mesh->triangle_normals, i);
                 for (u32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
                     u32 j0 = conversation_mesh->triangle_indices[3 * i + jj0];
                     u32 j1 = conversation_mesh->triangle_indices[3 * i + jj1];
@@ -843,7 +937,7 @@ void conversation_mesh_cosmetic_edges_calculate(ConversationMesh *conversation_m
                         j1 = tmp;
                     }
                     Pair<u32, u32> key = { j0, j1 };
-                    map_put(&map, key, cwiseProduct(n, map_get(&map, key, { 1.0f, 1.0f, 1.0f })));
+                    map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
                 }
             }
         }
@@ -852,13 +946,12 @@ void conversation_mesh_cosmetic_edges_calculate(ConversationMesh *conversation_m
                 for (Pair<Pair<u32, u32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
                     vec3 n2 = pair->value;
                     // pprint(n2);
-                    if ((n2.x + n2.y + n2.z) < 0.9f) {
+                    if (squaredNorm(n2) < 0.3f) {
                         list_push_back(&list, pair->key.first); // FORNOW
                         list_push_back(&list, pair->key.second); // FORNOW
                     }
                 }
             }
-            // TODO: move this elsewhere
         }
         map_free(&map);
     }
@@ -870,13 +963,6 @@ void conversation_mesh_cosmetic_edges_calculate(ConversationMesh *conversation_m
     list_free(&list);
 }
 
-void eso_vertex(real32 *p_j) {
-    eso_vertex(p_j[0], p_j[1], p_j[2]);
-}
-
-void eso_vertex(real32 *p, u32 j) {
-    eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
-}
 
 void stl_save(ConversationMesh *conversation_mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
@@ -927,7 +1013,6 @@ void conversation_mesh_free(ConversationMesh *conversation_mesh) {
 }
 
 
-#include "manifoldc.h"
 
 
 
@@ -940,7 +1025,6 @@ struct History {
     List<HistoryState> undo_stack;
     List<HistoryState> redo_stack;
 };
-
 void history_record_state(History *history, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
     list_push_back(&history->undo_stack, { *manifold_manifold, *conversation_mesh });
     for (u32 i = 0; i < history->redo_stack.length; ++i) {
@@ -949,7 +1033,6 @@ void history_record_state(History *history, ManifoldManifold **manifold_manifold
     }
     list_free(&history->redo_stack);
 }
-
 void history_undo(History *history, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
     if (history->undo_stack.length != 0) {
         list_push_back(&history->redo_stack, { *manifold_manifold, *conversation_mesh });
@@ -960,7 +1043,6 @@ void history_undo(History *history, ManifoldManifold **manifold_manifold, Conver
         conversation_messagef("[history] undo stack is empty");
     }
 }
-
 void history_redo(History *history, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
     if (history->redo_stack.length != 0) {
         list_push_back(&history->undo_stack, { *manifold_manifold, *conversation_mesh });
@@ -971,7 +1053,6 @@ void history_redo(History *history, ManifoldManifold **manifold_manifold, Conver
         conversation_messagef("[history] redo stack is empty");
     }
 }
-
 void history_free(History *history) {
     list_free(&history->undo_stack);
     list_free(&history->redo_stack);
@@ -987,7 +1068,7 @@ void wrapper_manifold(
         u32 num_polygonal_loops,
         u32 *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
-        mat4 M_selected,
+        mat4 M_3D_from_2D,
         u32 enter_mode,
         bool32 extrude_param_sign_toggle,
         real32 extrude_param,
@@ -1027,10 +1108,10 @@ void wrapper_manifold(
                 other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
             }
             other_manifold = manifold_transform(other_manifold, other_manifold,
-                    M_selected(0, 0), M_selected(1, 0), M_selected(2, 0),
-                    M_selected(0, 1), M_selected(1, 1), M_selected(2, 1),
-                    M_selected(0, 2), M_selected(1, 2), M_selected(2, 2),
-                    M_selected(0, 3), M_selected(1, 3), M_selected(2, 3));
+                    M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
+                    M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
+                    M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
+                    M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
         }
     }
 
@@ -1064,37 +1145,7 @@ void wrapper_manifold(
 }
 
 
-// real32 get(real32 *x, u32 i, u32 d) {
-//     return x[3 * i + d];
-// }
-vec3 get(real32 *x, u32 i) {
-    vec3 result;
-    for (u32 d = 0; d < 3; ++d) result.data[d] = x[3 * i + d];
-    return result;
-}
-void add(real32 *x, u32 i, vec3 v) {
-    for (u32 d = 0; d < 3; ++d) x[3 * i + d] += v.data[d];
-}
 
-// TODO: more of this
-// TODO: cow_unsigned_int
-union uzi3 {
-    struct {
-        u32 i;
-        u32 j;
-        u32 k;
-    };
-    u32 data[3];
-};
-
-u32 get(u32 *x, u32 i, u32 d) {
-    return x[3 * i + d];
-}
-uzi3 get(u32 *x, u32 i) {
-    uzi3 result;
-    for (u32 d = 0; d < 3; ++d) result.data[d] = get(x, i, d);
-    return result;
-}
 
 
 void stl_load(char *filename, ManifoldManifold **manifold_manifold, ConversationMesh *conversation_mesh) {
@@ -1107,7 +1158,6 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, Conversation
         fclose(file);
     }
     { // conversation_mesh
-      // TODO: actually load an STL (currently the rabbit is an obj)
         u32 num_triangles;
         real32 *soup;
         {
@@ -1228,8 +1278,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, Conversation
 
 
 
-// FORNOW M_selected
-mat4 get_M_selected(vec3 n_selected, real32 r_n_selected) {
+mat4 get_M_3D_from_2D(vec3 n_selected, real32 r_n_selected) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real32 dot_product = dot(n_selected, up);
     vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
@@ -1300,113 +1349,13 @@ void camera2D_zoom_to_dxf_extents(Camera2D *camera2D, u32 dxf_num_entities, Boun
 
 
 
-
-int _grid_box_num_triangles = 12;
-int _grid_box_num_vertices = 24;
-int3 _grid_box_triangle_indices[] = {
-    { 1, 0, 2},{ 2, 0, 3},
-    { 4, 5, 6},{ 4, 6, 7},
-    { 8, 9,10},{ 8,10,11},
-    {13,12,14},{14,12,15},
-    {17,16,18},{18,16,19},
-    {20,21,22},{20,22,23},
-};
-vec3 _grid_box_vertex_positions[] = {
-    { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
-    {-1, 1, 1},{-1, 1,-1},{-1,-1,-1},{-1,-1, 1},
-    { 1, 1, 1},{ 1, 1,-1},{-1, 1,-1},{-1, 1, 1},
-    { 1,-1, 1},{ 1,-1,-1},{-1,-1,-1},{-1,-1, 1},
-    { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
-    { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
-};
-vec3 _grid_box_vertex_colors[] = {
-    { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{ 0.8f,0.4f, 0.8f},
-    {0.4f, 0.8f, 0.8f},{0.4f, 0.8f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
-    { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{0.4f, 0.8f,0.4f},{0.4f, 0.8f, 0.8f},
-    { 0.8f,0.4f, 0.8f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
-    { 0.8f, 0.8f, 0.8f},{ 0.8f,0.4f, 0.8f},{0.4f,0.4f, 0.8f},{0.4f, 0.8f, 0.8f},
-    { 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f, 0.8f,0.4f},
-};
-vec2 _grid_box_vertex_texCoords[] = {
-    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-    {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-};
-
-IndexedTriangleMesh3D grid_box = {
-    _grid_box_num_vertices,
-    _grid_box_num_triangles,
-    _grid_box_vertex_positions,
-    NULL,
-    _grid_box_vertex_colors,
-    _grid_box_triangle_indices,
-    _grid_box_vertex_texCoords
-};
-
-real32 GRID_SIDE_LENGTH = 256.0f;
-real32 GRID_SPACING = 10.0f;
-
-BEGIN_PRE_MAIN {
-    u32 texture_side_length = 1024;
-    u32 number_of_channels = 3;
-    u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * 3 * sizeof(u8));
-    u32 o = 9;
-    for (u32 j = 0; j < texture_side_length; ++j) {
-        for (u32 i = 0; i < texture_side_length; ++i) {
-            u32 k = number_of_channels * (j * texture_side_length + i);
-            u32 n = texture_side_length / GRID_SIDE_LENGTH * 10;
-            u32 t = 2;
-            bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
-            u8 value = 0;
-            if (stripe) value = 80;
-            if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
-            for (u32 d = 0; d < 3; ++d) data[k + d] = value;
-        }
-    }
-    _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
-} END_PRE_MAIN;
-
-
-
-
-
-#define HOT_PANE_NONE 0
-#define HOT_PANE_2D   1
-#define HOT_PANE_3D   2
-u32 hot_pane;
-
-u32 select_mode;
-u32 select_modifier;
-u32 window_select_click_count;
-real32 window_select_x;
-real32 window_select_y;
-
-bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: if this is false, then a plane is selected
-vec3 n_selected;
-real32 r_n_selected; // coordinate along n_selected
-mat4 M_selected;
-void selected_reset() {
-    some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-    r_n_selected = 0.0f;
-    n_selected = {};
-    M_selected = {}; // FORNOW: implicit no selection
-}
-
-
-
-
-
-
-void dxf_free_and_load(char *filename, DXF *dxf, DXFLoopAnalysisResult *pick, bool32 **dxf_selection_mask, BoundingBox **bbox, Camera2D *camera2D) {
+void conversation_load_dxf(char *filename, DXF *dxf, DXFLoopAnalysisResult *pick, bool32 **dxf_selection_mask, BoundingBox **bbox, Camera2D *camera2D) {
     dxf_free(dxf);
     dxf_loop_analysis_free(pick);
     free(*dxf_selection_mask);
     free(*bbox);
 
-    *dxf = dxf_load(filename);
+    dxf_load(filename, dxf);
     *dxf_selection_mask = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
     *pick = dxf_loop_analysis_create(dxf);
     *bbox = dxf_entity_bounding_boxes_create(dxf);
@@ -1418,44 +1367,58 @@ void dxf_free_and_load(char *filename, DXF *dxf, DXFLoopAnalysisResult *pick, bo
 
 
 
+
+////////////////////////////////////////////////////
+// GLOBALS /////////////////////////////////////////
+////////////////////////////////////////////////////
+
+#define HOT_PANE_NONE 0
+#define HOT_PANE_2D   1
+#define HOT_PANE_3D   2
+
 DXF dxf;
 DXFLoopAnalysisResult pick;
 BoundingBox *bbox;
-
 bool32 *dxf_selection_mask;
-
 ManifoldManifold *manifold_manifold;
 ConversationMesh conversation_mesh;
-
+History history;
 u32 enter_mode;
 real32 extrude_param;
 real32 extrude_param_2;
 bool32 extrude_param_sign_toggle;
-
+Camera2D camera2D;
+Camera3D camera3D;
+real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
+bool32 show_grid, show_details, show_help;
+char conversation_drop_path[512];
+u32 hot_pane;
+u32 select_mode;
+u32 select_modifier;
+u32 window_select_click_count;
+real32 window_select_x;
+real32 window_select_y;
 char console_buffer[256];
 char *console_buffer_write_head;
 void console_buffer_reset() {
     memset(console_buffer, 0, ARRAY_LENGTH(console_buffer) * sizeof(char));
     console_buffer_write_head = console_buffer;
 };
+bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: if this is false, then a plane is selected
+vec3 n_selected;
+real32 r_n_selected; // coordinate along n_selected
+mat4 M_3D_from_2D;
+void selected_reset() {
+    some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+    r_n_selected = 0.0f;
+    n_selected = {};
+    M_3D_from_2D = {}; // FORNOW: implicit no selection
+}
 
-Camera2D camera2D;
-Camera3D camera3D;
-real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
-
-
-bool32 show_grid, show_details, show_help;
-
-
-
-
-
-char conversation_drop_path[512];
 
 void conversation_load_file(char *filename) {
     if (poe_suffix_match(filename, ".dxf")) {
-        dxf_free_and_load(filename, &dxf, &pick, &dxf_selection_mask, &bbox, &camera2D);
-
+        conversation_load_dxf(filename, &dxf, &pick, &dxf_selection_mask, &bbox, &camera2D);
         for (u32 i = 0; i < strlen(filename); ++i) {
             conversation_drop_path[i] = filename[i];
             if (filename[i] == '.') {
@@ -1471,28 +1434,23 @@ void conversation_load_file(char *filename) {
     } else if (poe_suffix_match(filename, ".stl")) {
         conversation_mesh_free(&conversation_mesh);
         stl_load(filename, &manifold_manifold, &conversation_mesh);
+        history_free(&history);
     } else {
         conversation_messagef("[load] %s not supported; must be *.dxf or *.stl", filename);
     }
 }
-
-void drop_callback(GLFWwindow *, int count, const char** paths) {
-    if (count > 0) {
-        conversation_load_file((char *) paths[0]);
+void conversation_save_file(char *filename) {
+    if (poe_suffix_match(filename, ".stl")) {
+        stl_save(&conversation_mesh, filename);
+    } else {
+        conversation_messagef("[save] %s filetype not supported; must be *.stl", console_buffer);
     }
-} BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
-
-
-
-
-
-
-History history;
+}
+void drop_callback(GLFWwindow *, int count, const char **paths) { if (count > 0) conversation_load_file((char *) paths[0]); } BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
 
 
 
 int main() {
-
     bool32 reset = true;
     while (cow_begin_frame()) {
         if (reset) {
@@ -1504,7 +1462,7 @@ int main() {
 
             selected_reset(); 
 
-            dxf_free_and_load("splash.dxf", &dxf, &pick, &dxf_selection_mask, &bbox, &camera2D);
+            conversation_load_dxf("splash.dxf", &dxf, &pick, &dxf_selection_mask, &bbox, &camera2D);
 
             manifold_manifold = NULL;
             conversation_mesh = {};
@@ -1566,7 +1524,7 @@ int main() {
             show_details = false;
             show_help = false;
 
-            conversation_messagef("drag and drop dxf");
+            // conversation_messagef("drag and drop dxf");
 
             history_free(&history);
         }
@@ -1637,7 +1595,7 @@ int main() {
                                 break;
                             }
 
-                            if (IS_ZERO(M_selected(3, 3))) { // FORNOW
+                            if (IS_ZERO(M_3D_from_2D(3, 3))) { // FORNOW
                                 conversation_messagef("[enter] no sketch plane selected");
                                 valid_feature_enter = false;
                                 break;
@@ -1680,11 +1638,7 @@ int main() {
                             enter_mode = _ENTER_MODE_DEFAULT;
                         } else {
                             ASSERT(enter_mode == ENTER_MODE_SAVE);
-                            if (poe_suffix_match(console_buffer, ".stl")) {
-                                stl_save(&conversation_mesh, full_filename_including_path);
-                            } else {
-                                conversation_messagef("[save] %s filetype not supported; must be *.stl", console_buffer);
-                            }
+                            conversation_save_file(full_filename_including_path);
                             console_buffer_reset();
                             enter_mode = _ENTER_MODE_DEFAULT;
                         }
@@ -1710,7 +1664,7 @@ int main() {
                     history_redo(&history, &manifold_manifold, &conversation_mesh);
                 } else if (key_pressed['u']) {
                     history_undo(&history, &manifold_manifold, &conversation_mesh);
-                } else if (key_pressed['Z'] && globals.key_shift_held) {
+                } else if (key_pressed['X'] && globals.key_shift_held) {
                     camera2D_zoom_to_dxf_extents(&camera2D, dxf.num_entities, bbox);
                 } else if (key_pressed['S'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_SAVE;
@@ -1746,7 +1700,7 @@ int main() {
                     if (key_pressed['x']) n_selected = { 1.0f, 0.0f, 0.0f };
                     if (key_pressed['y']) n_selected = { 0.0f, 1.0f, 0.0f };
                     if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
-                    M_selected = get_M_selected(n_selected, r_n_selected);
+                    M_3D_from_2D = get_M_3D_from_2D(n_selected, r_n_selected);
                 } else if (key_pressed['e'] && !globals.key_shift_held) {
                     enter_mode = ENTER_MODE_EXTRUDE_ADD;
                     // console_buffer_reset();
@@ -1771,7 +1725,7 @@ int main() {
                         extrude_param_2 = extrude_param_2_preview;
                         console_buffer_reset();
                     }
-                    CrossSection cross_section = cross_section_create(&dxf, dxf_selection_mask);
+                    CrossSectionEvenOdd cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
 
 
@@ -1782,7 +1736,7 @@ int main() {
                                 cross_section.num_polygonal_loops,
                                 cross_section.num_vertices_in_polygonal_loops,
                                 cross_section.polygonal_loops,
-                                M_selected,
+                                M_3D_from_2D,
                                 enter_mode,
                                 extrude_param_sign_toggle,
                                 extrude_param,
@@ -1800,7 +1754,7 @@ int main() {
                             //     some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                             //     n_selected = { 0.0, 1.0, 0.0 };
                             //     r_n_selected = 0.0f;
-                            //     M_selected = get_M_selected(n_selected, r_n_selected);
+                            //     M_3D_from_2D = get_M_3D_from_2D(n_selected, r_n_selected);
                             // }
                             selected_reset();
 
@@ -1914,34 +1868,8 @@ int main() {
                                         }
                                         r_n_selected = dot(n_selected, p_selected[0]);
                                     }
-                                    M_selected = get_M_selected(n_selected, r_n_selected);
+                                    M_3D_from_2D = get_M_3D_from_2D(n_selected, r_n_selected);
                                 }
-                            } else {
-                                // // TODO: #define 256
-                                // vec3 bottom_square_of_3D_grid_box_triangles[][3] = {
-                                //     {
-                                //         { -128.0f, 0.0f, -128.0f },
-                                //         {  128.0f, 0.0f, -128.0f },
-                                //         {  128.0f, 0.0f,  128.0f },
-                                //     },
-                                //     {
-                                //         { -128.0f, 0.0f, -128.0f },
-                                //         {  128.0f, 0.0f,  128.0f },
-                                //         { -128.0f, 0.0f,  128.0f },
-                                //     },
-                                // };
-
-
-                                // for (u32 i = 0; i < 2; ++i) {
-                                //     vec3 *p = bottom_square_of_3D_grid_box_triangles[i];
-                                //     RayTriangleIntersectionResult result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
-                                //     if (result.hit) {
-                                //         n_selected = V3(0.0f, 1.0f, 0.0f);
-                                //         r_n_selected = 0.0f;
-                                //         M_selected = get_M_selected(n_selected, r_n_selected);
-                                //         break;
-                                //     }
-                                // }
                             }
                         }
                     }
@@ -2060,7 +1988,7 @@ int main() {
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
 
                 { // selection 2d selection 2D selection (FORNOW: ew)
-                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) ? DXF_COLOR_QUALITY_1 : DXF_COLOR_QUALITY_5;
+                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) ? DXF_COLOR_QUALITY_1 : DXF_COLOR_LEAD_IO;
 
                     u32 NUM_TUBE_STACKS_INCLUSIVE;
                     mat4 M;
@@ -2072,17 +2000,17 @@ int main() {
                             real32 b = sign * extrude_param_preview;
                             real32 total_height = (extrude_param_2_preview + extrude_param_preview);
                             NUM_TUBE_STACKS_INCLUSIVE = MIN(64, u32(roundf(total_height / 2.5f)) + 2);
-                            M = M_selected * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
+                            M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                             M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                         } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
                             NUM_TUBE_STACKS_INCLUSIVE = NUM_SEGMENTS_PER_CIRCLE;
-                            M = M_selected;
+                            M = M_3D_from_2D;
                             real32 a = 0.0f;
                             real32 b = TAU;
                             M_incr = M4_RotationAboutYAxis((b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                         } else {
                             NUM_TUBE_STACKS_INCLUSIVE = 1;
-                            M = M_selected * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS);
+                            M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS);
                             M_incr = M4_Identity();
                         }
                         for (u32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
@@ -2125,8 +2053,8 @@ int main() {
                                     real32 s = 1.5f;
                                     mat4 N = M4_Translation(0.0, 0.0, -Z_FIGHT_EPS);
                                     if (toggle[i]) N = M4_Scaling(1.0f, 1.0f, -1.0f) * N;
-                                    mat4 M_cyl  = M_selected * R2 * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
-                                    mat4 M_cone = M_selected * R2 * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
+                                    mat4 M_cyl  = M_3D_from_2D * R2 * N * M4_Scaling(s * 1.0f, s * 1.0f, shaft_height) * R;
+                                    mat4 M_cone = M_3D_from_2D * R2 * N * M4_Translation(0.0f, 0.0f, shaft_height) * M4_Scaling(s * 2.0f, s * 2.0f, cap_height) * R;
                                     library.meshes.cylinder.draw(P_3D, V_3D, M_cyl, color);
                                     library.meshes.cone.draw(P_3D, V_3D, M_cone, color);
                                 }
@@ -2138,13 +2066,16 @@ int main() {
                 { // axes 3D axes 3d axes axis 3D axis 3d axis
                     real32 r = camera3D.ortho_screen_height_World / 30.0f;
                     eso_begin(PV_3D, SOUP_LINES, 4.0f);
-                    eso_color(1.0f, 0.0f, 0.0f);
+                    // eso_color(1.0f, 0.0f, 0.0f);
+                    _dxf_eso_color(DXF_COLOR_QUALITY_1);
                     eso_vertex(0.0f, 0.0f, 0.0f);
                     eso_vertex(  r, 0.0f, 0.0f);
-                    eso_color(0.0f, 1.0f, 0.0f);
+                    // eso_color(0.0f, 1.0f, 0.0f);
+                    _dxf_eso_color(DXF_COLOR_TRAVERSE);
                     eso_vertex(0.0f, 0.0f, 0.0f);
                     eso_vertex(0.0f,    r, 0.0f);
-                    eso_color(0.0f, 0.0f, 1.0f);
+                    // eso_color(0.0f, 0.0f, 1.0f);
+                    _dxf_eso_color(DXF_COLOR_QUALITY_5);
                     eso_vertex(0.0f, 0.0f, 0.0f);
                     eso_vertex(0.0f, 0.0f,    r);
                     eso_end();
@@ -2169,16 +2100,13 @@ int main() {
                     for (u32 pass = 0; pass <= 1; ++pass) {
                         eso_begin(PV_3D, (!show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
                         for (u32 i = 0; i < conversation_mesh.num_triangles; ++i) {
-                            // FORNOW (all this crap)
-                            // TODO 
 
-                            vec3 n;
-                            for (u32 d = 0; d < 3; ++d) n[d] = conversation_mesh.triangle_normals[3 * i + d];
+                            vec3 n = get(conversation_mesh.triangle_normals, i);
 
                             vec3 p[3];
                             real32 x_n;
                             {
-                                for (u32 j = 0; j < 3; ++j) for (u32 d = 0; d < 3; ++d) p[j][d] = conversation_mesh.vertex_positions[3 * conversation_mesh.triangle_indices[3 * i + j] + d];
+                                for (u32 j = 0; j < 3; ++j) p[j] = get(conversation_mesh.vertex_positions, conversation_mesh.triangle_indices[3 * i + j]);
                                 x_n = dot(n, p[0]);
                             }
 
@@ -2210,7 +2138,7 @@ int main() {
                 { // plane; NOTE: transparent
                     if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
                         real32 r = 256.0f / 2;
-                        eso_begin(PV_3D * M_selected, SOUP_OUTLINED_QUADS);
+                        eso_begin(PV_3D * M_3D_from_2D, SOUP_OUTLINED_QUADS);
                         // eso_color(V3(0.5f) + 0.5 * n_selected, 0.5f);
                         eso_color(monokai.yellow, 0.5f);
                         eso_vertex( r,  r, -Z_FIGHT_EPS);
@@ -2286,8 +2214,9 @@ int main() {
                         gui_printf("(u)ndo (U)ndo-undo");
                         gui_printf("(L)oad (S)ave");
                         gui_printf("(g)rid (i)nspect");
-                        gui_printf("(Z)oom-to-extents");
+                        gui_printf("zoom-to-e(X)tents");
                         gui_printf("(Tab)-orthographic-perspective-view");
+                        gui_printf("set-(Z)ero");
                     }
                 }
             }
