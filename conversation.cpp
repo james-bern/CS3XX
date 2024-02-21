@@ -1,10 +1,11 @@
 // / window selection
 
+// TODO: dxf picks 'c' 'q' 'e' 'i' PICK_MODIFIER
+// TODO: picking testing harness
+// TODO: set (Z)ero
+
 // IDEA: Translating and Rotating and scaling the (3D) work piece (like in a mill)
 
-// TODO: picking testing harness
-// TODO: dxf picks 'c' 'q' 'e' 'i'
-// TODO: set (Z)ero
 
 
 
@@ -687,13 +688,16 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define CLICK_MODE_NONE     0
 #define CLICK_MODE_SELECT   1
 #define CLICK_MODE_DESELECT 2
-#define CLICK_MODE_ORIGIN   3
+#define CLICK_MODE_PICK_ORIGIN   3
 #define _CLICK_MODE_DEFAULT CLICK_MODE_NONE
 #define SELECT_MODIFIER_NONE      0
 #define SELECT_MODIFIER_CONNECTED 1
 #define SELECT_MODIFIER_QUALITY   2
 #define SELECT_MODIFIER_WINDOW    3
 #define _SELECT_MODIFIER_DEFAULT SELECT_MODIFIER_NONE
+#define PICK_MODIFIER_NONE   0
+#define PICK_MODIFIER_CENTER 1
+#define _PICK_MODIFIER_DEFAULT PICK_MODIFIER_NONE
 
 struct CrossSectionEvenOdd {
     u32 num_polygonal_loops;
@@ -1299,7 +1303,8 @@ bool32 show_grid, show_details, show_help;
 char conversation_drop_path[512];
 u32 hot_pane;
 u32 click_mode;
-u32 select_modifier;
+u32 select_modifier; // TODO combine
+u32 pick_modifier;   // TODO combine
 u32 window_select_click_count;
 real32 window_select_x;
 real32 window_select_y;
@@ -1636,7 +1641,7 @@ int main() {
                 } else if (key_pressed['X'] && globals.key_shift_held) {
                     conversation_zoom_camera2D_to_dxf_extents();
                 } else if (key_pressed['Z'] && globals.key_shift_held) {
-                    click_mode = CLICK_MODE_ORIGIN;
+                    click_mode = CLICK_MODE_PICK_ORIGIN;
                     select_modifier = SELECT_MODIFIER_NONE;
                 } else if (key_pressed['S'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_SAVE;
@@ -1656,7 +1661,12 @@ int main() {
                     click_mode = CLICK_MODE_DESELECT;
                     select_modifier = SELECT_MODIFIER_NONE;
                 } else if (key_pressed['c']) {
-                    select_modifier = SELECT_MODIFIER_CONNECTED;
+                    if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
+                        select_modifier = SELECT_MODIFIER_CONNECTED;
+                    } else {
+                        ASSERT(click_mode == CLICK_MODE_PICK_ORIGIN);
+                        pick_modifier = PICK_MODIFIER_CENTER;
+                    }
                 } else if (key_pressed['q']) {
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                         select_modifier = SELECT_MODIFIER_QUALITY;
@@ -1731,7 +1741,7 @@ int main() {
                                             dxf_selection_mask[i] = value_to_write_to_selection_mask;
                                         }
                                     }
-                                    select_modifier = CLICK_MODE_NONE;
+                                    select_modifier = SELECT_MODIFIER_NONE;
                                     break;
                                 }
                             }
@@ -1774,7 +1784,7 @@ int main() {
                         { // dxf_click
                             if (!globals.mouse_left_held) {
                             } else if (click_mode == CLICK_MODE_NONE) {
-                            } else if (click_mode == CLICK_MODE_ORIGIN) {
+                            } else if (click_mode == CLICK_MODE_PICK_ORIGIN) {
                                 origin_x = mouse_x;
                                 origin_y = mouse_y;
                                 click_mode = CLICK_MODE_NONE;
@@ -1957,7 +1967,7 @@ int main() {
                     { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs
                         real32 r = camera2D.screen_height_World / 120.0f;
                         eso_begin(PV_2D * M4_Translation(origin_x, origin_y), SOUP_LINES, 3.0f);
-                        eso_color(1.0f, 1.0f, 1.0f);
+                        eso_color(0.8f, 0.8f, 1.0f);
                         eso_vertex(-r*.7f, 0.0f);
                         eso_vertex( r, 0.0f);
                         eso_vertex(0.0f, -r);
@@ -2065,14 +2075,12 @@ int main() {
 
                 { // axes 3D axes 3d axes axis 3D axis 3d axis
                     real32 r = camera3D.ortho_screen_height_World / 50.0f;
-                    eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y), SOUP_LINES, 4.0f);
-                    eso_color(1.0f, 1.0f, 1.0f);
-                    // eso_color(1.0f, 0.0f, 0.0f);
-                    // _dxf_eso_color(DXF_COLOR_QUALITY_1);
-                    eso_vertex(  -r*0.6f, 0.0f, 0.0f);
-                    eso_vertex(   r, 0.0f, 0.0f);
-                    eso_vertex(0.0f,  -r, 0.0f);
-                    eso_vertex(0.0f,   r*0.6f     , 0.0f);
+                    eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y, Z_FIGHT_EPS), SOUP_LINES, 5.0f);
+                    eso_color(0.8f, 0.8f, 1.0f);
+                    eso_vertex(-r*0.6f, 0.0f);
+                    eso_vertex(r, 0.0f);
+                    eso_vertex(0.0f, -r);
+                    eso_vertex(0.0f, r*0.6f);
                     eso_end();
                 }
 
@@ -2111,7 +2119,7 @@ int main() {
                                 vec3 n_camera = transformNormal(V_3D, n);
                                 if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                     if (pass == 0) continue;
-                                    color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.green);
+                                    color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
                                     alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                 } else {
                                     if (pass == 1) continue;
@@ -2149,7 +2157,7 @@ int main() {
             }
 
             { // gui
-                gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_ORIGIN) ? "SET_ORIGIN" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == CLICK_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
+                gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_PICK_ORIGIN) ? "PICK_ORIGIN" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == CLICK_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
 
 
                 char enter_message[256] = {};
