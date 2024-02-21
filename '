@@ -1666,12 +1666,12 @@ int main() {
                         bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                         for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                     }
-                } else if (key_pressed['x'] || key_pressed['y'] /*|| key_pressed['z']*/) {
+                } else if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
                     some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                     r_n_selected = 0.0f;
                     if (key_pressed['x']) n_selected = { 1.0f, 0.0f, 0.0f };
                     if (key_pressed['y']) n_selected = { 0.0f, 1.0f, 0.0f };
-                    // if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
+                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
                     conversation_update_M_3D_from_2D();
                 } else if (key_pressed['e'] && !globals.key_shift_held) {
                     enter_mode = ENTER_MODE_EXTRUDE_ADD;
@@ -1762,10 +1762,10 @@ int main() {
             camera_move(&camera3D);
         }
         mat4 PV_2D = camera_get_PV(&camera2D);
-        real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
         mat4 P_3D = camera_get_P(&camera3D);
         mat4 V_3D = camera_get_V(&camera3D);
         mat4 PV_3D = P_3D * V_3D;
+        real32 mouse_x, mouse_y;{ _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
 
         { // ui
             if (globals._input_owner == COW_INPUT_OWNER_NONE) {
@@ -1915,7 +1915,7 @@ int main() {
                 glScissor(0, 0, window_width / 2, window_height);
                 {
                     if (show_grid) { // grid 2D grid 2d grid
-                        eso_begin(PV_2D * M4_Translation(origin_x, origin_y), SOUP_LINES, 2.0f);
+                        eso_begin(PV_2D, SOUP_LINES, 2.0f);
                         eso_color(80.0f / 255, 80.0f / 255, 80.0f / 255);
                         for (u32 i = 0; i <= u32(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                             real32 tmp = i * GRID_SPACING;
@@ -1925,7 +1925,7 @@ int main() {
                             eso_vertex(GRID_SIDE_LENGTH, tmp);
                         }
                         eso_end();
-                        eso_begin(PV_2D * M4_Translation(origin_x, origin_y), SOUP_LINE_LOOP, 2.0f);
+                        eso_begin(PV_2D, SOUP_LINE_LOOP, 2.0f);
                         eso_vertex(0.0f, 0.0f);
                         eso_vertex(0.0f, GRID_SIDE_LENGTH);
                         eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -2065,7 +2065,7 @@ int main() {
 
                 { // axes 3D axes 3d axes axis 3D axis 3d axis
                     real32 r = camera3D.ortho_screen_height_World / 50.0f;
-                    eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y), SOUP_LINES, 4.0f);
+                    eso_begin(PV_3D * M_3D_from_2D * M4_Translation(-origin_x, -origin_y), SOUP_LINES, 4.0f);
                     eso_color(1.0f, 1.0f, 1.0f);
                     // eso_color(1.0f, 0.0f, 0.0f);
                     // _dxf_eso_color(DXF_COLOR_QUALITY_1);
@@ -2149,7 +2149,7 @@ int main() {
             }
 
             { // gui
-                gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_ORIGIN) ? "SET_ORIGIN" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == CLICK_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
+                gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_ORIGIN) ? "ORIGIN" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == CLICK_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
 
 
                 char enter_message[256] = {};
@@ -2204,7 +2204,7 @@ int main() {
                     if (show_help) {
                         gui_printf("(Escape)-from-current-enter_mode");
                         gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
-                        gui_printf("(y)-plane (x)-plane");
+                        gui_printf("(y)-plane (z)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
                         gui_printf("(r)evolve-add (R)evolve-cut");
                         gui_printf("(u)ndo (U)ndo-undo");
