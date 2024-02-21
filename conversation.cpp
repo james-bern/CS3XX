@@ -688,7 +688,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 #define CLICK_MODE_NONE     0
 #define CLICK_MODE_SELECT   1
 #define CLICK_MODE_DESELECT 2
-#define CLICK_MODE_PICK_ORIGIN   3
+#define CLICK_MODE_MOVE_ORIGIN   3
 #define _CLICK_MODE_DEFAULT CLICK_MODE_NONE
 #define SELECT_MODIFIER_NONE      0
 #define SELECT_MODIFIER_CONNECTED 1
@@ -1042,13 +1042,14 @@ void wrapper_manifold(
 
 
         { // other_manifold
-          // FORNOW: HACK
+
             if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) {
                 do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_SUBTRACT\n");};
                 extrude_param += TOLERANCE_DEFAULT;
                 extrude_param_2 += TOLERANCE_DEFAULT;
             }
 
+            // TODO: port origin stuff to revolve
             if (enter_mode == ENTER_MODE_EXTRUDE_ADD || enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) {
                 other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
                 other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, -extrude_param_2);
@@ -1355,6 +1356,8 @@ void conversation_load_dxf(char *filename) {
     bbox = dxf_entity_bounding_boxes_create(&dxf);
 
     conversation_zoom_camera2D_to_dxf_extents();
+    origin_x = 0.0f;
+    origin_y = 0.0f;
 }
 void conversation_load_stl(char *filename) {
     fancy_mesh_free(&fancy_mesh);
@@ -1640,8 +1643,8 @@ int main() {
                     history_undo(&history, &manifold_manifold, &fancy_mesh);
                 } else if (key_pressed['X'] && globals.key_shift_held) {
                     conversation_zoom_camera2D_to_dxf_extents();
-                } else if (key_pressed['Z'] && globals.key_shift_held) {
-                    click_mode = CLICK_MODE_PICK_ORIGIN;
+                } else if (key_pressed['m']) {
+                    click_mode = CLICK_MODE_MOVE_ORIGIN;
                     select_modifier = SELECT_MODIFIER_NONE;
                 } else if (key_pressed['S'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_SAVE;
@@ -1664,7 +1667,7 @@ int main() {
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                         select_modifier = SELECT_MODIFIER_CONNECTED;
                     } else {
-                        ASSERT(click_mode == CLICK_MODE_PICK_ORIGIN);
+                        ASSERT(click_mode == CLICK_MODE_MOVE_ORIGIN);
                         pick_modifier = PICK_MODIFIER_CENTER;
                     }
                 } else if (key_pressed['q']) {
@@ -1784,7 +1787,7 @@ int main() {
                         { // dxf_click
                             if (!globals.mouse_left_held) {
                             } else if (click_mode == CLICK_MODE_NONE) {
-                            } else if (click_mode == CLICK_MODE_PICK_ORIGIN) {
+                            } else if (click_mode == CLICK_MODE_MOVE_ORIGIN) {
                                 origin_x = mouse_x;
                                 origin_y = mouse_y;
                                 click_mode = CLICK_MODE_NONE;
@@ -2074,8 +2077,8 @@ int main() {
                 }
 
                 { // axes 3D axes 3d axes axis 3D axis 3d axis
-                    real32 r = camera3D.ortho_screen_height_World / 50.0f;
-                    eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y, Z_FIGHT_EPS), SOUP_LINES, 5.0f);
+                    real32 r = camera3D.ortho_screen_height_World / 120.0f;
+                    eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y, Z_FIGHT_EPS), SOUP_LINES, 4.0f);
                     eso_color(0.8f, 0.8f, 1.0f);
                     eso_vertex(-r*0.6f, 0.0f);
                     eso_vertex(r, 0.0f);
@@ -2157,7 +2160,7 @@ int main() {
             }
 
             { // gui
-                gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_PICK_ORIGIN) ? "PICK_ORIGIN" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == CLICK_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
+                gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_MOVE_ORIGIN) ? "MOVE_ORIGIN" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (select_modifier == CLICK_MODE_NONE) ? "" : (select_modifier == SELECT_MODIFIER_CONNECTED) ?  "CONNECTED" : "");
 
 
                 char enter_message[256] = {};
@@ -2220,7 +2223,7 @@ int main() {
                         gui_printf("(g)rid (i)nspect");
                         gui_printf("zoom-to-e(X)tents");
                         gui_printf("(Tab)-orthographic-perspective-view");
-                        gui_printf("set-(Z)ero");
+                        gui_printf("(m)ove-origin");
                     }
                 }
             }
