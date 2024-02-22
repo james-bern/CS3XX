@@ -143,7 +143,7 @@ real32 GRID_SIDE_LENGTH = 256.0f;
 real32 GRID_SPACING = 10.0f;
 BEGIN_PRE_MAIN {
     u32 texture_side_length = 1024;
-    u32 number_of_channels = 3;
+    u32 number_of_channels = 4;
     u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * 3 * sizeof(u8));
     u32 o = 9;
     for (u32 j = 0; j < texture_side_length; ++j) {
@@ -156,6 +156,7 @@ BEGIN_PRE_MAIN {
             if (stripe) value = 80;
             if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
             for (u32 d = 0; d < 3; ++d) data[k + d] = value;
+            data[k + 3] = 170;
         }
     }
     _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
@@ -836,13 +837,13 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSectionEvenOdd *cross_sec
 
 
 
-#define ENTER_MODE_NONE             0
-#define ENTER_MODE_EXTRUDE_ADD      1
-#define ENTER_MODE_EXTRUDE_SUBTRACT 2
-#define ENTER_MODE_REVOLVE_ADD      3
-#define ENTER_MODE_REVOLVE_SUBTRACT 4
-#define ENTER_MODE_LOAD             5
-#define ENTER_MODE_SAVE             6
+#define ENTER_MODE_NONE        0
+#define ENTER_MODE_EXTRUDE_ADD 1
+#define ENTER_MODE_EXTRUDE_CUT 2
+#define ENTER_MODE_REVOLVE_ADD 3
+#define ENTER_MODE_REVOLVE_CUT 4
+#define ENTER_MODE_LOAD        5
+#define ENTER_MODE_SAVE        6
 #define _ENTER_MODE_DEFAULT ENTER_MODE_NONE
 
 
@@ -1050,14 +1051,14 @@ void wrapper_manifold(
 
         { // other_manifold
 
-            if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) {
-                do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_SUBTRACT\n");};
+            if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+                do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_CUT\n");};
                 extrude_param += TOLERANCE_DEFAULT;
                 extrude_param_2 += TOLERANCE_DEFAULT;
             }
 
             // TODO: port origin stuff to revolve
-            if (enter_mode == ENTER_MODE_EXTRUDE_ADD || enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) {
+            if (enter_mode == ENTER_MODE_EXTRUDE_ADD || enter_mode == ENTER_MODE_EXTRUDE_CUT) {
                 other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, extrude_param + extrude_param_2, 0, 0.0f, 1.0f, 1.0f);
                 other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, -extrude_param_2);
                 if (extrude_param_sign_toggle) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0f, 0.0f, 1.0f);
@@ -1075,7 +1076,7 @@ void wrapper_manifold(
 
     // add
     if (!(*manifold_manifold)) {
-        if (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT || enter_mode == ENTER_MODE_REVOLVE_SUBTRACT) { return; } // FORNOW
+        if (enter_mode == ENTER_MODE_EXTRUDE_CUT || enter_mode == ENTER_MODE_REVOLVE_CUT) { return; } // FORNOW
 
         *manifold_manifold = other_manifold;
     } else {
@@ -1507,9 +1508,9 @@ int main() {
             show_details = false;
             show_help = false;
 
-            // conversation_messagef("drag and drop dxf");
-
             history_free(&history);
+
+            // conversation_messagef("type h for help");
         }
 
 
@@ -1559,8 +1560,8 @@ int main() {
                 bool32 valid_feature_enter = false;
                 if (key_pressed[COW_KEY_ENTER]) {
                     valid_feature_enter = true;
-                    bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT));
-                    bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT));
+                    bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
+                    bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
                     do {
                         if (enter_mode == ENTER_MODE_NONE) {
                             conversation_messagef("[enter] enter mode is none");
@@ -1594,11 +1595,17 @@ int main() {
                         }
                     } while (false);
                 }
+                // if (valid_feature_enter) { conversation_messagef(""); } // FORNOW
 
-                // FORNOW
-                if (valid_feature_enter) {
-                    conversation_messagef("");
+
+                bool32 non_enter_key_eaten_by_enter_mode;
+                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT))  {
+                    non_enter_key_eaten_by_enter_mode = false;
+                    non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['.']);
+                    non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed[' ']);
+                    for (u32 i = 0; i < 10; ++i) non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['0' + i]);
                 }
+
 
 
                 if (key_pressed[COW_KEY_TAB]) {
@@ -1658,7 +1665,7 @@ int main() {
                     show_grid = !show_grid;
                 } else if (key_pressed['h']) {
                     show_help = !show_help;
-                } else if (key_pressed['i']) {
+                } else if (key_pressed['.'] && !non_enter_key_eaten_by_enter_mode) {
                     show_details = !show_details;
                 } else if (key_pressed['s']) {
                     click_mode = CLICK_MODE_SELECT;
@@ -1694,16 +1701,18 @@ int main() {
                     if (key_pressed['y']) n_selected = { 0.0f, 1.0f, 0.0f };
                     // if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
                     conversation_update_M_3D_from_2D();
-                } else if (key_pressed['e'] && !globals.key_shift_held) {
-                    enter_mode = ENTER_MODE_EXTRUDE_ADD;
-                    // console_buffer_reset();
-                    extrude_param_sign_toggle = false;
                 } else if (key_pressed['E'] && globals.key_shift_held) {
-                    enter_mode = ENTER_MODE_EXTRUDE_SUBTRACT;
-                    // console_buffer_reset();
+                    enter_mode = ENTER_MODE_EXTRUDE_CUT;
                     extrude_param_sign_toggle = true;
+                } else if (key_pressed['e']) {
+                    if (click_mode == CLICK_MODE_MOVE_ORIGIN_TO) {
+                        click_modifier = CLICK_MODIFIER_END_OF;
+                    } else {
+                        enter_mode = ENTER_MODE_EXTRUDE_ADD;
+                        extrude_param_sign_toggle = false;
+                    }
                 } else if (key_pressed['R'] && globals.key_shift_held) {
-                    enter_mode = ENTER_MODE_REVOLVE_SUBTRACT;
+                    enter_mode = ENTER_MODE_REVOLVE_CUT;
                 } else if (key_pressed['r']) {
                     enter_mode = ENTER_MODE_REVOLVE_ADD;
                 } else if (key_pressed['L'] && globals.key_shift_held) {
@@ -1711,8 +1720,9 @@ int main() {
                 } else if (key_pressed['f']) {
                     extrude_param_sign_toggle = !extrude_param_sign_toggle;
                 } else if (key_pressed[COW_KEY_ENTER] && valid_feature_enter) {
-                    // enter_mode = ENTER_MODE_NONE;
-                    // NOTE: holds over previous
+                    // TODO: refactor this and next section to all be driven off of non_enter_key_eaten_by_enter_mode (TODO remove non_enter contingency)
+                    // FORNOW code is gros and repetitive
+                    // (should be 
                     if (console_buffer_write_head != console_buffer) {
                         extrude_param = extrude_param_preview;
                         extrude_param_2 = extrude_param_2_preview;
@@ -1722,23 +1732,25 @@ int main() {
                     // cross_section_debug_draw(&camera2D, &cross_section);
 
 
-                    {
-                        wrapper_manifold(
-                                &manifold_manifold,
-                                &fancy_mesh,
-                                cross_section.num_polygonal_loops,
-                                cross_section.num_vertices_in_polygonal_loops,
-                                cross_section.polygonal_loops,
-                                M_3D_from_2D,
-                                enter_mode,
-                                extrude_param_sign_toggle,
-                                extrude_param,
-                                extrude_param_2,
-                                &history
-                                );
-                        memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
-                        selected_reset();
-                    }
+                    wrapper_manifold(
+                            &manifold_manifold,
+                            &fancy_mesh,
+                            cross_section.num_polygonal_loops,
+                            cross_section.num_vertices_in_polygonal_loops,
+                            cross_section.polygonal_loops,
+                            M_3D_from_2D,
+                            enter_mode,
+                            extrude_param_sign_toggle,
+                            extrude_param,
+                            extrude_param_2,
+                            &history
+                            );
+
+                    // reset state
+                    memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
+                    selected_reset();
+                    enter_mode = ENTER_MODE_NONE;
+
                 } else if (globals.key_any_key_pressed) {
                     if (key_pressed[COW_KEY_BACKSPACE]) {
                         if (console_buffer_write_head != console_buffer) *--console_buffer_write_head = 0;
@@ -1757,7 +1769,7 @@ int main() {
                                 }
                             }
                         }
-                    } else if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)){
+                    } else if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)){
                         bool32 valid_key_pressed; {
                             valid_key_pressed = false;
                             valid_key_pressed = (valid_key_pressed || key_pressed['.']);
@@ -1816,7 +1828,19 @@ int main() {
                                         }
                                     }
                                 } else if (click_modifier == CLICK_MODIFIER_END_OF) {
-                                    // TODO
+                                    real32 min_squared_distance = HUGE_VAL;
+                                    for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
+                                        real32 x[2], y[2];
+                                        entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
+                                        for (u32 d = 0; d < 2; ++d) {
+                                            real32 squared_distance = squared_distance_point_point(mouse_x, mouse_y, x[d], y[d]);
+                                            if (squared_distance < min_squared_distance) {
+                                                min_squared_distance = squared_distance;
+                                                origin_x = x[d];
+                                                origin_y = y[d];
+                                            }
+                                        }
+                                    }
                                 } else if (click_modifier == CLICK_MODIFIER_MIDDLE_OF) {
                                     // TODO
                                 }
@@ -2034,13 +2058,13 @@ int main() {
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
 
                 { // selection 2d selection 2D selection (FORNOW: ew)
-                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) ? DXF_COLOR_QUALITY_1 : DXF_COLOR_LEAD_IO;
+                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : DXF_COLOR_LEAD_IO;
 
                     u32 NUM_TUBE_STACKS_INCLUSIVE;
                     mat4 M;
                     mat4 M_incr;
                     if (true) {
-                        if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) {
+                        if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
                             real32 sign = (!extrude_param_sign_toggle) ? 1.0f : -1.0f;
                             real32 a = sign * -extrude_param_2_preview;
                             real32 b = sign * extrude_param_preview;
@@ -2048,7 +2072,7 @@ int main() {
                             NUM_TUBE_STACKS_INCLUSIVE = MIN(64, u32(roundf(total_height / 2.5f)) + 2);
                             M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                             M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
-                        } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
+                        } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                             NUM_TUBE_STACKS_INCLUSIVE = NUM_SEGMENTS_PER_CIRCLE;
                             M = M_3D_from_2D;
                             real32 a = 0.0f;
@@ -2079,12 +2103,12 @@ int main() {
 
 
                 { // arrow
-                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                         if (dxf_anything_selected) {
                             real32 H[2] = { extrude_param_preview, extrude_param_2_preview };
                             bool32 toggle[2] = { extrude_param_sign_toggle, !extrude_param_sign_toggle };
                             mat4 R2 = M4_Identity();
-                            if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
+                            if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                                 H[0] = 50.0f;
                                 H[1] = 0.0f;
                                 R2 = M4_RotationAboutXAxis(RAD(-90.0f));
@@ -2156,7 +2180,7 @@ int main() {
                                 if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                     if (pass == 0) continue;
                                     color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
-                                    alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
+                                    alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                 } else {
                                     if (pass == 1) continue;
                                     color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
@@ -2196,7 +2220,7 @@ int main() {
                 gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_MOVE_ORIGIN_TO) ? "MOVE_ORIGIN_TO" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (click_modifier == CLICK_MODE_NONE) ? "" : (click_modifier == CLICK_MODIFIER_CONNECTED) ?  "CONNECTED" : (click_modifier == CLICK_MODIFIER_WINDOW) ? "WINDOW" : (click_modifier == CLICK_MODIFIER_CENTER_OF) ? "CENTER_OF" : (click_modifier == CLICK_MODIFIER_END_OF) ? "END_OF" : (click_modifier == CLICK_MODIFIER_MIDDLE_OF) ? "MIDDLE_OF" : "");
 
                 char enter_message[256] = {};
-                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT)) {
+                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
                     bool32 show_old_command = (console_buffer_write_head == console_buffer);
                     real32 p = (show_old_command) ? extrude_param : extrude_param_preview;
                     real32 p2 = (show_old_command) ? extrude_param_2 : extrude_param_2_preview;
@@ -2212,16 +2236,16 @@ int main() {
                 }
 
                 gui_printf("[Enter] %s %s",
-                        (enter_mode == ENTER_MODE_EXTRUDE_ADD) ? "EXTRUDE ADD" :
-                        (enter_mode == ENTER_MODE_EXTRUDE_SUBTRACT) ? "EXTRUDE SUBTRACT" :
-                        (enter_mode == ENTER_MODE_REVOLVE_ADD) ? "REVOLVE ADD" :
-                        (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT) ? "REVOLVE SUBTRACT" :
+                        (enter_mode == ENTER_MODE_EXTRUDE_ADD) ? "EXTRUDE_ADD" :
+                        (enter_mode == ENTER_MODE_EXTRUDE_CUT) ? "EXTRUDE_CUT" :
+                        (enter_mode == ENTER_MODE_REVOLVE_ADD) ? "REVOLVE_ADD" :
+                        (enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
                         (enter_mode == ENTER_MODE_LOAD) ? "LOAD" :
                         (enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
                         "NONE",
                         enter_message);
 
-                if ((enter_mode == ENTER_MODE_NONE) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_SUBTRACT)) {
+                if ((enter_mode == ENTER_MODE_NONE) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                     gui_printf("> %s", console_buffer);
                 } else {
                     gui_printf("`> %s", console_buffer);
@@ -2234,6 +2258,7 @@ int main() {
                         } else {
                             conversation_message_buffer[0] = '\0';
                         }
+
                         gui_printf("< %s", conversation_message_buffer);
                     }
                 }
@@ -2245,17 +2270,27 @@ int main() {
                 {
                     gui_printf("(h)elp");
                     if (show_help) {
-                        gui_printf("(Escape)-from-current-enter_mode");
+                        { // overlay
+                            eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
+                            eso_color(0.0f, 0.0f, 0.0f, 0.7f);
+                            eso_vertex(-1.0f, -1.0f);
+                            eso_vertex(-1.0f,  1.0f);
+                            eso_vertex( 1.0f,  1.0f);
+                            eso_vertex( 1.0f, -1.0f);
+                            eso_end();
+                        }
+                        gui_printf("(Escape)-from-current-enter_and_click_modes");
                         gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
                         gui_printf("(y)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
                         gui_printf("(r)evolve-add (R)evolve-cut");
                         gui_printf("(u)ndo (U)ndo-undo");
                         gui_printf("(L)oad (S)ave");
-                        gui_printf("(g)rid (i)nspect");
+                        gui_printf("(g)rid (.)-show-details");
                         gui_printf("zoom-to-e(X)tents");
                         gui_printf("(Tab)-orthographic-perspective-view");
-                        gui_printf("(m)ove-origin + (c)enter-of (z)ero");
+                        gui_printf("(m)ove-origin + (c)enter-of (e)nd-of (z)ero");
+                        gui_printf("`NOTE: you can drag and drop dxf's into Conversation");
                     }
                 }
             }
