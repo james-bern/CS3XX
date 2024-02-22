@@ -532,7 +532,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-        // populate List's
+      // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -1222,7 +1222,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
         conversation_messagef("[load] loaded %s", filename);
     }
     { // manifold_manifold
-        // FORNOW
+      // FORNOW
         ManifoldMeshGL *meshgl = manifold_meshgl(
                 malloc(manifold_meshgl_size()),
                 fancy_mesh->vertex_positions,
@@ -1510,7 +1510,7 @@ int main() {
 
             history_free(&history);
 
-            conversation_messagef("pre-alpha built on " __DATE__ " at " __TIME__);
+            conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
         }
 
 
@@ -1958,15 +1958,15 @@ int main() {
 
             { // panes
                 { // draw
-                    // glDisable(GL_DEPTH_TEST);
-                    // eso_begin(globals.Identity, SOUP_QUADS);
-                    // eso_color(0.3f, 0.3f, 0.3f);
-                    // eso_vertex(0.0f,  1.0f);
-                    // eso_vertex(0.0f, -1.0f);
-                    // eso_vertex(1.0f, -1.0f);
-                    // eso_vertex(1.0f,  1.0f);
-                    // eso_end();
-                    // glEnable(GL_DEPTH_TEST);
+                  // glDisable(GL_DEPTH_TEST);
+                  // eso_begin(globals.Identity, SOUP_QUADS);
+                  // eso_color(0.3f, 0.3f, 0.3f);
+                  // eso_vertex(0.0f,  1.0f);
+                  // eso_vertex(0.0f, -1.0f);
+                  // eso_vertex(1.0f, -1.0f);
+                  // eso_vertex(1.0f,  1.0f);
+                  // eso_end();
+                  // glEnable(GL_DEPTH_TEST);
 
                     eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
                     eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f);
@@ -2269,7 +2269,6 @@ int main() {
                     gui_printf("%d stl triangles", fancy_mesh.num_triangles);
                 }
                 {
-                    gui_printf("(h)elp");
                     if (show_help) {
                         { // overlay
                             eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
@@ -2280,18 +2279,20 @@ int main() {
                             eso_vertex( 1.0f, -1.0f);
                             eso_end();
                         }
+                        gui_printf("(h)elp-show/hide");
                         gui_printf("(Escape)-from-current-enter_and_click_modes");
                         gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
                         gui_printf("(y)-plane (x)-plane");
                         gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
                         gui_printf("(r)evolve-add (R)evolve-cut");
-                        gui_printf("(u)ndo (U)ndo-undo");
+                        gui_printf("(u)ndo (U)-redo");
                         gui_printf("(L)oad (S)ave");
                         gui_printf("(g)rid (.)-show-details");
                         gui_printf("zoom-to-e(X)tents");
                         gui_printf("(Tab)-orthographic-perspective-view");
                         gui_printf("(m)ove-origin + (c)enter-of (e)nd-of (z)ero");
-                        gui_printf("`NOTE: you can drag and drop dxf's into Conversation");
+                        gui_printf("");
+                        gui_printf("you can drag and drop dxf's into Conversation");
                     }
                 }
             }
