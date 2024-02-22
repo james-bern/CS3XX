@@ -26,8 +26,8 @@
 // ? TODO: the Hard problem of avoiding the creation of ultra-thin features
 
 
-#include "manifoldc.h"
 #include "cs345.cpp"
+#include "manifoldc.h"
 #include "poe.cpp"
 #undef real // ???
 bool *key_pressed = globals.key_pressed;
@@ -144,12 +144,12 @@ real32 GRID_SPACING = 10.0f;
 BEGIN_PRE_MAIN {
     u32 texture_side_length = 1024;
     u32 number_of_channels = 4;
-    u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * 3 * sizeof(u8));
+    u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
     u32 o = 9;
     for (u32 j = 0; j < texture_side_length; ++j) {
         for (u32 i = 0; i < texture_side_length; ++i) {
             u32 k = number_of_channels * (j * texture_side_length + i);
-            u32 n = texture_side_length / GRID_SIDE_LENGTH * 10;
+            u32 n = u32(texture_side_length / GRID_SIDE_LENGTH * 10);
             u32 t = 2;
             bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
             u8 value = 0;
@@ -532,7 +532,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
     DXFLoopAnalysisResult result = {};
     { // num_entities_in_loops, loops
-      // populate List's
+        // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
             while (true) {
@@ -1222,7 +1222,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
         conversation_messagef("[load] loaded %s", filename);
     }
     { // manifold_manifold
-      // FORNOW
+        // FORNOW
         ManifoldMeshGL *meshgl = manifold_meshgl(
                 malloc(manifold_meshgl_size()),
                 fancy_mesh->vertex_positions,
@@ -1510,7 +1510,7 @@ int main() {
 
             history_free(&history);
 
-            // conversation_messagef("type h for help");
+            conversation_messagef("pre-alpha built on " __DATE__ " at " __TIME__);
         }
 
 
@@ -1598,12 +1598,13 @@ int main() {
                 // if (valid_feature_enter) { conversation_messagef(""); } // FORNOW
 
 
-                bool32 non_enter_key_eaten_by_enter_mode;
-                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT))  {
+                bool32 non_enter_key_eaten_by_enter_mode; {
                     non_enter_key_eaten_by_enter_mode = false;
-                    non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['.']);
-                    non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed[' ']);
-                    for (u32 i = 0; i < 10; ++i) non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['0' + i]);
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT))  {
+                        non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['.']);
+                        non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed[' ']);
+                        for (u32 i = 0; i < 10; ++i) non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['0' + i]);
+                    }
                 }
 
 
@@ -1957,15 +1958,15 @@ int main() {
 
             { // panes
                 { // draw
-                  // glDisable(GL_DEPTH_TEST);
-                  // eso_begin(globals.Identity, SOUP_QUADS);
-                  // eso_color(0.3f, 0.3f, 0.3f);
-                  // eso_vertex(0.0f,  1.0f);
-                  // eso_vertex(0.0f, -1.0f);
-                  // eso_vertex(1.0f, -1.0f);
-                  // eso_vertex(1.0f,  1.0f);
-                  // eso_end();
-                  // glEnable(GL_DEPTH_TEST);
+                    // glDisable(GL_DEPTH_TEST);
+                    // eso_begin(globals.Identity, SOUP_QUADS);
+                    // eso_color(0.3f, 0.3f, 0.3f);
+                    // eso_vertex(0.0f,  1.0f);
+                    // eso_vertex(0.0f, -1.0f);
+                    // eso_vertex(1.0f, -1.0f);
+                    // eso_vertex(1.0f,  1.0f);
+                    // eso_end();
+                    // glEnable(GL_DEPTH_TEST);
 
                     eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
                     eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f);
