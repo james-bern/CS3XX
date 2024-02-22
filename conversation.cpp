@@ -1,7 +1,7 @@
 // / window selection
 
 // TODO: fix up rotations to work with origin_x, origin_y
-// TODO: dxf picks 'c' 'q' 'e' 'i' PICK_MODIFIER (to use with the zero)
+// TODO: dxf picks /'c' #'e' #'z' PICK_MODIFIER (to use with the zero)
 
 // IDEA: Translating and Rotating and scaling the (3D) work piece (like in a mill)
 
@@ -1684,6 +1684,9 @@ int main() {
                         bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                         for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                     }
+                } else if ((click_mode == CLICK_MODE_MOVE_ORIGIN_TO) && key_pressed['z']) {
+                    origin_x = 0.0f;
+                    origin_y = 0.0f;
                 } else if (key_pressed['x'] || key_pressed['y'] /*|| key_pressed['z']*/) {
                     some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                     r_n_selected = 0.0f;
@@ -2252,7 +2255,7 @@ int main() {
                         gui_printf("(g)rid (i)nspect");
                         gui_printf("zoom-to-e(X)tents");
                         gui_printf("(Tab)-orthographic-perspective-view");
-                        gui_printf("(m)ove-origin");
+                        gui_printf("(m)ove-origin + (c)enter-of (z)ero");
                     }
                 }
             }
