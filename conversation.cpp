@@ -156,7 +156,7 @@ BEGIN_PRE_MAIN {
             if (stripe) value = 80;
             if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
             for (u32 d = 0; d < 3; ++d) data[k + d] = value;
-            data[k + 3] = 170;
+            data[k + 3] = 190;
         }
     }
     _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
@@ -2144,13 +2144,6 @@ int main() {
                     eso_end();
                 }
 
-                if (show_grid) { // grid 3D grid 3d grid
-                    glEnable(GL_CULL_FACE);
-                    glCullFace(GL_FRONT);
-                    real32 L = GRID_SIDE_LENGTH;
-                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
-                    glDisable(GL_CULL_FACE);
-                }
 
                 { // fancy_mesh; NOTE: includes transparency
                     if (fancy_mesh.cosmetic_edges) {
@@ -2197,6 +2190,13 @@ int main() {
                     }
                 }
 
+                if (show_grid) { // grid 3D grid 3d grid
+                    glEnable(GL_CULL_FACE);
+                    glCullFace(GL_FRONT);
+                    real32 L = GRID_SIDE_LENGTH;
+                    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
+                    glDisable(GL_CULL_FACE);
+                }
 
                 { // plane; NOTE: transparent
                     if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
