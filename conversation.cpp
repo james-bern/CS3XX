@@ -1,4 +1,18 @@
+// BUG: suspect something in stl (or i guess dxf?) memory management; 
+// REPRO: extrude, load nonexistent stl, undo, undo, extrude
+// ROOT: pushing to history regardless of whetehr new file exists=>new mesh allocated (double free)
+// LESSON: only push to history stack if you are SURE you are going to create a new fancy mesh and manifold
+//         ? could we bind these ops together?
+
 // BUG: colors messed up on multiple chained undos
+// ROOT:fancy_mesh_cosmetic_edges_calculate and fancy_mesh_triangle_normals_calculate were freeing
+//      memory that was passed to them if it wasn't NULL;--we actually did NOT want to free because we were pushing
+//      a copy of the mesh object onto the undo stack (which ended up in a horrible partially freed state)
+// LESSON: only simple one-per-struct functions called *_free(...) should free
+
+// TODO: MOVE_ORIGIN_TO x, y (later will need relative variant MOVE_ORIGIN BY (...and MOVE_ORIGIN TO_END_OF, etc., ...)
+
+// TODO: 3D (right hand side) layers (extends to colors)--stuff only booleans with stuff on its own layer
 
 // / window selection
 
@@ -1121,7 +1135,7 @@ void wrapper_manifold(
 
 
 
-void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *fancy_mesh) {
+void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *fancy_mesh, History *history) {
     { // FORNOW check file exists
         FILE *file = (FILE *) fopen(filename, "r");
         if (!file) {
@@ -1130,6 +1144,9 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
         }
         fclose(file);
     }
+
+    history_record_state(history, manifold_manifold, fancy_mesh); // FORNOW
+
     { // fancy_mesh
         u32 num_triangles;
         real32 *soup;
@@ -1382,8 +1399,7 @@ void conversation_load_dxf(char *filename) {
 }
 void conversation_load_stl(char *filename) {
     // fancy_mesh_free(&fancy_mesh);
-    history_record_state(&history, &manifold_manifold, &fancy_mesh);
-    stl_load(filename, &manifold_manifold, &fancy_mesh);
+    stl_load(filename, &manifold_manifold, &fancy_mesh, &history);
     // history_free(&history);
 }
 void conversation_load_file(char *filename) {
@@ -1713,12 +1729,12 @@ int main() {
                 } else if ((click_mode == CLICK_MODE_MOVE_ORIGIN_TO) && key_pressed['z']) {
                     origin_x = 0.0f;
                     origin_y = 0.0f;
-                } else if (key_pressed['x'] || key_pressed['y'] /*|| key_pressed['z']*/) {
+                } else if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
                     some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                     r_n_selected = 0.0f;
                     if (key_pressed['x']) n_selected = { 1.0f, 0.0f, 0.0f };
                     if (key_pressed['y']) n_selected = { 0.0f, 1.0f, 0.0f };
-                    // if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
+                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
                     conversation_update_M_3D_from_2D();
                 } else if (key_pressed['E'] && globals.key_shift_held) {
                     enter_mode = ENTER_MODE_EXTRUDE_CUT;
