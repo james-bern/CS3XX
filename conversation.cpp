@@ -215,7 +215,6 @@ BEGIN_PRE_MAIN {
 
 
 struct DXFLine {
-    u32 color;
     real32 start_x;
     real32 start_y;
     real32 end_x;
@@ -224,7 +223,6 @@ struct DXFLine {
 };
 
 struct DXFArc {
-    u32 color;
     real32 center_x;
     real32 center_y;
     real32 radius;
@@ -236,6 +234,7 @@ struct DXFArc {
 #define DXF_ENTITY_TYPE_ARC  1
 struct DXFEntity {
     u32 type;
+    u32 color;
     union {
         DXFLine line;
         DXFArc arc;
@@ -330,29 +329,28 @@ void dxf_load(char *filename, DXF *dxf) {
             u8 mode = 0;
             int code = 0;
             bool32 code_is_hot = false;
-            DXFLine line = {};
-            DXFArc arc = {};
+            DXFEntity entity = {};
             static char buffer[512];
             while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
                 if (mode == DXF_LOAD_MODE_NONE) {
                     if (poe_prefix_match(buffer, "LINE")) {
                         mode = DXF_LOAD_MODE_LINE;
                         code_is_hot = false;
-                        line = {};
+                        entity = {};
                     } else if (poe_prefix_match(buffer, "ARC")) {
                         mode = DXF_LOAD_MODE_ARC;
                         code_is_hot = false;
-                        arc = {};
+                        entity = {};
                     }
                 } else {
                     if (!code_is_hot) {
                         sscanf(buffer, "%d", &code);
                         if (code == 0) {
                             if (mode == DXF_LOAD_MODE_LINE) {
-                                list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_LINE, line.color, line.start_x, line.start_y, line.end_x, line.end_y });
+                                list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_LINE, entity.color, entity.line.start_x, entity.line.start_y, entity.line.end_x, entity.line.end_y });
                             } else {
                                 ASSERT(mode == DXF_LOAD_MODE_ARC);
-                                list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_ARC, arc.color, arc.center_x, arc.center_y, arc.radius, arc.start_angle_in_degrees, arc.end_angle_in_degrees });
+                                list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_ARC, entity.color, entity.arc.center_x, entity.arc.center_y, entity.arc.radius, entity.arc.start_angle_in_degrees, entity.arc.end_angle_in_degrees });
                             }
                             mode = DXF_LOAD_MODE_NONE;
                             code_is_hot = false;
@@ -361,32 +359,32 @@ void dxf_load(char *filename, DXF *dxf) {
                         if (code == 62) {
                             int value;
                             sscanf(buffer, "%d", &value);
-                            line.color = arc.color = value; 
+                            entity.color = value; 
                         } else {
                             float value;
                             sscanf(buffer, "%f", &value);
                             if (mode == DXF_LOAD_MODE_LINE) {
                                 if (code == 10) {
-                                    line.start_x = MM(value);
+                                    entity.line.start_x = MM(value);
                                 } else if (code == 20) {
-                                    line.start_y = MM(value);
+                                    entity.line.start_y = MM(value);
                                 } else if (code == 11) {
-                                    line.end_x = MM(value);
+                                    entity.line.end_x = MM(value);
                                 } else if (code == 21) {
-                                    line.end_y = MM(value);
+                                    entity.line.end_y = MM(value);
                                 }
                             } else {
                                 ASSERT(mode == DXF_LOAD_MODE_ARC);
                                 if (code == 10) {
-                                    arc.center_x = MM(value);
+                                    entity.arc.center_x = MM(value);
                                 } else if (code == 20) {
-                                    arc.center_y = MM(value);
+                                    entity.arc.center_y = MM(value);
                                 } else if (code == 40) {
-                                    arc.radius = MM(value);
+                                    entity.arc.radius = MM(value);
                                 } else if (code == 50) {
-                                    arc.start_angle_in_degrees = value;
+                                    entity.arc.start_angle_in_degrees = value;
                                 } else if (code == 51) {
-                                    arc.end_angle_in_degrees = value;
+                                    entity.arc.end_angle_in_degrees = value;
                                 }
                             }
                         }
@@ -426,7 +424,7 @@ void _dxf_eso_color(u32 color) {
 void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
     if (entity->type == DXF_ENTITY_TYPE_LINE) {
         DXFLine *line = &entity->line;
-        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : line->color);
+        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : entity->color);
         eso_vertex(line->start_x, line->start_y);
         eso_vertex(line->end_x,   line->end_y);
     } else {
@@ -438,7 +436,7 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
         u32 num_segments = (u32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
         real32 increment = delta_angle / num_segments;
         real32 current_angle = start_angle;
-        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : arc->color);
+        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : entity->color);
         for (u32 i = 0; i < num_segments; ++i) {
             real32 x, y;
             get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
@@ -1599,175 +1597,66 @@ int main() {
 
 
         { // keyboard input keyboard shortuts
-            if (globals._input_owner == COW_INPUT_OWNER_NONE) {
-                // FORNOW: invalid Enter messages
-                bool32 valid_feature_enter = false;
+            bool32 enter_key_eaten_by_console; {
+                enter_key_eaten_by_console = false;
                 if (key_pressed[COW_KEY_ENTER]) {
-                    valid_feature_enter = true;
-                    bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
-                    bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
-                    do {
+                    enter_key_eaten_by_console = true;
+                    {
+                        bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
+                        bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
                         if (enter_mode == ENTER_MODE_NONE) {
                             conversation_messagef("[enter] enter mode is none");
-                            valid_feature_enter = false;
-                            break;
-                        }
-
-                        if (extrude || revolve) {
-
+                            enter_key_eaten_by_console = false;
+                        } else if (extrude || revolve) {
                             if (!dxf_anything_selected) {
                                 conversation_messagef("[enter] no dxf elements selected");
-                                valid_feature_enter = false;
-                                break;
-                            }
+                                enter_key_eaten_by_console = false;
 
-                            if (!stl_anything_selected) { // FORNOW???
+                            } else if (!stl_anything_selected) { // FORNOW???
                                 conversation_messagef("[enter] no sketch plane selected");
-                                valid_feature_enter = false;
+                                enter_key_eaten_by_console = false;
                                 break;
-                            }
-
-                            if (extrude) {
+                            } else if (extrude) {
                                 if (IS_ZERO(extrude_param_preview) && IS_ZERO(extrude_param_2_preview)) {
                                     conversation_messagef("[enter] extrude height is zero");
-                                    valid_feature_enter = false;
+                                    enter_key_eaten_by_console = false;
                                     break;
                                 }
                             } else {
                                 ASSERT(revolve);
                             }
                         }
-                    } while (false);
-                }
-                // if (valid_feature_enter) { conversation_messagef(""); } // FORNOW
-
-
-                bool32 non_enter_key_eaten_by_enter_mode; {
-                    non_enter_key_eaten_by_enter_mode = false;
-                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT))  {
-                        non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['.']);
-                        non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed[' ']);
-                        for (u32 i = 0; i < 10; ++i) non_enter_key_eaten_by_enter_mode = (non_enter_key_eaten_by_enter_mode || key_pressed['0' + i]);
                     }
                 }
-
-
-
-                if (key_pressed[COW_KEY_TAB]) {
-                    camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
-                } else if (key_pressed[COW_KEY_ESCAPE]) {
-                    enter_mode = ENTER_MODE_NONE;
-                    click_mode = CLICK_MODE_NONE;
-                    click_modifier = CLICK_MODIFIER_NONE;
-                    console_buffer_reset();
-                    selected_reset(); // FORNOW
+            }
+            bool32 non_enter_key_eaten_by_console; {
+                non_enter_key_eaten_by_console = false;
+                non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed[COW_KEY_BACKSPACE]);
+                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
+                    non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['.']);
+                    non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed[' ']);
+                    for (u32 i = 0; i < 10; ++i) non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['0' + i]);
                 } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
-                    if (key_pressed[COW_KEY_BACKSPACE]) {
-                        if (console_buffer_write_head != console_buffer) *--console_buffer_write_head = 0;
-                    } else if (key_pressed[COW_KEY_ENTER]) {
-                        static char full_filename_including_path[512];
-                        sprintf(full_filename_including_path, "%s%s", conversation_drop_path, console_buffer);
-                        if (enter_mode == ENTER_MODE_LOAD) {
-                            conversation_load_file(full_filename_including_path);
-                            console_buffer_reset();
-                            enter_mode = _ENTER_MODE_DEFAULT;
-                        } else {
-                            ASSERT(enter_mode == ENTER_MODE_SAVE);
-                            conversation_save_file(full_filename_including_path);
-                            console_buffer_reset();
-                            enter_mode = _ENTER_MODE_DEFAULT;
-                        }
-                    } else {
-                        bool32 valid_key_pressed; {
-                            valid_key_pressed = false;
-                            valid_key_pressed = (valid_key_pressed || key_pressed['.']);
-                            valid_key_pressed = (valid_key_pressed || key_pressed[' ']);
-                            valid_key_pressed = (valid_key_pressed || key_pressed['-']);
-                            valid_key_pressed = (valid_key_pressed || key_pressed['/']);
-                            valid_key_pressed = (valid_key_pressed || key_pressed['\\']);
-                            for (u32 i = 0; i < 10; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['0' + i]);
-                            for (u32 i = 0; i < 26; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['a' + i]);
-                            for (u32 i = 0; i < 26; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['A' + i]);
-                        }
-                        if (valid_key_pressed) {
-                            char c = (char) globals.key_last_key_pressed;
-                            if (globals.key_shift_held && key_pressed['-']) c = '_';
-                            *console_buffer_write_head++ = c;
-                        }
-                    }
-                } else if (key_pressed['U'] && globals.key_shift_held) {
-                    history_redo(&history, &manifold_manifold, &fancy_mesh);
-                } else if (key_pressed['u']) {
-                    history_undo(&history, &manifold_manifold, &fancy_mesh);
-                } else if (key_pressed['X'] && globals.key_shift_held) {
-                    conversation_zoom_camera2D_to_dxf_extents();
-                } else if (key_pressed['m']) {
-                    click_mode = CLICK_MODE_MOVE_ORIGIN_TO;
-                    click_modifier = CLICK_MODIFIER_NONE;
-                } else if (key_pressed['S'] && globals.key_shift_held) {
-                    enter_mode = ENTER_MODE_SAVE;
-                } else if (key_pressed['g']) {
-                    show_grid = !show_grid;
-                } else if (key_pressed['h']) {
-                    show_help = !show_help;
-                } else if (key_pressed['.'] && !non_enter_key_eaten_by_enter_mode) {
-                    show_details = !show_details;
-                } else if (key_pressed['s']) {
-                    click_mode = CLICK_MODE_SELECT;
-                    click_modifier = CLICK_MODIFIER_NONE;
-                } else if (key_pressed['w']) {
-                    click_modifier = CLICK_MODIFIER_WINDOW;
-                    window_select_click_count = 0;
-                } else if (key_pressed['d']) {
-                    click_mode = CLICK_MODE_DESELECT;
-                    click_modifier = CLICK_MODIFIER_NONE;
-                } else if (key_pressed['c']) {
-                    if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
-                        click_modifier = CLICK_MODIFIER_CONNECTED;
-                    } else if (click_mode == CLICK_MODE_MOVE_ORIGIN_TO) {
-                        click_modifier = CLICK_MODIFIER_CENTER_OF;
-                    }
-                } else if (key_pressed['q']) {
-                    if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
-                        click_modifier = CLICK_MODIFIER_QUALITY;
-                    }
-                } else if (key_pressed['a']) {
-                    if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
-                        bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-                        for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
-                    }
-                } else if ((click_mode == CLICK_MODE_MOVE_ORIGIN_TO) && key_pressed['z']) {
-                    origin_x = 0.0f;
-                    origin_y = 0.0f;
-                } else if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
-                    some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
-                    r_n_selected = 0.0f;
-                    if (key_pressed['x']) n_selected = { 1.0f, 0.0f, 0.0f };
-                    if (key_pressed['y']) n_selected = { 0.0f, 1.0f, 0.0f };
-                    if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
-                    conversation_update_M_3D_from_2D();
-                } else if (key_pressed['E'] && globals.key_shift_held) {
-                    enter_mode = ENTER_MODE_EXTRUDE_CUT;
-                    extrude_param_sign_toggle = true;
-                } else if (key_pressed['e']) {
-                    if (click_mode == CLICK_MODE_MOVE_ORIGIN_TO) {
-                        click_modifier = CLICK_MODIFIER_END_OF;
-                    } else {
-                        enter_mode = ENTER_MODE_EXTRUDE_ADD;
-                        extrude_param_sign_toggle = false;
-                    }
-                } else if (key_pressed['R'] && globals.key_shift_held) {
-                    enter_mode = ENTER_MODE_REVOLVE_CUT;
-                } else if (key_pressed['r']) {
-                    enter_mode = ENTER_MODE_REVOLVE_ADD;
-                } else if (key_pressed['L'] && globals.key_shift_held) {
-                    enter_mode = ENTER_MODE_LOAD;
-                } else if (key_pressed['f']) {
-                    extrude_param_sign_toggle = !extrude_param_sign_toggle;
-                } else if (key_pressed[COW_KEY_ENTER] && valid_feature_enter) {
-                    // TODO: refactor this and next section to all be driven off of non_enter_key_eaten_by_enter_mode (TODO remove non_enter contingency)
-                    // FORNOW code is gros and repetitive
-                    // (should be 
+                    non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['.']);
+                    non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed[' ']);
+                    non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['-']);
+                    non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['/']);
+                    non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['\\']);
+                    for (u32 i = 0; i < 10; ++i) non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['0' + i]);
+                    for (u32 i = 0; i < 26; ++i) non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['a' + i]);
+                    for (u32 i = 0; i < 26; ++i) non_enter_key_eaten_by_console = (non_enter_key_eaten_by_console || key_pressed['A' + i]);
+                }
+            }
+            if (non_enter_key_eaten_by_console) {
+                if (key_pressed[COW_KEY_BACKSPACE]) {
+                    *--console_buffer_write_head = 0;
+                } else {
+                    char c = (char) globals.key_last_key_pressed;
+                    if (globals.key_shift_held && key_pressed['-']) c = '_';
+                    *console_buffer_write_head++ = c;
+                }
+            } else if (enter_key_eaten_by_console) {
+                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                     if (console_buffer_write_head != console_buffer) {
                         extrude_param = extrude_param_preview;
                         extrude_param_2 = extrude_param_2_preview;
@@ -1775,8 +1664,6 @@ int main() {
                     }
                     CrossSectionEvenOdd cross_section = cross_section_create(&dxf, dxf_selection_mask);
                     // cross_section_debug_draw(&camera2D, &cross_section);
-
-
                     wrapper_manifold(
                             &manifold_manifold,
                             &fancy_mesh,
@@ -1795,39 +1682,113 @@ int main() {
                     memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                     selected_reset();
                     enter_mode = ENTER_MODE_NONE;
-
-                } else if (globals.key_any_key_pressed) {
-                    if (key_pressed[COW_KEY_BACKSPACE]) {
-                        if (console_buffer_write_head != console_buffer) *--console_buffer_write_head = 0;
-                    } else if (click_modifier == CLICK_MODIFIER_QUALITY) {
-                        bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-                        if (click_modifier == CLICK_MODIFIER_QUALITY) {
-                            for (u32 color = 0; color < 6; ++color) {
-                                if (key_pressed['0' + color]) {
-                                    for (u32 i = 0; i < dxf.num_entities; ++i) {
-                                        if (dxf.entities[i].line.color == color) { // FORNOW (spooky)
-                                            dxf_selection_mask[i] = value_to_write_to_selection_mask;
-                                        }
-                                    }
-                                    click_modifier = CLICK_MODIFIER_NONE;
-                                    break;
+                } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
+                    static char full_filename_including_path[512];
+                    sprintf(full_filename_including_path, "%s%s", conversation_drop_path, console_buffer);
+                    if (enter_mode == ENTER_MODE_LOAD) {
+                        conversation_load_file(full_filename_including_path);
+                        console_buffer_reset();
+                        enter_mode = _ENTER_MODE_DEFAULT;
+                    } else {
+                        ASSERT(enter_mode == ENTER_MODE_SAVE);
+                        conversation_save_file(full_filename_including_path);
+                        console_buffer_reset();
+                        enter_mode = _ENTER_MODE_DEFAULT;
+                    }
+                }
+            } else if (key_pressed[COW_KEY_TAB]) {
+                camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
+            } else if (key_pressed[COW_KEY_ESCAPE]) {
+                enter_mode = ENTER_MODE_NONE;
+                click_mode = CLICK_MODE_NONE;
+                click_modifier = CLICK_MODIFIER_NONE;
+                console_buffer_reset();
+                selected_reset(); // FORNOW
+            } else if (key_pressed['U'] && globals.key_shift_held) {
+                history_redo(&history, &manifold_manifold, &fancy_mesh);
+            } else if (key_pressed['u']) {
+                history_undo(&history, &manifold_manifold, &fancy_mesh);
+            } else if (key_pressed['X'] && globals.key_shift_held) {
+                conversation_zoom_camera2D_to_dxf_extents();
+            } else if (key_pressed['m']) {
+                click_mode = CLICK_MODE_MOVE_ORIGIN_TO;
+                click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_pressed['S'] && globals.key_shift_held) {
+                enter_mode = ENTER_MODE_SAVE;
+            } else if (key_pressed['g']) {
+                show_grid = !show_grid;
+            } else if (key_pressed['h']) {
+                show_help = !show_help;
+            } else if (key_pressed['.'] && !non_enter_key_eaten_by_console) {
+                show_details = !show_details;
+            } else if (key_pressed['s']) {
+                click_mode = CLICK_MODE_SELECT;
+                click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_pressed['w']) {
+                click_modifier = CLICK_MODIFIER_WINDOW;
+                window_select_click_count = 0;
+            } else if (key_pressed['d']) {
+                click_mode = CLICK_MODE_DESELECT;
+                click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_pressed['c']) {
+                if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
+                    click_modifier = CLICK_MODIFIER_CONNECTED;
+                } else if (click_mode == CLICK_MODE_MOVE_ORIGIN_TO) {
+                    click_modifier = CLICK_MODIFIER_CENTER_OF;
+                }
+            } else if (key_pressed['q']) {
+                if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
+                    click_modifier = CLICK_MODIFIER_QUALITY;
+                }
+            } else if (key_pressed['a']) {
+                if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
+                    bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
+                    for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
+                }
+            } else if ((click_mode == CLICK_MODE_MOVE_ORIGIN_TO) && key_pressed['z']) {
+                origin_x = 0.0f;
+                origin_y = 0.0f;
+            } else if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
+                some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
+                r_n_selected = 0.0f;
+                if (key_pressed['x']) n_selected = { 1.0f, 0.0f, 0.0f };
+                if (key_pressed['y']) n_selected = { 0.0f, 1.0f, 0.0f };
+                if (key_pressed['z']) n_selected = { 0.0f, 0.0f, 1.0f };
+                conversation_update_M_3D_from_2D();
+            } else if (key_pressed['E'] && globals.key_shift_held) {
+                enter_mode = ENTER_MODE_EXTRUDE_CUT;
+                extrude_param_sign_toggle = true;
+            } else if (key_pressed['e']) {
+                if (click_mode == CLICK_MODE_MOVE_ORIGIN_TO) {
+                    click_modifier = CLICK_MODIFIER_END_OF;
+                } else {
+                    enter_mode = ENTER_MODE_EXTRUDE_ADD;
+                    extrude_param_sign_toggle = false;
+                }
+            } else if (key_pressed['R'] && globals.key_shift_held) {
+                enter_mode = ENTER_MODE_REVOLVE_CUT;
+            } else if (key_pressed['r']) {
+                enter_mode = ENTER_MODE_REVOLVE_ADD;
+            } else if (key_pressed['L'] && globals.key_shift_held) {
+                enter_mode = ENTER_MODE_LOAD;
+            } else if (key_pressed['f']) {
+                extrude_param_sign_toggle = !extrude_param_sign_toggle;
+            } else if (globals.key_any_key_pressed) {
+                // SPECIAL EATERS
+                if (click_modifier == CLICK_MODIFIER_QUALITY) {
+                    for (u32 color = 0; color < 6; ++color) {
+                        if (key_pressed['0' + color]) {
+                            for (u32 i = 0; i < dxf.num_entities; ++i) {
+                                if (dxf.entities[i].color == color) {
+                                    bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
+                                    dxf_selection_mask[i] = value_to_write_to_selection_mask;
                                 }
                             }
-                        }
-                    } else if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)){
-                        bool32 valid_key_pressed; {
-                            valid_key_pressed = false;
-                            valid_key_pressed = (valid_key_pressed || key_pressed['.']);
-                            valid_key_pressed = (valid_key_pressed || key_pressed[' ']);
-                            for (u32 i = 0; i < 10; ++i) valid_key_pressed = (valid_key_pressed || key_pressed['0' + i]);
-                        }
-                        if (valid_key_pressed) {
-                            *console_buffer_write_head++ = (char) globals.key_last_key_pressed;
+                            click_modifier = CLICK_MODIFIER_NONE;
+                            break;
                         }
                     }
-                } 
-
-
+                }
                 // FORNOW
                 if ((click_modifier == CLICK_MODIFIER_QUALITY) && (globals.key_any_key_pressed) && !key_pressed['q']) click_modifier = CLICK_MODE_NONE;
             }
