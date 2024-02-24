@@ -963,7 +963,6 @@ void stl_save(FancyMesh *fancy_mesh, char *filename) {
 }
 
 void fancy_mesh_free(FancyMesh *fancy_mesh) {
-    printf("%d\n", fancy_mesh->num_vertices);
     if (fancy_mesh->vertex_positions) free(fancy_mesh->vertex_positions);
     if (fancy_mesh->triangle_indices) free(fancy_mesh->triangle_indices);
     if (fancy_mesh->triangle_normals) free(fancy_mesh->triangle_normals);
@@ -1108,9 +1107,8 @@ void wrapper_manifold(
 
     ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *manifold_manifold);
 
-    // // NOTE: don't free!--putting on undo stack
-    // fancy_mesh_free(fancy_mesh);
-
+    // // NOTE: don't free ANYTHING!--putting the current state on the undo stack
+    // XXX fancy_mesh_free(fancy_mesh);
     fancy_mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
     fancy_mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
     fancy_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
@@ -1383,9 +1381,10 @@ void conversation_load_dxf(char *filename) {
     origin_y = 0.0f;
 }
 void conversation_load_stl(char *filename) {
-    fancy_mesh_free(&fancy_mesh);
+    // fancy_mesh_free(&fancy_mesh);
+    history_record_state(&history, &manifold_manifold, &fancy_mesh);
     stl_load(filename, &manifold_manifold, &fancy_mesh);
-    history_free(&history);
+    // history_free(&history);
 }
 void conversation_load_file(char *filename) {
     if (poe_suffix_match(filename, ".dxf")) {
@@ -1566,6 +1565,9 @@ int main() {
                 }
             }
         }
+        bool32 stl_anything_selected; { // FORNOW
+            stl_anything_selected = !IS_ZERO(squaredNorm(n_selected));
+        }
 
 
 
@@ -1593,7 +1595,7 @@ int main() {
                                 break;
                             }
 
-                            if (IS_ZERO(M_3D_from_2D(3, 3))) { // FORNOW???
+                            if (!stl_anything_selected) { // FORNOW???
                                 conversation_messagef("[enter] no sketch plane selected");
                                 valid_feature_enter = false;
                                 break;
@@ -2150,7 +2152,7 @@ int main() {
                     }
                 }
 
-                { // axes 3D axes 3d axes axis 3D axis 3d axis
+                if (stl_anything_selected) { // axes 3D axes 3d axes axis 3D axis 3d axis
                     real32 r = camera3D.ortho_screen_height_World / 120.0f;
                     eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y, Z_FIGHT_EPS), SOUP_LINES, 4.0f);
                     eso_color(0.8f, 0.8f, 1.0f);
@@ -2172,21 +2174,22 @@ int main() {
                     }
                     for (u32 pass = 0; pass <= 1; ++pass) {
                         eso_begin(PV_3D, (!show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
+
+                        mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
+
                         for (u32 i = 0; i < fancy_mesh.num_triangles; ++i) {
-
+                            #if 1
                             vec3 n = get(fancy_mesh.triangle_normals, i);
-
                             vec3 p[3];
                             real32 x_n;
                             {
                                 for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
                                 x_n = dot(n, p[0]);
                             }
-
                             vec3 color; 
                             real32 alpha;
                             {
-                                vec3 n_camera = transformNormal(V_3D, n);
+                                vec3 n_camera = inv_transpose_V_3D * n;
                                 vec3 color_n = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
                                 if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                     if (pass == 0) continue;
@@ -2202,6 +2205,16 @@ int main() {
                             eso_vertex(p[0]);
                             eso_vertex(p[1]);
                             eso_vertex(p[2]);
+                            #else
+                            eso_color(monokai.green, 1.0f);
+                            vec3 p[3];
+                            {
+                                for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
+                            }
+                            eso_vertex(p[0]);
+                            eso_vertex(p[1]);
+                            eso_vertex(p[2]);
+                            #endif
 
                         }
                         eso_end();
