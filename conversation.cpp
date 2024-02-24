@@ -1,3 +1,7 @@
+// TODO: how do full-fledged undo system's like LAYOUT's work?
+
+// BUG: window select grabbing things outside
+
 // BUG: suspect something in stl (or i guess dxf?) memory management; 
 // REPRO: extrude, load nonexistent stl, undo, undo, extrude
 // ROOT: pushing to history regardless of whetehr new file exists=>new mesh allocated (double free)
@@ -73,6 +77,9 @@ struct BoundingBox {
     real32 min[2];
     real32 max[2];
 };
+void pprint(BoundingBox bounding_box) {
+    printf("(%f, %f) <-> (%f, %f)\n", bounding_box.min[0], bounding_box.min[1], bounding_box.max[0], bounding_box.max[1]);
+}
 BoundingBox bounding_box_union(u32 num_bounding_boxes, BoundingBox *bounding_boxes) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
     for (u32 i = 0; i < num_bounding_boxes; ++i) {
@@ -1911,15 +1918,14 @@ int main() {
                                             }
                                         }
                                     }
-                                } else {
+                                } else if (globals.mouse_left_pressed) {
                                     if (globals.mouse_left_pressed) {
                                         if (window_select_click_count == 0) {
-                                            ++window_select_click_count;
                                             window_select_x = mouse_x;
                                             window_select_y = mouse_y;
+
+                                            ++window_select_click_count;
                                         } else {
-                                            window_select_click_count = 0;
-                                            click_modifier = CLICK_MODE_NONE;
                                             BoundingBox window = {
                                                 MIN(window_select_x, mouse_x),
                                                 MIN(window_select_y, mouse_y),
@@ -1931,6 +1937,8 @@ int main() {
                                                     dxf_selection_mask[i] = value_to_write_to_selection_mask;
                                                 }
                                             }
+
+                                            window_select_click_count = 0;
                                         }
                                     }
                                 }
