@@ -1,3 +1,5 @@
+// BUG: colors messed up on multiple chained undos
+
 // / window selection
 
 // TODO: fix up rotations to work with origin_x, origin_y
@@ -38,8 +40,8 @@ vec3 get(real32 *x, u32 i) {
     for (u32 d = 0; d < 3; ++d) result.data[d] = x[3 * i + d];
     return result;
 }
-void add(real32 *x, u32 i, vec3 v) {
-    for (u32 d = 0; d < 3; ++d) x[3 * i + d] += v.data[d];
+void set(real32 *x, u32 i, vec3 v) {
+    for (u32 d = 0; d < 3; ++d) x[3 * i + d] = v.data[d];
 }
 void eso_vertex(real32 *p_j) {
     eso_vertex(p_j[0], p_j[1], p_j[2]);
@@ -870,7 +872,7 @@ void fancy_mesh_triangle_normals_calculate(FancyMesh *fancy_mesh) {
     for (u32 i = 0; i < fancy_mesh->num_triangles; ++i) {
         for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh->vertex_positions, fancy_mesh->triangle_indices[3 * i + j]);
         vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
-        for (u32 d = 0; d < 3; ++d) fancy_mesh->triangle_normals[3 * i + d] = n[d];
+        set(fancy_mesh->triangle_normals, i, n);
     }
 }
 
@@ -963,10 +965,11 @@ void stl_save(FancyMesh *fancy_mesh, char *filename) {
 }
 
 void fancy_mesh_free(FancyMesh *fancy_mesh) {
+    printf("%d\n", fancy_mesh->num_vertices);
     if (fancy_mesh->vertex_positions) free(fancy_mesh->vertex_positions);
     if (fancy_mesh->triangle_indices) free(fancy_mesh->triangle_indices);
     if (fancy_mesh->triangle_normals) free(fancy_mesh->triangle_normals);
-    if (fancy_mesh->cosmetic_edges) free(fancy_mesh->cosmetic_edges);
+    if (fancy_mesh->cosmetic_edges)   free(fancy_mesh->cosmetic_edges);
     *fancy_mesh = {};
 }
 
@@ -985,11 +988,13 @@ struct History {
 };
 void history_record_state(History *history, ManifoldManifold **manifold_manifold, FancyMesh *fancy_mesh) {
     list_push_back(&history->undo_stack, { *manifold_manifold, *fancy_mesh });
-    for (u32 i = 0; i < history->redo_stack.length; ++i) {
-        // manifold_destruct_manifold(history->redo_stack.data[i].manifold_manifold);
-        fancy_mesh_free(&history->redo_stack.data[i].fancy_mesh);
+    { // free redo_stack
+        for (u32 i = 0; i < history->redo_stack.length; ++i) {
+            fancy_mesh_free(&history->redo_stack.data[i].fancy_mesh);
+            // TODO: manifold_manifold
+        }
+        list_free(&history->redo_stack);
     }
-    list_free(&history->redo_stack);
 }
 void history_undo(History *history, ManifoldManifold **manifold_manifold, FancyMesh *fancy_mesh) {
     if (history->undo_stack.length != 0) {
@@ -1012,8 +1017,21 @@ void history_redo(History *history, ManifoldManifold **manifold_manifold, FancyM
     }
 }
 void history_free(History *history) {
-    list_free(&history->undo_stack);
-    list_free(&history->redo_stack);
+    { // free undo_stack
+        for (u32 i = 0; i < history->undo_stack.length; ++i) {
+            fancy_mesh_free(&history->undo_stack.data[i].fancy_mesh);
+            // TODO: manifold_manifold
+        }
+        list_free(&history->undo_stack);
+    }
+
+    { // free redo_stack
+        for (u32 i = 0; i < history->redo_stack.length; ++i) {
+            fancy_mesh_free(&history->redo_stack.data[i].fancy_mesh);
+            // TODO: manifold_manifold
+        }
+        list_free(&history->redo_stack);
+    }
 }
 
 
@@ -1076,7 +1094,7 @@ void wrapper_manifold(
 
     // add
     if (!(*manifold_manifold)) {
-        if (enter_mode == ENTER_MODE_EXTRUDE_CUT || enter_mode == ENTER_MODE_REVOLVE_CUT) { return; } // FORNOW
+        ASSERT((enter_mode != ENTER_MODE_EXTRUDE_CUT) && (enter_mode != ENTER_MODE_REVOLVE_CUT));
 
         *manifold_manifold = other_manifold;
     } else {
@@ -2171,13 +2189,14 @@ int main() {
                             real32 alpha;
                             {
                                 vec3 n_camera = transformNormal(V_3D, n);
+                                vec3 color_n = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
                                 if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                     if (pass == 0) continue;
-                                    color = LERP(0.9f, V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f), monokai.yellow);
+                                    color = LERP(0.9f, color_n, monokai.yellow);
                                     alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((extrude_param_sign_toggle) || (extrude_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                 } else {
                                     if (pass == 1) continue;
-                                    color = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
+                                    color = color_n;
                                     alpha = 1.0f;
                                 }
                             }
