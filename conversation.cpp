@@ -684,13 +684,19 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 }
 
 void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
-    if (analysis->num_entities_in_loops) { // FORNOW
+    if (analysis->num_entities_in_loops) {
         free(analysis->num_entities_in_loops);
+    }
+    if (analysis->loops) {
         for (u32 i = 0; i < analysis->num_loops; ++i) {
             free(analysis->loops[i]);
         }
+        free(analysis->loops);
+    }
+    if (analysis->loop_index_from_entity_index) {
         free(analysis->loop_index_from_entity_index);
     }
+    *analysis = {};
 }
 
 
@@ -863,10 +869,6 @@ struct FancyMesh {
 };
 
 void fancy_mesh_triangle_normals_calculate(FancyMesh *fancy_mesh) {
-    if (fancy_mesh->triangle_normals) {
-        free(fancy_mesh->triangle_normals);
-    }
-
     fancy_mesh->triangle_normals = (real32 *) malloc(fancy_mesh->num_triangles * 3 * sizeof(real32));
     vec3 p[3];
     for (u32 i = 0; i < fancy_mesh->num_triangles; ++i) {
@@ -877,10 +879,6 @@ void fancy_mesh_triangle_normals_calculate(FancyMesh *fancy_mesh) {
 }
 
 void fancy_mesh_cosmetic_edges_calculate(FancyMesh *fancy_mesh) {
-    if (fancy_mesh->cosmetic_edges) {
-        fancy_mesh->cosmetic_edges = 0;
-        free(fancy_mesh->cosmetic_edges);
-    }
     // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
     //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
     //           then go back and if passes some heuristic add that index to a stretchy buffer
