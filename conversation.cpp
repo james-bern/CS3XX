@@ -1,3 +1,6 @@
+// NOTE: what makes this software interesting is PRECSISION--if you don't care about precision just use sketchup
+// we want some of sketchups intuitiveness, with the precision of solidworks
+
 // TODO: how do full-fledged undo system's like LAYOUT's work?
 
 // BUG: window select grabbing things outside
