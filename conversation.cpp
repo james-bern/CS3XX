@@ -1,3 +1,14 @@
+// TODO: revolve
+// // HW notes
+// - plated through holes
+
+
+// TODO: n
+
+
+
+// TODO: incorporate console_params_flip_flag fully into console_param_preview's (preview should have it all in there)
+
 // visualization of 2D origin moving on the left hand side
 
 // 'n'
@@ -56,14 +67,15 @@
 
 // ? TODO: the Hard problem of avoiding the creation of ultra-thin features
 
-#define ENTER_MODE_NONE           0
-#define ENTER_MODE_EXTRUDE_ADD    1
-#define ENTER_MODE_EXTRUDE_CUT    2
-#define ENTER_MODE_REVOLVE_ADD    3
-#define ENTER_MODE_REVOLVE_CUT    4
-#define ENTER_MODE_LOAD           5
-#define ENTER_MODE_SAVE           6
-#define ENTER_MODE_MOVE_2D_ORIGIN_TO 7
+#define ENTER_MODE_NONE              0
+#define ENTER_MODE_EXTRUDE_ADD       1
+#define ENTER_MODE_EXTRUDE_CUT       2
+#define ENTER_MODE_REVOLVE_ADD       3
+#define ENTER_MODE_REVOLVE_CUT       4
+#define ENTER_MODE_LOAD              5
+#define ENTER_MODE_SAVE              6
+#define ENTER_MODE_MOVE_ORIGIN_TO    7
+#define ENTER_MODE_OFFSET_PLANE_TO   8
 #define _ENTER_MODE_DEFAULT ENTER_MODE_NONE
 #define CLICK_MODE_NONE           0
 #define CLICK_MODE_SELECT         1
@@ -146,7 +158,7 @@ void conversation_messagef(char *format, ...) {
     va_start(arg, format);
     vsnprintf(conversation_message_buffer, sizeof(conversation_message_buffer), format, arg);
     va_end(arg);
-    conversation_message_cooldown = 600;
+    conversation_message_cooldown = 300;
 }
 
 
@@ -1073,7 +1085,6 @@ void wrapper_manifold(
         vec2 **polygonal_loops,
         mat4 M_3D_from_2D,
         u32 enter_mode,
-        bool32 extrude_flip_flag,
         real32 console_param,
         real32 console_param_2,
         History *history) {
@@ -1098,16 +1109,24 @@ void wrapper_manifold(
 
             if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
                 do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_CUT\n");};
-                console_param += TOLERANCE_DEFAULT;
-                console_param_2 += TOLERANCE_DEFAULT;
+                console_param += SGN(console_param) * TOLERANCE_DEFAULT;
+                console_param_2 += SGN(console_param_2) * TOLERANCE_DEFAULT;
             }
 
-            // TODO: port origin stuff to revolve
+            // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
+            //       but we support (30, 40) -- which is equivalent to (40, 0)
+
             if (enter_mode == ENTER_MODE_EXTRUDE_ADD || enter_mode == ENTER_MODE_EXTRUDE_CUT) {
-                other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, console_param + console_param_2, 0, 0.0f, 1.0f, 1.0f);
-                other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, -console_param_2);
-                if (extrude_flip_flag) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0f, 0.0f, 1.0f);
+                real32 min = MIN(0.0f, MIN(console_param, console_param_2));
+                real32 max = MAX(0.0f, MAX(console_param, console_param_2));
+                real32 length = max - min;
+
+                other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
+                other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, min);
+                // if (console_params_flip_flag) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0f, 0.0f, 1.0f);
+
             } else {
+                // TODO
                 other_manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
                 other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
             }
@@ -1341,9 +1360,38 @@ ManifoldManifold *manifold_manifold;
 FancyMesh fancy_mesh;
 History history;
 u32 enter_mode;
+char console_buffer[256];
+char *console_buffer_write_head;
+void console_buffer_reset() {
+    memset(console_buffer, 0, ARRAY_LENGTH(console_buffer) * sizeof(char));
+    console_buffer_write_head = console_buffer;
+};
 real32 console_param;
 real32 console_param_2;
-bool32 extrude_flip_flag;
+bool32 console_params_flip_flag;
+real32 console_param_preview;
+real32 console_param_2_preview;
+void console_params_preview_update() {
+    if (console_buffer_write_head == console_buffer) {
+        console_param_preview = console_param;
+        console_param_2_preview = console_param_2;
+    } else {
+        char buffs[2][64] = {};
+        u32 buff_i = 0;
+        u32 i = 0;
+        for (char *c = console_buffer; (*c) != '\0'; ++c) {
+            if (*c == ' ') {
+                ++buff_i;
+                i = 0;
+                continue;
+            }
+            buffs[buff_i][i++] = (*c);
+        }
+        real32 sign = (!console_params_flip_flag) ? 1.0f : -1.0f;
+        console_param_preview = sign * strtof(buffs[0], NULL);
+        console_param_2_preview = sign * -strtof(buffs[1], NULL); // *
+    }
+}
 Camera2D camera2D;
 Camera3D camera3D;
 real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
@@ -1355,12 +1403,6 @@ u32 click_modifier; // TODO combine
 u32 window_select_click_count;
 real32 window_select_x;
 real32 window_select_y;
-char console_buffer[256];
-char *console_buffer_write_head;
-void console_buffer_reset() {
-    memset(console_buffer, 0, ARRAY_LENGTH(console_buffer) * sizeof(char));
-    console_buffer_write_head = console_buffer;
-};
 bool32 some_triangle_exists_that_matches_n_selected_and_r_n_selected; // NOTE: if this is false, then a plane is selected
 vec3 n_selected;
 real32 r_n_selected; // coordinate along n_selected
@@ -1545,7 +1587,7 @@ int main() {
             enter_mode = _ENTER_MODE_DEFAULT;
             console_param = 0.0f;
             console_param_2 = 0.0f;
-            extrude_flip_flag = false;
+            console_params_flip_flag = false;
             console_buffer_reset();
 
             { // cameras
@@ -1569,28 +1611,7 @@ int main() {
 
 
 
-        real32 console_param_preview;
-        real32 console_param_2_preview;
-        {
-            if (console_buffer_write_head == console_buffer) {
-                console_param_preview = console_param;
-                console_param_2_preview = console_param_2;
-            } else {
-                char buffs[2][64] = {};
-                u32 buff_i = 0;
-                u32 i = 0;
-                for (char *c = console_buffer; (*c) != '\0'; ++c) {
-                    if (*c == ' ') {
-                        ++buff_i;
-                        i = 0;
-                        continue;
-                    }
-                    buffs[buff_i][i++] = (*c);
-                }
-                console_param_preview = strtof(buffs[0], NULL);
-                console_param_2_preview = strtof(buffs[1], NULL);
-            }
-        }
+        console_params_preview_update();
 
         bool32 dxf_anything_selected; {
             dxf_anything_selected = false;
@@ -1601,8 +1622,8 @@ int main() {
                 }
             }
         }
-        bool32 stl_anything_selected; { // FORNOW
-            stl_anything_selected = !IS_ZERO(squaredNorm(n_selected));
+        bool32 stl_plane_selected; { // FORNOW
+            stl_plane_selected = !IS_ZERO(squaredNorm(n_selected));
         }
 
 
@@ -1633,10 +1654,10 @@ int main() {
                 send_key_to_console = false;
                 send_key_to_console = (send_key_to_console || key_pressed[COW_KEY_BACKSPACE]);
                 if (!key_pressed[COW_KEY_ENTER]) {
-                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO)) {
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO)) {
                         send_key_to_console = (send_key_to_console || key_pressed['.']);
                         send_key_to_console = (send_key_to_console || key_pressed[' ']);
-                        if (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) send_key_to_console = (send_key_to_console || key_pressed['-']);
+                        send_key_to_console = (send_key_to_console || key_pressed['-']);
                         for (u32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed['0' + i]);
                     } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
                         send_key_to_console = (send_key_to_console || key_pressed['.']);
@@ -1661,8 +1682,8 @@ int main() {
                             if (!dxf_anything_selected) {
                                 conversation_messagef("[enter] no dxf elements selected");
                                 send_key_to_console = false;
-                            } else if (!stl_anything_selected) { // FORNOW???
-                                conversation_messagef("[enter] no sketch plane selected");
+                            } else if (!stl_plane_selected) { // FORNOW???
+                                conversation_messagef("[enter] no plane selected");
                                 send_key_to_console = false;
                             } else if (cut && (fancy_mesh.num_triangles == 0)) { // FORNOW
                                 conversation_messagef("[enter] nothing to cut");
@@ -1676,7 +1697,7 @@ int main() {
                                 ASSERT(revolve);
                                 ;
                             }
-                        } else if (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) {
+                        } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
                             ;
                         }
                     }
@@ -1696,8 +1717,8 @@ int main() {
                         *console_buffer_write_head++ = c;
                     }
                 } else {
-                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT) || (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO)) {
-                        if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO)) {
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO)) {
+                        if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO)) {
                             if (console_buffer_write_head != console_buffer) {
                                 console_param = console_param_preview;
                                 console_param_2 = console_param_2_preview;
@@ -1715,7 +1736,6 @@ int main() {
                                     cross_section.polygonal_loops,
                                     M_3D_from_2D,
                                     enter_mode,
-                                    extrude_flip_flag,
                                     console_param,
                                     console_param_2,
                                     &history
@@ -1724,7 +1744,7 @@ int main() {
                             memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                             selected_reset();
                         } else {
-                            ASSERT(enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO);
+                            ASSERT(enter_mode == ENTER_MODE_MOVE_ORIGIN_TO);
                             origin_x = console_param;
                             origin_y = console_param_2;
                             conversation_update_M_3D_from_2D();
@@ -1763,10 +1783,19 @@ int main() {
                 history_undo(&history, &manifold_manifold, &fancy_mesh);
             } else if (key_pressed['X'] && globals.key_shift_held) {
                 conversation_zoom_camera2D_to_dxf_extents();
+            } else if (key_pressed['n']) {
+                if (stl_plane_selected) {
+                    enter_mode = ENTER_MODE_OFFSET_PLANE_TO;
+                    console_params_flip_flag = false;
+                    console_buffer_reset();
+                } else {
+                    conversation_messagef("[n] no plane selected");
+                }
             } else if (key_pressed['m']) {
                 click_mode = CLICK_MODE_MOVE_2D_ORIGIN_TO;
                 click_modifier = CLICK_MODIFIER_NONE;
-                enter_mode = ENTER_MODE_MOVE_2D_ORIGIN_TO;
+                enter_mode = ENTER_MODE_MOVE_ORIGIN_TO;
+                console_params_flip_flag = false;
                 console_buffer_reset();
             } else if (key_pressed['S'] && globals.key_shift_held) {
                 enter_mode = ENTER_MODE_SAVE;
@@ -1811,14 +1840,14 @@ int main() {
                 conversation_update_M_3D_from_2D();
             } else if (key_pressed['E'] && globals.key_shift_held) {
                 enter_mode = ENTER_MODE_EXTRUDE_CUT;
-                extrude_flip_flag = true;
+                console_params_flip_flag = true;
                 console_buffer_reset();
             } else if (key_pressed['e']) {
                 if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                     click_modifier = CLICK_MODIFIER_END_OF;
                 } else {
                     enter_mode = ENTER_MODE_EXTRUDE_ADD;
-                    extrude_flip_flag = false;
+                    console_params_flip_flag = false;
                     console_buffer_reset();
                 }
             } else if (key_pressed['R'] && globals.key_shift_held) {
@@ -1828,7 +1857,8 @@ int main() {
             } else if (key_pressed['L'] && globals.key_shift_held) {
                 enter_mode = ENTER_MODE_LOAD;
             } else if (key_pressed['f']) {
-                extrude_flip_flag = !extrude_flip_flag;
+                console_params_flip_flag = !console_params_flip_flag;
+                console_params_preview_update();
             } else {
                 ;
             }
@@ -2024,7 +2054,7 @@ int main() {
 
                 if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
                     hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
-                    if (click_modifier == CLICK_MODIFIER_WINDOW) hot_pane = HOT_PANE_2D;// FORNOW
+                    if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
                 }
             }
 
@@ -2074,13 +2104,18 @@ int main() {
                     }
                     { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs
                         real32 r = camera2D.screen_height_World / 120.0f;
-                        eso_begin(PV_2D * M4_Translation(origin_x, origin_y), SOUP_LINES, 3.0f);
-                        eso_color(0.8f, 0.8f, 1.0f);
-                        eso_vertex(-r*.7f, 0.0f);
-                        eso_vertex( r, 0.0f);
-                        eso_vertex(0.0f, -r);
-                        eso_vertex(0.0f,  r*.7f);
-                        eso_end();
+                        for (u32 pass = 0; pass < 2; ++pass) {
+                            if ((pass == 1) && (enter_mode != ENTER_MODE_MOVE_ORIGIN_TO)) continue;
+                            mat4 T = (pass == 0) ? M4_Translation(origin_x, origin_y) : M4_Translation(console_param_preview, console_param_2_preview);
+                            vec3 color = (pass == 0) ? V3(0.8f, 0.8f, 1.0f) : V3(0.0f, 1.0f, 1.0f);
+                            eso_begin(PV_2D * T, SOUP_LINES, 3.0f);
+                            eso_color(color);
+                            eso_vertex(-r*.7f, 0.0f);
+                            eso_vertex( r, 0.0f);
+                            eso_vertex(0.0f, -r);
+                            eso_vertex(0.0f,  r*.7f);
+                            eso_end();
+                        }
                     }
                     if (click_modifier == CLICK_MODIFIER_WINDOW) { // select window
                         if (window_select_click_count == 1) {
@@ -2106,18 +2141,18 @@ int main() {
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
 
                 { // selection 2d selection 2D selection (FORNOW: ew)
-                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_LEAD_IO;
+                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
 
                     u32 NUM_TUBE_STACKS_INCLUSIVE;
                     mat4 M;
                     mat4 M_incr;
                     if (true) {
                         if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
-                            real32 sign = (!extrude_flip_flag) ? 1.0f : -1.0f;
-                            real32 a = sign * -console_param_2_preview;
-                            real32 b = sign * console_param_preview;
-                            real32 total_height = (console_param_2_preview + console_param_preview);
-                            NUM_TUBE_STACKS_INCLUSIVE = MIN(64, u32(roundf(total_height / 2.5f)) + 2);
+                            // NOTE: some repetition with wrapper
+                            real32 a = MIN(0.0f, MIN(console_param_preview, console_param_2_preview));
+                            real32 b = MAX(0.0f, MAX(console_param_preview, console_param_2_preview));
+                            real32 length = b - a;
+                            NUM_TUBE_STACKS_INCLUSIVE = MIN(64, u32(roundf(length / 2.5f)) + 2);
                             M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                             M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                         } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
@@ -2126,10 +2161,10 @@ int main() {
                             real32 a = 0.0f;
                             real32 b = TAU;
                             M_incr = M4_RotationAboutYAxis((b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
-                        } else if (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) {
+                        } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
                             // FORNOW
                             NUM_TUBE_STACKS_INCLUSIVE = 1;
-                            M = M_3D_from_2D * M4_Translation(origin_x - console_param_preview, origin_y - console_param_2_preview);
+                            M = M_3D_from_2D * M4_Translation((origin_x - console_param_preview), (origin_y - console_param_2_preview));
                             M_incr = M4_Identity();
                         } else {
                             NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -2157,7 +2192,7 @@ int main() {
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                         if (dxf_anything_selected) {
                             real32 H[2] = { console_param_preview, console_param_2_preview };
-                            bool32 toggle[2] = { extrude_flip_flag, !extrude_flip_flag };
+                            bool32 toggle[2] = { console_params_flip_flag, !console_params_flip_flag };
                             mat4 R2 = M4_Identity();
                             if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                                 H[0] = 50.0f;
@@ -2184,7 +2219,7 @@ int main() {
                     }
                 }
 
-                if (stl_anything_selected) { // axes 3D axes 3d axes axis 3D axis 3d axis
+                if (stl_plane_selected) { // axes 3D axes 3d axes axis 3D axis 3d axis
                     real32 r = camera3D.ortho_screen_height_World / 120.0f;
                     eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y, Z_FIGHT_EPS), SOUP_LINES, 4.0f);
                     eso_color(0.8f, 0.8f, 1.0f);
@@ -2225,8 +2260,8 @@ int main() {
                                 vec3 color_n = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
                                 if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                     if (pass == 0) continue;
-                                    color = LERP(0.9f, color_n, monokai.yellow);
-                                    alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((extrude_flip_flag) || (console_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
+                                    color = V3(0.85f, 0.87f, 0.30f);
+                                    alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((console_params_flip_flag) || (console_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                 } else {
                                     if (pass == 1) continue;
                                     color = color_n;
@@ -2280,18 +2315,40 @@ int main() {
             }
 
             { // gui
-                gui_printf("[Click] %s %s", (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) ? "MOVE_2D_ORIGIN_TO" : (click_mode == CLICK_MODE_NONE) ? "NONE" : (click_mode == CLICK_MODE_SELECT) ? "SELECT" : "DESELCT", (click_modifier == CLICK_MODE_NONE) ? "" : (click_modifier == CLICK_MODIFIER_CONNECTED) ?  "CONNECTED" : (click_modifier == CLICK_MODIFIER_WINDOW) ? "WINDOW" : (click_modifier == CLICK_MODIFIER_CENTER_OF) ? "CENTER_OF" : (click_modifier == CLICK_MODIFIER_END_OF) ? "END_OF" : (click_modifier == CLICK_MODIFIER_MIDDLE_OF) ? "MIDDLE_OF" : "");
+                gui_printf("[Click] %s %s",
+                        (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) ? "MOVE_2D_ORIGIN_TO" :
+                        (click_mode == CLICK_MODE_SELECT) ? "SELECT" :
+                        (click_mode == CLICK_MODE_DESELECT) ? "DESELECT" :
+                        "NONE",
+                        (click_modifier == CLICK_MODE_NONE) ? "" :
+                        (click_modifier == CLICK_MODIFIER_CONNECTED) ? "CONNECTED" :
+                        (click_modifier == CLICK_MODIFIER_WINDOW) ? "WINDOW" :
+                        (click_modifier == CLICK_MODIFIER_CENTER_OF) ? "CENTER_OF" :
+                        (click_modifier == CLICK_MODIFIER_END_OF) ? "END_OF" :
+                        (click_modifier == CLICK_MODIFIER_MIDDLE_OF) ? "MIDDLE_OF" :
+                        "");
 
                 char enter_message[256] = {};
-                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO)) {
-                    bool32 show_old_command = (console_buffer_write_head == console_buffer);
-                    real32 p = (show_old_command) ? console_param : console_param_preview;
-                    real32 p2 = (show_old_command) ? console_param_2 : console_param_2_preview;
-                    char glyph  = (!extrude_flip_flag) ? '^' : 'v';
-                    char glyph2 =  (extrude_flip_flag) ? '^' : 'v';
-                    if (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) {
-                        glyph = 'x';
-                        glyph2 = 'y';
+                if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO)) {
+                    real32 p, p2;
+                    char glyph, glyph2;
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
+                        p      =  console_param_preview;
+                        p2     = -console_param_2_preview;
+                        if (console_params_flip_flag) { // ??
+                            p *= -1;
+                            p2 *= -1;
+                        }
+                        if (IS_ZERO(p)) p = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
+                        if (IS_ZERO(p2)) p2 = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
+                        glyph  = (!console_params_flip_flag) ? '^' : 'v';
+                        glyph2 = (!console_params_flip_flag) ? 'v' : '^';
+                    } else {
+                        ASSERT(enter_mode == ENTER_MODE_MOVE_ORIGIN_TO);
+                        p      = console_param_preview;
+                        p2     = console_param_2_preview;
+                        glyph  = (!console_params_flip_flag) ? 'x' : 'X';
+                        glyph2 = (!console_params_flip_flag) ? 'y' : 'Y';
                     }
                     sprintf(enter_message, "%c:%gmm %c:%gmm", glyph, p, glyph2, p2);
                 } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
@@ -2305,7 +2362,8 @@ int main() {
                         (enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
                         (enter_mode == ENTER_MODE_LOAD) ? "LOAD" :
                         (enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
-                        (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) ? "MOVE_2D_ORIGIN_TO" :
+                        (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) ? "MOVE_2D_ORIGIN_TO" :
+                        (enter_mode == ENTER_MODE_OFFSET_PLANE_TO) ? "OFFSET_PLANE_TO" :
                         "NONE",
                         enter_message);
 
