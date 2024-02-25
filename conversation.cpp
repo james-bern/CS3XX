@@ -7,7 +7,7 @@
 
 
 
-// TODO: incorporate console_params_flip_flag fully into console_param_preview's (preview should have it all in there)
+// TODO: incorporate console_params_preview_flip_flag fully into console_param_preview's (preview should have it all in there)
 
 // visualization of 2D origin moving on the left hand side
 
@@ -1123,7 +1123,7 @@ void wrapper_manifold(
 
                 other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
                 other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, min);
-                // if (console_params_flip_flag) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0f, 0.0f, 1.0f);
+                // if (console_params_preview_flip_flag) other_manifold = manifold_mirror(other_manifold, other_manifold, 0.0f, 0.0f, 1.0f);
 
             } else {
                 // TODO
@@ -1368,7 +1368,7 @@ void console_buffer_reset() {
 };
 real32 console_param;
 real32 console_param_2;
-bool32 console_params_flip_flag;
+bool32 console_params_preview_flip_flag;
 real32 console_param_preview;
 real32 console_param_2_preview;
 void console_params_preview_update() {
@@ -1387,7 +1387,7 @@ void console_params_preview_update() {
             }
             buffs[buff_i][i++] = (*c);
         }
-        real32 sign = (!console_params_flip_flag) ? 1.0f : -1.0f;
+        real32 sign = (!console_params_preview_flip_flag) ? 1.0f : -1.0f;
         console_param_preview = sign * strtof(buffs[0], NULL);
         console_param_2_preview = sign * -strtof(buffs[1], NULL); // *
     }
@@ -1587,7 +1587,7 @@ int main() {
             enter_mode = _ENTER_MODE_DEFAULT;
             console_param = 0.0f;
             console_param_2 = 0.0f;
-            console_params_flip_flag = false;
+            console_params_preview_flip_flag = false;
             console_buffer_reset();
 
             { // cameras
@@ -1786,7 +1786,7 @@ int main() {
             } else if (key_pressed['n']) {
                 if (stl_plane_selected) {
                     enter_mode = ENTER_MODE_OFFSET_PLANE_TO;
-                    console_params_flip_flag = false;
+                    console_params_preview_flip_flag = false;
                     console_buffer_reset();
                 } else {
                     conversation_messagef("[n] no plane selected");
@@ -1795,7 +1795,7 @@ int main() {
                 click_mode = CLICK_MODE_MOVE_2D_ORIGIN_TO;
                 click_modifier = CLICK_MODIFIER_NONE;
                 enter_mode = ENTER_MODE_MOVE_ORIGIN_TO;
-                console_params_flip_flag = false;
+                console_params_preview_flip_flag = false;
                 console_buffer_reset();
             } else if (key_pressed['S'] && globals.key_shift_held) {
                 enter_mode = ENTER_MODE_SAVE;
@@ -1840,14 +1840,14 @@ int main() {
                 conversation_update_M_3D_from_2D();
             } else if (key_pressed['E'] && globals.key_shift_held) {
                 enter_mode = ENTER_MODE_EXTRUDE_CUT;
-                console_params_flip_flag = true;
+                console_params_preview_flip_flag = true;
                 console_buffer_reset();
             } else if (key_pressed['e']) {
                 if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                     click_modifier = CLICK_MODIFIER_END_OF;
                 } else {
                     enter_mode = ENTER_MODE_EXTRUDE_ADD;
-                    console_params_flip_flag = false;
+                    console_params_preview_flip_flag = false;
                     console_buffer_reset();
                 }
             } else if (key_pressed['R'] && globals.key_shift_held) {
@@ -1857,7 +1857,7 @@ int main() {
             } else if (key_pressed['L'] && globals.key_shift_held) {
                 enter_mode = ENTER_MODE_LOAD;
             } else if (key_pressed['f']) {
-                console_params_flip_flag = !console_params_flip_flag;
+                console_params_preview_flip_flag = !console_params_preview_flip_flag;
                 console_params_preview_update();
             } else {
                 ;
@@ -2192,7 +2192,7 @@ int main() {
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                         if (dxf_anything_selected) {
                             real32 H[2] = { console_param_preview, console_param_2_preview };
-                            bool32 toggle[2] = { console_params_flip_flag, !console_params_flip_flag };
+                            bool32 toggle[2] = { console_params_preview_flip_flag, !console_params_preview_flip_flag };
                             mat4 R2 = M4_Identity();
                             if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                                 H[0] = 50.0f;
@@ -2261,7 +2261,7 @@ int main() {
                                 if (some_triangle_exists_that_matches_n_selected_and_r_n_selected && (dot(n, n_selected) > 0.999f) && (ABS(x_n - r_n_selected) < 0.001f)) {
                                     if (pass == 0) continue;
                                     color = V3(0.85f, 0.87f, 0.30f);
-                                    alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((console_params_flip_flag) || (console_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
+                                    alpha = ((enter_mode == ENTER_MODE_EXTRUDE_ADD || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((console_params_preview_flip_flag) || (console_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                                 } else {
                                     if (pass == 1) continue;
                                     color = color_n;
@@ -2335,20 +2335,20 @@ int main() {
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
                         p      =  console_param_preview;
                         p2     = -console_param_2_preview;
-                        if (console_params_flip_flag) { // ??
+                        if (console_params_preview_flip_flag) { // ??
                             p *= -1;
                             p2 *= -1;
                         }
                         if (IS_ZERO(p)) p = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
                         if (IS_ZERO(p2)) p2 = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
-                        glyph  = (!console_params_flip_flag) ? '^' : 'v';
-                        glyph2 = (!console_params_flip_flag) ? 'v' : '^';
+                        glyph  = (!console_params_preview_flip_flag) ? '^' : 'v';
+                        glyph2 = (!console_params_preview_flip_flag) ? 'v' : '^';
                     } else {
                         ASSERT(enter_mode == ENTER_MODE_MOVE_ORIGIN_TO);
                         p      = console_param_preview;
                         p2     = console_param_2_preview;
-                        glyph  = (!console_params_flip_flag) ? 'x' : 'X';
-                        glyph2 = (!console_params_flip_flag) ? 'y' : 'Y';
+                        glyph  = (!console_params_preview_flip_flag) ? 'x' : 'X';
+                        glyph2 = (!console_params_preview_flip_flag) ? 'y' : 'Y';
                     }
                     sprintf(enter_message, "%c:%gmm %c:%gmm", glyph, p, glyph2, p2);
                 } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
