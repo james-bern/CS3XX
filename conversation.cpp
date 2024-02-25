@@ -1650,6 +1650,7 @@ int main() {
                     {
                         bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
                         bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+                        bool32 cut = ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
                         if (enter_mode == ENTER_MODE_NONE) {
                             conversation_messagef("[enter] enter mode is none");
                             send_key_to_console = false;
@@ -1659,6 +1660,9 @@ int main() {
                                 send_key_to_console = false;
                             } else if (!stl_anything_selected) { // FORNOW???
                                 conversation_messagef("[enter] no sketch plane selected");
+                                send_key_to_console = false;
+                            } else if (cut && (fancy_mesh.num_triangles == 0)) { // FORNOW
+                                conversation_messagef("[enter] nothing to cut");
                                 send_key_to_console = false;
                             } else if (extrude) {
                                 if (IS_ZERO(console_param_preview + console_param_2_preview)) {
@@ -1737,10 +1741,10 @@ int main() {
                     }
                     console_buffer_reset();
                     enter_mode = _ENTER_MODE_DEFAULT;
-                    if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
-                        click_mode = _CLICK_MODE_DEFAULT;
-                        click_modifier = _CLICK_MODIFIER_DEFAULT;
-                    }
+                    // if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
+                    click_mode = _CLICK_MODE_DEFAULT;
+                    click_modifier = _CLICK_MODIFIER_DEFAULT;
+                    // }
                 }
             } else if (key_pressed[COW_KEY_TAB]) {
                 camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
