@@ -1,3 +1,5 @@
+// visualization of 2D origin moving on the left hand side
+
 // 'n'
 
 // TODO: proper undo (including dxf selection, etc.) (using input deltas?--big array of input events)
@@ -232,6 +234,7 @@ BEGIN_PRE_MAIN {
 #define DXF_COLOR_QUALITY_4       4
 #define DXF_COLOR_QUALITY_5       5
 #define DXF_COLOR_ETCH            6
+#define DXF_COLOR_WATER_ONLY      8
 #define DXF_COLOR_LEAD_IO         9
 #define DXF_COLOR_QUALITY_SLIT_1 21
 #define DXF_COLOR_QUALITY_SLIT_2 22
@@ -1799,10 +1802,6 @@ int main() {
                     bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                     for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                 }
-            } else if ((click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) && key_pressed['z']) {
-                origin_x = 0.0f;
-                origin_y = 0.0f;
-                conversation_update_M_3D_from_2D();
             } else if (key_pressed['x'] || key_pressed['y'] || key_pressed['z']) {
                 some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                 r_n_selected = 0.0f;
@@ -2107,7 +2106,7 @@ int main() {
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
 
                 { // selection 2d selection 2D selection (FORNOW: ew)
-                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : DXF_COLOR_LEAD_IO;
+                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_LEAD_IO;
 
                     u32 NUM_TUBE_STACKS_INCLUSIVE;
                     mat4 M;
@@ -2127,6 +2126,11 @@ int main() {
                             real32 a = 0.0f;
                             real32 b = TAU;
                             M_incr = M4_RotationAboutYAxis((b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                        } else if (enter_mode == ENTER_MODE_MOVE_2D_ORIGIN_TO) {
+                            // FORNOW
+                            NUM_TUBE_STACKS_INCLUSIVE = 1;
+                            M = M_3D_from_2D * M4_Translation(origin_x - console_param_preview, origin_y - console_param_2_preview);
+                            M_incr = M4_Identity();
                         } else {
                             NUM_TUBE_STACKS_INCLUSIVE = 1;
                             M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS);
@@ -2139,8 +2143,6 @@ int main() {
                                     DXFEntity *entity = &dxf.entities[i];
                                     if (dxf_selection_mask[i]) {
                                         eso_dxf_entity__SOUP_LINES(entity, color);
-                                    } else if (tube_stack_index == 0) {
-                                        // eso_dxf_entity__SOUP_LINES(entity, DXF_COLOR_SELECTION);
                                     }
                                 }
                                 eso_end();
@@ -2341,14 +2343,14 @@ int main() {
                     gui_printf("(Escape)-from-current-enter_and_click_modes");
                     gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
                     gui_printf("(y)-plane (x)-plane");
-                    gui_printf("(e)trude-add (E)xtrude-cut + (0-9. ) (f)lip-direction");
+                    gui_printf("(e)trude-add (E)xtrude-cut + (0123456789. ) (f)lip-direction");
                     gui_printf("(r)evolve-add (R)evolve-cut");
                     gui_printf("(u)ndo (U)-redo");
                     gui_printf("(L)oad (S)ave");
                     gui_printf("(g)rid (.)-show-details");
                     gui_printf("zoom-to-e(X)tents");
                     gui_printf("(Tab)-orthographic-perspective-view");
-                    gui_printf("(m)ove-origin + (c)enter-of (e)nd-of (z)ero");
+                    gui_printf("(m)ove-origin + (c)enter-of (e)nd-of (0123456789.- ) ");
                     gui_printf("");
                     gui_printf("you can drag and drop dxf's into Conversation");
                 }
