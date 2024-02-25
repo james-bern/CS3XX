@@ -1,3 +1,6 @@
+// sort out movement (do you show both yellow and blue or just blue; what moves; etc)
+// 3D sketch plane is a bbox with offsets
+
 // TODO: revolve
 // // HW notes
 // - plated through holes
@@ -75,7 +78,7 @@
 #define ENTER_MODE_LOAD              5
 #define ENTER_MODE_SAVE              6
 #define ENTER_MODE_MOVE_ORIGIN_TO    7
-#define ENTER_MODE_OFFSET_PLANE_TO   8
+#define ENTER_MODE_OFFSET_PLANE_BY   8
 #define _ENTER_MODE_DEFAULT ENTER_MODE_NONE
 #define CLICK_MODE_NONE           0
 #define CLICK_MODE_SELECT         1
@@ -224,7 +227,7 @@ BEGIN_PRE_MAIN {
             if (stripe) value = 80;
             if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
             for (u32 d = 0; d < 3; ++d) data[k + d] = value;
-            data[k + 3] = 190;
+            data[k + 3] = 160;
         }
     }
     _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
@@ -1389,7 +1392,10 @@ void console_params_preview_update() {
         }
         real32 sign = (!console_params_preview_flip_flag) ? 1.0f : -1.0f;
         console_param_preview = sign * strtof(buffs[0], NULL);
-        console_param_2_preview = sign * -strtof(buffs[1], NULL); // *
+        console_param_2_preview = sign * strtof(buffs[1], NULL);
+        if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
+            console_param_2_preview *= -1;
+        }
     }
 }
 Camera2D camera2D;
@@ -1509,7 +1515,7 @@ void conversation_update_M_3D_from_2D() {
         y *= -1;
     }
 
-    M_3D_from_2D = M4_xyzo(x, y, z, r_n_selected * n_selected) * M4_Translation(-origin_x, -origin_y);
+    M_3D_from_2D = M4_xyzo(x, y, z, (r_n_selected) * n_selected) * M4_Translation(-origin_x, -origin_y);
 }
 
 
@@ -1654,11 +1660,14 @@ int main() {
                 send_key_to_console = false;
                 send_key_to_console = (send_key_to_console || key_pressed[COW_KEY_BACKSPACE]);
                 if (!key_pressed[COW_KEY_ENTER]) {
-                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO)) {
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                         send_key_to_console = (send_key_to_console || key_pressed['.']);
-                        send_key_to_console = (send_key_to_console || key_pressed[' ']);
                         send_key_to_console = (send_key_to_console || key_pressed['-']);
                         for (u32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed['0' + i]);
+                        // note: double negative
+                        if ((enter_mode != ENTER_MODE_OFFSET_PLANE_BY)) {
+                            send_key_to_console = (send_key_to_console || key_pressed[' ']);
+                        }
                     } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
                         send_key_to_console = (send_key_to_console || key_pressed['.']);
                         send_key_to_console = (send_key_to_console || key_pressed[' ']);
@@ -1689,7 +1698,7 @@ int main() {
                                 conversation_messagef("[enter] nothing to cut");
                                 send_key_to_console = false;
                             } else if (extrude) {
-                                if (IS_ZERO(console_param_preview + console_param_2_preview)) {
+                                if (IS_ZERO(console_param_preview) && IS_ZERO(console_param_2_preview)) {
                                     conversation_messagef("[enter] extrude height is zero");
                                     send_key_to_console = false;
                                 }
@@ -1698,6 +1707,8 @@ int main() {
                                 ;
                             }
                         } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
+                            ;
+                        } else if (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
                             ;
                         }
                     }
@@ -1717,8 +1728,8 @@ int main() {
                         *console_buffer_write_head++ = c;
                     }
                 } else {
-                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO)) {
-                        if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO)) {
+                    if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
+                        if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                             if (console_buffer_write_head != console_buffer) {
                                 console_param = console_param_preview;
                                 console_param_2 = console_param_2_preview;
@@ -1743,10 +1754,14 @@ int main() {
                             // reset state
                             memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                             selected_reset();
-                        } else {
-                            ASSERT(enter_mode == ENTER_MODE_MOVE_ORIGIN_TO);
+                        } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
                             origin_x = console_param;
                             origin_y = console_param_2;
+                            conversation_update_M_3D_from_2D();
+                        } else {
+                            ASSERT(enter_mode == ENTER_MODE_OFFSET_PLANE_BY);
+                            r_n_selected += console_param;
+                            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false; // FORNOW
                             conversation_update_M_3D_from_2D();
                         }
                         console_param = 0.0f;
@@ -1785,7 +1800,7 @@ int main() {
                 conversation_zoom_camera2D_to_dxf_extents();
             } else if (key_pressed['n']) {
                 if (stl_plane_selected) {
-                    enter_mode = ENTER_MODE_OFFSET_PLANE_TO;
+                    enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
                     console_params_preview_flip_flag = false;
                     console_buffer_reset();
                 } else {
@@ -2297,16 +2312,20 @@ int main() {
                 }
 
                 { // plane; NOTE: transparent
-                    if (!some_triangle_exists_that_matches_n_selected_and_r_n_selected) { // planes
-                        real32 r = 256.0f / 2;
-                        mat4 M_3D_from_2D_no_origin_offset = M_3D_from_2D * M4_Translation(origin_x, origin_y);
-                        eso_begin(PV_3D * M_3D_from_2D_no_origin_offset, SOUP_OUTLINED_QUADS);
-                        // eso_color(V3(0.5f) + 0.5 * n_selected, 0.5f);
-                        eso_color(monokai.yellow, 0.5f);
-                        eso_vertex( r,  r, -Z_FIGHT_EPS);
-                        eso_vertex( r, -r, -Z_FIGHT_EPS);
-                        eso_vertex(-r, -r, -Z_FIGHT_EPS);
-                        eso_vertex(-r,  r, -Z_FIGHT_EPS);
+                    real32 r = 30.0f;
+                    for (u32 pass = 0; pass < 2; ++pass) {
+                        if ((pass == 0) && some_triangle_exists_that_matches_n_selected_and_r_n_selected) continue;
+                        if ((pass == 1) && (enter_mode != ENTER_MODE_OFFSET_PLANE_BY)) continue;
+                        mat4 PVM = PV_3D * M_3D_from_2D;
+                        if (pass == 1) PVM *= M4_Translation(0.0f, 0.0f, console_param_preview);
+                        vec3 color = (pass == 0) ? monokai.yellow : V3(0.0f, 1.0f, 1.0f);
+                        real32 sign = (pass == 0) ? -1.0f : 1.0f;
+                        eso_begin(PVM, SOUP_OUTLINED_QUADS);
+                        eso_color(color, 0.5f);
+                        eso_vertex( r,  r, sign * Z_FIGHT_EPS);
+                        eso_vertex( r, -r, sign * Z_FIGHT_EPS);
+                        eso_vertex(-r, -r, sign * Z_FIGHT_EPS);
+                        eso_vertex(-r,  r, sign * Z_FIGHT_EPS);
                         eso_end();
                     }
                 }
@@ -2347,10 +2366,11 @@ int main() {
                         ASSERT(enter_mode == ENTER_MODE_MOVE_ORIGIN_TO);
                         p      = console_param_preview;
                         p2     = console_param_2_preview;
-                        glyph  = (!console_params_preview_flip_flag) ? 'x' : 'X';
-                        glyph2 = (!console_params_preview_flip_flag) ? 'y' : 'Y';
+                        glyph  = 'x';
+                        glyph2 = 'y';
                     }
                     sprintf(enter_message, "%c:%gmm %c:%gmm", glyph, p, glyph2, p2);
+                    if (((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) && IS_ZERO(console_param_2_preview)) sprintf(enter_message, "%c:%gmm", glyph, p);
                 } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
                     sprintf(enter_message, "%s%s", conversation_drop_path, console_buffer);
                 }
@@ -2363,7 +2383,7 @@ int main() {
                         (enter_mode == ENTER_MODE_LOAD) ? "LOAD" :
                         (enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
                         (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) ? "MOVE_2D_ORIGIN_TO" :
-                        (enter_mode == ENTER_MODE_OFFSET_PLANE_TO) ? "OFFSET_PLANE_TO" :
+                        (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) ? "OFFSET_PLANE_TO" :
                         "NONE",
                         enter_message);
 
