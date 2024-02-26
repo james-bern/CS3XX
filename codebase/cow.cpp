@@ -177,6 +177,7 @@ struct C2_READONLY_USER_FACING_DATA {
     _vec2 mouse_position_NDC;
     _vec2 mouse_change_in_position_Screen;
     _vec2 mouse_change_in_position_NDC;
+    bool mouse_moved;
 
     int _input_owner;
     int _frames_since_mouse_left_pressed;
@@ -1180,6 +1181,7 @@ void _input_begin_frame() {
     globals.mouse_change_in_position_Screen[1] = 0.0;
     globals.mouse_change_in_position_NDC[0] = 0.0;
     globals.mouse_change_in_position_NDC[1] = 0.0;
+    globals.mouse_moved = false;
     globals.mouse_wheel_offset = 0.0;
     globals.key_any_key_pressed = false;
     glfwPollEvents();
@@ -1253,6 +1255,8 @@ void _callback_key(GLFWwindow *, int key, int, int action, int mods) {
 }
 
 void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
+    globals.mouse_moved = true;// FORNOW
+
     cow_real xpos = (cow_real) _xpos;
     cow_real ypos = (cow_real) _ypos;
 

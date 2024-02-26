@@ -1,4 +1,3 @@
-// sort out movement (do you show both yellow and blue or just blue; what moves; etc)
 // 3D sketch plane is a bbox with offsets
 
 // TODO: revolve
@@ -128,9 +127,10 @@ struct BoundingBox {
 void pprint(BoundingBox bounding_box) {
     printf("(%f, %f) <-> (%f, %f)\n", bounding_box.min[0], bounding_box.min[1], bounding_box.max[0], bounding_box.max[1]);
 }
-BoundingBox bounding_box_union(u32 num_bounding_boxes, BoundingBox *bounding_boxes) {
+BoundingBox bounding_box_union(u32 num_bounding_boxes, BoundingBox *bounding_boxes, bool32 *mask = NULL) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
     for (u32 i = 0; i < num_bounding_boxes; ++i) {
+        if ((mask) && (!mask[i])) continue;
         for (u32 d = 0; d < 2; ++d) {
             result.min[d] = MIN(result.min[d], bounding_boxes[i].min[d]);
             result.max[d] = MAX(result.max[d], bounding_boxes[i].max[d]);
@@ -1362,6 +1362,9 @@ bool32 *dxf_selection_mask;
 ManifoldManifold *manifold_manifold;
 FancyMesh fancy_mesh;
 History history;
+Camera2D camera2D;
+Camera3D camera3D;
+real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 u32 enter_mode;
 char console_buffer[256];
 char *console_buffer_write_head;
@@ -1376,15 +1379,20 @@ real32 console_param_preview;
 real32 console_param_2_preview;
 void console_params_preview_update() {
     if (console_buffer_write_head == console_buffer) {
-        console_param_preview = console_param;
-        console_param_2_preview = console_param_2;
+        if (enter_mode != ENTER_MODE_MOVE_ORIGIN_TO) {
+            console_param_preview = console_param;
+            console_param_2_preview = console_param_2;
+        } else if (globals.mouse_moved) {
+            // FORNOW sloppy recomputation of mouse_position_in_world_coordinates
+            _input_get_mouse_position_and_change_in_position_in_world_coordinates(camera_get_PV(&camera2D).data, &console_param_preview, &console_param_2_preview, NULL, NULL);
+        }
     } else {
         char buffs[2][64] = {};
         u32 buff_i = 0;
         u32 i = 0;
         for (char *c = console_buffer; (*c) != '\0'; ++c) {
             if (*c == ' ') {
-                ++buff_i;
+                if (++buff_i == 2) break;
                 i = 0;
                 continue;
             }
@@ -1398,9 +1406,6 @@ void console_params_preview_update() {
         }
     }
 }
-Camera2D camera2D;
-Camera3D camera3D;
-real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 bool32 show_grid, show_details, show_help;
 char conversation_drop_path[512];
 u32 hot_pane;
@@ -1781,10 +1786,10 @@ int main() {
                     }
                     console_buffer_reset();
                     enter_mode = _ENTER_MODE_DEFAULT;
-                    // if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
-                    click_mode = _CLICK_MODE_DEFAULT;
-                    click_modifier = _CLICK_MODIFIER_DEFAULT;
-                    // }
+                    if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
+                        click_mode = _CLICK_MODE_DEFAULT;
+                        click_modifier = _CLICK_MODIFIER_DEFAULT;
+                    }
                 }
             } else if (key_pressed[COW_KEY_TAB]) {
                 camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
@@ -2121,19 +2126,19 @@ int main() {
                     }
                     { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
                         real32 r = camera2D.screen_height_World / 120.0f;
-                            mat4 M = M4_Translation(origin_x, origin_y);
-                            vec3 color = V3(0.8f, 0.8f, 1.0f);
-                            if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
-                                M = M4_Translation(console_param_preview, console_param_2_preview);
-                                color = V3(0.0f, 1.0f, 1.0f);
-                            }
-                            eso_begin(PV_2D * M, SOUP_LINES, 3.0f);
-                            eso_color(color);
-                            eso_vertex(-r*.7f, 0.0f);
-                            eso_vertex( r, 0.0f);
-                            eso_vertex(0.0f, -r);
-                            eso_vertex(0.0f,  r*.7f);
-                            eso_end();
+                        mat4 M = M4_Translation(origin_x, origin_y);
+                        vec3 color = V3(0.8f, 0.8f, 1.0f);
+                        if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
+                            M = M4_Translation(console_param_preview, console_param_2_preview);
+                            color = V3(0.0f, 1.0f, 1.0f);
+                        }
+                        eso_begin(PV_2D * M, SOUP_LINES, 3.0f);
+                        eso_color(color);
+                        eso_vertex(-r*.7f, 0.0f);
+                        eso_vertex( r, 0.0f);
+                        eso_vertex(0.0f, -r);
+                        eso_vertex(0.0f,  r*.7f);
+                        eso_end();
                     }
                     if (click_modifier == CLICK_MODIFIER_WINDOW) { // select window
                         if (window_select_click_count == 1) {
@@ -2319,9 +2324,8 @@ int main() {
                 }
 
                 { // floating sketch plane; NOTE: transparent
-                    real32 r = 30.0f;
                     bool draw = (!some_triangle_exists_that_matches_n_selected_and_r_n_selected);
-                    mat4 PVM = PV_3D * M_3D_from_2D;
+                    mat4 PVM = PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y); // FORNOW
                     vec3 color = monokai.yellow;
                     real32 sign = -1.0f;
                     if (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
@@ -2329,14 +2333,42 @@ int main() {
                         color = { 0.0f, 1.0f, 1.0f };
                         sign = 1.0f;
                         draw = true;
+                    } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
+                        PVM *= M4_Translation(-console_param_preview - origin_x, -console_param_2_preview - origin_y);
+                        color = { 0.0f, 1.0f, 1.0f };
+                        sign = 1.0f;
+                        draw = true;
+                    }
+                    real32 r = 30.0f;
+                    BoundingBox bounding_box = { -r, -r, r, r };
+                    if (dxf_anything_selected) {
+                        bounding_box = bounding_box_union(dxf.num_entities, bbox, dxf_selection_mask);
+                        {
+                            bounding_box.min[0] -= origin_x;
+                            bounding_box.max[0] -= origin_x;
+                            bounding_box.min[1] -= origin_y;
+                            bounding_box.max[1] -= origin_y;
+                        }
+                        for (u32 d = 0; d < 2; ++d) {
+                            bounding_box.min[d] /= 10.0f;
+                            bounding_box.min[d] -= 1.0;
+                            bounding_box.min[d] = floorf(bounding_box.min[d]);
+                            bounding_box.min[d] *= 10.0f;
+
+                            bounding_box.max[d] /= 10.0f;
+                            bounding_box.max[d] += 1.0;
+                            bounding_box.max[d] = ceilf(bounding_box.max[d]);
+                            bounding_box.max[d] *= 10.0f;
+
+                        }
                     }
                     if (draw) {
                         eso_begin(PVM, SOUP_OUTLINED_QUADS);
-                        eso_color(color, 0.3f);
-                        eso_vertex( r,  r, sign * Z_FIGHT_EPS);
-                        eso_vertex( r, -r, sign * Z_FIGHT_EPS);
-                        eso_vertex(-r, -r, sign * Z_FIGHT_EPS);
-                        eso_vertex(-r,  r, sign * Z_FIGHT_EPS);
+                        eso_color(color, 0.35f);
+                        eso_vertex(bounding_box.min[0], bounding_box.min[1], sign * Z_FIGHT_EPS);
+                        eso_vertex(bounding_box.min[0], bounding_box.max[1], sign * Z_FIGHT_EPS);
+                        eso_vertex(bounding_box.max[0], bounding_box.max[1], sign * Z_FIGHT_EPS);
+                        eso_vertex(bounding_box.max[0], bounding_box.min[1], sign * Z_FIGHT_EPS);
                         eso_end();
                     }
                 }
