@@ -1760,9 +1760,11 @@ int main() {
                             conversation_update_M_3D_from_2D();
                         } else {
                             ASSERT(enter_mode == ENTER_MODE_OFFSET_PLANE_BY);
-                            r_n_selected += console_param;
-                            some_triangle_exists_that_matches_n_selected_and_r_n_selected = false; // FORNOW
-                            conversation_update_M_3D_from_2D();
+                            if (!IS_ZERO(console_param)) {
+                                r_n_selected += console_param;
+                                some_triangle_exists_that_matches_n_selected_and_r_n_selected = false; // FORNOW
+                                conversation_update_M_3D_from_2D();
+                            }
                         }
                         console_param = 0.0f;
                         console_param_2 = 0.0f;
@@ -2313,13 +2315,17 @@ int main() {
 
                 { // plane; NOTE: transparent
                     real32 r = 30.0f;
-                    for (u32 pass = 0; pass < 2; ++pass) {
-                        if ((pass == 0) && some_triangle_exists_that_matches_n_selected_and_r_n_selected) continue;
-                        if ((pass == 1) && (enter_mode != ENTER_MODE_OFFSET_PLANE_BY)) continue;
-                        mat4 PVM = PV_3D * M_3D_from_2D;
-                        if (pass == 1) PVM *= M4_Translation(0.0f, 0.0f, console_param_preview);
-                        vec3 color = (pass == 0) ? monokai.yellow : V3(0.0f, 1.0f, 1.0f);
-                        real32 sign = (pass == 0) ? -1.0f : 1.0f;
+                    bool draw = (!some_triangle_exists_that_matches_n_selected_and_r_n_selected);
+                    mat4 PVM = PV_3D * M_3D_from_2D;
+                    vec3 color = monokai.yellow;
+                    real32 sign = -1.0f;
+                    if (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
+                        PVM *= M4_Translation(0.0f, 0.0f, console_param_preview);
+                        color = { 0.0f, 1.0f, 1.0f };
+                        sign = 1.0f;
+                        draw = true;
+                    }
+                    if (draw) {
                         eso_begin(PVM, SOUP_OUTLINED_QUADS);
                         eso_color(color, 0.5f);
                         eso_vertex( r,  r, sign * Z_FIGHT_EPS);
