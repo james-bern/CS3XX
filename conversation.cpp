@@ -1609,7 +1609,7 @@ int main() {
 
             history_free(&history);
 
-            conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
+            conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
         }
 
 
@@ -2119,20 +2119,21 @@ int main() {
                             eso_end();
                         }
                     }
-                    { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs
+                    { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
                         real32 r = camera2D.screen_height_World / 120.0f;
-                        for (u32 pass = 0; pass < 2; ++pass) {
-                            if ((pass == 1) && (enter_mode != ENTER_MODE_MOVE_ORIGIN_TO)) continue;
-                            mat4 T = (pass == 0) ? M4_Translation(origin_x, origin_y) : M4_Translation(console_param_preview, console_param_2_preview);
-                            vec3 color = (pass == 0) ? V3(0.8f, 0.8f, 1.0f) : V3(0.0f, 1.0f, 1.0f);
-                            eso_begin(PV_2D * T, SOUP_LINES, 3.0f);
+                            mat4 M = M4_Translation(origin_x, origin_y);
+                            vec3 color = V3(0.8f, 0.8f, 1.0f);
+                            if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
+                                M = M4_Translation(console_param_preview, console_param_2_preview);
+                                color = V3(0.0f, 1.0f, 1.0f);
+                            }
+                            eso_begin(PV_2D * M, SOUP_LINES, 3.0f);
                             eso_color(color);
                             eso_vertex(-r*.7f, 0.0f);
                             eso_vertex( r, 0.0f);
                             eso_vertex(0.0f, -r);
                             eso_vertex(0.0f,  r*.7f);
                             eso_end();
-                        }
                     }
                     if (click_modifier == CLICK_MODIFIER_WINDOW) { // select window
                         if (window_select_click_count == 1) {
@@ -2158,7 +2159,7 @@ int main() {
                 glScissor(window_width / 2, 0, window_width / 2, window_height);
 
                 { // selection 2d selection 2D selection (FORNOW: ew)
-                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
+                    u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
 
                     u32 NUM_TUBE_STACKS_INCLUSIVE;
                     mat4 M;
@@ -2182,6 +2183,10 @@ int main() {
                             // FORNOW
                             NUM_TUBE_STACKS_INCLUSIVE = 1;
                             M = M_3D_from_2D * M4_Translation((origin_x - console_param_preview), (origin_y - console_param_2_preview));
+                            M_incr = M4_Identity();
+                        } else if (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
+                            NUM_TUBE_STACKS_INCLUSIVE = 1;
+                            M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, console_param_preview + Z_FIGHT_EPS);
                             M_incr = M4_Identity();
                         } else {
                             NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -2313,7 +2318,7 @@ int main() {
                     glDisable(GL_CULL_FACE);
                 }
 
-                { // plane; NOTE: transparent
+                { // floating sketch plane; NOTE: transparent
                     real32 r = 30.0f;
                     bool draw = (!some_triangle_exists_that_matches_n_selected_and_r_n_selected);
                     mat4 PVM = PV_3D * M_3D_from_2D;
@@ -2327,7 +2332,7 @@ int main() {
                     }
                     if (draw) {
                         eso_begin(PVM, SOUP_OUTLINED_QUADS);
-                        eso_color(color, 0.5f);
+                        eso_color(color, 0.3f);
                         eso_vertex( r,  r, sign * Z_FIGHT_EPS);
                         eso_vertex( r, -r, sign * Z_FIGHT_EPS);
                         eso_vertex(-r, -r, sign * Z_FIGHT_EPS);
@@ -2396,7 +2401,7 @@ int main() {
                 if ((enter_mode == ENTER_MODE_NONE) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                     gui_printf("> %s", console_buffer);
                 } else {
-                    gui_printf("`> %s", console_buffer);
+                    gui_printf("> %s", console_buffer);
                 }
 
                 {
