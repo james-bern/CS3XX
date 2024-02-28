@@ -842,14 +842,23 @@ void conversation_draw(mat4 PV_2D, mat4 PV_3D, mat4 P_3D, mat4 V_3D, real32 mous
 
 
 
-#define USER_INPUT_EVENT_TYPE_KEY_NONE 0
+// FORNOW trying to match GLFW with macros
+
+#define USER_INPUT_EVENT_TYPE_KEY_UP   0
 #define USER_INPUT_EVENT_TYPE_KEY_DOWN 1
-#define USER_INPUT_EVENT_TYPE_KEY_UP   2
+
 struct UserInputEvent {
-    u32 type;
-    u32 key;
-    real32 mouse_x;
-    real32 mouse_y;
+    u32 action;
+    union {
+        struct {
+            u32 key;
+            u32 modifiers;
+        };
+        struct {
+            real32 mouse_x;
+            real32 mouse_y;
+        };
+    }; 
 };
 
 
@@ -871,8 +880,8 @@ void ui_history_buffer_push_back(UserInputEvent event) {
 
 void ui_event_process(UserInputEvent user_input_event) {
     printf("%s %c\n",
-            (user_input_event.type == USER_INPUT_EVENT_TYPE_KEY_DOWN) ? "KEY_DOWN" : 
-            (user_input_event.type == USER_INPUT_EVENT_TYPE_KEY_UP) ? "KEY_UP" :
+            (user_input_event.action == USER_INPUT_EVENT_TYPE_KEY_DOWN) ? "KEY_DOWN" : 
+            (user_input_event.action == USER_INPUT_EVENT_TYPE_KEY_UP)   ? "KEY_UP"   :
             "NONE",
             char(0) + user_input_event.key);
 }
@@ -885,22 +894,23 @@ void ui_history_process_backlog() {
 
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
-    // ui_history_buffer_push_back({ ... });
+    ui_history_buffer_push_back({ action, key, mods });
 }
 
-void callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
-    ;
-}
-
-void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-    ;
-}
-
-void callback_scroll(GLFWwindow *, double, double _yoffset) {
-    ;
-}
+// void callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
+//     ;
+// }
+// 
+// void callback_mouse_button(GLFWwindow *, int button, int action, int) {
+//     ;
+// }
+// 
+// void callback_scroll(GLFWwindow *, double, double _yoffset) {
+//     ;
+// }
 
 BEGIN_PRE_MAIN {
+    glfwSetKeyCallback(COW0._window_glfw_window, callback_key);
     ;
     ;
     ;
@@ -917,20 +927,11 @@ int main() {
             conversation_reset();
         }
 
+        ui_history_process_backlog();
 
+        // TOSTRIP
         { // user input
-            { // record_user_input_event
-                ;
 
-
-                // TODO: populate the ui_history_list list in a callback
-                // TODO: attempt to switch over to ui_event_process()
-                // TODO: see if the list just works out
-                // TODO: we need to stop using cow's key_pressed key_released for this
-                // TODO: handle multiple events between frames (can probably punt this for a while)
-
-
-            }
             { // keyboard and mouse
               // ui_event_process();
               // computed bool32's (FORNOW: sloppy--these change mid-frame)
