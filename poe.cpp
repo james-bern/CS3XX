@@ -19,3 +19,12 @@ bool poe_suffix_match(char *string, char *suffix) {
     }
     return true;
 }
+
+bool poe_file_exists(char *filename) {
+    FILE *file = (FILE *) fopen(filename, "r");
+    if (!file) {
+        return false;
+    }
+    fclose(file);
+    return true;
+}
