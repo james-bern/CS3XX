@@ -871,7 +871,7 @@ struct UserInputEvent {
     union {
         struct {
             u32 key;
-            u32 modifiers;
+            u32 mods;
         };
         struct {
             real32 mouse_x;
@@ -920,16 +920,13 @@ void ui_history_process_backlog() {
     while ((history_1 < history_2)) {
         if (
                 (history_1->action = GLFW_PRESS) &&
-                (history_1->key == 'U')
+                (history_1->key == 'Z') &&
+                (history_1->mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER))
            ) {
             undo = true;
             break;
         } else {
-
-            /* printf */ if (history_1->key == COW_KEY_ENTER) { printf("\\n"); } else { printf("%c", char(0) + history_1->key); }
-
             if (ui_event_process(*history_1)) {
-                printf("*");
                 history_1->checkpoint = true;
             }
             ++history_1;
@@ -938,15 +935,15 @@ void ui_history_process_backlog() {
 
     if (undo) {
         if (history_0 != history_1) {
-            printf("\n");
-            --history_1;
+            // pop back _through_ a first checkpoint
+            do --history_1; while ((history_0 != history_1) && (!history_1->checkpoint));
+            // pop back _up to_ a second
             while ((history_0 != history_1) && (!(history_1 - 1)->checkpoint)) --history_1; // * short-circuit
+
             conversation_reset();
             for (   UserInputEvent *event = history_0;
                     event < history_1;
                     ++event) {
-                /* printf */ if (event->key == COW_KEY_ENTER) { printf("\\n"); } else { printf("%c", char(0) + event->key); }
-                /* printf */ if (event->checkpoint) printf("*");
                 ui_event_process(*event);
             }
             conversation_messagef("[undo] success");
@@ -954,14 +951,16 @@ void ui_history_process_backlog() {
             conversation_messagef("[undo] nothing to undo");
         }
         history_2 = history_1;
-
-        // printf("(%ld, %ld, %ld)\n", history_0 - history_0, history_1 - history_0, history_2 - history_0);
     }
 }
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     // FORNOW
     if (action == GLFW_PRESS) {
+        if (key == GLFW_KEY_LEFT_CONTROL) return;
+        if (key == GLFW_KEY_RIGHT_CONTROL) return;
+        if (key == GLFW_KEY_LEFT_SUPER) return;
+        if (key == GLFW_KEY_RIGHT_SUPER) return;
         history_push_back({ action, key, mods });
     }
 }
@@ -1278,8 +1277,6 @@ bool32 ui_event_process(UserInputEvent event) {
             } else if (key_pressed('f')) {
                 console_params_preview_flip_flag = !console_params_preview_flip_flag;
                 console_params_preview_update();
-            } else if (key_pressed('U') && globals.key_shift_held) {
-                // history_redo(&history, &manifold_manifold, &fancy_mesh);
             }
         }
 
