@@ -409,6 +409,7 @@ void conversation_reset() {
     show_help = false;
 
     conversation_feature_plane_reset(); 
+    // conversation_load_dxf("splash.dxf");
     conversation_load_dxf("splash.dxf");
     conversation_cameras_reset();
     conversation_console_buffer_reset();
@@ -865,9 +866,6 @@ void conversation_draw() {
 
 // FORNOW trying to match GLFW with macros
 
-#define USER_INPUT_EVENT_TYPE_KEY_UP   0
-#define USER_INPUT_EVENT_TYPE_KEY_DOWN 1
-
 struct UserInputEvent {
     u32 action;
     union {
@@ -880,6 +878,7 @@ struct UserInputEvent {
             real32 mouse_y;
         };
     }; 
+    bool32 checkpoint;
 };
 
 
@@ -903,56 +902,109 @@ struct UserInputEvent {
 // |                               |
 // 0                               1,2
 
+// TODO: chunk events into blocks (undo pops through the next checkpoint (or until out of event))
+
 UserInputEvent history_0[999999];
 UserInputEvent *history_1 = history_0;
 UserInputEvent *history_2 = history_0;
 
-void ui_history_buffer_push_back(UserInputEvent event) {
+void history_push_back(UserInputEvent event) {
     ASSERT(history_1 <= history_2);
     ASSERT((unsigned long) (history_2 - history_0) < ARRAY_LENGTH(history_0));
     *history_2++ = event;
 }
 
-void callback_key(GLFWwindow *, int key, int, int action, int mods) {
-    // FORNOW
-    if (action == USER_INPUT_EVENT_TYPE_KEY_DOWN) {
-        ui_history_buffer_push_back({ action, key, mods });
+bool32 ui_event_process(UserInputEvent event); // forward declaration
+void ui_history_process_backlog() {
+    bool32 undo = false;
+    while ((history_1 < history_2)) {
+        if (
+                (history_1->action = GLFW_PRESS) &&
+                (history_1->key == 'U')
+           ) {
+            undo = true;
+            break;
+        } else {
+
+            /* printf */ if (history_1->key == COW_KEY_ENTER) { printf("\\n"); } else { printf("%c", char(0) + history_1->key); }
+
+            if (ui_event_process(*history_1)) {
+                printf("*");
+                history_1->checkpoint = true;
+            }
+            ++history_1;
+        }
+    }
+
+    if (undo) {
+        if (history_0 != history_1) {
+            printf("\n");
+            --history_1;
+            while ((history_0 != history_1) && (!(history_1 - 1)->checkpoint)) --history_1; // * short-circuit
+            conversation_reset();
+            for (   UserInputEvent *event = history_0;
+                    event < history_1;
+                    ++event) {
+                /* printf */ if (event->key == COW_KEY_ENTER) { printf("\\n"); } else { printf("%c", char(0) + event->key); }
+                /* printf */ if (event->checkpoint) printf("*");
+                ui_event_process(*event);
+            }
+            conversation_messagef("[undo] success");
+        } else {
+            conversation_messagef("[undo] nothing to undo");
+        }
+        history_2 = history_1;
+
+        // printf("(%ld, %ld, %ld)\n", history_0 - history_0, history_1 - history_0, history_2 - history_0);
     }
 }
 
-// void callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
-//     ;
-// }
-// 
-// void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-//     ;
-// }
-// 
-// void callback_scroll(GLFWwindow *, double, double _yoffset) {
-//     ;
-// }
+void callback_key(GLFWwindow *, int key, int, int action, int mods) {
+    // FORNOW
+    if (action == GLFW_PRESS) {
+        history_push_back({ action, key, mods });
+    }
+}
+
+void callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_xpos);
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_ypos);
+}
+
+void callback_mouse_button(GLFWwindow *, int button, int action, int) {
+    // TODO
+    if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        if (action == GLFW_PRESS) { 
+        } else if (action == GLFW_RELEASE) { 
+        }
+    } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
+        if (action == GLFW_PRESS) { 
+        } else if (action == GLFW_RELEASE) { 
+        }
+    }
+}
+
+void callback_scroll(GLFWwindow *, double, double _yoffset) {
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_yoffset);
+}
 
 BEGIN_PRE_MAIN {
     glfwSetKeyCallback(COW0._window_glfw_window, callback_key);
-    ;
-    ;
-    ;
-    ;
+    glfwSetCursorPosCallback(COW0._window_glfw_window, _callback_cursor_position);
+    glfwSetMouseButtonCallback(COW0._window_glfw_window, _callback_mouse_button);
+    glfwSetScrollCallback(COW0._window_glfw_window, _callback_scroll);
 } END_PRE_MAIN;
 
 
 
-void ui_event_process(UserInputEvent user_input_event) {
+bool32 ui_event_process(UserInputEvent event) {
+    bool32 result = false;
+
     // printf("%s %c\n",
-    //         (user_input_event.action == USER_INPUT_EVENT_TYPE_KEY_DOWN) ? "KEY_DOWN" : 
-    //         (user_input_event.action == USER_INPUT_EVENT_TYPE_KEY_UP)   ? "KEY_UP"   :
+    //         (event.action == USER_INPUT_EVENT_TYPE_KEY_DOWN) ? "KEY_DOWN" : 
+    //         (event.action == USER_INPUT_EVENT_TYPE_KEY_UP)   ? "KEY_UP"   :
     //         "NONE",
-    //         char(0) + user_input_event.key);
-    if (user_input_event.key == COW_KEY_ENTER) {
-        printf("\\n");
-    } else {
-        printf("%c", char(0) + user_input_event.key);
-    }
+    //         char(0) + event.key);
 
     // computed bool32's (FORNOW: sloppy--these change mid-frame)
     bool32 dxf_anything_selected;
@@ -973,13 +1025,13 @@ void ui_event_process(UserInputEvent user_input_event) {
 
     auto key_pressed = [&](u32 key) {
         if (('a' <= key) && (key <= 'z')) key = 'A' + (key - 'a'); // FORNOW
-        return (user_input_event.action == USER_INPUT_EVENT_TYPE_KEY_DOWN) && (user_input_event.key == key);
+        return (event.action == GLFW_PRESS) && (event.key == key);
     };
 
     if (is_keyboard_input) {
 
         // FORNOW
-        char character_equivalent = (char) user_input_event.key;
+        char character_equivalent = (char) event.key;
         // TODO: '_'
 
         {
@@ -989,6 +1041,8 @@ void ui_event_process(UserInputEvent user_input_event) {
                 if (click_modifier == CLICK_MODIFIER_QUALITY) {
                     for (u32 color = 0; color < 6; ++color) {
                         if (key_pressed('0' + color)) {
+                            result = true;
+
                             key_eaten_by_special__NOTE_dealt_with_up_top = true;
                             for (u32 i = 0; i < dxf.num_entities; ++i) {
                                 if (dxf.entities[i].color == color) {
@@ -1072,6 +1126,8 @@ void ui_event_process(UserInputEvent user_input_event) {
                         *console_buffer_write_head++ = character_equivalent;
                     }
                 } else {
+                    result = true;
+
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                         if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                             if (console_buffer_write_head != console_buffer) {
@@ -1183,10 +1239,14 @@ void ui_event_process(UserInputEvent user_input_event) {
                 }
             } else if (key_pressed('a')) {
                 if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
+                    result = true;
+
                     bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                     for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                 }
             } else if (key_pressed('x') || key_pressed('y') || key_pressed('z')) {
+                result = true;
+
                 some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                 r_n_selected = 0.0f;
                 if (key_pressed('x')) n_selected = { 1.0f, 0.0f, 0.0f };
@@ -1194,10 +1254,14 @@ void ui_event_process(UserInputEvent user_input_event) {
                 if (key_pressed('z')) n_selected = { 0.0f, 0.0f, 1.0f };
                 conversation_update_M_3D_from_2D();
             } else if (key_pressed('E') && globals.key_shift_held) {
+                result = true;
+
                 enter_mode = ENTER_MODE_EXTRUDE_CUT;
                 console_params_preview_flip_flag = true;
                 conversation_console_buffer_reset();
             } else if (key_pressed('e')) {
+                result = true;
+
                 if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                     click_modifier = CLICK_MODIFIER_END_OF;
                 } else {
@@ -1355,10 +1419,10 @@ void ui_event_process(UserInputEvent user_input_event) {
                                 vec3 p[3]; {
                                     for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
                                 }
-                                RayTriangleIntersectionResult result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
-                                if (result.hit) {
-                                    if (result.distance < min_distance) {
-                                        min_distance = result.distance;
+                                RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
+                                if (ray_triangle_intersection_result.hit) {
+                                    if (ray_triangle_intersection_result.distance < min_distance) {
+                                        min_distance = ray_triangle_intersection_result.distance;
                                         index_of_first_triangle_hit_by_ray = i; // FORNOW
                                     }
                                 }
@@ -1383,42 +1447,12 @@ void ui_event_process(UserInputEvent user_input_event) {
             }
         }
     }
+
+    return result;
 }
 
 // TODO: REDO
 
-void ui_history_process_backlog() {
-    bool32 undo = false;
-    while ((history_1 < history_2)) {
-        if (
-                (history_1->action = USER_INPUT_EVENT_TYPE_KEY_DOWN) &&
-                (history_1->key == 'U')
-           ) {
-            undo = true;
-            break;
-        } else {
-            ui_event_process(*history_1++);
-        }
-    }
-
-    if (undo) {
-        printf("\n");
-        if (history_0 == history_1) {
-            history_2 = history_1; // FORNOW
-            conversation_messagef("[undo] nothing to undo.");
-        } else {
-            history_2 = --history_1;
-            conversation_reset();
-            for (   UserInputEvent *event = history_0;
-                    event < history_1;
-                    ++event) {
-                ui_event_process(*event);
-            }
-        }
-
-        // printf("(%ld, %ld, %ld)\n", history_0 - history_0, history_1 - history_0, history_2 - history_0);
-    }
-}
 
 
 
