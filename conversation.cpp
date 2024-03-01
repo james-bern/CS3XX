@@ -966,7 +966,7 @@ void ui_backlog_process() {
                     ++event) {
                 ui_event_process(*event);
             }
-            conversation_messagef("[undo] success");
+            conversation_messagef("[undo] :D");
         } else {
             conversation_messagef("[undo] nothing to undo");
         }
@@ -1340,6 +1340,7 @@ bool32 ui_event_process(UserInputEvent event) {
                 }
             };
 
+            // // // TODO this function should not touch (hot_pane or camera2D or camera3D):accessory-state-we-aren't-saving or globals
             // // TODO preserving current functionality, loft the pane and mouse state way up out of this function
             //         this function just deals with pure events and ui-independent state
             // // TODO: at the same time, port mouse_x_NDC -> mouse_x[_world] 
@@ -1497,12 +1498,12 @@ bool32 ui_event_process(UserInputEvent event) {
         }
     }
 
-    if (!result) printf("v ");
     if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
-        printf("KEY_DOWN %c\n", char(event.key));
+        printf("[KEY %c]", char(event.key));
     } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_2D) {
-        printf("MOUSE_2D %f %f\n", event.mouse_x_NDC, event.mouse_y_NDC);
+        printf("[M2D %f %f]", event.mouse_x_NDC, event.mouse_y_NDC);
     }
+    if (result) printf("\n");
 
     return result;
 }
