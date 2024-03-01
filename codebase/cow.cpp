@@ -124,7 +124,8 @@ typedef double cow_real;
 #define ITRI_MAX_FILENAME_LENGTH 64
 
 typedef unsigned char u8;
-typedef unsigned int u32;
+// typedef unsigned int u32;
+typedef uint32_t u32;
 
 // use these ONLY in globals.cpp in structs where you would really like to store a snail type
 #ifdef SNAIL_CPP

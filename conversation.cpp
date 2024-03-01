@@ -8,6 +8,7 @@ bool *key_toggled = globals.key_toggled;
 
 #include "conversation.h"
 
+#define u32 DO_NOT_USE_u32_USE_uint32_INSTEAD
 
 
 
@@ -59,20 +60,20 @@ void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
             _grid_box_vertex_texCoords
         };
 
-        u32 texture_side_length = 1024;
-        u32 number_of_channels = 4;
+        uint32 texture_side_length = 1024;
+        uint32 number_of_channels = 4;
         u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
-        u32 o = 9;
-        for (u32 j = 0; j < texture_side_length; ++j) {
-            for (u32 i = 0; i < texture_side_length; ++i) {
-                u32 k = number_of_channels * (j * texture_side_length + i);
-                u32 n = u32(texture_side_length / GRID_SIDE_LENGTH * 10);
-                u32 t = 2;
+        uint32 o = 9;
+        for (uint32 j = 0; j < texture_side_length; ++j) {
+            for (uint32 i = 0; i < texture_side_length; ++i) {
+                uint32 k = number_of_channels * (j * texture_side_length + i);
+                uint32 n = uint32(texture_side_length / GRID_SIDE_LENGTH * 10);
+                uint32 t = 2;
                 bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
                 u8 value = 0;
                 if (stripe) value = 80;
                 if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
-                for (u32 d = 0; d < 3; ++d) data[k + d] = value;
+                for (uint32 d = 0; d < 3; ++d) data[k + d] = value;
                 data[k + 3] = 160;
             }
         }
@@ -86,7 +87,7 @@ void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
 }
 
 char conversation_message_buffer[256];
-u32 conversation_message_cooldown;
+uint32 conversation_message_cooldown;
 void conversation_messagef(char *format, ...) {
     va_list arg;
     va_start(arg, format);
@@ -102,11 +103,11 @@ void conversation_messagef(char *format, ...) {
 void wrapper_manifold(
         ManifoldManifold **manifold_manifold,
         FancyMesh *fancy_mesh, // dest__NOTE_GETS_OVERWRITTEN,
-        u32 num_polygonal_loops,
-        u32 *num_vertices_in_polygonal_loops,
+        uint32 num_polygonal_loops,
+        uint32 *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
         mat4 M_3D_from_2D,
-        u32 enter_mode,
+        uint32 enter_mode,
         real32 console_param,
         real32 console_param_2) {
     // FORNOW: this function call isn't a no-op
@@ -115,7 +116,7 @@ void wrapper_manifold(
 
     ManifoldManifold *other_manifold; {
         ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
-        for (u32 i = 0; i < num_polygonal_loops; ++i) {
+        for (uint32 i = 0; i < num_polygonal_loops; ++i) {
             simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
         }
         ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
@@ -178,7 +179,7 @@ void wrapper_manifold(
     fancy_mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
     fancy_mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
     fancy_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
-    fancy_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(u32)), meshgl);
+    fancy_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint32)), meshgl);
     fancy_mesh_triangle_normals_calculate(fancy_mesh);
     fancy_mesh_cosmetic_edges_calculate(fancy_mesh);
 }
@@ -210,7 +211,7 @@ real32 origin_y;
 
 ManifoldManifold *manifold_manifold;
 FancyMesh fancy_mesh;
-u32 enter_mode;
+uint32 enter_mode;
 
 char console_buffer[256];
 char *console_buffer_write_head;
@@ -235,8 +236,8 @@ void console_params_preview_update() {
         }
     } else {
         char buffs[2][64] = {};
-        u32 buff_i = 0;
-        u32 i = 0;
+        uint32 buff_i = 0;
+        uint32 i = 0;
         for (char *c = console_buffer; (*c) != '\0'; ++c) {
             if (*c == ' ') {
                 if (++buff_i == 2) break;
@@ -259,10 +260,10 @@ void console_params_preview_update() {
 
 
 
-u32 hot_pane;
-u32 click_mode;
-u32 click_modifier; // TODO combine
-u32 window_select_click_count;
+uint32 hot_pane;
+uint32 click_mode;
+uint32 click_modifier; // TODO combine
+uint32 window_select_click_count;
 real32 window_select_x;
 real32 window_select_y;
 
@@ -363,7 +364,7 @@ void drop_callback(GLFWwindow *, int count, const char **paths) {
         char *filename = (char *) paths[0];
         conversation_load_file(filename);
         { // conversation_set_drop_path(filename)
-            for (u32 i = 0; i < strlen(filename); ++i) {
+            for (uint32 i = 0; i < strlen(filename); ++i) {
                 conversation_drop_path[i] = filename[i];
                 if (filename[i] == '.') {
                     while (
@@ -422,7 +423,7 @@ void conversation_draw() {
     bool32 stl_plane_selected;
     {
         dxf_anything_selected = false;
-        for (u32 i = 0; i < dxf.num_entities; ++i) {
+        for (uint32 i = 0; i < dxf.num_entities; ++i) {
             if (dxf_selection_mask[i]) {
                 dxf_anything_selected = true;
                 break;
@@ -438,11 +439,11 @@ void conversation_draw() {
     mat4 V_3D = camera_get_V(&camera3D);
     mat4 PV_3D = P_3D * V_3D;
 
-    u32 window_width, window_height; {
+    uint32 window_width, window_height; {
         real32 _window_width, _window_height; // FORNOW
         _window_get_size(&_window_width, &_window_height);
-        window_width = (u32) _window_width;
-        window_height = (u32) _window_height;
+        window_width = (uint32) _window_width;
+        window_height = (uint32) _window_height;
     }
 
     { // panes
@@ -463,11 +464,6 @@ void conversation_draw() {
             eso_vertex(0.0f, -1.0f);
             eso_end();
         }
-
-        if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-            hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
-            if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
-        }
     }
 
     { // draw 2D draw 2d draw
@@ -477,7 +473,7 @@ void conversation_draw() {
             if (!hide_grid) { // grid 2D grid 2d grid
                 eso_begin(PV_2D, SOUP_LINES, 2.0f);
                 eso_color(80.0f / 255, 80.0f / 255, 80.0f / 255);
-                for (u32 i = 0; i <= u32(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
+                for (uint32 i = 0; i <= uint32(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real32 tmp = i * GRID_SPACING;
                     eso_vertex(tmp, 0.0f);
                     eso_vertex(tmp, GRID_SIDE_LENGTH);
@@ -494,7 +490,7 @@ void conversation_draw() {
             }
             { // entities
                 eso_begin(PV_2D, SOUP_LINES, 3.0f);
-                for (u32 i = 0; i < dxf.num_entities; ++i) {
+                for (uint32 i = 0; i < dxf.num_entities; ++i) {
                     DXFEntity *entity = &dxf.entities[i];
                     int32 color = (dxf_selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
                     eso_dxf_entity__SOUP_LINES(entity, color);
@@ -554,9 +550,9 @@ void conversation_draw() {
         glScissor(window_width / 2, 0, window_width / 2, window_height);
 
         { // selection 2d selection 2D selection (FORNOW: ew)
-            u32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
+            uint32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
 
-            u32 NUM_TUBE_STACKS_INCLUSIVE;
+            uint32 NUM_TUBE_STACKS_INCLUSIVE;
             mat4 M;
             mat4 M_incr;
             if (true) {
@@ -565,7 +561,7 @@ void conversation_draw() {
                     real32 a = MIN(0.0f, MIN(console_param_preview, console_param_2_preview));
                     real32 b = MAX(0.0f, MAX(console_param_preview, console_param_2_preview));
                     real32 length = b - a;
-                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64, u32(roundf(length / 2.5f)) + 2);
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64, uint32(roundf(length / 2.5f)) + 2);
                     M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                     M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                 } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
@@ -588,10 +584,10 @@ void conversation_draw() {
                     M = M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 }
-                for (u32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
+                for (uint32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
                     {
                         eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
-                        for (u32 i = 0; i < dxf.num_entities; ++i) {
+                        for (uint32 i = 0; i < dxf.num_entities; ++i) {
                             DXFEntity *entity = &dxf.entities[i];
                             if (dxf_selection_mask[i]) {
                                 eso_dxf_entity__SOUP_LINES(entity, color);
@@ -617,7 +613,7 @@ void conversation_draw() {
                 }
                 mat4 R = M4_RotationAboutXAxis(RAD(90.0f));
                 vec3 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? V3(83.0f / 255, 255.0f / 255, 83.0f / 255.0f) : V3(1.0f, 0.0f, 0.0f);
-                for (u32 i = 0; i < 2; ++i) {
+                for (uint32 i = 0; i < 2; ++i) {
                     if (!IS_ZERO(H[i])) {
                         real32 total_height = ABS(H[i]);
                         real32 cap_height = (total_height > 10.0f) ? 5.0f : (0.5f * total_height);
@@ -651,21 +647,21 @@ void conversation_draw() {
                 eso_begin(PV_3D, SOUP_LINES, 3.0f); 
                 eso_color(monokai.black);
                 // 3 * num_triangles * 2 / 2
-                for (u32 k = 0; k < 2 * fancy_mesh.num_cosmetic_edges; ++k) eso_vertex(fancy_mesh.vertex_positions, fancy_mesh.cosmetic_edges[k]);
+                for (uint32 k = 0; k < 2 * fancy_mesh.num_cosmetic_edges; ++k) eso_vertex(fancy_mesh.vertex_positions, fancy_mesh.cosmetic_edges[k]);
                 eso_end();
             }
-            for (u32 pass = 0; pass <= 1; ++pass) {
+            for (uint32 pass = 0; pass <= 1; ++pass) {
                 eso_begin(PV_3D, (!show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
 
                 mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
 
-                for (u32 i = 0; i < fancy_mesh.num_triangles; ++i) {
+                for (uint32 i = 0; i < fancy_mesh.num_triangles; ++i) {
                     #if 1
                     vec3 n = get(fancy_mesh.triangle_normals, i);
                     vec3 p[3];
                     real32 x_n;
                     {
-                        for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
+                        for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
                         x_n = dot(n, p[0]);
                     }
                     vec3 color; 
@@ -691,7 +687,7 @@ void conversation_draw() {
                     eso_color(monokai.green, 1.0f);
                     vec3 p[3];
                     {
-                        for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
+                        for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
                     }
                     eso_vertex(p[0]);
                     eso_vertex(p[1]);
@@ -733,7 +729,7 @@ void conversation_draw() {
                     bounding_box.min[1] -= origin_y;
                     bounding_box.max[1] -= origin_y;
                 }
-                for (u32 d = 0; d < 2; ++d) {
+                for (uint32 d = 0; d < 2; ++d) {
                     bounding_box.min[d] /= GRID_SPACING;
                     bounding_box.min[d] -= 1.0;
                     bounding_box.min[d] = floorf(bounding_box.min[d]);
@@ -866,16 +862,18 @@ void conversation_draw() {
 
 // FORNOW trying to match GLFW with macros
 
+#define UI_EVENT_TYPE_KEY_PRESS 0
+#define UI_EVENT_TYPE_MOUSE_LEFT_PRESS 1
 struct UserInputEvent {
-    u32 action;
+    uint32 type;
     union {
         struct {
-            u32 key;
-            u32 mods;
+            uint32 key;
+            uint32 mods;
         };
         struct {
-            real32 mouse_x;
-            real32 mouse_y;
+            real32 mouse_x_NDC;
+            real32 mouse_y_NDC;
         };
     }; 
     bool32 checkpoint;
@@ -919,7 +917,7 @@ void ui_history_process_backlog() {
     bool32 undo = false;
     while ((history_1 < history_2)) {
         if (
-                (history_1->action = GLFW_PRESS) &&
+                (history_1->type == UI_EVENT_TYPE_KEY_PRESS) &&
                 (history_1->key == 'Z') &&
                 (history_1->mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER))
            ) {
@@ -955,30 +953,38 @@ void ui_history_process_backlog() {
 }
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
-    // FORNOW
     if (action == GLFW_PRESS) {
         if (key == GLFW_KEY_LEFT_CONTROL) return;
         if (key == GLFW_KEY_RIGHT_CONTROL) return;
         if (key == GLFW_KEY_LEFT_SUPER) return;
         if (key == GLFW_KEY_RIGHT_SUPER) return;
-        history_push_back({ action, key, mods });
+        history_push_back({ UI_EVENT_TYPE_KEY_PRESS, .key = key, .mods = mods });
     }
 }
 
-void callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_xpos);
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_ypos);
+struct {
+    real32 mouse_x_NDC;
+    real32 mouse_y_NDC;
+} callback_state;
+
+void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
+    xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    real32 s_Screen[4] = { (real32) xpos, (real32) ypos, 0.0f, 1.0f };
+
+    real32 s_NDC[4] = {};
+    real32 NDC_from_Screen[16] = {};
+    _window_get_NDC_from_Screen(NDC_from_Screen);
+    _linalg_mat4_times_vec4_persp_divide(s_NDC, NDC_from_Screen, s_Screen);
+    callback_state.mouse_x_NDC = s_NDC[0];
+    callback_state.mouse_y_NDC = s_NDC[1];
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     // TODO
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
-        } else if (action == GLFW_RELEASE) { 
-        }
-    } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-        if (action == GLFW_PRESS) { 
-        } else if (action == GLFW_RELEASE) { 
+            history_push_back({ UI_EVENT_TYPE_MOUSE_LEFT_PRESS, .mouse_x_NDC = callback_state.mouse_x_NDC, .mouse_y_NDC = callback_state.mouse_y_NDC });
         }
     }
 }
@@ -988,10 +994,10 @@ void callback_scroll(GLFWwindow *, double, double _yoffset) {
 }
 
 BEGIN_PRE_MAIN {
-    glfwSetKeyCallback(COW0._window_glfw_window, callback_key);
-    glfwSetCursorPosCallback(COW0._window_glfw_window, _callback_cursor_position);
-    glfwSetMouseButtonCallback(COW0._window_glfw_window, _callback_mouse_button);
-    glfwSetScrollCallback(COW0._window_glfw_window, _callback_scroll);
+    glfwSetKeyCallback(        COW0._window_glfw_window, callback_key);
+    glfwSetCursorPosCallback(  COW0._window_glfw_window, callback_cursor_position);
+    glfwSetMouseButtonCallback(COW0._window_glfw_window, callback_mouse_button);
+    glfwSetScrollCallback(     COW0._window_glfw_window, callback_scroll);
 } END_PRE_MAIN;
 
 
@@ -999,18 +1005,18 @@ BEGIN_PRE_MAIN {
 bool32 ui_event_process(UserInputEvent event) {
     bool32 result = false;
 
-    // printf("%s %c\n",
-    //         (event.action == USER_INPUT_EVENT_TYPE_KEY_DOWN) ? "KEY_DOWN" : 
-    //         (event.action == USER_INPUT_EVENT_TYPE_KEY_UP)   ? "KEY_UP"   :
-    //         "NONE",
-    //         char(0) + event.key);
+    if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
+        printf("KEY_DOWN %c\n", char(event.key));
+    } else if (event.type == UI_EVENT_TYPE_MOUSE_LEFT_PRESS) {
+        printf("MOUSE_LEFT_PRESS %f %f\n", event.mouse_x_NDC, event.mouse_y_NDC);
+    }
 
     // computed bool32's (FORNOW: sloppy--these change mid-frame)
     bool32 dxf_anything_selected;
     bool32 stl_plane_selected;
     {
         dxf_anything_selected = false;
-        for (u32 i = 0; i < dxf.num_entities; ++i) {
+        for (uint32 i = 0; i < dxf.num_entities; ++i) {
             if (dxf_selection_mask[i]) {
                 dxf_anything_selected = true;
                 break;
@@ -1020,15 +1026,24 @@ bool32 ui_event_process(UserInputEvent event) {
         stl_plane_selected = !IS_ZERO(squaredNorm(n_selected));
     }
 
-    bool32 is_keyboard_input = true; // FORNOW
+    bool32 is_keyboard_input = (event.type == UI_EVENT_TYPE_KEY_PRESS); // FORNOW
 
-    auto key_pressed = [&](u32 key) {
+    auto key_pressed = [&](uint32 key) {
         if (('a' <= key) && (key <= 'z')) key = 'A' + (key - 'a'); // FORNOW
-        return (event.action == GLFW_PRESS) && (event.key == key);
+        return (event.type == UI_EVENT_TYPE_KEY_PRESS) && (event.key == key); // FORNOW
     };
 
-    if (is_keyboard_input) {
 
+    // TODO: determine hot pane (TODO make this more clear when you draw -- highlight hot pane)
+    // if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
+    //     hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
+    //     if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
+    // }
+    hot_pane = HOT_PANE_2D; // FORNOW
+
+
+
+    if (is_keyboard_input) {
         // FORNOW
         char character_equivalent = (char) event.key;
         // TODO: '_'
@@ -1038,12 +1053,11 @@ bool32 ui_event_process(UserInputEvent event) {
             {
                 key_eaten_by_special__NOTE_dealt_with_up_top = false;
                 if (click_modifier == CLICK_MODIFIER_QUALITY) {
-                    for (u32 color = 0; color < 6; ++color) {
+                    for (uint32 color = 0; color < 6; ++color) {
                         if (key_pressed('0' + color)) {
                             result = true;
-
                             key_eaten_by_special__NOTE_dealt_with_up_top = true;
-                            for (u32 i = 0; i < dxf.num_entities; ++i) {
+                            for (uint32 i = 0; i < dxf.num_entities; ++i) {
                                 if (dxf.entities[i].color == color) {
                                     bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                                     dxf_selection_mask[i] = value_to_write_to_selection_mask;
@@ -1063,7 +1077,7 @@ bool32 ui_event_process(UserInputEvent event) {
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                         send_key_to_console = (send_key_to_console || key_pressed('.'));
                         send_key_to_console = (send_key_to_console || key_pressed('-'));
-                        for (u32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed('0' + i));
+                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed('0' + i));
                         // note: double negative
                         if ((enter_mode != ENTER_MODE_OFFSET_PLANE_BY)) {
                             send_key_to_console = (send_key_to_console || key_pressed(' '));
@@ -1074,9 +1088,9 @@ bool32 ui_event_process(UserInputEvent event) {
                         send_key_to_console = (send_key_to_console || key_pressed('-'));
                         send_key_to_console = (send_key_to_console || key_pressed('/'));
                         send_key_to_console = (send_key_to_console || key_pressed('\\'));
-                        for (u32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed('0' + i));
-                        for (u32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_pressed('a' + i));
-                        for (u32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_pressed('A' + i));
+                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed('0' + i));
+                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_pressed('a' + i));
+                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_pressed('A' + i));
                     }
                 } else {
                     send_key_to_console = true;
@@ -1126,7 +1140,6 @@ bool32 ui_event_process(UserInputEvent event) {
                     }
                 } else {
                     result = true;
-
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                         if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                             if (console_buffer_write_head != console_buffer) {
@@ -1239,13 +1252,11 @@ bool32 ui_event_process(UserInputEvent event) {
             } else if (key_pressed('a')) {
                 if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                     result = true;
-
                     bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-                    for (u32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
+                    for (uint32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                 }
             } else if (key_pressed('x') || key_pressed('y') || key_pressed('z')) {
                 result = true;
-
                 some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                 r_n_selected = 0.0f;
                 if (key_pressed('x')) n_selected = { 1.0f, 0.0f, 0.0f };
@@ -1254,13 +1265,11 @@ bool32 ui_event_process(UserInputEvent event) {
                 conversation_update_M_3D_from_2D();
             } else if (key_pressed('E') && globals.key_shift_held) {
                 result = true;
-
                 enter_mode = ENTER_MODE_EXTRUDE_CUT;
                 console_params_preview_flip_flag = true;
                 conversation_console_buffer_reset();
             } else if (key_pressed('e')) {
                 result = true;
-
                 if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                     click_modifier = CLICK_MODIFIER_END_OF;
                 } else {
@@ -1281,24 +1290,33 @@ bool32 ui_event_process(UserInputEvent event) {
         }
 
         console_params_preview_update();
-    }
-
-    { // mouse input
-        { // camera_move TODO this needs to be taken over by app?
-            if (hot_pane == HOT_PANE_2D) {
-                camera_move(&camera2D);
-            } else if (hot_pane == HOT_PANE_3D) {
-                camera_move(&camera3D);
-            }
-        }
+    } else { // mouse input
+             // { // camera_move TODO this needs to be taken over by app?
+             //     if (hot_pane == HOT_PANE_2D) {
+             //         camera_move(&camera2D);
+             //     } else if (hot_pane == HOT_PANE_3D) {
+             //         camera_move(&camera3D);
+             //     }
+             // }
         { // pick
             ;
             // FORNOW camera data
             mat4 PV_2D = camera_get_PV(&camera2D);
-            real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
+
+            // real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
+            real32 mouse_x;
+            real32 mouse_y;
+            {
+                vec4 mouse_s = transformPoint(inverse(PV_2D), V4(event.mouse_x_NDC, event.mouse_y_NDC, 0.0f, 1.0f));
+                mouse_x = mouse_s.x;
+                mouse_y = mouse_s.y;
+            }
+
             mat4 P_3D = camera_get_P(&camera3D);
             mat4 V_3D = camera_get_V(&camera3D);
             mat4 PV_3D = P_3D * V_3D;
+
+            globals.mouse_left_held = true; // FORNOW SHIM TODO TODO TODO
 
             { // pick 2D pick 2d pick
                 if (hot_pane == HOT_PANE_2D) {
@@ -1307,6 +1325,7 @@ bool32 ui_event_process(UserInputEvent event) {
                         } else if (click_mode == CLICK_MODE_NONE) {
                         } else if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                             if (click_modifier == CLICK_MODE_NONE) {
+                                result = true;
                                 origin_x = mouse_x;
                                 origin_y = mouse_y;
                             } else if (click_modifier == CLICK_MODIFIER_CENTER_OF) {
@@ -1319,6 +1338,7 @@ bool32 ui_event_process(UserInputEvent event) {
                                         DXFArc *arc = &entity->arc;
                                         real32 squared_distance = squared_distance_point_dxf_arc(mouse_x, mouse_y, arc);
                                         if (squared_distance < min_squared_distance) {
+                                            result = true;
                                             min_squared_distance = squared_distance;
                                             origin_x = arc->center_x;
                                             origin_y = arc->center_y;
@@ -1330,9 +1350,10 @@ bool32 ui_event_process(UserInputEvent event) {
                                 for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
                                     real32 x[2], y[2];
                                     entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
-                                    for (u32 d = 0; d < 2; ++d) {
+                                    for (uint32 d = 0; d < 2; ++d) {
                                         real32 squared_distance = squared_distance_point_point(mouse_x, mouse_y, x[d], y[d]);
                                         if (squared_distance < min_squared_distance) {
+                                            result = true;
                                             min_squared_distance = squared_distance;
                                             origin_x = x[d];
                                             origin_y = y[d];
@@ -1352,7 +1373,7 @@ bool32 ui_event_process(UserInputEvent event) {
                             if (click_modifier != CLICK_MODIFIER_WINDOW) {
                                 int hot_entity_index = -1;
                                 double hot_squared_distance = HUGE_VAL;
-                                for (u32 i = 0; i < dxf.num_entities; ++i) {
+                                for (uint32 i = 0; i < dxf.num_entities; ++i) {
                                     DXFEntity *entity = &dxf.entities[i];
                                     double squared_distance = squared_distance_point_dxf_entity(mouse_x, mouse_y, entity);
                                     squared_distance /= (camera2D.screen_height_World * camera2D.screen_height_World / 4); // NDC
@@ -1364,13 +1385,19 @@ bool32 ui_event_process(UserInputEvent event) {
                                 if (hot_entity_index != -1) {
                                     if (globals.mouse_left_held) {
                                         if (!modifier_connected) {
-                                            dxf_selection_mask[hot_entity_index] = value_to_write_to_selection_mask;
+                                            if (dxf_selection_mask[hot_entity_index] != value_to_write_to_selection_mask) {
+                                                result = true;
+                                                dxf_selection_mask[hot_entity_index] = value_to_write_to_selection_mask;
+                                            }
                                         } else {
-                                            u32 loop_index = pick.loop_index_from_entity_index[hot_entity_index];
+                                            uint32 loop_index = pick.loop_index_from_entity_index[hot_entity_index];
                                             DXFEntityIndexAndFlipFlag *loop = pick.loops[loop_index];
-                                            u32 num_entities = pick.num_entities_in_loops[loop_index];
+                                            uint32 num_entities = pick.num_entities_in_loops[loop_index];
                                             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
-                                                dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value_to_write_to_selection_mask;
+                                                if (dxf_selection_mask[entity_index_and_flip_flag->entity_index] != value_to_write_to_selection_mask) {
+                                                    result = true;
+                                                    dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value_to_write_to_selection_mask;
+                                                }
                                             }
                                         }
                                     }
@@ -1389,9 +1416,12 @@ bool32 ui_event_process(UserInputEvent event) {
                                             MAX(window_select_x, mouse_x),
                                             MAX(window_select_y, mouse_y)
                                         };
-                                        for (u32 i = 0; i < dxf.num_entities; ++i) {
+                                        for (uint32 i = 0; i < dxf.num_entities; ++i) {
                                             if (bounding_box_contains(window, bbox[i])) {
-                                                dxf_selection_mask[i] = value_to_write_to_selection_mask;
+                                                if (dxf_selection_mask[i] != value_to_write_to_selection_mask) {
+                                                    result = true;
+                                                    dxf_selection_mask[i] = value_to_write_to_selection_mask;
+                                                }
                                             }
                                         }
 
@@ -1412,9 +1442,9 @@ bool32 ui_event_process(UserInputEvent event) {
                         int32 index_of_first_triangle_hit_by_ray = -1;
                         {
                             real32 min_distance = HUGE_VAL;
-                            for (u32 i = 0; i < fancy_mesh.num_triangles; ++i) {
+                            for (uint32 i = 0; i < fancy_mesh.num_triangles; ++i) {
                                 vec3 p[3]; {
-                                    for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
+                                    for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
                                 }
                                 RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
                                 if (ray_triangle_intersection_result.hit) {
@@ -1432,7 +1462,7 @@ bool32 ui_event_process(UserInputEvent event) {
                                 n_selected = get(fancy_mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
                                 {
                                     vec3 p_selected[3]; {
-                                        for (u32 j = 0; j < 3; ++j) p_selected[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + j]);
+                                        for (uint32 j = 0; j < 3; ++j) p_selected[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + j]);
                                     }
                                     r_n_selected = dot(n_selected, p_selected[0]);
                                 }
@@ -1455,6 +1485,7 @@ bool32 ui_event_process(UserInputEvent event) {
 
 
 int main() {
+    _window_set_size(640.0, 360.0);
     conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
     conversation_reset();
     while (cow_begin_frame()) {

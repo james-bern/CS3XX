@@ -280,6 +280,8 @@ void dxf_load(char *filename, DXF *dxf) {
                 } else {
                     if (!code_is_hot) {
                         sscanf(buffer, "%d", &code);
+                        // NOTE this initialization is sketchy but works
+                        // probably don't make a habit of it
                         if (code == 0) {
                             if (mode == DXF_LOAD_MODE_LINE) {
                                 list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_LINE, entity.color, entity.line.start_x, entity.line.start_y, entity.line.end_x, entity.line.end_y });
