@@ -459,7 +459,7 @@ void conversation_draw() {
                     eso_vertex( 0.0f, -1.0f);
                     eso_vertex( 0.0f,  1.0f);
                     eso_end();
-                } else {
+                } else if (hot_pane == HOT_PANE_3D) {
                     eso_begin(globals.Identity, SOUP_QUADS);
                     eso_color(0.1f, 0.1f, 0.0f);
                     eso_vertex(0.0f,  1.0f);
@@ -876,7 +876,8 @@ void conversation_draw() {
 // FORNOW trying to match GLFW with macros
 
 #define UI_EVENT_TYPE_KEY_PRESS 0
-#define UI_EVENT_TYPE_MOUSE_LEFT_PRESS 1
+#define UI_EVENT_TYPE_MOUSE_PRESS_2D 1
+#define UI_EVENT_TYPE_MOUSE_PRESS_3D 2
 struct UserInputEvent {
     uint32 type;
     union {
@@ -1009,12 +1010,13 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     // TODO switch from NDC -> world (with 3D ray)
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
-            history_push_back({ UI_EVENT_TYPE_MOUSE_LEFT_PRESS, .mouse_x_NDC = callback_state.mouse_x_NDC, .mouse_y_NDC = callback_state.mouse_y_NDC });
+            history_push_back({ UI_EVENT_TYPE_MOUSE_PRESS_2D, .mouse_x_NDC = callback_state.mouse_x_NDC, .mouse_y_NDC = callback_state.mouse_y_NDC });
         }
     }
 }
 
 void callback_scroll(GLFWwindow *, double, double yoffset) {
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(yoffset);
     // _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM
 
 }
@@ -1310,6 +1312,8 @@ bool32 ui_event_process(UserInputEvent event) {
     } else { // mouse input
         { // pick
             ;
+
+            // TODO: move this elsewhere
             // FORNOW camera data
             mat4 PV_2D = camera_get_PV(&camera2D);
 
@@ -1336,13 +1340,18 @@ bool32 ui_event_process(UserInputEvent event) {
                 }
             };
 
+            // // TODO preserving current functionality, loft the pane and mouse state way up out of this function
+            //         this function just deals with pure events and ui-independent state
+            // // TODO: at the same time, port mouse_x_NDC -> mouse_x[_world] 
+            //          UI events should be in world coordinates with no knowledge of the user's states (hot pane, etc.) -- window may mess this up a bit; but deal with that later
+            //          (idea of a UI layer)
+            //         
             // TODO this stuff doesn't belong here (it is not part of the undo state -- it is baked INTO the events that are pushed back)
             globals.mouse_left_held = true; // FORNOW SHIM TODO TODO TODO
             hot_pane = HOT_PANE_2D; // FORNOW SHIM TODO TODO TODO
 
             { // pick 2D pick 2d pick
                 if (hot_pane == HOT_PANE_2D) {
-                    printf("0\n");
                     { // click dxf click dxf_click
                         if (!globals.mouse_left_held) {
                         } else if (click_mode == CLICK_MODE_NONE) {
@@ -1488,11 +1497,11 @@ bool32 ui_event_process(UserInputEvent event) {
         }
     }
 
-    if (result) printf("*");
+    if (!result) printf("v ");
     if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
         printf("KEY_DOWN %c\n", char(event.key));
-    } else if (event.type == UI_EVENT_TYPE_MOUSE_LEFT_PRESS) {
-        printf("MOUSE_LEFT_PRESS %f %f\n", event.mouse_x_NDC, event.mouse_y_NDC);
+    } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_2D) {
+        printf("MOUSE_2D %f %f\n", event.mouse_x_NDC, event.mouse_y_NDC);
     }
 
     return result;
