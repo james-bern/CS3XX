@@ -953,8 +953,8 @@ void ui_backlog_process() {
     }
 
     if (undo) {
-        printf("\n");
         if (history_0 != history_1) {
+            printf("\n");
             // pop back _through_ a first checkpoint
             do --history_1; while ((history_0 != history_1) && (!history_1->checkpoint));
             // pop back _up to_ a second
