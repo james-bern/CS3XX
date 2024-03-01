@@ -989,7 +989,7 @@ struct {
 } callback_state;
 
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
-    _callback_cursor_position(NULL, xpos, ypos);
+    // _callback_cursor_position(NULL, xpos, ypos);
 
     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
@@ -1004,7 +1004,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM
+    //_callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM
 
     // TODO switch from NDC -> world (with 3D ray)
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
@@ -1015,7 +1015,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
 }
 
 void callback_scroll(GLFWwindow *, double, double yoffset) {
-    _callback_mouse_button(NULL, 0, 0, yoffset); // FORNOW TODO TODO TODO SHIM
+    // _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM
 
 }
 
@@ -1326,7 +1326,6 @@ bool32 ui_event_process(UserInputEvent event) {
             mat4 V_3D = camera_get_V(&camera3D);
             mat4 PV_3D = P_3D * V_3D;
 
-            globals.mouse_left_held = true; // FORNOW SHIM TODO TODO TODO
 
             // Only remember dxf selection operations that actually change the mask
             // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... return result; approach fornow
@@ -1337,8 +1336,13 @@ bool32 ui_event_process(UserInputEvent event) {
                 }
             };
 
+            // TODO this stuff doesn't belong here (it is not part of the undo state -- it is baked INTO the events that are pushed back)
+            globals.mouse_left_held = true; // FORNOW SHIM TODO TODO TODO
+            hot_pane = HOT_PANE_2D; // FORNOW SHIM TODO TODO TODO
+
             { // pick 2D pick 2d pick
                 if (hot_pane == HOT_PANE_2D) {
+                    printf("0\n");
                     { // click dxf click dxf_click
                         if (!globals.mouse_left_held) {
                         } else if (click_mode == CLICK_MODE_NONE) {
@@ -1395,7 +1399,6 @@ bool32 ui_event_process(UserInputEvent event) {
                                 for (uint32 i = 0; i < dxf.num_entities; ++i) {
                                     DXFEntity *entity = &dxf.entities[i];
                                     double squared_distance = squared_distance_point_dxf_entity(mouse_x, mouse_y, entity);
-                                    squared_distance /= (camera2D.screen_height_World * camera2D.screen_height_World / 4); // NDC
                                     if (squared_distance < hot_squared_distance) {
                                         hot_squared_distance = squared_distance;
                                         hot_entity_index = i;
@@ -1506,17 +1509,18 @@ int main() {
     conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
     conversation_reset();
     while (cow_begin_frame()) {
-        if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-            hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
-            if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
-        }
-        if (0) { // camera_move (using shimmed globals.* state)
-            if (hot_pane == HOT_PANE_2D) {
-                camera_move(&camera2D);
-            } else if (hot_pane == HOT_PANE_3D) {
-                camera_move(&camera3D);
-            }
-        }
+        // if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
+        //     hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
+        //     if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
+        // }
+        // hot_pane = HOT_PANE_2D;
+        // if (1) { // camera_move (using shimmed globals.* state)
+        //     if (hot_pane == HOT_PANE_2D) {
+        //         camera_move(&camera2D);
+        //     } else if (hot_pane == HOT_PANE_3D) {
+        //         camera_move(&camera3D);
+        //     }
+        // }
         ui_backlog_process();
         conversation_draw();
     }
