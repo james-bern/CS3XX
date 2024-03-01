@@ -271,11 +271,11 @@ void dxf_load(char *filename, DXF *dxf) {
                     if (poe_prefix_match(buffer, "LINE")) {
                         mode = DXF_LOAD_MODE_LINE;
                         code_is_hot = false;
-                        entity = {};
+                        entity = { DXF_ENTITY_TYPE_LINE };
                     } else if (poe_prefix_match(buffer, "ARC")) {
                         mode = DXF_LOAD_MODE_ARC;
                         code_is_hot = false;
-                        entity = {};
+                        entity = { DXF_ENTITY_TYPE_ARC };
                     }
                 } else {
                     if (!code_is_hot) {
@@ -283,12 +283,7 @@ void dxf_load(char *filename, DXF *dxf) {
                         // NOTE this initialization is sketchy but works
                         // probably don't make a habit of it
                         if (code == 0) {
-                            if (mode == DXF_LOAD_MODE_LINE) {
-                                list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_LINE, entity.color, entity.line.start_x, entity.line.start_y, entity.line.end_x, entity.line.end_y });
-                            } else {
-                                ASSERT(mode == DXF_LOAD_MODE_ARC);
-                                list_push_back(&stretchy_list, { DXF_ENTITY_TYPE_ARC, entity.color, entity.arc.center_x, entity.arc.center_y, entity.arc.radius, entity.arc.start_angle_in_degrees, entity.arc.end_angle_in_degrees });
-                            }
+                            list_push_back(&stretchy_list, entity);
                             mode = DXF_LOAD_MODE_NONE;
                             code_is_hot = false;
                         }

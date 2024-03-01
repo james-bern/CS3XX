@@ -1318,6 +1318,15 @@ bool32 ui_event_process(UserInputEvent event) {
 
             globals.mouse_left_held = true; // FORNOW SHIM TODO TODO TODO
 
+            // Only remember dxf selection operations that actually change the mask
+            // NOTE: we could do a memcmp at the end, but let's stick with the simple bool32 result = false; ... return result; approach fornow
+            auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
+                if (dxf_selection_mask[i] != value_to_write) {
+                    result = true;
+                    dxf_selection_mask[i] = value_to_write;
+                }
+            };
+
             { // pick 2D pick 2d pick
                 if (hot_pane == HOT_PANE_2D) {
                     { // click dxf click dxf_click
@@ -1385,19 +1394,13 @@ bool32 ui_event_process(UserInputEvent event) {
                                 if (hot_entity_index != -1) {
                                     if (globals.mouse_left_held) {
                                         if (!modifier_connected) {
-                                            if (dxf_selection_mask[hot_entity_index] != value_to_write_to_selection_mask) {
-                                                result = true;
-                                                dxf_selection_mask[hot_entity_index] = value_to_write_to_selection_mask;
-                                            }
+                                            set_dxf_selection_mask(hot_entity_index, value_to_write_to_selection_mask);
                                         } else {
                                             uint32 loop_index = pick.loop_index_from_entity_index[hot_entity_index];
                                             DXFEntityIndexAndFlipFlag *loop = pick.loops[loop_index];
                                             uint32 num_entities = pick.num_entities_in_loops[loop_index];
                                             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
-                                                if (dxf_selection_mask[entity_index_and_flip_flag->entity_index] != value_to_write_to_selection_mask) {
-                                                    result = true;
-                                                    dxf_selection_mask[entity_index_and_flip_flag->entity_index] = value_to_write_to_selection_mask;
-                                                }
+                                                set_dxf_selection_mask(entity_index_and_flip_flag->entity_index, value_to_write_to_selection_mask);
                                             }
                                         }
                                     }
@@ -1418,10 +1421,7 @@ bool32 ui_event_process(UserInputEvent event) {
                                         };
                                         for (uint32 i = 0; i < dxf.num_entities; ++i) {
                                             if (bounding_box_contains(window, bbox[i])) {
-                                                if (dxf_selection_mask[i] != value_to_write_to_selection_mask) {
-                                                    result = true;
-                                                    dxf_selection_mask[i] = value_to_write_to_selection_mask;
-                                                }
+                                                set_dxf_selection_mask(i, value_to_write_to_selection_mask);
                                             }
                                         }
 
