@@ -913,7 +913,7 @@ void history_push_back(UserInputEvent event) {
 }
 
 bool32 ui_event_process(UserInputEvent event); // forward declaration
-void ui_history_process_backlog() {
+void ui_backlog_process() {
     bool32 undo = false;
     while ((history_1 < history_2)) {
         if (
@@ -1002,6 +1002,8 @@ BEGIN_PRE_MAIN {
 
 
 
+// FORNOW: this returns a bool32 saying if the event is a checkpoint event.
+//         a future version could return a u32 for checkpoint, no-op (don't need to record), etc.
 bool32 ui_event_process(UserInputEvent event) {
     bool32 result = false;
 
@@ -1319,7 +1321,7 @@ bool32 ui_event_process(UserInputEvent event) {
             globals.mouse_left_held = true; // FORNOW SHIM TODO TODO TODO
 
             // Only remember dxf selection operations that actually change the mask
-            // NOTE: we could do a memcmp at the end, but let's stick with the simple bool32 result = false; ... return result; approach fornow
+            // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... return result; approach fornow
             auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
                 if (dxf_selection_mask[i] != value_to_write) {
                     result = true;
@@ -1489,7 +1491,7 @@ int main() {
     conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
     conversation_reset();
     while (cow_begin_frame()) {
-        ui_history_process_backlog();
+        ui_backlog_process();
         conversation_draw();
     }
 }
