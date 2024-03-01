@@ -385,6 +385,7 @@ BEGIN_PRE_MAIN {
 
 
 
+
 void conversation_cameras_reset() {
     camera2D = { 0.0f, 0.0, 0.0f, -0.5f, -0.25f };
     camera2D_zoom_to_bounding_box(&camera2D, bbox_union);
@@ -448,15 +449,27 @@ void conversation_draw() {
 
     { // panes
         { // draw
-          // glDisable(GL_DEPTH_TEST);
-          // eso_begin(globals.Identity, SOUP_QUADS);
-          // eso_color(0.3f, 0.3f, 0.3f);
-          // eso_vertex(0.0f,  1.0f);
-          // eso_vertex(0.0f, -1.0f);
-          // eso_vertex(1.0f, -1.0f);
-          // eso_vertex(1.0f,  1.0f);
-          // eso_end();
-          // glEnable(GL_DEPTH_TEST);
+            { // highlight
+                glDisable(GL_DEPTH_TEST);
+                if (hot_pane == HOT_PANE_2D) {
+                    eso_begin(globals.Identity, SOUP_QUADS);
+                    eso_color(0.1f, 0.1f, 0.0f);
+                    eso_vertex(-1.0f,  1.0f);
+                    eso_vertex(-1.0f, -1.0f);
+                    eso_vertex( 0.0f, -1.0f);
+                    eso_vertex( 0.0f,  1.0f);
+                    eso_end();
+                } else {
+                    eso_begin(globals.Identity, SOUP_QUADS);
+                    eso_color(0.1f, 0.1f, 0.0f);
+                    eso_vertex(0.0f,  1.0f);
+                    eso_vertex(0.0f, -1.0f);
+                    eso_vertex(1.0f, -1.0f);
+                    eso_vertex(1.0f,  1.0f);
+                    eso_end();
+                }
+                glEnable(GL_DEPTH_TEST);
+            }
 
             eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
             eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f);
@@ -872,13 +885,23 @@ struct UserInputEvent {
             uint32 mods;
         };
         struct {
-            real32 mouse_x_NDC;
-            real32 mouse_y_NDC;
+            real32 mouse_x_NDC; // TODO: mouse_x_world_3D
+            real32 mouse_y_NDC; // TODO: mouse_y_world_3D
+                                // TODO: mouse_o_world_3D mouse_dir_world_3D
         };
     }; 
     bool32 checkpoint;
 };
 
+// // TODO:
+// IDEA: mouse stuff should be immediately translated into world coordinates (by the callback)
+//       the camera should NOT be part of the state; it should be just a pre-filter on user input
+// (otherwise...we have to store all the clicking and dragging of the cameras -- which is actually quite involved)
+// but the cameras just map the click from NDC to world
+// - in 2D, a world point
+// - in 3D, a world ray
+// advantages: fastest path to goal (avoids having to do weird porting of camera math); avoids having to push a bunch of ui events (camera stuff can be treated separately)
+// disadvantage: a user input event now has to be able to store an entire ray (6 real's)
 
 // .
 // ^
@@ -900,7 +923,6 @@ struct UserInputEvent {
 // |                               |
 // 0                               1,2
 
-// TODO: chunk events into blocks (undo pops through the next checkpoint (or until out of event))
 
 UserInputEvent history_0[999999];
 UserInputEvent *history_1 = history_0;
@@ -924,14 +946,13 @@ void ui_backlog_process() {
             undo = true;
             break;
         } else {
-            if (ui_event_process(*history_1)) {
-                history_1->checkpoint = true;
-            }
+            if(ui_event_process(*history_1)) history_1->checkpoint = true;
             ++history_1;
         }
     }
 
     if (undo) {
+        printf("\n");
         if (history_0 != history_1) {
             // pop back _through_ a first checkpoint
             do --history_1; while ((history_0 != history_1) && (!history_1->checkpoint));
@@ -968,6 +989,8 @@ struct {
 } callback_state;
 
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
+    _callback_cursor_position(NULL, xpos, ypos);
+
     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
     real32 s_Screen[4] = { (real32) xpos, (real32) ypos, 0.0f, 1.0f };
@@ -981,7 +1004,9 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-    // TODO
+    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM
+
+    // TODO switch from NDC -> world (with 3D ray)
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
             history_push_back({ UI_EVENT_TYPE_MOUSE_LEFT_PRESS, .mouse_x_NDC = callback_state.mouse_x_NDC, .mouse_y_NDC = callback_state.mouse_y_NDC });
@@ -989,8 +1014,9 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     }
 }
 
-void callback_scroll(GLFWwindow *, double, double _yoffset) {
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(_yoffset);
+void callback_scroll(GLFWwindow *, double, double yoffset) {
+    _callback_mouse_button(NULL, 0, 0, yoffset); // FORNOW TODO TODO TODO SHIM
+
 }
 
 BEGIN_PRE_MAIN {
@@ -1005,13 +1031,8 @@ BEGIN_PRE_MAIN {
 // FORNOW: this returns a bool32 saying if the event is a checkpoint event.
 //         a future version could return a u32 for checkpoint, no-op (don't need to record), etc.
 bool32 ui_event_process(UserInputEvent event) {
-    bool32 result = false;
+    bool32 result = event.checkpoint; // FORNOW just for printing *
 
-    if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
-        printf("KEY_DOWN %c\n", char(event.key));
-    } else if (event.type == UI_EVENT_TYPE_MOUSE_LEFT_PRESS) {
-        printf("MOUSE_LEFT_PRESS %f %f\n", event.mouse_x_NDC, event.mouse_y_NDC);
-    }
 
     // computed bool32's (FORNOW: sloppy--these change mid-frame)
     bool32 dxf_anything_selected;
@@ -1036,12 +1057,6 @@ bool32 ui_event_process(UserInputEvent event) {
     };
 
 
-    // TODO: determine hot pane (TODO make this more clear when you draw -- highlight hot pane)
-    // if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-    //     hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
-    //     if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
-    // }
-    hot_pane = HOT_PANE_2D; // FORNOW
 
 
 
@@ -1293,13 +1308,6 @@ bool32 ui_event_process(UserInputEvent event) {
 
         console_params_preview_update();
     } else { // mouse input
-             // { // camera_move TODO this needs to be taken over by app?
-             //     if (hot_pane == HOT_PANE_2D) {
-             //         camera_move(&camera2D);
-             //     } else if (hot_pane == HOT_PANE_3D) {
-             //         camera_move(&camera3D);
-             //     }
-             // }
         { // pick
             ;
             // FORNOW camera data
@@ -1335,7 +1343,7 @@ bool32 ui_event_process(UserInputEvent event) {
                         if (!globals.mouse_left_held) {
                         } else if (click_mode == CLICK_MODE_NONE) {
                         } else if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
-                            if (click_modifier == CLICK_MODE_NONE) {
+                            if (click_modifier == CLICK_MODIFIER_NONE) {
                                 result = true;
                                 origin_x = mouse_x;
                                 origin_y = mouse_y;
@@ -1477,6 +1485,13 @@ bool32 ui_event_process(UserInputEvent event) {
         }
     }
 
+    if (result) printf("*");
+    if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
+        printf("KEY_DOWN %c\n", char(event.key));
+    } else if (event.type == UI_EVENT_TYPE_MOUSE_LEFT_PRESS) {
+        printf("MOUSE_LEFT_PRESS %f %f\n", event.mouse_x_NDC, event.mouse_y_NDC);
+    }
+
     return result;
 }
 
@@ -1491,6 +1506,17 @@ int main() {
     conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
     conversation_reset();
     while (cow_begin_frame()) {
+        if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
+            hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
+            if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
+        }
+        if (0) { // camera_move (using shimmed globals.* state)
+            if (hot_pane == HOT_PANE_2D) {
+                camera_move(&camera2D);
+            } else if (hot_pane == HOT_PANE_3D) {
+                camera_move(&camera3D);
+            }
+        }
         ui_backlog_process();
         conversation_draw();
     }
