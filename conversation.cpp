@@ -1,3 +1,8 @@
+
+
+// TODO: redo
+// TODO: undoing a feature enter could return you to the console with the previous value you used keyed in
+
 #include "cs345.cpp"
 #include "manifoldc.h"
 #include "poe.cpp"
@@ -194,8 +199,8 @@ void wrapper_manifold(
 // GLOBALS (TODO: wrap in struct ConversationState { ... } conversation;
 ////////////////////////////////////////////////////
 
-Camera2D camera2D;
-Camera3D camera3D;
+Camera2D camera_2D;
+Camera3D camera_3D;
 
 bool32 hide_grid, show_details, show_help;
 
@@ -232,7 +237,7 @@ void console_params_preview_update() {
             console_param_2_preview = console_param_2;
         } else if (globals.mouse_moved) {
             // FORNOW sloppy recomputation of mouse_position_in_world_coordinates
-            _input_get_mouse_position_and_change_in_position_in_world_coordinates(camera_get_PV(&camera2D).data, &console_param_preview, &console_param_2_preview, NULL, NULL);
+            _input_get_mouse_position_and_change_in_position_in_world_coordinates(camera_get_PV(&camera_2D).data, &console_param_preview, &console_param_2_preview, NULL, NULL);
         }
     } else {
         char buffs[2][64] = {};
@@ -316,7 +321,7 @@ void conversation_load_dxf(char *filename) {
         bbox = dxf_entity_bounding_boxes_create(&dxf);
         bbox_union = bounding_box_union(dxf.num_entities, bbox);
 
-        camera2D_zoom_to_bounding_box(&camera2D, bbox_union);
+        camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
         origin_x = 0.0f;
         origin_y = 0.0f;
 
@@ -387,17 +392,16 @@ BEGIN_PRE_MAIN {
 
 
 void conversation_cameras_reset() {
-    camera2D = { 0.0f, 0.0, 0.0f, -0.5f, -0.25f };
-    camera2D_zoom_to_bounding_box(&camera2D, bbox_union);
-    camera3D = { 2.0f * camera2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.25f };
+    camera_2D = { 0.0f, 0.0, 0.0f, -0.5f, -0.25f };
+    camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
+    camera_3D = { 2.0f * camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.25f };
 }
 
-void conversation_reset() {
+void conversation_reset(bool32 disable_user_layer_resets = false) {
     hot_pane = HOT_PANE_NONE;
     click_mode = CLICK_MODE_NONE;
     click_modifier = CLICK_MODIFIER_NONE;
     enter_mode = ENTER_MODE_NONE;
-
 
     manifold_manifold = NULL;
     fancy_mesh = {};
@@ -406,15 +410,16 @@ void conversation_reset() {
     console_param_2 = 0.0f;
     console_params_preview_flip_flag = false;
 
-    hide_grid = false;
-    show_details = false;
-    show_help = false;
-
     conversation_feature_plane_reset(); 
-    // conversation_load_dxf("splash.dxf");
     conversation_load_dxf("splash.dxf");
-    conversation_cameras_reset();
     conversation_console_buffer_reset();
+
+    if (!disable_user_layer_resets) {
+        hide_grid = false;
+        show_details = false;
+        show_help = false;
+        conversation_cameras_reset();
+    }
 }
 
 
@@ -434,10 +439,10 @@ void conversation_draw() {
         stl_plane_selected = !IS_ZERO(squaredNorm(n_selected));
     }
     // FORNOW: repeated computation
-    mat4 PV_2D = camera_get_PV(&camera2D);
+    mat4 PV_2D = camera_get_PV(&camera_2D);
     real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
-    mat4 P_3D = camera_get_P(&camera3D);
-    mat4 V_3D = camera_get_V(&camera3D);
+    mat4 P_3D = camera_get_P(&camera_3D);
+    mat4 V_3D = camera_get_V(&camera_3D);
     mat4 PV_3D = P_3D * V_3D;
 
     uint32 window_width, window_height; {
@@ -512,7 +517,7 @@ void conversation_draw() {
             }
             { // dots
                 if (show_details) {
-                    eso_begin(camera_get_PV(&camera2D), SOUP_POINTS, 4.0);
+                    eso_begin(camera_get_PV(&camera_2D), SOUP_POINTS, 4.0);
                     eso_color(monokai.white);
                     for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
                         real32 start_x, start_y, end_x, end_y;
@@ -524,7 +529,7 @@ void conversation_draw() {
                 }
             }
             { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
-                real32 r = camera2D.screen_height_World / 120.0f;
+                real32 r = camera_2D.screen_height_World / 120.0f;
                 mat4 M = M4_Translation(origin_x, origin_y);
                 vec3 color = V3(0.8f, 0.8f, 1.0f);
                 if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
@@ -644,7 +649,7 @@ void conversation_draw() {
         }
 
         if (stl_plane_selected) { // axes 3D axes 3d axes axis 3D axis 3d axis
-            real32 r = camera3D.ortho_screen_height_World / 120.0f;
+            real32 r = camera_3D.ortho_screen_height_World / 120.0f;
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(origin_x, origin_y, Z_FIGHT_EPS), SOUP_LINES, 4.0f);
             eso_color(0.8f, 0.8f, 1.0f);
             eso_vertex(-r*0.6f, 0.0f);
@@ -873,28 +878,6 @@ void conversation_draw() {
 
 
 
-// FORNOW trying to match GLFW with macros
-
-#define UI_EVENT_TYPE_KEY_PRESS 0
-#define UI_EVENT_TYPE_MOUSE_PRESS_2D 1
-#define UI_EVENT_TYPE_MOUSE_PRESS_3D 2
-struct UserInputEvent {
-    uint32 type;
-    union {
-        struct {
-            uint32 key;
-            uint32 mods;
-        };
-        struct {
-            real32 mouse_x_NDC; // TODO: mouse_x_world_3D
-            real32 mouse_y_NDC; // TODO: mouse_y_world_3D
-                                // TODO: mouse_o_world_3D mouse_dir_world_3D
-        };
-    }; 
-    bool32 checkpoint;
-};
-
-// // TODO:
 // IDEA: mouse stuff should be immediately translated into world coordinates (by the callback)
 //       the camera should NOT be part of the state; it should be just a pre-filter on user input
 // (otherwise...we have to store all the clicking and dragging of the cameras -- which is actually quite involved)
@@ -925,6 +908,29 @@ struct UserInputEvent {
 // 0                               1,2
 
 
+
+#define UI_EVENT_TYPE_KEY_PRESS      0
+#define UI_EVENT_TYPE_MOUSE_2D_PRESS 1
+#define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
+struct UserInputEvent {
+    uint32 type;
+    union {
+        struct {
+            uint32 key;
+            uint32 mods;
+        };
+        struct {
+            real32 mouse_x;
+            real32 mouse_y;
+        };
+        struct {
+            vec3 o;
+            vec3 dir;
+        };
+    }; 
+    bool32 checkpoint;
+};
+
 UserInputEvent history_0[999999];
 UserInputEvent *history_1 = history_0;
 UserInputEvent *history_2 = history_0;
@@ -937,8 +943,8 @@ void history_push_back(UserInputEvent event) {
 
 uint32 FORNOW_history_counter;
 
-bool32 ui_event_process(UserInputEvent event); // forward declaration
-void ui_backlog_process() {
+bool32 event_layer_event_process(UserInputEvent event); // forward declaration
+void event_layer_backlog_process() {
     bool32 undo = false;
     while ((history_1 < history_2)) {
         if (
@@ -949,7 +955,7 @@ void ui_backlog_process() {
             undo = true;
             break;
         } else {
-            if(ui_event_process(*history_1)) history_1->checkpoint = true;
+            if(event_layer_event_process(*history_1)) history_1->checkpoint = true;
             ++history_1;
         }
     }
@@ -963,11 +969,11 @@ void ui_backlog_process() {
             // pop back _up to_ a second
             while ((history_0 != history_1) && (!(history_1 - 1)->checkpoint)) --history_1; // * short-circuit
 
-            conversation_reset();
+            conversation_reset(true);
             for (   UserInputEvent *event = history_0;
                     event < history_1;
                     ++event) {
-                ui_event_process(*event);
+                event_layer_event_process(*event);
             }
             conversation_messagef("[undo] :D");
         } else {
@@ -978,6 +984,7 @@ void ui_backlog_process() {
 }
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
+    _callback_key(NULL, key, 0, action, mods); // FORNOW TODO TODO TODO SHIM
     if (action == GLFW_PRESS) {
         if (key == GLFW_KEY_LEFT_CONTROL) return;
         if (key == GLFW_KEY_RIGHT_CONTROL) return;
@@ -988,40 +995,45 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
 }
 
 struct {
-    real32 mouse_x_NDC;
-    real32 mouse_y_NDC;
-} callback_state;
+    real32 mouse_x;
+    real32 mouse_y;
+    vec3 o;
+    vec3 dir;
+} world_cursor;
 
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
-    // _callback_cursor_position(NULL, xpos, ypos);
-
+    _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    real32 s_Screen[4] = { (real32) xpos, (real32) ypos, 0.0f, 1.0f };
 
-    real32 s_NDC[4] = {};
-    real32 NDC_from_Screen[16] = {};
-    _window_get_NDC_from_Screen(NDC_from_Screen);
-    _linalg_mat4_times_vec4_persp_divide(s_NDC, NDC_from_Screen, s_Screen);
-    callback_state.mouse_x_NDC = s_NDC[0];
-    callback_state.mouse_y_NDC = s_NDC[1];
+    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), V2(xpos, ypos));
+
+    vec2 s_2D = transformPoint(inverse(camera_get_PV(&camera_2D)), mouse_s_NDC);
+    world_cursor.mouse_x = s_2D.x;
+    world_cursor.mouse_y = s_2D.y;
+
+    mat4 inverse_PV_3D = inverse(camera_get_PV(&camera_3D));
+    world_cursor.o = transformPoint(inverse_PV_3D, V3(mouse_s_NDC, -1.0f));
+    world_cursor.dir = normalized(transformPoint(inverse_PV_3D, V3(mouse_s_NDC,  1.0f)) - world_cursor.o);
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-    //_callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM
+    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM
 
     // TODO switch from NDC -> world (with 3D ray)
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
-            history_push_back({ UI_EVENT_TYPE_MOUSE_PRESS_2D, .mouse_x_NDC = callback_state.mouse_x_NDC, .mouse_y_NDC = callback_state.mouse_y_NDC });
+            if (hot_pane == HOT_PANE_2D) {
+                history_push_back( { UI_EVENT_TYPE_MOUSE_2D_PRESS, .mouse_x = world_cursor.mouse_x, .mouse_y = world_cursor.mouse_y, });
+            } else if (hot_pane == HOT_PANE_3D) {
+                history_push_back( { UI_EVENT_TYPE_MOUSE_3D_PRESS, .o = world_cursor.o, .dir = world_cursor.dir });
+            }
         }
     }
 }
 
 void callback_scroll(GLFWwindow *, double, double yoffset) {
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(yoffset);
-    // _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM
-
+    _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM
 }
 
 BEGIN_PRE_MAIN {
@@ -1035,9 +1047,13 @@ BEGIN_PRE_MAIN {
 
 // FORNOW: this returns a bool32 saying if the event is a checkpoint event.
 //         a future version could return a u32 for checkpoint, no-op (don't need to record), etc.
-bool32 ui_event_process(UserInputEvent event) {
-    bool32 result = event.checkpoint; // FORNOW just for printing *
+bool32 event_layer_event_process(UserInputEvent event) {
+    #define camera_2D DISALLOWED
+    #define camera_3D DISALLOWED
+    #define  hot_pane DISALLOWED
+    #define   globals DISALLOWED
 
+    bool32 result = event.checkpoint; // FORNOW just for printing *
 
     // computed bool32's (FORNOW: sloppy--these change mid-frame)
     bool32 dxf_anything_selected;
@@ -1054,39 +1070,17 @@ bool32 ui_event_process(UserInputEvent event) {
         stl_plane_selected = !IS_ZERO(squaredNorm(n_selected));
     }
 
-    auto key_pressed = [&](uint32 key) {
-        if (('a' <= key) && (key <= 'z')) key = 'A' + (key - 'a'); // FORNOW
-        return (event.type == UI_EVENT_TYPE_KEY_PRESS) && (event.key == key); // FORNOW
-    };
-
-
-    // TODO: move this elsewhere
-    // FORNOW camera data
-    mat4 PV_2D = camera_get_PV(&camera2D);
-    // real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
-    real32 mouse_x;
-    real32 mouse_y;
-    {
-        vec4 mouse_s = transformPoint(inverse(PV_2D), V4(event.mouse_x_NDC, event.mouse_y_NDC, 0.0f, 1.0f));
-        mouse_x = mouse_s.x;
-        mouse_y = mouse_s.y;
-    }
-    mat4 P_3D = camera_get_P(&camera3D);
-    mat4 V_3D = camera_get_V(&camera3D);
-    mat4 PV_3D = P_3D * V_3D;
-
-    // TODO: get rid of mouse held functionality for now
-    // // // TODO this function should not touch (hot_pane or camera2D or camera3D):accessory-state-we-aren't-saving or globals
-    // // TODO preserving current functionality, loft the pane and mouse state way up out of this function
-    //         this function just deals with pure events and ui-independent state
-    // // TODO: at the same time, port mouse_x_NDC -> mouse_x[_world] 
-    //          UI events should be in world coordinates with no knowledge of the user's states (hot pane, etc.) -- window may mess this up a bit; but deal with that later
-    //          (idea of a UI layer)
-    //         
-    // TODO this stuff doesn't belong here (it is not part of the undo state -- it is baked INTO the events that are pushed back)
-
 
     if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
+        auto key_lambda = [&](uint32 code) {
+            bool event_shift = (event.mods & GLFW_MOD_SHIFT);
+            bool code_shift  = (('A' <= code) && (code <= 'Z'));
+            bool shift_match = (event_shift == code_shift);
+
+            if (('a' <= code) && (code <= 'z')) code = 'A' + (code - 'a');
+            bool letter_match = (event.key == code);
+            return shift_match && letter_match;
+        };
         // FORNOW
         char character_equivalent = (char) event.key;
         // TODO: '_'
@@ -1097,7 +1091,7 @@ bool32 ui_event_process(UserInputEvent event) {
                 key_eaten_by_special__NOTE_dealt_with_up_top = false;
                 if (click_modifier == CLICK_MODIFIER_QUALITY) {
                     for (uint32 color = 0; color < 6; ++color) {
-                        if (key_pressed('0' + color)) {
+                        if (key_lambda('0' + color)) {
                             result = true;
                             key_eaten_by_special__NOTE_dealt_with_up_top = true;
                             for (uint32 i = 0; i < dxf.num_entities; ++i) {
@@ -1115,25 +1109,25 @@ bool32 ui_event_process(UserInputEvent event) {
             bool32 send_key_to_console;
             {
                 send_key_to_console = false;
-                send_key_to_console = (send_key_to_console || key_pressed(COW_KEY_BACKSPACE));
-                if (!key_pressed(COW_KEY_ENTER)) {
+                send_key_to_console = (send_key_to_console || key_lambda(COW_KEY_BACKSPACE));
+                if (!key_lambda(COW_KEY_ENTER)) {
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
-                        send_key_to_console = (send_key_to_console || key_pressed('.'));
-                        send_key_to_console = (send_key_to_console || key_pressed('-'));
-                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed('0' + i));
+                        send_key_to_console = (send_key_to_console || key_lambda('.'));
+                        send_key_to_console = (send_key_to_console || key_lambda('-'));
+                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_lambda('0' + i));
                         // note: double negative
                         if ((enter_mode != ENTER_MODE_OFFSET_PLANE_BY)) {
-                            send_key_to_console = (send_key_to_console || key_pressed(' '));
+                            send_key_to_console = (send_key_to_console || key_lambda(' '));
                         }
                     } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
-                        send_key_to_console = (send_key_to_console || key_pressed('.'));
-                        send_key_to_console = (send_key_to_console || key_pressed(' '));
-                        send_key_to_console = (send_key_to_console || key_pressed('-'));
-                        send_key_to_console = (send_key_to_console || key_pressed('/'));
-                        send_key_to_console = (send_key_to_console || key_pressed('\\'));
-                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_pressed('0' + i));
-                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_pressed('a' + i));
-                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_pressed('A' + i));
+                        send_key_to_console = (send_key_to_console || key_lambda('.'));
+                        send_key_to_console = (send_key_to_console || key_lambda(' '));
+                        send_key_to_console = (send_key_to_console || key_lambda('-'));
+                        send_key_to_console = (send_key_to_console || key_lambda('/'));
+                        send_key_to_console = (send_key_to_console || key_lambda('\\'));
+                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_lambda('0' + i));
+                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_lambda('a' + i));
+                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_lambda('A' + i));
                     }
                 } else {
                     send_key_to_console = true;
@@ -1175,8 +1169,8 @@ bool32 ui_event_process(UserInputEvent event) {
             if (key_eaten_by_special__NOTE_dealt_with_up_top) {
                 ;
             } else if (send_key_to_console) {
-                if (!key_pressed(COW_KEY_ENTER)) {
-                    if (key_pressed(COW_KEY_BACKSPACE)) {
+                if (!key_lambda(COW_KEY_ENTER)) {
+                    if (key_lambda(COW_KEY_BACKSPACE)) {
                         *--console_buffer_write_head = '\0';
                     } else {
                         *console_buffer_write_head++ = character_equivalent;
@@ -1193,7 +1187,7 @@ bool32 ui_event_process(UserInputEvent event) {
                         }
                         if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                             CrossSectionEvenOdd cross_section = cross_section_create(&dxf, dxf_selection_mask);
-                            // cross_section_debug_draw(&camera2D, &cross_section);
+                            // cross_section_debug_draw(&camera_2D, &cross_section);
                             wrapper_manifold(
                                     &manifold_manifold,
                                     &fancy_mesh,
@@ -1239,17 +1233,13 @@ bool32 ui_event_process(UserInputEvent event) {
                         click_modifier = CLICK_MODIFIER_NONE;
                     }
                 }
-            } else if (key_pressed(COW_KEY_TAB)) {
-                camera3D.angle_of_view = (IS_ZERO(camera3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
-            } else if (key_pressed(COW_KEY_ESCAPE)) {
+            } else if (key_lambda(COW_KEY_ESCAPE)) {
                 enter_mode = ENTER_MODE_NONE;
                 click_mode = CLICK_MODE_NONE;
                 click_modifier = CLICK_MODIFIER_NONE;
                 conversation_console_buffer_reset();
                 conversation_feature_plane_reset(); // FORNOW
-            } else if (key_pressed('X') && globals.key_shift_held) {
-                camera2D_zoom_to_bounding_box(&camera2D, bbox_union);
-            } else if (key_pressed('n')) {
+            } else if (key_lambda('n')) {
                 if (stl_plane_selected) {
                     enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
                     console_params_preview_flip_flag = false;
@@ -1257,61 +1247,55 @@ bool32 ui_event_process(UserInputEvent event) {
                 } else {
                     conversation_messagef("[n] no plane selected");
                 }
-            } else if (key_pressed('m')) {
+            } else if (key_lambda('m')) {
                 click_mode = CLICK_MODE_MOVE_2D_ORIGIN_TO;
                 click_modifier = CLICK_MODIFIER_NONE;
                 enter_mode = ENTER_MODE_MOVE_ORIGIN_TO;
                 console_params_preview_flip_flag = false;
                 conversation_console_buffer_reset();
-            } else if (key_pressed('S') && globals.key_shift_held) {
+            } else if (key_lambda('S')) {
                 enter_mode = ENTER_MODE_SAVE;
-            } else if (key_pressed('g')) {
-                hide_grid = !hide_grid;
-            } else if (key_pressed('h')) {
-                show_help = !show_help;
-            } else if (key_pressed('.') && !send_key_to_console) {
-                show_details = !show_details;
-            } else if (key_pressed('s')) {
+            } else if (key_lambda('s')) {
                 click_mode = CLICK_MODE_SELECT;
                 click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_pressed('w')) {
+            } else if (key_lambda('w')) {
                 if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                     click_modifier = CLICK_MODIFIER_WINDOW;
                     window_select_click_count = 0;
                 }
-            } else if (key_pressed('d')) {
+            } else if (key_lambda('d')) {
                 click_mode = CLICK_MODE_DESELECT;
                 click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_pressed('c')) {
+            } else if (key_lambda('c')) {
                 if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                     click_modifier = CLICK_MODIFIER_CONNECTED;
                 } else if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                     click_modifier = CLICK_MODIFIER_CENTER_OF;
                 }
-            } else if (key_pressed('q')) {
+            } else if (key_lambda('q')) {
                 if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                     click_modifier = CLICK_MODIFIER_QUALITY;
                 }
-            } else if (key_pressed('a')) {
+            } else if (key_lambda('a')) {
                 if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                     result = true;
                     bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                     for (uint32 i = 0; i < dxf.num_entities; ++i) dxf_selection_mask[i] = value_to_write_to_selection_mask;
                 }
-            } else if (key_pressed('x') || key_pressed('y') || key_pressed('z')) {
+            } else if (key_lambda('x') || key_lambda('y') || key_lambda('z')) {
                 result = true;
                 some_triangle_exists_that_matches_n_selected_and_r_n_selected = false;
                 r_n_selected = 0.0f;
-                if (key_pressed('x')) n_selected = { 1.0f, 0.0f, 0.0f };
-                if (key_pressed('y')) n_selected = { 0.0f, 1.0f, 0.0f };
-                if (key_pressed('z')) n_selected = { 0.0f, 0.0f, 1.0f };
+                if (key_lambda('x')) n_selected = { 1.0f, 0.0f, 0.0f };
+                if (key_lambda('y')) n_selected = { 0.0f, 1.0f, 0.0f };
+                if (key_lambda('z')) n_selected = { 0.0f, 0.0f, 1.0f };
                 conversation_update_M_3D_from_2D();
-            } else if (key_pressed('E') && globals.key_shift_held) {
+            } else if (key_lambda('E')) {
                 result = true;
                 enter_mode = ENTER_MODE_EXTRUDE_CUT;
                 console_params_preview_flip_flag = true;
                 conversation_console_buffer_reset();
-            } else if (key_pressed('e')) {
+            } else if (key_lambda('e')) {
                 result = true;
                 if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                     click_modifier = CLICK_MODIFIER_END_OF;
@@ -1320,20 +1304,21 @@ bool32 ui_event_process(UserInputEvent event) {
                     console_params_preview_flip_flag = false;
                     conversation_console_buffer_reset();
                 }
-            } else if (key_pressed('R') && globals.key_shift_held) {
+            } else if (key_lambda('R')) {
                 enter_mode = ENTER_MODE_REVOLVE_CUT;
-            } else if (key_pressed('r')) {
+            } else if (key_lambda('r')) {
                 enter_mode = ENTER_MODE_REVOLVE_ADD;
-            } else if (key_pressed('L') && globals.key_shift_held) {
+            } else if (key_lambda('L')) {
                 enter_mode = ENTER_MODE_LOAD;
-            } else if (key_pressed('f')) {
+            } else if (key_lambda('f')) {
+                result = true;
                 console_params_preview_flip_flag = !console_params_preview_flip_flag;
                 console_params_preview_update();
             }
         }
 
         console_params_preview_update();
-    } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_2D) {
+    } else if (event.type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
         auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
             // Only remember dxf selection operations that actually change the mask
             // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... return result; approach fornow
@@ -1345,8 +1330,8 @@ bool32 ui_event_process(UserInputEvent event) {
         if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
             if (click_modifier == CLICK_MODIFIER_NONE) {
                 result = true;
-                origin_x = mouse_x;
-                origin_y = mouse_y;
+                origin_x = event.mouse_x;
+                origin_y = event.mouse_y;
             } else if (click_modifier == CLICK_MODIFIER_CENTER_OF) {
                 real32 min_squared_distance = HUGE_VAL;
                 for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
@@ -1355,7 +1340,7 @@ bool32 ui_event_process(UserInputEvent event) {
                     } else {
                         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                         DXFArc *arc = &entity->arc;
-                        real32 squared_distance = squared_distance_point_dxf_arc(mouse_x, mouse_y, arc);
+                        real32 squared_distance = squared_distance_point_dxf_arc(event.mouse_x, event.mouse_y, arc);
                         if (squared_distance < min_squared_distance) {
                             result = true;
                             min_squared_distance = squared_distance;
@@ -1370,7 +1355,7 @@ bool32 ui_event_process(UserInputEvent event) {
                     real32 x[2], y[2];
                     entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
                     for (uint32 d = 0; d < 2; ++d) {
-                        real32 squared_distance = squared_distance_point_point(mouse_x, mouse_y, x[d], y[d]);
+                        real32 squared_distance = squared_distance_point_point(event.mouse_x, event.mouse_y, x[d], y[d]);
                         if (squared_distance < min_squared_distance) {
                             result = true;
                             min_squared_distance = squared_distance;
@@ -1394,7 +1379,7 @@ bool32 ui_event_process(UserInputEvent event) {
                 double hot_squared_distance = HUGE_VAL;
                 for (uint32 i = 0; i < dxf.num_entities; ++i) {
                     DXFEntity *entity = &dxf.entities[i];
-                    double squared_distance = squared_distance_point_dxf_entity(mouse_x, mouse_y, entity);
+                    double squared_distance = squared_distance_point_dxf_entity(event.mouse_x, event.mouse_y, entity);
                     if (squared_distance < hot_squared_distance) {
                         hot_squared_distance = squared_distance;
                         hot_entity_index = i;
@@ -1414,16 +1399,16 @@ bool32 ui_event_process(UserInputEvent event) {
                 }
             } else {
                 if (window_select_click_count == 0) {
-                    window_select_x = mouse_x;
-                    window_select_y = mouse_y;
+                    window_select_x = event.mouse_x;
+                    window_select_y = event.mouse_y;
 
                     ++window_select_click_count;
                 } else {
                     BoundingBox window = {
-                        MIN(window_select_x, mouse_x),
-                        MIN(window_select_y, mouse_y),
-                        MAX(window_select_x, mouse_x),
-                        MAX(window_select_y, mouse_y)
+                        MIN(window_select_x, event.mouse_x),
+                        MIN(window_select_y, event.mouse_y),
+                        MAX(window_select_x, event.mouse_x),
+                        MAX(window_select_y, event.mouse_y)
                     };
                     for (uint32 i = 0; i < dxf.num_entities; ++i) {
                         if (bounding_box_contains(window, bbox[i])) {
@@ -1435,10 +1420,7 @@ bool32 ui_event_process(UserInputEvent event) {
                 }
             }
         }
-    } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_3D) {
-        vec3 o = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -1.0f));
-        vec3 dir = normalized(transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f)) - o);
-
+    } else if (event.type == UI_EVENT_TYPE_MOUSE_3D_PRESS) {
         int32 index_of_first_triangle_hit_by_ray = -1;
         {
             real32 min_distance = HUGE_VAL;
@@ -1446,7 +1428,7 @@ bool32 ui_event_process(UserInputEvent event) {
                 vec3 p[3]; {
                     for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
                 }
-                RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
+                RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(event.o, event.dir, p[0], p[1], p[2]);
                 if (ray_triangle_intersection_result.hit) {
                     if (ray_triangle_intersection_result.distance < min_distance) {
                         min_distance = ray_triangle_intersection_result.distance;
@@ -1457,10 +1439,12 @@ bool32 ui_event_process(UserInputEvent event) {
         }
 
         if (index_of_first_triangle_hit_by_ray != -1) {
+            result = true;
+
             some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
-            { // FORNOW (gross) calculateion of n_selected, r_n_selected
+            {
                 n_selected = get(fancy_mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
-                {
+                { // FORNOW (gross) calculateion of r_n_selected
                     vec3 p_selected[3]; {
                         for (uint32 j = 0; j < 3; ++j) p_selected[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + j]);
                     }
@@ -1479,15 +1463,21 @@ bool32 ui_event_process(UserInputEvent event) {
         }
         if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
             printf("[KEY %c]", char(event.key));
-        } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_2D) {
-            printf("[M2D %f %f]", event.mouse_x_NDC, event.mouse_y_NDC);
+        } else if (event.type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
+            // printf("[M2D %f %f]", event.mouse_x, event.mouse_y);
+            printf("[MOUSE_2D]");
+        } else if (event.type == UI_EVENT_TYPE_MOUSE_3D_PRESS) {
+            printf("[MOUSE_3D]");
         }
     }
 
     return result;
-}
 
-// TODO: REDO
+    #undef camera_2D
+    #undef camera_3D
+    #undef hot_pane
+    #undef globals
+}
 
 
 
@@ -1498,19 +1488,28 @@ int main() {
     conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
     conversation_reset();
     while (cow_begin_frame()) {
-        // if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-        //     hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
-        //     if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
-        // }
-        // hot_pane = HOT_PANE_2D;
-        // if (1) { // camera_move (using shimmed globals.* state)
-        //     if (hot_pane == HOT_PANE_2D) {
-        //         camera_move(&camera2D);
-        //     } else if (hot_pane == HOT_PANE_3D) {
-        //         camera_move(&camera3D);
-        //     }
-        // }
-        ui_backlog_process();
+        if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
+            hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
+            if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
+        }
+        { // camera_move (using shimmed globals.* state)
+            if (hot_pane == HOT_PANE_2D) {
+                camera_move(&camera_2D);
+            } else if (hot_pane == HOT_PANE_3D) {
+                camera_move(&camera_3D);
+            }
+        }
+
+        event_layer_backlog_process();
+
+        { // user_layer
+            if (globals.key_pressed[COW_KEY_TAB]) camera_3D.angle_of_view = (IS_ZERO(camera_3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
+            if (globals.key_pressed['X'] && globals.key_shift_held) camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
+            if (globals.key_pressed['.']) show_details = !show_details;
+            if (globals.key_pressed['g']) hide_grid = !hide_grid;
+            if (globals.key_pressed['h']) show_help = !show_help;
+        }
+
         conversation_draw();
     }
 }
