@@ -97,9 +97,9 @@ BATCH
 
 
 if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
-    echo "build fast and run slow: [35m./build_and_run.bat hwXX.cpp [0m"
-    echo "build slow and run fast: [35m./build_and_run.bat hwXX.cpp --release[0m"
-    echo "build & debug (VS Code): [35m./build_and_run.bat hwXX.cpp --debug[0m"
+    echo "build and run   in   debug mode: [35m./build_and_run.bat hwXX.cpp [0m"
+    echo "build and run   in release mode: [35m./build_and_run.bat hwXX.cpp --release[0m"
+    echo "build and debug in      VS Code: [35m./build_and_run.bat hwXX.cpp --debug[0m"
 else
     if [ -f "executable.exe" ]; then
         rm executable.exe

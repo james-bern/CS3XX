@@ -935,6 +935,8 @@ void history_push_back(UserInputEvent event) {
     *history_2++ = event;
 }
 
+uint32 FORNOW_history_counter;
+
 bool32 ui_event_process(UserInputEvent event); // forward declaration
 void ui_backlog_process() {
     bool32 undo = false;
@@ -953,6 +955,7 @@ void ui_backlog_process() {
     }
 
     if (undo) {
+        FORNOW_history_counter = 0;
         if (history_0 != history_1) {
             printf("\n");
             // pop back _through_ a first checkpoint
@@ -1051,18 +1054,39 @@ bool32 ui_event_process(UserInputEvent event) {
         stl_plane_selected = !IS_ZERO(squaredNorm(n_selected));
     }
 
-    bool32 is_keyboard_input = (event.type == UI_EVENT_TYPE_KEY_PRESS); // FORNOW
-
     auto key_pressed = [&](uint32 key) {
         if (('a' <= key) && (key <= 'z')) key = 'A' + (key - 'a'); // FORNOW
         return (event.type == UI_EVENT_TYPE_KEY_PRESS) && (event.key == key); // FORNOW
     };
 
 
+    // TODO: move this elsewhere
+    // FORNOW camera data
+    mat4 PV_2D = camera_get_PV(&camera2D);
+    // real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
+    real32 mouse_x;
+    real32 mouse_y;
+    {
+        vec4 mouse_s = transformPoint(inverse(PV_2D), V4(event.mouse_x_NDC, event.mouse_y_NDC, 0.0f, 1.0f));
+        mouse_x = mouse_s.x;
+        mouse_y = mouse_s.y;
+    }
+    mat4 P_3D = camera_get_P(&camera3D);
+    mat4 V_3D = camera_get_V(&camera3D);
+    mat4 PV_3D = P_3D * V_3D;
+
+    // TODO: get rid of mouse held functionality for now
+    // // // TODO this function should not touch (hot_pane or camera2D or camera3D):accessory-state-we-aren't-saving or globals
+    // // TODO preserving current functionality, loft the pane and mouse state way up out of this function
+    //         this function just deals with pure events and ui-independent state
+    // // TODO: at the same time, port mouse_x_NDC -> mouse_x[_world] 
+    //          UI events should be in world coordinates with no knowledge of the user's states (hot pane, etc.) -- window may mess this up a bit; but deal with that later
+    //          (idea of a UI layer)
+    //         
+    // TODO this stuff doesn't belong here (it is not part of the undo state -- it is baked INTO the events that are pushed back)
 
 
-
-    if (is_keyboard_input) {
+    if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
         // FORNOW
         char character_equivalent = (char) event.key;
         // TODO: '_'
@@ -1309,201 +1333,156 @@ bool32 ui_event_process(UserInputEvent event) {
         }
 
         console_params_preview_update();
-    } else { // mouse input
-        { // pick
-            ;
-
-            // TODO: move this elsewhere
-            // FORNOW camera data
-            mat4 PV_2D = camera_get_PV(&camera2D);
-
-            // real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
-            real32 mouse_x;
-            real32 mouse_y;
-            {
-                vec4 mouse_s = transformPoint(inverse(PV_2D), V4(event.mouse_x_NDC, event.mouse_y_NDC, 0.0f, 1.0f));
-                mouse_x = mouse_s.x;
-                mouse_y = mouse_s.y;
-            }
-
-            mat4 P_3D = camera_get_P(&camera3D);
-            mat4 V_3D = camera_get_V(&camera3D);
-            mat4 PV_3D = P_3D * V_3D;
-
-
+    } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_2D) {
+        auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
             // Only remember dxf selection operations that actually change the mask
             // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... return result; approach fornow
-            auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
-                if (dxf_selection_mask[i] != value_to_write) {
-                    result = true;
-                    dxf_selection_mask[i] = value_to_write;
-                }
-            };
-
-            // // // TODO this function should not touch (hot_pane or camera2D or camera3D):accessory-state-we-aren't-saving or globals
-            // // TODO preserving current functionality, loft the pane and mouse state way up out of this function
-            //         this function just deals with pure events and ui-independent state
-            // // TODO: at the same time, port mouse_x_NDC -> mouse_x[_world] 
-            //          UI events should be in world coordinates with no knowledge of the user's states (hot pane, etc.) -- window may mess this up a bit; but deal with that later
-            //          (idea of a UI layer)
-            //         
-            // TODO this stuff doesn't belong here (it is not part of the undo state -- it is baked INTO the events that are pushed back)
-            globals.mouse_left_held = true; // FORNOW SHIM TODO TODO TODO
-            hot_pane = HOT_PANE_2D; // FORNOW SHIM TODO TODO TODO
-
-            { // pick 2D pick 2d pick
-                if (hot_pane == HOT_PANE_2D) {
-                    { // click dxf click dxf_click
-                        if (!globals.mouse_left_held) {
-                        } else if (click_mode == CLICK_MODE_NONE) {
-                        } else if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
-                            if (click_modifier == CLICK_MODIFIER_NONE) {
-                                result = true;
-                                origin_x = mouse_x;
-                                origin_y = mouse_y;
-                            } else if (click_modifier == CLICK_MODIFIER_CENTER_OF) {
-                                real32 min_squared_distance = HUGE_VAL;
-                                for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
-                                    if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                                        continue;
-                                    } else {
-                                        ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                                        DXFArc *arc = &entity->arc;
-                                        real32 squared_distance = squared_distance_point_dxf_arc(mouse_x, mouse_y, arc);
-                                        if (squared_distance < min_squared_distance) {
-                                            result = true;
-                                            min_squared_distance = squared_distance;
-                                            origin_x = arc->center_x;
-                                            origin_y = arc->center_y;
-                                        }
-                                    }
-                                }
-                            } else if (click_modifier == CLICK_MODIFIER_END_OF) {
-                                real32 min_squared_distance = HUGE_VAL;
-                                for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
-                                    real32 x[2], y[2];
-                                    entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
-                                    for (uint32 d = 0; d < 2; ++d) {
-                                        real32 squared_distance = squared_distance_point_point(mouse_x, mouse_y, x[d], y[d]);
-                                        if (squared_distance < min_squared_distance) {
-                                            result = true;
-                                            min_squared_distance = squared_distance;
-                                            origin_x = x[d];
-                                            origin_y = y[d];
-                                        }
-                                    }
-                                }
-                            } else if (click_modifier == CLICK_MODIFIER_MIDDLE_OF) {
-                                // TODO
-                            }
-                            click_mode = CLICK_MODE_NONE;
-                            click_modifier = CLICK_MODIFIER_NONE;
-                            enter_mode = ENTER_MODE_NONE;
-                            conversation_update_M_3D_from_2D();
-                        } else {
-                            bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-                            bool32 modifier_connected = (click_modifier == CLICK_MODIFIER_CONNECTED);
-                            if (click_modifier != CLICK_MODIFIER_WINDOW) {
-                                int hot_entity_index = -1;
-                                double hot_squared_distance = HUGE_VAL;
-                                for (uint32 i = 0; i < dxf.num_entities; ++i) {
-                                    DXFEntity *entity = &dxf.entities[i];
-                                    double squared_distance = squared_distance_point_dxf_entity(mouse_x, mouse_y, entity);
-                                    if (squared_distance < hot_squared_distance) {
-                                        hot_squared_distance = squared_distance;
-                                        hot_entity_index = i;
-                                    }
-                                }
-                                if (hot_entity_index != -1) {
-                                    if (globals.mouse_left_held) {
-                                        if (!modifier_connected) {
-                                            set_dxf_selection_mask(hot_entity_index, value_to_write_to_selection_mask);
-                                        } else {
-                                            uint32 loop_index = pick.loop_index_from_entity_index[hot_entity_index];
-                                            DXFEntityIndexAndFlipFlag *loop = pick.loops[loop_index];
-                                            uint32 num_entities = pick.num_entities_in_loops[loop_index];
-                                            for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
-                                                set_dxf_selection_mask(entity_index_and_flip_flag->entity_index, value_to_write_to_selection_mask);
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if (globals.mouse_left_pressed) {
-                                if (globals.mouse_left_pressed) {
-                                    if (window_select_click_count == 0) {
-                                        window_select_x = mouse_x;
-                                        window_select_y = mouse_y;
-
-                                        ++window_select_click_count;
-                                    } else {
-                                        BoundingBox window = {
-                                            MIN(window_select_x, mouse_x),
-                                            MIN(window_select_y, mouse_y),
-                                            MAX(window_select_x, mouse_x),
-                                            MAX(window_select_y, mouse_y)
-                                        };
-                                        for (uint32 i = 0; i < dxf.num_entities; ++i) {
-                                            if (bounding_box_contains(window, bbox[i])) {
-                                                set_dxf_selection_mask(i, value_to_write_to_selection_mask);
-                                            }
-                                        }
-
-                                        window_select_click_count = 0;
-                                    }
-                                }
-                            }
+            if (dxf_selection_mask[i] != value_to_write) {
+                result = true;
+                dxf_selection_mask[i] = value_to_write;
+            }
+        };
+        if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
+            if (click_modifier == CLICK_MODIFIER_NONE) {
+                result = true;
+                origin_x = mouse_x;
+                origin_y = mouse_y;
+            } else if (click_modifier == CLICK_MODIFIER_CENTER_OF) {
+                real32 min_squared_distance = HUGE_VAL;
+                for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
+                    if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                        continue;
+                    } else {
+                        ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                        DXFArc *arc = &entity->arc;
+                        real32 squared_distance = squared_distance_point_dxf_arc(mouse_x, mouse_y, arc);
+                        if (squared_distance < min_squared_distance) {
+                            result = true;
+                            min_squared_distance = squared_distance;
+                            origin_x = arc->center_x;
+                            origin_y = arc->center_y;
                         }
                     }
                 }
+            } else if (click_modifier == CLICK_MODIFIER_END_OF) {
+                real32 min_squared_distance = HUGE_VAL;
+                for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
+                    real32 x[2], y[2];
+                    entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
+                    for (uint32 d = 0; d < 2; ++d) {
+                        real32 squared_distance = squared_distance_point_point(mouse_x, mouse_y, x[d], y[d]);
+                        if (squared_distance < min_squared_distance) {
+                            result = true;
+                            min_squared_distance = squared_distance;
+                            origin_x = x[d];
+                            origin_y = y[d];
+                        }
+                    }
+                }
+            } else if (click_modifier == CLICK_MODIFIER_MIDDLE_OF) {
+                // TODO
             }
-            { // pick 3D pick 3d pick
-                if (hot_pane == HOT_PANE_3D) {
-                    if (globals.mouse_left_pressed) {
-                        vec3 o = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -1.0f));
-                        vec3 dir = normalized(transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f)) - o);
-
-                        int32 index_of_first_triangle_hit_by_ray = -1;
-                        {
-                            real32 min_distance = HUGE_VAL;
-                            for (uint32 i = 0; i < fancy_mesh.num_triangles; ++i) {
-                                vec3 p[3]; {
-                                    for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
-                                }
-                                RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
-                                if (ray_triangle_intersection_result.hit) {
-                                    if (ray_triangle_intersection_result.distance < min_distance) {
-                                        min_distance = ray_triangle_intersection_result.distance;
-                                        index_of_first_triangle_hit_by_ray = i; // FORNOW
-                                    }
-                                }
-                            }
+            click_mode = CLICK_MODE_NONE;
+            click_modifier = CLICK_MODIFIER_NONE;
+            enter_mode = ENTER_MODE_NONE;
+            conversation_update_M_3D_from_2D();
+        } else if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
+            bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
+            bool32 modifier_connected = (click_modifier == CLICK_MODIFIER_CONNECTED);
+            if (click_modifier != CLICK_MODIFIER_WINDOW) {
+                int hot_entity_index = -1;
+                double hot_squared_distance = HUGE_VAL;
+                for (uint32 i = 0; i < dxf.num_entities; ++i) {
+                    DXFEntity *entity = &dxf.entities[i];
+                    double squared_distance = squared_distance_point_dxf_entity(mouse_x, mouse_y, entity);
+                    if (squared_distance < hot_squared_distance) {
+                        hot_squared_distance = squared_distance;
+                        hot_entity_index = i;
+                    }
+                }
+                if (hot_entity_index != -1) {
+                    if (!modifier_connected) {
+                        set_dxf_selection_mask(hot_entity_index, value_to_write_to_selection_mask);
+                    } else {
+                        uint32 loop_index = pick.loop_index_from_entity_index[hot_entity_index];
+                        DXFEntityIndexAndFlipFlag *loop = pick.loops[loop_index];
+                        uint32 num_entities = pick.num_entities_in_loops[loop_index];
+                        for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities; ++entity_index_and_flip_flag) {
+                            set_dxf_selection_mask(entity_index_and_flip_flag->entity_index, value_to_write_to_selection_mask);
                         }
+                    }
+                }
+            } else {
+                if (window_select_click_count == 0) {
+                    window_select_x = mouse_x;
+                    window_select_y = mouse_y;
 
-                        if (index_of_first_triangle_hit_by_ray != -1) {
-                            some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
-                            { // FORNOW (gross) calculateion of n_selected, r_n_selected
-                                n_selected = get(fancy_mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
-                                {
-                                    vec3 p_selected[3]; {
-                                        for (uint32 j = 0; j < 3; ++j) p_selected[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + j]);
-                                    }
-                                    r_n_selected = dot(n_selected, p_selected[0]);
-                                }
-                            }
-                            conversation_update_M_3D_from_2D();
+                    ++window_select_click_count;
+                } else {
+                    BoundingBox window = {
+                        MIN(window_select_x, mouse_x),
+                        MIN(window_select_y, mouse_y),
+                        MAX(window_select_x, mouse_x),
+                        MAX(window_select_y, mouse_y)
+                    };
+                    for (uint32 i = 0; i < dxf.num_entities; ++i) {
+                        if (bounding_box_contains(window, bbox[i])) {
+                            set_dxf_selection_mask(i, value_to_write_to_selection_mask);
                         }
+                    }
+
+                    window_select_click_count = 0;
+                }
+            }
+        }
+    } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_3D) {
+        vec3 o = transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC, -1.0f));
+        vec3 dir = normalized(transformPoint(inverse(PV_3D), V3(globals.mouse_position_NDC,  1.0f)) - o);
+
+        int32 index_of_first_triangle_hit_by_ray = -1;
+        {
+            real32 min_distance = HUGE_VAL;
+            for (uint32 i = 0; i < fancy_mesh.num_triangles; ++i) {
+                vec3 p[3]; {
+                    for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
+                }
+                RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(o, dir, p[0], p[1], p[2]);
+                if (ray_triangle_intersection_result.hit) {
+                    if (ray_triangle_intersection_result.distance < min_distance) {
+                        min_distance = ray_triangle_intersection_result.distance;
+                        index_of_first_triangle_hit_by_ray = i; // FORNOW
                     }
                 }
             }
         }
+
+        if (index_of_first_triangle_hit_by_ray != -1) {
+            some_triangle_exists_that_matches_n_selected_and_r_n_selected = true;
+            { // FORNOW (gross) calculateion of n_selected, r_n_selected
+                n_selected = get(fancy_mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
+                {
+                    vec3 p_selected[3]; {
+                        for (uint32 j = 0; j < 3; ++j) p_selected[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + j]);
+                    }
+                    r_n_selected = dot(n_selected, p_selected[0]);
+                }
+            }
+            conversation_update_M_3D_from_2D();
+        }
     }
 
-    if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
-        printf("[KEY %c]", char(event.key));
-    } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_2D) {
-        printf("[M2D %f %f]", event.mouse_x_NDC, event.mouse_y_NDC);
+    { // printing for debugging undo
+        if (!result) {
+            printf("\n  ");
+        } else {
+            printf("\n%d ", FORNOW_history_counter++);
+        }
+        if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
+            printf("[KEY %c]", char(event.key));
+        } else if (event.type == UI_EVENT_TYPE_MOUSE_PRESS_2D) {
+            printf("[M2D %f %f]", event.mouse_x_NDC, event.mouse_y_NDC);
+        }
     }
-    if (result) printf("\n");
 
     return result;
 }
