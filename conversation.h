@@ -34,7 +34,7 @@
 
 real32 Z_FIGHT_EPS = 0.05f;
 real32 TOLERANCE_DEFAULT = 1e-5f;
-u32 NUM_SEGMENTS_PER_CIRCLE = 64;
+uint32 NUM_SEGMENTS_PER_CIRCLE = 64;
 real32 GRID_SIDE_LENGTH = 256.0f;
 real32 GRID_SPACING = 10.0f;
 real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
@@ -74,18 +74,18 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 // Data-Oriented Snail /////////////////
 ////////////////////////////////////////
 
-vec3 get(real32 *x, u32 i) {
+vec3 get(real32 *x, uint32 i) {
     vec3 result;
-    for (u32 d = 0; d < 3; ++d) result.data[d] = x[3 * i + d];
+    for (uint32 d = 0; d < 3; ++d) result.data[d] = x[3 * i + d];
     return result;
 }
-void set(real32 *x, u32 i, vec3 v) {
-    for (u32 d = 0; d < 3; ++d) x[3 * i + d] = v.data[d];
+void set(real32 *x, uint32 i, vec3 v) {
+    for (uint32 d = 0; d < 3; ++d) x[3 * i + d] = v.data[d];
 }
 void eso_vertex(real32 *p_j) {
     eso_vertex(p_j[0], p_j[1], p_j[2]);
 }
-void eso_vertex(real32 *p, u32 j) {
+void eso_vertex(real32 *p, uint32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
 
@@ -102,11 +102,11 @@ void pprint(BoundingBox bounding_box) {
     printf("(%f, %f) <-> (%f, %f)\n", bounding_box.min[0], bounding_box.min[1], bounding_box.max[0], bounding_box.max[1]);
 }
 
-BoundingBox bounding_box_union(u32 num_bounding_boxes, BoundingBox *bounding_boxes, bool32 *mask = NULL) {
+BoundingBox bounding_box_union(uint32 num_bounding_boxes, BoundingBox *bounding_boxes, bool32 *mask = NULL) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
-    for (u32 i = 0; i < num_bounding_boxes; ++i) {
+    for (uint32 i = 0; i < num_bounding_boxes; ++i) {
         if ((mask) && (!mask[i])) continue;
-        for (u32 d = 0; d < 2; ++d) {
+        for (uint32 d = 0; d < 2; ++d) {
             result.min[d] = MIN(result.min[d], bounding_boxes[i].min[d]);
             result.max[d] = MAX(result.max[d], bounding_boxes[i].max[d]);
         }
@@ -115,7 +115,7 @@ BoundingBox bounding_box_union(u32 num_bounding_boxes, BoundingBox *bounding_box
 }
 
 bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
-    for (u32 d = 0; d < 2; ++d) {
+    for (uint32 d = 0; d < 2; ++d) {
         if (outer.min[d] > inner.min[d]) return false;
         if (outer.max[d] < inner.max[d]) return false;
     }
@@ -172,8 +172,8 @@ struct DXFArc {
 #define DXF_ENTITY_TYPE_LINE 0
 #define DXF_ENTITY_TYPE_ARC  1
 struct DXFEntity {
-    u32 type;
-    u32 color;
+    uint32 type;
+    uint32 color;
     union {
         DXFLine line;
         DXFArc arc;
@@ -222,7 +222,7 @@ void entity_get_start_and_end_points(DXFEntity *entity, real32 *start_x, real32 
 }
 
 struct DXF {
-    u32 num_entities;
+    uint32 num_entities;
     DXFEntity *entities;
 };
 
@@ -335,7 +335,7 @@ void dxf_load(char *filename, DXF *dxf) {
     list_free(&stretchy_list);
 }
 
-void _dxf_eso_color(u32 color) {
+void _dxf_eso_color(uint32 color) {
     if      (color == 0) { eso_color( 83 / 255.0f, 255 / 255.0f,  85 / 255.0f); }
     else if (color == 1) { eso_color(255 / 255.0f,   0 / 255.0f,   0 / 255.0f); }
     else if (color == 2) { eso_color(238 / 255.0f,   0 / 255.0f, 119 / 255.0f); }
@@ -365,11 +365,11 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
         real32 start_angle, end_angle;
         arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
         real32 delta_angle = end_angle - start_angle;
-        u32 num_segments = (u32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
+        uint32 num_segments = (uint32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
         real32 increment = delta_angle / num_segments;
         real32 current_angle = start_angle;
         _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : entity->color);
-        for (u32 i = 0; i < num_segments; ++i) {
+        for (uint32 i = 0; i < num_segments; ++i) {
             real32 x, y;
             get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
             eso_vertex(x, y);
@@ -391,14 +391,14 @@ void dxf_debug_draw(Camera2D *camera2D, DXF *dxf, int32 override_color = DXF_COL
 BoundingBox *dxf_entity_bounding_boxes_create(DXF *dxf) {
     BoundingBox *result = (BoundingBox *) malloc(dxf->num_entities * sizeof(BoundingBox));
 
-    for (u32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
+    for (uint32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
         DXFEntity *entity = &dxf->entities[entity_index];
         result[entity_index] = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
         real32 s[2][2];
-        u32 n = 2;
+        uint32 n = 2;
         entity_get_start_and_end_points(entity, &s[0][0], &s[0][1], &s[1][0], &s[1][1]);
-        for (u32 i = 0; i < n; ++i) {
-            for (u32 d = 0; d < 2; ++d) {
+        for (uint32 i = 0; i < n; ++i) {
+            for (uint32 d = 0; d < 2; ++d) {
                 result[entity_index].min[d] = MIN(result[entity_index].min[d], s[i][d]);
                 result[entity_index].max[d] = MAX(result[entity_index].max[d], s[i][d]);
             }
@@ -507,24 +507,24 @@ real32 squared_distance_point_dxf(real32 x, real32 y, DXF *dxf) {
 ////////////////////////////////////////
 
 struct DXFEntityIndexAndFlipFlag {
-    u32 entity_index;
+    uint32 entity_index;
     bool32 flip_flag;
 };
 
 struct DXFLoopAnalysisResult {
-    u32 num_loops;
-    u32 *num_entities_in_loops;
+    uint32 num_loops;
+    uint32 *num_entities_in_loops;
     DXFEntityIndexAndFlipFlag **loops;
-    u32 *loop_index_from_entity_index;
+    uint32 *loop_index_from_entity_index;
 };
 
 DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_mask_NOTE_pass_NULL_for_pick = NULL) {
     if (dxf->num_entities == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
-        result.num_entities_in_loops = (u32 *) calloc(result.num_loops, sizeof(u32));
+        result.num_entities_in_loops = (uint32 *) calloc(result.num_loops, sizeof(uint32));
         result.loops = (DXFEntityIndexAndFlipFlag **) calloc(result.num_loops, sizeof(DXFEntityIndexAndFlipFlag *));
-        result.loop_index_from_entity_index = (u32 *) calloc(dxf->num_entities, sizeof(u32));
+        result.loop_index_from_entity_index = (uint32 *) calloc(dxf->num_entities, sizeof(uint32));
         return result;
     }
 
@@ -537,7 +537,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                 #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!dxf_selection_mask_NOTE_pass_NULL_for_pick || dxf_selection_mask_NOTE_pass_NULL_for_pick[i]))
                 { // seed loop
                     bool32 added_and_seeded_new_loop = false;
-                    for (u32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
+                    for (uint32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
                         if (MACRO_CANDIDATE_VALID(entity_index)) {
                             added_and_seeded_new_loop = true;
                             entity_already_added[entity_index] = true;
@@ -552,7 +552,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                     real32 tolerance = TOLERANCE_DEFAULT;
                     while (true) {
                         bool32 added_new_entity_to_loop = false;
-                        for (u32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
+                        for (uint32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
                             real32 start_x_prev, start_y_prev, end_x_prev, end_y_prev;
                             real32 start_x_i, start_y_i, end_x_i, end_y_i;
@@ -594,7 +594,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                 }
 
                 { // reverse_loop if necessary
-                    u32 num_entities_in_loop = stretchy_list.data[stretchy_list.length - 1].length;
+                    uint32 num_entities_in_loop = stretchy_list.data[stretchy_list.length - 1].length;
                     DXFEntityIndexAndFlipFlag *loop = stretchy_list.data[stretchy_list.length - 1].data;
                     bool32 reverse_loop; {
                         #if 0
@@ -603,7 +603,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                         real32 twice_the_signed_area; {
                             twice_the_signed_area = 0.0f;
                             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
-                                u32 entity_index = entity_index_and_flip_flag->entity_index;
+                                uint32 entity_index = entity_index_and_flip_flag->entity_index;
                                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
                                 DXFEntity *entity = &dxf->entities[entity_index];
                                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
@@ -635,12 +635,12 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
                         #endif
                     }
                     if (reverse_loop) {
-                        for (u32 i = 0, j = (num_entities_in_loop - 1); i < j; ++i, --j) {
+                        for (uint32 i = 0, j = (num_entities_in_loop - 1); i < j; ++i, --j) {
                             DXFEntityIndexAndFlipFlag tmp = loop[i];
                             loop[i] = loop[j];
                             loop[j] = tmp;
                         }
-                        for (u32 i = 0; i < num_entities_in_loop; ++i) {
+                        for (uint32 i = 0; i < num_entities_in_loop; ++i) {
                             loop[i].flip_flag = !loop[i].flip_flag;
                         }
                     }
@@ -652,23 +652,23 @@ DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_m
 
         // copy over from List's
         result.num_loops = stretchy_list.length;
-        result.num_entities_in_loops = (u32 *) calloc(result.num_loops, sizeof(u32));
+        result.num_entities_in_loops = (uint32 *) calloc(result.num_loops, sizeof(uint32));
         result.loops = (DXFEntityIndexAndFlipFlag **) calloc(result.num_loops, sizeof(DXFEntityIndexAndFlipFlag *));
-        for (u32 i = 0; i < result.num_loops; ++i) {
+        for (uint32 i = 0; i < result.num_loops; ++i) {
             result.num_entities_in_loops[i] = stretchy_list.data[i].length;
             result.loops[i] = (DXFEntityIndexAndFlipFlag *) calloc(result.num_entities_in_loops[i], sizeof(DXFEntityIndexAndFlipFlag));
             memcpy(result.loops[i], stretchy_list.data[i].data, result.num_entities_in_loops[i] * sizeof(DXFEntityIndexAndFlipFlag));
         }
 
         // free List's
-        for (u32 i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
+        for (uint32 i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
         list_free(&stretchy_list);
     }
     // loop_index_from_entity_index (brute force)
-    result.loop_index_from_entity_index = (u32 *) calloc(dxf->num_entities, sizeof(u32));
-    for (u32 i = 0; i < dxf->num_entities; ++i) {
-        for (u32 j = 0; j < result.num_loops; ++j) {
-            for (u32 k = 0; k < result.num_entities_in_loops[j]; ++k) {
+    result.loop_index_from_entity_index = (uint32 *) calloc(dxf->num_entities, sizeof(uint32));
+    for (uint32 i = 0; i < dxf->num_entities; ++i) {
+        for (uint32 j = 0; j < result.num_loops; ++j) {
+            for (uint32 k = 0; k < result.num_entities_in_loops[j]; ++k) {
                 if (i == result.loops[j][k].entity_index) {
                     result.loop_index_from_entity_index[i] = j;
                     break;
@@ -684,7 +684,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
         free(analysis->num_entities_in_loops);
     }
     if (analysis->loops) {
-        for (u32 i = 0; i < analysis->num_loops; ++i) {
+        for (uint32 i = 0; i < analysis->num_loops; ++i) {
             free(analysis->loops[i]);
         }
         free(analysis->loops);
@@ -700,8 +700,8 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 ////////////////////////////////////////
 
 struct CrossSectionEvenOdd {
-    u32 num_polygonal_loops;
-    u32 *num_vertices_in_polygonal_loops;
+    uint32 num_polygonal_loops;
+    uint32 *num_vertices_in_polygonal_loops;
     vec2 **polygonal_loops;
 };
 
@@ -712,7 +712,7 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf_selection_mask);
         CrossSectionEvenOdd result = {};
         result.num_polygonal_loops = 2;
-        result.num_vertices_in_polygonal_loops = (u32 *) calloc(result.num_polygonal_loops, sizeof(u32));
+        result.num_vertices_in_polygonal_loops = (uint32 *) calloc(result.num_polygonal_loops, sizeof(uint32));
         result.num_vertices_in_polygonal_loops[0] = 4;
         result.num_vertices_in_polygonal_loops[1] = 6;
         result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
@@ -734,12 +734,12 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     // populate List's
     List<List<vec2>> stretchy_list = {}; {
         DXFLoopAnalysisResult analysis = dxf_loop_analysis_create(dxf, dxf_selection_mask);
-        for (u32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
-            u32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
+        for (uint32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
+            uint32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
             list_push_back(&stretchy_list, {});
             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
-                u32 entity_index = entity_index_and_flip_flag->entity_index;
+                uint32 entity_index = entity_index_and_flip_flag->entity_index;
                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
                 DXFEntity *entity = &dxf->entities[entity_index];
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
@@ -755,11 +755,11 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
                     real32 start_angle, end_angle;
                     arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
                     real32 delta_angle = end_angle - start_angle;
-                    u32 num_segments = (u32) (2 + ABS(delta_angle) * (NUM_SEGMENTS_PER_CIRCLE / TAU)); // FORNOW (2 + ...)
+                    uint32 num_segments = (uint32) (2 + ABS(delta_angle) * (NUM_SEGMENTS_PER_CIRCLE / TAU)); // FORNOW (2 + ...)
                     real32 increment = delta_angle / num_segments;
                     real32 current_angle = start_angle;
                     real32 x, y;
-                    for (u32 i = 0; i < num_segments; ++i) {
+                    for (uint32 i = 0; i < num_segments; ++i) {
                         get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
                         list_push_back(&stretchy_list.data[stretchy_list.length - 1], { x, y });
                         current_angle += increment;
@@ -773,16 +773,16 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     // copy over from List's
     CrossSectionEvenOdd result = {};
     result.num_polygonal_loops = stretchy_list.length;
-    result.num_vertices_in_polygonal_loops = (u32 *) calloc(result.num_polygonal_loops, sizeof(u32));
+    result.num_vertices_in_polygonal_loops = (uint32 *) calloc(result.num_polygonal_loops, sizeof(uint32));
     result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
-    for (u32 i = 0; i < result.num_polygonal_loops; ++i) {
+    for (uint32 i = 0; i < result.num_polygonal_loops; ++i) {
         result.num_vertices_in_polygonal_loops[i] = stretchy_list.data[i].length;
         result.polygonal_loops[i] = (vec2 *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(vec2));
         memcpy(result.polygonal_loops[i], stretchy_list.data[i].data, result.num_vertices_in_polygonal_loops[i] * sizeof(vec2));
     }
 
     // free List's
-    for (u32 i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
+    for (uint32 i = 0; i < stretchy_list.length; ++i) list_free(&stretchy_list.data[i]);
     list_free(&stretchy_list);
 
     return result;
@@ -791,7 +791,7 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
 void cross_section_debug_draw(Camera2D *camera2D, CrossSectionEvenOdd *cross_section) {
     eso_begin(camera_get_PV(camera2D), SOUP_LINES);
     eso_color(monokai.white);
-    for (u32 loop_index = 0; loop_index < cross_section->num_polygonal_loops; ++loop_index) {
+    for (uint32 loop_index = 0; loop_index < cross_section->num_polygonal_loops; ++loop_index) {
         vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
         for (int j = 0, i = n - 1; j < n; i = j++) {
@@ -824,21 +824,21 @@ void cross_section_debug_draw(Camera2D *camera2D, CrossSectionEvenOdd *cross_sec
 ////////////////////////////////////////
 
 struct FancyMesh {
-    u32 num_vertices;
-    u32 num_triangles;
+    uint32 num_vertices;
+    uint32 num_triangles;
     real32 *vertex_positions;
-    u32 *triangle_indices;
+    uint32 *triangle_indices;
     real32 *triangle_normals;
 
-    u32 num_cosmetic_edges;
-    u32 *cosmetic_edges;
+    uint32 num_cosmetic_edges;
+    uint32 *cosmetic_edges;
 };
 
 void fancy_mesh_triangle_normals_calculate(FancyMesh *fancy_mesh) {
     fancy_mesh->triangle_normals = (real32 *) malloc(fancy_mesh->num_triangles * 3 * sizeof(real32));
     vec3 p[3];
-    for (u32 i = 0; i < fancy_mesh->num_triangles; ++i) {
-        for (u32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh->vertex_positions, fancy_mesh->triangle_indices[3 * i + j]);
+    for (uint32 i = 0; i < fancy_mesh->num_triangles; ++i) {
+        for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh->vertex_positions, fancy_mesh->triangle_indices[3 * i + j]);
         vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
         set(fancy_mesh->triangle_normals, i, n);
     }
@@ -848,26 +848,26 @@ void fancy_mesh_cosmetic_edges_calculate(FancyMesh *fancy_mesh) {
     // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
     //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
     //           then go back and if passes some heuristic add that index to a stretchy buffer
-    List<u32> list = {}; {
-        Map<Pair<u32, u32>, vec3> map = {}; {
-            for (u32 i = 0; i < fancy_mesh->num_triangles; ++i) {
+    List<uint32> list = {}; {
+        Map<Pair<uint32, uint32>, vec3> map = {}; {
+            for (uint32 i = 0; i < fancy_mesh->num_triangles; ++i) {
                 vec3 n = get(fancy_mesh->triangle_normals, i);
-                for (u32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
-                    u32 j0 = fancy_mesh->triangle_indices[3 * i + jj0];
-                    u32 j1 = fancy_mesh->triangle_indices[3 * i + jj1];
+                for (uint32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
+                    uint32 j0 = fancy_mesh->triangle_indices[3 * i + jj0];
+                    uint32 j1 = fancy_mesh->triangle_indices[3 * i + jj1];
                     if (j0 > j1) {
-                        u32 tmp = j0;
+                        uint32 tmp = j0;
                         j0 = j1;
                         j1 = tmp;
                     }
-                    Pair<u32, u32> key = { j0, j1 };
+                    Pair<uint32, uint32> key = { j0, j1 };
                     map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
                 }
             }
         }
         {
-            for (List<Pair<Pair<u32, u32>, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
-                for (Pair<Pair<u32, u32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+            for (List<Pair<Pair<uint32, uint32>, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
+                for (Pair<Pair<uint32, uint32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
                     vec3 n2 = pair->value;
                     // pprint(n2);
                     if (squaredNorm(n2) < 0.3f) {
@@ -881,8 +881,8 @@ void fancy_mesh_cosmetic_edges_calculate(FancyMesh *fancy_mesh) {
     }
     {
         fancy_mesh->num_cosmetic_edges = list.length / 2;
-        fancy_mesh->cosmetic_edges = (u32 *) calloc(2 * fancy_mesh->num_cosmetic_edges, sizeof(u32));
-        memcpy(fancy_mesh->cosmetic_edges, list.data, 2 * fancy_mesh->num_cosmetic_edges * sizeof(u32)); 
+        fancy_mesh->cosmetic_edges = (uint32 *) calloc(2 * fancy_mesh->num_cosmetic_edges, sizeof(uint32));
+        memcpy(fancy_mesh->cosmetic_edges, list.data, 2 * fancy_mesh->num_cosmetic_edges * sizeof(uint32)); 
     }
     list_free(&list);
 }
@@ -899,7 +899,7 @@ bool32 fancy_mesh_save_stl(FancyMesh *fancy_mesh, char *filename) {
         int offset = 80;
         memcpy(buffer + offset, &fancy_mesh->num_triangles, 4);
         offset += 4;
-        for (u32 i = 0; i < fancy_mesh->num_triangles; ++i) {
+        for (uint32 i = 0; i < fancy_mesh->num_triangles; ++i) {
             real32 triangle_normal[3];
             {
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
@@ -910,7 +910,7 @@ bool32 fancy_mesh_save_stl(FancyMesh *fancy_mesh, char *filename) {
             memcpy(buffer + offset, &triangle_normal, 12);
             offset += 12;
             real32 triangle_vertex_positions[9];
-            for (u32 j = 0; j < 3; ++j) {
+            for (uint32 j = 0; j < 3; ++j) {
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
                 triangle_vertex_positions[3 * j + 0] =  fancy_mesh->vertex_positions[3 * fancy_mesh->triangle_indices[3 * i + j] + 0];
                 triangle_vertex_positions[3 * j + 1] = -fancy_mesh->vertex_positions[3 * fancy_mesh->triangle_indices[3 * i + j] + 2];
@@ -939,7 +939,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
     // history_record_state(history, manifold_manifold, fancy_mesh); // FORNOW
 
     { // fancy_mesh
-        u32 num_triangles;
+        uint32 num_triangles;
         real32 *soup;
         {
             static char line_of_file[512];
@@ -947,7 +947,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
             #define STL_FILETYPE_UNKNOWN 0
             #define STL_FILETYPE_ASCII   1
             #define STL_FILETYPE_BINARY  2
-            u32 filetype; {
+            uint32 filetype; {
                 FILE *file = (FILE *) fopen(filename, "r");
                 fgets(line_of_file, 80, file);
                 filetype = (poe_prefix_match(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
@@ -963,12 +963,12 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
                 while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
                     if (poe_prefix_match(line_of_file, "vertex")) {
                         sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
-                        for (u32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
+                        for (uint32 d = 0; d < 3; ++d) list_push_back(&ascii_data, ascii_scan_p[d]);
                     }
                 }
                 fclose(file);
                 num_triangles = ascii_data.length / 9;
-                u32 size = ascii_data.length * sizeof(real32);
+                uint32 size = ascii_data.length * sizeof(real32);
                 soup = (real32 *) malloc(size);
                 memcpy(soup, ascii_data.data, size);
                 list_free(&ascii_data);
@@ -984,20 +984,20 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
                     fclose(file);
                     entire_file[fsize] = 0;
                 }
-                u32 offset = 80;
+                uint32 offset = 80;
                 memcpy(&num_triangles, entire_file + offset, 4);
                 offset += 4;
-                u32 size = num_triangles * 36;
+                uint32 size = num_triangles * 36;
                 soup = (real32 *) calloc(1, size);
-                for (u32 i = 0; i < num_triangles; ++i) {
+                for (uint32 i = 0; i < num_triangles; ++i) {
                     offset += 12;
                     memcpy(soup + i * 9, entire_file + offset, 36);
                     offset += 38;
                 }
             }
             { // -90 degree rotation about x: (x, y, z) <- (x, z, -y)
-                u32 num_vertices = 3 * num_triangles;
-                for (u32 i = 0; i < num_vertices; ++i) {
+                uint32 num_vertices = 3 * num_triangles;
+                for (uint32 i = 0; i < num_vertices; ++i) {
                     real32 tmp = soup[3 * i + 1];
                     soup[3 * i + 1] = soup[3 * i + 2];
                     soup[3 * i + 2] = -tmp;
@@ -1005,33 +1005,33 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
             }
         }
 
-        u32 num_vertices;
+        uint32 num_vertices;
         real32 *vertex_positions;
-        u32 *triangle_indices;
+        uint32 *triangle_indices;
         { // merge vertices
             num_vertices = 0;
-            Map<vec3, u32> map = {};
-            u32 _3_TIMES_num_triangles = 3 * num_triangles;
+            Map<vec3, uint32> map = {};
+            uint32 _3_TIMES_num_triangles = 3 * num_triangles;
             {
                 List<vec3> list = {};
-                for (u32 i = 0; i < _3_TIMES_num_triangles; ++i) {
+                for (uint32 i = 0; i < _3_TIMES_num_triangles; ++i) {
                     vec3 p = get(soup, i);
-                    u32 default_value = _3_TIMES_num_triangles + 1;
-                    u32 j = map_get(&map, p, default_value);
+                    uint32 default_value = _3_TIMES_num_triangles + 1;
+                    uint32 j = map_get(&map, p, default_value);
                     if (j == default_value) {
                         map_put(&map, p, num_vertices++);
                         list_push_back(&list, p);
                     }
                 }
                 {
-                    u32 size = list.length * sizeof(vec3);
+                    uint32 size = list.length * sizeof(vec3);
                     vertex_positions = (real32 *) malloc(size);
                     memcpy(vertex_positions, list.data, size);
                 }
                 list_free(&list);
             }
-            triangle_indices = (u32 *) malloc(_3_TIMES_num_triangles * sizeof(u32));
-            for (u32 k = 0; k < _3_TIMES_num_triangles; ++k) triangle_indices[k] = map_get(&map, ((vec3 *) soup)[k]);
+            triangle_indices = (uint32 *) malloc(_3_TIMES_num_triangles * sizeof(uint32));
+            for (uint32 k = 0; k < _3_TIMES_num_triangles; ++k) triangle_indices[k] = map_get(&map, ((vec3 *) soup)[k]);
             map_free(&map);
             free(soup);
         }
@@ -1054,4 +1054,81 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
         *manifold_manifold = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
         manifold_delete_meshgl(meshgl);
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// freaky local_persist stuff //////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
+    static IndexedTriangleMesh3D grid_box;
+    if (grid_box.num_vertices == 0) {
+        static int _grid_box_num_vertices = 24;
+        static int _grid_box_num_triangles = 12;
+        static int3 _grid_box_triangle_indices[] = {
+            { 1, 0, 2},{ 2, 0, 3},
+            { 4, 5, 6},{ 4, 6, 7},
+            { 8, 9,10},{ 8,10,11},
+            {13,12,14},{14,12,15},
+            {17,16,18},{18,16,19},
+            {20,21,22},{20,22,23},
+        };
+        static vec3 _grid_box_vertex_positions[] = {
+            { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
+            {-1, 1, 1},{-1, 1,-1},{-1,-1,-1},{-1,-1, 1},
+            { 1, 1, 1},{ 1, 1,-1},{-1, 1,-1},{-1, 1, 1},
+            { 1,-1, 1},{ 1,-1,-1},{-1,-1,-1},{-1,-1, 1},
+            { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
+            { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
+        };
+        static vec3 _grid_box_vertex_colors[] = {
+            { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{ 0.8f,0.4f, 0.8f},
+            {0.4f, 0.8f, 0.8f},{0.4f, 0.8f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
+            { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{0.4f, 0.8f,0.4f},{0.4f, 0.8f, 0.8f},
+            { 0.8f,0.4f, 0.8f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
+            { 0.8f, 0.8f, 0.8f},{ 0.8f,0.4f, 0.8f},{0.4f,0.4f, 0.8f},{0.4f, 0.8f, 0.8f},
+            { 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f, 0.8f,0.4f},
+        };
+        static vec2 _grid_box_vertex_texCoords[] = {
+            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
+        };
+        grid_box = {
+            _grid_box_num_vertices,
+            _grid_box_num_triangles,
+            _grid_box_vertex_positions,
+            NULL,
+            _grid_box_vertex_colors,
+            _grid_box_triangle_indices,
+            _grid_box_vertex_texCoords
+        };
+
+        uint32 texture_side_length = 1024;
+        uint32 number_of_channels = 4;
+        u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
+        uint32 o = 9;
+        for (uint32 j = 0; j < texture_side_length; ++j) {
+            for (uint32 i = 0; i < texture_side_length; ++i) {
+                uint32 k = number_of_channels * (j * texture_side_length + i);
+                uint32 n = uint32(texture_side_length / GRID_SIDE_LENGTH * 10);
+                uint32 t = 2;
+                bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
+                u8 value = 0;
+                if (stripe) value = 80;
+                if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
+                for (uint32 d = 0; d < 3; ++d) data[k + d] = value;
+                data[k + 3] = 160;
+            }
+        }
+        _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
+    }
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    real32 L = GRID_SIDE_LENGTH;
+    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
+    glDisable(GL_CULL_FACE);
 }

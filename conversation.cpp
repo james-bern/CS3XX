@@ -1,5 +1,8 @@
 
+// TODO '.' inside of filename triggering show dots
+//      # event layer returns something more complicated (was the event actually processed -- side-effect: this will give us a start for no-op)
 
+// TODO: load/save
 // TODO: redo
 // TODO: undoing a feature enter could return you to the console with the previous value you used keyed in
 
@@ -7,89 +10,10 @@
 #include "manifoldc.h"
 #include "poe.cpp"
 #undef real // ???
-
-// bool *key_pressed = globals.key_pressed;
-bool *key_toggled = globals.key_toggled;
-
+#define u32 DO_NOT_USE_u32_USE_uint32_INSTEAD
 #include "conversation.h"
 
-#define u32 DO_NOT_USE_u32_USE_uint32_INSTEAD
 
-
-
-
-void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
-    static IndexedTriangleMesh3D grid_box;
-    if (grid_box.num_vertices == 0) {
-        static int _grid_box_num_vertices = 24;
-        static int _grid_box_num_triangles = 12;
-        static int3 _grid_box_triangle_indices[] = {
-            { 1, 0, 2},{ 2, 0, 3},
-            { 4, 5, 6},{ 4, 6, 7},
-            { 8, 9,10},{ 8,10,11},
-            {13,12,14},{14,12,15},
-            {17,16,18},{18,16,19},
-            {20,21,22},{20,22,23},
-        };
-        static vec3 _grid_box_vertex_positions[] = {
-            { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
-            {-1, 1, 1},{-1, 1,-1},{-1,-1,-1},{-1,-1, 1},
-            { 1, 1, 1},{ 1, 1,-1},{-1, 1,-1},{-1, 1, 1},
-            { 1,-1, 1},{ 1,-1,-1},{-1,-1,-1},{-1,-1, 1},
-            { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
-            { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
-        };
-        static vec3 _grid_box_vertex_colors[] = {
-            { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{ 0.8f,0.4f, 0.8f},
-            {0.4f, 0.8f, 0.8f},{0.4f, 0.8f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
-            { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{0.4f, 0.8f,0.4f},{0.4f, 0.8f, 0.8f},
-            { 0.8f,0.4f, 0.8f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
-            { 0.8f, 0.8f, 0.8f},{ 0.8f,0.4f, 0.8f},{0.4f,0.4f, 0.8f},{0.4f, 0.8f, 0.8f},
-            { 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f, 0.8f,0.4f},
-        };
-        static vec2 _grid_box_vertex_texCoords[] = {
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-        };
-        grid_box = {
-            _grid_box_num_vertices,
-            _grid_box_num_triangles,
-            _grid_box_vertex_positions,
-            NULL,
-            _grid_box_vertex_colors,
-            _grid_box_triangle_indices,
-            _grid_box_vertex_texCoords
-        };
-
-        uint32 texture_side_length = 1024;
-        uint32 number_of_channels = 4;
-        u8 *data = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
-        uint32 o = 9;
-        for (uint32 j = 0; j < texture_side_length; ++j) {
-            for (uint32 i = 0; i < texture_side_length; ++i) {
-                uint32 k = number_of_channels * (j * texture_side_length + i);
-                uint32 n = uint32(texture_side_length / GRID_SIDE_LENGTH * 10);
-                uint32 t = 2;
-                bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
-                u8 value = 0;
-                if (stripe) value = 80;
-                if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
-                for (uint32 d = 0; d < 3; ++d) data[k + d] = value;
-                data[k + 3] = 160;
-            }
-        }
-        _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);
-    }
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_FRONT);
-    real32 L = GRID_SIDE_LENGTH;
-    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
-    glDisable(GL_CULL_FACE);
-}
 
 char conversation_message_buffer[256];
 uint32 conversation_message_cooldown;
@@ -99,6 +23,14 @@ void conversation_messagef(char *format, ...) {
     vsnprintf(conversation_message_buffer, sizeof(conversation_message_buffer), format, arg);
     va_end(arg);
     conversation_message_cooldown = 300;
+}
+void conversation_message_buffer_update_and_draw() {
+    if (conversation_message_cooldown > 0) {
+        --conversation_message_cooldown;
+    } else {
+        conversation_message_buffer[0] = '\0';
+    }
+    gui_printf("< %s", conversation_message_buffer);
 }
 
 
@@ -397,8 +329,7 @@ void conversation_cameras_reset() {
     camera_3D = { 2.0f * camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.25f };
 }
 
-void conversation_reset(bool32 disable_user_layer_resets = false) {
-    hot_pane = HOT_PANE_NONE;
+void conversation_reset(bool32 disable_top_layer_resets = false) {
     click_mode = CLICK_MODE_NONE;
     click_modifier = CLICK_MODIFIER_NONE;
     enter_mode = ENTER_MODE_NONE;
@@ -414,7 +345,8 @@ void conversation_reset(bool32 disable_user_layer_resets = false) {
     conversation_load_dxf("splash.dxf");
     conversation_console_buffer_reset();
 
-    if (!disable_user_layer_resets) {
+    if (!disable_top_layer_resets) {
+        hot_pane = HOT_PANE_NONE;
         hide_grid = false;
         show_details = false;
         show_help = false;
@@ -834,15 +766,7 @@ void conversation_draw() {
             gui_printf("> %s", console_buffer);
         }
 
-        {
-            if (conversation_message_cooldown > 0) {
-                --conversation_message_cooldown;
-            } else {
-                conversation_message_buffer[0] = '\0';
-            }
-
-            gui_printf("< %s", conversation_message_buffer);
-        }
+        conversation_message_buffer_update_and_draw();
 
         if (show_details) {
             gui_printf("%d dxf elements", dxf.num_entities);
@@ -897,22 +821,27 @@ void conversation_draw() {
 // |   \
 // 0,1  2
 
-// / / / / / / / / / / / / / / / / # # # # # # # . . . . . .
-// ^                               ^             ^
+// / / / / / / / / / / / / / / / / # # # # # # # . . . . . 
+// ^                               ^             ^ 
 // |                               |             |
-// 0                               1             2
+// 0                               1             2,3
 
-// / / / / / / / / / / / / / / / / .
-// ^                               ^
-// |                               |
-// 0                               1,2
+// / / / / / / / / / / / / / / / / / / / / / / / $ $ $ $ $ $ . . . . . .
+// ^                                             ^           ^
+// |                                             |           |
+// 0                                             1,2         3
+
+// / / / / / / / / / / / / / / / / / / / / / / / / / / / / / .
+// ^                                                         ^
+// |                                                         |
+// 0                                                         1,2,3
 
 
 
 #define UI_EVENT_TYPE_KEY_PRESS      0
 #define UI_EVENT_TYPE_MOUSE_2D_PRESS 1
 #define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
-struct UserInputEvent {
+struct Event {
     uint32 type;
     union {
         struct {
@@ -931,66 +860,110 @@ struct UserInputEvent {
     bool32 checkpoint;
 };
 
-UserInputEvent history_0[999999];
-UserInputEvent *history_1 = history_0;
-UserInputEvent *history_2 = history_0;
 
-void history_push_back(UserInputEvent event) {
+Event history_0[999999];
+Event *history_1 = history_0;
+Event *history_2 = history_0;
+Event *history_3 = history_0;
+
+bool32 history_layer_event_process(Event event); // forward declaration
+
+// // write key event conditionals in style
+//  'Y'        -> Shift + Y
+//  'y'        ->         Y
+// ('y', true) ->  Ctrl + Y // on Mac, Cmd + Y
+// Usage: if (_key_lambda(event, 'Y')) { ... }
+//        if (key_lambda('Y')) { ... }
+bool _key_lambda(Event event, uint32 code, bool code_super = false) {
+    ASSERT(event.type == UI_EVENT_TYPE_KEY_PRESS);
+
+    bool event_shift = (event.mods & GLFW_MOD_SHIFT);
+    bool code_shift  = (('A' <= code) && (code <= 'Z'));
+    bool shift_match = (event_shift == code_shift);
+
+    if (('a' <= code) && (code <= 'z')) code = 'A' + (code - 'a');
+    bool letter_match = (event.key == code);
+
+    bool event_super = event.mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER);
+    bool super_match = (event_super == code_super);
+
+    return (shift_match && letter_match && super_match);
+};
+
+void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
     ASSERT(history_1 <= history_2);
     ASSERT((unsigned long) (history_2 - history_0) < ARRAY_LENGTH(history_0));
-    *history_2++ = event;
-}
 
-uint32 FORNOW_history_counter;
+    auto key_lambda = [new_event](uint32 code, bool code_super = false) -> bool {
+        if (new_event.type != UI_EVENT_TYPE_KEY_PRESS) return false;
+        return _key_lambda(new_event, code, code_super);
+    };
 
-bool32 event_layer_event_process(UserInputEvent event); // forward declaration
-void event_layer_backlog_process() {
-    bool32 undo = false;
-    while ((history_1 < history_2)) {
-        if (
-                (history_1->type == UI_EVENT_TYPE_KEY_PRESS) &&
-                (history_1->key == 'Z') &&
-                (history_1->mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER))
-           ) {
-            undo = true;
-            break;
-        } else {
-            if(event_layer_event_process(*history_1)) history_1->checkpoint = true;
-            ++history_1;
-        }
-    }
-
-    if (undo) {
-        FORNOW_history_counter = 0;
-        if (history_0 != history_1) {
+    if (key_lambda(COW_KEY_TAB)) {
+        camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - camera_3D.angle_of_view;
+    } else if (((enter_mode != ENTER_MODE_SAVE) && (enter_mode != ENTER_MODE_LOAD)) && key_lambda('X')) {
+        camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
+    } else if (((enter_mode != ENTER_MODE_SAVE) && (enter_mode != ENTER_MODE_LOAD)) && key_lambda('g')) {
+        hide_grid = !hide_grid;
+    } else if (((enter_mode != ENTER_MODE_SAVE) && (enter_mode != ENTER_MODE_LOAD)) && key_lambda('h')) {
+        show_help = !show_help;
+    } else if ((enter_mode == ENTER_MODE_NONE) && key_lambda('.')) {
+        show_details = !show_details;
+    } else if (key_lambda('z', true)) { // undo
+        if (history_1 != history_0) {
             printf("\n");
+
             // pop back _through_ a first checkpoint
             do --history_1; while ((history_0 != history_1) && (!history_1->checkpoint));
+
             // pop back _up to_ a second
             while ((history_0 != history_1) && (!(history_1 - 1)->checkpoint)) --history_1; // * short-circuit
 
             conversation_reset(true);
-            for (   UserInputEvent *event = history_0;
+
+            for (
+                    Event *event = history_0;
                     event < history_1;
-                    ++event) {
-                event_layer_event_process(*event);
-            }
-            conversation_messagef("[undo] :D");
+                    ++event) history_layer_event_process(*event);
+
+            conversation_messagef("[undo]");
+
         } else {
             conversation_messagef("[undo] nothing to undo");
         }
         history_2 = history_1;
+    } else if (key_lambda('y', true)) { // redo
+        if (history_2 != history_3) {
+            do history_layer_event_process(*history_2++); while ((!history_2->checkpoint) && (history_2 != history_3));
+            history_1 = history_2;
+
+            // TODO?^: discard any remaining unprocessed events
+            conversation_messagef("[redo]");
+
+        } else {
+            conversation_messagef("[redo] nothing to redo");
+        }
+    } else { // pass into history_layer
+        *history_2++ = new_event;
+        history_3 = history_2; // kill redo "stack"
+    }
+}
+
+void history_layer_backlog_process() {
+    while ((history_1 < history_2)) {
+        if (history_layer_event_process(*history_1)) history_1->checkpoint = true;
+        ++history_1;
     }
 }
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
-    _callback_key(NULL, key, 0, action, mods); // FORNOW TODO TODO TODO SHIM
+    // _callback_key(NULL, key, 0, action, mods); // FORNOW TODO TODO TODO SHIM
     if (action == GLFW_PRESS) {
         if (key == GLFW_KEY_LEFT_CONTROL) return;
         if (key == GLFW_KEY_RIGHT_CONTROL) return;
         if (key == GLFW_KEY_LEFT_SUPER) return;
         if (key == GLFW_KEY_RIGHT_SUPER) return;
-        history_push_back({ UI_EVENT_TYPE_KEY_PRESS, .key = key, .mods = mods });
+        top_layer_event_process_or_forward_to_history_layer({ UI_EVENT_TYPE_KEY_PRESS, .key = key, .mods = mods });
     }
 }
 
@@ -1024,9 +997,9 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
             if (hot_pane == HOT_PANE_2D) {
-                history_push_back( { UI_EVENT_TYPE_MOUSE_2D_PRESS, .mouse_x = world_cursor.mouse_x, .mouse_y = world_cursor.mouse_y, });
+                top_layer_event_process_or_forward_to_history_layer( { UI_EVENT_TYPE_MOUSE_2D_PRESS, .mouse_x = world_cursor.mouse_x, .mouse_y = world_cursor.mouse_y, });
             } else if (hot_pane == HOT_PANE_3D) {
-                history_push_back( { UI_EVENT_TYPE_MOUSE_3D_PRESS, .o = world_cursor.o, .dir = world_cursor.dir });
+                top_layer_event_process_or_forward_to_history_layer( { UI_EVENT_TYPE_MOUSE_3D_PRESS, .o = world_cursor.o, .dir = world_cursor.dir });
             }
         }
     }
@@ -1044,10 +1017,9 @@ BEGIN_PRE_MAIN {
 } END_PRE_MAIN;
 
 
-
 // FORNOW: this returns a bool32 saying if the event is a checkpoint event.
 //         a future version could return a u32 for checkpoint, no-op (don't need to record), etc.
-bool32 event_layer_event_process(UserInputEvent event) {
+bool32 history_layer_event_process(Event event) {
     #define camera_2D DISALLOWED
     #define camera_3D DISALLOWED
     #define  hot_pane DISALLOWED
@@ -1072,18 +1044,9 @@ bool32 event_layer_event_process(UserInputEvent event) {
 
 
     if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
-        auto key_lambda = [&](uint32 code) {
-            bool event_shift = (event.mods & GLFW_MOD_SHIFT);
-            bool code_shift  = (('A' <= code) && (code <= 'Z'));
-            bool shift_match = (event_shift == code_shift);
-
-            if (('a' <= code) && (code <= 'z')) code = 'A' + (code - 'a');
-            bool letter_match = (event.key == code);
-            return shift_match && letter_match;
+        auto key_lambda = [event](uint32 code) -> bool {
+            return _key_lambda(event, code);
         };
-        // FORNOW
-        char character_equivalent = (char) event.key;
-        // TODO: '_'
 
         {
             bool32 key_eaten_by_special__NOTE_dealt_with_up_top;
@@ -1106,28 +1069,28 @@ bool32 event_layer_event_process(UserInputEvent event) {
                     }
                 }
             }
-            bool32 send_key_to_console;
+            bool send_key_to_console;
             {
                 send_key_to_console = false;
-                send_key_to_console = (send_key_to_console || key_lambda(COW_KEY_BACKSPACE));
+                send_key_to_console |= key_lambda(COW_KEY_BACKSPACE);
                 if (!key_lambda(COW_KEY_ENTER)) {
                     if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
-                        send_key_to_console = (send_key_to_console || key_lambda('.'));
-                        send_key_to_console = (send_key_to_console || key_lambda('-'));
-                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_lambda('0' + i));
+                        send_key_to_console |= key_lambda('.');
+                        send_key_to_console |= key_lambda('-');
+                        for (uint32 i = 0; i < 10; ++i) send_key_to_console |= key_lambda('0' + i);
                         // note: double negative
                         if ((enter_mode != ENTER_MODE_OFFSET_PLANE_BY)) {
                             send_key_to_console = (send_key_to_console || key_lambda(' '));
                         }
                     } else if ((enter_mode == ENTER_MODE_LOAD) || (enter_mode == ENTER_MODE_SAVE)) {
-                        send_key_to_console = (send_key_to_console || key_lambda('.'));
-                        send_key_to_console = (send_key_to_console || key_lambda(' '));
-                        send_key_to_console = (send_key_to_console || key_lambda('-'));
-                        send_key_to_console = (send_key_to_console || key_lambda('/'));
-                        send_key_to_console = (send_key_to_console || key_lambda('\\'));
-                        for (uint32 i = 0; i < 10; ++i) send_key_to_console = (send_key_to_console || key_lambda('0' + i));
-                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_lambda('a' + i));
-                        for (uint32 i = 0; i < 26; ++i) send_key_to_console = (send_key_to_console || key_lambda('A' + i));
+                        send_key_to_console |= key_lambda('.');
+                        send_key_to_console |= key_lambda(' ');
+                        send_key_to_console |= key_lambda('-');
+                        send_key_to_console |= key_lambda('/');
+                        send_key_to_console |= key_lambda('\\');
+                        for (uint32 i = 0; i < 10; ++i) send_key_to_console |= key_lambda('0' + i);
+                        for (uint32 i = 0; i < 26; ++i) send_key_to_console |= key_lambda('a' + i);
+                        for (uint32 i = 0; i < 26; ++i) send_key_to_console |= key_lambda('A' + i);
                     }
                 } else {
                     send_key_to_console = true;
@@ -1173,7 +1136,8 @@ bool32 event_layer_event_process(UserInputEvent event) {
                     if (key_lambda(COW_KEY_BACKSPACE)) {
                         *--console_buffer_write_head = '\0';
                     } else {
-                        *console_buffer_write_head++ = character_equivalent;
+                        // TODO character_equivalent
+                        *console_buffer_write_head++ = (char) event.key;
                     }
                 } else {
                     result = true;
@@ -1455,22 +1419,6 @@ bool32 event_layer_event_process(UserInputEvent event) {
         }
     }
 
-    { // printing for debugging undo
-        if (!result) {
-            printf("\n  ");
-        } else {
-            printf("\n%d ", FORNOW_history_counter++);
-        }
-        if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
-            printf("[KEY %c]", char(event.key));
-        } else if (event.type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
-            // printf("[M2D %f %f]", event.mouse_x, event.mouse_y);
-            printf("[MOUSE_2D]");
-        } else if (event.type == UI_EVENT_TYPE_MOUSE_3D_PRESS) {
-            printf("[MOUSE_3D]");
-        }
-    }
-
     return result;
 
     #undef camera_2D
@@ -1485,31 +1433,54 @@ bool32 event_layer_event_process(UserInputEvent event) {
 
 int main() {
     _window_set_size(640.0, 360.0);
-    conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
     conversation_reset();
+    conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
     while (cow_begin_frame()) {
-        if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-            hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
-            if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
+        { // stuff that still shims globals.*
+            if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
+                hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
+                if ((click_modifier == CLICK_MODIFIER_WINDOW) && (window_select_click_count == 1)) hot_pane = HOT_PANE_2D;// FORNOW
+            }
+            { // camera_move (using shimmed globals.* state)
+                if (hot_pane == HOT_PANE_2D) {
+                    camera_move(&camera_2D);
+                } else if (hot_pane == HOT_PANE_3D) {
+                    camera_move(&camera_3D);
+                }
+            }
         }
-        { // camera_move (using shimmed globals.* state)
-            if (hot_pane == HOT_PANE_2D) {
-                camera_move(&camera_2D);
-            } else if (hot_pane == HOT_PANE_3D) {
-                camera_move(&camera_3D);
+        history_layer_backlog_process();
+        conversation_draw();
+
+        // TODO: check redo
+        // TODO: make this work
+        // TODO: make not happen every frame
+        { // printing history
+            uint32 i = 0;
+            for (Event *event = history_0; event < history_3; ++event) {
+                if (event == history_2 - 1) {
+                if (event->checkpoint) {
+                    printf("\n>%d  ", i++);
+                } else {
+                    printf("\n>  ");
+                }
+                } else {
+                if (event->checkpoint) {
+                    printf("\n%d  ", i++);
+                } else {
+                    printf("\n   ");
+                }
+                }
+                if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
+                    printf("[KEY %c]", char(event->key));
+                } else if (event->type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
+                    // printf("[M2D %f %f]", event.mouse_x, event.mouse_y);
+                    printf("[MOUSE_2D]");
+                } else if (event->type == UI_EVENT_TYPE_MOUSE_3D_PRESS) {
+                    printf("[MOUSE_3D]");
+                }
             }
         }
 
-        event_layer_backlog_process();
-
-        { // user_layer
-            if (globals.key_pressed[COW_KEY_TAB]) camera_3D.angle_of_view = (IS_ZERO(camera_3D.angle_of_view)) ? CAMERA_3D_DEFAULT_ANGLE_OF_VIEW : 0.0f;
-            if (globals.key_pressed['X'] && globals.key_shift_held) camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
-            if (globals.key_pressed['.']) show_details = !show_details;
-            if (globals.key_pressed['g']) hide_grid = !hide_grid;
-            if (globals.key_pressed['h']) show_help = !show_help;
-        }
-
-        conversation_draw();
     }
 }
