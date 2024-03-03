@@ -934,10 +934,10 @@ void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
         history_2 = history_1;
     } else if (key_lambda('y', true)) { // redo
         if (history_2 != history_3) {
-            do history_layer_event_process(*history_2++); while ((!history_2->checkpoint) && (history_2 != history_3));
+            do history_layer_event_process(*history_2++); while ((!(history_2 - 1)->checkpoint) && (history_2 != history_3));
             history_1 = history_2;
 
-            // TODO?^: discard any remaining unprocessed events
+            // TODO?^: discard any remaining unprocessed events TODO in general do you ever have multiple events?
             conversation_messagef("[redo]");
 
         } else {
