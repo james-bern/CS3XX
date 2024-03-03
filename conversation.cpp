@@ -253,7 +253,6 @@ void conversation_load_dxf(char *filename) {
         bbox = dxf_entity_bounding_boxes_create(&dxf);
         bbox_union = bounding_box_union(dxf.num_entities, bbox);
 
-        camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
         origin_x = 0.0f;
         origin_y = 0.0f;
 
@@ -386,7 +385,7 @@ void conversation_draw() {
 
     { // panes
         { // draw
-            { // highlight
+            if (0) { // highlight
                 glDisable(GL_DEPTH_TEST);
                 if (hot_pane == HOT_PANE_2D) {
                     eso_begin(globals.Identity, SOUP_QUADS);
@@ -899,6 +898,7 @@ void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
         return _key_lambda(new_event, code, code_super);
     };
 
+    // TODO: load/save logic go here
     if (key_lambda(COW_KEY_TAB)) {
         camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - camera_3D.angle_of_view;
     } else if (((enter_mode != ENTER_MODE_SAVE) && (enter_mode != ENTER_MODE_LOAD)) && key_lambda('X')) {
@@ -911,33 +911,20 @@ void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
         show_details = !show_details;
     } else if (key_lambda('z', true)) { // undo
         if (history_1 != history_0) {
-            printf("\n");
-
-            // pop back _through_ a first checkpoint
-            do --history_1; while ((history_0 != history_1) && (!history_1->checkpoint));
-
-            // pop back _up to_ a second
-            while ((history_0 != history_1) && (!(history_1 - 1)->checkpoint)) --history_1; // * short-circuit
-
+            do --history_1; while ((history_0 != history_1) && (!history_1->checkpoint)); // pop back _through_ a first checkpoint
+            while ((history_0 != history_1) && (!(history_1 - 1)->checkpoint)) --history_1; // * short-circuit pop back _up to_ a second
             conversation_reset(true);
-
-            for (
-                    Event *event = history_0;
-                    event < history_1;
-                    ++event) history_layer_event_process(*event);
-
+            for (Event *event = history_0; event < history_1; ++event) history_layer_event_process(*event);
             conversation_messagef("[undo]");
-
         } else {
             conversation_messagef("[undo] nothing to undo");
         }
         history_2 = history_1;
     } else if (key_lambda('y', true)) { // redo
         if (history_2 != history_3) {
-            do history_layer_event_process(*history_2++); while ((!(history_2 - 1)->checkpoint) && (history_2 != history_3));
+            do history_layer_event_process(*history_2++); while ((history_2 != history_3) && (!(history_2 - 1)->checkpoint));
             history_1 = history_2;
 
-            // TODO?^: discard any remaining unprocessed events TODO in general do you ever have multiple events?
             conversation_messagef("[redo]");
 
         } else {
@@ -949,6 +936,7 @@ void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
     }
 }
 
+// FORNOW: returns whether anything was processd
 void history_layer_backlog_process() {
     while ((history_1 < history_2)) {
         if (history_layer_event_process(*history_1)) history_1->checkpoint = true;
@@ -1450,37 +1438,40 @@ int main() {
             }
         }
         history_layer_backlog_process();
-        conversation_draw();
-
         // TODO: check redo
         // TODO: make this work
         // TODO: make not happen every frame
-        { // printing history
-            uint32 i = 0;
-            for (Event *event = history_0; event < history_3; ++event) {
-                if (event == history_2 - 1) {
-                if (event->checkpoint) {
-                    printf("\n>%d  ", i++);
-                } else {
-                    printf("\n>  ");
-                }
-                } else {
-                if (event->checkpoint) {
-                    printf("\n%d  ", i++);
-                } else {
-                    printf("\n   ");
-                }
-                }
-                if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
-                    printf("[KEY %c]", char(event->key));
-                } else if (event->type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
-                    // printf("[M2D %f %f]", event.mouse_x, event.mouse_y);
-                    printf("[MOUSE_2D]");
-                } else if (event->type == UI_EVENT_TYPE_MOUSE_3D_PRESS) {
-                    printf("[MOUSE_3D]");
+        {
+            if (0) { // printing history
+                printf("----------------\n");
+                uint32 i = 0;
+                for (Event *event = history_0; event < history_3; ++event) {
+                    if (event == history_2 - 1) {
+                        if (event->checkpoint) {
+                            printf(">%d  ", i++);
+                        } else {
+                            printf(">   ");
+                        }
+                    } else {
+                        if (event->checkpoint) {
+                            printf(" %d  ", i++);
+                        } else 
+                            printf("    ");
+                    }
+                    if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
+                        printf("[KEY %c]", char(event->key));
+                    } else if (event->type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
+                        // printf("[M2D %f %f]", event.mouse_x, event.mouse_y);
+                        printf("[MOUSE_2D]");
+                    } else if (event->type == UI_EVENT_TYPE_MOUSE_3D_PRESS) {
+                        printf("[MOUSE_3D]");
+                    }
+                    printf("\n");
                 }
             }
         }
+        conversation_draw();
+
 
     }
 }
