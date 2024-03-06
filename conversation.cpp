@@ -1,16 +1,10 @@
-// // boolean turtle piece onto cube
-// TODO: then get it working with loading a dxf
-// TODO: you need to save the starting stl; you can't just start over
+// TODO: why don't we process it NOW?--then we can decide if it belongs in the history based on the result?
 
-// TODO: there is a need for a conversation_init function
-// TODO: 
+// TODO: save should not be involved in undo (and also should not kill history)
+// TODO: load should not be involved in undo (and also should not kill history)
 
-// TODO '.' inside of filename triggering show dots
-//      # event layer returns something more complicated (was the event actually processed -- side-effect: this will give us a start for no-op)
-
-// TODO: load/save
-// TODO: redo
 // TODO: undoing a feature enter could return you to the console with the previous value you used keyed in
+// TODO: load/save
 
 #include "cs345.cpp"
 #include "manifoldc.h"
@@ -336,6 +330,8 @@ BEGIN_PRE_MAIN {
     glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
 } END_PRE_MAIN;
 
+// fancy_mesh;
+// manifold_manifold;
 
 
 void conversation_cameras_reset() {
@@ -343,6 +339,22 @@ void conversation_cameras_reset() {
     camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
     camera_3D = { 2.0f * camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.25f };
 }
+
+
+ManifoldManifold *_reset_manifold_manifold;
+FancyMesh _reset_fancy_mesh;
+void conversation_save_reset_manifold_manifold_and_fancy_mesh() {
+    // FORNOW SHIM SHIM SHIM
+    _reset_manifold_manifold = manifold_manifold;
+    _reset_fancy_mesh = fancy_mesh;
+}
+void conversation_load_reset_manifold_manifold_and_fancy_mesh() {
+    // FORNOW SHIM SHIM SHIM
+    manifold_manifold = _reset_manifold_manifold;
+    fancy_mesh = _reset_fancy_mesh;
+}
+
+
 
 void conversation_reset(bool32 disable_top_layer_resets = false) {
     click_mode = CLICK_MODE_NONE;
@@ -357,8 +369,7 @@ void conversation_reset(bool32 disable_top_layer_resets = false) {
     conversation_feature_plane_reset(); 
     conversation_console_buffer_reset();
 
-    manifold_manifold = NULL;
-    fancy_mesh = {};
+    conversation_load_reset_manifold_manifold_and_fancy_mesh();
 
     if (!disable_top_layer_resets) {
         hot_pane = HOT_PANE_NONE;
@@ -369,8 +380,16 @@ void conversation_reset(bool32 disable_top_layer_resets = false) {
     }
 }
 
+void conversation_init() {
+    conversation_dxf_load("splash.dxf", true);
 
-void history_gui_printf(); // forward declaration
+    manifold_manifold = NULL;
+    fancy_mesh = {};
+
+    conversation_reset();
+}
+
+void history_gui_printf(); // forward-declaration
 void conversation_draw() {
     // FORNOW: repeated computation
     bool32 dxf_anything_selected;
@@ -455,7 +474,7 @@ void conversation_draw() {
                 eso_end();
             }
             { // entities
-                eso_begin(PV_2D, SOUP_LINES, 3.0f);
+                eso_begin(PV_2D, SOUP_LINES);
                 for (uint32 i = 0; i < dxf.num_entities; ++i) {
                     DXFEntity *entity = &dxf.entities[i];
                     int32 color = (dxf_selection_mask[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
@@ -484,7 +503,7 @@ void conversation_draw() {
                     M = M4_Translation(console_param_preview, console_param_2_preview);
                     color = V3(0.0f, 1.0f, 1.0f);
                 }
-                eso_begin(PV_2D * M, SOUP_LINES, 3.0f);
+                eso_begin(PV_2D * M, SOUP_LINES);
                 eso_color(color);
                 eso_vertex(-r*.7f, 0.0f);
                 eso_vertex( r, 0.0f);
@@ -610,7 +629,7 @@ void conversation_draw() {
 
         { // fancy_mesh; NOTE: includes transparency 3d mesh 3D mesh 3d
             if (fancy_mesh.cosmetic_edges) {
-                eso_begin(PV_3D, SOUP_LINES, 3.0f); 
+                eso_begin(PV_3D, SOUP_LINES); 
                 eso_color(monokai.black);
                 // 3 * num_triangles * 2 / 2
                 for (uint32 k = 0; k < 2 * fancy_mesh.num_cosmetic_edges; ++k) eso_vertex(fancy_mesh.vertex_positions, fancy_mesh.cosmetic_edges[k]);
@@ -860,9 +879,9 @@ void conversation_draw() {
 #define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
 
 // TODO: why is undo broken now
-#define PROCESSED_EVENT_CATEGORY_NONE            0
-#define PROCESSED_EVENT_CATEGORY_CHECKPOINT      1
-#define PROCESSED_EVENT_CATEGORY_DESTROY_HISTORY 2
+#define PROCESSED_EVENT_CATEGORY_NONE         0
+#define PROCESSED_EVENT_CATEGORY_CHECKPOINT   1
+#define PROCESSED_EVENT_CATEGORY_KILL_HISTORY 2
 
 struct Event {
     uint32 type;
@@ -916,7 +935,7 @@ void history_gui_printf() {
     }
 }
 
-uint32 history_layer_event_process(Event event); // forward declaration
+uint32 history_layer_event_process(Event event); // forward-declaration
 
 // // write key event conditionals in style
 //  'Y'        -> Shift + Y
@@ -985,6 +1004,11 @@ void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
             && (new_event.key != GLFW_KEY_LEFT_SHIFT)
             && (new_event.key != GLFW_KEY_RIGHT_SHIFT)
             ) { // pass into history_layer (don't send bare mods)
+
+        // TODO: why don't we process it NOW?--then we can decide if it belongs in the history based on the result?
+        // (events do hit at the beginning of the frame, so maybe we want to consume them all first?--
+        //  --some of our stuff needs to kill these other events)
+        // Still, i would go for the simple soln here
         *history_2++ = new_event;
         history_3 = history_2; // kill redo "stack"
     }
@@ -995,8 +1019,9 @@ void history_layer_backlog_process() {
         uint32 category = (history_layer_event_process(*history_1));
         if (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT) {
             history_1->checkpoint = true;
-        } else if (category == PROCESSED_EVENT_CATEGORY_DESTROY_HISTORY) {
+        } else if (category == PROCESSED_EVENT_CATEGORY_KILL_HISTORY) {
             history_1 = history_2 = history_3 = history_0;
+            conversation_save_reset_manifold_manifold_and_fancy_mesh();
             break;
         }
         ++history_1;
@@ -1234,8 +1259,15 @@ uint32 history_layer_event_process(Event event) {
                         static char full_filename_including_path[512];
                         sprintf(full_filename_including_path, "%s%s", conversation_drop_path, console_buffer);
                         if (enter_mode == ENTER_MODE_LOAD) {
-                            conversation_load(full_filename_including_path);
-                            result = PROCESSED_EVENT_CATEGORY_DESTROY_HISTORY;
+                            if (poe_suffix_match(full_filename_including_path, ".dxf")) {
+                                conversation_dxf_load(full_filename_including_path);
+                                result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
+                            } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
+                                conversation_stl_load(full_filename_including_path);
+                                result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
+                            } else {
+                                conversation_messagef("FORNOW 1265");
+                            }
                         } else {
                             ASSERT(enter_mode == ENTER_MODE_SAVE);
                             conversation_save(full_filename_including_path);
@@ -1329,6 +1361,8 @@ uint32 history_layer_event_process(Event event) {
                 enter_mode = ENTER_MODE_REVOLVE_ADD;
             } else if (key_lambda('R')) {
                 enter_mode = ENTER_MODE_REVOLVE_CUT;
+            } else {
+                ;
             }
         }
 
@@ -1485,11 +1519,10 @@ uint32 history_layer_event_process(Event event) {
 int main() {
     _window_set_size(1.5 * 640.0, 1.5 * 360.0);
 
-    // TODO: void conversation init()
-    conversation_dxf_load("splash.dxf", true);
-    conversation_reset();
+    conversation_init();
 
     conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
+
     while (cow_begin_frame()) {
         { // stuff that still shims globals.*
             if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
@@ -1511,7 +1544,7 @@ int main() {
         {
         }
         conversation_draw();
-
-
     }
 }
+
+
