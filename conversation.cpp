@@ -1,9 +1,11 @@
-// TODO: why don't we process it NOW?--then we can decide if it belongs in the history based on the result?
+// XXX why don't we process it NOW?--then we can decide if it belongs in the history based on the result?
+// TODO buffer # # # #
 
 // TODO: save should not be involved in undo (and also should not kill history)
 // TODO: load should not be involved in undo (and also should not kill history)
 
 // TODO: undoing a feature enter could return you to the console with the previous value you used keyed in
+
 // TODO: load/save
 
 #include "cs345.cpp"
@@ -847,41 +849,32 @@ void conversation_draw() {
 // advantages: fastest path to goal (avoids having to do weird porting of camera math); avoids having to push a bunch of ui events (camera stuff can be treated separately)
 // disadvantage: a user input event now has to be able to store an entire ray (6 real's)
 
-// .
-// ^
-// |
-// 0,1,2
-
-// # .
-// ^  ^
-// |   \
-// 0,1  2
-
-// / / / / / / / / / / / / / / / / # # # # # # # . . . . . 
-// ^                               ^             ^ 
-// |                               |             |
-// 0                               1             2,3
+// buffer -> # # # # # # 
+//                       
+// .                     
+// ^                     
+// |                     
+// A,B,C                 
 
 // / / / / / / / / / / / / / / / / / / / / / / / $ $ $ $ $ $ . . . . . .
-// ^                                             ^           ^
-// |                                             |           |
-// 0                                             1,2         3
+// ^                                             ^           ^          
+// |                                             |           |          
+// A                                             B           C          
 
-// / / / / / / / / / / / / / / / / / / / / / / / / / / / / / .
-// ^                                                         ^
-// |                                                         |
-// 0                                                         1,2,3
-
-
+// / / / / / / / / / / / / / / / / / / / / / / / / / / / / / .    
+// ^                                                         ^    
+// |                                                         |    
+// 0                                                         A,B,C
 
 #define UI_EVENT_TYPE_KEY_PRESS      0
 #define UI_EVENT_TYPE_MOUSE_2D_PRESS 1
 #define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
 
 // TODO: why is undo broken now
-#define PROCESSED_EVENT_CATEGORY_NONE         0
-#define PROCESSED_EVENT_CATEGORY_CHECKPOINT   1
-#define PROCESSED_EVENT_CATEGORY_KILL_HISTORY 2
+#define PROCESSED_EVENT_CATEGORY_STANDARD     0
+#define PROCESSED_EVENT_CATEGORY_NOOP         1
+#define PROCESSED_EVENT_CATEGORY_CHECKPOINT   2
+#define PROCESSED_EVENT_CATEGORY_KILL_HISTORY_AND_BACKLOG 3
 
 struct Event {
     uint32 type;
@@ -902,35 +895,37 @@ struct Event {
     bool32 checkpoint;
 };
 
+Queue<Event> history_backlog;
 
-Event history_0[999999];
-Event *history_1 = history_0;
-Event *history_2 = history_0;
-Event *history_3 = history_0;
+Event history_A[999999];
+Event *history_B = history_A;
+Event *history_C = history_A;
 
 void history_gui_printf() {
     uint32 i = 0;
-    for (Event *event = history_0; event < history_3; ++event) {
-        char left[128];
-        if (event == history_2 - 1) {
-            if (event->checkpoint) {
-                sprintf(left, ">%d  ", i++);
-            } else {
-                sprintf(left, ">   ");
+    char key_message[] = "[?]";
+    for (Event *event = history_A; event < history_C; ++event) {
+        {
+            char leader = (event == history_B - 1) ? '>' : ' ';
+            char number; {
+                number = (char) ((event->checkpoint) ? ((i < 10) ? '0' + i : 'A' + (i - 10)) : ' ');
+                if (event->checkpoint) ++i;
             }
-        } else {
-            if (event->checkpoint) {
-                sprintf(left, " %d  ", i++);
-            } else 
-                sprintf(left, "    ");
-        }
-        if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
-            gui_printf("%s [KEY %c]", left, char(event->key));
-        } else if (event->type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
-            // printf("[M2D %f %f]", event.mouse_x, event.mouse_y);
-            gui_printf("%s [MOUSE_2D]", left);
-        } else if (event->type == UI_EVENT_TYPE_MOUSE_3D_PRESS) {
-            gui_printf("%s [MOUSE_3D]", left);
+            char *core; // TODO: CTRL +, SHIFT +
+            if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
+                if (event->key == COW_KEY_ENTER) {
+                    core = "[ENTER]";
+                } else {
+                    key_message[1] = (char) (event->key);
+                    core = key_message;
+                }
+            } else if (event->type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
+                core = "[MOUSE_2D]";
+            } else {
+                ASSERT(event->type == UI_EVENT_TYPE_MOUSE_3D_PRESS);
+                core = "[MOUSE_3D]";
+            }
+            gui_printf("%c %c %s", leader, number, core);
         }
     }
 }
@@ -959,9 +954,9 @@ bool _key_lambda(Event event, uint32 code, bool code_super = false) {
     return (shift_match && letter_match && super_match);
 };
 
-void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
-    ASSERT(history_1 <= history_2);
-    ASSERT((unsigned long) (history_2 - history_0) < ARRAY_LENGTH(history_0));
+void top_layer_event_process(Event new_event) {
+    // ASSERT(history_1 <= history_2);
+    // ASSERT((unsigned long) (history_2 - history_0) < ARRAY_LENGTH(history_0));
 
     auto key_lambda = [new_event](uint32 code, bool code_super = false) -> bool {
         if (new_event.type != UI_EVENT_TYPE_KEY_PRESS) return false;
@@ -969,7 +964,9 @@ void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
     };
 
     // TODO: load/save logic go here
-    if (key_lambda(COW_KEY_TAB)) {
+    if (key_lambda('q', true)) {
+        exit(1);
+    } else if (key_lambda(COW_KEY_TAB)) {
         camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - camera_3D.angle_of_view;
     } else if (((enter_mode != ENTER_MODE_SAVE) && (enter_mode != ENTER_MODE_LOAD)) && key_lambda('X')) {
         camera2D_zoom_to_bounding_box(&camera_2D, bbox_union);
@@ -980,51 +977,52 @@ void top_layer_event_process_or_forward_to_history_layer(Event new_event) {
     } else if ((enter_mode == ENTER_MODE_NONE) && key_lambda('.')) { 
         show_details = !show_details;
     } else if (key_lambda('z', true)) { // undo
-        if (history_1 != history_0) {
-            do --history_1; while ((history_0 != history_1) && (!history_1->checkpoint)); // pop back _through_ a first checkpoint
-            while ((history_0 != history_1) && (!(history_1 - 1)->checkpoint)) --history_1; // * short-circuit pop back _up to_ a second
+        if (history_B != history_A) {
+            do --history_B; while ((history_A != history_B) && (!history_B->checkpoint)); // pop back _through_ a first checkpoint
+            while ((history_A != history_B) && (!(history_B - 1)->checkpoint)) --history_B; // * short-circuit pop back _up to_ a second
             conversation_reset(true);
-            for (Event *event = history_0; event < history_1; ++event) history_layer_event_process(*event);
+            for (Event *event = history_A; event < history_B; ++event) history_layer_event_process(*event);
             conversation_messagef("[undo]");
         } else {
             conversation_messagef("[undo] nothing to undo");
         }
-        history_2 = history_1;
     } else if (key_lambda('y', true) || key_lambda('Z', true)) { // redo
-        if (history_2 != history_3) {
-            do history_layer_event_process(*history_2++); while ((history_2 != history_3) && (!(history_2 - 1)->checkpoint));
-            history_1 = history_2;
-
+        if (history_B != history_C) {
+            do history_layer_event_process(*history_B++); while ((history_B != history_C) && (!(history_B - 1)->checkpoint));
             conversation_messagef("[redo]");
-
         } else {
             conversation_messagef("[redo] nothing to redo");
         }
-    } else if (true
-            && (new_event.key != GLFW_KEY_LEFT_SHIFT)
-            && (new_event.key != GLFW_KEY_RIGHT_SHIFT)
-            ) { // pass into history_layer (don't send bare mods)
+    } else if (true) { // process immediately
+        // process it NOW?--then we can decide if it belongs in the history based on the result
+        // TODO we can always have our own buffer that we chew through and kill at our leisure
+        //  NOTE: this is solving the specific problem of multiple events per frame
+        uint32 category = history_layer_event_process(new_event);
+        if (category == PROCESSED_EVENT_CATEGORY_NOOP) {
+        } else if (category == PROCESSED_EVENT_CATEGORY_KILL_HISTORY_AND_BACKLOG) {
+            history_B = history_C = history_A;
+            queue_free(&history_backlog);
+            conversation_save_reset_manifold_manifold_and_fancy_mesh();
+        } else {
+            // history_push_back(new_event)
+            if (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT) new_event.checkpoint = true;
+            *history_B++ = new_event;
+            history_C = history_B; // kill redo "stack"
+        }
 
-        // TODO: why don't we process it NOW?--then we can decide if it belongs in the history based on the result?
-        // (events do hit at the beginning of the frame, so maybe we want to consume them all first?--
-        //  --some of our stuff needs to kill these other events)
-        // Still, i would go for the simple soln here
-        *history_2++ = new_event;
-        history_3 = history_2; // kill redo "stack"
     }
+
+
+
+
+    // && (new_event.key != GLFW_KEY_LEFT_SHIFT)
+    // && (new_event.key != GLFW_KEY_RIGHT_SHIFT)
 }
 
-void history_layer_backlog_process() {
-    while ((history_1 < history_2)) {
-        uint32 category = (history_layer_event_process(*history_1));
-        if (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT) {
-            history_1->checkpoint = true;
-        } else if (category == PROCESSED_EVENT_CATEGORY_KILL_HISTORY) {
-            history_1 = history_2 = history_3 = history_0;
-            conversation_save_reset_manifold_manifold_and_fancy_mesh();
-            break;
-        }
-        ++history_1;
+void history_backlog_process() {
+    while (history_backlog.length) {
+        Event event = queue_dequeue(&history_backlog);
+        top_layer_event_process(event);
     }
 }
 
@@ -1035,7 +1033,11 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         if (key == GLFW_KEY_RIGHT_CONTROL) return;
         if (key == GLFW_KEY_LEFT_SUPER) return;
         if (key == GLFW_KEY_RIGHT_SUPER) return;
-        top_layer_event_process_or_forward_to_history_layer({ UI_EVENT_TYPE_KEY_PRESS, .key = key, .mods = mods });
+        Event event = {};
+        event.type = UI_EVENT_TYPE_KEY_PRESS;
+        event.key = key;
+        event.mods = mods;
+        queue_enqueue(&history_backlog, event);
     }
 }
 
@@ -1051,7 +1053,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 
-    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), V2(xpos, ypos));
+    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), V2((real32) xpos, (real32) ypos));
 
     vec2 s_2D = transformPoint(inverse(camera_get_PV(&camera_2D)), mouse_s_NDC);
     world_cursor.mouse_x = s_2D.x;
@@ -1069,9 +1071,17 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
             if (hot_pane == HOT_PANE_2D) {
-                top_layer_event_process_or_forward_to_history_layer({ UI_EVENT_TYPE_MOUSE_2D_PRESS, .mouse_x = world_cursor.mouse_x, .mouse_y = world_cursor.mouse_y, });
+                Event event = {};
+                event.type = UI_EVENT_TYPE_MOUSE_2D_PRESS;
+                event.mouse_x = world_cursor.mouse_x;
+                event.mouse_y = world_cursor.mouse_y;
+                queue_enqueue(&history_backlog, event);
             } else if (hot_pane == HOT_PANE_3D) {
-                top_layer_event_process_or_forward_to_history_layer({ UI_EVENT_TYPE_MOUSE_3D_PRESS, .o = world_cursor.o, .dir = world_cursor.dir });
+                Event event = {};
+                event.type = UI_EVENT_TYPE_MOUSE_3D_PRESS;
+                event.o = world_cursor.o;
+                event.dir = world_cursor.dir;
+                queue_enqueue(&history_backlog, event);
             }
         }
     }
@@ -1094,7 +1104,7 @@ uint32 history_layer_event_process(Event event) {
     #define  hot_pane DISALLOWED
     #define   globals DISALLOWED
 
-    bool32 result = PROCESSED_EVENT_CATEGORY_NONE;
+    bool32 result = PROCESSED_EVENT_CATEGORY_STANDARD;
 
     // computed bool32's (FORNOW: sloppy--these change mid-frame)
     bool32 dxf_anything_selected;
@@ -1121,7 +1131,7 @@ uint32 history_layer_event_process(Event event) {
             bool shift = (event.mods & GLFW_MOD_SHIFT);
             character_equivalent = (char) event.key;
             if (shift && (event.key == '-')) character_equivalent = '_';
-            if ((!shift) && ('A' <= event.key) && (event.key <= 'Z')) character_equivalent = 'a' + (event.key - 'A');
+            if ((!shift) && ('A' <= event.key) && (event.key <= 'Z')) character_equivalent = (char) ('a' + (event.key - 'A'));
         }
 
         {
@@ -1261,10 +1271,10 @@ uint32 history_layer_event_process(Event event) {
                         if (enter_mode == ENTER_MODE_LOAD) {
                             if (poe_suffix_match(full_filename_including_path, ".dxf")) {
                                 conversation_dxf_load(full_filename_including_path);
-                                result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
+                                result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY_AND_BACKLOG;
                             } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
                                 conversation_stl_load(full_filename_including_path);
-                                result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
+                                result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY_AND_BACKLOG;
                             } else {
                                 conversation_messagef("FORNOW 1265");
                             }
@@ -1362,6 +1372,7 @@ uint32 history_layer_event_process(Event event) {
             } else if (key_lambda('R')) {
                 enter_mode = ENTER_MODE_REVOLVE_CUT;
             } else {
+                result = PROCESSED_EVENT_CATEGORY_NOOP;
                 ;
             }
         }
@@ -1524,6 +1535,9 @@ int main() {
     conversation_messagef("type h for help // pre-alpha " __DATE__ " " __TIME__);
 
     while (cow_begin_frame()) {
+
+        history_backlog_process();
+
         { // stuff that still shims globals.*
             if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
                 hot_pane = (globals.mouse_position_NDC.x <= 0.0f) ? HOT_PANE_2D : HOT_PANE_3D;
@@ -1536,12 +1550,6 @@ int main() {
                     camera_move(&camera_3D);
                 }
             }
-        }
-        history_layer_backlog_process();
-        // TODO: check redo
-        // TODO: make this work
-        // TODO: make not happen every frame
-        {
         }
         conversation_draw();
     }

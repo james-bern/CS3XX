@@ -1,6 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define COW_USE_REAL_32
 #define COW_NO_SOUND
+#define JIM_MULTISAMPLING
 
 #include <iostream>
 #include <fenv.h>
@@ -37,6 +38,6 @@ BEGIN_PRE_MAIN {
     config.hotkeys_gui_hide = 0;
     config.hotkeys_app_next = 0;
     config.hotkeys_app_prev = 0;
-    config.tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 5.0f;
-    config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina /= 1.5f;
+    config.tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 6.0f;
+    config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina /= 2.0f;
 } END_PRE_MAIN 

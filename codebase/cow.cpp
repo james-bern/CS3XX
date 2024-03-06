@@ -3200,6 +3200,11 @@ template <typename T> T list_delete(List<T> *list, u32 i) {
     return result;
 }
 
+template <typename T> void list_push_front(List<T> *list, T element) {
+    list_insert(list, 0, element);
+}
+
+
 template <typename T> T list_pop_back(List<T> *list) {
     ASSERT(list->length != 0);
     return list_delete(list, list->length - 1);
@@ -3210,6 +3215,10 @@ template <typename T> T list_pop_front(List<T> *list) {
     return list_delete(list, 0);
 }
 
+#define Queue List
+#define queue_enqueue list_push_front
+#define queue_dequeue list_pop_back
+#define queue_free list_free
 
 
 
