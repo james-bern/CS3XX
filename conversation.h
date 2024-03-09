@@ -518,7 +518,7 @@ struct DXFLoopAnalysisResult {
     uint32 *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create(DXF *dxf, bool32 *dxf_selection_mask_NOTE_pass_NULL_for_pick = NULL) {
+DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(DXF *dxf, bool32 *dxf_selection_mask_NOTE_pass_NULL_for_pick = NULL) {
     if (dxf->num_entities == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
@@ -733,7 +733,7 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     #endif
     // populate List's
     List<List<vec2>> stretchy_list = {}; {
-        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create(dxf, dxf_selection_mask);
+        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf, dxf_selection_mask);
         for (uint32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
             uint32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];

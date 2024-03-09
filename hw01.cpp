@@ -300,8 +300,8 @@ int main() {
     stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f, -10.0f, -10.0f, -10.0f };
     stl.triangles[k++] = { -10.0f,  10.0f, -10.0f,  10.0f,  10.0f, -10.0f,  10.0f, -10.0f, -10.0f };
 
-    stl = lithopane("jeannie128x128.png");
-    stl_save_ASCII(&stl, "ignore.stl");
+    // stl = lithopane("jeannie128x128.png");
+    // stl_save_ASCII(&stl, "ignore.stl");
     //stl = lithopane("jeannie1024x1024.png");
     // for (u32 i = 1; i <= 5; ++i) {
     //     char buffer[16], buffer2[16];
@@ -310,8 +310,8 @@ int main() {
     //     stl = lithopane(buffer);
     //     stl_save_binary(&stl, buffer2);
     // }
-    return 0;
-    // stl = lithopane("jeannie128x128.png");
+    // return 0;
+    stl = lithopane("jeannie128x128.png");
 
     Camera3D camera = { 100.0 };
     while (cow_begin_frame()) {
