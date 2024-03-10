@@ -221,6 +221,23 @@ void entity_get_start_and_end_points(DXFEntity *entity, real32 *start_x, real32 
     }
 }
 
+void entity_get_middle(DXFEntity *entity, real32 *middle_x, real32 *middle_y) {
+    if (entity->type == DXF_ENTITY_TYPE_LINE) {
+        DXFLine *line = &entity->line;
+        *middle_x = (line->start_x + line->end_x) / 2;
+        *middle_y = (line->start_y + line->end_y) / 2;
+    } else {
+        ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+        DXFArc *arc = &entity->arc;
+        real32 angle; {
+            real32 start_angle, end_angle;
+            arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
+            angle = (start_angle + end_angle) / 2;
+        }
+        get_point_on_circle_NOTE_pass_angle_in_radians(middle_x, middle_y, arc->center_x, arc->center_y, arc->radius, angle);
+    }
+}
+
 struct DXF {
     uint32 num_entities;
     DXFEntity *entities;

@@ -1,10 +1,9 @@
-// XXXX you could record the post-snap position to history (snap state not recorded)
+// TODO: (M)easure
 
-// (M)easure
+// TODO: get revolve working
 
-
-// TODO move origin to MIDDLE_OF
-// TODO when moving draw preview (TODO including filtering from snaps)
+// XXXX move origin to MIDDLE_OF
+// XXXX when moving draw preview (TODO including filtering from snaps)
 // XXXX: separate origin_x, origin_y from M_3D_from_2D (see if there's still sloppy inversion of the origin_xy piece in your code)
 
 // TODO way to save state to inspect later
@@ -13,7 +12,6 @@
 
 // TODO: code plays itself (testing stack) -- ? way of saving these comand chains
 
-// TODO: get revolve working
 
 // custom shader
 // you could redo the entire stack with finer circle discretization params
@@ -98,16 +96,16 @@ void wrapper_manifold(
                 real32 length = max - min;
                 other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
                 other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, min);
-                other_manifold = manifold_transform(other_manifold, other_manifold,
-                        M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
-                        M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
-                        M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
-                        M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
             } else {
                 // TODO: M_3D_from_2D 
                 other_manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
                 other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
             }
+            other_manifold = manifold_transform(other_manifold, other_manifold,
+                    M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
+                    M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
+                    M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
+                    M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
         }
     }
 
@@ -505,6 +503,19 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
                     }
                 }
             }
+        } else if (click_modifier == CLICK_MODIFIER_MIDDLE_OF) {
+            real32 min_squared_distance = HUGE_VAL;
+            real32 middle_x;
+            real32 middle_y;
+            for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
+                real32 squared_distance = squared_distance_point_dxf_entity(before_x, before_y, entity);
+                if (squared_distance < min_squared_distance) {
+                    min_squared_distance = squared_distance;
+                    entity_get_middle(entity, &middle_x, &middle_y);
+                    tmp_x = middle_x;
+                    tmp_y = middle_y;
+                }
+            }
         } else if (click_modifier == CLICK_MODIFIER_END_OF) {
             real32 min_squared_distance = HUGE_VAL;
             for (DXFEntity *entity = dxf.entities; entity < &dxf.entities[dxf.num_entities]; ++entity) {
@@ -519,9 +530,6 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
                     }
                 }
             }
-        } else if (click_modifier == CLICK_MODIFIER_MIDDLE_OF) {
-            ASSERT(false);
-            // TODO
         }
     }
     *after_x = tmp_x;
@@ -889,7 +897,7 @@ uint32 event_process(Event event) {
                     } else {
                         conversation_messagef("[n] no plane selected");
                     }
-                } else if (key_lambda('m')) {
+                } else if (key_lambda('o')) {
                     click_mode = CLICK_MODE_MOVE_2D_ORIGIN_TO;
                     click_modifier = CLICK_MODIFIER_NONE;
                     enter_mode = ENTER_MODE_MOVE_ORIGIN_TO;
@@ -933,14 +941,19 @@ uint32 event_process(Event event) {
                     if (key_lambda('z')) n_selected = { 0.0f, 0.0f, 1.0f };
                     conversation_update_M_3D_from_2D();
                 } else if (key_lambda('e')) {
-                    result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_END_OF;
                     } else {
+                        result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         enter_mode = ENTER_MODE_EXTRUDE_ADD;
                         console_params_preview_flip_flag = false;
                         conversation_console_buffer_reset();
+                    }
+                } else if (key_lambda('m')) {
+                    if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
+                        result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                        click_modifier = CLICK_MODIFIER_MIDDLE_OF;
                     }
                 } else if (key_lambda('E')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
@@ -1295,7 +1308,7 @@ void conversation_draw() {
         glEnable(GL_SCISSOR_TEST);
         glScissor(window_width / 2, 0, window_width / 2, window_height);
 
-        { // selection 2d selection 2D selection (FORNOW: ew)
+        { // selection 2d selection 2D selection tube tubes stack stacks wire wireframe (FORNOW: ew)
             uint32 color = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
 
             uint32 NUM_TUBE_STACKS_INCLUSIVE;
@@ -1312,10 +1325,10 @@ void conversation_draw() {
                     M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                 } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                     NUM_TUBE_STACKS_INCLUSIVE = NUM_SEGMENTS_PER_CIRCLE;
-                    M = M_3D_from_2D;
+                    M = M_3D_from_2D * M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f);
                     real32 a = 0.0f;
                     real32 b = TAU;
-                    M_incr = M4_RotationAboutYAxis((b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                    M_incr =  M4_Translation(dxf_origin_x, dxf_origin_y, 0.0f) * M4_RotationAboutYAxis((b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1)) * M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f);
                 } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
                     // FORNOW
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -1572,16 +1585,16 @@ void conversation_draw() {
             gui_printf("(h)elp-show/hide");
             gui_printf("(Escape)-from-current-enter_and_click_modes");
             gui_printf("(s)elect (d)eselect (c)onnected + (a)ll (q)uality + (0-5)");
-            gui_printf("(y)-plane (x)-plane");
-            gui_printf("(e)trude-add (E)xtrude-cut + (0123456789. ) (f)lip-direction");
+            gui_printf("(y)-plane (z)-plane (x)-plane");
+            gui_printf("(e)trude-add (E)xtrude-cut + (0123456789.,) (f)lip-direction");
             gui_printf("(r)evolve-add (R)evolve-cut");
-            gui_printf("Ctrl+(z)-undo Ctrl+(Z)-redo Ctrl+(y)-redo");
+            gui_printf("(Ctrl+z)-undo (Ctrl+Z)-redo (Ctrl+y)-redo");
             gui_printf("(L)oad (S)ave");
-            gui_printf("Ctrl+(R)eload-dxf");
+            gui_printf("(Ctrl+R)eload-dxf");
             gui_printf("show-(g)rid (.)-show-details show-stac(k)");
             gui_printf("zoom-to-e(X)tents");
-            gui_printf("(Tab)-orthographic-perspective-view");
-            gui_printf("(m)ove-origin + (c)enter-of (e)nd-of (0123456789.- ) ");
+            gui_printf("(Tab)-toggle-camera-perspective-orthographic");
+            gui_printf("m(o)ve-origin + (c)enter-of (e)nd-of (m)iddle-of (Click) / (-0123456789.,) (f)lip-direction");
             gui_printf("");
             gui_printf("you can drag and drop dxf's into Conversation");
         }
