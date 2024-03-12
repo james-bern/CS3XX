@@ -1,10 +1,17 @@
+// TODO space bar to repeat features
+
+// TODO ? should have a relative version of move (MOVE_ORIGIN_BY)
+
+// // TODO: get revolve working
+// TODO picking with axis to rotate about; maybe use 'f' to choose between x and y?
+
+// // TODO: cow improvements?
+// TODO mouse position first frame
+// TODO better map
+
+
 // TODO: (M)easure
 
-// TODO: get revolve working
-
-// XXXX move origin to MIDDLE_OF
-// XXXX when moving draw preview (TODO including filtering from snaps)
-// XXXX: separate origin_x, origin_y from M_3D_from_2D (see if there's still sloppy inversion of the origin_xy piece in your code)
 
 // TODO way to save state to inspect later
 
@@ -239,7 +246,7 @@ void conversation_update_M_3D_from_2D() {
 char conversation_current_dxf_filename[512];
 
 
-bool32 click_move_origin_mouse_moved_since_last_key_press_M;
+bool32 click_move_origin_broken;
 real32 click_move_origin_preview_x;
 real32 click_move_origin_preview_y;
 
@@ -476,13 +483,6 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     }
 }
 
-struct {
-    real32 mouse_x;
-    real32 mouse_y;
-    vec3 o;
-    vec3 dir;
-} world_cursor;
-
 void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y) {
     real32 tmp_x = before_x;
     real32 tmp_y = before_y;
@@ -536,35 +536,34 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
     *after_y = tmp_y;
 }
 
+void click_move_origin_break() { // click_move_origin_preview_x, click_move_origin_preview_y
+    click_move_origin_broken = true;
+    if ((click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) && (console_buffer == console_buffer_write_head)) {
+        _input_get_mouse_position_and_change_in_position_in_world_coordinates(camera_get_PV(&camera_2D).data, &click_move_origin_preview_x, &click_move_origin_preview_y, NULL, NULL);
+        snap_map(click_move_origin_preview_x, click_move_origin_preview_y, &click_move_origin_preview_x, &click_move_origin_preview_y);
+    }
+}
+
+real32 callback_xpos; // FORNOW
+real32 callback_ypos; // FORNOW
+
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
+
     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 
-    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), V2((real32) xpos, (real32) ypos));
+    callback_xpos = xpos;
+    callback_ypos = ypos;
 
-    { // 2D (with snaps!)
-        vec2 s_2D = transformPoint(inverse(camera_get_PV(&camera_2D)), mouse_s_NDC);
-        snap_map(s_2D.x, s_2D.y, &world_cursor.mouse_x, &world_cursor.mouse_y);
-    }
-
-
-    // 3D
-    mat4 inverse_PV_3D = inverse(camera_get_PV(&camera_3D));
-    world_cursor.o = transformPoint(inverse_PV_3D, V3(mouse_s_NDC, -1.0f));
-    world_cursor.dir = normalized(transformPoint(inverse_PV_3D, V3(mouse_s_NDC,  1.0f)) - world_cursor.o);
-
-    { // click_move_origin_preview_x, click_move_origin_preview_y
-        click_move_origin_mouse_moved_since_last_key_press_M = true;
-        if ((click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) && (console_buffer == console_buffer_write_head)) {
-            _input_get_mouse_position_and_change_in_position_in_world_coordinates(camera_get_PV(&camera_2D).data, &click_move_origin_preview_x, &click_move_origin_preview_y, NULL, NULL);
-            snap_map(click_move_origin_preview_x, click_move_origin_preview_y, &click_move_origin_preview_x, &click_move_origin_preview_y);
-        }
-    }
+    click_move_origin_break(); // FORNOW
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM
+
+    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), V2(callback_xpos, callback_ypos));
+
 
     // TODO switch from NDC -> world (with 3D ray)
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
@@ -572,14 +571,19 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
             if (hot_pane == HOT_PANE_2D) {
                 Event event = {};
                 event.type = UI_EVENT_TYPE_MOUSE_2D_PRESS;
-                event.mouse_x = world_cursor.mouse_x;
-                event.mouse_y = world_cursor.mouse_y;
+                {
+                    vec2 s_2D = transformPoint(inverse(camera_get_PV(&camera_2D)), mouse_s_NDC);
+                    snap_map(s_2D.x, s_2D.y, &event.mouse_x, &event.mouse_y);
+                }
                 queue_enqueue(&new_event_queue, event);
             } else if (hot_pane == HOT_PANE_3D) {
                 Event event = {};
                 event.type = UI_EVENT_TYPE_MOUSE_3D_PRESS;
-                event.o = world_cursor.o;
-                event.dir = world_cursor.dir;
+                {
+                    mat4 inverse_PV_3D = inverse(camera_get_PV(&camera_3D));
+                    event.o = transformPoint(inverse_PV_3D, V3(mouse_s_NDC, -1.0f));
+                    event.dir = normalized(transformPoint(inverse_PV_3D, V3(mouse_s_NDC,  1.0f)) - event.o);
+                }
                 queue_enqueue(&new_event_queue, event);
             }
         }
@@ -903,7 +907,7 @@ uint32 event_process(Event event) {
                     enter_mode = ENTER_MODE_MOVE_ORIGIN_TO;
                     console_params_preview_flip_flag = false;
                     conversation_console_buffer_reset();
-                    click_move_origin_mouse_moved_since_last_key_press_M = false;
+                    click_move_origin_broken = false;
                 } else if (key_lambda('s')) {
                     click_mode = CLICK_MODE_SELECT;
                     click_modifier = CLICK_MODIFIER_NONE;
@@ -921,6 +925,7 @@ uint32 event_process(Event event) {
                     } else if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_CENTER_OF;
+                        click_move_origin_break();
                     }
                 } else if (key_lambda('q')) {
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
@@ -944,6 +949,7 @@ uint32 event_process(Event event) {
                     if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_END_OF;
+                        click_move_origin_break();
                     } else {
                         result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         enter_mode = ENTER_MODE_EXTRUDE_ADD;
@@ -954,6 +960,7 @@ uint32 event_process(Event event) {
                     if (click_mode == CLICK_MODE_MOVE_2D_ORIGIN_TO) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_MIDDLE_OF;
+                        click_move_origin_break();
                     }
                 } else if (key_lambda('E')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
@@ -1216,7 +1223,7 @@ void conversation_draw() {
     real32 axes_2D_draw_translation_x;
     real32 axes_2D_draw_translation_y;
     if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
-        if (click_move_origin_mouse_moved_since_last_key_press_M && (console_buffer == console_buffer_write_head)) {
+        if (click_move_origin_broken && (console_buffer == console_buffer_write_head)) {
             axes_2D_draw_translation_x = click_move_origin_preview_x;
             axes_2D_draw_translation_y = click_move_origin_preview_y;
         } else {
@@ -1456,38 +1463,44 @@ void conversation_draw() {
             vec3 color = monokai.yellow;
             real32 sign = -1.0f;
             if (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
-                PVM *= M4_Translation(0.0f, 0.0f, console_param_preview);
+                PVM *= M4_Translation(-dxf_origin_x, -dxf_origin_y, console_param_preview);
                 color = { 0.0f, 1.0f, 1.0f };
                 sign = 1.0f;
                 draw = true;
             } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
-                PVM *= M4_Translation(-axes_2D_draw_translation_x - dxf_origin_x, -axes_2D_draw_translation_y - dxf_origin_y);
+                PVM *= M4_Translation(-axes_2D_draw_translation_x, -axes_2D_draw_translation_y);
                 color = { 0.0f, 1.0f, 1.0f };
                 sign = 1.0f;
                 draw = true;
+            } else {
+                PVM *= M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f); // FORNOW
             }
             real32 r = 30.0f;
             BoundingBox bounding_box = { -r, -r, r, r };
             if (dxf_anything_selected) {
                 bounding_box = bounding_box_union(dxf.num_entities, bbox, dxf_selection_mask);
                 {
-                    bounding_box.min[0] -= dxf_origin_x;
-                    bounding_box.max[0] -= dxf_origin_x;
-                    bounding_box.min[1] -= dxf_origin_y;
-                    bounding_box.max[1] -= dxf_origin_y;
+                    // bounding_box.min[0] -= dxf_origin_x;
+                    // bounding_box.max[0] -= dxf_origin_x;
+                    // bounding_box.min[1] -= dxf_origin_y;
+                    // bounding_box.max[1] -= dxf_origin_y;
                 }
-                for (uint32 d = 0; d < 2; ++d) {
-                    bounding_box.min[d] /= GRID_SPACING;
-                    bounding_box.min[d] -= 1.0;
-                    bounding_box.min[d] = floorf(bounding_box.min[d]);
-                    bounding_box.min[d] *= GRID_SPACING;
+                real32 eps = 10.0f;
+                bounding_box.min[0] -= eps;
+                bounding_box.max[0] += eps;
+                bounding_box.min[1] -= eps;
+                bounding_box.max[1] += eps;
+                // for (uint32 d = 0; d < 2; ++d) {
+                //     bounding_box.min[d] /= GRID_SPACING;
+                //     bounding_box.min[d] -= 1.0;
+                //     bounding_box.min[d] = floorf(bounding_box.min[d]);
+                //     bounding_box.min[d] *= GRID_SPACING;
 
-                    bounding_box.max[d] /= GRID_SPACING;
-                    bounding_box.max[d] += 1.0;
-                    bounding_box.max[d] = ceilf(bounding_box.max[d]);
-                    bounding_box.max[d] *= GRID_SPACING;
-
-                }
+                //     bounding_box.max[d] /= GRID_SPACING;
+                //     bounding_box.max[d] += 1.0;
+                //     bounding_box.max[d] = ceilf(bounding_box.max[d]);
+                //     bounding_box.max[d] *= GRID_SPACING;
+                // }
             }
             if (draw) {
                 eso_begin(PVM, SOUP_OUTLINED_QUADS);
