@@ -48,7 +48,7 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define ENTER_MODE_EXTRUDE_CUT       2
 #define ENTER_MODE_REVOLVE_ADD       3
 #define ENTER_MODE_REVOLVE_CUT       4
-#define ENTER_MODE_LOAD              5
+#define ENTER_MODE_OPEN              5
 #define ENTER_MODE_SAVE              6
 #define ENTER_MODE_MOVE_ORIGIN_TO    7
 #define ENTER_MODE_OFFSET_PLANE_BY   8
@@ -103,6 +103,11 @@ void pprint(BoundingBox bounding_box) {
     printf("(%f, %f) <-> (%f, %f)\n", bounding_box.min[0], bounding_box.min[1], bounding_box.max[0], bounding_box.max[1]);
 }
 
+void bounding_box_center(BoundingBox *bounding_box, real32 *x, real32 *y) {
+    *x = (bounding_box->min[0] + bounding_box->max[0]) / 2;
+    *y = (bounding_box->min[1] + bounding_box->max[1]) / 2;
+}
+
 BoundingBox bounding_box_union(uint32 num_bounding_boxes, BoundingBox *bounding_boxes, bool32 *mask = NULL) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
     for (uint32 i = 0; i < num_bounding_boxes; ++i) {
@@ -115,18 +120,18 @@ BoundingBox bounding_box_union(uint32 num_bounding_boxes, BoundingBox *bounding_
     return result;
 }
 
-bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
+bool32 bounding_box_contains(BoundingBox *outer, BoundingBox *inner) {
     for (uint32 d = 0; d < 2; ++d) {
-        if (outer.min[d] > inner.min[d]) return false;
-        if (outer.max[d] < inner.max[d]) return false;
+        if (outer->min[d] > inner->min[d]) return false;
+        if (outer->max[d] < inner->max[d]) return false;
     }
     return true;
 }
 
-void camera2D_zoom_to_bounding_box(Camera2D *camera2D, BoundingBox bounding_box) {
-    real32 new_o_x = AVG(bounding_box.min[0], bounding_box.max[0]);
-    real32 new_o_y = AVG(bounding_box.min[1], bounding_box.max[1]);
-    real32 new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / _window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
+void camera2D_zoom_to_bounding_box(Camera2D *camera2D, BoundingBox *bounding_box) {
+    real32 new_o_x = AVG(bounding_box->min[0], bounding_box->max[0]);
+    real32 new_o_y = AVG(bounding_box->min[1], bounding_box->max[1]);
+    real32 new_height = MAX((bounding_box->max[0] - bounding_box->min[0]) * 2 / _window_get_aspect(), (bounding_box->max[1] - bounding_box->min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
     camera2D->screen_height_World = new_height;
     camera2D->o_x = new_o_x;
@@ -276,22 +281,22 @@ void dxf_load(char *filename, DXF *dxf) {
 
     List<DXFEntity> stretchy_list = {}; {
         {
-            #define DXF_LOAD_MODE_NONE 0
-            #define DXF_LOAD_MODE_LINE 1
-            #define DXF_LOAD_MODE_ARC  2
+            #define DXF_OPEN_MODE_NONE 0
+            #define DXF_OPEN_MODE_LINE 1
+            #define DXF_OPEN_MODE_ARC  2
             u8 mode = 0;
             int code = 0;
             bool32 code_is_hot = false;
             DXFEntity entity = {};
             static char buffer[512];
             while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
-                if (mode == DXF_LOAD_MODE_NONE) {
+                if (mode == DXF_OPEN_MODE_NONE) {
                     if (poe_prefix_match(buffer, "LINE")) {
-                        mode = DXF_LOAD_MODE_LINE;
+                        mode = DXF_OPEN_MODE_LINE;
                         code_is_hot = false;
                         entity = { DXF_ENTITY_TYPE_LINE };
                     } else if (poe_prefix_match(buffer, "ARC")) {
-                        mode = DXF_LOAD_MODE_ARC;
+                        mode = DXF_OPEN_MODE_ARC;
                         code_is_hot = false;
                         entity = { DXF_ENTITY_TYPE_ARC };
                     }
@@ -302,7 +307,7 @@ void dxf_load(char *filename, DXF *dxf) {
                         // probably don't make a habit of it
                         if (code == 0) {
                             list_push_back(&stretchy_list, entity);
-                            mode = DXF_LOAD_MODE_NONE;
+                            mode = DXF_OPEN_MODE_NONE;
                             code_is_hot = false;
                         }
                     } else {
@@ -313,7 +318,7 @@ void dxf_load(char *filename, DXF *dxf) {
                         } else {
                             float value;
                             sscanf(buffer, "%f", &value);
-                            if (mode == DXF_LOAD_MODE_LINE) {
+                            if (mode == DXF_OPEN_MODE_LINE) {
                                 if (code == 10) {
                                     entity.line.start_x = MM(value);
                                 } else if (code == 20) {
@@ -324,7 +329,7 @@ void dxf_load(char *filename, DXF *dxf) {
                                     entity.line.end_y = MM(value);
                                 }
                             } else {
-                                ASSERT(mode == DXF_LOAD_MODE_ARC);
+                                ASSERT(mode == DXF_OPEN_MODE_ARC);
                                 if (code == 10) {
                                     entity.arc.center_x = MM(value);
                                 } else if (code == 20) {
