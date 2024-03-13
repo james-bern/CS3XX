@@ -553,8 +553,8 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 
-    callback_xpos = xpos;
-    callback_ypos = ypos;
+    callback_xpos = (real32) xpos;
+    callback_ypos = (real32) ypos;
 
     click_move_origin_break(); // FORNOW
 }
@@ -1220,8 +1220,8 @@ void conversation_draw() {
         }
     }
 
-    real32 axes_2D_draw_translation_x;
-    real32 axes_2D_draw_translation_y;
+    real32 axes_2D_draw_translation_x = 0.0f; // FORNOW
+    real32 axes_2D_draw_translation_y = 0.0f; // FORNOW
     if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
         if (click_move_origin_broken && (console_buffer == console_buffer_write_head)) {
             axes_2D_draw_translation_x = click_move_origin_preview_x;
