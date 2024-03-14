@@ -13,15 +13,9 @@
 // TODO mouse position first frame
 // TODO better map
 
-
-
-
 // TODO way to save state to inspect later
 
-
-
 // TODO: code plays itself (testing stack) -- ? way of saving these comand chains
-
 
 // custom shader
 // you could redo the entire stack with finer circle discretization params
@@ -29,6 +23,7 @@
 // SUMMER
 // TODO fillets
 // TODO: speed up dxf_loop_analysis_create_FORNOW_QUADRATIC
+
 
 
 #include "cs345.cpp"
@@ -74,10 +69,14 @@ void wrapper_manifold(
         real32 console_param,
         real32 console_param_2,
         real32 dxf_origin_x,
-        real32 dxf_origin_y) {
+        real32 dxf_origin_y,
+        bool32 revolve_use_x_instead) {
     // FORNOW: this function call isn't a no-op
     // history_record_state(history, manifold_manifold, fancy_mesh);
     ASSERT(enter_mode != ENTER_MODE_NONE);
+
+
+
 
     ManifoldManifold *other_manifold; {
         ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
@@ -87,7 +86,15 @@ void wrapper_manifold(
         ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
         ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
 
-        cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin_x, -dxf_origin_y);
+
+        { // cross_section modification
+            cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin_x, -dxf_origin_y);
+
+            if  (revolve_use_x_instead) {
+                manifold_cross_section_rotate(cross_section, cross_section, -90.0f);
+            }
+        }
+
 
         { // other_manifold
 
@@ -107,8 +114,10 @@ void wrapper_manifold(
                 other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
                 other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, min);
             } else {
+                ASSERT((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
                 // TODO: M_3D_from_2D 
                 other_manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                if (revolve_use_x_instead) other_manifold = manifold_rotate(other_manifold, other_manifold, 0.0f, -90.0f, 0.0f);
                 other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
             }
             other_manifold = manifold_transform(other_manifold, other_manifold,
@@ -209,6 +218,8 @@ void console_params_preview_update() {
         console_param_2_preview *= -1;
     }
 }
+
+bool32 revolve_use_x_instead;
 
 
 
@@ -817,7 +828,8 @@ uint32 event_process(Event event) {
                                         console_param,
                                         console_param_2,
                                         dxf_origin_x,
-                                        dxf_origin_y);
+                                        dxf_origin_y,
+                                        revolve_use_x_instead);
                                 // reset state
                                 memset(dxf_selection_mask, 0, dxf.num_entities * sizeof(bool32));
                                 conversation_feature_plane_reset();
@@ -897,6 +909,7 @@ uint32 event_process(Event event) {
                 } else if (key_lambda('f')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     console_params_preview_flip_flag = !console_params_preview_flip_flag;
+                    if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) revolve_use_x_instead = !revolve_use_x_instead;
                 } else if (key_lambda('n')) {
                     if (stl_plane_selected) {
                         enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
@@ -973,8 +986,10 @@ uint32 event_process(Event event) {
                     conversation_console_buffer_reset();
                 } else if (key_lambda('r')) {
                     enter_mode = ENTER_MODE_REVOLVE_ADD;
+                    revolve_use_x_instead = false;
                 } else if (key_lambda('R')) {
                     enter_mode = ENTER_MODE_REVOLVE_CUT;
+                    revolve_use_x_instead = false;
                 } else if (key_lambda('M')) {
                     click_mode = CLICK_MODE_MEASURE;
                     click_modifier = CLICK_MODIFIER_NONE;
@@ -1363,7 +1378,9 @@ void conversation_draw() {
                     M = M_3D_from_2D * M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f);
                     real32 a = 0.0f;
                     real32 b = TAU;
-                    M_incr =  M4_Translation(dxf_origin_x, dxf_origin_y, 0.0f) * M4_RotationAboutYAxis((b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1)) * M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f);
+                    real32 argument  = (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1);
+                    mat4 R = ((revolve_use_x_instead) ? M4_RotationAboutXAxis(argument) : M4_RotationAboutYAxis(argument));
+                    M_incr = M4_Translation(dxf_origin_x, dxf_origin_y, 0.0f) * R * M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f);
                 } else if (enter_mode == ENTER_MODE_MOVE_ORIGIN_TO) {
                     // FORNOW
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
