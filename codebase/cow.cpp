@@ -548,9 +548,9 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 // // working with cow_real's
 #define PI cow_real(3.14159265359)
 #define TAU (2 * PI)
-#define TINY_VAL cow_real(1e-7)
+#define TINY_VAL cow_real(1e-6)
 #undef HUGE_VAL
-#define HUGE_VAL cow_real(1e7)
+#define HUGE_VAL cow_real(1e6)
 cow_real RAD(cow_real degrees) { return (PI / 180 * (degrees)); }
 cow_real DEG(cow_real radians) { return (180 / PI * (radians)); }
 cow_real INCHES(cow_real mm) { return ((mm) / cow_real(25.4)); }
@@ -799,6 +799,8 @@ void window_set_decorated(bool decorated) {
 }
 
 void _callback_set_callbacks();
+void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos);
+void _window_get_NDC_from_Screen(cow_real *NDC_from_Screen);
 void _window_init() {
     ASSERT(glfwInit());
 
@@ -873,9 +875,22 @@ void _window_init() {
     }
 
     _window_set_position(0.0, 30.0);
-    _window_set_size(1280.0, 720.0);
+    _window_set_size(960.0, 540.0);
     window_set_floating(false);
     window_set_decorated(true);
+
+    { // NOTE: first frame position hack
+        // FORNOW: very gross
+        _window_get_NDC_from_Screen((cow_real *) &globals.NDC_from_Screen);
+        double xpos, ypos;
+        glfwGetCursorPos(COW0._window_glfw_window, &xpos, &ypos);
+        _callback_cursor_position(NULL, xpos, ypos);
+        globals.mouse_moved = false;
+        globals.mouse_change_in_position_Screen[0] = 0.0f;
+        globals.mouse_change_in_position_Screen[1] = 0.0f;
+        globals.mouse_change_in_position_NDC[0] = 0.0f;
+        globals.mouse_change_in_position_NDC[1] = 0.0f;
+    }
 }
 
 void _window_begin_frame() {
@@ -907,6 +922,10 @@ vec2 window_get_size() {
     cow_real width, height;
     _window_get_size(&width, &height);
     return { width, height };
+}
+
+cow_real window_get_width() { // FORNOW
+    return window_get_size()[0];
 }
 
 void window_set_size(vec2 size) {
@@ -3185,9 +3204,10 @@ template <typename T> void list_free(List<T> *list) {
     *list = {};
 }
 
-template <typename T> void list_insert(List<T> *list, int i, T element) {
-    list_push_back(list, element); // shrug-emoji
-    memmove(list->data + i + 1, list->data + i, (list->length - i) * sizeof(T));
+template <typename T> void list_insert(List<T> *list, u32 i, T element) {
+    ASSERT(i <= list->length);
+    list_push_back(list, {});
+    memmove(&list->data[i + 1], &list->data[i], (list->length - i - 1) * sizeof(T));
     list->data[i] = element;
 }
 
@@ -3300,7 +3320,7 @@ uint32_t paul_hsieh_SuperFastHash(void *_data, int len) {
 
 template <typename Key, typename Value> void map_put(Map<Key, Value> *map, Key key, Value value) {
     if (!map->buckets) {
-        map->num_buckets = 100003;
+        map->num_buckets = 10001; //100003;
         map->buckets = (List<Pair<Key, Value>> *) calloc(map->num_buckets, sizeof(List<Pair<Key, Value>>));
     }
     { // TODO resizing; load factor; ...
@@ -3313,6 +3333,18 @@ template <typename Key, typename Value> void map_put(Map<Key, Value> *map, Key k
         }
     }
     list_push_back(bucket, { key, value });
+}
+
+template <typename Key, typename Value> Value *_map_get_pointer(Map<Key, Value> *map, Key key) {
+    if (map->num_buckets == 0) return NULL;
+    ASSERT(map->buckets);
+    List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
+    for (Pair<Key, Value> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+        if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
+            return &pair->value;
+        }
+    }
+    return NULL;
 }
 
 template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key key, Value default_value = {}) {
@@ -3883,7 +3915,7 @@ struct WidgetLineEditorResult {
     bool success;
     bool add_delete;
     int index;
-    vec2 vertex_position;
+    _vec2 vertex_position;
 };
 WidgetLineEditorResult _widget_line_editor__NOTE_no_drag(mat4 PV, int primitive, int num_vertices, vec2 *vertices, cow_real size = 0, cow_real tolerance_NDC = 0.02) {
     ASSERT(primitive == SOUP_LINE_STRIP || primitive == SOUP_LINE_LOOP);

@@ -1,10 +1,10 @@
-////////////////////////////////////////
+///////////////////////////////////////
 // Notes ///////////////////////////////
 ////////////////////////////////////////
 
 // // Conversation
 // This is a little CAD program Jim is making :)
-// It takes in an OMAX DXF and let's you rapidly create a 3D-printable STL using Manifold.
+// It takes in an OMAX List<DXFEntity> and let's you rapidly create a 3D-printable STL using Manifold.
 // Intuitiveness of Sketchup + Precision of SolidWorks
 
 // wonderful undo (including selections)
@@ -43,33 +43,36 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 // Top-Level State Machine /////////////
 ////////////////////////////////////////
 
-#define ENTER_MODE_NONE              0
-#define ENTER_MODE_EXTRUDE_ADD       1
-#define ENTER_MODE_EXTRUDE_CUT       2
-#define ENTER_MODE_REVOLVE_ADD       3
-#define ENTER_MODE_REVOLVE_CUT       4
-#define ENTER_MODE_OPEN              5
-#define ENTER_MODE_SAVE              6
-#define ENTER_MODE_MOVE_ORIGIN_TO    7
-#define ENTER_MODE_OFFSET_PLANE_BY   8
+#define ENTER_MODE_NONE               0
+#define ENTER_MODE_EXTRUDE_ADD        1
+#define ENTER_MODE_EXTRUDE_CUT        2
+#define ENTER_MODE_REVOLVE_ADD        3
+#define ENTER_MODE_REVOLVE_CUT        4
+#define ENTER_MODE_OPEN               5
+#define ENTER_MODE_SAVE               6
+#define ENTER_MODE_MOVE_DXF_ORIGIN_TO 7
+#define ENTER_MODE_OFFSET_PLANE_BY    8
 
-#define CLICK_MODE_NONE              0
-#define CLICK_MODE_SELECT            1
-#define CLICK_MODE_DESELECT          2
-#define CLICK_MODE_MOVE_2D_ORIGIN_TO 3
-#define CLICK_MODE_MEASURE           4
+#define CLICK_MODE_NONE               0
+#define CLICK_MODE_SELECT             1
+#define CLICK_MODE_DESELECT           2
+#define CLICK_MODE_MOVE_DXF_ORIGIN_TO 3
+#define CLICK_MODE_MEASURE            4
+#define CLICK_MODE_CREATE_LINE        5
 
-#define CLICK_MODIFIER_NONE      0
-#define CLICK_MODIFIER_CONNECTED 1
-#define CLICK_MODIFIER_QUALITY   2
-#define CLICK_MODIFIER_WINDOW    3
-#define CLICK_MODIFIER_CENTER_OF 4
-#define CLICK_MODIFIER_END_OF    5
-#define CLICK_MODIFIER_MIDDLE_OF 6
+#define CLICK_MODIFIER_NONE              0
+#define CLICK_MODIFIER_CONNECTED         1
+#define CLICK_MODIFIER_QUALITY           2
+#define CLICK_MODIFIER_WINDOW            3
+#define CLICK_MODIFIER_SNAP_TO_CENTER_OF 4
+#define CLICK_MODIFIER_SNAP_TO_END_OF    5
+#define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF 6
 
 #define HOT_PANE_NONE 0
 #define HOT_PANE_2D   1
 #define HOT_PANE_3D   2
+
+
 
 ////////////////////////////////////////
 // Data-Oriented Snail /////////////////
@@ -89,6 +92,40 @@ void eso_vertex(real32 *p_j) {
 void eso_vertex(real32 *p, uint32 j) {
     eso_vertex(p[3 * j + 0], p[3 * j + 1], p[3 * j + 2]);
 }
+
+cow_real cross(cow_real a_x, cow_real a_y, cow_real b_x, cow_real b_y) {
+    return a_x * b_y - a_y * b_x;
+}
+
+////////////////////////////////////////
+// Cow Additions ///////////////////////
+////////////////////////////////////////
+
+bool32 ANGLE_IS_BETWEEN_CCW(real32 p, real32 a, real32 b) {
+    p -= a;
+    b -= a;
+    // vec2 A = { 1.0f, 0.0f };
+    // vec2 B = { COS(b), SIN(b) };
+    // vec2 P = { COS(p), SIN(p) };
+    // vec2 E = B - A;
+    // vec2 F = P - A;
+    // return (cross(E, F) > 0.0f);
+    cow_real E_x = COS(b) - 1.0f;
+    cow_real E_y = SIN(b);
+    cow_real F_x = COS(p) - 1.0f;
+    cow_real F_y = SIN(p);
+    return (cross(E_x, E_y, F_x, F_y) > 0.0f);
+}
+
+////////////////////////////////////////
+// Squared-Distance (TODO: move non-dxf parts all up here);
+////////////////////////////////////////
+
+real32 squared_distance_point_point(real32 x_A, real32 y_A, real32 x_B, real32 y_B) {
+    real32 dx = (x_A - x_B);
+    real32 dy = (y_A - y_B);
+    return (dx * dx) + (dy * dy);
+};
 
 ////////////////////////////////////////
 // BoundingBox /////////////////////////
@@ -128,18 +165,18 @@ bool32 bounding_box_contains(BoundingBox *outer, BoundingBox *inner) {
     return true;
 }
 
-void camera2D_zoom_to_bounding_box(Camera2D *camera2D, BoundingBox *bounding_box) {
+void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, BoundingBox *bounding_box) {
     real32 new_o_x = AVG(bounding_box->min[0], bounding_box->max[0]);
     real32 new_o_y = AVG(bounding_box->min[1], bounding_box->max[1]);
     real32 new_height = MAX((bounding_box->max[0] - bounding_box->min[0]) * 2 / _window_get_aspect(), (bounding_box->max[1] - bounding_box->min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
-    camera2D->screen_height_World = new_height;
-    camera2D->o_x = new_o_x;
-    camera2D->o_y = new_o_y;
+    camera_2D->screen_height_World = new_height;
+    camera_2D->o_x = new_o_x;
+    camera_2D->o_y = new_o_y;
 }
 
 ////////////////////////////////////////
-// DXF /////////////////////////////////
+// List<DXFEntity> /////////////////////////////////
 ////////////////////////////////////////
 
 #define DXF_COLOR_TRAVERSE        0
@@ -192,7 +229,7 @@ void get_point_on_circle_NOTE_pass_angle_in_radians(real32 *x, real32 *y, real32
 }
 
 void arc_process_angles_into_lerpable_radians_considering_flip_flag(DXFArc *arc, real32 *start_angle, real32 *end_angle, bool32 flip_flag) {
-    // The way the DXF spec works is that start_angle and end_angle define points on the circle
+    // The way the List<DXFEntity> spec works is that start_angle and end_angle define points on the circle
     // which are connected counterclockwise from start to end with an arc
     // (start -ccw-> end)
     //
@@ -212,55 +249,89 @@ void arc_process_angles_into_lerpable_radians_considering_flip_flag(DXFArc *arc,
     }
 }
 
-void entity_get_start_and_end_points(DXFEntity *entity, real32 *start_x, real32 *start_y, real32 *end_x, real32 *end_y) {
+real32 entity_length(DXFEntity *entity) {
+    if (entity->type == DXF_ENTITY_TYPE_LINE) {
+        DXFLine *line = &entity->line;
+        return SQRT(squared_distance_point_point(line->start_x, line->start_y, line->end_x, line->end_y));
+    } else {
+        ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+        DXFArc *arc = &entity->arc;
+        real32 start_angle;
+        real32 end_angle;
+        arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
+        return ABS(start_angle - end_angle) * arc->radius;
+    }
+}
+
+void entity_get_start_point(DXFEntity *entity, real32 *start_x, real32 *start_y) {
     if (entity->type == DXF_ENTITY_TYPE_LINE) {
         DXFLine *line = &entity->line;
         *start_x = line->start_x;
         *start_y = line->start_y;
+    } else {
+        ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+        DXFArc *arc = &entity->arc;
+        get_point_on_circle_NOTE_pass_angle_in_radians(start_x, start_y, arc->center_x, arc->center_y, arc->radius, RAD(arc->start_angle_in_degrees));
+    }
+}
+
+void entity_get_end_point(DXFEntity *entity, real32 *end_x, real32 *end_y) {
+    if (entity->type == DXF_ENTITY_TYPE_LINE) {
+        DXFLine *line = &entity->line;
         *end_x = line->end_x;
         *end_y = line->end_y;
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
-        get_point_on_circle_NOTE_pass_angle_in_radians(start_x, start_y, arc->center_x, arc->center_y, arc->radius, RAD(arc->start_angle_in_degrees));
         get_point_on_circle_NOTE_pass_angle_in_radians(  end_x,   end_y, arc->center_x, arc->center_y, arc->radius,   RAD(arc->end_angle_in_degrees));
     }
 }
 
-void entity_get_middle(DXFEntity *entity, real32 *middle_x, real32 *middle_y) {
+void entity_get_start_and_end_points(DXFEntity *entity, real32 *start_x, real32 *start_y, real32 *end_x, real32 *end_y) {
+    entity_get_start_point(entity, start_x, start_y);
+    entity_get_end_point(entity, end_x, end_y);
+}
+
+void entity_lerp_considering_flip_flag(DXFEntity *entity, real32 t, real32 *x, real32 *y, bool32 flip_flag) {
+    ASSERT(IS_BETWEEN(t, 0.0f, 1.0f));
     if (entity->type == DXF_ENTITY_TYPE_LINE) {
         DXFLine *line = &entity->line;
-        *middle_x = (line->start_x + line->end_x) / 2;
-        *middle_y = (line->start_y + line->end_y) / 2;
+        if (flip_flag) t = 1.0f - t; // FORNOW
+        *x = LERP(t, line->start_x, line->end_x);
+        *y = LERP(t, line->start_y, line->end_y);
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
         real32 angle; {
             real32 start_angle, end_angle;
-            arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
-            angle = (start_angle + end_angle) / 2;
+            arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag); // FORNOW
+            angle = LERP(t, start_angle, end_angle);
         }
-        get_point_on_circle_NOTE_pass_angle_in_radians(middle_x, middle_y, arc->center_x, arc->center_y, arc->radius, angle);
+        get_point_on_circle_NOTE_pass_angle_in_radians(x, y, arc->center_x, arc->center_y, arc->radius, angle);
     }
 }
 
-struct DXF {
-    uint32 num_entities;
-    DXFEntity *entities;
-};
-
-void dxf_free(DXF *dxf) {
-    if (dxf->entities) free(dxf->entities);
-    *dxf = {};
+void entity_get_middle(DXFEntity *entity, real32 *middle_x, real32 *middle_y) {
+    entity_lerp_considering_flip_flag(entity, 0.5f, middle_x, middle_y, false);
 }
 
-void dxf_load(char *filename, DXF *dxf) {
+// struct List<DXFEntity> {
+//     uint32 num_entities;
+//     DXFEntity *entities;
+// };
+void dxf_free(List<DXFEntity> *dxf) {
+    // if (dxf->entities) free(dxf->entities);
+    // *dxf = {};
+    list_free(dxf);
+}
+
+void dxf_load(char *filename, List<DXFEntity> *dxf) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
         return {};
         #elif 0
-        DXF result = {};
+        List<DXFEntity> result = {};
         result.num_entities = 8;
         result.entities = (DXFEntity *) calloc(result.num_entities, sizeof(DXFEntity));
         result.entities[0] = { DXF_ENTITY_TYPE_LINE, 0, 0.0, 0.0, 1.0, 0.0 };
@@ -279,83 +350,76 @@ void dxf_load(char *filename, DXF *dxf) {
     FILE *file = (FILE *) fopen(filename, "r");
     ASSERT(file);
 
-    List<DXFEntity> stretchy_list = {}; {
-        {
-            #define DXF_OPEN_MODE_NONE 0
-            #define DXF_OPEN_MODE_LINE 1
-            #define DXF_OPEN_MODE_ARC  2
-            u8 mode = 0;
-            int code = 0;
-            bool32 code_is_hot = false;
-            DXFEntity entity = {};
-            static char buffer[512];
-            while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
-                if (mode == DXF_OPEN_MODE_NONE) {
-                    if (poe_prefix_match(buffer, "LINE")) {
-                        mode = DXF_OPEN_MODE_LINE;
+    *dxf = {}; {
+        #define DXF_OPEN_MODE_NONE 0
+        #define DXF_OPEN_MODE_LINE 1
+        #define DXF_OPEN_MODE_ARC  2
+        u8 mode = 0;
+        int code = 0;
+        bool32 code_is_hot = false;
+        DXFEntity entity = {};
+        static char buffer[512];
+        while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
+            if (mode == DXF_OPEN_MODE_NONE) {
+                if (poe_prefix_match(buffer, "LINE")) {
+                    mode = DXF_OPEN_MODE_LINE;
+                    code_is_hot = false;
+                    entity = { DXF_ENTITY_TYPE_LINE };
+                } else if (poe_prefix_match(buffer, "ARC")) {
+                    mode = DXF_OPEN_MODE_ARC;
+                    code_is_hot = false;
+                    entity = { DXF_ENTITY_TYPE_ARC };
+                }
+            } else {
+                if (!code_is_hot) {
+                    sscanf(buffer, "%d", &code);
+                    // NOTE this initialization is sketchy but works
+                    // probably don't make a habit of it
+                    if (code == 0) {
+                        list_push_back(dxf, entity);
+                        mode = DXF_OPEN_MODE_NONE;
                         code_is_hot = false;
-                        entity = { DXF_ENTITY_TYPE_LINE };
-                    } else if (poe_prefix_match(buffer, "ARC")) {
-                        mode = DXF_OPEN_MODE_ARC;
-                        code_is_hot = false;
-                        entity = { DXF_ENTITY_TYPE_ARC };
                     }
                 } else {
-                    if (!code_is_hot) {
-                        sscanf(buffer, "%d", &code);
-                        // NOTE this initialization is sketchy but works
-                        // probably don't make a habit of it
-                        if (code == 0) {
-                            list_push_back(&stretchy_list, entity);
-                            mode = DXF_OPEN_MODE_NONE;
-                            code_is_hot = false;
-                        }
+                    if (code == 62) {
+                        int value;
+                        sscanf(buffer, "%d", &value);
+                        entity.color = value; 
                     } else {
-                        if (code == 62) {
-                            int value;
-                            sscanf(buffer, "%d", &value);
-                            entity.color = value; 
+                        float value;
+                        sscanf(buffer, "%f", &value);
+                        if (mode == DXF_OPEN_MODE_LINE) {
+                            if (code == 10) {
+                                entity.line.start_x = MM(value);
+                            } else if (code == 20) {
+                                entity.line.start_y = MM(value);
+                            } else if (code == 11) {
+                                entity.line.end_x = MM(value);
+                            } else if (code == 21) {
+                                entity.line.end_y = MM(value);
+                            }
                         } else {
-                            float value;
-                            sscanf(buffer, "%f", &value);
-                            if (mode == DXF_OPEN_MODE_LINE) {
-                                if (code == 10) {
-                                    entity.line.start_x = MM(value);
-                                } else if (code == 20) {
-                                    entity.line.start_y = MM(value);
-                                } else if (code == 11) {
-                                    entity.line.end_x = MM(value);
-                                } else if (code == 21) {
-                                    entity.line.end_y = MM(value);
-                                }
-                            } else {
-                                ASSERT(mode == DXF_OPEN_MODE_ARC);
-                                if (code == 10) {
-                                    entity.arc.center_x = MM(value);
-                                } else if (code == 20) {
-                                    entity.arc.center_y = MM(value);
-                                } else if (code == 40) {
-                                    entity.arc.radius = MM(value);
-                                } else if (code == 50) {
-                                    entity.arc.start_angle_in_degrees = value;
-                                } else if (code == 51) {
-                                    entity.arc.end_angle_in_degrees = value;
-                                }
+                            ASSERT(mode == DXF_OPEN_MODE_ARC);
+                            if (code == 10) {
+                                entity.arc.center_x = MM(value);
+                            } else if (code == 20) {
+                                entity.arc.center_y = MM(value);
+                            } else if (code == 40) {
+                                entity.arc.radius = MM(value);
+                            } else if (code == 50) {
+                                entity.arc.start_angle_in_degrees = value;
+                            } else if (code == 51) {
+                                entity.arc.end_angle_in_degrees = value;
                             }
                         }
                     }
-                    code_is_hot = !code_is_hot;
                 }
+                code_is_hot = !code_is_hot;
             }
         }
     }
 
     fclose(file);
-
-    dxf->num_entities = stretchy_list.length;
-    dxf->entities = (DXFEntity *) calloc(dxf->num_entities, sizeof(DXFEntity));
-    memcpy(dxf->entities, stretchy_list.data, dxf->num_entities * sizeof(DXFEntity));
-    list_free(&stretchy_list);
 }
 
 void _dxf_eso_color(uint32 color) {
@@ -403,19 +467,19 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
     }
 }
 
-void dxf_debug_draw(Camera2D *camera2D, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
-    eso_begin(camera_get_PV(camera2D), SOUP_LINES);
-    for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
+void dxf_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+    eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
+    for (DXFEntity *entity = dxf->data; entity < &dxf->data[dxf->length]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);
     }
     eso_end();
 }
 
-BoundingBox *dxf_entity_bounding_boxes_create(DXF *dxf) {
-    BoundingBox *result = (BoundingBox *) malloc(dxf->num_entities * sizeof(BoundingBox));
+BoundingBox *dxf_entity_bounding_boxes_create(List<DXFEntity> *dxf) {
+    BoundingBox *result = (BoundingBox *) malloc(dxf->length * sizeof(BoundingBox));
 
-    for (uint32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
-        DXFEntity *entity = &dxf->entities[entity_index];
+    for (uint32 entity_index = 0; entity_index < dxf->length; ++entity_index) {
+        DXFEntity *entity = &dxf->data[entity_index];
         result[entity_index] = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
         real32 s[2][2];
         uint32 n = 2;
@@ -428,23 +492,36 @@ BoundingBox *dxf_entity_bounding_boxes_create(DXF *dxf) {
         }
         if (entity->type == DXF_ENTITY_TYPE_ARC) {
             DXFArc *arc = &entity->arc;
-            // NOTE: endpoints already taken are of
+            // NOTE: endpoints already taken are of; we just have to deal with the quads (if they exist)
+            // TODO: angle_is_between_counter_clockwise (TODO TODO TODO)
+
+
+            #if 0
             real32 start_angle = RAD(arc->start_angle_in_degrees);
             real32 end_angle = RAD(arc->end_angle_in_degrees);
-            { // FORNOW
-                while (start_angle < 0.0f) {
-                    start_angle += TAU;
-                    end_angle += TAU;
-                }
-                while (start_angle > TAU) {
-                    start_angle -= TAU;
-                    end_angle -= TAU;
-                }
+            { // NOTE: start_angle is in [0, TAU], end_angle is in ([start_angle, start_angle + PI] => [TAU, 5 * PI / 2]) 
+              // => total range is ~ [0, 2 * TAU]
+                while (start_angle > TAU) start_angle -= TAU;
+                while (start_angle < 0.0f) start_angle += TAU;
+                while (end_angle > start_angle) end_angle -= TAU;
+                while (end_angle < start_angle) end_angle += TAU;
             }
-            if (IS_BETWEEN(         0, start_angle, end_angle)) result[entity_index].max[0] = MAX(result[entity_index].max[0], arc->center_x + arc->radius);
-            if (IS_BETWEEN(    PI / 2, start_angle, end_angle)) result[entity_index].max[1] = MAX(result[entity_index].max[1], arc->center_y + arc->radius);
-            if (IS_BETWEEN(    PI    , start_angle, end_angle)) result[entity_index].min[0] = MIN(result[entity_index].min[0], arc->center_x - arc->radius);
-            if (IS_BETWEEN(3 * PI / 2, start_angle, end_angle)) result[entity_index].min[1] = MIN(result[entity_index].min[1], arc->center_y - arc->radius);
+            printf("%lf %lf\n", start_angle, end_angle);
+            for (uint32 tau_multiplier = 0; tau_multiplier <= 1; ++tau_multiplier) {
+                if (IS_BETWEEN(tau_multiplier * TAU +          0, start_angle, end_angle)) result[entity_index].max[0] = MAX(result[entity_index].max[0], arc->center_x + arc->radius);
+                if (IS_BETWEEN(tau_multiplier * TAU +     PI / 2, start_angle, end_angle)) result[entity_index].max[1] = MAX(result[entity_index].max[1], arc->center_y + arc->radius);
+                if (IS_BETWEEN(tau_multiplier * TAU +     PI    , start_angle, end_angle)) result[entity_index].min[0] = MIN(result[entity_index].min[0], arc->center_x - arc->radius);
+                if (IS_BETWEEN(tau_multiplier * TAU + 3 * PI / 2, start_angle, end_angle)) result[entity_index].min[1] = MIN(result[entity_index].min[1], arc->center_y - arc->radius);
+            }
+            #else
+            if (ANGLE_IS_BETWEEN_CCW(  0.0f, arc->start_angle_in_degrees, arc->end_angle_in_degrees)) result[entity_index].max[0] = MAX(result[entity_index].max[0], arc->center_x + arc->radius);
+            if (ANGLE_IS_BETWEEN_CCW( 90.0f, arc->start_angle_in_degrees, arc->end_angle_in_degrees)) result[entity_index].max[1] = MAX(result[entity_index].max[1], arc->center_y + arc->radius);
+            if (ANGLE_IS_BETWEEN_CCW(180.0f, arc->start_angle_in_degrees, arc->end_angle_in_degrees)) result[entity_index].min[0] = MIN(result[entity_index].min[0], arc->center_x - arc->radius);
+            if (ANGLE_IS_BETWEEN_CCW(270.0f, arc->start_angle_in_degrees, arc->end_angle_in_degrees)) result[entity_index].min[1] = MIN(result[entity_index].min[1], arc->center_y - arc->radius);
+            #endif
+
+
+
         }
     }
 
@@ -455,11 +532,6 @@ BoundingBox *dxf_entity_bounding_boxes_create(DXF *dxf) {
 // SquaredDistance /////////////////////
 ////////////////////////////////////////
 
-real32 squared_distance_point_point(real32 x_A, real32 y_A, real32 x_B, real32 y_B) {
-    real32 dx = (x_A - x_B);
-    real32 dy = (y_A - y_B);
-    return (dx * dx) + (dy * dy);
-};
 
 real32 squared_distance_point_line_segment(real32 x, real32 y, real32 start_x, real32 start_y, real32 end_x, real32 end_y) {
     real32 l2 = squared_distance_point_point(start_x, start_y, end_x, end_y);
@@ -517,9 +589,9 @@ real32 squared_distance_point_dxf_entity(real32 x, real32 y, DXFEntity *entity) 
     }
 }
 
-real32 squared_distance_point_dxf(real32 x, real32 y, DXF *dxf) {
+real32 squared_distance_point_dxf(real32 x, real32 y, List<DXFEntity> *dxf) {
     real32 result = HUGE_VAL;
-    for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
+    for (DXFEntity *entity = dxf->data; entity < &dxf->data[dxf->length]; ++entity) {
         result = MIN(result, squared_distance_point_dxf_entity(x, y, entity));
     }
     return result;
@@ -541,13 +613,13 @@ struct DXFLoopAnalysisResult {
     uint32 *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(DXF *dxf, bool32 *dxf_selection_mask_NOTE_pass_NULL_for_pick = NULL) {
-    if (dxf->num_entities == 0) {
+DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, bool32 *dxf_selection_mask_NOTE_pass_NULL_for_pick = NULL) {
+    if (dxf->length == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
         result.num_entities_in_loops = (uint32 *) calloc(result.num_loops, sizeof(uint32));
         result.loops = (DXFEntityIndexAndFlipFlag **) calloc(result.num_loops, sizeof(DXFEntityIndexAndFlipFlag *));
-        result.loop_index_from_entity_index = (uint32 *) calloc(dxf->num_entities, sizeof(uint32));
+        result.loop_index_from_entity_index = (uint32 *) calloc(dxf->length, sizeof(uint32));
         return result;
     }
 
@@ -555,12 +627,12 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(DXF *dxf, bool32
     { // num_entities_in_loops, loops
       // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
-            bool32 *entity_already_added = (bool32 *) calloc(dxf->num_entities, sizeof(bool32));
+            bool32 *entity_already_added = (bool32 *) calloc(dxf->length, sizeof(bool32));
             while (true) {
                 #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!dxf_selection_mask_NOTE_pass_NULL_for_pick || dxf_selection_mask_NOTE_pass_NULL_for_pick[i]))
                 { // seed loop
                     bool32 added_and_seeded_new_loop = false;
-                    for (uint32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
+                    for (uint32 entity_index = 0; entity_index < dxf->length; ++entity_index) {
                         if (MACRO_CANDIDATE_VALID(entity_index)) {
                             added_and_seeded_new_loop = true;
                             entity_already_added[entity_index] = true;
@@ -575,16 +647,16 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(DXF *dxf, bool32
                     real32 tolerance = TOLERANCE_DEFAULT;
                     while (true) {
                         bool32 added_new_entity_to_loop = false;
-                        for (uint32 entity_index = 0; entity_index < dxf->num_entities; ++entity_index) {
+                        for (uint32 entity_index = 0; entity_index < dxf->length; ++entity_index) {
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
                             real32 start_x_prev, start_y_prev, end_x_prev, end_y_prev;
                             real32 start_x_i, start_y_i, end_x_i, end_y_i;
                             DXFEntityIndexAndFlipFlag *prev_entity_index_and_flip_flag = &(stretchy_list.data[stretchy_list.length - 1].data[stretchy_list.data[stretchy_list.length - 1].length - 1]);
                             {
                                 entity_get_start_and_end_points(
-                                        &dxf->entities[prev_entity_index_and_flip_flag->entity_index],
+                                        &dxf->data[prev_entity_index_and_flip_flag->entity_index],
                                         &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
-                                entity_get_start_and_end_points(&dxf->entities[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
+                                entity_get_start_and_end_points(&dxf->data[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
                             }
                             bool32 is_next_entity = false;
                             bool32 flip_flag = false;
@@ -628,7 +700,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(DXF *dxf, bool32
                             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
                                 uint32 entity_index = entity_index_and_flip_flag->entity_index;
                                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
-                                DXFEntity *entity = &dxf->entities[entity_index];
+                                DXFEntity *entity = &dxf->data[entity_index];
                                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                                     DXFLine *line = &entity->line;
                                     // shoelace-type formula
@@ -688,8 +760,8 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(DXF *dxf, bool32
         list_free(&stretchy_list);
     }
     // loop_index_from_entity_index (brute force)
-    result.loop_index_from_entity_index = (uint32 *) calloc(dxf->num_entities, sizeof(uint32));
-    for (uint32 i = 0; i < dxf->num_entities; ++i) {
+    result.loop_index_from_entity_index = (uint32 *) calloc(dxf->length, sizeof(uint32));
+    for (uint32 i = 0; i < dxf->length; ++i) {
         for (uint32 j = 0; j < result.num_loops; ++j) {
             for (uint32 k = 0; k < result.num_entities_in_loops[j]; ++k) {
                 if (i == result.loops[j][k].entity_index) {
@@ -728,7 +800,7 @@ struct CrossSectionEvenOdd {
     vec2 **polygonal_loops;
 };
 
-CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
+CrossSectionEvenOdd cross_section_create(List<DXFEntity> *dxf, bool32 *dxf_selection_mask) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
@@ -764,7 +836,7 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
                 uint32 entity_index = entity_index_and_flip_flag->entity_index;
                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
-                DXFEntity *entity = &dxf->entities[entity_index];
+                DXFEntity *entity = &dxf->data[entity_index];
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
                     if (!flip_flag) {
@@ -811,8 +883,8 @@ CrossSectionEvenOdd cross_section_create(DXF *dxf, bool32 *dxf_selection_mask) {
     return result;
 }
 
-void cross_section_debug_draw(Camera2D *camera2D, CrossSectionEvenOdd *cross_section) {
-    eso_begin(camera_get_PV(camera2D), SOUP_LINES);
+void cross_section_debug_draw(Camera2D *camera_2D, CrossSectionEvenOdd *cross_section) {
+    eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
     eso_color(monokai.white);
     for (uint32 loop_index = 0; loop_index < cross_section->num_polygonal_loops; ++loop_index) {
         vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
@@ -893,10 +965,14 @@ void fancy_mesh_cosmetic_edges_calculate(FancyMesh *fancy_mesh) {
                 for (Pair<Pair<uint32, uint32>, vec3> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
                     vec3 n2 = pair->value;
                     // pprint(n2);
-                    if (squaredNorm(n2) < 0.3f) {
-                        list_push_back(&list, pair->key.first); // FORNOW
-                        list_push_back(&list, pair->key.second); // FORNOW
-                    }
+                    real32 angle = DEG(acos(n2.x + n2.y + n2.z)); // [0.0f, 180.0f]
+                    if
+                        // (squaredNorm(n2) < 0.3f)
+                        (angle > 30.0f)
+                        {
+                            list_push_back(&list, pair->key.first); // FORNOW
+                            list_push_back(&list, pair->key.second); // FORNOW
+                        }
                 }
             }
         }
@@ -1083,7 +1159,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
 // freaky local_persist stuff //////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
+void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
     static IndexedTriangleMesh3D grid_box;
     if (grid_box.num_vertices == 0) {
         static int _grid_box_num_vertices = 24;
@@ -1104,14 +1180,6 @@ void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
             { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
             { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
         };
-        static vec3 _grid_box_vertex_colors[] = {
-            { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{ 0.8f,0.4f, 0.8f},
-            {0.4f, 0.8f, 0.8f},{0.4f, 0.8f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
-            { 0.8f, 0.8f, 0.8f},{ 0.8f, 0.8f,0.4f},{0.4f, 0.8f,0.4f},{0.4f, 0.8f, 0.8f},
-            { 0.8f,0.4f, 0.8f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f,0.4f, 0.8f},
-            { 0.8f, 0.8f, 0.8f},{ 0.8f,0.4f, 0.8f},{0.4f,0.4f, 0.8f},{0.4f, 0.8f, 0.8f},
-            { 0.8f, 0.8f,0.4f},{ 0.8f,0.4f,0.4f},{0.4f,0.4f,0.4f},{0.4f, 0.8f,0.4f},
-        };
         static vec2 _grid_box_vertex_texCoords[] = {
             {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
             {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
@@ -1125,7 +1193,7 @@ void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
             _grid_box_num_triangles,
             _grid_box_vertex_positions,
             NULL,
-            _grid_box_vertex_colors,
+            NULL,
             _grid_box_triangle_indices,
             _grid_box_vertex_texCoords
         };
@@ -1140,11 +1208,12 @@ void conversation_draw_3D_grid(mat4 P_3D, mat4 V_3D) {
                 uint32 n = uint32(texture_side_length / GRID_SIDE_LENGTH * 10);
                 uint32 t = 2;
                 bool32 stripe = (((i + o) % n < t) || ((j + o) % n < t));
-                u8 value = 0;
+                u8 a = 160;
+                u8 value = (u8)((255.0f/166.0f) * 0.07f * 255);
                 if (stripe) value = 80;
                 if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
                 for (uint32 d = 0; d < 3; ++d) data[k + d] = value;
-                data[k + 3] = 160;
+                data[k + 3] = a;
             }
         }
         _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, data);

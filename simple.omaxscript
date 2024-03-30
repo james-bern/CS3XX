@@ -1,0 +1,69 @@
+#Language PascalScript
+{
+  This template waits for the user to click on
+  an entiy, and then and performs some action on
+  the nearest entity to where the user clicked.
+}
+
+{Include the OMAX Library for some constants needed
+ to set mouse cursors and such.}
+uses '%OMAX_Library%OMAX_Constants.omaxscript';
+
+var
+  NearestEntity:Integer;
+  Button:Byte;
+begin
+
+  {Unrem the lines below if you need some test data to work with.}
+  {
+  OMAX_ClearAll;
+  OMAX_OpenFile(OMAX_GetSharedFolder+'Samples\Art_and_Fun\Butterfly.dxf');
+  OMAX_ZoomExtents;
+  }
+
+  {Disable any command that might already be active, to prevent
+   unwanted behavior like zooming when the user clicks.}
+  OMAX_ChangeActivityMode(amDoNothing);
+  
+  {Set the mouse cursor to something that indicates to the user
+   that they need to click on an entity.}
+  OMAX_SetCursor(crSelect);  
+
+  {Wait for the user to click on something.}
+  Button:=OMAX_WaitForMouseClick;
+
+  {Determine the nearest point and entity where the user clicked.}
+  NearestEntity:=OMAX_NearestEntity(OMAX_MouseCadX,OMAX_MouseCadY);
+  
+  {Do something based on which button is clicked on the entity found,
+   if an entity was actually found.}
+  if NearestEntity<>0 then
+  begin
+
+    {<<<<<----- ADD YOUR OWN CODE BELOW ----->>>>>}
+    Case Button of
+      mbsLeft:
+      begin
+        {Change code here to do what you want to do on a LEFT mouse click}
+        OMAX_E_SetQuality(NearestEntity,8)
+      end;
+      mbsRight:
+      begin
+        {Change code here to do what you want to do on a RIGHT mouse click}
+        ShowMessage('You clicked on entity #'+IntToStr(NearestEntity)+' with the RIGHT button');
+      end;
+      mbsMiddle:
+      begin
+        {Change code here to do what you want to do on a MIDDLE mouse click}
+        ShowMessage('You clicked on entity #'+IntToStr(NearestEntity)+' with the MIDDLE button');
+      end;
+    end; 
+    {<<<<<----- ADD YOUR OWN CODE ABOVE ----->>>>>}
+
+    {Refresh the screen with any changes made.}
+    OMAX_Redraw;
+
+  end;
+
+end.
+
