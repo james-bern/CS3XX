@@ -3181,41 +3181,51 @@ vec3 color_rainbow_swirl(cow_real t) {
 template <typename T> struct List {
     u32 length;
     u32 _capacity;
-    T *data;
+    T *array;
     // T &operator [](int index) { return data[index]; }
 };
 
 template <typename T> void list_push_back(List<T> *list, T element) {
     if (list->_capacity == 0) {
-        ASSERT(!list->data);
+        ASSERT(!list->array);
         ASSERT(list->length == 0);
         list->_capacity = 16;
-        list->data = (T *) malloc(list->_capacity * sizeof(T));
+        list->array = (T *) malloc(list->_capacity * sizeof(T));
     }
     if (list->length == list->_capacity) {
         list->_capacity *= 2;
-        list->data = (T *) realloc(list->data, list->_capacity * sizeof(T));
+        list->array = (T *) realloc(list->array, list->_capacity * sizeof(T));
     }
-    list->data[list->length++] = element;
+    list->array[list->length++] = element;
 }
 
-template <typename T> void list_free(List<T> *list) {
-    if (list->data) free(list->data);
+template <typename T> void list_free_and_zero(List<T> *list) {
+    if (list->array) free(list->array);
     *list = {};
 }
+
+template <typename T> void list_clone(List<T> *dst, List<T> *src) {
+    list_free_and_zero(dst);
+    dst->length = src->length;
+    dst->_capacity = src->_capacity;
+    int num_bytes = dst->_capacity * sizeof(T);
+    dst->array = (T *) malloc(num_bytes);
+    memcpy(dst->array, src->array, num_bytes);
+}
+
 
 template <typename T> void list_insert(List<T> *list, u32 i, T element) {
     ASSERT(i <= list->length);
     list_push_back(list, {});
-    memmove(&list->data[i + 1], &list->data[i], (list->length - i - 1) * sizeof(T));
-    list->data[i] = element;
+    memmove(&list->array[i + 1], &list->array[i], (list->length - i - 1) * sizeof(T));
+    list->array[i] = element;
 }
 
 template <typename T> T list_delete(List<T> *list, u32 i) {
     ASSERT(i >= 0);
     ASSERT(i < list->length);
-    T result = list->data[i];
-    memmove(&list->data[i], &list->data[i + 1], (list->length - i - 1) * sizeof(T));
+    T result = list->array[i];
+    memmove(&list->array[i], &list->array[i + 1], (list->length - i - 1) * sizeof(T));
     --list->length;
     return result;
 }
@@ -3238,7 +3248,7 @@ template <typename T> T list_pop_front(List<T> *list) {
 #define Queue List
 #define queue_enqueue list_push_front
 #define queue_dequeue list_pop_back
-#define queue_free list_free
+#define queue_free list_free_and_zero
 
 
 
@@ -3326,7 +3336,7 @@ template <typename Key, typename Value> void map_put(Map<Key, Value> *map, Key k
     { // TODO resizing; load factor; ...
     }
     List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
-    for (Pair<Key, Value> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+    for (Pair<Key, Value> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
         if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
             pair->value = value;
             return;
@@ -3339,7 +3349,7 @@ template <typename Key, typename Value> Value *_map_get_pointer(Map<Key, Value> 
     if (map->num_buckets == 0) return NULL;
     ASSERT(map->buckets);
     List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
-    for (Pair<Key, Value> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+    for (Pair<Key, Value> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
         if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
             return &pair->value;
         }
@@ -3351,7 +3361,7 @@ template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key 
     if (map->num_buckets == 0) return default_value;
     ASSERT(map->buckets);
     List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
-    for (Pair<Key, Value> *pair = bucket->data; pair < &bucket->data[bucket->length]; ++pair) {
+    for (Pair<Key, Value> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
         if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
             return pair->value;
         }
@@ -3360,8 +3370,8 @@ template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key 
 }
 
 
-template <typename Key, typename Value> void map_free(Map<Key, Value> *map) {
-    for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free(bucket);
+template <typename Key, typename Value> void map_free_and_zero(Map<Key, Value> *map) {
+    for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free_and_zero(bucket);
     if (map->num_buckets) free(map->buckets);
     *map = {};
 }
@@ -3755,12 +3765,12 @@ IndexedTriangleMesh3D _meshutil_indexed_triangle_mesh_load(char *filename, bool 
 
         // note: don't free the data pointers! (we're stealing them)
         mesh_mesh.num_triangles = triangle_indices.length;
-        mesh_mesh.triangle_indices = triangle_indices.data;
+        mesh_mesh.triangle_indices = triangle_indices.array;
         mesh_mesh.num_vertices = vertex_positions.length;
-        mesh_mesh.vertex_positions = vertex_positions.data;
+        mesh_mesh.vertex_positions = vertex_positions.array;
         if (vertex_colors.length) {
             ASSERT(vertex_colors.length == vertex_positions.length); 
-            mesh_mesh.vertex_colors = vertex_colors.data;
+            mesh_mesh.vertex_colors = vertex_colors.array;
         }
     }
     if (transform_vertex_positions_to_double_unit_box) {
@@ -3800,7 +3810,7 @@ Soup3D _meshutil_soup_TRIANGLES_load(char *filename, bool transform_vertex_posit
         }
         // note: don't free the data pointers! (we're stealing them)
         soup_mesh.num_vertices = vertex_positions.length;
-        soup_mesh.vertex_positions = vertex_positions.data;
+        soup_mesh.vertex_positions = vertex_positions.array;
     }
     if (transform_vertex_positions_to_double_unit_box) {
         _meshutil_transform_vertex_positions_to_double_unit_box(soup_mesh.num_vertices, soup_mesh.vertex_positions);
@@ -3959,7 +3969,7 @@ template<int D_color = 3> vec2 *widget_drag(mat4 PV, int num_vertices, vec2 *ver
     return (vec2 *) _widget_drag(PV.data, num_vertices, (cow_real *) vertex_positions, size_in_pixels, color[0], color[1], color[2], D_color == 4 ? color[3] : 1);
 }
 void widget_line_editor(mat4 PV, int primitive, List<vec2> *vertices, cow_real size = 0) {
-    WidgetLineEditorResult result = _widget_line_editor__NOTE_no_drag(PV, primitive, vertices->length, vertices->data, size);
+    WidgetLineEditorResult result = _widget_line_editor__NOTE_no_drag(PV, primitive, vertices->length, vertices->array, size);
     if (result.success) {
         if (!result.add_delete) {
             list_insert(vertices, result.index, result.vertex_position);
@@ -3967,7 +3977,7 @@ void widget_line_editor(mat4 PV, int primitive, List<vec2> *vertices, cow_real s
             list_delete(vertices, result.index);
         }
     }
-    widget_drag(PV, vertices->length, vertices->data);
+    widget_drag(PV, vertices->length, vertices->array);
 }
 #endif
 
@@ -4467,10 +4477,10 @@ void opt_solve_sparse_linear_system(int N, cow_real *x, int _A_num_entries, OptE
                     { // for_(c, n) { SWAP(NXNP1(A, h, c), NXNP1(A, max_i, c)); }
                         cow_real *row_a = A + n * h;
                         cow_real *row_b = A + n * max_i;
-                        int size = n * sizeof(cow_real);
-                        memcpy(scratch, row_a, size);
-                        memcpy(row_a, row_b, size);
-                        memcpy(row_b, scratch, size);
+                        int num_bytes = n * sizeof(cow_real);
+                        memcpy(scratch, row_a, num_bytes);
+                        memcpy(row_a, row_b, num_bytes);
+                        memcpy(row_b, scratch, num_bytes);
                     }
                     for (int i = h + 1; i < m; ++i) {
                         cow_real f = NXNP1(A, i, k) / NXNP1(A, h, k);
@@ -4912,11 +4922,11 @@ void eg_kitchen_sink() {
 
         {
             vec2 s_mouse = globals.mouse_position_NDC;
-            if (trace.length == 0 || squaredNorm(trace.data[trace.length - 1] - s_mouse) > .0001) {
+            if (trace.length == 0 || squaredNorm(trace.array[trace.length - 1] - s_mouse) > .0001) {
                 list_push_back(&trace, s_mouse);
             }
             if (gui_button("clear trace", 'r')) {
-                list_free(&trace);
+                list_free_and_zero(&trace);
             }
             // if (globals.mouse_left_double_clicked) {
             //     for (int i = 0; i < trace.length; ++i) {
@@ -4925,7 +4935,7 @@ void eg_kitchen_sink() {
             // }
             for (int pass = 0; pass < 3; ++pass ) {
                 mat4 transform = (pass < 2) ? globals.Identity : PV * M4_Translation(0.0f, 0.0f, 0.01f) * M;
-                soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.data, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0f, 1.0f, 0.0f, 1.0f)), (pass == 0) ? 30.0f : 0.0f, pass < 2);
+                soup_draw(transform, SOUP_LINE_STRIP, trace.length, trace.array, NULL, (pass == 0) ? monokai.white : color_plasma(LINEAR_REMAP(globals.mouse_position_NDC.x, -1.0f, 1.0f, 0.0f, 1.0f)), (pass == 0) ? 30.0f : 0.0f, pass < 2);
             }
 
             text_draw(globals.NDC_from_Screen, "  :3", globals.mouse_position_Screen); 
