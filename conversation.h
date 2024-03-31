@@ -118,7 +118,7 @@ bool32 ANGLE_IS_BETWEEN_CCW(real32 p, real32 a, real32 b) {
 }
 
 ////////////////////////////////////////
-// Squared-Distance (TODO: move non-dxf parts all up here);
+// Squared-Distance (TODO: move non-dxf_entities parts all up here);
 ////////////////////////////////////////
 
 real32 squared_distance_point_point(real32 x_A, real32 y_A, real32 x_B, real32 y_B) {
@@ -309,7 +309,7 @@ void entity_get_middle(DXFEntity *entity, real32 *middle_x, real32 *middle_y) {
 //     DXFEntity *entities;
 // };
 
-void dxf_load(char *filename, List<DXFEntity> *dxf) {
+void dxf_load(char *filename, List<DXFEntity> *dxf_entities) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
@@ -329,12 +329,12 @@ void dxf_load(char *filename, List<DXFEntity> *dxf) {
         return result;
     }
     #endif
-    list_free_AND_zero(dxf);
+    list_free_AND_zero(dxf_entities);
 
     FILE *file = (FILE *) fopen(filename, "r");
     ASSERT(file);
 
-    *dxf = {}; {
+    *dxf_entities = {}; {
         #define DXF_OPEN_MODE_NONE 0
         #define DXF_OPEN_MODE_LINE 1
         #define DXF_OPEN_MODE_ARC  2
@@ -360,7 +360,7 @@ void dxf_load(char *filename, List<DXFEntity> *dxf) {
                     // NOTE this initialization is sketchy but works
                     // probably don't make a habit of it
                     if (code == 0) {
-                        list_push_back(dxf, entity);
+                        list_push_back(dxf_entities, entity);
                         mode = DXF_OPEN_MODE_NONE;
                         code_is_hot = false;
                     }
@@ -451,9 +451,9 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
     }
 }
 
-void dxf_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+void dxf_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
     eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
-    for (DXFEntity *entity = dxf->array; entity < &dxf->array[dxf->length]; ++entity) {
+    for (DXFEntity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);
     }
     eso_end();
@@ -482,12 +482,12 @@ BoundingBox entity_get_bounding_box(DXFEntity *entity) {
     return result;
 }
 
-BoundingBox dxf_get_bounding_box(List<DXFEntity> *dxf, bool32 *include = NULL) {
+BoundingBox dxf_get_bounding_box(List<DXFEntity> *dxf_entities, bool32 *include = NULL) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL }; 
-    for (uint32 i = 0; i < dxf->length; ++i) {
+    for (uint32 i = 0; i < dxf_entities->length; ++i) {
         if ((include) && (!include[i])) continue;
         for (uint32 d = 0; d < 2; ++d) {
-            BoundingBox bounding_box = entity_get_bounding_box(&dxf->array[i]);
+            BoundingBox bounding_box = entity_get_bounding_box(&dxf_entities->array[i]);
             result.min[d] = MIN(result.min[d], bounding_box.min[d]);
             result.max[d] = MAX(result.max[d], bounding_box.max[d]);
         }
@@ -556,9 +556,9 @@ real32 squared_distance_point_dxf_entity(real32 x, real32 y, DXFEntity *entity) 
     }
 }
 
-real32 squared_distance_point_dxf(real32 x, real32 y, List<DXFEntity> *dxf) {
+real32 squared_distance_point_dxf(real32 x, real32 y, List<DXFEntity> *dxf_entities) {
     real32 result = HUGE_VAL;
-    for (DXFEntity *entity = dxf->array; entity < &dxf->array[dxf->length]; ++entity) {
+    for (DXFEntity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
         result = MIN(result, squared_distance_point_dxf_entity(x, y, entity));
     }
     return result;
@@ -580,13 +580,13 @@ struct DXFLoopAnalysisResult {
     uint32 *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, bool32 *include = NULL) {
-    if (dxf->length == 0) {
+DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf_entities, bool32 *include = NULL) {
+    if (dxf_entities->length == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
         result.num_entities_in_loops = (uint32 *) calloc(result.num_loops, sizeof(uint32));
         result.loops = (DXFEntityIndexAndFlipFlag **) calloc(result.num_loops, sizeof(DXFEntityIndexAndFlipFlag *));
-        result.loop_index_from_entity_index = (uint32 *) calloc(dxf->length, sizeof(uint32));
+        result.loop_index_from_entity_index = (uint32 *) calloc(dxf_entities->length, sizeof(uint32));
         return result;
     }
 
@@ -594,12 +594,12 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> 
     { // num_entities_in_loops, loops
       // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
-            bool32 *entity_already_added = (bool32 *) calloc(dxf->length, sizeof(bool32));
+            bool32 *entity_already_added = (bool32 *) calloc(dxf_entities->length, sizeof(bool32));
             while (true) {
                 #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!include || include[i]))
                 { // seed loop
                     bool32 added_and_seeded_new_loop = false;
-                    for (uint32 entity_index = 0; entity_index < dxf->length; ++entity_index) {
+                    for (uint32 entity_index = 0; entity_index < dxf_entities->length; ++entity_index) {
                         if (MACRO_CANDIDATE_VALID(entity_index)) {
                             added_and_seeded_new_loop = true;
                             entity_already_added[entity_index] = true;
@@ -614,16 +614,16 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> 
                     real32 tolerance = TOLERANCE_DEFAULT;
                     while (true) {
                         bool32 added_new_entity_to_loop = false;
-                        for (uint32 entity_index = 0; entity_index < dxf->length; ++entity_index) {
+                        for (uint32 entity_index = 0; entity_index < dxf_entities->length; ++entity_index) {
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
                             real32 start_x_prev, start_y_prev, end_x_prev, end_y_prev;
                             real32 start_x_i, start_y_i, end_x_i, end_y_i;
                             DXFEntityIndexAndFlipFlag *prev_entity_index_and_flip_flag = &(stretchy_list.array[stretchy_list.length - 1].array[stretchy_list.array[stretchy_list.length - 1].length - 1]);
                             {
                                 entity_get_start_and_end_points(
-                                        &dxf->array[prev_entity_index_and_flip_flag->entity_index],
+                                        &dxf_entities->array[prev_entity_index_and_flip_flag->entity_index],
                                         &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
-                                entity_get_start_and_end_points(&dxf->array[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
+                                entity_get_start_and_end_points(&dxf_entities->array[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
                             }
                             bool32 is_next_entity = false;
                             bool32 flip_flag = false;
@@ -667,7 +667,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> 
                             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
                                 uint32 entity_index = entity_index_and_flip_flag->entity_index;
                                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
-                                DXFEntity *entity = &dxf->array[entity_index];
+                                DXFEntity *entity = &dxf_entities->array[entity_index];
                                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                                     DXFLine *line = &entity->line;
                                     // shoelace-type formula
@@ -727,8 +727,8 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> 
         list_free_AND_zero(&stretchy_list);
     }
     // loop_index_from_entity_index (brute force)
-    result.loop_index_from_entity_index = (uint32 *) calloc(dxf->length, sizeof(uint32));
-    for (uint32 i = 0; i < dxf->length; ++i) {
+    result.loop_index_from_entity_index = (uint32 *) calloc(dxf_entities->length, sizeof(uint32));
+    for (uint32 i = 0; i < dxf_entities->length; ++i) {
         for (uint32 j = 0; j < result.num_loops; ++j) {
             for (uint32 k = 0; k < result.num_entities_in_loops[j]; ++k) {
                 if (i == result.loops[j][k].entity_index) {
@@ -767,10 +767,10 @@ struct CrossSectionEvenOdd {
     vec2 **polygonal_loops;
 };
 
-CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, bool32 *include) {
+CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf_entities, bool32 *include) {
     #if 0
     {
-        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf_entities);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(include);
         CrossSectionEvenOdd result = {};
         result.num_polygonal_loops = 2;
@@ -795,7 +795,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, 
     #endif
     // populate List's
     List<List<vec2>> stretchy_list = {}; {
-        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf, include);
+        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf_entities, include);
         for (uint32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
             uint32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
@@ -803,7 +803,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, 
             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
                 uint32 entity_index = entity_index_and_flip_flag->entity_index;
                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
-                DXFEntity *entity = &dxf->array[entity_index];
+                DXFEntity *entity = &dxf_entities->array[entity_index];
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
                     if (!flip_flag) {

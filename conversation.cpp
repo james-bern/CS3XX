@@ -3,18 +3,18 @@
 // TODO ability to hide the 2D stuff just to hide it (so you can be fully in a layout clone)
 
 // NOTE FORNOW the following operations are considered "fast"--we don't bother storing them
-// - computing a dxf's bounding box
+// - computing a dxf_entities's bounding box
 
 
 // // TODO ?
 // TODO 'z' snaps to origin (TODO what is the z-plane)
 
-// // TODO dxf editor
+// // TODO dxf_entities editor
 // TODO create/extrude/whatever-we-call-it state wrapped up into a struct
 // XXXX drawing lines
 // XXXX drawing lines with snaps
 // XXXX undoing the drawing of a line
-// XXXX actually incorporating drawn lines into the dxf
+// XXXX actually incorporating drawn lines into the dxf_entities
 // TODO deleting lines
 // TODO erasing lines
 // TODO space bar to repeat
@@ -186,7 +186,7 @@ Camera3D camera_3D;
 bool32 hide_grid, show_details, show_help, show_stack;
 
 
-List<DXFEntity> dxf;
+List<DXFEntity> dxf_entities;
 List<bool32> dxf_selection_mask;
 real32 dxf_origin_x;
 real32 dxf_origin_y;
@@ -305,14 +305,14 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
         return;
     }
 
-    list_free_AND_zero(&dxf);
+    list_free_AND_zero(&dxf_entities);
     list_free_AND_zero(&dxf_selection_mask);
 
-    dxf_load(filename, &dxf);
-    list_calloc_NOT_reserve(&dxf_selection_mask, dxf.length, sizeof(bool32));
+    dxf_load(filename, &dxf_entities);
+    list_calloc_NOT_reserve(&dxf_selection_mask, dxf_entities.length, sizeof(bool32));
 
     if (!preserve_cameras_and_dxf_origin) {
-        camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf));
+        camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf_entities));
         dxf_origin_x = 0.0f;
         dxf_origin_y = 0.0f;
     }
@@ -333,12 +333,12 @@ void conversation_stl_load(char *filename, bool preserve_cameras = false) {
     }
 }
 void conversation_load(char *filename, bool preserve_cameras = false) {
-    if (poe_suffix_match(filename, ".dxf")) {
+    if (poe_suffix_match(filename, ".dxf_entities")) {
         conversation_dxf_load(filename, preserve_cameras);
     } else if (poe_suffix_match(filename, ".stl")) {
         conversation_stl_load(filename, preserve_cameras);
     } else {
-        conversation_messagef("[load] \"%s\" fileype not supported; must be *.dxf or *.stl", filename);
+        conversation_messagef("[load] \"%s\" fileype not supported; must be *.dxf_entities or *.stl", filename);
     }
 }
 void conversation_stl_save(char *filename) {
@@ -389,7 +389,7 @@ BEGIN_PRE_MAIN {
 
 void conversation_cameras_reset() {
     camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
-    camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf));
+    camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf_entities));
     camera_3D = { 2.0f * camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
 }
 
@@ -397,7 +397,7 @@ void conversation_cameras_reset() {
 struct ConversationSaveState {
     ManifoldManifold *manifold_manifold;
     FancyMesh fancy_mesh;
-    List<DXFEntity> dxf;
+    List<DXFEntity> dxf_entities;
     List<bool32> dxf_selection_mask;
 };
 ConversationSaveState save_state;
@@ -406,21 +406,21 @@ void conversation_save_state_save() {
     // TODO manifold-memory 
     save_state.manifold_manifold = manifold_manifold;
     save_state.fancy_mesh = fancy_mesh;
-    list_clone(&save_state.dxf, &dxf);
+    list_clone(&save_state.dxf_entities, &dxf_entities);
     list_clone(&save_state.dxf_selection_mask, &dxf_selection_mask);
 }
 void conversation_save_state_load() {
     // TODO manifold-memory 
     manifold_manifold = save_state.manifold_manifold;
     fancy_mesh = save_state.fancy_mesh;
-    list_clone(&dxf, &save_state.dxf);
+    list_clone(&dxf_entities, &save_state.dxf_entities);
     list_clone(&dxf_selection_mask, &save_state.dxf_selection_mask);
 }
 void _conversation_save_state_new_document() {
     // TODO manifold-memory 
     manifold_manifold = {};
     fancy_mesh = {};
-    list_free_AND_zero(&dxf);
+    list_free_AND_zero(&dxf_entities);
     list_free_AND_zero(&dxf_selection_mask);
     conversation_save_state_save();
 }
@@ -437,7 +437,7 @@ void conversation_reset(bool32 disable_top_layer_resets = false) {
     console_params_preview_flip_flag = false;
 
     {
-        list_memset(&dxf_selection_mask, 0, dxf.length * sizeof(bool32));
+        list_memset(&dxf_selection_mask, 0, dxf_entities.length * sizeof(bool32));
         dxf_origin_x = 0.0f;
         dxf_origin_y = 0.0f;
     }
@@ -547,7 +547,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
     {
         if (click_modifier == CLICK_MODIFIER_SNAP_TO_CENTER_OF) {
             real32 min_squared_distance = HUGE_VAL;
-            for (DXFEntity *entity = dxf.array; entity < &dxf.array[dxf.length]; ++entity) {
+            for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     continue;
                 } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
@@ -564,7 +564,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
             real32 min_squared_distance = HUGE_VAL;
             real32 middle_x;
             real32 middle_y;
-            for (DXFEntity *entity = dxf.array; entity < &dxf.array[dxf.length]; ++entity) {
+            for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
                 real32 squared_distance = squared_distance_point_dxf_entity(before_x, before_y, entity);
                 if (squared_distance < min_squared_distance) {
                     min_squared_distance = squared_distance;
@@ -575,7 +575,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
             }
         } else if (click_modifier == CLICK_MODIFIER_SNAP_TO_END_OF) {
             real32 min_squared_distance = HUGE_VAL;
-            for (DXFEntity *entity = dxf.array; entity < &dxf.array[dxf.length]; ++entity) {
+            for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
                 real32 x[2], y[2];
                 entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
                 for (uint32 d = 0; d < 2; ++d) {
@@ -744,7 +744,7 @@ uint32 event_process(Event event) {
         bool32 stl_plane_selected;
         {
             dxf_anything_selected = false;
-            for (uint32 i = 0; i < dxf.length; ++i) {
+            for (uint32 i = 0; i < dxf_entities.length; ++i) {
                 if (dxf_selection_mask.array[i]) {
                     dxf_anything_selected = true;
                     break;
@@ -779,8 +779,8 @@ uint32 event_process(Event event) {
                             if (key_lambda('0' + color)) {
                                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                                 key_eaten_by_special__NOTE_dealt_with_up_top = true;
-                                for (uint32 i = 0; i < dxf.length; ++i) {
-                                    if (dxf.array[i].color == color) {
+                                for (uint32 i = 0; i < dxf_entities.length; ++i) {
+                                    if (dxf_entities.array[i].color == color) {
                                         bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                                         dxf_selection_mask.array[i] = value_to_write_to_selection_mask;
                                     }
@@ -825,7 +825,7 @@ uint32 event_process(Event event) {
                                 send_key_to_console = false;
                             } else if (extrude || revolve) {
                                 if (!dxf_anything_selected) {
-                                    conversation_messagef("[enter] no dxf elements selected");
+                                    conversation_messagef("[enter] no dxf_entities elements selected");
                                     send_key_to_console = false;
                                 } else if (!stl_plane_selected) { // FORNOW??
                                     conversation_messagef("[enter] no plane selected");
@@ -871,7 +871,7 @@ uint32 event_process(Event event) {
                                 }
                             }
                             if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
-                                CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&dxf, dxf_selection_mask.array);
+                                CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&dxf_entities, dxf_selection_mask.array);
                                 // cross_section_debug_draw(&camera_2D, &cross_section);
                                 wrapper_manifold(
                                         &manifold_manifold,
@@ -887,7 +887,7 @@ uint32 event_process(Event event) {
                                         dxf_origin_y,
                                         revolve_use_x_instead);
                                 // reset state
-                                list_memset(&dxf_selection_mask, 0, dxf.length * sizeof(bool32));
+                                list_memset(&dxf_selection_mask, 0, dxf_entities.length * sizeof(bool32));
                                 conversation_feature_plane_reset();
                             } else if (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) {
                                 dxf_origin_x = console_param;
@@ -909,7 +909,7 @@ uint32 event_process(Event event) {
                             sprintf(full_filename_including_path, "%s%s", conversation_drop_path, console_buffer);
                             if (enter_mode == ENTER_MODE_OPEN) {
                                 result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
-                                if (poe_suffix_match(full_filename_including_path, ".dxf")) {
+                                if (poe_suffix_match(full_filename_including_path, ".dxf_entities")) {
                                     conversation_dxf_load(full_filename_including_path, (strcmp(full_filename_including_path, conversation_current_dxf_filename) == 0));
                                 } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
                                     conversation_stl_load(full_filename_including_path);
@@ -1011,7 +1011,7 @@ uint32 event_process(Event event) {
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                         result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-                        for (uint32 i = 0; i < dxf.length; ++i) dxf_selection_mask.array[i] = value_to_write_to_selection_mask;
+                        for (uint32 i = 0; i < dxf_entities.length; ++i) dxf_selection_mask.array[i] = value_to_write_to_selection_mask;
                     }
                 } else if (key_lambda('x') || key_lambda('y') || key_lambda('z')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
@@ -1059,13 +1059,13 @@ uint32 event_process(Event event) {
                     create_line_awaiting_second_click = false;
                     result = PROCESSED_EVENT_CATEGORY_RECORD;
                 } else if (key_lambda(COW_KEY_BACKSPACE)) {
-                    for (int32 i = dxf.length - 1; i >= 0; --i) {
+                    for (int32 i = dxf_entities.length - 1; i >= 0; --i) {
                         if (dxf_selection_mask.array[i]) {
-                            list_delete(&dxf, i);
+                            list_delete(&dxf_entities, i);
                             list_delete(&dxf_selection_mask, i);
                         }
                     }
-                    list_memset(&dxf_selection_mask, 0, dxf.length * sizeof(bool32));
+                    list_memset(&dxf_selection_mask, 0, dxf_entities.length * sizeof(bool32));
                 } else {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ;
@@ -1074,7 +1074,7 @@ uint32 event_process(Event event) {
         } else if (event.type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
             result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
             auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
-                // Only remember dxf selection operations that actually change the mask
+                // Only remember dxf_entities selection operations that actually change the mask
                 // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... ret result; approach fornow
                 if (dxf_selection_mask.array[i] != value_to_write) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
@@ -1113,7 +1113,7 @@ uint32 event_process(Event event) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     create_line_awaiting_second_click = false;
                     click_modifier = CLICK_MODIFIER_NONE;
-                    list_push_back(&dxf, { DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, create_line_x_0, create_line_y_0, event.mouse_x, event.mouse_y });
+                    list_push_back(&dxf_entities, { DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, create_line_x_0, create_line_y_0, event.mouse_x, event.mouse_y });
                     list_push_back(&dxf_selection_mask, (bool32) false); // FORNOW
                 }
             } else if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
@@ -1121,8 +1121,8 @@ uint32 event_process(Event event) {
                 if (click_modifier != CLICK_MODIFIER_WINDOW) {
                     int hot_entity_index = -1;
                     double hot_squared_distance = HUGE_VAL;
-                    for (uint32 i = 0; i < dxf.length; ++i) {
-                        DXFEntity *entity = &dxf.array[i];
+                    for (uint32 i = 0; i < dxf_entities.length; ++i) {
+                        DXFEntity *entity = &dxf_entities.array[i];
                         double squared_distance = squared_distance_point_dxf_entity(event.mouse_x, event.mouse_y, entity);
                         if (squared_distance < hot_squared_distance) {
                             hot_squared_distance = squared_distance;
@@ -1179,8 +1179,8 @@ uint32 event_process(Event event) {
                                     }
                                 };
 
-                                for (uint32 entity_index = 0; entity_index < dxf.length; ++entity_index) {
-                                    DXFEntity *entity = &dxf.array[entity_index];
+                                for (uint32 entity_index = 0; entity_index < dxf_entities.length; ++entity_index) {
+                                    DXFEntity *entity = &dxf_entities.array[entity_index];
 
                                     real32 start_x, start_y, end_x, end_y;
                                     entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
@@ -1189,7 +1189,7 @@ uint32 event_process(Event event) {
                                 }
                             }
 
-                            bool32 *edge_marked = (bool32 *) calloc(dxf.length, sizeof(bool32));
+                            bool32 *edge_marked = (bool32 *) calloc(dxf_entities.length, sizeof(bool32));
 
                             ////////////////////////////////////////////////////////////////////////////////
                             // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
@@ -1203,7 +1203,7 @@ uint32 event_process(Event event) {
                                     if (other_endpoint) end_NOT_start = !end_NOT_start;
                                 }
                                 real32 x, y; {
-                                    DXFEntity *entity = &dxf.array[point->entity_index];
+                                    DXFEntity *entity = &dxf_entities.array[point->entity_index];
                                     if (end_NOT_start) {
                                         entity_get_end_point(entity, &x, &y);
                                     } else {
@@ -1237,9 +1237,9 @@ uint32 event_process(Event event) {
                                 vec2 seed; {
                                     real32 x, y;
                                     if (pass == 0) {
-                                        entity_get_start_point(&dxf.array[hot_entity_index], &x, &y);
+                                        entity_get_start_point(&dxf_entities.array[hot_entity_index], &x, &y);
                                     } else {
-                                        entity_get_end_point(&dxf.array[hot_entity_index], &x, &y);
+                                        entity_get_end_point(&dxf_entities.array[hot_entity_index], &x, &y);
                                     }
                                     seed = make_key(x, y);
                                 }
@@ -1317,8 +1317,8 @@ uint32 event_process(Event event) {
                             MAX(window_select_x_0, event.mouse_x),
                             MAX(window_select_y_0, event.mouse_y)
                         };
-                        for (uint32 i = 0; i < dxf.length; ++i) {
-                            if (bounding_box_contains(window, entity_get_bounding_box(&dxf.array[i]))) {
+                        for (uint32 i = 0; i < dxf_entities.length; ++i) {
+                            if (bounding_box_contains(window, entity_get_bounding_box(&dxf_entities.array[i]))) {
                                 set_dxf_selection_mask(i, value_to_write_to_selection_mask);
                             }
                         }
@@ -1447,7 +1447,7 @@ void conversation_draw() {
     bool32 stl_plane_selected;
     {
         dxf_anything_selected = false;
-        for (uint32 i = 0; i < dxf.length; ++i) {
+        for (uint32 i = 0; i < dxf_entities.length; ++i) {
             if (dxf_selection_mask.array[i]) {
                 dxf_anything_selected = true;
                 break;
@@ -1549,8 +1549,8 @@ void conversation_draw() {
             }
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
-                for (uint32 i = 0; i < dxf.length; ++i) {
-                    DXFEntity *entity = &dxf.array[i];
+                for (uint32 i = 0; i < dxf_entities.length; ++i) {
+                    DXFEntity *entity = &dxf_entities.array[i];
                     int32 color = (dxf_selection_mask.array[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
                     eso_dxf_entity__SOUP_LINES(entity, color);
                 }
@@ -1560,7 +1560,7 @@ void conversation_draw() {
                 if (show_details) {
                     eso_begin(camera_get_PV(&camera_2D), SOUP_POINTS);
                     eso_color(monokai.white);
-                    for (DXFEntity *entity = dxf.array; entity < &dxf.array[dxf.length]; ++entity) {
+                    for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
                         real32 start_x, start_y, end_x, end_y;
                         entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
                         eso_vertex(start_x, start_y);
@@ -1666,8 +1666,8 @@ void conversation_draw() {
                 for (uint32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
                     {
                         eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
-                        for (uint32 i = 0; i < dxf.length; ++i) {
-                            DXFEntity *entity = &dxf.array[i];
+                        for (uint32 i = 0; i < dxf_entities.length; ++i) {
+                            DXFEntity *entity = &dxf_entities.array[i];
                             if (dxf_selection_mask.array[i]) {
                                 eso_dxf_entity__SOUP_LINES(entity, color);
                             }
@@ -1679,7 +1679,7 @@ void conversation_draw() {
             }
         }
 
-        BoundingBox selection_bounding_box = dxf_get_bounding_box(&dxf, dxf_selection_mask.array);
+        BoundingBox selection_bounding_box = dxf_get_bounding_box(&dxf_entities, dxf_selection_mask.array);
 
         if (dxf_anything_selected) { // arrow
             if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
@@ -1900,7 +1900,7 @@ void conversation_draw() {
         conversation_message_buffer_update_and_draw();
 
         if (show_details) {
-            gui_printf("%d dxf elements", dxf.length);
+            gui_printf("%d dxf_entities elements", dxf_entities.length);
             gui_printf("%d stl triangles", fancy_mesh.num_triangles);
         }
         if (show_stack) history_gui_printf();
@@ -1921,7 +1921,7 @@ void conversation_draw() {
             gui_printf("(e)trude-add (E)xtrude-cut + (0123456789.,) (f)lip-direction [Enter]");
             gui_printf("(Ctrl + z)-undo (Ctrl+Z)-redo (Ctrl+y)-redo");
             gui_printf("(Ctrl + o)pen (Ctrl+s)ave + ... + [Enter]");
-            gui_printf("(Ctrl + r)eload-dxf (Ctrl + R)-clear-stl");
+            gui_printf("(Ctrl + r)eload-dxf-if-edited-elsewhere (Ctrl + R)-clear-stl");
             gui_printf("show-(g)rid (.)-show-details show-stac(k)");
             gui_printf("zoom-to-e(X)tents");
             gui_printf("(0)-toggle-camera-perspective-orthographic");
@@ -1930,7 +1930,7 @@ void conversation_draw() {
             gui_printf("");
             gui_printf("EXPERIMENTAL: (r)evolve-add (R)evolve-cut");
             gui_printf("");
-            gui_printf("you can drag and drop dxf's into Conversation");
+            gui_printf("you can drag and drop *.dxf and *.stl into Conversation");
         }
     }
 }
@@ -1954,7 +1954,7 @@ int main() {
     while (cow_begin_frame()) {
 
         // invariants
-        ASSERT(dxf.length == dxf_selection_mask.length);
+        ASSERT(dxf_entities.length == dxf_selection_mask.length);
 
         new_event_queue_process();
         { // stuff that still shims globals.*
