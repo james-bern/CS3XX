@@ -308,11 +308,6 @@ void entity_get_middle(DXFEntity *entity, real32 *middle_x, real32 *middle_y) {
 //     uint32 num_entities;
 //     DXFEntity *entities;
 // };
-void dxf_free(List<DXFEntity> *dxf) {
-    // if (dxf->entities) free(dxf->entities);
-    // *dxf = {};
-    list_free_and_zero(dxf);
-}
 
 void dxf_load(char *filename, List<DXFEntity> *dxf) {
     #if 0
@@ -334,7 +329,7 @@ void dxf_load(char *filename, List<DXFEntity> *dxf) {
         return result;
     }
     #endif
-    dxf_free(dxf);
+    list_free_AND_zero(dxf);
 
     FILE *file = (FILE *) fopen(filename, "r");
     ASSERT(file);
@@ -585,7 +580,7 @@ struct DXFLoopAnalysisResult {
     uint32 *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, bool32 *dxf_selection_mask_NOTE_pass_NULL_for_pick = NULL) {
+DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, bool32 *include = NULL) {
     if (dxf->length == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
@@ -601,7 +596,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> 
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf->length, sizeof(bool32));
             while (true) {
-                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!dxf_selection_mask_NOTE_pass_NULL_for_pick || dxf_selection_mask_NOTE_pass_NULL_for_pick[i]))
+                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!include || include[i]))
                 { // seed loop
                     bool32 added_and_seeded_new_loop = false;
                     for (uint32 entity_index = 0; entity_index < dxf->length; ++entity_index) {
@@ -728,8 +723,8 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> 
         }
 
         // free List's
-        for (uint32 i = 0; i < stretchy_list.length; ++i) list_free_and_zero(&stretchy_list.array[i]);
-        list_free_and_zero(&stretchy_list);
+        for (uint32 i = 0; i < stretchy_list.length; ++i) list_free_AND_zero(&stretchy_list.array[i]);
+        list_free_AND_zero(&stretchy_list);
     }
     // loop_index_from_entity_index (brute force)
     result.loop_index_from_entity_index = (uint32 *) calloc(dxf->length, sizeof(uint32));
@@ -772,11 +767,11 @@ struct CrossSectionEvenOdd {
     vec2 **polygonal_loops;
 };
 
-CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, bool32 *dxf_selection_mask) {
+CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, bool32 *include) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf);
-        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf_selection_mask);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(include);
         CrossSectionEvenOdd result = {};
         result.num_polygonal_loops = 2;
         result.num_vertices_in_polygonal_loops = (uint32 *) calloc(result.num_polygonal_loops, sizeof(uint32));
@@ -800,7 +795,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, 
     #endif
     // populate List's
     List<List<vec2>> stretchy_list = {}; {
-        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf, dxf_selection_mask);
+        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf, include);
         for (uint32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
             uint32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
@@ -849,8 +844,8 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf, 
     }
 
     // free List's
-    for (uint32 i = 0; i < stretchy_list.length; ++i) list_free_and_zero(&stretchy_list.array[i]);
-    list_free_and_zero(&stretchy_list);
+    for (uint32 i = 0; i < stretchy_list.length; ++i) list_free_AND_zero(&stretchy_list.array[i]);
+    list_free_AND_zero(&stretchy_list);
 
     return result;
 }
@@ -955,7 +950,7 @@ void fancy_mesh_cosmetic_edges_calculate(FancyMesh *fancy_mesh) {
         fancy_mesh->cosmetic_edges = (uint32 *) calloc(2 * fancy_mesh->num_cosmetic_edges, sizeof(uint32));
         memcpy(fancy_mesh->cosmetic_edges, list.array, 2 * fancy_mesh->num_cosmetic_edges * sizeof(uint32)); 
     }
-    list_free_and_zero(&list);
+    list_free_AND_zero(&list);
 }
 
 
@@ -1042,7 +1037,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
                 uint32 size = ascii_data.length * sizeof(real32);
                 soup = (real32 *) malloc(size);
                 memcpy(soup, ascii_data.array, size);
-                list_free_and_zero(&ascii_data);
+                list_free_AND_zero(&ascii_data);
             } else {
                 ASSERT(filetype == STL_FILETYPE_BINARY);
                 char *entire_file; {
@@ -1099,7 +1094,7 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
                     vertex_positions = (real32 *) malloc(size);
                     memcpy(vertex_positions, list.array, size);
                 }
-                list_free_and_zero(&list);
+                list_free_AND_zero(&list);
             }
             triangle_indices = (uint32 *) malloc(_3_TIMES_num_triangles * sizeof(uint32));
             for (uint32 k = 0; k < _3_TIMES_num_triangles; ++k) triangle_indices[k] = map_get(&map, ((vec3 *) soup)[k]);

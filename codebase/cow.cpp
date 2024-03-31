@@ -3199,18 +3199,31 @@ template <typename T> void list_push_back(List<T> *list, T element) {
     list->array[list->length++] = element;
 }
 
-template <typename T> void list_free_and_zero(List<T> *list) {
+template <typename T> void list_free_AND_zero(List<T> *list) {
     if (list->array) free(list->array);
     *list = {};
 }
 
-template <typename T> void list_clone(List<T> *dst, List<T> *src) {
-    list_free_and_zero(dst);
-    dst->length = src->length;
-    dst->_capacity = src->_capacity;
-    int num_bytes = dst->_capacity * sizeof(T);
-    dst->array = (T *) malloc(num_bytes);
-    memcpy(dst->array, src->array, num_bytes);
+template <typename T> void list_calloc_NOT_reserve(List<T> *list, unsigned int num_slots, unsigned int num_bytes_per_slot) {
+    ASSERT(!list->array);
+    list_free_AND_zero(list);
+    list->_capacity = num_slots;
+    list->length = num_slots;
+    list->array = (T *) calloc(num_slots, num_bytes_per_slot);
+}
+
+template <typename T> void list_memset(List<T> *list, char byte_to_write, unsigned int num_bytes_to_write) {
+    ASSERT(byte_to_write == 0); // NOTE: jim only ever calls memset(..., 0, ...); this check is just to catch his silly mistakes
+    memset(list->array, byte_to_write, num_bytes_to_write);
+}
+
+template <typename T> void list_clone(List<T> *destination, List<T> *source) {
+    list_free_AND_zero(destination);
+    destination->length = source->length;
+    destination->_capacity = source->_capacity;
+    int num_bytes = destination->_capacity * sizeof(T);
+    destination->array = (T *) malloc(num_bytes);
+    memcpy(destination->array, source->array, num_bytes);
 }
 
 
@@ -3248,7 +3261,7 @@ template <typename T> T list_pop_front(List<T> *list) {
 #define Queue List
 #define queue_enqueue list_push_front
 #define queue_dequeue list_pop_back
-#define queue_free list_free_and_zero
+#define queue_free list_free_AND_zero
 
 
 
@@ -3371,7 +3384,7 @@ template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key 
 
 
 template <typename Key, typename Value> void map_free_and_zero(Map<Key, Value> *map) {
-    for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free_and_zero(bucket);
+    for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free_AND_zero(bucket);
     if (map->num_buckets) free(map->buckets);
     *map = {};
 }
@@ -4926,7 +4939,7 @@ void eg_kitchen_sink() {
                 list_push_back(&trace, s_mouse);
             }
             if (gui_button("clear trace", 'r')) {
-                list_free_and_zero(&trace);
+                list_free_AND_zero(&trace);
             }
             // if (globals.mouse_left_double_clicked) {
             //     for (int i = 0; i < trace.length; ++i) {
