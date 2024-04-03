@@ -3234,7 +3234,7 @@ template <typename T> void list_insert(List<T> *list, u32 i, T element) {
     list->array[i] = element;
 }
 
-template <typename T> T list_delete(List<T> *list, u32 i) {
+template <typename T> T list_delete_at(List<T> *list, u32 i) {
     ASSERT(i >= 0);
     ASSERT(i < list->length);
     T result = list->array[i];
@@ -3250,12 +3250,12 @@ template <typename T> void list_push_front(List<T> *list, T element) {
 
 template <typename T> T list_pop_back(List<T> *list) {
     ASSERT(list->length != 0);
-    return list_delete(list, list->length - 1);
+    return list_delete_at(list, list->length - 1);
 }
 
 template <typename T> T list_pop_front(List<T> *list) {
     ASSERT(list->length != 0);
-    return list_delete(list, 0);
+    return list_delete_at(list, 0);
 }
 
 #define Queue List
@@ -3987,7 +3987,7 @@ void widget_line_editor(mat4 PV, int primitive, List<vec2> *vertices, cow_real s
         if (!result.add_delete) {
             list_insert(vertices, result.index, result.vertex_position);
         } else {
-            list_delete(vertices, result.index);
+            list_delete_at(vertices, result.index);
         }
     }
     widget_drag(PV, vertices->length, vertices->array);

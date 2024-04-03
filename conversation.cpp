@@ -7,12 +7,18 @@
 // - computing a dxf_entities's bounding box
 
 // // TODO easy (< 30 min)
-// TODO two_click_commands
+// XXXX two_click_commands
 // TODO support color schemes
 // TODO 'z' snaps to origin (TODO what is the z-plane)
 // TODO 'r' conflicts with 'r'otate from layout
 // TODO 'e' conflicts with 'e'rase from layout
 // TODO layout has a command 'Z'
+
+// // TODO more snaps
+// TODO quad
+// TODO perpendicular
+// TODO limit
+// TODO
 
 // // TODO dxf_entities editor
 // TODO create/extrude/whatever-we-call-it state wrapped up into a struct
@@ -22,6 +28,9 @@
 // XXXX actually incorporating drawn lines into the dxf_entities
 // XXXX deleting lines
 // TODO erasing lines
+// XXXX creating circle
+// TODO creating fillet
+// TODO creating fillet
 // TODO space bar to repeat command
 
 // // TODO graphics
@@ -50,6 +59,16 @@
 #include "poe.cpp"
 #undef real // ??
 #define u32 DO_NOT_USE_u32_USE_uint32_INSTEAD
+
+// the only good mathematical software is written by John Burkardt
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsometimes-uninitialized"
+#include "geometry.h"
+#include "geometry.c"
+#include "math.cpp"
+#pragma clang diagnostic pop
+
 #include "conversation.h"
 
 
@@ -731,6 +750,19 @@ uint32 event_process(Event event) {
     bool32 result = PROCESSED_EVENT_CATEGORY_RECORD;
     console_params_preview_update(); // FORNOW
     {
+
+
+        auto push_back_dxf_entity_and_mask_bool_lambda = [&](DXFEntity entity) {
+            list_push_back(&dxf_entities, entity);
+            list_push_back(&dxf_selection_mask, (bool32) false);
+        };
+        auto delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards = [&](uint32 i) {
+            list_delete_at(&dxf_entities, i);
+            list_delete_at(&dxf_selection_mask, i);
+        };
+
+
+
         if ((enter_mode == ENTER_MODE_OPEN) || (enter_mode == ENTER_MODE_SAVE)) {
             result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
         }
@@ -762,6 +794,7 @@ uint32 event_process(Event event) {
                 || (click_mode == CLICK_MODE_MEASURE)
                 || (click_mode == CLICK_MODE_CREATE_LINE)
                 || (click_mode == CLICK_MODE_CREATE_BOX)
+                || (click_mode == CLICK_MODE_CREATE_FILLET)
                 || (click_mode == CLICK_MODE_CREATE_CIRCLE)
                 ;
 
@@ -967,7 +1000,7 @@ uint32 event_process(Event event) {
                     click_modifier = CLICK_MODIFIER_NONE;
                     conversation_console_buffer_reset();
                     conversation_feature_plane_reset(); // FORNOW
-                } else if (key_lambda('f')) {
+                } else if (key_lambda(COW_KEY_TAB)) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     console_params_preview_flip_flag = !console_params_preview_flip_flag;
                     if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) revolve_use_x_instead = !revolve_use_x_instead;
@@ -1066,6 +1099,11 @@ uint32 event_process(Event event) {
                     click_mode = CLICK_MODE_CREATE_LINE;
                     click_modifier = CLICK_MODIFIER_NONE;
                     two_click_command_awaiting_second_click = false;
+                } else if (key_lambda('f')) {
+                    result = PROCESSED_EVENT_CATEGORY_RECORD;
+                    click_mode = CLICK_MODE_CREATE_FILLET;
+                    click_modifier = CLICK_MODIFIER_NONE;
+                    two_click_command_awaiting_second_click = false;
                 } else if (key_lambda('b')) {
                     result = PROCESSED_EVENT_CATEGORY_RECORD;
                     click_mode = CLICK_MODE_CREATE_BOX;
@@ -1074,8 +1112,7 @@ uint32 event_process(Event event) {
                 } else if (key_lambda(COW_KEY_BACKSPACE)) {
                     for (int32 i = dxf_entities.length - 1; i >= 0; --i) {
                         if (dxf_selection_mask.array[i]) {
-                            list_delete(&dxf_entities, i);
-                            list_delete(&dxf_selection_mask, i);
+                            delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards(i);
                         }
                     }
                     list_memset(&dxf_selection_mask, 0, dxf_entities.length * sizeof(bool32));
@@ -1096,10 +1133,6 @@ uint32 event_process(Event event) {
                 }
             };
 
-            auto push_back_dxf_entity_and_mask_bool_lambda = [&](DXFEntity entity) {
-                list_push_back(&dxf_entities, entity);
-                list_push_back(&dxf_selection_mask, (bool32) false);
-            };
 
             bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
             if (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) {
@@ -1115,6 +1148,7 @@ uint32 event_process(Event event) {
                         (click_mode == CLICK_MODE_CREATE_LINE) ||
                         (click_mode == CLICK_MODE_CREATE_BOX) ||
                         (click_mode == CLICK_MODE_CREATE_CIRCLE) ||
+                        (click_mode == CLICK_MODE_CREATE_FILLET) ||
                         (((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) && (click_modifier == CLICK_MODIFIER_WINDOW)))
                     && (!two_click_command_awaiting_second_click)) { 
                 result = (click_mode == CLICK_MODE_MEASURE) ? PROCESSED_EVENT_CATEGORY_DONT_RECORD : PROCESSED_EVENT_CATEGORY_RECORD; 
@@ -1125,6 +1159,7 @@ uint32 event_process(Event event) {
             } else if (click_mode == CLICK_MODE_MEASURE) {
                 ASSERT(two_click_command_awaiting_second_click);
                 two_click_command_awaiting_second_click = false;
+                click_mode = CLICK_MODE_NONE;
                 click_modifier = CLICK_MODIFIER_NONE;
                 real32 angle = DEG(atan2(event.mouse_y - two_click_command_y_0, event.mouse_x - two_click_command_x_0));
                 if (angle < 0.0f) angle += 360.0f;
@@ -1133,12 +1168,14 @@ uint32 event_process(Event event) {
                 ASSERT(two_click_command_awaiting_second_click);
                 two_click_command_awaiting_second_click = false;
                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                click_mode = CLICK_MODE_NONE;
                 click_modifier = CLICK_MODIFIER_NONE;
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, event.mouse_x, event.mouse_y });
             } else if (click_mode == CLICK_MODE_CREATE_BOX) {
                 ASSERT(two_click_command_awaiting_second_click);
                 two_click_command_awaiting_second_click = false;
                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                click_mode = CLICK_MODE_NONE;
                 click_modifier = CLICK_MODIFIER_NONE;
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, event.mouse_x, two_click_command_y_0 });
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, two_click_command_x_0, event.mouse_y });
@@ -1148,23 +1185,72 @@ uint32 event_process(Event event) {
                 ASSERT(two_click_command_awaiting_second_click);
                 two_click_command_awaiting_second_click = false;
                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                click_mode = CLICK_MODE_NONE;
                 click_modifier = CLICK_MODIFIER_NONE;
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, event.mouse_x, two_click_command_y_0 });
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, two_click_command_x_0, event.mouse_y });
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse_x, event.mouse_y, event.mouse_x, two_click_command_y_0 });
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse_x, event.mouse_y, two_click_command_x_0, event.mouse_y });
+                real32 theta_a_in_degrees = DEG(atan2(event.mouse_y - two_click_command_y_0, event.mouse_x - two_click_command_x_0));
+                real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
+                real32 r = SQRT(squared_distance_point_point(two_click_command_x_0, two_click_command_y_0, event.mouse_x, event.mouse_y));
+                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, r, theta_a_in_degrees, theta_b_in_degrees });
+                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, r, theta_b_in_degrees, theta_a_in_degrees });
+            } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
+                ASSERT(two_click_command_awaiting_second_click);
+                two_click_command_awaiting_second_click = false;
+                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                click_modifier = CLICK_MODIFIER_NONE;
+                int i = dxf_find_closest_entity(&dxf_entities, two_click_command_x_0, two_click_command_y_0);
+                int j = dxf_find_closest_entity(&dxf_entities, event.mouse_x, event.mouse_y);
+                if ((i != j) && (i != -1) && (j != -1)) {
+                    // TODO: accept r
+                    real32 radius = 10.0f;
+                    DXFEntity *E_i = &dxf_entities.array[i];
+                    DXFEntity *E_j = &dxf_entities.array[j];
+                    if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
+                        vec2 a, b, c, d;
+                        entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
+                        entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
+
+                        LineLineIntersectionResult _intersection = line_line_intersection(a, b, c, d);
+                        if (_intersection.is_valid) {
+                            vec2 intersection = _intersection.position;
+
+                            bool32 bool_ab = (squaredNorm(a - intersection) > squaredNorm(b - intersection));
+                            bool32 bool_cd = (squaredNorm(c - intersection) > squaredNorm(d - intersection));
+                            vec2 s_ab = (bool_ab) ? a : b;
+                            vec2 s_cd = (bool_cd) ? c : d;
+                            vec2 e_ab = normalized(a - b);
+                            vec2 e_cd = normalized(c - d);
+                            vec2 t_ab = intersection + (bool_ab ? 1 : -1) * radius * e_ab;
+                            vec2 t_cd = intersection + (bool_cd ? 1 : -1) * radius * e_cd;
+
+                            LineLineIntersectionResult _center = line_line_intersection(t_ab + perpendicularTo(e_ab), t_ab, t_cd + perpendicularTo(e_cd), t_cd);
+                            if (_center.is_valid) {
+                                vec2 center = _center.position;
+
+                                uint32 color_i = E_i->color;
+                                uint32 color_j = E_j->color;
+                                delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards(MAX(i, j));
+                                delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards(MIN(i, j));
+
+                                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, color_i, s_ab.x, s_ab.y, t_ab.x, t_ab.y });
+                                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, color_j, s_cd.x, s_cd.y, t_cd.x, t_cd.y });
+
+                                real32 theta_ab_in_degrees = DEG(atan2(t_ab.y - center.y, t_ab.x - center.x));
+                                real32 theta_cd_in_degrees = DEG(atan2(t_cd.y - center.y, t_cd.x - center.x));
+                                if (three_point_angle(t_ab, center, t_cd) < PI) {
+                                    real32 tmp = theta_ab_in_degrees;
+                                    theta_ab_in_degrees = theta_cd_in_degrees;
+                                    theta_cd_in_degrees = tmp;
+                                }
+                                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, center.x, center.y, radius, theta_ab_in_degrees, theta_cd_in_degrees });
+                            }
+                        }
+                    } else {
+                        conversation_messagef("TODO: line-arc fillet; arc-arc fillet");
+                    }
+                }
             } else if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                 if (click_modifier != CLICK_MODIFIER_WINDOW) {
-                    int hot_entity_index = -1;
-                    double hot_squared_distance = HUGE_VAL;
-                    for (uint32 i = 0; i < dxf_entities.length; ++i) {
-                        DXFEntity *entity = &dxf_entities.array[i];
-                        double squared_distance = squared_distance_point_dxf_entity(event.mouse_x, event.mouse_y, entity);
-                        if (squared_distance < hot_squared_distance) {
-                            hot_squared_distance = squared_distance;
-                            hot_entity_index = i;
-                        }
-                    }
+                    int hot_entity_index = dxf_find_closest_entity(&dxf_entities, event.mouse_x, event.mouse_y);
                     if (hot_entity_index != -1) {
                         if (click_modifier == CLICK_MODIFIER_CONNECTED) {
                             #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -1588,7 +1674,7 @@ void conversation_draw() {
             }
             { // dots
                 if (show_details) {
-                    eso_begin(camera_get_PV(&camera_2D), SOUP_POINTS);
+                    eso_begin(camera_get_PV(&camera_2D), SOUP_POINTS, 8.0f);
                     eso_color(monokai.white);
                     for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
                         real32 start_x, start_y, end_x, end_y;
@@ -1616,8 +1702,8 @@ void conversation_draw() {
                 eso_end();
             }
 
-            if (click_modifier == CLICK_MODIFIER_WINDOW) { // select window
-                if (two_click_command_awaiting_second_click) {
+            if (two_click_command_awaiting_second_click) {
+                if (click_modifier == CLICK_MODIFIER_WINDOW) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(0.0f, 1.0f, 1.0f);
                     real32 x0 = two_click_command_x_0;
@@ -1630,27 +1716,21 @@ void conversation_draw() {
                     eso_vertex(x0, y1);
                     eso_end();
                 }
-            }
-            if (click_mode == CLICK_MODE_MEASURE) { // measure line
-                if (two_click_command_awaiting_second_click) {
+                if (click_mode == CLICK_MODE_MEASURE) { // measure line
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(0.0f, 1.0f, 1.0f);
                     eso_vertex(two_click_command_x_0, two_click_command_y_0);
                     eso_vertex(mouse_x, mouse_y);
                     eso_end();
                 }
-            }
-            if (click_mode == CLICK_MODE_CREATE_LINE) { // measure line
-                if (two_click_command_awaiting_second_click) {
+                if (click_mode == CLICK_MODE_CREATE_LINE) { // measure line
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(0.0f, 1.0f, 1.0f);
                     eso_vertex(two_click_command_x_0, two_click_command_y_0);
                     eso_vertex(mouse_x, mouse_y);
                     eso_end();
                 }
-            }
-            if (click_mode == CLICK_MODE_CREATE_BOX) {
-                if (two_click_command_awaiting_second_click) {
+                if (click_mode == CLICK_MODE_CREATE_BOX) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(0.0f, 1.0f, 1.0f);
                     eso_vertex(two_click_command_x_0, two_click_command_y_0);
@@ -1658,6 +1738,25 @@ void conversation_draw() {
                     eso_vertex(mouse_x,               mouse_y              );
                     eso_vertex(two_click_command_x_0, mouse_y              );
                     eso_end();
+                }
+                if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
+                    vec2 c = { two_click_command_x_0, two_click_command_y_0 };
+                    vec2 p = { mouse_x, mouse_y };
+                    real32 r = norm(c - p);
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(0.0f, 1.0f, 1.0f);
+                    for (uint32 i = 0; i < NUM_SEGMENTS_PER_CIRCLE; ++i) eso_vertex(c + r * e_theta(NUM_DEN(i, NUM_SEGMENTS_PER_CIRCLE) * TAU));
+                    eso_end();
+                }
+                if (click_mode == CLICK_MODE_CREATE_FILLET) {
+                    // FORNOW
+                    int i = dxf_find_closest_entity(&dxf_entities, two_click_command_x_0, two_click_command_y_0);
+                    if (i != -1) {
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(0.0f, 1.0f, 1.0f);
+                        eso_dxf_entity__SOUP_LINES(&dxf_entities.array[i], DXF_COLOR_WATER_ONLY);
+                        eso_end();
+                    }
                 }
             }
         }
@@ -1884,6 +1983,7 @@ void conversation_draw() {
                 (click_mode == CLICK_MODE_CREATE_LINE) ? "CREATE_LINE" :
                 (click_mode == CLICK_MODE_CREATE_BOX) ? "CREATE_BOX" :
                 (click_mode == CLICK_MODE_CREATE_CIRCLE) ? "CREATE_CIRCLE" :
+                (click_mode == CLICK_MODE_CREATE_FILLET) ? "CREATE_FILLET" :
                 "???",
                 (click_modifier == CLICK_MODE_NONE) ? "" :
                 (click_modifier == CLICK_MODIFIER_CONNECTED) ? "CONNECTED" :
@@ -1962,7 +2062,7 @@ void conversation_draw() {
             gui_printf("(Escape)-from-current-enter_and_click_modes");
             gui_printf("(s)elect (d)eselect + (c)onected (a)ll [Click] / (q)uality + (012345)");
             gui_printf("(y)-plane (z)-plane (x)-plane");
-            gui_printf("(e)trude-add (E)xtrude-cut + (0123456789.,) (f)lip-direction [Enter]");
+            gui_printf("(e)trude-add (E)xtrude-cut + (0123456789.,) (Tab)-flip-direction [Enter]");
             gui_printf("(Ctrl + z)-undo (Ctrl+Z)-redo (Ctrl+y)-redo");
             gui_printf("(Ctrl + o)pen (Ctrl+s)ave + ... + [Enter]");
             gui_printf("(Ctrl + r)eload-dxf-if-edited-elsewhere (Ctrl + R)-clear-stl");

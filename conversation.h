@@ -61,6 +61,7 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define CLICK_MODE_CREATE_LINE        5
 #define CLICK_MODE_CREATE_BOX         6
 #define CLICK_MODE_CREATE_CIRCLE      7
+#define CLICK_MODE_CREATE_FILLET      8
 
 #define CLICK_MODIFIER_NONE              0
 #define CLICK_MODIFIER_CONNECTED         1
@@ -453,6 +454,7 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
     }
 }
 
+
 void dxf_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
     eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
     for (DXFEntity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
@@ -565,6 +567,21 @@ real32 squared_distance_point_dxf(real32 x, real32 y, List<DXFEntity> *dxf_entit
     }
     return result;
 }
+
+int dxf_find_closest_entity(List<DXFEntity> *dxf_entities, real32 x, real32 y) {
+    int result = -1;
+    double hot_squared_distance = HUGE_VAL;
+    for (uint32 i = 0; i < dxf_entities->length; ++i) {
+        DXFEntity *entity = &dxf_entities->array[i];
+        double squared_distance = squared_distance_point_dxf_entity(x, y, entity);
+        if (squared_distance < hot_squared_distance) {
+            hot_squared_distance = squared_distance;
+            result = i;
+        }
+    }
+    return result;
+}
+
 
 ////////////////////////////////////////
 // LoopAnalysis ////////////////////////
