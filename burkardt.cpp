@@ -17,6 +17,10 @@
 #pragma clang diagnostic pop
 #endif
 
+// some snail friendly burkardt wrappers
+// - vecX everywhere
+// - radians everywhere
+
 struct LineLineIntersectionResult {
     bool32 is_valid;
     vec2 position;
