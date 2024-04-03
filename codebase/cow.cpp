@@ -880,7 +880,7 @@ void _window_init() {
     window_set_decorated(true);
 
     { // NOTE: first frame position hack
-        // FORNOW: very gross
+      // FORNOW: very gross
         _window_get_NDC_from_Screen((cow_real *) &globals.NDC_from_Screen);
         double xpos, ypos;
         glfwGetCursorPos(COW0._window_glfw_window, &xpos, &ypos);
@@ -3221,9 +3221,11 @@ template <typename T> void list_clone(List<T> *destination, List<T> *source) {
     list_free_AND_zero(destination);
     destination->length = source->length;
     destination->_capacity = source->_capacity;
-    int num_bytes = destination->_capacity * sizeof(T);
-    destination->array = (T *) malloc(num_bytes);
-    memcpy(destination->array, source->array, num_bytes);
+    if (destination->_capacity != 0) {
+        int num_bytes = destination->_capacity * sizeof(T);
+        destination->array = (T *) malloc(num_bytes);
+        memcpy(destination->array, source->array, num_bytes);
+    }
 }
 
 

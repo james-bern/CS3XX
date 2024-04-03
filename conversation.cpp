@@ -472,8 +472,8 @@ void conversation_reset(bool32 disable_top_layer_resets = false) {
 }
 
 void conversation_init() {
-    conversation_dxf_load("splash.dxf", true);
-    // conversation_dxf_load("debug.dxf", true);
+    // conversation_dxf_load("splash.dxf", true);
+    conversation_dxf_load("debug.dxf", true);
     conversation_save_state_save();
     conversation_reset();
 }
@@ -1201,7 +1201,7 @@ uint32 event_process(Event event) {
                 int j = dxf_find_closest_entity(&dxf_entities, event.mouse_x, event.mouse_y);
                 if ((i != j) && (i != -1) && (j != -1)) {
                     // TODO: accept r
-                    real32 radius = 10.0f;
+                    real32 radius = 1.0f;
                     DXFEntity *E_i = &dxf_entities.array[i];
                     DXFEntity *E_j = &dxf_entities.array[j];
                     if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
@@ -1209,18 +1209,29 @@ uint32 event_process(Event event) {
                         entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
                         entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
 
-                        LineLineIntersectionResult _intersection = line_line_intersection(a, b, c, d);
-                        if (_intersection.is_valid) {
-                            vec2 intersection = _intersection.position;
+                        LineLineIntersectionResult _p = line_line_intersection(a, b, c, d);
+                        if (_p.is_valid) {
+                            vec2 p = _p.position;
 
-                            bool32 bool_ab = (squaredNorm(a - intersection) > squaredNorm(b - intersection));
+                            //         d
+                            //         |
+                            //         |
+                            //  a ---- p ---- b
+                            //         |
+                            //         |
+                            //         c
+
+                            bool32 bl_ab = (squaredNorm(a - intersection) > squaredNorm(b - intersection));
                             bool32 bool_cd = (squaredNorm(c - intersection) > squaredNorm(d - intersection));
                             vec2 s_ab = (bool_ab) ? a : b;
                             vec2 s_cd = (bool_cd) ? c : d;
                             vec2 e_ab = normalized(a - b);
                             vec2 e_cd = normalized(c - d);
-                            vec2 t_ab = intersection + (bool_ab ? 1 : -1) * radius * e_ab;
-                            vec2 t_cd = intersection + (bool_cd ? 1 : -1) * radius * e_cd;
+                            // TODO: distinguish the 4 sectors using the midpoint of the click line
+                            real32 half_angle = three_point_angle(s_ab, intersection, s_cd) / 2;
+                            real32 length = radius / tan(half_angle);
+                            vec2 t_ab = p + (bool_ab ? 1 : -1) * length * e_ab;
+                            vec2 t_cd = p + (bool_cd ? 1 : -1) * length * e_cd;
 
                             LineLineIntersectionResult _center = line_line_intersection(t_ab + perpendicularTo(e_ab), t_ab, t_cd + perpendicularTo(e_cd), t_cd);
                             if (_center.is_valid) {
@@ -1236,6 +1247,7 @@ uint32 event_process(Event event) {
 
                                 real32 theta_ab_in_degrees = DEG(atan2(t_ab.y - center.y, t_ab.x - center.x));
                                 real32 theta_cd_in_degrees = DEG(atan2(t_cd.y - center.y, t_cd.x - center.x));
+
                                 if (three_point_angle(t_ab, center, t_cd) < PI) {
                                     real32 tmp = theta_ab_in_degrees;
                                     theta_ab_in_degrees = theta_cd_in_degrees;
