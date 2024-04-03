@@ -59,16 +59,7 @@
 #include "poe.cpp"
 #undef real // ??
 #define u32 DO_NOT_USE_u32_USE_uint32_INSTEAD
-
-// the only good mathematical software is written by John Burkardt
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunused-parameter"
-#pragma clang diagnostic ignored "-Wsometimes-uninitialized"
-#include "geometry.h"
-#include "geometry.c"
-#include "math.cpp"
-#pragma clang diagnostic pop
-
+#include "burkardt.cpp"
 #include "conversation.h"
 
 
@@ -1200,8 +1191,7 @@ uint32 event_process(Event event) {
                 int i = dxf_find_closest_entity(&dxf_entities, two_click_command_x_0, two_click_command_y_0);
                 int j = dxf_find_closest_entity(&dxf_entities, event.mouse_x, event.mouse_y);
                 if ((i != j) && (i != -1) && (j != -1)) {
-                    // TODO: accept r
-                    real32 radius = 1.0f;
+                    real32 radius = 2.0f; // TODO: get from user
                     DXFEntity *E_i = &dxf_entities.array[i];
                     DXFEntity *E_j = &dxf_entities.array[j];
                     if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
@@ -1213,27 +1203,49 @@ uint32 event_process(Event event) {
                         if (_p.is_valid) {
                             vec2 p = _p.position;
 
-                            //         d
-                            //         |
-                            //         |
-                            //  a ---- p ---- b
-                            //         |
-                            //         |
-                            //         c
+                            //  a -- b   p          s -- t-.  
+                            //                              - 
+                            //           d    =>             t
+                            //     m     |             m     |
+                            //           c                   s
 
-                            bool32 bl_ab = (squaredNorm(a - intersection) > squaredNorm(b - intersection));
-                            bool32 bool_cd = (squaredNorm(c - intersection) > squaredNorm(d - intersection));
-                            vec2 s_ab = (bool_ab) ? a : b;
-                            vec2 s_cd = (bool_cd) ? c : d;
-                            vec2 e_ab = normalized(a - b);
-                            vec2 e_cd = normalized(c - d);
-                            // TODO: distinguish the 4 sectors using the midpoint of the click line
-                            real32 half_angle = three_point_angle(s_ab, intersection, s_cd) / 2;
+                            //         d                              
+                            //         |                              
+                            //         |                              
+                            //  a ---- p ---- b   =>   s - t.         
+                            //         |                     -t       
+                            //    m    |                 m    |       
+                            //         c                      s       
+
+                            vec2 m; {
+                                vec2 m1 = { two_click_command_x_0, two_click_command_y_0 };
+                                vec2 m2 = { event.mouse_x, event.mouse_y };
+                                m = AVG(m1, m2);
+                            }
+
+                            vec2 e_ab = normalized(b - a);
+                            vec2 e_cd = normalized(d - c);
+
+                            bool32 keep_a, keep_c; {
+                                vec2 vector_p_m_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (m - p);
+                                keep_a = (vector_p_m_in_edge_basis.x < 0.0f);
+                                keep_c = (vector_p_m_in_edge_basis.y < 0.0f);
+                            }
+
+                            // TODO: in general, just use burkardt's angle stuff
+
+                            vec2 s_ab = (keep_a) ? a : b;
+                            vec2 s_cd = (keep_c) ? c : d;
+                            real32 half_angle; {
+                                real32 angle = three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
+                                if (angle > PI) angle = TAU - angle;
+                                half_angle = angle / 2;
+                            }
                             real32 length = radius / tan(half_angle);
-                            vec2 t_ab = p + (bool_ab ? 1 : -1) * length * e_ab;
-                            vec2 t_cd = p + (bool_cd ? 1 : -1) * length * e_cd;
+                            vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
+                            vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
-                            LineLineIntersectionResult _center = line_line_intersection(t_ab + perpendicularTo(e_ab), t_ab, t_cd + perpendicularTo(e_cd), t_cd);
+                            LineLineIntersectionResult _center = line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
                             if (_center.is_valid) {
                                 vec2 center = _center.position;
 
@@ -1249,6 +1261,7 @@ uint32 event_process(Event event) {
                                 real32 theta_cd_in_degrees = DEG(atan2(t_cd.y - center.y, t_cd.x - center.x));
 
                                 if (three_point_angle(t_ab, center, t_cd) < PI) {
+                                    // FORNOW TODO consider swap
                                     real32 tmp = theta_ab_in_degrees;
                                     theta_ab_in_degrees = theta_cd_in_degrees;
                                     theta_cd_in_degrees = tmp;

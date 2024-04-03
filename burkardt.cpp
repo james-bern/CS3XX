@@ -1,4 +1,21 @@
-// TODO: put this in snail
+// the only good mathematical software is written by John Burkardt
+#ifdef COW_OS_WINDOWS
+#pragma warning(push)
+#pragma warning(disable : 4100 4244 4701)
+#endif
+#ifdef COW_OS_APPLE
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wsometimes-uninitialized"
+#endif
+#include "geometry.h"
+#include "geometry.c"
+#ifdef COW_OS_WINDOWS
+#pragma warning(pop)
+#endif
+#ifdef COW_OS_APPLE
+#pragma clang diagnostic pop
+#endif
 
 struct LineLineIntersectionResult {
     bool32 is_valid;
@@ -21,7 +38,7 @@ LineLineIntersectionResult line_line_intersection(vec2 a, vec2 b, vec2 c, vec2 d
     lines_exp_int_2d(p1, p2, p3, p4, &ival, p);
     LineLineIntersectionResult result;
     result.is_valid = (ival == 1);
-    for (uint32 k = 0; k < 2; ++k) result.position[k] = p[k];
+    for (uint32 k = 0; k < 2; ++k) result.position[k] = (cow_real) p[k];
     return result;
 }
 

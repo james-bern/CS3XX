@@ -26938,10 +26938,10 @@ unsigned long random_initialize ( unsigned long seed )
 /*
   Now set the seed.
 */
-/*
+
   srand ( seed );
-*/
-  srandom ( seed );
+
+  // srandom ( seed );
 
   return seed;
 }
@@ -27154,7 +27154,7 @@ int s_len_trim ( char *s )
   int n;
   char *t;
 
-  n = strlen ( s );
+  n = (int) strlen ( s );
   t = s + strlen ( s ) - 1;
 
   while ( 0 < n )

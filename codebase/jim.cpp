@@ -13,21 +13,20 @@
 
 // msvc details switches /Bt /d2cgsummary 
 
-#define real double
 #define for_(i, N) for (int i = 0; i < N; ++i)
 #define for____(N) for (int _ = 0; _ < N; ++_)
 #define for_line_loop_(i, j, N) for (int i = N - 1, j = 0; j < N; i = j++)
 #define for_line_strip_(i, j, N) for (int i = 0, j = 1; j < N; i = j++)
 #define for_sign(sign) for (int sign = -1; sign <= 1; sign += 2)
 
-#define NUM_DENm1(f, F) (double(f) / ((F) - 1))
-#define NUM_DEN(f, F) (double(f) / (F))
+#define NUM_DENm1(f, F) (cow_real(f) / ((F) - 1))
+#define NUM_DEN(f, F) (cow_real(f) / (F))
 #define for_line_loop_(i, j, N) for (int i = N - 1, j = 0; j < N; i = j++)
 #define for_line_strip_(i, j, N) for (int i = 0, j = 1; j < N; i = j++)
 #define for_sign(sign) for (int sign = -1; sign <= 1; sign += 2)
 
-#define NUM_DENm1(f, F) (double(f) / ((F) - 1))
-#define NUM_DEN(f, F) (double(f) / (F))
+#define NUM_DENm1(f, F) (cow_real(f) / ((F) - 1))
+#define NUM_DEN(f, F) (cow_real(f) / (F))
 
 #define SWAP(a, b) do {                   \
     ASSERT(sizeof(a) == sizeof(b));       \
@@ -67,10 +66,10 @@ template <typename F> struct Defer { Defer(F f) : f(f) {} ~Defer() { f(); } F f;
 
 
 // https://en.cppreference.com/w/c/algorithm/qsort
-void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_sort_against, bool sort_both_arrays = false) {
+void jim_sort_against(void *base, int nitems, int size, cow_real *corresp_values_to_sort_against, bool sort_both_arrays = false) {
     struct qsortHelperStruct {
         int index;
-        real value;
+        cow_real value;
     };
     qsortHelperStruct *helperArray = (qsortHelperStruct *) calloc(sizeof(qsortHelperStruct), nitems); {
         for_(i, nitems) helperArray[i] = { i, corresp_values_to_sort_against[i] };
@@ -92,9 +91,9 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
     }
 
     if (sort_both_arrays) {
-        real *tmp_buffer = (real *) malloc(nitems * sizeof(real)); {
+        cow_real *tmp_buffer = (cow_real *) malloc(nitems * sizeof(cow_real)); {
             for_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
-            memcpy(corresp_values_to_sort_against, tmp_buffer, nitems * sizeof(real));
+            memcpy(corresp_values_to_sort_against, tmp_buffer, nitems * sizeof(cow_real));
         } free(tmp_buffer);
     }
 }
