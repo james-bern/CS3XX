@@ -39,6 +39,9 @@ LineLineIntersectionResult line_line_intersection(vec2 a, vec2 b, vec2 c, vec2 d
     LineLineIntersectionResult result;
     result.is_valid = (ival == 1);
     for (uint32 k = 0; k < 2; ++k) result.position[k] = (cow_real) p[k];
+    { // we are less stringent than burkardt
+        if (squaredNorm(a - result.position) > HUGE_VAL) result.is_valid = false;
+    }
     return result;
 }
 
