@@ -669,6 +669,18 @@ template <int T> cow_real squaredNorm(SnailMatrix<T> M) {
 
 // misc functions //////////////////////////////////////////////////////////////
 
+template <int T> cow_real min(SnailVector<T> A) {
+    cow_real result = HUGE_VAL;
+    for (int i = 0; i < T; ++i) result = SNAIL_MIN(result, A[i]);
+    return result;
+}
+
+template <int T> cow_real max(SnailVector<T> A) {
+    cow_real result = -HUGE_VAL;
+    for (int i = 0; i < T; ++i) result = SNAIL_MAX(result, A[i]);
+    return result;
+}
+
 template <int T> SnailVector<T> cwiseAbs(SnailVector<T> A) {
     for (int i = 0; i < T; ++i) A[i] = abs(A[i]);
     return A;

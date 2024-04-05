@@ -63,13 +63,14 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define CLICK_MODE_CREATE_CIRCLE      7
 #define CLICK_MODE_CREATE_FILLET      8
 
-#define CLICK_MODIFIER_NONE              0
-#define CLICK_MODIFIER_CONNECTED         1
-#define CLICK_MODIFIER_QUALITY           2
-#define CLICK_MODIFIER_WINDOW            3
-#define CLICK_MODIFIER_SNAP_TO_CENTER_OF 4
-#define CLICK_MODIFIER_SNAP_TO_END_OF    5
-#define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF 6
+#define CLICK_MODIFIER_NONE                  0
+#define CLICK_MODIFIER_CONNECTED             1
+#define CLICK_MODIFIER_QUALITY               2
+#define CLICK_MODIFIER_WINDOW                3
+#define CLICK_MODIFIER_SNAP_TO_CENTER_OF     4
+#define CLICK_MODIFIER_SNAP_TO_END_OF        5
+#define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF     6
+#define CLICK_MODIFIER_SNAP_PERPENDICULAR_TO 7
 
 #define HOT_PANE_NONE 0
 #define HOT_PANE_2D   1
@@ -1209,4 +1210,130 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
     real32 L = GRID_SIDE_LENGTH;
     grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
     glDisable(GL_CULL_FACE);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// messagef API ////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+char conversation_message_buffer[256];
+uint32 conversation_message_cooldown;
+void conversation_messagef(char *format, ...) {
+    va_list arg;
+    va_start(arg, format);
+    vsnprintf(conversation_message_buffer, sizeof(conversation_message_buffer), format, arg);
+    va_end(arg);
+    conversation_message_cooldown = 300;
+    printf("%s\n", conversation_message_buffer);
+}
+void conversation_message_buffer_update_and_draw() {
+    if (conversation_message_cooldown > 0) {
+        --conversation_message_cooldown;
+    } else {
+        conversation_message_buffer[0] = '\0';
+    }
+    gui_printf("< %s", conversation_message_buffer);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// uh oh ///////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// TODO: could this take a printf function pointer?
+void wrapper_manifold(
+        ManifoldManifold **manifold_manifold,
+        FancyMesh *fancy_mesh, // dest__NOTE_GETS_OVERWRITTEN,
+        uint32 num_polygonal_loops,
+        uint32 *num_vertices_in_polygonal_loops,
+        vec2 **polygonal_loops,
+        mat4 M_3D_from_2D,
+        uint32 enter_mode,
+        real32 console_param,
+        real32 console_param_2,
+        real32 dxf_origin_x,
+        real32 dxf_origin_y,
+        bool32 revolve_use_x_instead) {
+    // FORNOW: this function call isn't a no-op
+    // history_record_state(history, manifold_manifold, fancy_mesh);
+    ASSERT(enter_mode != ENTER_MODE_NONE);
+
+
+
+
+    ManifoldManifold *other_manifold; {
+        ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
+        for (uint32 i = 0; i < num_polygonal_loops; ++i) {
+            simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
+        }
+        ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
+        ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+
+
+        { // cross_section modification
+            cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin_x, -dxf_origin_y);
+
+            if  (revolve_use_x_instead) {
+                manifold_cross_section_rotate(cross_section, cross_section, -90.0f);
+            }
+        }
+
+
+        { // other_manifold
+
+            if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+                do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_CUT\n");};
+                console_param += SGN(console_param) * TOLERANCE_DEFAULT;
+                console_param_2 += SGN(console_param_2) * TOLERANCE_DEFAULT;
+            }
+
+            // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
+            //       but we support (30, 40) -- which is equivalent to (40, 0)
+
+            if (enter_mode == ENTER_MODE_EXTRUDE_ADD || enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+                real32 min = MIN(0.0f, MIN(console_param, console_param_2));
+                real32 max = MAX(0.0f, MAX(console_param, console_param_2));
+                real32 length = max - min;
+                other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
+                other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, min);
+            } else {
+                ASSERT((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+                // TODO: M_3D_from_2D 
+                other_manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                if (revolve_use_x_instead) other_manifold = manifold_rotate(other_manifold, other_manifold, 0.0f, -90.0f, 0.0f);
+                other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
+            }
+            other_manifold = manifold_transform(other_manifold, other_manifold,
+                    M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
+                    M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
+                    M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
+                    M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
+        }
+    }
+
+    // add
+    if (!(*manifold_manifold)) {
+        ASSERT((enter_mode != ENTER_MODE_EXTRUDE_CUT) && (enter_mode != ENTER_MODE_REVOLVE_CUT));
+
+        *manifold_manifold = other_manifold;
+    } else {
+        // TODO: ? manifold_delete_manifold(manifold_manifold);
+        *manifold_manifold =
+            manifold_boolean(
+                    malloc(manifold_manifold_size()),
+                    *manifold_manifold,
+                    other_manifold,
+                    ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                    );
+    }
+
+    ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *manifold_manifold);
+
+    // // NOTE: don't free ANYTHING!--putting the current state on the undo stack
+    // XXX fancy_mesh_free(fancy_mesh);
+    fancy_mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
+    fancy_mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
+    fancy_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
+    fancy_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint32)), meshgl);
+    fancy_mesh_triangle_normals_calculate(fancy_mesh);
+    fancy_mesh_cosmetic_edges_calculate(fancy_mesh);
 }
