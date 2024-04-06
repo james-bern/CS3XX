@@ -11,6 +11,9 @@
 // NOTE FORNOW the following operations are considered "fast"--we don't bother storing them
 // - computing a dxf_entities's bounding box
 
+// // TODO important
+// true undo stack for boolean operations (checkpoints)
+
 // // TODO easy (< 30 min)
 // XXXX two_click_commands
 // TODO support color schemes
