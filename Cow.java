@@ -2,7 +2,11 @@
 // TODO: a nice kitchen sink with COW branding, maybe some 3d stuff
 // TODO: turn off automatic repaint (right now only happens when you resize the window)
 // TODO: protect the entire student-facing API with checks for begin_frame() already called
-// TODO: bouncing balls demo
+
+// // TODO: demos
+// TODO: paint
+// TODO: tic tac toe
+// TODO: flappy bird
 
 import java.awt.*;
 import java.awt.event.*;
@@ -35,7 +39,7 @@ class Cow {
 
                 set_draw_color(Color.green);
                 set_draw_width(2.0);
-                draw_corner_rectangle(2, 1, 3, 3, true);
+                draw_corner_rectangle(-5, -5, 5, 5, true);
 
                 set_draw_color(color_rainbow_swirl(time));
                 set_draw_width(4.0);
@@ -43,7 +47,7 @@ class Cow {
 
                 for (int pass = 0; pass < 2; ++pass) {
                     if (pass == 0) {
-                        set_draw_color(1.0, 0.0, 1.0, 0.5);
+                        set_draw_color(Color.magenta, 0.5);
                     } else {
                         set_draw_color(0.0, 0.0, 0.0);
                         set_draw_width(3.0);
@@ -91,11 +95,10 @@ class Cow {
         ((Graphics2D) _buffered_image_graphics).setStroke(new BasicStroke((float) w));
     }
 
-    static void TODO_set_draw_color(Color color, double a) {
-        // TODO
-        // assert a >= 0;
-        // assert a <= 1;
-        // _buffered_image_graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), (float) a));
+    static void set_draw_color(Color color, double a) {
+        assert a >= 0;
+        assert a <= 1;
+        _buffered_image_graphics.setColor(new Color(color.getRed() / 255, color.getGreen() / 255, color.getBlue() / 255, (float) a));
     }
 
     static void set_draw_color(Color color) {
@@ -118,11 +121,12 @@ class Cow {
         set_draw_color(r, g, b, 1.0);
     }
 
-    static float _color_rainbow_swirl_helper(double time, double offset) {
-        return 0.5f + 0.5f * (float) Math.cos(6.28 * (offset - time));
-    }
     static Color color_rainbow_swirl(double time) {
-        return new Color(_color_rainbow_swirl_helper(time, 0.0), _color_rainbow_swirl_helper(time, 0.33), _color_rainbow_swirl_helper(time, -0.33));
+        double TAU   = 6.283;
+        double red   = 0.5f + 0.5f * (float) Math.cos(TAU * ( 0.000 - time));
+        double green = 0.5f + 0.5f * (float) Math.cos(TAU * ( 0.333 - time));
+        double blue  = 0.5f + 0.5f * (float) Math.cos(TAU * (-0.333 - time));
+        return new Color((float) red, (float) green, (float) blue);
     }
 
 
@@ -199,13 +203,13 @@ class Cow {
         assert _buffered_image_graphics != null;
 
         _jPanel_extender = new CowJPanelExtender(_buffered_image, _buffered_image_graphics);
+        _jPanel_extender.setPreferredSize(new Dimension(canvas_pixel_width(), canvas_pixel_height));
 
         _jFrame = new JFrame("Cow.java 🙂👍");
-        _jFrame.add(_jPanel_extender);
         _jFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        _jFrame.setLocation(0, 0);
         _jFrame.getContentPane().add(_jPanel_extender, BorderLayout.CENTER);
-        _jFrame.setUndecorated(true);
-        _jFrame.setSize(canvas_pixel_width(), canvas_pixel_height);
+        _jFrame.pack();
         _jFrame.setVisible(true);
 
     }
@@ -240,6 +244,7 @@ class CowJPanelExtender extends JPanel {
     }
     @Override
     public void paintComponent(Graphics paintComponentGraphics) { 
+        super.paintComponent(paintComponentGraphics);
         while (_buffered_image_graphics == null) {}
         while (_buffered_image == null) {}
         paintComponentGraphics.drawImage(_buffered_image, 0, 0, null);
