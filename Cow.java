@@ -1,3 +1,4 @@
+// TODO: a crash should cause the window to close
 // TODO: a nice kitchen sink with COW branding, maybe some 3d stuff
 // TODO: turn off automatic repaint (right now only happens when you resize the window)
 // TODO: protect the entire student-facing API with checks for begin_frame() already called
@@ -21,13 +22,11 @@ class Cow {
 
         // state
         double time = 0.0;
-        double y = 2.0;
 
         // loop
         while (begin_frame()) {
-            { // update
+            if (!key_toggled('P')) { // update
                 time += 0.0167;
-                y -= 0.02;
             }
 
             { // draw
@@ -42,13 +41,26 @@ class Cow {
                 set_draw_width(4.0);
                 draw_line(-2, 1, 3, 3);
 
-                set_draw_color(1.0, 0.0, 1.0, 0.5);
-                draw_circle(0, y, 1, false);
-                set_draw_color(0.0, 0.0, 0.0);
-                set_draw_width(3.0);
-                draw_circle(0, y, 1, true);
+                for (int pass = 0; pass < 2; ++pass) {
+                    if (pass == 0) {
+                        set_draw_color(1.0, 0.0, 1.0, 0.5);
+                    } else {
+                        set_draw_color(0.0, 0.0, 0.0);
+                        set_draw_width(3.0);
+                    }
+                    draw_circle(2.0 * Math.cos(time), 2.0 * Math.sin(time), 1, (pass == 1));
+                }
             }
         }
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+
+    // TODO mouse and key stuff
+    // TODO imgui
+
+    static boolean key_toggled(char key) {
+        return false;
     }
 
     /////////////////////////////////////////////////////////////////////////
