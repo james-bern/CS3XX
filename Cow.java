@@ -20,161 +20,7 @@ import javax.swing.*;
 import java.lang.Math;
 import java.io.*;
 
-class DemoTicTacToe extends Cow {
-    final static int NONE = 0;
-    final static int X_PLAYER = 1;
-    final static int O_PLAYER = 2;
-    public static void main(String[] arguments) {
-        // configure
-        set_canvas_world_left_bottom_corner(0, 0);
-        set_canvas_world_size(3, 3);
-        canvas_pixel_height = 256;
-
-        // state
-        int board[][] = new int[3][3]; // board[row (y)][column (x)]
-        int current_player = X_PLAYER;
-        boolean game_is_over = false;
-
-        // loop
-        while (begin_frame()) {
-            int hot_row = (int) Math.floor(mouse_y);
-            int hot_column = (int) Math.floor(mouse_x);
-
-            if (!game_is_over) { // update
-                if (mouse_pressed) {
-                    if (board[hot_row][hot_column] == NONE) {
-                        board[hot_row][hot_column] = current_player;
-                        current_player = (current_player == X_PLAYER) ? O_PLAYER : X_PLAYER;
-                    }
-                }
-
-                { // check for game over
-                    for (int row = 0; row < 3; ++row) {
-                        for (int column = 0; column < 3; ++column) {
-                        }
-                    }
-                }
-
-            }
-
-            { // draw
-                if (!game_is_over) { // hot square
-                    set_draw_color(Color.yellow, 0.5);
-                    fill_corner_rectangle(hot_column, hot_row, hot_column + 1, hot_row + 1);
-                }
-
-                { // X's and O's
-                    set_draw_color(Color.black);
-                    for (int row = 0; row < 3; ++row) {
-                        for (int column = 0; column < 3; ++column) {
-                            if (board[row][column] == X_PLAYER) {
-                                draw_line(column, row, column + 1, row + 1);
-                                draw_line(column, row + 1, column + 1, row);
-                            } else if (board[row][column] == O_PLAYER) {
-                                outline_circle(column + 0.5, row + 0.5, 0.5);
-                            }
-                        }
-                    }
-                }
-
-                { // board lines
-                    set_draw_color(Color.black);
-                    draw_line(1, 0, 1, 3);
-                    draw_line(2, 0, 2, 3);
-                    draw_line(0, 1, 3, 1);
-                    draw_line(0, 2, 3, 2);
-                }
-            }
-        }
-    }
-}
-
-class DemoKitchenSink extends Cow {
-    static class Particle {
-        double x;
-        double y;
-        Color color;
-    };
-
-    public static void main(String[] arguments) {
-        // configure
-        set_canvas_world_left_bottom_corner(-5, -5);
-        set_canvas_world_size(10, 10);
-
-        // state
-        double time = 0.0;
-        ArrayList<Particle> particles = new ArrayList<>();
-        double x = 0.0;
-        double y = 0.0;
-
-        // loop
-        while (begin_frame()) {
-            if (!key_toggled['P']) { // update
-                time += 0.0167;
-
-                if (mouse_pressed) {
-                    Particle particle = new Particle();
-                    particle.x = mouse_x;
-                    particle.y = mouse_y;
-                    particle.color = Color.orange;
-                    particles.add(particle);
-                }
-
-                if (mouse_released) {
-                    Particle particle = new Particle();
-                    particle.x = mouse_x;
-                    particle.y = mouse_y;
-                    particle.color = Color.cyan;
-                    particles.add(particle);
-                }
-
-                {
-                    double delta = 0.1;
-                    if (key_held['W']) y += delta;
-                    if (key_held['A']) x -= delta;
-                    if (key_held['S']) y -= delta;
-                    if (key_held['D']) x += delta;
-                }
-            }
-
-            { // draw
-
-                if (!mouse_held) {
-                    set_draw_color(Color.gray);
-                } else {
-                    set_draw_color(Color.yellow);
-                }
-                fill_center_rectangle(0, 0, 4, 2);
-
-                set_draw_color(Color.green);
-                set_draw_width(2.0);
-                outline_corner_rectangle(-5, -5, 5, 5);
-
-                set_draw_color(Color.magenta);
-                set_draw_width(4.0);
-                draw_line(mouse_x, mouse_y, 3, 3);
-
-                for (int pass = 0; pass < 2; ++pass) {
-                    if (pass == 0) {
-                        set_draw_color(color_rainbow_swirl(time), 0.5);
-                    } else {
-                        set_draw_color(0.0, 0.0, 0.0);
-                        set_draw_width(3.0);
-                    }
-                    _draw_circle(x, y, 1, (pass == 1));
-                }
-
-                for (int i = 0; i < particles.size(); ++i) {
-                    set_draw_color(particles.get(i).color);
-                    fill_circle(particles.get(i).x, particles.get(i).y, 0.1);
-                }
-            }
-        }
-    }
-}
-
 class Cow {
-
     public static void main(String[] arguments) {
         // DemoKitchenSink.main(null);
         DemoTicTacToe.main(null);
@@ -224,7 +70,7 @@ class Cow {
     }
 
 
-    static void set_draw_width(double w) {
+    static void set_line_thickness(double w) {
         assert w >= 0;
         ((Graphics2D) _buffered_image_graphics).setStroke(new BasicStroke((float) w));
     }
@@ -413,6 +259,219 @@ class Cow {
         return true;
     }
 }
+
+class DemoTicTacToe extends Cow {
+
+    final static int PLAYER_NONE = 0;
+    final static int PLAYER_X    = 1;
+    final static int PLAYER_O    = 2;
+
+    // state
+    static int board[][] = new int[3][3]; // board[row (y)][column (x)]
+    static int current_player = PLAYER_X;
+    static int winner = PLAYER_NONE;
+    static int turn = 0;
+    static double win_line_x1;
+    static double win_line_x2;
+    static double win_line_y1;
+    static double win_line_y2;
+
+    static boolean game_is_over() {
+        return (winner != PLAYER_NONE) || (turn == 9);
+    }
+
+    public static void main(String[] arguments) {
+
+        // configure
+        set_canvas_world_left_bottom_corner(0, 0);
+        set_canvas_world_size(3, 3);
+        canvas_pixel_height = 256;
+
+
+        // loop
+        while (begin_frame()) {
+            int hot_row = (int) Math.floor(mouse_y);
+            int hot_column = (int) Math.floor(mouse_x);
+
+            if (!game_is_over()) { // update
+                if (mouse_pressed) {
+                    if (board[hot_row][hot_column] == PLAYER_NONE) {
+                        ++turn;
+                        board[hot_row][hot_column] = current_player;
+                        current_player = (current_player == PLAYER_X) ? PLAYER_O : PLAYER_X;
+                    }
+                }
+
+                { // check for game over
+
+                    // rows
+                    for (int row = 0; row < 3; ++row) {
+                        if ((board[row][0] != PLAYER_NONE) && ((board[row][0] == board[row][1]) && (board[row][0] == board[row][2]))) {
+                            winner = board[row][0];
+                            win_line_x1 = 0.0;
+                            win_line_x2 = 3.0;
+                            win_line_y1 = row + 0.5;
+                            win_line_y2 = win_line_y1;
+                        }
+                    }
+
+                    // columns
+                    for (int column = 0; column < 3; ++column) {
+                        if ((board[0][column] != PLAYER_NONE) && ((board[0][column] == board[1][column]) && (board[0][column] == board[2][column]))) {
+                            winner = board[0][column];
+                            win_line_x1 = column + 0.5;
+                            win_line_x2 = win_line_x1;
+                            win_line_y1 = 0.0;
+                            win_line_y2 = 3.0;
+                        }
+                    }
+
+                    // diagonals
+                    if ((board[0][0] != PLAYER_NONE) && ((board[0][0] == board[1][1]) && (board[0][0] == board[2][2]))) {
+                        winner = board[0][0];
+                        win_line_x1 = 0.0;
+                        win_line_y1 = 0.0;
+                        win_line_x2 = 3.0;
+                        win_line_y2 = 3.0;
+                    }
+                    if ((board[0][2] != PLAYER_NONE) && ((board[0][2] == board[1][1]) && (board[0][2] == board[2][0]))) {
+                        winner = board[0][2];
+                        win_line_x1 = 0.0;
+                        win_line_y1 = 3.0;
+                        win_line_x2 = 3.0;
+                        win_line_y2 = 0.0;
+                    }
+
+                }
+
+
+            }
+
+            { // draw
+                if (!game_is_over()) { // hot square
+                    set_draw_color(Color.yellow, 0.5);
+                    fill_corner_rectangle(hot_column, hot_row, hot_column + 1, hot_row + 1);
+                }
+
+                { // board lines
+                    set_draw_color(Color.black);
+                    set_line_thickness(2.0);
+                    draw_line(1, 0, 1, 3);
+                    draw_line(2, 0, 2, 3);
+                    draw_line(0, 1, 3, 1);
+                    draw_line(0, 2, 3, 2);
+                }
+
+                { // X's and O's
+                    set_draw_color(Color.black);
+                    set_line_thickness(3.0);
+                    double epsilon = 0.1;
+                    for (int row = 0; row < 3; ++row) {
+                        for (int column = 0; column < 3; ++column) {
+                            if (board[row][column] == PLAYER_X) {
+                                draw_line(column + epsilon, row + epsilon, column + 1 - epsilon, row + 1 - epsilon);
+                                draw_line(column + epsilon, row + 1 - epsilon, column + 1 - epsilon, row + epsilon);
+                            } else if (board[row][column] == PLAYER_O) {
+                                outline_circle(column + 0.5, row + 0.5, 0.5 - epsilon);
+                            }
+                        }
+                    }
+                }
+
+                if (winner != PLAYER_NONE) { // winning line
+                    set_draw_color(Color.magenta);
+                    set_line_thickness(4.0);
+                    draw_line(win_line_x1, win_line_y1, win_line_x2, win_line_y2);
+                }
+            }
+        }
+    }
+}
+
+class DemoKitchenSink extends Cow {
+    static class Particle {
+        double x;
+        double y;
+        Color color;
+    };
+
+    public static void main(String[] arguments) {
+        // configure
+        set_canvas_world_left_bottom_corner(-5, -5);
+        set_canvas_world_size(10, 10);
+
+        // state
+        double time = 0.0;
+        ArrayList<Particle> particles = new ArrayList<>();
+        double x = 0.0;
+        double y = 0.0;
+
+        // loop
+        while (begin_frame()) {
+            if (!key_toggled['P']) { // update
+                time += 0.0167;
+
+                if (mouse_pressed) {
+                    Particle particle = new Particle();
+                    particle.x = mouse_x;
+                    particle.y = mouse_y;
+                    particle.color = Color.orange;
+                    particles.add(particle);
+                }
+
+                if (mouse_released) {
+                    Particle particle = new Particle();
+                    particle.x = mouse_x;
+                    particle.y = mouse_y;
+                    particle.color = Color.cyan;
+                    particles.add(particle);
+                }
+
+                {
+                    double delta = 0.1;
+                    if (key_held['W']) y += delta;
+                    if (key_held['A']) x -= delta;
+                    if (key_held['S']) y -= delta;
+                    if (key_held['D']) x += delta;
+                }
+            }
+
+            { // draw
+
+                if (!mouse_held) {
+                    set_draw_color(Color.gray);
+                } else {
+                    set_draw_color(Color.yellow);
+                }
+                fill_center_rectangle(0, 0, 4, 2);
+
+                set_draw_color(Color.green);
+                set_line_thickness(2.0);
+                outline_corner_rectangle(-5, -5, 5, 5);
+
+                set_draw_color(Color.magenta);
+                set_line_thickness(4.0);
+                draw_line(mouse_x, mouse_y, 3, 3);
+
+                for (int pass = 0; pass < 2; ++pass) {
+                    if (pass == 0) {
+                        set_draw_color(color_rainbow_swirl(time), 0.5);
+                    } else {
+                        set_draw_color(0.0, 0.0, 0.0);
+                        set_line_thickness(3.0);
+                    }
+                    _draw_circle(x, y, 1, (pass == 1));
+                }
+
+                for (int i = 0; i < particles.size(); ++i) {
+                    set_draw_color(particles.get(i).color);
+                    fill_circle(particles.get(i).x, particles.get(i).y, 0.1);
+                }
+            }
+        }
+    }
+}
+
 
 class CowJPanelExtender extends JPanel {
     CowJPanelExtender() {
