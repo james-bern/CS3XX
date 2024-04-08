@@ -1,3 +1,5 @@
+// TODO: make an undo that stores a stack of the 3D stuff so you only undo from a 3D checkpoint
+
 // NOTE: backspace is used both for deleting sketch entities and changing console stuff (e.g., for an extrude) TODO give console priority
 
 // // /TODO misc
@@ -330,8 +332,6 @@ void _conversation_save_state_new_document() {
     conversation_save_state_save();
 }
 
-
-
 void conversation_reset(bool32 disable_top_layer_resets = false) {
     click_mode = CLICK_MODE_NONE;
     click_modifier = CLICK_MODIFIER_NONE;
@@ -361,9 +361,56 @@ void conversation_reset(bool32 disable_top_layer_resets = false) {
     }
 }
 
+
+
+#define UI_EVENT_TYPE_KEY_PRESS      0
+#define UI_EVENT_TYPE_MOUSE_2D_PRESS 1
+#define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
+
+struct Event {
+    uint32 type;
+    union {
+        struct {
+            uint32 key;
+            uint32 mods;
+        };
+        struct {
+            real32 mouse_x;
+            real32 mouse_y;
+        };
+        struct {
+            vec3 o;
+            vec3 dir;
+        };
+    }; 
+    bool32 not_checkpoint_eligible__NOTE_set_before_event_process;
+    bool32 checkpoint__NOTE_set_in_event_process;
+};
+
+Queue<Event> new_event_queue;
+
+
+
 void conversation_init() {
+    {
+        conversation_dxf_load("omax.dxf", true);
+        {
+            Event event = {};
+            event.type = UI_EVENT_TYPE_KEY_PRESS;
+
+            for (int i = 0; i < 5; ++i) {
+                event.key = 'Y';           queue_enqueue(&new_event_queue, event);
+                event.key = 'S';           queue_enqueue(&new_event_queue, event);
+                event.key = 'Q';           queue_enqueue(&new_event_queue, event);
+                event.key = '0' + i;       queue_enqueue(&new_event_queue, event);
+                event.key = 'E';           queue_enqueue(&new_event_queue, event);
+                event.key = '1' + i;       queue_enqueue(&new_event_queue, event);
+                event.key = COW_KEY_ENTER; queue_enqueue(&new_event_queue, event);
+            }
+        }
+    }
     // conversation_dxf_load("splash.dxf", true);
-    conversation_dxf_load("debug.dxf", true);
+    // conversation_dxf_load("debug.dxf", true);
     conversation_save_state_save();
     conversation_reset();
 }
@@ -397,39 +444,16 @@ void conversation_init() {
 // |                                                         |    
 // 0                                                         A,B,C
 
-#define UI_EVENT_TYPE_KEY_PRESS      0
-#define UI_EVENT_TYPE_MOUSE_2D_PRESS 1
-#define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
-
 // TODO: why is undo broken now
 #define PROCESSED_EVENT_CATEGORY_DONT_RECORD              0
 #define PROCESSED_EVENT_CATEGORY_RECORD                   1
 #define PROCESSED_EVENT_CATEGORY_CHECKPOINT               2
 #define PROCESSED_EVENT_CATEGORY_SELF_AND_PREV_CHECKPOINT 3
 #define PROCESSED_EVENT_CATEGORY_KILL_HISTORY             4
-
-struct Event {
-    uint32 type;
-    union {
-        struct {
-            uint32 key;
-            uint32 mods;
-        };
-        struct {
-            real32 mouse_x;
-            real32 mouse_y;
-        };
-        struct {
-            vec3 o;
-            vec3 dir;
-        };
-    }; 
-    bool32 not_checkpoint_eligible__NOTE_set_before_event_process;
-    bool32 checkpoint__NOTE_set_in_event_process;
-};
+#define PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT         5
 
 
-Queue<Event> new_event_queue;
+
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     // _callback_key(NULL, key, 0, action, mods); // FORNOW TODO TODO TODO SHIM
@@ -1479,13 +1503,19 @@ void new_event_process(Event new_event) {
         }
     } else { // process immediately
         uint32 category = event_process(new_event);
+
         if (category == PROCESSED_EVENT_CATEGORY_DONT_RECORD) {
         } else if (category == PROCESSED_EVENT_CATEGORY_KILL_HISTORY) {
             history_B = history_C = history_A;
             queue_free(&new_event_queue);
             conversation_save_state_save();
         } else {
-            if (((category == PROCESSED_EVENT_CATEGORY_CHECKPOINT) || (category == PROCESSED_EVENT_CATEGORY_SELF_AND_PREV_CHECKPOINT))
+            if ((
+                        0
+                        || (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT)
+                        || (category == PROCESSED_EVENT_CATEGORY_SELF_AND_PREV_CHECKPOINT)
+                        || (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT)
+                )
                     && (!new_event.not_checkpoint_eligible__NOTE_set_before_event_process) // FORNOW
                ) {
                 new_event.checkpoint__NOTE_set_in_event_process = true;
