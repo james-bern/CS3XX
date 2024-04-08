@@ -18,7 +18,6 @@ import java.io.*;
 
 
 class Cow {
-
     public static void main(String[] arguments) {
         // configure
         set_canvas_world_left_bottom_corner(-5, -5);
@@ -34,7 +33,11 @@ class Cow {
             }
 
             { // draw
-                set_draw_color(Color.yellow);
+                if (!mouse_held) {
+                    set_draw_color(Color.gray);
+                } else {
+                    set_draw_color(Color.yellow);
+                }
                 draw_center_rectangle(0, 0, 4, 2, false);
 
                 set_draw_color(Color.green);
@@ -66,6 +69,10 @@ class Cow {
     static boolean key_toggled(char key) {
         return false;
     }
+
+    static boolean mouse_pressed;
+    static boolean mouse_held;
+    static boolean mouse_released;
 
     /////////////////////////////////////////////////////////////////////////
 
@@ -202,7 +209,7 @@ class Cow {
         _buffered_image_graphics = _buffered_image.createGraphics();
         assert _buffered_image_graphics != null;
 
-        _jPanel_extender = new CowJPanelExtender(_buffered_image, _buffered_image_graphics);
+        _jPanel_extender = new CowJPanelExtender();
         _jPanel_extender.setPreferredSize(new Dimension(canvas_pixel_width(), canvas_pixel_height));
 
         _jFrame = new JFrame("Cow.java 🙂👍");
@@ -235,19 +242,32 @@ class Cow {
 }
 
 class CowJPanelExtender extends JPanel {
-    static BufferedImage _buffered_image;
-    static Graphics _buffered_image_graphics;
-    CowJPanelExtender(BufferedImage _buffered_image, Graphics _buffered_image_graphics) {
+    CowJPanelExtender() {
         super();
-        this._buffered_image = _buffered_image;
-        this._buffered_image_graphics = _buffered_image_graphics;
+
+        this.addMouseListener( 
+                new MouseAdapter() {
+                    @Override
+                    public void mousePressed(MouseEvent e) {
+                        Cow.mouse_pressed = true;
+                        Cow.mouse_held = true;
+                    }
+
+                    @Override
+                    public void mouseReleased(MouseEvent e) {
+                        Cow.mouse_held = false;
+                        Cow.mouse_released = true;
+                    }
+                }
+                );
     }
+
     @Override
     public void paintComponent(Graphics paintComponentGraphics) { 
         super.paintComponent(paintComponentGraphics);
-        while (_buffered_image_graphics == null) {}
-        while (_buffered_image == null) {}
-        paintComponentGraphics.drawImage(_buffered_image, 0, 0, null);
+        while (Cow._buffered_image_graphics == null) {}
+        while (Cow._buffered_image == null) {}
+        paintComponentGraphics.drawImage(Cow._buffered_image, 0, 0, null);
     }
 }
 
