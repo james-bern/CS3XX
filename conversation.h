@@ -56,12 +56,13 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define CLICK_MODE_NONE               0
 #define CLICK_MODE_SELECT             1
 #define CLICK_MODE_DESELECT           2
-#define CLICK_MODE_MOVE_DXF_ORIGIN_TO 3
+#define CLICK_MODE_ORIGIN_MOVE        3
 #define CLICK_MODE_MEASURE            4
 #define CLICK_MODE_CREATE_LINE        5
 #define CLICK_MODE_CREATE_BOX         6
 #define CLICK_MODE_CREATE_CIRCLE      7
 #define CLICK_MODE_CREATE_FILLET      8
+#define CLICK_MODE_DXF_MOVE           9
 
 #define CLICK_MODIFIER_NONE                  0
 #define CLICK_MODIFIER_CONNECTED             1
@@ -428,12 +429,12 @@ void _dxf_eso_color(uint32 color) {
     }
 }
 
-void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_COLOR_DONT_OVERRIDE, real32 dx = 0.0f, real32 dy = 0.0f) {
     if (entity->type == DXF_ENTITY_TYPE_LINE) {
         DXFLine *line = &entity->line;
         _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : entity->color);
-        eso_vertex(line->start_x, line->start_y);
-        eso_vertex(line->end_x,   line->end_y);
+        eso_vertex(line->start_x + dx, line->start_y + dy);
+        eso_vertex(line->end_x + dx,   line->end_y + dy);
     } else {
         ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
         DXFArc *arc = &entity->arc;
@@ -447,10 +448,10 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
         for (uint32 i = 0; i < num_segments; ++i) {
             real32 x, y;
             get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
-            eso_vertex(x, y);
+            eso_vertex(x + dx, y + dy);
             current_angle += increment;
             get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center_x, arc->center_y, arc->radius, current_angle);
-            eso_vertex(x, y);
+            eso_vertex(x + dx, y + dy);
         }
     }
 }

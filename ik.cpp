@@ -29,6 +29,7 @@ int main() {
     bool ik = false;
     while (cow_begin_frame()) {
         mat4 PV = camera_get_PV(&camera_2D);
+        camera_move(&camera_2D);
 
 
         gui_slider("L_0", &L[0], 0.0f, 100.0f);
@@ -68,7 +69,7 @@ int main() {
 
         eso_begin(PV, SOUP_LINE_STRIP);
         eso_color(monokai.white);
-        for (uint32 i = 0; i < trace.length; ++i) eso_vertex(trace.data[i]);
+        for (uint32 i = 0; i < trace.length; ++i) eso_vertex(trace.array[i]);
         eso_end();
 
         eso_begin(PV, SOUP_LINES, 12.0f);

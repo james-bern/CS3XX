@@ -33,7 +33,7 @@ real32 y_target = 0.0f;
 
 #define TRACE_MAX_NUM_POINTS 512
 Queue<vec2> trace;
-DXF dxf;
+List<DXFEntity> dxf_entities;
 List<vec2> target;
 
 uint32 mode;
@@ -45,18 +45,21 @@ int main() {
     bool toggle_traj = false;
     bool toggle_show_target = true;
     uint32 i_target = 0;
-    dxf_load("jim4.dxf", &dxf);
+    dxf_load("jim4.dxf", &dxf_entities);
     {
-        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(&dxf);
+        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(&dxf_entities);
         ASSERT(analysis.num_loops == 1);
         uint32 num_entities = analysis.num_entities_in_loops[0];
         DXFEntityIndexAndFlipFlag *loop = analysis.loops[0];
         real32 x, y;
         for (uint32 i = 0; i < num_entities; ++i) {
-            DXFEntity *entity = &dxf.entities[loop[i].entity_index];
+            DXFEntity *entity = &dxf_entities.array[loop[i].entity_index];
             bool32 flip_flag =  loop[i].flip_flag;
             real32 t = 0.0f;
-            real32 dt = 0.8f / entity_length(entity);
+            real32 dt = 0.4f / entity_length(entity);
+            #if 0
+            dt *= 2;
+            #endif
             while (t < 1.0f - TINY_VAL) {
                 entity_lerp_considering_flip_flag(entity, t, &x, &y, flip_flag);
                 list_push_back(&target, { x, y });
@@ -73,7 +76,7 @@ int main() {
         fprintf(file, "const int num_frames = %d;\n", target.length);
         fprintf(file, "int target[2 * num_frames] = {");
         for (uint32 i = 0; i < target.length; ++i) {
-            solve_ik(target.data[i].x, target.data[i].y, &u_0, &u_1);
+            solve_ik(target.array[i].x, target.array[i].y, &u_0, &u_1);
             fprintf(file, "%d,", int(round(LINEAR_REMAP(u_0, -PI / 2,  PI / 2, 500.0f, 2500.0f))));
             fprintf(file, "%d,", int(round(LINEAR_REMAP(u_1,  PI / 2, -PI / 2, 500.0f, 2500.0f))));
         }
@@ -95,7 +98,7 @@ int main() {
         gui_checkbox("toggle_show_target", &toggle_show_target, 'k');
 
         if (toggle_traj) {
-            vec2 s_target = target.data[i_target];
+            vec2 s_target = target.array[i_target];
             i_target = (i_target + 1) % target.length;
             x_target = s_target.x;
             y_target = s_target.y;
@@ -113,7 +116,7 @@ int main() {
             u[0] = LINEAR_REMAP(round(LINEAR_REMAP(u[0], -PI / 2,  PI / 2, 0.0f, 180.0f)), 0.0, 180.0f, -PI / 2,  PI / 2);
             u[1] = LINEAR_REMAP(round(LINEAR_REMAP(u[1],  PI / 2, -PI / 2, 0.0f, 180.0f)), 0.0, 180.0f,  PI / 2, -PI / 2);
             #endif
-            #if 1 // servo.writeMicroseconds(...);
+            #if 0 // servo.writeMicroseconds(...);
             u[0] = LINEAR_REMAP(int(round(LINEAR_REMAP(u[0], -PI / 2,  PI / 2, 1000.0f, 2000.0f))), 1000.0f, 2000.0f, -PI / 2,  PI / 2);
             u[1] = LINEAR_REMAP(int(round(LINEAR_REMAP(u[1],  PI / 2, -PI / 2, 1000.0f, 2000.0f))), 1000.0f, 2000.0f,  PI / 2, -PI / 2);
             #endif
@@ -134,19 +137,19 @@ int main() {
         queue_enqueue(&trace, { x_2, y_2 });
         if (trace.length > TRACE_MAX_NUM_POINTS) queue_dequeue(&trace);
 
-        if (toggle_show_target) dxf_debug_draw(&camera_2D, &dxf);
+        if (toggle_show_target) dxf_debug_draw(&camera_2D, &dxf_entities);
 
         // eso_begin(PV, SOUP_POINTS, 12.0f);
         // for (uint32 i = 0; i < target.length; ++i) {
         //     eso_color(color_kelly(i));
-        //     eso_vertex(target.data[i]);
+        //     eso_vertex(target.array[i]);
         // }
         // eso_end();
 
         eso_begin(PV, SOUP_LINE_STRIP);
         for (uint32 i = 0; i < trace.length; ++i) {
             eso_color(color_plasma(1.0f - NUM_DENm1(i, TRACE_MAX_NUM_POINTS)));
-            eso_vertex(trace.data[i]);
+            eso_vertex(trace.array[i]);
         }
         eso_end();
 

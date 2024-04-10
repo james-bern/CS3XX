@@ -22,8 +22,8 @@ import java.io.*;
 
 class Cow {
     public static void main(String[] arguments) {
-        // DemoKitchenSink.main(null);
-        DemoTicTacToe.main(null);
+        DemoKitchenSink.main(null);
+        // DemoTicTacToe.main(null);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -109,6 +109,21 @@ class Cow {
         return new Color((float) red, (float) green, (float) blue);
     }
 
+    static void draw_string(String string, double _x, double _y, int fontSize, boolean center) {
+        // Suppress Mac warnings about missing Times and Lucida.
+        PrintStream systemDotErr = System.err;
+        System.setErr(new PrintStream(new NullOutputStream())); {
+            int x = X_pixel_from_world(_x);
+            int y = Y_pixel_from_world(_y);
+            if (center) {
+                FontMetrics fontMetrics = _buffered_image_graphics.getFontMetrics(); 
+                x -= 0.5 * fontMetrics.stringWidth(string);
+                y += 0.25 * fontMetrics.getHeight();
+            }
+            _buffered_image_graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize)); 
+            _buffered_image_graphics.drawString(string, x, y);
+        } System.setErr(systemDotErr);
+    }
 
     static void draw_line(double x1, double y1, double x2, double y2) {
         _buffered_image_graphics.drawLine(X_pixel_from_world(x1), Y_pixel_from_world(y1), X_pixel_from_world(x2), Y_pixel_from_world(y2));
@@ -261,7 +276,6 @@ class Cow {
 }
 
 class DemoTicTacToe extends Cow {
-
     final static int PLAYER_NONE = 0;
     final static int PLAYER_X    = 1;
     final static int PLAYER_O    = 2;
@@ -294,12 +308,10 @@ class DemoTicTacToe extends Cow {
             int hot_column = (int) Math.floor(mouse_x);
 
             if (!game_is_over()) { // update
-                if (mouse_pressed) {
-                    if (board[hot_row][hot_column] == PLAYER_NONE) {
-                        ++turn;
-                        board[hot_row][hot_column] = current_player;
-                        current_player = (current_player == PLAYER_X) ? PLAYER_O : PLAYER_X;
-                    }
+                if (mouse_pressed && (board[hot_row][hot_column] == PLAYER_NONE)) { // make move
+                    ++turn;
+                    board[hot_row][hot_column] = current_player;
+                    current_player = (current_player == PLAYER_X) ? PLAYER_O : PLAYER_X;
                 }
 
                 { // check for game over
@@ -343,8 +355,6 @@ class DemoTicTacToe extends Cow {
                     }
 
                 }
-
-
             }
 
             { // draw
@@ -379,8 +389,8 @@ class DemoTicTacToe extends Cow {
                 }
 
                 if (winner != PLAYER_NONE) { // winning line
-                    set_draw_color(Color.magenta);
-                    set_line_thickness(4.0);
+                    set_draw_color(Color.magenta, 0.5);
+                    set_line_thickness(6.0);
                     draw_line(win_line_x1, win_line_y1, win_line_x2, win_line_y2);
                 }
             }
@@ -467,6 +477,9 @@ class DemoKitchenSink extends Cow {
                     set_draw_color(particles.get(i).color);
                     fill_circle(particles.get(i).x, particles.get(i).y, 0.1);
                 }
+
+                set_draw_color(Color.black);
+                draw_string("Hello", x, y, 24, true);
             }
         }
     }
@@ -517,4 +530,7 @@ class CowJPanelExtender extends JPanel {
     }
 }
 
-
+class NullOutputStream extends OutputStream {
+    @Override
+    public void write(int b) throws IOException {}
+}

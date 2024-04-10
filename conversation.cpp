@@ -392,7 +392,7 @@ Queue<Event> new_event_queue;
 
 
 void conversation_init() {
-    {
+    if (0) {
         conversation_dxf_load("omax.dxf", true);
         {
             Event event = {};
@@ -409,7 +409,7 @@ void conversation_init() {
             }
         }
     }
-    // conversation_dxf_load("splash.dxf", true);
+    conversation_dxf_load("splash.dxf", true);
     // conversation_dxf_load("debug.dxf", true);
     conversation_save_state_save();
     conversation_reset();
@@ -524,7 +524,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
 
 void FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW() { // click_move_origin_preview_x, click_move_origin_preview_y
     click_move_origin_broken = true;
-    if ((click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) && (console_buffer == console_buffer_write_head)) {
+    if ((click_mode == CLICK_MODE_ORIGIN_MOVE) && (console_buffer == console_buffer_write_head)) {
         _input_get_mouse_position_and_change_in_position_in_world_coordinates(camera_get_PV(&camera_2D).data, &click_move_origin_preview_x, &click_move_origin_preview_y, NULL, NULL);
         snap_map(click_move_origin_preview_x, click_move_origin_preview_y, &click_move_origin_preview_x, &click_move_origin_preview_y);
     }
@@ -540,7 +540,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     callback_xpos = (real32) (xpos * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS);
     callback_ypos = (real32) (ypos * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS);
 
-    if (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
+    if (click_mode == CLICK_MODE_ORIGIN_MOVE) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
 
     // // mouse held generates mouse presses
     // FORNOW repeated from callback_mouse_button
@@ -706,11 +706,12 @@ uint32 event_process(Event event) {
             };
 
             bool32 _click_mode_SNAP_ELIGIBLE_ = 0
-                || (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO)
+                || (click_mode == CLICK_MODE_ORIGIN_MOVE)
                 || (click_mode == CLICK_MODE_MEASURE)
                 || (click_mode == CLICK_MODE_CREATE_LINE)
                 || (click_mode == CLICK_MODE_CREATE_BOX)
                 || (click_mode == CLICK_MODE_CREATE_CIRCLE)
+                || (click_mode == CLICK_MODE_DXF_MOVE)
                 ;
 
             bool32 _click_mode_NEEDS_CONSOLE = 0
@@ -884,7 +885,7 @@ uint32 event_process(Event event) {
                         }
                         conversation_console_buffer_reset();
                         enter_mode = ENTER_MODE_NONE;
-                        if (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) {
+                        if (click_mode == CLICK_MODE_ORIGIN_MOVE) {
                             click_mode = CLICK_MODE_NONE;
                             click_modifier = CLICK_MODIFIER_NONE;
                         }
@@ -940,7 +941,7 @@ uint32 event_process(Event event) {
                         conversation_messagef("[n] no plane selected");
                     }
                 } else if (key_lambda('v')) {
-                    click_mode = CLICK_MODE_MOVE_DXF_ORIGIN_TO;
+                    click_mode = CLICK_MODE_ORIGIN_MOVE;
                     click_modifier = CLICK_MODIFIER_NONE;
                     enter_mode = ENTER_MODE_MOVE_DXF_ORIGIN_TO;
                     console_params_preview_flip_flag = false;
@@ -958,7 +959,7 @@ uint32 event_process(Event event) {
                     } else if (_click_mode_SNAP_ELIGIBLE_) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
-                        if (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
+                        if (click_mode == CLICK_MODE_ORIGIN_MOVE) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
                     } else {
                         result = PROCESSED_EVENT_CATEGORY_RECORD;
                         click_mode = CLICK_MODE_CREATE_CIRCLE;
@@ -993,7 +994,7 @@ uint32 event_process(Event event) {
                     if (_click_mode_SNAP_ELIGIBLE_) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
-                        if (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
+                        if (click_mode == CLICK_MODE_ORIGIN_MOVE) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
                     } else {
                         result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         enter_mode = ENTER_MODE_EXTRUDE_ADD;
@@ -1005,7 +1006,12 @@ uint32 event_process(Event event) {
                     if (_click_mode_SNAP_ELIGIBLE_) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
-                        if (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
+                        if (click_mode == CLICK_MODE_ORIGIN_MOVE) FORNOW_click_move_origin_break_TODO_REMOVE_THIS_CRAP_FORNOW();
+                        two_click_command_awaiting_second_click = false;
+                    } else {
+                        result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        click_mode = CLICK_MODE_DXF_MOVE;
+                        click_modifier = CLICK_MODIFIER_NONE;
                     }
                 } else if (key_lambda('E')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
@@ -1073,20 +1079,13 @@ uint32 event_process(Event event) {
 
 
             bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-            if (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) {
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
-                dxf_origin_x = event.mouse_x;
-                dxf_origin_y = event.mouse_y;
-                click_mode = CLICK_MODE_NONE;
-                click_modifier = CLICK_MODIFIER_NONE;
-                enter_mode = ENTER_MODE_NONE;
-                conversation_update_M_3D_from_2D();
-            } else if ((
+            if ((
                         (click_mode == CLICK_MODE_MEASURE) ||
                         (click_mode == CLICK_MODE_CREATE_LINE) ||
                         (click_mode == CLICK_MODE_CREATE_BOX) ||
                         (click_mode == CLICK_MODE_CREATE_CIRCLE) ||
                         (click_mode == CLICK_MODE_CREATE_FILLET) ||
+                        (click_mode == CLICK_MODE_DXF_MOVE) ||
                         (((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) && (click_modifier == CLICK_MODIFIER_WINDOW)))
                     && (!two_click_command_awaiting_second_click)) { 
                 result = (click_mode == CLICK_MODE_MEASURE) ? PROCESSED_EVENT_CATEGORY_DONT_RECORD : PROCESSED_EVENT_CATEGORY_RECORD; 
@@ -1119,6 +1118,30 @@ uint32 event_process(Event event) {
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, two_click_command_x_0, event.mouse_y });
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse_x, event.mouse_y, event.mouse_x, two_click_command_y_0 });
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse_x, event.mouse_y, two_click_command_x_0, event.mouse_y });
+            } else if (click_mode == CLICK_MODE_DXF_MOVE) {
+                ASSERT(two_click_command_awaiting_second_click);
+                two_click_command_awaiting_second_click = false;
+                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                click_mode = CLICK_MODE_NONE;
+                click_modifier = CLICK_MODIFIER_NONE;
+                real32 dx = event.mouse_x - two_click_command_x_0;
+                real32 dy = event.mouse_y - two_click_command_y_0;
+                for (uint32 i = 0; i < dxf_entities.length; ++i) {
+                    DXFEntity *entity = &dxf_entities.array[i];
+                    if (dxf_selection_mask.array[i]) {
+                        if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                            DXFLine *line = &entity->line;
+                            line->start_x += dx;
+                            line->start_y += dy;
+                            line->end_x += dx;
+                            line->end_y += dy;
+                        } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                            DXFArc *arc = &entity->arc;
+                            arc->center_x += dx;
+                            arc->center_y += dy;
+                        }
+                    }
+                }
             } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
                 ASSERT(two_click_command_awaiting_second_click);
                 two_click_command_awaiting_second_click = false;
@@ -1130,6 +1153,14 @@ uint32 event_process(Event event) {
                 real32 r = SQRT(squared_distance_point_point(two_click_command_x_0, two_click_command_y_0, event.mouse_x, event.mouse_y));
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, r, theta_a_in_degrees, theta_b_in_degrees });
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, r, theta_b_in_degrees, theta_a_in_degrees });
+            } else if (click_mode == CLICK_MODE_ORIGIN_MOVE) {
+                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                dxf_origin_x = event.mouse_x;
+                dxf_origin_y = event.mouse_y;
+                click_mode = CLICK_MODE_NONE;
+                click_modifier = CLICK_MODIFIER_NONE;
+                enter_mode = ENTER_MODE_NONE;
+                conversation_update_M_3D_from_2D();
             } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
                 ASSERT(two_click_command_awaiting_second_click);
                 two_click_command_awaiting_second_click = false;
@@ -1666,7 +1697,16 @@ void conversation_draw() {
                 for (uint32 i = 0; i < dxf_entities.length; ++i) {
                     DXFEntity *entity = &dxf_entities.array[i];
                     int32 color = (dxf_selection_mask.array[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
-                    eso_dxf_entity__SOUP_LINES(entity, color);
+                    real32 dx = 0.0f;
+                    real32 dy = 0.0f;
+                    if ((click_mode == CLICK_MODE_DXF_MOVE) && (two_click_command_awaiting_second_click)) {
+                        if (dxf_selection_mask.array[i]) {
+                            dx = mouse_x - two_click_command_x_0;
+                            dy = mouse_y - two_click_command_y_0;
+                            color = DXF_COLOR_WATER_ONLY;
+                        }
+                    }
+                    eso_dxf_entity__SOUP_LINES(entity, color, dx, dy);
                 }
                 eso_end();
             }
@@ -1979,7 +2019,7 @@ void conversation_draw() {
             }
             gui_printf("[Click] %s %s %s",
                     (click_mode == CLICK_MODE_NONE) ? "NONE" :
-                    (click_mode == CLICK_MODE_MOVE_DXF_ORIGIN_TO) ? "MOVE_DXF_ORIGIN_TO" :
+                    (click_mode == CLICK_MODE_ORIGIN_MOVE) ? "MOVE_ORIGIN_TO" :
                     (click_mode == CLICK_MODE_SELECT) ? "SELECT" :
                     (click_mode == CLICK_MODE_DESELECT) ? "DESELECT" :
                     (click_mode == CLICK_MODE_MEASURE) ? "MEASURE" :
@@ -1987,6 +2027,7 @@ void conversation_draw() {
                     (click_mode == CLICK_MODE_CREATE_BOX) ? "CREATE_BOX" :
                     (click_mode == CLICK_MODE_CREATE_CIRCLE) ? "CREATE_CIRCLE" :
                     (click_mode == CLICK_MODE_CREATE_FILLET) ? "CREATE_FILLET" :
+                    (click_mode == CLICK_MODE_DXF_MOVE) ? "MOVE_DXF_TO" :
                     "???",
                     (click_modifier == CLICK_MODE_NONE) ? "" :
                     (click_modifier == CLICK_MODIFIER_CONNECTED) ? "CONNECTED" :
