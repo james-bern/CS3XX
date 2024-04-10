@@ -117,7 +117,6 @@ typedef double cow_real;
 #define COW_KEY_BACKSPACE GLFW_KEY_BACKSPACE
 #define COW_KEY_DELETE GLFW_KEY_DELETE
 #define COW_KEY_ENTER GLFW_KEY_ENTER
-#define COW_KEY_SPACE GLFW_KEY_SPACE
 #define SOUND_MAX_DIFFERENT_FILES 32
 #define SOUND_MAX_FILENAME_LENGTH 64
 #define ITRI_MAX_NUM_TEXTURES 32
@@ -4909,7 +4908,7 @@ void eg_kitchen_sink() {
         camera_move(&camera);
         camera_attach_to_gui(&camera);
 
-        if (gui_button("play sound.wav", COW_KEY_SPACE)) {
+        if (gui_button("play sound.wav", ' ')) {
             sound_play_sound("codebase/sound.wav");
         }
         sound_attach_to_gui();

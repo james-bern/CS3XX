@@ -1,4 +1,3 @@
-// TODO space_bar_event
 // TODO: cleanup pass (what is conversation_reset__NOTE_basically_just_a_memset_0(); // FORNOW)))???
 
 // TODO: find a better way to do || (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)
@@ -431,8 +430,8 @@ struct Event {
     union {
         struct {
             uint32 key;
-            bool32 super;
-            bool32 shift;
+            uint32 shift;
+            uint32 super;
         };
         struct {
             real32 mouse_x;
@@ -570,8 +569,8 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         Event event = {};
         event.type = UI_EVENT_TYPE_KEY_PRESS;
         event.key = key;
-        event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
         event.shift = (mods & GLFW_MOD_SHIFT);
+        event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
         queue_enqueue(&new_event_queue, event);
     }
 }
@@ -753,13 +752,18 @@ void history_gui_printf() {
 // ('y', true) ->  Ctrl + Y // on Mac, Cmd + Y
 // Usage: if (_key_lambda(event, 'Y')) { ... }
 //        if (key_lambda('Y')) { ... }
-bool _key_lambda(Event event, uint32 key, bool super = false, bool shift = false) {
+bool _key_lambda(Event event, uint32 code, bool code_super = false) {
     ASSERT(event.type == UI_EVENT_TYPE_KEY_PRESS);
-    ASSERT(!(('a' <= key) && (key <= 'z')));
-    bool key_match = (event.key == key);
-    bool super_match = ((event.super && super) || (!event.super && !super)); // * bool32
-    bool shift_match = ((event.shift && shift) || (!event.shift && !shift)); // * bool32
-    return (key_match && super_match && shift_match);
+
+    bool code_shift  = (('A' <= code) && (code <= 'Z'));
+    bool shift_match = (event.shift == code_shift);
+
+    if (('a' <= code) && (code <= 'z')) code = 'A' + (code - 'a');
+    bool letter_match = (event.key == code);
+
+    bool super_match = (event.super == code_super);
+
+    return (shift_match && letter_match && super_match);
 };
 
 Event space_bar_event = { UI_EVENT_TYPE_KEY_PRESS };
@@ -805,9 +809,9 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
 
 
         if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
-            auto key_lambda = [event](uint32 key, bool super = false, bool shift = false) -> bool {
-                if (event.type != UI_EVENT_TYPE_KEY_PRESS) return false; // TODO: ASSERT
-                return _key_lambda(event, key, super, shift);
+            auto key_lambda = [event](uint32 code, bool code_super = false) -> bool {
+                if (event.type != UI_EVENT_TYPE_KEY_PRESS) return false;
+                return _key_lambda(event, code, code_super);
             };
 
             bool32 _click_mode_SNAP_ELIGIBLE_ =
@@ -983,36 +987,36 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                             click_modifier = CLICK_MODIFIER_NONE;
                         }
                     }
-                } else if (key_lambda('Q', true)) {
+                } else if (key_lambda('q', true)) {
                     exit(1);
                 } else if (key_lambda('0')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - camera_3D.angle_of_view;
-                } else if (key_lambda('X', false, true)) {
+                } else if (key_lambda('X')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf_entities));
-                } else if (key_lambda('G')) {
+                    // camera2D_zoom_to_bounding_box(&camera_2D, &dxf_bbox_union);
+                } else if (key_lambda('g')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     hide_grid = !hide_grid;
-                } else if (key_lambda('H')) {
+                } else if (key_lambda('h')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     show_help = !show_help;
                 } else if (key_lambda('.')) { 
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     show_details = !show_details;
-                } else if (key_lambda('K')) { 
+                } else if (key_lambda('k')) { 
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     show_command_stack = !show_command_stack;
-                } else if (key_lambda('K', false, true)) {
+                } else if (key_lambda('K')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     hide_gui = !hide_gui;
-                } else if (key_lambda('O', true)) {
+                } else if (key_lambda('o', true)) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     enter_mode = ENTER_MODE_OPEN;
-                } else if (key_lambda('S', true)) {
+                } else if (key_lambda('s', true)) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     enter_mode = ENTER_MODE_SAVE;
-                } else if (key_lambda('R', true, true)) {
+                } else if (key_lambda('r', true)) {
                     result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
                     conversation_dxf_load(conversation_current_dxf_filename, true);
                 } else if (key_lambda(COW_KEY_ESCAPE)) {
@@ -1025,7 +1029,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     console_params_preview_flip_flag = !console_params_preview_flip_flag;
                     if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) revolve_use_x_instead = !revolve_use_x_instead;
-                } else if (key_lambda('N')) {
+                } else if (key_lambda('n')) {
                     if (stl_plane_selected) {
                         enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
                         console_params_preview_flip_flag = false;
@@ -1033,20 +1037,20 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     } else {
                         conversation_messagef("[n] no plane selected");
                     }
-                } else if (key_lambda('Z', false, true)) {
+                } else if (key_lambda('Z')) {
                     click_mode = CLICK_MODE_ORIGIN_MOVE;
                     click_modifier = CLICK_MODIFIER_NONE;
                     enter_mode = ENTER_MODE_MOVE_DXF_ORIGIN_TO;
                     console_params_preview_flip_flag = false;
                     conversation_console_buffer_reset();
                     click_move_origin_broken = false;
-                } else if (key_lambda('S')) {
+                } else if (key_lambda('s')) {
                     click_mode = CLICK_MODE_SELECT;
                     click_modifier = CLICK_MODIFIER_NONE;
-                } else if (key_lambda('D')) {
+                } else if (key_lambda('d')) {
                     click_mode = CLICK_MODE_DESELECT;
                     click_modifier = CLICK_MODIFIER_NONE;
-                } else if (key_lambda('C')) {
+                } else if (key_lambda('c')) {
                     if (((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) && (click_modifier != CLICK_MODIFIER_CONNECTED)) {
                         click_modifier = CLICK_MODIFIER_CONNECTED;
                     } else if (_click_mode_SNAP_ELIGIBLE_) {
@@ -1060,17 +1064,17 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         space_bar_event.key = 'C'; // FORNOW; TODO perhaps key_lambda can store the entirety of the event
                                                    // update_space_bar_event_off_of_most_recent_key_lambda
                     }
-                } else if (key_lambda('Q')) {
+                } else if (key_lambda('q')) {
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                         click_modifier = CLICK_MODIFIER_QUALITY;
                     }
-                } else if (key_lambda('A')) {
+                } else if (key_lambda('a')) {
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                         result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
                         for (uint32 i = 0; i < dxf_entities.length; ++i) dxf_selection_mask.array[i] = value_to_write_to_selection_mask;
                     }
-                } else if (key_lambda('Y')) {
+                } else if (key_lambda('y')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
 
                     // already one of the three primary planes
@@ -1082,7 +1086,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         n_selected = { 0.0f, 1.0f, 0.0f };
                     }
                     conversation_update_M_3D_from_2D();
-                } else if (key_lambda('E')) {
+                } else if (key_lambda('e')) {
                     if (_click_mode_SNAP_ELIGIBLE_) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
@@ -1093,7 +1097,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         console_params_preview_flip_flag = false;
                         conversation_console_buffer_reset();
                     }
-                } else if (key_lambda('M')) {
+                } else if (key_lambda('m')) {
                     if (_click_mode_SNAP_ELIGIBLE_) {
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
@@ -1104,19 +1108,19 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         click_modifier = CLICK_MODIFIER_NONE;
                         two_click_command_awaiting_second_click = false;
                     }
-                } else if (key_lambda('E', false, true)) {
+                } else if (key_lambda('E')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     enter_mode = ENTER_MODE_EXTRUDE_CUT;
                     if (_click_mode_NEEDS_CONSOLE) click_mode = CLICK_MODE_NONE;
                     console_params_preview_flip_flag = true;
                     conversation_console_buffer_reset();
-                } else if (key_lambda('R')) {
+                } else if (key_lambda('r')) {
                     enter_mode = ENTER_MODE_REVOLVE_ADD;
                     revolve_use_x_instead = false;
-                } else if (key_lambda('R', false, true)) {
+                } else if (key_lambda('R')) {
                     enter_mode = ENTER_MODE_REVOLVE_CUT;
                     revolve_use_x_instead = false;
-                } else if (key_lambda('W')) {
+                } else if (key_lambda('w')) {
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                         click_modifier = CLICK_MODIFIER_WINDOW;
                         two_click_command_awaiting_second_click = false;
@@ -1126,19 +1130,19 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     click_mode = CLICK_MODE_MEASURE;
                     click_modifier = CLICK_MODIFIER_NONE;
                     two_click_command_awaiting_second_click = false;
-                } else if (key_lambda('L')) {
+                } else if (key_lambda('l')) {
                     result = PROCESSED_EVENT_CATEGORY_RECORD;
                     click_mode = CLICK_MODE_CREATE_LINE;
                     click_modifier = CLICK_MODIFIER_NONE;
                     two_click_command_awaiting_second_click = false;
                     space_bar_event.key = 'L'; // FORNOW 
-                } else if (key_lambda('F')) {
+                } else if (key_lambda('f')) {
                     result = PROCESSED_EVENT_CATEGORY_RECORD;
                     click_mode = CLICK_MODE_CREATE_FILLET;
                     click_modifier = CLICK_MODIFIER_NONE;
                     enter_mode = ENTER_MODE_NONE;
                     two_click_command_awaiting_second_click = false;
-                } else if (key_lambda('B')) {
+                } else if (key_lambda('b')) {
                     result = PROCESSED_EVENT_CATEGORY_RECORD;
                     click_mode = CLICK_MODE_CREATE_BOX;
                     click_modifier = CLICK_MODIFIER_NONE;
@@ -1588,27 +1592,27 @@ void new_event_process(Event new_event) {
     // ASSERT(history_1 <= history_2);
     // ASSERT((unsigned long) (history_2 - history_0) < ARRAY_LENGTH(history_0));
 
-    auto key_lambda = [new_event](uint32 key, bool super = false, bool shift = false) -> bool {
+    auto key_lambda = [new_event](uint32 code, bool code_super = false) -> bool {
         if (new_event.type != UI_EVENT_TYPE_KEY_PRESS) return false;
-        return _key_lambda(new_event, key, super, shift);
+        return _key_lambda(new_event, code, code_super);
     };
 
     { // space bar repeats previous command (TODO NOTE: This approach won't actually work; it needs to be in event_process)
       // (otherwise we can't differentiate between (c)enter and (c)icle)
-        if (key_lambda(' ')) {
+        if (key_lambda(COW_KEY_SPACE)) {
             new_event = space_bar_event;
         }
     }
 
     { // we handle the user pressing z by spoofing a key press at the origin
-        if (key_lambda('Z')) {
+        if (key_lambda('z')) {
             new_event = { UI_EVENT_TYPE_MOUSE_2D_PRESS, 0.0f, 0.0f };
         }
     }
 
 
 
-    if (key_lambda('Z', true) || key_lambda('U')) { // undo
+    if (key_lambda('z', true) || key_lambda('u')) { // undo
         #define _UNDO_STACK_NONEMPTY_ (history_A_undo != history_B_redo)
 
         if (_UNDO_STACK_NONEMPTY_) {
@@ -1646,7 +1650,7 @@ void new_event_process(Event new_event) {
             conversation_messagef("[undo] nothing to undo");
         }
 
-    } else if (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true)) { // redo
+    } else if (key_lambda('y', true) || key_lambda('Z', true) || key_lambda('U')) { // redo
 
         if (history_B_redo != history_C_one_past_end_of_redo) {
             do {
