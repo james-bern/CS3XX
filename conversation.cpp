@@ -1,5 +1,7 @@
+// TODO open file inside conversation
 // TODO space_bar_event
 // TODO: cleanup pass (what is conversation_reset__NOTE_basically_just_a_memset_0(); // FORNOW)))???
+// // make it clear that you push an empty struct to superstack to get things started (this is always on the stack so we can peek)
 
 // TODO: find a better way to do || (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)
 // -----------> what i mean by this is we need to have a better way of doing 'x' input in general (FORNOW: i'm going to rollback the text input on these features)
@@ -479,24 +481,24 @@ void conversation_init() {
     { // conversation_dxf_load
         if (0) {
             conversation_dxf_load("omax.dxf", true);
-            if (1) {
+            if (0) {
                 Event event = {};
                 event.type = UI_EVENT_TYPE_KEY_PRESS;
                 for (int i = 0; i < 5; ++i) {
-                    event.key = 'Y';           queue_enqueue(&new_event_queue, event);
-                    event.key = 'S';           queue_enqueue(&new_event_queue, event);
-                    event.key = 'Q';           queue_enqueue(&new_event_queue, event);
-                    event.key = '0' + i;       queue_enqueue(&new_event_queue, event);
-                    event.key = 'E';           queue_enqueue(&new_event_queue, event);
-                    event.key = '1' + i;       queue_enqueue(&new_event_queue, event);
-                    event.key = COW_KEY_ENTER; queue_enqueue(&new_event_queue, event);
+                   spoof_KEY('Y');
+                   spoof_KEY('S');
+                   spoof_KEY('Q');
+                   spoof_KEY('0' + i);
+                   spoof_KEY('E');
+                   spoof_KEY('1' + i);
+                   spoof_KEY(COW_KEY_ENTER);
                 }
             }
         } else if (0) {
             conversation_dxf_load("debug.dxf", true);
         } else {
             conversation_dxf_load("splash.dxf", true);
-            if (1) {
+            if (0) {
                 spoof_KEY('Y');
                 spoof_KEY('S');
                 spoof_KEY('C');
@@ -710,15 +712,12 @@ void history_gui_printf() {
     uint32 i = 0;
     for (Event *event = history_A_undo; event < history_C_one_past_end_of_redo; ++event) {
         {
+            char leader_leader = (event->checkpoint_type == CHECKPOINT_TYPE_SUPER_CHECKPOINT_MESH_SAVED_IN_UNDO_STACK) ? '+' : ' ';
             const char *leader = (event == history_B_redo - 1) ? "`" : "";
             char number; {
                 number = ' ';
                 if (event->checkpoint_type != CHECKPOINT_TYPE_NONE) {
-                    if (event->checkpoint_type == CHECKPOINT_TYPE_CHECKPOINT) {
-                        number = (char) ((i < 10) ? '0' + i : 'A' + (i - 10));
-                    } else { ASSERT(event->checkpoint_type == CHECKPOINT_TYPE_SUPER_CHECKPOINT_MESH_SAVED_IN_UNDO_STACK);
-                        number = (char) ('!' + i);
-                    }
+                    number = (char) ((i < 10) ? '0' + i : 'A' + (i - 10));
                     ++i;
                 }
             }
@@ -741,7 +740,7 @@ void history_gui_printf() {
                     sprintf(message, "[MOUSE_3D] %g %g %g %g %g %g", event->o.x, event->o.y, event->o.z, event->dir.x, event->dir.y, event->dir.z);
                 }
             }
-            gui_printf("%s %c %s", leader, number, message);
+            gui_printf("%c%s %c %s", leader_leader, leader, number, message);
         }
     }
 }
@@ -880,8 +879,8 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                             send_key_to_console |= key_lambda('/');
                             send_key_to_console |= key_lambda('\\');
                             for (uint32 i = 0; i < 10; ++i) send_key_to_console |= key_lambda('0' + i);
-                            for (uint32 i = 0; i < 26; ++i) send_key_to_console |= key_lambda('a' + i);
                             for (uint32 i = 0; i < 26; ++i) send_key_to_console |= key_lambda('A' + i);
+                            for (uint32 i = 0; i < 26; ++i) send_key_to_console |= key_lambda('A' + i, false, true);
                         }
                     } else {
                         send_key_to_console = true;
@@ -1087,7 +1086,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
                     } else {
-                        result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         enter_mode = ENTER_MODE_EXTRUDE_ADD;
                         if (_click_mode_NEEDS_CONSOLE) click_mode = CLICK_MODE_NONE;
                         console_params_preview_flip_flag = false;
@@ -1105,7 +1104,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         two_click_command_awaiting_second_click = false;
                     }
                 } else if (key_lambda('E', false, true)) {
-                    result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     enter_mode = ENTER_MODE_EXTRUDE_CUT;
                     if (_click_mode_NEEDS_CONSOLE) click_mode = CLICK_MODE_NONE;
                     console_params_preview_flip_flag = true;
