@@ -1,8 +1,3 @@
-// NOTE: a super checkpoint pushes to the feature stack
-// TODO: super checkpoint (save state) redo stack
-// TODO: do a renaming pass (save_state, history, category, ...)
-
-
 // TODO: make an undo that stores a stack of the 3D stuff so you only undo from a 3D checkpoint
 
 // TODO: move holding shift pre-snaps the mouse to 
@@ -103,11 +98,7 @@
 Camera2D camera_2D;
 Camera3D camera_3D;
 
-bool32 hide_grid;
-bool32 show_details;
-bool32 show_help;
-bool32 show_command_stack;
-bool32 hide_gui;
+bool32 hide_grid, show_details, show_help, show_command_stack;
 
 
 List<DXFEntity> dxf_entities;
@@ -329,19 +320,24 @@ void conversation_save_state_push() {
     list_clone(&save_state.dxf_selection_mask, &dxf_selection_mask);
     stack_push(&save_state_stack, save_state);
 }
-void conversation_save_state_peek_and_copy() {
+void conversation_save_state_peek() {
     ASSERT(save_state_stack.length);
     // TODO manifold-memory 
+    // FORNOW: repetition with pop
     ConversationSaveState save_state = stack_peek(&save_state_stack);
     manifold_manifold = save_state.manifold_manifold;
     fancy_mesh = save_state.fancy_mesh;
     list_clone(&dxf_entities, &save_state.dxf_entities);
     list_clone(&dxf_selection_mask, &save_state.dxf_selection_mask);
 }
-void conversation_save_state_pop_just_pop() {
+void conversation_save_state_pop() {
     ASSERT(save_state_stack.length);
     // TODO manifold-memory 
-    stack_pop(&save_state_stack);
+    ConversationSaveState save_state = stack_pop(&save_state_stack);
+    manifold_manifold = save_state.manifold_manifold;
+    fancy_mesh = save_state.fancy_mesh;
+    list_clone(&dxf_entities, &save_state.dxf_entities);
+    list_clone(&dxf_selection_mask, &save_state.dxf_selection_mask);
 }
 void _conversation_save_state_new_document() {
     // TODO manifold-memory 
@@ -375,7 +371,7 @@ void conversation_reset(bool32 disable_top_layer_resets = false) {
         hot_pane = HOT_PANE_NONE;
         hide_grid = false;
         show_details = false;
-        show_command_stack = true;
+        show_command_stack = false;
         show_help = false;
         conversation_cameras_reset();
     }
@@ -407,8 +403,8 @@ struct Event {
             vec3 dir;
         };
     }; 
-    bool32 checkpoint_ineligible; // not_checkpoint_eligible__NOTE_set_before_event_process
-    uint32 checkpoint_type; // checkpoint_type__NOTE_set_in_new_event_process
+    bool32 not_checkpoint_eligible__NOTE_set_before_event_process;
+    uint32 checkpoint_type__NOTE_set_in_new_event_process;
 };
 
 Queue<Event> new_event_queue;
@@ -417,7 +413,7 @@ Queue<Event> new_event_queue;
 
 void conversation_init() {
     { // conversation_dxf_load
-        if (1) {
+        if (0) {
             conversation_dxf_load("omax.dxf", true);
             {
                 Event event = {};
@@ -433,11 +429,9 @@ void conversation_init() {
                     event.key = COW_KEY_ENTER; queue_enqueue(&new_event_queue, event);
                 }
             }
-        } else if (0) {
-            conversation_dxf_load("debug.dxf", true);
-        } else {
-            conversation_dxf_load("splash.dxf", true);
         }
+        conversation_dxf_load("splash.dxf", true);
+        // conversation_dxf_load("debug.dxf", true);
     }
     conversation_reset();
     conversation_save_state_push();
@@ -475,7 +469,7 @@ void conversation_init() {
 #define PROCESSED_EVENT_CATEGORY_DONT_RECORD              0
 #define PROCESSED_EVENT_CATEGORY_RECORD                   1
 #define PROCESSED_EVENT_CATEGORY_CHECKPOINT               2
-#define PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT_AND_PREV_CHECKPOINT 3
+#define PROCESSED_EVENT_CATEGORY_SELF_AND_PREV_CHECKPOINT 3
 #define PROCESSED_EVENT_CATEGORY_KILL_HISTORY             4
 #define PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT         5
 
@@ -570,7 +564,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             vec2 s_2D = transformPoint(inverse(camera_get_PV(&camera_2D)), mouse_s_NDC);
             snap_map(s_2D.x, s_2D.y, &event.mouse_x, &event.mouse_y);
         }
-        event.checkpoint_ineligible = true;
+        event.not_checkpoint_eligible__NOTE_set_before_event_process = true;
         queue_enqueue(&new_event_queue, event);
     }
 }
@@ -626,7 +620,6 @@ Event *history_C_one_past_end_of_redo = history_A_undo;
 void history_gui_printf() {
     gui_printf("----------------");
     gui_printf("save_state_stack.length = %d", save_state_stack.length);
-    gui_printf("note: top of the undo stack in blue");
     gui_printf("----------------");
     uint32 i = 0;
     char key_message[] = "[?]";
@@ -634,15 +627,15 @@ void history_gui_printf() {
         {
             const char *leader = (event == history_B_redo - 1) ? "`" : "";
             char number; {
-                number = ' ';
-                if (event->checkpoint_type != CHECKPOINT_TYPE_NONE) {
-                    if (event->checkpoint_type == CHECKPOINT_TYPE_CHECKPOINT) {
+                number = ' '
+                    if (event->checkpoint_type__NOTE_set_in_new_event_process == CHECKPOINT_TYPE_CHECKPOINT) {
                         number = (char) ((i < 10) ? '0' + i : 'A' + (i - 10));
-                    } else { ASSERT(event->checkpoint_type == CHECKPOINT_TYPE_SUPER_CHECKPOINT);
-                        number = (char) ('!' + i);
+                        ++i
+                    } else if (event->checkpoint_type__NOTE_set_in_new_event_process == CHECKPOINT_TYPE_SUPER_CHECKPOINT) {
+                        ++i;
                     }
-                    ++i;
-                }
+                number = (char) ((event->checkpoint__NOTE_set_in_new_event_process) ? ((i < 10) ? '0' + i : 'A' + (i - 10)) : ' ');
+                if (event->checkpoint__NOTE_set_in_new_event_process) ++i;
             }
             char *core; // TODO: CTRL +, SHIFT +
             if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
@@ -853,7 +846,7 @@ uint32 event_process(Event event) {
                         }
                     } else {
                         if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT) || (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
-                            result = PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT_AND_PREV_CHECKPOINT;
+                            result = PROCESSED_EVENT_CATEGORY_SELF_AND_PREV_CHECKPOINT;
                             if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) {
                                 if (console_buffer_write_head != console_buffer) {
                                     console_param_1 = console_param_1_preview;
@@ -938,9 +931,6 @@ uint32 event_process(Event event) {
                 } else if (key_lambda('k')) { 
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     show_command_stack = !show_command_stack;
-                } else if (key_lambda('K')) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    hide_gui = !hide_gui;
                 } else if (key_lambda('o', true)) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     enter_mode = ENTER_MODE_OPEN;
@@ -1547,31 +1537,18 @@ void new_event_process(Event new_event) {
 
 
     if (key_lambda('z', true) || key_lambda('u')) { // undo
-        #define _UNDO_STACK_NONEMPTY_ (history_A_undo != history_B_redo)
+        if (history_B_redo != history_A_undo) {
 
-        if (_UNDO_STACK_NONEMPTY_) {
-            bool32 just_undid_super_checkpoint = false;
             // // move history_B_redo
             // pop back _through_ a first checkpoint__NOTE_set_in_new_event_process
-            do {
-                --history_B_redo;
-                just_undid_super_checkpoint |= (history_B_redo->checkpoint_type == CHECKPOINT_TYPE_SUPER_CHECKPOINT);
-            } while ((_UNDO_STACK_NONEMPTY_) && (history_B_redo->checkpoint_type == CHECKPOINT_TYPE_NONE));
+            do --history_B_redo; while ((history_A_undo != history_B_redo) && (!history_B_redo->checkpoint__NOTE_set_in_new_event_process));
             // * short-circuit pop back _up to_ a second checkpoint
-            while ((_UNDO_STACK_NONEMPTY_) && ((history_B_redo - 1)->checkpoint_type == CHECKPOINT_TYPE_NONE)) {
-                --history_B_redo;
-            }
+            while ((history_A_undo != history_B_redo) && (!(history_B_redo - 1)->checkpoint__NOTE_set_in_new_event_process)) --history_B_redo;
 
-            if (just_undid_super_checkpoint) conversation_save_state_pop_just_pop();
             conversation_reset(true);
-            conversation_save_state_peek_and_copy();
-
-            Event *history_D_one_after_last_super_checkpoint; {
-                history_D_one_after_last_super_checkpoint = history_B_redo;
-                while ((history_A_undo != history_D_one_after_last_super_checkpoint) && (history_D_one_after_last_super_checkpoint - 1)->checkpoint_type != CHECKPOINT_TYPE_SUPER_CHECKPOINT) --history_D_one_after_last_super_checkpoint;
-            }
-
-            for (Event *event = history_D_one_after_last_super_checkpoint; event < history_B_redo; ++event) event_process(*event);
+            conversation_save_state_peek();
+            for (Event *event = history_A_undo; event < history_B_redo; ++event) event_process(*event);
+            // TODO: instead of starting at history_A, start at checkpoint
 
             conversation_messagef("[undo]");
         } else {
@@ -1581,12 +1558,7 @@ void new_event_process(Event new_event) {
     } else if (key_lambda('y', true) || key_lambda('Z', true) || key_lambda('U')) { // redo
 
         if (history_B_redo != history_C_one_past_end_of_redo) {
-            do {
-                event_process(*history_B_redo);
-                if (history_B_redo->checkpoint_type == CHECKPOINT_TYPE_SUPER_CHECKPOINT) conversation_save_state_push();
-                ++history_B_redo;
-            } while ((history_B_redo != history_C_one_past_end_of_redo) && ((history_B_redo - 1)->checkpoint_type == CHECKPOINT_TYPE_NONE));
-            // FORNOW (TODO: replace with fancy pants redo)
+            do event_process(*history_B_redo++); while ((history_B_redo != history_C_one_past_end_of_redo) && (!(history_B_redo - 1)->checkpoint__NOTE_set_in_new_event_process));
             conversation_messagef("[redo]");
         } else {
             conversation_messagef("[redo] nothing to redo");
@@ -1604,36 +1576,26 @@ void new_event_process(Event new_event) {
             conversation_save_state_push();
             ASSERT(false); // TODO
         } else {
-            { // FORNOW (sloppy): assign checkpoint_type
-                new_event.checkpoint_type = CHECKPOINT_TYPE_NONE; // FORNOW (not necessary)
-                if ((
-                            0
-                            || (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT)
-                            || (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT)
-                            || (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT_AND_PREV_CHECKPOINT)
-                    )
-                        && (!new_event.checkpoint_ineligible)
-                   ) {
-                    if (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT) {
-                        new_event.checkpoint_type = CHECKPOINT_TYPE_CHECKPOINT;
-                    } else if ((category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) || (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT_AND_PREV_CHECKPOINT)) {
-                        new_event.checkpoint_type = CHECKPOINT_TYPE_SUPER_CHECKPOINT;
-                    }
-                    if (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT_AND_PREV_CHECKPOINT) {
-                        if (history_B_redo != history_A_undo) (history_B_redo - 1)->checkpoint_type = CHECKPOINT_TYPE_CHECKPOINT;
-                    }
-                } 
+            if ((
+                        0
+                        || (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT)
+                        || (category == PROCESSED_EVENT_CATEGORY_SELF_AND_PREV_CHECKPOINT)
+                        || (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT)
+                )
+                    && (!new_event.not_checkpoint_eligible__NOTE_set_before_event_process) // FORNOW
+               ) {
+                new_event.checkpoint__NOTE_set_in_new_event_process = true;
+                if (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) {
+                    new_event.super_checkpoint__NOTE_set_in_new_event_process = true;
+                }
             }
-
+            if (category == PROCESSED_EVENT_CATEGORY_SELF_AND_PREV_CHECKPOINT) {
+                if (history_B_redo != history_A_undo) (history_B_redo - 1)->checkpoint__NOTE_set_in_new_event_process = true;
+            }
             { // history_push_back(...)
                 *history_B_redo++ = new_event;
                 history_C_one_past_end_of_redo = history_B_redo; // kill redo "stack"
             }
-
-            if ((category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) || (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT_AND_PREV_CHECKPOINT)) { // push super checkpoint if necessary
-                conversation_save_state_push();
-            }
-
         }
     }
 
@@ -2070,7 +2032,7 @@ void conversation_draw() {
         glDisable(GL_SCISSOR_TEST);
     }
 
-    if (!hide_gui) { // gui
+    { // gui
         {
             char click_message[256] = {};
             if (click_mode == CLICK_MODE_CREATE_FILLET) {

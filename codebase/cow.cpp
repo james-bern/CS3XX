@@ -3261,9 +3261,16 @@ template <typename T> T list_pop_front(List<T> *list) {
 }
 
 #define Queue List
-#define queue_enqueue list_push_front
-#define queue_dequeue list_pop_back
-#define queue_free list_free_AND_zero
+#define queue_enqueue list_push_back
+#define queue_dequeue list_pop_front
+#define queue_free_AND_zero list_free_AND_zero
+#define Stack List
+#define stack_push list_push_back
+#define stack_pop list_pop_back
+template <typename T> T stack_peek(Stack<T> *stack) {
+    return stack->array[stack->length - 1];
+}
+#define stack_free_AND_zero list_free_AND_zero
 
 
 
