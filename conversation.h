@@ -211,10 +211,9 @@ struct DXFArc {
 struct DXFEntity {
     uint32 type;
     uint32 color;
-    union {
-        DXFLine line;
-        DXFArc arc;
-    };
+    // NOTE: naive "fat struct"
+    DXFLine line;
+    DXFArc arc;
 };
 
 void get_point_on_circle_NOTE_pass_angle_in_radians(real32 *x, real32 *y, real32 center_x, real32 center_y, real32 radius, real32 angle_in_radians) {

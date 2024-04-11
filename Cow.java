@@ -1,3 +1,5 @@
+// TODO: sound
+// TODO: helper functions (snippets) go in Cow :) (all homeworks can extend Cow)
 // TODO: a crash should cause the window to close
 // TODO: a nice kitchen sink with COW branding, maybe some 3d stuff
 // TODO: turn off automatic repaint (right now only happens when you resize the window)
@@ -70,43 +72,14 @@ class Cow {
     }
 
 
-    static void set_line_thickness(double w) {
-        assert w >= 0;
-        ((Graphics2D) _buffered_image_graphics).setStroke(new BasicStroke((float) w));
+
+    // TODO: consider this API
+    static void begin_line_strip() {
+
     }
 
-    static void set_draw_color(Color color, double a) {
-        assert a >= 0;
-        assert a <= 1;
-        _buffered_image_graphics.setColor(new Color(color.getRed() / 255.0f, color.getGreen() / 255.0f, color.getBlue() / 255.0f, (float) a));
-    }
+    static void end_line_strip() {
 
-    static void set_draw_color(Color color) {
-        _buffered_image_graphics.setColor(color);
-    }
-
-    static void set_draw_color(double r, double g, double b, double a) {
-        assert r >= 0;
-        assert r <= 1;
-        assert g >= 0;
-        assert g <= 1;
-        assert b >= 0;
-        assert b <= 1;
-        assert a >= 0;
-        assert a <= 1;
-        set_draw_color(new Color((float) r, (float) g, (float) b, (float) a));
-    }
-
-    static void set_draw_color(double r, double g, double b) {
-        set_draw_color(r, g, b, 1.0);
-    }
-
-    static Color color_rainbow_swirl(double time) {
-        double TAU   = 6.283;
-        double red   = 0.5f + 0.5f * (float) Math.cos(TAU * ( 0.000 - time));
-        double green = 0.5f + 0.5f * (float) Math.cos(TAU * ( 0.333 - time));
-        double blue  = 0.5f + 0.5f * (float) Math.cos(TAU * (-0.333 - time));
-        return new Color((float) red, (float) green, (float) blue);
     }
 
     static void draw_string(String string, double _x, double _y, int fontSize, boolean center) {
@@ -125,13 +98,64 @@ class Cow {
         } System.setErr(systemDotErr);
     }
 
+    // // core drawing API
+    // set_color(r, g, b)
+    // set_color(r, g, b, a)
+    // set_color(color)
+    // set_color(color, a)
+    // set_line_thickness(diameter|line_width)
+    // set_polygon_mode(FILL|OUTLINE) // NOTE: lines are always drawn
+    // begin_drawing(CIRCLES|RECTANGLES|LINES|LINE_STRIP|TRIANGLES|QUADS)
+    // draw_vertex(double x, double y)
+    // end_drawing()
+
+    static void set_line_thickness(double w) {
+        assert w >= 0;
+        ((Graphics2D) _buffered_image_graphics).setStroke(new BasicStroke((float) w));
+    }
+
+    static void set_color(Color color, double a) {
+        assert a >= 0;
+        assert a <= 1;
+        _buffered_image_graphics.setColor(new Color(color.getRed() / 255.0f, color.getGreen() / 255.0f, color.getBlue() / 255.0f, (float) a));
+    }
+
+    static void set_color(Color color) {
+        _buffered_image_graphics.setColor(color);
+    }
+
+    static void set_color(double r, double g, double b, double a) {
+        assert r >= 0;
+        assert r <= 1;
+        assert g >= 0;
+        assert g <= 1;
+        assert b >= 0;
+        assert b <= 1;
+        assert a >= 0;
+        assert a <= 1;
+        set_color(new Color((float) r, (float) g, (float) b, (float) a));
+    }
+
+    static void set_color(double r, double g, double b) {
+        set_color(r, g, b, 1.0);
+    }
+
+    static Color color_rainbow_swirl(double time) {
+        double TAU   = 6.283;
+        double red   = 0.5f + 0.5f * (float) Math.cos(TAU * ( 0.000 - time));
+        double green = 0.5f + 0.5f * (float) Math.cos(TAU * ( 0.333 - time));
+        double blue  = 0.5f + 0.5f * (float) Math.cos(TAU * (-0.333 - time));
+        return new Color((float) red, (float) green, (float) blue);
+    }
+
+
     static void draw_line(double x1, double y1, double x2, double y2) {
         _buffered_image_graphics.drawLine(X_pixel_from_world(x1), Y_pixel_from_world(y1), X_pixel_from_world(x2), Y_pixel_from_world(y2));
     }
 
-    static void fill_corner_rectangle(double x1, double y1, double x2, double y2) { _draw_corner_rectangle(x1, y1, x2, y2, false); }
-    static void outline_corner_rectangle(double x1, double y1, double x2, double y2) { _draw_corner_rectangle(x1, y1, x2, y2, true); }
-    static void _draw_corner_rectangle(double x1, double y1, double x2, double y2, boolean outlined) {
+    static void fill_rectangle(double x1, double y1, double x2, double y2) { _draw_rectangle(x1, y1, x2, y2, false); }
+    static void outline_rectangle(double x1, double y1, double x2, double y2) { _draw_rectangle(x1, y1, x2, y2, true); }
+    static void _draw_rectangle(double x1, double y1, double x2, double y2, boolean outlined) {
         int Xx1 = X_pixel_from_world(x1);
         int Yy1 = Y_pixel_from_world(y1);
         int Xx2 = X_pixel_from_world(x2);
@@ -147,15 +171,15 @@ class Cow {
         }
     }
 
-    static void fill_center_rectangle(double x, double y, double width, double height) { _draw_center_rectangle(x, y, width, height, false); }
-    static void outline_center_rectangle(double x, double y, double width, double height) { _draw_center_rectangle(x, y, width, height, true); }
-    static void _draw_center_rectangle(double x, double y, double width, double height, boolean outlined) {
-        assert width >= 0;
-        assert height >= 0;
-        double half_width = width / 2;
-        double half_height = height / 2;
-        _draw_corner_rectangle(x - half_width, y - half_height, x + half_width, y + half_height, outlined);
-    }
+    // static void fill_center_rectangle(double x, double y, double width, double height) { _draw_center_rectangle(x, y, width, height, false); }
+    // static void outline_center_rectangle(double x, double y, double width, double height) { _draw_center_rectangle(x, y, width, height, true); }
+    // static void _draw_center_rectangle(double x, double y, double width, double height, boolean outlined) {
+    //     assert width >= 0;
+    //     assert height >= 0;
+    //     double half_width = width / 2;
+    //     double half_height = height / 2;
+    //     _draw_corner_rectangle(x - half_width, y - half_height, x + half_width, y + half_height, outlined);
+    // }
 
     static void fill_circle(double x, double y, double r) { _draw_circle(x, y, r, false); }
     static void outline_circle(double x, double y, double r) { _draw_circle(x, y, r, true); }
@@ -359,12 +383,12 @@ class DemoTicTacToe extends Cow {
 
             { // draw
                 if (!game_is_over()) { // hot square
-                    set_draw_color(Color.yellow, 0.5);
-                    fill_corner_rectangle(hot_column, hot_row, hot_column + 1, hot_row + 1);
+                    set_color(Color.yellow, 0.5);
+                    fill_rectangle(hot_column, hot_row, hot_column + 1, hot_row + 1);
                 }
 
                 { // board lines
-                    set_draw_color(Color.black);
+                    set_color(Color.black);
                     set_line_thickness(2.0);
                     draw_line(1, 0, 1, 3);
                     draw_line(2, 0, 2, 3);
@@ -373,7 +397,7 @@ class DemoTicTacToe extends Cow {
                 }
 
                 { // X's and O's
-                    set_draw_color(Color.black);
+                    set_color(Color.black);
                     set_line_thickness(3.0);
                     double epsilon = 0.1;
                     for (int row = 0; row < 3; ++row) {
@@ -389,7 +413,7 @@ class DemoTicTacToe extends Cow {
                 }
 
                 if (winner != PLAYER_NONE) { // winning line
-                    set_draw_color(Color.magenta, 0.5);
+                    set_color(Color.magenta, 0.5);
                     set_line_thickness(6.0);
                     draw_line(win_line_x1, win_line_y1, win_line_x2, win_line_y2);
                 }
@@ -448,37 +472,68 @@ class DemoKitchenSink extends Cow {
 
             { // draw
 
-                if (!mouse_held) {
-                    set_draw_color(Color.gray);
-                } else {
-                    set_draw_color(Color.yellow);
-                }
-                fill_center_rectangle(0, 0, 4, 2);
+                set_color(mouse_held ? Color.green : Color.red);
+                set_line_thickness(8.0);
+                outline_rectangle(-5, -5, 5, 5);
 
-                set_draw_color(Color.green);
-                set_line_thickness(2.0);
-                outline_corner_rectangle(-5, -5, 5, 5);
-
-                set_draw_color(Color.magenta);
+                set_color(Color.magenta);
                 set_line_thickness(4.0);
                 draw_line(mouse_x, mouse_y, 3, 3);
 
-                for (int pass = 0; pass < 2; ++pass) {
-                    if (pass == 0) {
-                        set_draw_color(color_rainbow_swirl(time), 0.5);
-                    } else {
-                        set_draw_color(0.0, 0.0, 0.0);
-                        set_line_thickness(3.0);
-                    }
-                    _draw_circle(x, y, 1, (pass == 1));
-                }
+                set_color(color_rainbow_swirl(time), 0.5);
+                fill_circle(x, y, 1);
+                set_color(0.0, 0.0, 0.0);
+                set_line_thickness(3.0);
+                outline_circle(x, y, 1);
 
                 for (int i = 0; i < particles.size(); ++i) {
-                    set_draw_color(particles.get(i).color);
+                    set_color(particles.get(i).color);
                     fill_circle(particles.get(i).x, particles.get(i).y, 0.1);
                 }
 
-                set_draw_color(Color.black);
+                //////////////////////////////////
+
+                /*
+                begin_drawing(RECTANGLES);
+                set_polygon_mode(OUTLINE);
+                set_color(mouse_held ? Color.green : Color.red);
+                set_line_thickness(8.0);
+                draw_vertex(-5, -5);
+                draw_vertex( 5,  5);
+                end_drawing();
+
+                begin_drawing(LINES);
+                set_polygon_mode(FILL);
+                set_color(Color.magenta);
+                set_line_thickness(4.0);
+                draw_vertex(mouse_x, mouse_y);
+                draw_vertex(3, 3);
+                end_drawing();
+
+                begin_drawing(CIRCLES);
+                set_polygon_mode(FILL);
+                set_color(color_rainbow_swirl(time), 0.5);
+                set_circle_diameter(2.0);
+                draw_vertex(x, y);
+                set_polygon_mode(OUTLINE);
+                set_color(Color.black);
+                set_line_thickness(3.0);
+                draw_vertex(x, y);
+                end_drawing();
+
+                begin_drawing(CIRCLES);
+                set_polygon_mode(FILL);
+                set_circle_diameter(1.0);
+                for (int i = 0; i < particles.size(); ++i) {
+                    set_color(particles.get(i).color);
+                    draw_vertex(particles.get(i).x, particles.get(i).y);
+                }
+                end_drawing();
+                */
+
+                ///////////////////////////////////
+
+                set_color(Color.black);
                 draw_string("Hello", x, y, 24, true);
             }
         }

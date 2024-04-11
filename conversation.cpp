@@ -1,3 +1,8 @@
+// // cleanup pass
+// TODO: get remedy (or rad debugger) working in parallels
+// TODO try the naive fat struct
+// TODO reduce paths through the code
+
 // TODO open file inside conversation
 // TODO space_bar_event
 // TODO: cleanup pass (what is conversation_reset__NOTE_basically_just_a_memset_0(); // FORNOW)))???
@@ -485,20 +490,22 @@ void conversation_init() {
                 Event event = {};
                 event.type = UI_EVENT_TYPE_KEY_PRESS;
                 for (int i = 0; i < 5; ++i) {
-                   spoof_KEY('Y');
-                   spoof_KEY('S');
-                   spoof_KEY('Q');
-                   spoof_KEY('0' + i);
-                   spoof_KEY('E');
-                   spoof_KEY('1' + i);
-                   spoof_KEY(COW_KEY_ENTER);
+                    spoof_KEY('Y');
+                    spoof_KEY('S');
+                    spoof_KEY('Q');
+                    spoof_KEY('0' + i);
+                    spoof_KEY('E');
+                    spoof_KEY('1' + i);
+                    spoof_KEY(COW_KEY_ENTER);
                 }
             }
+        } else if (0) {
+            conversation_dxf_load("ik.dxf", true);
         } else if (0) {
             conversation_dxf_load("debug.dxf", true);
         } else {
             conversation_dxf_load("splash.dxf", true);
-            if (0) {
+            if (1) {
                 spoof_KEY('Y');
                 spoof_KEY('S');
                 spoof_KEY('C');
@@ -1219,17 +1226,12 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                 for (uint32 i = 0; i < dxf_entities.length; ++i) {
                     DXFEntity *entity = &dxf_entities.array[i];
                     if (dxf_selection_mask.array[i]) {
-                        if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                            DXFLine *line = &entity->line;
-                            line->start_x += dx;
-                            line->start_y += dy;
-                            line->end_x += dx;
-                            line->end_y += dy;
-                        } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                            DXFArc *arc = &entity->arc;
-                            arc->center_x += dx;
-                            arc->center_y += dy;
-                        }
+                        entity->line.start_x += dx;
+                        entity->line.start_y += dy;
+                        entity->line.end_x   += dx;
+                        entity->line.end_y   += dy;
+                        entity->arc.center_x += dx;
+                        entity->arc.center_y += dy;
                     }
                 }
             } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
