@@ -484,9 +484,9 @@ void spoof_MOUSE_3D(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir
 
 void conversation_init() {
     { // conversation_dxf_load
-        if (0) {
+        if (1) {
             conversation_dxf_load("omax.dxf", true);
-            if (0) {
+            if (1) {
                 Event event = {};
                 event.type = UI_EVENT_TYPE_KEY_PRESS;
                 for (int i = 0; i < 5; ++i) {
@@ -505,7 +505,7 @@ void conversation_init() {
             conversation_dxf_load("debug.dxf", true);
         } else {
             conversation_dxf_load("splash.dxf", true);
-            if (1) {
+            if (0) {
                 spoof_KEY('Y');
                 spoof_KEY('S');
                 spoof_KEY('C');

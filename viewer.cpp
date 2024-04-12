@@ -212,8 +212,8 @@ DXF dxf_load(char *filename) {
 
     result.num_entities = stretchy_list.length;
     result.entities = (DXFEntity *) calloc(result.num_entities, sizeof(DXFEntity));
-    memcpy(result.entities, stretchy_list.data, result.num_entities * sizeof(DXFEntity));
-    list_free(&stretchy_list);
+    memcpy(result.entities, stretchy_list.array, result.num_entities * sizeof(DXFEntity));
+    list_free_AND_zero(&stretchy_list);
     return result;
 }
 
@@ -275,18 +275,18 @@ void dxf_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE)
 
 struct STL {
     u32 num_triangles;
-    real32 *data;
+    real32 *array;
 };
 
 
 void stl_free(STL *stl) {
-    if (stl->data) free(stl->data);
+    if (stl->array) free(stl->array);
     *stl = {};
 }
 
 void stl_draw(mat4 P, mat4 V, mat4 M, STL *stl) {
     eso_begin(P * V * M, SOUP_OUTLINED_TRIANGLES);
-    for (real32 *ptr = stl->data; ptr < stl->data + 9 * stl->num_triangles; ptr += 9) {
+    for (real32 *ptr = stl->array; ptr < stl->array + 9 * stl->num_triangles; ptr += 9) {
         vec3 a = { ptr[0], ptr[1], ptr[2] };
         vec3 b = { ptr[3], ptr[4], ptr[5] };
         vec3 c = { ptr[6], ptr[7], ptr[8] };
@@ -333,9 +333,9 @@ STL stl_load(char *filename) {
 
         result.num_triangles = ascii_data.length / 9;
         u32 size = ascii_data.length * sizeof(real32);
-        result.data = (real32 *) malloc(size);
-        memcpy(result.data, ascii_data.data, size);
-        list_free(&ascii_data);
+        result.array = (real32 *) malloc(size);
+        memcpy(result.array, ascii_data.array, size);
+        list_free_AND_zero(&ascii_data);
     } else if (filetype == STL_FILETYPE_BINARY) {
         char *entire_file; {
             FILE *file = fopen(filename, "rb");
@@ -353,11 +353,11 @@ STL stl_load(char *filename) {
         offset += 4;
 
         u32 size = result.num_triangles * 36;
-        result.data = (real32 *) calloc(1, size);
+        result.array = (real32 *) calloc(1, size);
 
         for (u32 i = 0; i < result.num_triangles; ++i) {
             offset += 12;
-            memcpy(result.data + i * 9, entire_file + offset, 36);
+            memcpy(result.array + i * 9, entire_file + offset, 36);
             offset += 38;
         }
     }
