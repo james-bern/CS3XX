@@ -148,7 +148,6 @@ real32 dxf_origin_y;
 
 
 
-ManifoldManifold *manifold_manifold;
 FancyMesh fancy_mesh;
 uint32 enter_mode;
 uint32 click_mode;
@@ -276,7 +275,7 @@ void conversation_stl_load(char *filename, bool preserve_cameras = false) {
         return;
     }
     {
-        stl_load(filename, &manifold_manifold, &fancy_mesh);
+        stl_load(filename, &fancy_mesh);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(preserve_cameras);
         conversation_messagef("[load] loaded %s", filename);
     }
@@ -344,7 +343,6 @@ void conversation_cameras_reset() {
 
 
 struct ConversationSaveState {
-    ManifoldManifold *manifold_manifold;
     FancyMesh fancy_mesh;
     List<DXFEntity> dxf_entities;
     List<bool32> dxf_selection_mask;
@@ -354,8 +352,6 @@ Stack<ConversationSaveState> super_undo_stack;
 Stack<ConversationSaveState> super_redo_stack;
 
 void _load_in_save_state(ConversationSaveState *save_state) {
-    // TODO manifold-memory 
-    manifold_manifold = save_state->manifold_manifold;
     fancy_mesh = save_state->fancy_mesh;
     list_clone(&dxf_entities, &save_state->dxf_entities);
     list_clone(&dxf_selection_mask, &save_state->dxf_selection_mask);
@@ -364,15 +360,12 @@ void _load_in_save_state(ConversationSaveState *save_state) {
 void super_stacks_do__NOTE_kills_redo_super_stack() {
     { // free redo stack
         for (uint32 i = 0; i < super_redo_stack.length; ++i) {
-            // TODO manifold-memory 
             fancy_mesh_free(&super_redo_stack.array[i].fancy_mesh);
             list_free_AND_zero(&super_redo_stack.array[i].dxf_entities);
             list_free_AND_zero(&super_redo_stack.array[i].dxf_selection_mask);
         }
     }
-    // TODO manifold-memory 
     ConversationSaveState save_state = {};
-    save_state.manifold_manifold = manifold_manifold;
     save_state.fancy_mesh = fancy_mesh;
     list_clone(&save_state.dxf_entities, &dxf_entities);
     list_clone(&save_state.dxf_selection_mask, &dxf_selection_mask);
@@ -385,7 +378,6 @@ void super_stacks_peek_and_load() {
 }
 void super_stacks_undo_and_load() {
     ASSERT(super_undo_stack.length);
-    // TODO manifold-memory 
     ConversationSaveState save_state = stack_pop(&super_undo_stack); // FORNOW; TODO: pointer versions
     stack_push(&super_redo_stack, save_state);
     super_stacks_peek_and_load();
@@ -484,7 +476,7 @@ void spoof_MOUSE_3D(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir
 
 void conversation_init() {
     { // conversation_dxf_load
-        if (1) {
+        if (0) {
             conversation_dxf_load("omax.dxf", true);
             if (1) {
                 Event event = {};
@@ -505,7 +497,7 @@ void conversation_init() {
             conversation_dxf_load("debug.dxf", true);
         } else {
             conversation_dxf_load("splash.dxf", true);
-            if (0) {
+            if (1) {
                 spoof_KEY('Y');
                 spoof_KEY('S');
                 spoof_KEY('C');
@@ -947,7 +939,6 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                             if (!skip_mesh_generation_because_we_are_loading_from_the_redo_stack) {
                                 CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&dxf_entities, dxf_selection_mask.array);
                                 wrapper_manifold(
-                                        &manifold_manifold,
                                         &fancy_mesh,
                                         cross_section.num_polygonal_loops,
                                         cross_section.num_vertices_in_polygonal_loops,

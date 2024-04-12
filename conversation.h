@@ -1021,7 +1021,7 @@ void fancy_mesh_free(FancyMesh *fancy_mesh) {
     *fancy_mesh = {};
 }
 
-void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *fancy_mesh) {
+void stl_load(char *filename, FancyMesh *fancy_mesh) {
     // history_record_state(history, manifold_manifold, fancy_mesh); // FORNOW
 
     { // fancy_mesh
@@ -1128,18 +1128,6 @@ void stl_load(char *filename, ManifoldManifold **manifold_manifold, FancyMesh *f
         fancy_mesh_triangle_normals_calculate(fancy_mesh);
         fancy_mesh_cosmetic_edges_calculate(fancy_mesh);
     }
-    { // manifold_manifold
-      // FORNOW
-        ManifoldMeshGL *meshgl = manifold_meshgl(
-                malloc(manifold_meshgl_size()),
-                fancy_mesh->vertex_positions,
-                fancy_mesh->num_vertices,
-                3,
-                fancy_mesh->triangle_indices,
-                fancy_mesh->num_triangles);
-        *manifold_manifold = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
-        manifold_delete_meshgl(meshgl);
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1239,9 +1227,9 @@ void conversation_message_buffer_update_and_draw() {
 // uh oh ///////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+// TODO: don't overwrite fancy mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
 void wrapper_manifold(
-        ManifoldManifold **manifold_manifold,
         FancyMesh *fancy_mesh, // dest__NOTE_GETS_OVERWRITTEN,
         uint32 num_polygonal_loops,
         uint32 *num_vertices_in_polygonal_loops,
@@ -1253,23 +1241,39 @@ void wrapper_manifold(
         real32 dxf_origin_x,
         real32 dxf_origin_y,
         bool32 revolve_use_x_instead) {
-    // FORNOW: this function call isn't a no-op
-    // history_record_state(history, manifold_manifold, fancy_mesh);
-    ASSERT(enter_mode != ENTER_MODE_NONE);
 
+    ASSERT(enter_mode != ENTER_MODE_NONE); // FORNOW
 
+    ManifoldManifold *manifold_A; {
+        if (fancy_mesh->num_vertices == 0) {
+            manifold_A = NULL;
+        } else { // manifold <- fancy_mesh
+            ManifoldMeshGL *meshgl = manifold_meshgl(
+                    malloc(manifold_meshgl_size()),
+                    fancy_mesh->vertex_positions,
+                    fancy_mesh->num_vertices,
+                    3,
+                    fancy_mesh->triangle_indices,
+                    fancy_mesh->num_triangles);
 
+            manifold_A = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
 
-    ManifoldManifold *other_manifold; {
-        ManifoldSimplePolygon **simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
-        for (uint32 i = 0; i < num_polygonal_loops; ++i) {
-            simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
+            manifold_delete_meshgl(meshgl);
         }
-        ManifoldPolygons *polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
-        ManifoldCrossSection *cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+    }
 
-
-        { // cross_section modification
+    ManifoldManifold *manifold_B; {
+        ManifoldSimplePolygon **simple_polygon_array; {
+            simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
+            for (uint32 i = 0; i < num_polygonal_loops; ++i) {
+                simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
+            }
+        } 
+        ManifoldPolygons *polygons; {
+            polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
+        }
+        ManifoldCrossSection *cross_section; {
+            cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
             cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin_x, -dxf_origin_y);
 
             if  (revolve_use_x_instead) {
@@ -1277,9 +1281,7 @@ void wrapper_manifold(
             }
         }
 
-
-        { // other_manifold
-
+        { // manifold_B
             if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
                 do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_CUT\n");};
                 console_param += SGN(console_param) * TOLERANCE_DEFAULT;
@@ -1293,47 +1295,63 @@ void wrapper_manifold(
                 real32 min = MIN(0.0f, MIN(console_param, console_param_2));
                 real32 max = MAX(0.0f, MAX(console_param, console_param_2));
                 real32 length = max - min;
-                other_manifold = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
-                other_manifold = manifold_translate(other_manifold, other_manifold, 0.0f, 0.0f, min);
+                manifold_B = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
+                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, min);
             } else {
                 ASSERT((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
                 // TODO: M_3D_from_2D 
-                other_manifold = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
-                if (revolve_use_x_instead) other_manifold = manifold_rotate(other_manifold, other_manifold, 0.0f, -90.0f, 0.0f);
-                other_manifold = manifold_rotate(other_manifold, other_manifold, -90.0f, 0.0f, 0.0f);
+                manifold_B = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                if (revolve_use_x_instead) manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0f, -90.0f, 0.0f);
+                manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
             }
-            other_manifold = manifold_transform(other_manifold, other_manifold,
+            manifold_B = manifold_transform(manifold_B, manifold_B,
                     M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
                     M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
                     M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
                     M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
         }
+
+        { // free(simple_polygon_array)
+            for (uint32 i = 0; i < num_polygonal_loops; ++i) manifold_delete_simple_polygon(simple_polygon_array[i]);
+            free(simple_polygon_array);
+        }
+        manifold_delete_polygons(polygons);
+        manifold_delete_cross_section(cross_section);
     }
 
-    // add
-    if (!(*manifold_manifold)) {
-        ASSERT((enter_mode != ENTER_MODE_EXTRUDE_CUT) && (enter_mode != ENTER_MODE_REVOLVE_CUT));
+    // C <- f(A, B)
+    ManifoldMeshGL *result; {
 
-        *manifold_manifold = other_manifold;
-    } else {
-        // TODO: ? manifold_delete_manifold(manifold_manifold);
-        *manifold_manifold =
-            manifold_boolean(
-                    malloc(manifold_manifold_size()),
-                    *manifold_manifold,
-                    other_manifold,
-                    ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
-                    );
+        ManifoldManifold *manifold_C;
+        if (manifold_A == NULL) {
+            ASSERT((enter_mode != ENTER_MODE_EXTRUDE_CUT) && (enter_mode != ENTER_MODE_REVOLVE_CUT));
+            manifold_C = manifold_B;
+        } else {
+            // TODO: ? manifold_delete_manifold(manifold_A);
+            manifold_C =
+                manifold_boolean(
+                        malloc(manifold_manifold_size()),
+                        manifold_A,
+                        manifold_B,
+                        ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                        );
+            manifold_delete_manifold(manifold_A);
+            manifold_delete_manifold(manifold_B);
+        }
+
+        result = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold_C);
     }
 
-    ManifoldMeshGL *meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), *manifold_manifold);
+    { // fancy_mesh <- meshgl
+        // // NOTE: don't free ANYTHING!--putting the current state on the undo stack
+        // XXX fancy_mesh_free(fancy_mesh);
+        fancy_mesh->num_vertices = manifold_meshgl_num_vert(result);
+        fancy_mesh->num_triangles = manifold_meshgl_num_tri(result);
+        fancy_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(result) * sizeof(real32)), result);
+        fancy_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(result) * sizeof(uint32)), result);
+        fancy_mesh_triangle_normals_calculate(fancy_mesh);
+        fancy_mesh_cosmetic_edges_calculate(fancy_mesh);
+    }
 
-    // // NOTE: don't free ANYTHING!--putting the current state on the undo stack
-    // XXX fancy_mesh_free(fancy_mesh);
-    fancy_mesh->num_vertices = manifold_meshgl_num_vert(meshgl);
-    fancy_mesh->num_triangles = manifold_meshgl_num_tri(meshgl);
-    fancy_mesh->vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
-    fancy_mesh->triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint32)), meshgl);
-    fancy_mesh_triangle_normals_calculate(fancy_mesh);
-    fancy_mesh_cosmetic_edges_calculate(fancy_mesh);
+    manifold_delete_meshgl(result);
 }
