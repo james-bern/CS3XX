@@ -6,34 +6,31 @@
 #include "burkardt.cpp"
 #include "conversation.h"
 
-
-
-
-
-AccessoryState accessory_state;
 PersistentState state;
+AccessoryState accessory_state;
 
 //////////////////////////////////////////////////
 // TODO: STATE ///////////////////////////////////
 //////////////////////////////////////////////////
 
+// TODO: state
 bool32 two_click_command_awaiting_second_click;
 real32 two_click_command_x_0;
 real32 two_click_command_y_0;
 //
-bool32 revolve_use_x_instead;
-//
-Event space_bar_event = { UI_EVENT_TYPE_KEY_PRESS };
+Event space_bar_event = { UI_EVENT_TYPE_KEY_PRESS }; // TODO: accessory state
 
-char console_buffer[256];
-char *console_buffer_write_head;
-void conversation_console_buffer_reset() {
+char console_buffer[256];        // TODO: persistent state
+char *console_buffer_write_head; // TODO: persistent_state
+void conversation_console_buffer_reset() { // TODO: remove
     memset(console_buffer, 0, ARRAY_LENGTH(console_buffer) * sizeof(char));
     console_buffer_write_head = console_buffer;
 };
-bool32 console_params_preview_flip_flag; // TODO: replace with getter
-real32 console_param_1_preview;          // TODO: replace with getter
+bool32 console_flip_flag; // TODO: persistent state
+
+real32 console_param_1_preview;          // TODO: replace with get_console_params
 real32 console_param_2_preview;          // TODO: replace with getter
+
 void console_params_preview_update() {
     char buffs[2][64] = {};
     uint32 buff_i = 0;
@@ -48,7 +45,7 @@ void console_params_preview_update() {
     }
     real32 sign = 1.0f;
     if ((state.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
-        sign = (!console_params_preview_flip_flag) ? 1.0f : -1.0f;
+        sign = (!console_flip_flag) ? 1.0f : -1.0f;
     }
     console_param_1_preview = sign * strtof(buffs[0], NULL);
     console_param_2_preview = sign * strtof(buffs[1], NULL);
@@ -74,7 +71,7 @@ void conversation_cameras_reset() {
 
 
 //////////////////////////////////////////////////
-// GETTERS ///////////////////////////////////////
+// GETTERS (STATE NOT WORTH TROUBLE OF STORING) //
 //////////////////////////////////////////////////
 
 mat4 get_M_3D_from_2D() {
@@ -186,7 +183,7 @@ BEGIN_PRE_MAIN {
 
 void conversation_reset() {
     state = {};
-    console_params_preview_flip_flag = false;
+    console_flip_flag = false;
     conversation_console_buffer_reset();
 }
 
@@ -635,7 +632,8 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                                             console_param_2,
                                             state.dxf.origin.x,
                                             state.dxf.origin.y,
-                                            revolve_use_x_instead);
+                                            console_flip_flag // FORNOW:revolve_use_x_instead
+                                            );
                                     cross_section_free(&cross_section);
                                 }
 
@@ -717,12 +715,11 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     state.feature_plane = {};
                 } else if (key_lambda(COW_KEY_TAB)) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
-                    console_params_preview_flip_flag = !console_params_preview_flip_flag;
-                    if ((state.enter_mode == ENTER_MODE_REVOLVE_ADD) || (state.enter_mode == ENTER_MODE_REVOLVE_CUT)) revolve_use_x_instead = !revolve_use_x_instead;
+                    console_flip_flag = !console_flip_flag;
                 } else if (key_lambda('N')) {
                     if (stl_plane_selected) {
                         state.enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
-                        console_params_preview_flip_flag = false;
+                        console_flip_flag = false;
                         conversation_console_buffer_reset();
                     } else {
                         conversation_messagef("[n] no plane is_selected");
@@ -731,7 +728,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     state.click_mode = CLICK_MODE_ORIGIN_MOVE;
                     state.click_modifier = CLICK_MODIFIER_NONE;
                     state.enter_mode = ENTER_MODE_MOVE_DXF_ORIGIN_TO;
-                    console_params_preview_flip_flag = false;
+                    console_flip_flag = false;
                     conversation_console_buffer_reset();
                 } else if (key_lambda('S')) {
                     state.click_mode = CLICK_MODE_SELECT;
@@ -782,7 +779,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         state.enter_mode = ENTER_MODE_EXTRUDE_ADD;
                         if (_click_mode_NEEDS_CONSOLE) state.click_mode = CLICK_MODE_NONE;
-                        console_params_preview_flip_flag = false;
+                        console_flip_flag = false;
                         conversation_console_buffer_reset();
                     }
                 } else if (key_lambda('M')) {
@@ -800,14 +797,12 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     state.enter_mode = ENTER_MODE_EXTRUDE_CUT;
                     if (_click_mode_NEEDS_CONSOLE) state.click_mode = CLICK_MODE_NONE;
-                    console_params_preview_flip_flag = true;
+                    console_flip_flag = true;
                     conversation_console_buffer_reset();
                 } else if (key_lambda('R')) {
                     state.enter_mode = ENTER_MODE_REVOLVE_ADD;
-                    revolve_use_x_instead = false;
                 } else if (key_lambda('R', false, true)) {
                     state.enter_mode = ENTER_MODE_REVOLVE_CUT;
-                    revolve_use_x_instead = false;
                 } else if (key_lambda('W')) {
                     if ((state.click_mode == CLICK_MODE_SELECT) || (state.click_mode == CLICK_MODE_DESELECT)) {
                         state.click_modifier = CLICK_MODIFIER_WINDOW;
@@ -1648,7 +1643,7 @@ void conversation_draw() {
                     real32 a = 0.0f;
                     real32 b = TAU;
                     real32 argument  = (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1);
-                    mat4 R = ((revolve_use_x_instead) ? M4_RotationAboutXAxis(argument) : M4_RotationAboutYAxis(argument));
+                    mat4 R = ((console_flip_flag) ? M4_RotationAboutXAxis(argument) : M4_RotationAboutYAxis(argument));
                     M_incr = M4_Translation(state.dxf.origin.x, state.dxf.origin.y, 0.0f) * R * M4_Translation(-state.dxf.origin.x, -state.dxf.origin.y, 0.0f);
                 } else if (state.enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) {
                     // FORNOW
@@ -1690,7 +1685,7 @@ void conversation_draw() {
                 real32 arrow_x = 0.0f;
                 real32 arrow_y = 0.0f;
                 real32 H[2] = { console_param_1_preview, console_param_2_preview };
-                bool32 toggle[2] = { console_params_preview_flip_flag, !console_params_preview_flip_flag };
+                bool32 toggle[2] = { console_flip_flag, !console_flip_flag };
                 mat4 A = M_3D_from_2D;
                 if ((state.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
                     bounding_box_center(selection_bounding_box, &arrow_x, &arrow_y);
@@ -1699,13 +1694,13 @@ void conversation_draw() {
                         arrow_y -= state.dxf.origin.y;
                     }
                 } else { ASSERT((state.enter_mode == ENTER_MODE_REVOLVE_ADD) || (state.enter_mode == ENTER_MODE_REVOLVE_CUT));
-                    H[0] = 10.0f + selection_bounding_box.max[(!revolve_use_x_instead) ? 1 : 0];
+                    H[0] = 10.0f + selection_bounding_box.max[(!console_flip_flag) ? 1 : 0];
                     H[1] = 0.0f;
                     toggle[0] = false;
                     toggle[1] = false;
                     { // A
                         A *= M4_RotationAboutXAxis(RAD(-90.0f));
-                        if (revolve_use_x_instead) {
+                        if (console_flip_flag) {
                             A *= M4_RotationAboutYAxis(RAD(90.0f));
                         }
                     }
@@ -1769,7 +1764,7 @@ void conversation_draw() {
                         if ((state.feature_plane.is_active) && (dot(n, state.feature_plane.normal) > 0.999f) && (ABS(x_n - state.feature_plane.signed_distance_to_world_origin) < 0.001f)) {
                             if (pass == 0) continue;
                             color = V3(0.85f, 0.87f, 0.30f);
-                            alpha = ((state.enter_mode == ENTER_MODE_EXTRUDE_ADD || (state.enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((console_params_preview_flip_flag) || (console_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
+                            alpha = ((state.enter_mode == ENTER_MODE_EXTRUDE_ADD || (state.enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((console_flip_flag) || (console_param_2_preview != 0.0f))) ? 0.7f : 1.0f;
                         } else {
                             if (pass == 1) continue;
                             color = color_n;
@@ -1869,14 +1864,14 @@ void conversation_draw() {
                 if ((state.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
                     p      =  console_param_1_preview;
                     p2     = -console_param_2_preview;
-                    if (console_params_preview_flip_flag) { // ??
+                    if (console_flip_flag) { // ??
                         p *= -1;
                         p2 *= -1;
                     }
                     if (IS_ZERO(p)) p = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
                     if (IS_ZERO(p2)) p2 = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
-                    glyph  = (!console_params_preview_flip_flag) ? '^' : 'v';
-                    glyph2 = (!console_params_preview_flip_flag) ? 'v' : '^';
+                    glyph  = (!console_flip_flag) ? '^' : 'v';
+                    glyph2 = (!console_flip_flag) ? 'v' : '^';
                 } else {
                     ASSERT(state.enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO);
                     p      = console_param_1_preview;
