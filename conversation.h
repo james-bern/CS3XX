@@ -40,7 +40,7 @@ real32 GRID_SPACING = 10.0f;
 real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 
 ////////////////////////////////////////
-// Top-Level State Machine /////////////
+// #defines ////////////////////////////
 ////////////////////////////////////////
 
 #define ENTER_MODE_NONE               0
@@ -73,10 +73,160 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF     6
 #define CLICK_MODIFIER_SNAP_PERPENDICULAR_TO 7
 
+#define DXF_COLOR_TRAVERSE        0
+#define DXF_COLOR_QUALITY_1       1
+#define DXF_COLOR_QUALITY_2       2
+#define DXF_COLOR_QUALITY_3       3
+#define DXF_COLOR_QUALITY_4       4
+#define DXF_COLOR_QUALITY_5       5
+#define DXF_COLOR_ETCH            6
+#define DXF_COLOR_WATER_ONLY      8
+#define DXF_COLOR_LEAD_IO         9
+#define DXF_COLOR_QUALITY_SLIT_1 21
+#define DXF_COLOR_QUALITY_SLIT_2 22
+#define DXF_COLOR_QUALITY_SLIT_3 23
+#define DXF_COLOR_QUALITY_SLIT_4 24
+#define DXF_COLOR_QUALITY_SLIT_5 25
+#define DXF_COLOR_SELECTION     254
+#define DXF_COLOR_DONT_OVERRIDE 255
+
+#define DXF_ENTITY_TYPE_LINE 0
+#define DXF_ENTITY_TYPE_ARC  1
+
 #define HOT_PANE_NONE 0
 #define HOT_PANE_2D   1
 #define HOT_PANE_3D   2
 
+#define UI_EVENT_TYPE_KEY_PRESS      0
+#define UI_EVENT_TYPE_MOUSE_2D_PRESS 1
+#define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
+
+#define PROCESSED_EVENT_CATEGORY_DONT_RECORD              0
+#define PROCESSED_EVENT_CATEGORY_RECORD                   1
+#define PROCESSED_EVENT_CATEGORY_CHECKPOINT               2
+#define PROCESSED_EVENT_CATEGORY_EXPENSIVE_MESH_OPERATION 3
+#define PROCESSED_EVENT_CATEGORY_KILL_HISTORY             4
+
+#define CHECKPOINT_TYPE_NONE             0
+#define CHECKPOINT_TYPE_CHECKPOINT       1
+#define CHECKPOINT_TYPE_SUPER_CHECKPOINT 2
+
+////////////////////////////////////////
+// TODO: arenas ////////////////////////
+////////////////////////////////////////
+
+#if 0
+struct Arena {
+
+}
+
+Arena *arena_create() {
+}
+
+void arena_alloc(u64 num_bytes) {
+}
+
+void arena_release() {
+}
+
+struct ArenaList {
+}
+#endif
+
+////////////////////////////////////////
+// structs /////////////////////////////
+////////////////////////////////////////
+
+struct DXFLine {
+    real32 start_x;
+    real32 start_y;
+    real32 end_x;
+    real32 end_y;
+    real32 _;
+};
+
+struct DXFArc {
+    real32 center_x;
+    real32 center_y;
+    real32 radius;
+    real32 start_angle_in_degrees;
+    real32 end_angle_in_degrees;
+};
+
+struct DXFEntity {
+    uint32 type;
+    uint32 color;
+    // NOTE: naive "fat struct"
+    DXFLine line;
+    DXFArc arc;
+};
+
+struct FancyMesh {
+    uint32 num_vertices;
+    uint32 num_triangles;
+    real32 *vertex_positions;
+    uint32 *triangle_indices;
+    real32 *triangle_normals;
+
+    uint32 num_cosmetic_edges;
+    uint32 *cosmetic_edges;
+};
+
+struct AccessoryState {
+    Camera2D camera_2D;
+    Camera3D camera_3D;
+
+    bool32   hide_grid;
+    bool32   hide_gui;
+    bool32   show_details;
+    bool32   show_help;
+    bool32   show_command_stack;
+
+    uint32   hot_pane;
+};
+
+struct PersistentState {
+    struct {
+        List<DXFEntity> entities;
+        List<bool32>    is_selected;
+        vec2            origin;
+    } dxf;
+
+    FancyMesh mesh;
+
+    struct {
+        bool32 is_active;
+        vec3 normal;
+        real32 signed_distance_to_world_origin;
+    } feature_plane;
+
+    struct {
+        uint32 click_mode;
+        uint32 click_modifier;
+        uint32 enter_mode;
+    };
+};
+
+struct Event {
+    uint32 type;
+    union {
+        struct {
+            uint32 key;
+            bool32 super;
+            bool32 shift;
+        };
+        struct {
+            real32 mouse_x;
+            real32 mouse_y;
+        };
+        struct {
+            vec3 o;
+            vec3 dir;
+        };
+    }; 
+    bool32 checkpoint_ineligible; // not_checkpoint_eligible__NOTE_set_before_event_process
+    uint32 checkpoint_type; // checkpoint_type__NOTE_set_in_new_event_process
+};
 
 
 ////////////////////////////////////////
@@ -173,48 +323,8 @@ void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, BoundingBox bounding_box
 // List<DXFEntity> /////////////////////////////////
 ////////////////////////////////////////
 
-#define DXF_COLOR_TRAVERSE        0
-#define DXF_COLOR_QUALITY_1       1
-#define DXF_COLOR_QUALITY_2       2
-#define DXF_COLOR_QUALITY_3       3
-#define DXF_COLOR_QUALITY_4       4
-#define DXF_COLOR_QUALITY_5       5
-#define DXF_COLOR_ETCH            6
-#define DXF_COLOR_WATER_ONLY      8
-#define DXF_COLOR_LEAD_IO         9
-#define DXF_COLOR_QUALITY_SLIT_1 21
-#define DXF_COLOR_QUALITY_SLIT_2 22
-#define DXF_COLOR_QUALITY_SLIT_3 23
-#define DXF_COLOR_QUALITY_SLIT_4 24
-#define DXF_COLOR_QUALITY_SLIT_5 25
-#define DXF_COLOR_SELECTION     254
-#define DXF_COLOR_DONT_OVERRIDE 255
 
-struct DXFLine {
-    real32 start_x;
-    real32 start_y;
-    real32 end_x;
-    real32 end_y;
-    real32 _;
-};
 
-struct DXFArc {
-    real32 center_x;
-    real32 center_y;
-    real32 radius;
-    real32 start_angle_in_degrees;
-    real32 end_angle_in_degrees;
-};
-
-#define DXF_ENTITY_TYPE_LINE 0
-#define DXF_ENTITY_TYPE_ARC  1
-struct DXFEntity {
-    uint32 type;
-    uint32 color;
-    // NOTE: naive "fat struct"
-    DXFLine line;
-    DXFArc arc;
-};
 
 void get_point_on_circle_NOTE_pass_angle_in_radians(real32 *x, real32 *y, real32 center_x, real32 center_y, real32 radius, real32 angle_in_radians) {
     *x = center_x + radius * COS(angle_in_radians);
@@ -911,16 +1021,6 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 // FancyMesh, STL //////////////////////
 ////////////////////////////////////////
 
-struct FancyMesh {
-    uint32 num_vertices;
-    uint32 num_triangles;
-    real32 *vertex_positions;
-    uint32 *triangle_indices;
-    real32 *triangle_normals;
-
-    uint32 num_cosmetic_edges;
-    uint32 *cosmetic_edges;
-};
 
 void fancy_mesh_triangle_normals_calculate(FancyMesh *fancy_mesh) {
     fancy_mesh->triangle_normals = (real32 *) malloc(fancy_mesh->num_triangles * 3 * sizeof(real32));
