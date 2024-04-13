@@ -127,7 +127,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
 
 
 //////////////////////////////////////////////////
-// LOADING AND SAVING ////////////////////////////
+// LOADING AND SAVING STATE TO DISK //////////////
 //////////////////////////////////////////////////
 
 void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
@@ -216,13 +216,12 @@ void drop_callback(GLFWwindow *, int count, const char **paths) {
 BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
 
 
-
 //////////////////////////////////////////////////
-// CALLBACKS /////////////////////////////////////
+// GATHERING NEW EVENTS FROM USER ////////////////
 //////////////////////////////////////////////////
 
 Queue<UserEvent> queue_of_fresh_events_from_user;
-//
+// TODO clean up
 bool32 callback_mouse_left_held;
 real32 callback_xpos; // FORNOW
 real32 callback_ypos; // FORNOW
@@ -334,14 +333,16 @@ void spoof_MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real
 
 
 //////////////////////////////////////////////////
-// PROCESS SINGLE EVENT //////////////////////////
+// PROCESSING A SINGLE (NOT-special) EVENT  //////
+// (special events include undo, redo, ...) //////
 //////////////////////////////////////////////////
 
-uint32 event_process(UserEvent event, bool32 skip_mesh_generation_because_we_are_loading_from_the_redo_stack = false) {
+uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_because_we_are_loading_from_the_redo_stack = false) {
     // // grug variables 
     bool32 extrude = ((state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT));
     bool32 revolve = ((state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT));
     bool32 cut = ((state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT));
+    // // computed variables
     bool32 dxf_anything_selected; {
         dxf_anything_selected = false;
         for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
@@ -354,6 +355,7 @@ uint32 event_process(UserEvent event, bool32 skip_mesh_generation_because_we_are
     real32 console_param_1, console_param_2; {
         get_console_params(&console_param_1, &console_param_2);
     }
+
 
     bool32 result = PROCESSED_EVENT_CATEGORY_RECORD; {
         auto push_back_dxf_entity_and_mask_bool_lambda = [&](DXFEntity entity) {
@@ -1103,14 +1105,15 @@ uint32 event_process(UserEvent event, bool32 skip_mesh_generation_because_we_are
             }
         }
     }
-    // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT; // FORNOW
-    // result = PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT; // FORNOW
+    // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT; // FORNOW: testing
+    // result = PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT; // FORNOW: testing
     return result;
 }
 
 
 //////////////////////////////////////////////////
-// HISTORY LAYER /////////////////////////////////
+// PROCESS A FRESH (potentially special EVENT) ///
+// (undo, redo, space, ..., )                  ///
 //////////////////////////////////////////////////
 
 Stack<WorldState> super_undo_stack;
@@ -1185,32 +1188,22 @@ UserEvent *history_B_redo = history_A_undo;
 UserEvent *history_C_one_past_end_of_redo = history_A_undo;
 
 void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
-    // ASSERT(history_1 <= history_2);
-    // ASSERT((unsigned long) (history_2 - history_0) < ARRAY_LENGTH(history_0));
-
     auto key_lambda = [fresh_event_from_user](uint32 key, bool super = false, bool shift = false) -> bool {
         if (fresh_event_from_user.type != UI_EVENT_TYPE_KEY_PRESS) return false;
         return _key_lambda(fresh_event_from_user, key, super, shift);
     };
 
-    { // space bar repeats previous command (TODO NOTE: This approach won't actually work; it needs to be in event_process)
-      // (otherwise we can't differentiate between (c)enter and (c)icle)
-        if (key_lambda(' ')) {
-            fresh_event_from_user = {};
-            fresh_event_from_user.type = UI_EVENT_TYPE_KEY_PRESS;
-            fresh_event_from_user.key = ui.space_bar_event_key;
-        }
+    // space bar repeats previous command (TODO NOTE: This approach won't actually work; it needs to be in standard_event_process)
+    // (otherwise we can't differentiate between (c)enter and (c)icle)
+    if (key_lambda(' ')) {
+        fresh_event_from_user = {};
+        fresh_event_from_user.type = UI_EVENT_TYPE_KEY_PRESS;
+        fresh_event_from_user.key = ui.space_bar_event_key;
     }
 
-    { // we handle the user pressing z by spoofing a key press at the feature_reference_point
-        if (key_lambda('Z')) {
-            fresh_event_from_user = { UI_EVENT_TYPE_MOUSE_2D_PRESS, 0.0f, 0.0f };
-        }
-    }
-
-
-
-    if (key_lambda('Z', true) || key_lambda('U')) { // undo
+    if (key_lambda('Z')) { // we handle the user pressing z by spoofing a key press at the feature_reference_point
+        fresh_event_from_user = { UI_EVENT_TYPE_MOUSE_2D_PRESS, 0.0f, 0.0f };
+    } else if (key_lambda('Z', true) || key_lambda('U')) { // undo
         #define _UNDO_STACK_NONEMPTY_ (history_A_undo != history_B_redo)
 
         if (_UNDO_STACK_NONEMPTY_) {
@@ -1240,22 +1233,20 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
                 while ((history_A_undo != history_D_one_after_last_super_checkpoint) && (history_D_one_after_last_super_checkpoint - 1)->checkpoint_type != CHECKPOINT_TYPE_SUPER_CHECKPOINT) --history_D_one_after_last_super_checkpoint;
             }
 
-            for (UserEvent *event = history_D_one_after_last_super_checkpoint; event < history_B_redo; ++event) event_process(*event);
+            for (UserEvent *event = history_D_one_after_last_super_checkpoint; event < history_B_redo; ++event) standard_event_process(*event);
 
             conversation_messagef("[undo] success");
         } else {
             conversation_messagef("[undo] nothing to undo");
         }
-
     } else if (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true)) { // redo
-
         if (history_B_redo != history_C_one_past_end_of_redo) {
             do {
 
                 if (history_B_redo->checkpoint_type != CHECKPOINT_TYPE_SUPER_CHECKPOINT) {
-                    event_process(*history_B_redo);
+                    standard_event_process(*history_B_redo);
                 } else {
-                    event_process(*history_B_redo, true);
+                    standard_event_process(*history_B_redo, true);
                     super_stacks_redo_and_load();
                 }
 
@@ -1266,11 +1257,8 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
         } else {
             conversation_messagef("[redo] nothing to redo");
         }
-
-
-
-    } else { // process immediately
-        uint32 category = event_process(fresh_event_from_user);
+    } else { // standard event
+        uint32 category = standard_event_process(fresh_event_from_user);
 
         if (category == PROCESSED_EVENT_CATEGORY_DONT_RECORD) {
         } else if (category == PROCESSED_EVENT_CATEGORY_KILL_HISTORY) {
@@ -1889,31 +1877,15 @@ void conversation_draw() {
 // MAIN() ////////////////////////////////////////
 //////////////////////////////////////////////////
 
-void conversation_init() {
-    state = {};
+// TODO: load is no longer special; we should be able to undo / redo across it just like anything else
+// TODO: don't worry about user experience yet (it will grow to include panels toolbox etc)
 
-    { // conversation_dxf_load
-        if (0) {
-            conversation_dxf_load("omax.dxf");
-            if (1) {
-                UserEvent event = {};
-                event.type = UI_EVENT_TYPE_KEY_PRESS;
-                for (int i = 0; i < 5; ++i) {
-                    spoof_KEY_event('Y');
-                    spoof_KEY_event('S');
-                    spoof_KEY_event('Q');
-                    spoof_KEY_event('0' + i);
-                    spoof_KEY_event('E');
-                    spoof_KEY_event('1' + i);
-                    spoof_KEY_event(COW_KEY_ENTER);
-                }
-            }
-        } else if (0) {
-            conversation_dxf_load("ik.dxf");
-        } else if (0) {
-            conversation_dxf_load("debug.dxf");
-        } else {
+void conversation_init() {
+    if (1) {
+        // FORNOW: TODO: figure out super_stacks_do__NOTE_kills_redo_super_stack
+        if (1) {
             conversation_dxf_load("splash.dxf");
+            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
             if (1) {
                 spoof_KEY_event('Y');
                 spoof_KEY_event('S');
@@ -1942,22 +1914,38 @@ void conversation_init() {
                 spoof_KEY_event('U', false, true);
                 spoof_KEY_event('U', false, true);
             }
+        } else if (0) {
+            conversation_dxf_load("omax.dxf");
+            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
+            if (1) {
+                UserEvent event = {};
+                event.type = UI_EVENT_TYPE_KEY_PRESS;
+                for (int i = 0; i < 5; ++i) {
+                    spoof_KEY_event('Y');
+                    spoof_KEY_event('S');
+                    spoof_KEY_event('Q');
+                    spoof_KEY_event('0' + i);
+                    spoof_KEY_event('E');
+                    spoof_KEY_event('1' + i);
+                    spoof_KEY_event(COW_KEY_ENTER);
+                }
+            }
+        } else if (0) {
+            conversation_dxf_load("ik.dxf");
+            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
+        } else if (0) {
+            conversation_dxf_load("debug.dxf");
+            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
         }
     }
-
-    super_stacks_do__NOTE_kills_redo_super_stack();
-
-    {
-        ui = {};
-        init_cameras(); // FORNOW
-    }
+    init_cameras(); // FORNOW
+    conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
 }
 
 int main() {
-    // _window_set_size(1.5 * 640.0, 1.5 * 360.0);
+    // _window_set_size(1.5 * 640.0, 1.5 * 360.0); // TODO the first frame crap gets buggered
 
     conversation_init();
-    conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
 
     {
         // FORNOW: first frame position
