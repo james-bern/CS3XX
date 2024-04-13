@@ -1,3 +1,24 @@
+#if 0
+struct Arena {
+
+}
+
+Arena *arena_create() {
+}
+
+void arena_alloc(u64 num_bytes) {
+}
+
+void arena_release() {
+}
+
+struct ArenaList {
+}
+#endif
+
+// TODO: don't overwrite fancy mesh, let the calling code do what it will
+
+
 // // cleanup pass
 // TODO: get remedy (or rad debugger) working in parallels
 // TODO try the naive fat struct
@@ -15,8 +36,8 @@
 // || (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO)
 // || (enter_mode == ENTER_MODE_OFFSET_PLANE_BY)
 // } else if (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) {
-//     dxf_origin_x = console_param_1;
-//     dxf_origin_y = console_param_2;
+//     state.dxf.origin_x = console_param_1;
+//     state.dxf.origin_y = console_param_2;
 //     conversation_update_M_3D_from_2D();
 // } else {
 //     ASSERT(enter_mode == ENTER_MODE_OFFSET_PLANE_BY);
@@ -31,7 +52,7 @@
 
 // NOTE: a super checkpoint pushes to the feature stack
 // TODO: super checkpoint (save state) redo stack
-// TODO: do a renaming pass (save_state, history, category, ...)
+// TODO: do a renaming pass (other, history, category, ...)
 
 
 // TODO: make an undo that stores a stack of the 3D stuff so you only undo from a 3D checkpoint
@@ -49,7 +70,7 @@
 // TODO ability to hide the 2D stuff just to hide it (so you can be fully in a layout clone)
 
 // NOTE FORNOW the following operations are considered "fast"--we don't bother storing them
-// - computing a dxf_entities's bounding box
+// - computing a state.dxf.entities's bounding box
 
 // // TODO important
 // true undo stack for boolean operations (checkpoints)
@@ -73,7 +94,7 @@
 // XXXX drawing lines
 // XXXX drawing lines with snaps
 // XXXX undoing the drawing of a line
-// XXXX actually incorporating drawn lines into the dxf_entities
+// XXXX actually incorporating drawn lines into the state.dxf.entities
 // XXXX deleting lines
 // XXXX creating circle
 // XXXX creating fillet
@@ -128,27 +149,43 @@
 #include "conversation.h"
 
 ////////////////////////////////////////////////////
-// GLOBALS (TODO: wrap in struct ConversationState { ... } conversation;
+// GLOBALS (TODO: wrap in struct PersistentState { ... } conversation;
 ////////////////////////////////////////////////////
 
-Camera2D camera_2D;
-Camera3D camera_3D;
 
-bool32 hide_grid;
-bool32 show_details;
-bool32 show_help;
-bool32 show_command_stack;
-bool32 hide_gui;
+struct TemporaryState {
+    Camera2D camera_2D;
+    Camera3D camera_3D;
 
-
-List<DXFEntity> dxf_entities;
-List<bool32> dxf_selection_mask;
-real32 dxf_origin_x;
-real32 dxf_origin_y;
+    bool32   hide_grid;
+    bool32   show_details;
+    bool32   show_help;
+    bool32   show_command_stack;
+    bool32   hide_gui;
+};
 
 
+struct PersistentState {
+    struct {
+        List<DXFEntity> entities;
+        List<bool32>    is_selected;
+        real32          origin_x;
+        real32          origin_y;
+    } dxf;
 
-FancyMesh fancy_mesh;
+    struct {
+    } feature_plane;
+
+    FancyMesh mesh;
+};
+
+
+TemporaryState ui;
+PersistentState state;
+
+
+//////////////////////////////////////////////////////
+
 uint32 enter_mode;
 uint32 click_mode;
 uint32 click_modifier; // TODO combine
@@ -207,14 +244,14 @@ real32 two_click_command_y_0;
 
 
 
-int32 selected_index_of_first_triangle_hit_by_ray; // NOTE: if this is false, then a plane is selected
+int32 selected_index_of_first_triangle_hit_by_ray; // NOTE: if this is false, then a plane is is_selected
 vec3 n_selected;
 real32 r_n_selected; // coordinate along n_selected
 mat4 M_3D_from_2D;
 void conversation_feature_plane_reset() {
     selected_index_of_first_triangle_hit_by_ray = -1;
     r_n_selected = 0.0f;
-    n_selected = {}; // FORNOW??: implicit nothing selected
+    n_selected = {};
     M_3D_from_2D = {};
 }
 void conversation_update_M_3D_from_2D() {
@@ -253,16 +290,16 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
         return;
     }
 
-    list_free_AND_zero(&dxf_entities);
-    list_free_AND_zero(&dxf_selection_mask);
+    list_free_AND_zero(&state.dxf.entities);
+    list_free_AND_zero(&state.dxf.is_selected);
 
-    dxf_load(filename, &dxf_entities);
-    list_calloc_NOT_reserve(&dxf_selection_mask, dxf_entities.length, sizeof(bool32));
+    dxf_load(filename, &state.dxf.entities);
+    list_calloc_NOT_reserve(&state.dxf.is_selected, state.dxf.entities.length, sizeof(bool32));
 
     if (!preserve_cameras_and_dxf_origin) {
-        camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf_entities));
-        dxf_origin_x = 0.0f;
-        dxf_origin_y = 0.0f;
+        camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
+        state.dxf.origin_x = 0.0f;
+        state.dxf.origin_y = 0.0f;
     }
 
     strcpy(conversation_current_dxf_filename, filename);
@@ -275,7 +312,7 @@ void conversation_stl_load(char *filename, bool preserve_cameras = false) {
         return;
     }
     {
-        stl_load(filename, &fancy_mesh);
+        stl_load(filename, &state.mesh);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(preserve_cameras);
         conversation_messagef("[load] loaded %s", filename);
     }
@@ -291,7 +328,7 @@ void conversation_load(char *filename, bool preserve_cameras = false) {
 }
 void conversation_stl_save(char *filename) {
     // TODO: prompt for overwriting
-    if (fancy_mesh_save_stl(&fancy_mesh, filename) ) {
+    if (fancy_mesh_save_stl(&state.mesh, filename) ) {
         conversation_messagef("[save] saved %s", filename);
     } else {
         conversation_messagef("[save] could not save open %s for writing.", filename);
@@ -331,60 +368,54 @@ BEGIN_PRE_MAIN {
     glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
 } END_PRE_MAIN;
 
-// fancy_mesh;
+// mesh;
 // manifold_manifold;
 
 
 void conversation_cameras_reset() {
-    camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
-    camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf_entities));
-    camera_3D = { 2.0f * camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
+    ui.camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
+    camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
+    ui.camera_3D = { 2.0f * ui.camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
 }
 
 
-struct ConversationSaveState {
-    FancyMesh fancy_mesh;
-    List<DXFEntity> dxf_entities;
-    List<bool32> dxf_selection_mask;
-};
-// TODO: replace this with an ElephantStack
-Stack<ConversationSaveState> super_undo_stack;
-Stack<ConversationSaveState> super_redo_stack;
+Stack<PersistentState> super_undo_stack;
+Stack<PersistentState> super_redo_stack;
 
-void _load_in_save_state(ConversationSaveState *save_state) {
-    fancy_mesh = save_state->fancy_mesh;
-    list_clone(&dxf_entities, &save_state->dxf_entities);
-    list_clone(&dxf_selection_mask, &save_state->dxf_selection_mask);
+void _load_in_save_state(PersistentState *other) {
+    state.mesh = other->mesh;
+    list_clone(&state.dxf.entities, &other->dxf.entities);
+    list_clone(&state.dxf.is_selected, &other->dxf.is_selected);
 }
 
 void super_stacks_do__NOTE_kills_redo_super_stack() {
     { // free redo stack
         for (uint32 i = 0; i < super_redo_stack.length; ++i) {
-            fancy_mesh_free(&super_redo_stack.array[i].fancy_mesh);
-            list_free_AND_zero(&super_redo_stack.array[i].dxf_entities);
-            list_free_AND_zero(&super_redo_stack.array[i].dxf_selection_mask);
+            fancy_mesh_free(&super_redo_stack.array[i].mesh);
+            list_free_AND_zero(&super_redo_stack.array[i].dxf.entities);
+            list_free_AND_zero(&super_redo_stack.array[i].dxf.is_selected);
         }
     }
-    ConversationSaveState save_state = {};
-    save_state.fancy_mesh = fancy_mesh;
-    list_clone(&save_state.dxf_entities, &dxf_entities);
-    list_clone(&save_state.dxf_selection_mask, &dxf_selection_mask);
-    stack_push(&super_undo_stack, save_state);
+    PersistentState other = {};
+    other.mesh = state.mesh;
+    list_clone(&other.dxf.entities, &state.dxf.entities);
+    list_clone(&other.dxf.is_selected, &state.dxf.is_selected);
+    stack_push(&super_undo_stack, other);
 }
 void super_stacks_peek_and_load() {
     ASSERT(super_undo_stack.length);
-    ConversationSaveState save_state = stack_peek(&super_undo_stack); // FORNOW; TODO: pointer versions
-    _load_in_save_state(&save_state);
+    PersistentState other = stack_peek(&super_undo_stack); // FORNOW; TODO: pointer versions
+    _load_in_save_state(&other);
 }
 void super_stacks_undo_and_load() {
     ASSERT(super_undo_stack.length);
-    ConversationSaveState save_state = stack_pop(&super_undo_stack); // FORNOW; TODO: pointer versions
-    stack_push(&super_redo_stack, save_state);
+    PersistentState other = stack_pop(&super_undo_stack); // FORNOW; TODO: pointer versions
+    stack_push(&super_redo_stack, other);
     super_stacks_peek_and_load();
 }
 void super_stacks_redo_and_load() {
-    ConversationSaveState save_state = stack_pop(&super_redo_stack); // FORNOW; TODO: pointer versions
-    stack_push(&super_undo_stack, save_state);
+    PersistentState other = stack_pop(&super_redo_stack); // FORNOW; TODO: pointer versions
+    stack_push(&super_undo_stack, other);
     super_stacks_peek_and_load();
 }
 
@@ -398,19 +429,19 @@ void conversation_reset__NOTE_basically_just_a_memset_0(bool32 disable_top_layer
     console_params_preview_flip_flag = false;
 
     if (!disable_dxf_origin_resets) {
-        list_memset(&dxf_selection_mask, 0, dxf_entities.length * sizeof(bool32));
-        dxf_origin_x = 0.0f;
-        dxf_origin_y = 0.0f;
+        list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
+        state.dxf.origin_x = 0.0f;
+        state.dxf.origin_y = 0.0f;
     }
     conversation_feature_plane_reset(); 
     conversation_console_buffer_reset();
 
     if (!disable_top_layer_resets) {
         hot_pane = HOT_PANE_NONE;
-        hide_grid = false;
-        show_details = false;
-        show_command_stack = true;
-        show_help = false;
+        ui.hide_grid = false;
+        ui.show_details = false;
+        ui.show_command_stack = true;
+        ui.show_help = false;
         conversation_cameras_reset();
     }
 }
@@ -583,7 +614,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
     {
         if (click_modifier == CLICK_MODIFIER_SNAP_TO_CENTER_OF) {
             real32 min_squared_distance = HUGE_VAL;
-            for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
+            for (DXFEntity *entity = state.dxf.entities.array; entity < &state.dxf.entities.array[state.dxf.entities.length]; ++entity) {
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     continue;
                 } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
@@ -600,7 +631,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
             real32 min_squared_distance = HUGE_VAL;
             real32 middle_x;
             real32 middle_y;
-            for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
+            for (DXFEntity *entity = state.dxf.entities.array; entity < &state.dxf.entities.array[state.dxf.entities.length]; ++entity) {
                 real32 squared_distance = squared_distance_point_dxf_entity(before_x, before_y, entity);
                 if (squared_distance < min_squared_distance) {
                     min_squared_distance = squared_distance;
@@ -611,7 +642,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
             }
         } else if (click_modifier == CLICK_MODIFIER_SNAP_TO_END_OF) {
             real32 min_squared_distance = HUGE_VAL;
-            for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
+            for (DXFEntity *entity = state.dxf.entities.array; entity < &state.dxf.entities.array[state.dxf.entities.length]; ++entity) {
                 real32 x[2], y[2];
                 entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
                 for (uint32 d = 0; d < 2; ++d) {
@@ -647,7 +678,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         Event event = {};
         event.type = UI_EVENT_TYPE_MOUSE_2D_PRESS;
         {
-            vec2 s_2D = transformPoint(inverse(camera_get_PV(&camera_2D)), mouse_s_NDC);
+            vec2 s_2D = transformPoint(inverse(camera_get_PV(&ui.camera_2D)), mouse_s_NDC);
             snap_map(s_2D.x, s_2D.y, &event.mouse_x, &event.mouse_y);
         }
         event.checkpoint_ineligible = true;
@@ -667,7 +698,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
                 Event event = {};
                 event.type = UI_EVENT_TYPE_MOUSE_2D_PRESS;
                 {
-                    vec2 s_2D = transformPoint(inverse(camera_get_PV(&camera_2D)), mouse_s_NDC);
+                    vec2 s_2D = transformPoint(inverse(camera_get_PV(&ui.camera_2D)), mouse_s_NDC);
                     snap_map(s_2D.x, s_2D.y, &event.mouse_x, &event.mouse_y);
                 }
                 queue_enqueue(&new_event_queue, event);
@@ -675,7 +706,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
                 Event event = {};
                 event.type = UI_EVENT_TYPE_MOUSE_3D_PRESS;
                 {
-                    mat4 inverse_PV_3D = inverse(camera_get_PV(&camera_3D));
+                    mat4 inverse_PV_3D = inverse(camera_get_PV(&ui.camera_3D));
                     event.o = transformPoint(inverse_PV_3D, V3(mouse_s_NDC, -1.0f));
                     event.dir = normalized(transformPoint(inverse_PV_3D, V3(mouse_s_NDC,  1.0f)) - event.o);
                 }
@@ -769,12 +800,12 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
 
 
         auto push_back_dxf_entity_and_mask_bool_lambda = [&](DXFEntity entity) {
-            list_push_back(&dxf_entities, entity);
-            list_push_back(&dxf_selection_mask, (bool32) false);
+            list_push_back(&state.dxf.entities, entity);
+            list_push_back(&state.dxf.is_selected, (bool32) false);
         };
         auto delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards = [&](uint32 i) {
-            list_delete_at(&dxf_entities, i);
-            list_delete_at(&dxf_selection_mask, i);
+            list_delete_at(&state.dxf.entities, i);
+            list_delete_at(&state.dxf.is_selected, i);
         };
 
 
@@ -788,8 +819,8 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
         bool32 stl_plane_selected;
         {
             dxf_anything_selected = false;
-            for (uint32 i = 0; i < dxf_entities.length; ++i) {
-                if (dxf_selection_mask.array[i]) {
+            for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
+                if (state.dxf.is_selected.array[i]) {
                     dxf_anything_selected = true;
                     break;
                 }
@@ -840,10 +871,10 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                             if (key_lambda('0' + color)) {
                                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                                 key_eaten_by_special__NOTE_dealt_with_up_top = true;
-                                for (uint32 i = 0; i < dxf_entities.length; ++i) {
-                                    if (dxf_entities.array[i].color == color) {
+                                for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
+                                    if (state.dxf.entities.array[i].color == color) {
                                         bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-                                        dxf_selection_mask.array[i] = value_to_write_to_selection_mask;
+                                        state.dxf.is_selected.array[i] = value_to_write_to_selection_mask;
                                     }
                                 }
                                 click_modifier = CLICK_MODIFIER_NONE;
@@ -889,12 +920,12 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                                 send_key_to_console = false;
                             } else if (extrude || revolve) {
                                 if (!dxf_anything_selected) {
-                                    conversation_messagef("[enter] no dxf_entities elements selected");
+                                    conversation_messagef("[enter] no state.dxf.entities elements is_selected");
                                     send_key_to_console = false;
                                 } else if (!stl_plane_selected) { // FORNOW??
-                                    conversation_messagef("[enter] no plane selected");
+                                    conversation_messagef("[enter] no plane is_selected");
                                     send_key_to_console = false;
-                                } else if (cut && (fancy_mesh.num_triangles == 0)) { // FORNOW
+                                } else if (cut && (state.mesh.num_triangles == 0)) { // FORNOW
                                     conversation_messagef("[enter] nothing to cut");
                                     send_key_to_console = false;
                                 } else if (extrude) {
@@ -937,22 +968,28 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                             }
 
                             if (!skip_mesh_generation_because_we_are_loading_from_the_redo_stack) {
-                                CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&dxf_entities, dxf_selection_mask.array);
-                                wrapper_manifold(
-                                        &fancy_mesh,
-                                        cross_section.num_polygonal_loops,
-                                        cross_section.num_vertices_in_polygonal_loops,
-                                        cross_section.polygonal_loops,
-                                        M_3D_from_2D,
-                                        enter_mode,
-                                        console_param_1,
-                                        console_param_2,
-                                        dxf_origin_x,
-                                        dxf_origin_y,
-                                        revolve_use_x_instead);
+                                FancyMesh resulting_fancy_mesh; {
+                                    CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&state.dxf.entities, state.dxf.is_selected.array);
+                                    resulting_fancy_mesh = wrapper_manifold(
+                                            &state.mesh,
+                                            cross_section.num_polygonal_loops,
+                                            cross_section.num_vertices_in_polygonal_loops,
+                                            cross_section.polygonal_loops,
+                                            M_3D_from_2D,
+                                            enter_mode,
+                                            console_param_1,
+                                            console_param_2,
+                                            state.dxf.origin_x,
+                                            state.dxf.origin_y,
+                                            revolve_use_x_instead);
+                                    cross_section_free(&cross_section);
+                                }
+
+                                state.mesh = resulting_fancy_mesh; // NOTE: we don't free anything here because the old mesh was pushed to the undo super stack
+
                             }
 
-                            list_memset(&dxf_selection_mask, 0, dxf_entities.length * sizeof(bool32));
+                            list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
                             conversation_feature_plane_reset();
                             console_param_1 = 0.0f;
                             console_param_2 = 0.0f;
@@ -984,25 +1021,25 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     exit(1);
                 } else if (key_lambda('0')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - camera_3D.angle_of_view;
+                    ui.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - ui.camera_3D.angle_of_view;
                 } else if (key_lambda('X', false, true)) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    camera2D_zoom_to_bounding_box(&camera_2D, dxf_get_bounding_box(&dxf_entities));
+                    camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
                 } else if (key_lambda('G')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    hide_grid = !hide_grid;
+                    ui.hide_grid = !ui.hide_grid;
                 } else if (key_lambda('H')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    show_help = !show_help;
+                    ui.show_help = !ui.show_help;
                 } else if (key_lambda('.')) { 
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    show_details = !show_details;
+                    ui.show_details = !ui.show_details;
                 } else if (key_lambda('K')) { 
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    show_command_stack = !show_command_stack;
+                    ui.show_command_stack = !ui.show_command_stack;
                 } else if (key_lambda('K', false, true)) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    hide_gui = !hide_gui;
+                    ui.hide_gui = !ui.hide_gui;
                 } else if (key_lambda('O', true)) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     enter_mode = ENTER_MODE_OPEN;
@@ -1028,7 +1065,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         console_params_preview_flip_flag = false;
                         conversation_console_buffer_reset();
                     } else {
-                        conversation_messagef("[n] no plane selected");
+                        conversation_messagef("[n] no plane is_selected");
                     }
                 } else if (key_lambda('Z', false, true)) {
                     click_mode = CLICK_MODE_ORIGIN_MOVE;
@@ -1065,7 +1102,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                         result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         bool32 value_to_write_to_selection_mask = (click_mode == CLICK_MODE_SELECT);
-                        for (uint32 i = 0; i < dxf_entities.length; ++i) dxf_selection_mask.array[i] = value_to_write_to_selection_mask;
+                        for (uint32 i = 0; i < state.dxf.entities.length; ++i) state.dxf.is_selected.array[i] = value_to_write_to_selection_mask;
                     }
                 } else if (key_lambda('Y')) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
@@ -1142,12 +1179,12 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     two_click_command_awaiting_second_click = false;
                     space_bar_event.key = 'B'; // FORNOW
                 } else if (key_lambda(COW_KEY_BACKSPACE)) {
-                    for (int32 i = dxf_entities.length - 1; i >= 0; --i) {
-                        if (dxf_selection_mask.array[i]) {
+                    for (int32 i = state.dxf.entities.length - 1; i >= 0; --i) {
+                        if (state.dxf.is_selected.array[i]) {
                             delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards(i);
                         }
                     }
-                    list_memset(&dxf_selection_mask, 0, dxf_entities.length * sizeof(bool32));
+                    list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
                 } else {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ;
@@ -1157,11 +1194,11 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
             result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
 
             auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
-                // Only remember dxf_entities selection operations that actually change the mask
+                // Only remember state.dxf.entities selection operations that actually change the mask
                 // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... ret result; approach fornow
-                if (dxf_selection_mask.array[i] != value_to_write) {
+                if (state.dxf.is_selected.array[i] != value_to_write) {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
-                    dxf_selection_mask.array[i] = value_to_write;
+                    state.dxf.is_selected.array[i] = value_to_write;
                 }
             };
 
@@ -1214,9 +1251,9 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                 click_modifier = CLICK_MODIFIER_NONE;
                 real32 dx = event.mouse_x - two_click_command_x_0;
                 real32 dy = event.mouse_y - two_click_command_y_0;
-                for (uint32 i = 0; i < dxf_entities.length; ++i) {
-                    DXFEntity *entity = &dxf_entities.array[i];
-                    if (dxf_selection_mask.array[i]) {
+                for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
+                    DXFEntity *entity = &state.dxf.entities.array[i];
+                    if (state.dxf.is_selected.array[i]) {
                         entity->line.start_x += dx;
                         entity->line.start_y += dy;
                         entity->line.end_x   += dx;
@@ -1238,8 +1275,8 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, two_click_command_x_0, two_click_command_y_0, r, theta_b_in_degrees, theta_a_in_degrees });
             } else if (click_mode == CLICK_MODE_ORIGIN_MOVE) {
                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
-                dxf_origin_x = event.mouse_x;
-                dxf_origin_y = event.mouse_y;
+                state.dxf.origin_x = event.mouse_x;
+                state.dxf.origin_y = event.mouse_y;
                 click_mode = CLICK_MODE_NONE;
                 click_modifier = CLICK_MODIFIER_NONE;
                 enter_mode = ENTER_MODE_NONE;
@@ -1249,12 +1286,12 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                 two_click_command_awaiting_second_click = false;
                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 click_modifier = CLICK_MODIFIER_NONE;
-                int i = dxf_find_closest_entity(&dxf_entities, two_click_command_x_0, two_click_command_y_0);
-                int j = dxf_find_closest_entity(&dxf_entities, event.mouse_x, event.mouse_y);
+                int i = dxf_find_closest_entity(&state.dxf.entities, two_click_command_x_0, two_click_command_y_0);
+                int j = dxf_find_closest_entity(&state.dxf.entities, event.mouse_x, event.mouse_y);
                 if ((i != j) && (i != -1) && (j != -1)) {
                     real32 radius = console_param_1_preview;
-                    DXFEntity *E_i = &dxf_entities.array[i];
-                    DXFEntity *E_j = &dxf_entities.array[j];
+                    DXFEntity *E_i = &state.dxf.entities.array[i];
+                    DXFEntity *E_j = &state.dxf.entities.array[j];
                     if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
                         vec2 a, b, c, d;
                         entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
@@ -1341,7 +1378,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                 }
             } else if ((click_mode == CLICK_MODE_SELECT) || (click_mode == CLICK_MODE_DESELECT)) {
                 if (click_modifier != CLICK_MODIFIER_WINDOW) {
-                    int hot_entity_index = dxf_find_closest_entity(&dxf_entities, event.mouse_x, event.mouse_y);
+                    int hot_entity_index = dxf_find_closest_entity(&state.dxf.entities, event.mouse_x, event.mouse_y);
                     if (hot_entity_index != -1) {
                         if (click_modifier == CLICK_MODIFIER_CONNECTED) {
                             #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -1393,8 +1430,8 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                                     }
                                 };
 
-                                for (uint32 entity_index = 0; entity_index < dxf_entities.length; ++entity_index) {
-                                    DXFEntity *entity = &dxf_entities.array[entity_index];
+                                for (uint32 entity_index = 0; entity_index < state.dxf.entities.length; ++entity_index) {
+                                    DXFEntity *entity = &state.dxf.entities.array[entity_index];
 
                                     real32 start_x, start_y, end_x, end_y;
                                     entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
@@ -1403,7 +1440,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                                 }
                             }
 
-                            bool32 *edge_marked = (bool32 *) calloc(dxf_entities.length, sizeof(bool32));
+                            bool32 *edge_marked = (bool32 *) calloc(state.dxf.entities.length, sizeof(bool32));
 
                             ////////////////////////////////////////////////////////////////////////////////
                             // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
@@ -1417,7 +1454,7 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                                     if (other_endpoint) end_NOT_start = !end_NOT_start;
                                 }
                                 real32 x, y; {
-                                    DXFEntity *entity = &dxf_entities.array[point->entity_index];
+                                    DXFEntity *entity = &state.dxf.entities.array[point->entity_index];
                                     if (end_NOT_start) {
                                         entity_get_end_point(entity, &x, &y);
                                     } else {
@@ -1451,9 +1488,9 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                                 vec2 seed; {
                                     real32 x, y;
                                     if (pass == 0) {
-                                        entity_get_start_point(&dxf_entities.array[hot_entity_index], &x, &y);
+                                        entity_get_start_point(&state.dxf.entities.array[hot_entity_index], &x, &y);
                                     } else {
-                                        entity_get_end_point(&dxf_entities.array[hot_entity_index], &x, &y);
+                                        entity_get_end_point(&state.dxf.entities.array[hot_entity_index], &x, &y);
                                     }
                                     seed = make_key(x, y);
                                 }
@@ -1526,8 +1563,8 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                         MAX(two_click_command_x_0, event.mouse_x),
                         MAX(two_click_command_y_0, event.mouse_y)
                     };
-                    for (uint32 i = 0; i < dxf_entities.length; ++i) {
-                        if (bounding_box_contains(window, entity_get_bounding_box(&dxf_entities.array[i]))) {
+                    for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
+                        if (bounding_box_contains(window, entity_get_bounding_box(&state.dxf.entities.array[i]))) {
                             set_dxf_selection_mask(i, value_to_write_to_selection_mask);
                         }
                     }
@@ -1538,9 +1575,9 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
             int32 index_of_first_triangle_hit_by_ray = -1;
             {
                 real32 min_distance = HUGE_VAL;
-                for (uint32 i = 0; i < fancy_mesh.num_triangles; ++i) {
+                for (uint32 i = 0; i < state.mesh.num_triangles; ++i) {
                     vec3 p[3]; {
-                        for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
+                        for (uint32 j = 0; j < 3; ++j) p[j] = get(state.mesh.vertex_positions, state.mesh.triangle_indices[3 * i + j]);
                     }
                     RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(event.o, event.dir, p[0], p[1], p[2]);
                     if (ray_triangle_intersection_result.hit) {
@@ -1553,15 +1590,15 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
             }
 
             if (index_of_first_triangle_hit_by_ray != -1) { // something hit
-                if (index_of_first_triangle_hit_by_ray == selected_index_of_first_triangle_hit_by_ray) { // already selected FORNOW sloppy
+                if (index_of_first_triangle_hit_by_ray == selected_index_of_first_triangle_hit_by_ray) { // already is_selected FORNOW sloppy
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                 } else {
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     selected_index_of_first_triangle_hit_by_ray = index_of_first_triangle_hit_by_ray;
                     {
-                        n_selected = get(fancy_mesh.triangle_normals, selected_index_of_first_triangle_hit_by_ray);
+                        n_selected = get(state.mesh.triangle_normals, selected_index_of_first_triangle_hit_by_ray);
                         { // FORNOW (gross) calculateion of r_n_selected
-                            vec3 a_selected = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * selected_index_of_first_triangle_hit_by_ray + 0]);
+                            vec3 a_selected = get(state.mesh.vertex_positions, state.mesh.triangle_indices[3 * selected_index_of_first_triangle_hit_by_ray + 0]);
                             r_n_selected = dot(n_selected, a_selected);
                         }
                         conversation_update_M_3D_from_2D();
@@ -1731,8 +1768,8 @@ void conversation_draw() {
     bool32 stl_plane_selected;
     {
         dxf_anything_selected = false;
-        for (uint32 i = 0; i < dxf_entities.length; ++i) {
-            if (dxf_selection_mask.array[i]) {
+        for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
+            if (state.dxf.is_selected.array[i]) {
                 dxf_anything_selected = true;
                 break;
             }
@@ -1741,10 +1778,10 @@ void conversation_draw() {
         stl_plane_selected = !IS_ZERO(squaredNorm(n_selected));
     }
     // FORNOW: repeated computation
-    mat4 PV_2D = camera_get_PV(&camera_2D);
+    mat4 PV_2D = camera_get_PV(&ui.camera_2D);
     real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
-    mat4 P_3D = camera_get_P(&camera_3D);
-    mat4 V_3D = camera_get_V(&camera_3D);
+    mat4 P_3D = camera_get_P(&ui.camera_3D);
+    mat4 V_3D = camera_get_V(&ui.camera_3D);
     mat4 PV_3D = P_3D * V_3D;
 
     uint32 window_width, window_height; {
@@ -1801,7 +1838,7 @@ void conversation_draw() {
             glScissor(0, 0, window_width / 2, window_height);
         }
         {
-            if (!hide_grid) { // grid 2D grid 2d grid
+            if (!ui.hide_grid) { // grid 2D grid 2d grid
                 eso_begin(PV_2D, SOUP_LINES, 2.0f);
                 eso_color(80.0f / 255, 80.0f / 255, 80.0f / 255);
                 for (uint32 i = 0; i <= uint32(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
@@ -1821,13 +1858,13 @@ void conversation_draw() {
             }
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
-                for (uint32 i = 0; i < dxf_entities.length; ++i) {
-                    DXFEntity *entity = &dxf_entities.array[i];
-                    int32 color = (dxf_selection_mask.array[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
+                for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
+                    DXFEntity *entity = &state.dxf.entities.array[i];
+                    int32 color = (state.dxf.is_selected.array[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
                     if ((click_mode == CLICK_MODE_DXF_MOVE) && (two_click_command_awaiting_second_click)) {
-                        if (dxf_selection_mask.array[i]) {
+                        if (state.dxf.is_selected.array[i]) {
                             dx = mouse_x - two_click_command_x_0;
                             dy = mouse_y - two_click_command_y_0;
                             color = DXF_COLOR_WATER_ONLY;
@@ -1838,10 +1875,10 @@ void conversation_draw() {
                 eso_end();
             }
             { // dots
-                if (show_details) {
-                    eso_begin(camera_get_PV(&camera_2D), SOUP_POINTS, 8.0f);
+                if (ui.show_details) {
+                    eso_begin(camera_get_PV(&ui.camera_2D), SOUP_POINTS, 8.0f);
                     eso_color(monokai.white);
-                    for (DXFEntity *entity = dxf_entities.array; entity < &dxf_entities.array[dxf_entities.length]; ++entity) {
+                    for (DXFEntity *entity = state.dxf.entities.array; entity < &state.dxf.entities.array[state.dxf.entities.length]; ++entity) {
                         real32 start_x, start_y, end_x, end_y;
                         entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
                         eso_vertex(start_x, start_y);
@@ -1851,8 +1888,8 @@ void conversation_draw() {
                 }
             }
             { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
-                real32 r = camera_2D.screen_height_World / 120.0f;
-                mat4 M = M4_Translation(dxf_origin_x, dxf_origin_y);
+                real32 r = ui.camera_2D.screen_height_World / 120.0f;
+                mat4 M = M4_Translation(state.dxf.origin_x, state.dxf.origin_y);
                 vec3 color = V3(0.8f, 0.8f, 1.0f);
                 eso_begin(PV_2D * M, SOUP_LINES);
                 eso_color(color);
@@ -1911,11 +1948,11 @@ void conversation_draw() {
                 }
                 if (click_mode == CLICK_MODE_CREATE_FILLET) {
                     // FORNOW
-                    int i = dxf_find_closest_entity(&dxf_entities, two_click_command_x_0, two_click_command_y_0);
+                    int i = dxf_find_closest_entity(&state.dxf.entities, two_click_command_x_0, two_click_command_y_0);
                     if (i != -1) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(0.0f, 1.0f, 1.0f);
-                        eso_dxf_entity__SOUP_LINES(&dxf_entities.array[i], DXF_COLOR_WATER_ONLY);
+                        eso_dxf_entity__SOUP_LINES(&state.dxf.entities.array[i], DXF_COLOR_WATER_ONLY);
                         eso_end();
                     }
                 }
@@ -1941,16 +1978,16 @@ void conversation_draw() {
                     real32 b = MAX(0.0f, MAX(console_param_1_preview, console_param_2_preview));
                     real32 length = b - a;
                     NUM_TUBE_STACKS_INCLUSIVE = MIN(64, uint32(roundf(length / 2.5f)) + 2);
-                    M = M_3D_from_2D * M4_Translation(-dxf_origin_x, -dxf_origin_y, a + Z_FIGHT_EPS);
+                    M = M_3D_from_2D * M4_Translation(-state.dxf.origin_x, -state.dxf.origin_y, a + Z_FIGHT_EPS);
                     M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                 } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                     NUM_TUBE_STACKS_INCLUSIVE = 64;
-                    M = M_3D_from_2D * M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f);
+                    M = M_3D_from_2D * M4_Translation(-state.dxf.origin_x, -state.dxf.origin_y, 0.0f);
                     real32 a = 0.0f;
                     real32 b = TAU;
                     real32 argument  = (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1);
                     mat4 R = ((revolve_use_x_instead) ? M4_RotationAboutXAxis(argument) : M4_RotationAboutYAxis(argument));
-                    M_incr = M4_Translation(dxf_origin_x, dxf_origin_y, 0.0f) * R * M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f);
+                    M_incr = M4_Translation(state.dxf.origin_x, state.dxf.origin_y, 0.0f) * R * M4_Translation(-state.dxf.origin_x, -state.dxf.origin_y, 0.0f);
                 } else if (enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) {
                     // FORNOW
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -1958,19 +1995,19 @@ void conversation_draw() {
                     M_incr = M4_Identity();
                 } else if (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * M4_Translation(-dxf_origin_x, -dxf_origin_y, console_param_1_preview + Z_FIGHT_EPS);
+                    M = M_3D_from_2D * M4_Translation(-state.dxf.origin_x, -state.dxf.origin_y, console_param_1_preview + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 } else {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * M4_Translation(-dxf_origin_x, -dxf_origin_y, Z_FIGHT_EPS);
+                    M = M_3D_from_2D * M4_Translation(-state.dxf.origin_x, -state.dxf.origin_y, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 }
                 for (uint32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
                     {
                         eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
-                        for (uint32 i = 0; i < dxf_entities.length; ++i) {
-                            DXFEntity *entity = &dxf_entities.array[i];
-                            if (dxf_selection_mask.array[i]) {
+                        for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
+                            DXFEntity *entity = &state.dxf.entities.array[i];
+                            if (state.dxf.is_selected.array[i]) {
                                 eso_dxf_entity__SOUP_LINES(entity, color);
                             }
                         }
@@ -1981,7 +2018,7 @@ void conversation_draw() {
             }
         }
 
-        BoundingBox selection_bounding_box = dxf_get_bounding_box(&dxf_entities, dxf_selection_mask.array);
+        BoundingBox selection_bounding_box = dxf_get_bounding_box(&state.dxf.entities, state.dxf.is_selected.array);
 
         if (dxf_anything_selected) { // arrow
             if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
@@ -1996,8 +2033,8 @@ void conversation_draw() {
                 if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
                     bounding_box_center(selection_bounding_box, &arrow_x, &arrow_y);
                     if (dxf_anything_selected) {
-                        arrow_x -= dxf_origin_x;
-                        arrow_y -= dxf_origin_y;
+                        arrow_x -= state.dxf.origin_x;
+                        arrow_y -= state.dxf.origin_y;
                     }
                 } else { ASSERT((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
                     H[0] = 10.0f + selection_bounding_box.max[(!revolve_use_x_instead) ? 1 : 0];
@@ -2030,7 +2067,7 @@ void conversation_draw() {
         }
 
         if (stl_plane_selected) { // axes 3D axes 3d axes axis 3D axis 3d axis
-            real32 r = camera_3D.ortho_screen_height_World / 120.0f;
+            real32 r = ui.camera_3D.ortho_screen_height_World / 120.0f;
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES, 4.0f);
             eso_color(0.7f, 0.7f, 1.0f);
             // eso_color(0.0f, 0.0f, 0.0f);
@@ -2041,25 +2078,25 @@ void conversation_draw() {
             eso_end();
         }
 
-        { // fancy_mesh; NOTE: includes transparency 3d mesh 3D mesh 3d
-            if (fancy_mesh.cosmetic_edges) {
+        { // mesh; NOTE: includes transparency 3d mesh 3D mesh 3d
+            if (state.mesh.cosmetic_edges) {
                 eso_begin(PV_3D, SOUP_LINES); 
                 eso_color(monokai.black);
                 // 3 * num_triangles * 2 / 2
-                for (uint32 k = 0; k < 2 * fancy_mesh.num_cosmetic_edges; ++k) eso_vertex(fancy_mesh.vertex_positions, fancy_mesh.cosmetic_edges[k]);
+                for (uint32 k = 0; k < 2 * state.mesh.num_cosmetic_edges; ++k) eso_vertex(state.mesh.vertex_positions, state.mesh.cosmetic_edges[k]);
                 eso_end();
             }
             for (uint32 pass = 0; pass <= 1; ++pass) {
-                eso_begin(PV_3D, (!show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
+                eso_begin(PV_3D, (!ui.show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
 
                 mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
 
-                for (uint32 i = 0; i < fancy_mesh.num_triangles; ++i) {
-                    vec3 n = get(fancy_mesh.triangle_normals, i);
+                for (uint32 i = 0; i < state.mesh.num_triangles; ++i) {
+                    vec3 n = get(state.mesh.triangle_normals, i);
                     vec3 p[3];
                     real32 x_n;
                     {
-                        for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh.vertex_positions, fancy_mesh.triangle_indices[3 * i + j]);
+                        for (uint32 j = 0; j < 3; ++j) p[j] = get(state.mesh.vertex_positions, state.mesh.triangle_indices[3 * i + j]);
                         x_n = dot(n, p[0]);
                     }
                     vec3 color; 
@@ -2086,7 +2123,7 @@ void conversation_draw() {
             }
         }
 
-        if (!hide_grid) { // grid 3D grid 3d grid
+        if (!ui.hide_grid) { // grid 3D grid 3d grid
             conversation_draw_3D_grid_box(P_3D, V_3D);
         }
 
@@ -2096,7 +2133,7 @@ void conversation_draw() {
             vec3 color = monokai.yellow;
             real32 sign = -1.0f;
             if (enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
-                PVM *= M4_Translation(-dxf_origin_x, -dxf_origin_y, console_param_1_preview);
+                PVM *= M4_Translation(-state.dxf.origin_x, -state.dxf.origin_y, console_param_1_preview);
                 color = { 0.0f, 1.0f, 1.0f };
                 sign = 1.0f;
                 draw = true;
@@ -2105,7 +2142,7 @@ void conversation_draw() {
                 sign = 1.0f;
                 draw = true;
             } else {
-                if (dxf_anything_selected) PVM *= M4_Translation(-dxf_origin_x, -dxf_origin_y, 0.0f); // FORNOW
+                if (dxf_anything_selected) PVM *= M4_Translation(-state.dxf.origin_x, -state.dxf.origin_y, 0.0f); // FORNOW
             }
             real32 r = 30.0f;
             BoundingBox bounding_box;
@@ -2133,7 +2170,7 @@ void conversation_draw() {
         glDisable(GL_SCISSOR_TEST);
     }
 
-    if (!hide_gui) { // gui
+    if (!ui.hide_gui) { // gui
         {
             char click_message[256] = {};
             if (click_mode == CLICK_MODE_CREATE_FILLET) {
@@ -2213,12 +2250,12 @@ void conversation_draw() {
 
         conversation_message_buffer_update_and_draw();
 
-        if (show_details) {
-            gui_printf("%d dxf_entities elements", dxf_entities.length);
-            gui_printf("%d stl triangles", fancy_mesh.num_triangles);
+        if (ui.show_details) {
+            gui_printf("%d state.dxf.entities elements", state.dxf.entities.length);
+            gui_printf("%d stl triangles", state.mesh.num_triangles);
         }
-        if (show_command_stack) history_gui_printf();
-        if (show_help) {
+        if (ui.show_command_stack) history_gui_printf();
+        if (ui.show_help) {
             { // overlay
                 eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
                 eso_color(0.0f, 0.0f, 0.0f, 0.7f);
@@ -2268,7 +2305,7 @@ int main() {
     while (cow_begin_frame()) {
 
         // invariants
-        ASSERT(dxf_entities.length == dxf_selection_mask.length);
+        ASSERT(state.dxf.entities.length == state.dxf.is_selected.length);
 
         new_event_queue_process();
         { // stuff that still shims globals.*
@@ -2278,9 +2315,9 @@ int main() {
             }
             { // camera_move (using shimmed globals.* state)
                 if (hot_pane == HOT_PANE_2D) {
-                    camera_move(&camera_2D);
+                    camera_move(&ui.camera_2D);
                 } else if (hot_pane == HOT_PANE_3D) {
-                    camera_move(&camera_3D);
+                    camera_move(&ui.camera_3D);
                 }
             }
         }
