@@ -104,7 +104,7 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define PROCESSED_EVENT_CATEGORY_DONT_RECORD              0
 #define PROCESSED_EVENT_CATEGORY_RECORD                   1
 #define PROCESSED_EVENT_CATEGORY_CHECKPOINT               2
-#define PROCESSED_EVENT_CATEGORY_EXPENSIVE_MESH_OPERATION 3
+#define PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT         3
 #define PROCESSED_EVENT_CATEGORY_KILL_HISTORY             4
 
 #define CHECKPOINT_TYPE_NONE             0
@@ -172,42 +172,7 @@ struct FancyMesh {
     uint32 *cosmetic_edges;
 };
 
-struct AccessoryState {
-    Camera2D camera_2D;
-    Camera3D camera_3D;
-
-    bool32   hide_grid;
-    bool32   hide_gui;
-    bool32   show_details;
-    bool32   show_help;
-    bool32   show_command_stack;
-
-    uint32   hot_pane;
-};
-
-struct PersistentState {
-    struct {
-        List<DXFEntity> entities;
-        List<bool32>    is_selected;
-        vec2            origin;
-    } dxf;
-
-    FancyMesh mesh;
-
-    struct {
-        bool32 is_active;
-        vec3 normal;
-        real32 signed_distance_to_world_origin;
-    } feature_plane;
-
-    struct {
-        uint32 click_mode;
-        uint32 click_modifier;
-        uint32 enter_mode;
-    };
-};
-
-struct Event {
+struct UserEvent {
     uint32 type;
     union {
         struct {
@@ -227,6 +192,56 @@ struct Event {
     bool32 checkpoint_ineligible; // not_checkpoint_eligible__NOTE_set_before_event_process
     uint32 checkpoint_type; // checkpoint_type__NOTE_set_in_new_event_process
 };
+
+struct ScreenState {
+    Camera2D camera_2D;
+    Camera3D camera_3D;
+
+    bool32   hide_grid;
+    bool32   hide_gui;
+    bool32   show_details;
+    bool32   show_help;
+    bool32   show_command_stack;
+
+    uint32   hot_pane;
+
+    char space_bar_event_key;
+    char dxf_filename_for_reload[128];
+};
+
+struct WorldState {
+    struct {
+        List<DXFEntity> entities;
+        List<bool32>    is_selected;
+        vec2            feature_reference_point;
+    } dxf;
+
+    FancyMesh mesh;
+
+    struct {
+        char buffer[128];
+        uint32 num_bytes_written;
+        bool32 flip_flag;
+    } console;
+
+    struct {
+        bool32 is_active;
+        vec3 normal;
+        real32 signed_distance_to_world_origin;
+    } feature_plane;
+
+    struct {
+        uint32 click_mode;
+        uint32 click_modifier;
+        uint32 enter_mode;
+    } modes;
+
+    struct {
+        bool32 awaiting_second_click;
+        vec2 first_click;
+    } two_click_command;
+};
+
 
 
 ////////////////////////////////////////
@@ -1328,6 +1343,19 @@ void conversation_message_buffer_update_and_draw() {
     }
     gui_printf("< %s", conversation_message_buffer);
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// key_lambda //////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+bool _key_lambda(UserEvent event, uint32 key, bool super = false, bool shift = false) {
+    ASSERT(event.type == UI_EVENT_TYPE_KEY_PRESS);
+    ASSERT(!(('a' <= key) && (key <= 'z')));
+    bool key_match = (event.key == key);
+    bool super_match = ((event.super && super) || (!event.super && !super)); // * bool32
+    bool shift_match = ((event.shift && shift) || (!event.shift && !shift)); // * bool32
+    return (key_match && super_match && shift_match);
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // uh oh ///////////////////////////////////////////////////////////////////////
