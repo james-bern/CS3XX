@@ -1,4 +1,5 @@
 // the only good mathematical software is written by John Burkardt
+
 #ifdef COW_OS_WINDOWS
 #pragma warning(push)
 #pragma warning(disable : 4100 4244 4701)

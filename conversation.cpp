@@ -31,11 +31,9 @@ void conversation_console_buffer_reset() {
     memset(console_buffer, 0, ARRAY_LENGTH(console_buffer) * sizeof(char));
     console_buffer_write_head = console_buffer;
 };
-real32 console_param_1;
-real32 console_param_2;
-bool32 console_params_preview_flip_flag;
-real32 console_param_1_preview;
-real32 console_param_2_preview;
+bool32 console_params_preview_flip_flag; // TODO: replace with getter
+real32 console_param_1_preview;          // TODO: replace with getter
+real32 console_param_2_preview;          // TODO: replace with getter
 void console_params_preview_update() {
     char buffs[2][64] = {};
     uint32 buff_i = 0;
@@ -58,10 +56,8 @@ void console_params_preview_update() {
         console_param_2_preview *= -1;
     }
 }
+
 //
-bool32 click_move_origin_broken;
-real32 click_move_origin_preview_x;
-real32 click_move_origin_preview_y;
 
 char conversation_current_dxf_filename[512];
 
@@ -95,6 +91,106 @@ mat4 get_M_3D_from_2D() {
 
     return M4_xyzo(x, y, z, (state.feature_plane.signed_distance_to_world_origin) * state.feature_plane.normal);
 }
+
+
+//////////////////////////////////////////////////
+// TOP-LEVEL-FUNCTIONS ///////////////////////////
+//////////////////////////////////////////////////
+
+void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
+    if (!poe_file_exists(filename)) {
+        conversation_messagef("[load] \"%s\" not found", filename);
+        return;
+    }
+
+    list_free_AND_zero(&state.dxf.entities);
+    list_free_AND_zero(&state.dxf.is_selected);
+
+    dxf_load(filename, &state.dxf.entities);
+    list_calloc_NOT_reserve(&state.dxf.is_selected, state.dxf.entities.length, sizeof(bool32));
+
+    if (!preserve_cameras_and_dxf_origin) {
+        camera2D_zoom_to_bounding_box(&accessory_state.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
+        state.dxf.origin.x = 0.0f;
+        state.dxf.origin.y = 0.0f;
+    }
+
+    strcpy(conversation_current_dxf_filename, filename);
+
+    conversation_messagef("[load] loaded %s", filename);
+}
+
+void conversation_stl_load(char *filename, bool preserve_cameras = false) {
+    if (!poe_file_exists(filename)) {
+        conversation_messagef("[load] \"%s\" not found", filename);
+        return;
+    }
+    {
+        stl_load(filename, &state.mesh);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(preserve_cameras);
+        conversation_messagef("[load] loaded %s", filename);
+    }
+}
+
+void conversation_load(char *filename, bool preserve_cameras = false) {
+    if (poe_suffix_match(filename, ".dxf")) {
+        conversation_dxf_load(filename, preserve_cameras);
+    } else if (poe_suffix_match(filename, ".stl")) {
+        conversation_stl_load(filename, preserve_cameras);
+    } else {
+        conversation_messagef("[load] \"%s\" fileype not supported; must be *.dxf or *.stl", filename);
+    }
+}
+
+void conversation_stl_save(char *filename) {
+    // TODO: prompt for overwriting
+    if (fancy_mesh_save_stl(&state.mesh, filename) ) {
+        conversation_messagef("[save] saved %s", filename);
+    } else {
+        conversation_messagef("[save] could not save open %s for writing.", filename);
+    }
+}
+
+void conversation_save(char *filename) {
+    if (poe_suffix_match(filename, ".stl")) {
+        conversation_stl_save(filename);
+    } else {
+        conversation_messagef("[save] \"%s\" filetype not supported; must be *.stl", filename);
+    }
+}
+
+char conversation_drop_path[512];
+void drop_callback(GLFWwindow *, int count, const char **paths) {
+    if (count > 0) {
+        char *filename = (char *) paths[0];
+        conversation_load(filename);
+        { // conversation_set_drop_path(filename)
+            for (uint32 i = 0; i < strlen(filename); ++i) {
+                conversation_drop_path[i] = filename[i];
+                if (filename[i] == '.') {
+                    while (
+                            (i != 0) &&
+                            (conversation_drop_path[i - 1] != '\\') &&
+                            (conversation_drop_path[i - 1] != '/')
+                          ) --i;
+                    conversation_drop_path[i] = '\0';
+                    break;
+                }
+            }
+        }
+    }
+}
+BEGIN_PRE_MAIN {
+    glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
+} END_PRE_MAIN;
+
+void conversation_reset() {
+    state = {};
+    console_params_preview_flip_flag = false;
+    conversation_console_buffer_reset();
+}
+
+
 
 //////////////////////////////////////////////////
 // EVENT LAYER ///////////////////////////////////
@@ -268,6 +364,47 @@ void spoof_MOUSE_3D(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir
 // HISTORY LAYER /////////////////////////////////
 //////////////////////////////////////////////////
 
+Stack<PersistentState> super_undo_stack;
+Stack<PersistentState> super_redo_stack;
+
+void _state_copy_DEEP_ON_DXF(PersistentState *dst, PersistentState *src) {
+    *dst = *src;
+    // NOTE: we need deep copies of the lists FORNOW
+    dst->dxf.entities = {};
+    dst->dxf.is_selected = {};
+    list_clone(&dst->dxf.entities, &src->dxf.entities);
+    list_clone(&dst->dxf.is_selected, &src->dxf.is_selected);
+}
+
+void super_stacks_do__NOTE_kills_redo_super_stack() {
+    { // free redo stack
+        for (uint32 i = 0; i < super_redo_stack.length; ++i) {
+            fancy_mesh_free(&super_redo_stack.array[i].mesh);
+            list_free_AND_zero(&super_redo_stack.array[i].dxf.entities);
+            list_free_AND_zero(&super_redo_stack.array[i].dxf.is_selected);
+        }
+    }
+    PersistentState copy = {};
+    _state_copy_DEEP_ON_DXF(&copy, &state);
+    stack_push(&super_undo_stack, copy);
+}
+void super_stacks_peek_and_load() {
+    ASSERT(super_undo_stack.length);
+    PersistentState other = stack_peek(&super_undo_stack); // FORNOW; TODO: pointer versions
+    _state_copy_DEEP_ON_DXF(&state, &other);
+}
+void super_stacks_undo_and_load() {
+    ASSERT(super_undo_stack.length);
+    PersistentState other = stack_pop(&super_undo_stack); // FORNOW; TODO: pointer versions
+    stack_push(&super_redo_stack, other);
+    super_stacks_peek_and_load();
+}
+void super_stacks_redo_and_load() {
+    PersistentState other = stack_pop(&super_redo_stack); // FORNOW; TODO: pointer versions
+    stack_push(&super_undo_stack, other);
+    super_stacks_peek_and_load();
+}
+
 // IDEA: mouse stuff should be immediately translated into world coordinates (by the callback)
 //       the camera should NOT be part of the state; it should be just a pre-filter on user input
 // (otherwise...we have to store all the clicking and dragging of the cameras -- which is actually quite involved)
@@ -297,9 +434,6 @@ void spoof_MOUSE_3D(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir
 Event history_A_undo[999999];
 Event *history_B_redo = history_A_undo;
 Event *history_C_one_past_end_of_redo = history_A_undo;
-
-
-
 
 bool _key_lambda(Event event, uint32 key, bool super = false, bool shift = false) {
     ASSERT(event.type == UI_EVENT_TYPE_KEY_PRESS);
@@ -473,6 +607,9 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                             *console_buffer_write_head++ = character_equivalent;
                         }
                     } else {
+                        real32 console_param_1 = 0.0f;
+                        real32 console_param_2 = 0.0f;
+
                         if (extrude || revolve) {
                             result = PROCESSED_EVENT_CATEGORY_EXPENSIVE_MESH_OPERATION;
 
@@ -596,7 +733,6 @@ uint32 event_process(Event event, bool32 skip_mesh_generation_because_we_are_loa
                     state.enter_mode = ENTER_MODE_MOVE_DXF_ORIGIN_TO;
                     console_params_preview_flip_flag = false;
                     conversation_console_buffer_reset();
-                    click_move_origin_broken = false;
                 } else if (key_lambda('S')) {
                     state.click_mode = CLICK_MODE_SELECT;
                     state.click_modifier = CLICK_MODIFIER_NONE;
@@ -1238,230 +1374,6 @@ void new_event_queue_process() {
     while (new_event_queue.length) new_event_process(queue_dequeue(&new_event_queue));
 }
 
-//////////////////////////////////////////////////
-// XXXXXXXXXXXXX /////////////////////////////////
-//////////////////////////////////////////////////
-
-
-
-
-
-
-// GLOBAL-TOUCHING FUNCTIONS ///////////////////////////
-
-// TODO: see which of these can be easily pulled out into non-global touching
-
-void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
-    if (!poe_file_exists(filename)) {
-        conversation_messagef("[load] \"%s\" not found", filename);
-        return;
-    }
-
-    list_free_AND_zero(&state.dxf.entities);
-    list_free_AND_zero(&state.dxf.is_selected);
-
-    dxf_load(filename, &state.dxf.entities);
-    list_calloc_NOT_reserve(&state.dxf.is_selected, state.dxf.entities.length, sizeof(bool32));
-
-    if (!preserve_cameras_and_dxf_origin) {
-        camera2D_zoom_to_bounding_box(&accessory_state.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
-        state.dxf.origin.x = 0.0f;
-        state.dxf.origin.y = 0.0f;
-    }
-
-    strcpy(conversation_current_dxf_filename, filename);
-
-    conversation_messagef("[load] loaded %s", filename);
-}
-void conversation_stl_load(char *filename, bool preserve_cameras = false) {
-    if (!poe_file_exists(filename)) {
-        conversation_messagef("[load] \"%s\" not found", filename);
-        return;
-    }
-    {
-        stl_load(filename, &state.mesh);
-        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(preserve_cameras);
-        conversation_messagef("[load] loaded %s", filename);
-    }
-}
-void conversation_load(char *filename, bool preserve_cameras = false) {
-    if (poe_suffix_match(filename, ".dxf")) {
-        conversation_dxf_load(filename, preserve_cameras);
-    } else if (poe_suffix_match(filename, ".stl")) {
-        conversation_stl_load(filename, preserve_cameras);
-    } else {
-        conversation_messagef("[load] \"%s\" fileype not supported; must be *.dxf or *.stl", filename);
-    }
-}
-void conversation_stl_save(char *filename) {
-    // TODO: prompt for overwriting
-    if (fancy_mesh_save_stl(&state.mesh, filename) ) {
-        conversation_messagef("[save] saved %s", filename);
-    } else {
-        conversation_messagef("[save] could not save open %s for writing.", filename);
-    }
-}
-void conversation_save(char *filename) {
-    if (poe_suffix_match(filename, ".stl")) {
-        conversation_stl_save(filename);
-    } else {
-        conversation_messagef("[save] \"%s\" filetype not supported; must be *.stl", filename);
-    }
-}
-
-char conversation_drop_path[512];
-void drop_callback(GLFWwindow *, int count, const char **paths) {
-    if (count > 0) {
-        char *filename = (char *) paths[0];
-        conversation_load(filename);
-        { // conversation_set_drop_path(filename)
-            for (uint32 i = 0; i < strlen(filename); ++i) {
-                conversation_drop_path[i] = filename[i];
-                if (filename[i] == '.') {
-                    while (
-                            (i != 0) &&
-                            (conversation_drop_path[i - 1] != '\\') &&
-                            (conversation_drop_path[i - 1] != '/')
-                          ) --i;
-                    conversation_drop_path[i] = '\0';
-                    break;
-                }
-            }
-        }
-    }
-}
-BEGIN_PRE_MAIN {
-    glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
-} END_PRE_MAIN;
-
-
-
-
-// TODO: deep copy
-// TODO: is doing this with copies the right approach?
-
-Stack<PersistentState> super_undo_stack;
-Stack<PersistentState> super_redo_stack;
-
-void _state_copy_DEEP_ON_DXF(PersistentState *dst, PersistentState *src) {
-    *dst = *src;
-    // NOTE: we need deep copies of the lists FORNOW
-    dst->dxf.entities = {};
-    dst->dxf.is_selected = {};
-    list_clone(&dst->dxf.entities, &src->dxf.entities);
-    list_clone(&dst->dxf.is_selected, &src->dxf.is_selected);
-}
-
-void super_stacks_do__NOTE_kills_redo_super_stack() {
-    { // free redo stack
-        for (uint32 i = 0; i < super_redo_stack.length; ++i) {
-            fancy_mesh_free(&super_redo_stack.array[i].mesh);
-            list_free_AND_zero(&super_redo_stack.array[i].dxf.entities);
-            list_free_AND_zero(&super_redo_stack.array[i].dxf.is_selected);
-        }
-    }
-    PersistentState copy = {};
-    _state_copy_DEEP_ON_DXF(&copy, &state);
-    stack_push(&super_undo_stack, copy);
-}
-void super_stacks_peek_and_load() {
-    ASSERT(super_undo_stack.length);
-    PersistentState other = stack_peek(&super_undo_stack); // FORNOW; TODO: pointer versions
-    _state_copy_DEEP_ON_DXF(&state, &other);
-}
-void super_stacks_undo_and_load() {
-    ASSERT(super_undo_stack.length);
-    PersistentState other = stack_pop(&super_undo_stack); // FORNOW; TODO: pointer versions
-    stack_push(&super_redo_stack, other);
-    super_stacks_peek_and_load();
-}
-void super_stacks_redo_and_load() {
-    PersistentState other = stack_pop(&super_redo_stack); // FORNOW; TODO: pointer versions
-    stack_push(&super_undo_stack, other);
-    super_stacks_peek_and_load();
-}
-
-
-void conversation_reset() {
-    state = {};
-    console_param_1 = 0.0f;
-    console_param_2 = 0.0f;
-    console_params_preview_flip_flag = false;
-    conversation_console_buffer_reset();
-}
-
-
-
-
-
-
-
-void conversation_init() {
-
-    conversation_reset();
-
-    { // conversation_dxf_load
-        if (0) {
-            conversation_dxf_load("omax.dxf");
-            if (1) {
-                Event event = {};
-                event.type = UI_EVENT_TYPE_KEY_PRESS;
-                for (int i = 0; i < 5; ++i) {
-                    spoof_KEY('Y');
-                    spoof_KEY('S');
-                    spoof_KEY('Q');
-                    spoof_KEY('0' + i);
-                    spoof_KEY('E');
-                    spoof_KEY('1' + i);
-                    spoof_KEY(COW_KEY_ENTER);
-                }
-            }
-        } else if (0) {
-            conversation_dxf_load("ik.dxf");
-        } else if (0) {
-            conversation_dxf_load("debug.dxf");
-        } else {
-            conversation_dxf_load("splash.dxf");
-            if (1) {
-                spoof_KEY('Y');
-                spoof_KEY('S');
-                spoof_KEY('C');
-                spoof_MOUSE_2D( 20.0,  20.0);
-                spoof_MOUSE_2D( 16.0,  16.0);
-                spoof_MOUSE_2D( 16.0, -16.0);
-                spoof_MOUSE_2D(-16.0, -16.0);
-                spoof_MOUSE_2D(-16.0,  16.0);
-                spoof_KEY('E');
-                spoof_KEY('5');
-                spoof_KEY('0');
-                spoof_KEY(COW_KEY_ENTER); // FORNOW
-                spoof_MOUSE_3D(50.0, 93.0, 76.0, -0.47, -0.43, -0.77);
-                spoof_MOUSE_2D(16.4, -9.5);
-                spoof_KEY('E', false, true);
-                spoof_KEY('4');
-                spoof_KEY('7');
-                spoof_KEY(COW_KEY_ENTER); // FORNOW
-                spoof_KEY('U');
-                spoof_KEY('U');
-                spoof_KEY('U');
-                spoof_KEY('U');
-                spoof_KEY('U', false, true);
-                spoof_KEY('U', false, true);
-                spoof_KEY('U', false, true);
-                spoof_KEY('U', false, true);
-            }
-        }
-    }
-
-    super_stacks_do__NOTE_kills_redo_super_stack();
-
-    {
-        accessory_state = {};
-        conversation_cameras_reset(); // FORNOW
-    }
-
-}
-
 
 
 
@@ -2037,6 +1949,69 @@ void conversation_draw() {
 }
 
 
+void conversation_init() {
+    conversation_reset();
+
+    { // conversation_dxf_load
+        if (0) {
+            conversation_dxf_load("omax.dxf");
+            if (1) {
+                Event event = {};
+                event.type = UI_EVENT_TYPE_KEY_PRESS;
+                for (int i = 0; i < 5; ++i) {
+                    spoof_KEY('Y');
+                    spoof_KEY('S');
+                    spoof_KEY('Q');
+                    spoof_KEY('0' + i);
+                    spoof_KEY('E');
+                    spoof_KEY('1' + i);
+                    spoof_KEY(COW_KEY_ENTER);
+                }
+            }
+        } else if (0) {
+            conversation_dxf_load("ik.dxf");
+        } else if (0) {
+            conversation_dxf_load("debug.dxf");
+        } else {
+            conversation_dxf_load("splash.dxf");
+            if (1) {
+                spoof_KEY('Y');
+                spoof_KEY('S');
+                spoof_KEY('C');
+                spoof_MOUSE_2D( 20.0,  20.0);
+                spoof_MOUSE_2D( 16.0,  16.0);
+                spoof_MOUSE_2D( 16.0, -16.0);
+                spoof_MOUSE_2D(-16.0, -16.0);
+                spoof_MOUSE_2D(-16.0,  16.0);
+                spoof_KEY('E');
+                spoof_KEY('5');
+                spoof_KEY('0');
+                spoof_KEY(COW_KEY_ENTER); // FORNOW
+                spoof_MOUSE_3D(50.0, 93.0, 76.0, -0.47, -0.43, -0.77);
+                spoof_MOUSE_2D(16.4, -9.5);
+                spoof_KEY('E', false, true);
+                spoof_KEY('4');
+                spoof_KEY('7');
+                spoof_KEY(COW_KEY_ENTER); // FORNOW
+                spoof_KEY('U');
+                spoof_KEY('U');
+                spoof_KEY('U');
+                spoof_KEY('U');
+                spoof_KEY('U', false, true);
+                spoof_KEY('U', false, true);
+                spoof_KEY('U', false, true);
+                spoof_KEY('U', false, true);
+            }
+        }
+    }
+
+    super_stacks_do__NOTE_kills_redo_super_stack();
+
+    {
+        accessory_state = {};
+        conversation_cameras_reset(); // FORNOW
+    }
+}
 
 int main() {
     // _window_set_size(1.5 * 640.0, 1.5 * 360.0);
