@@ -636,7 +636,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                     result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
 
                     // already one of the three primary planes
-                    if ((state.feature_plane.is_active) && ARE_EQUAL(state.feature_plane.signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(state.feature_plane.normal), 1.0f) && ARE_EQUAL(max(state.feature_plane.normal), 1.0f)) {
+                    if ((state.feature_plane.is_active) && ARE_EQUAL(state.feature_plane.signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(state.feature_plane.normal), 1.0f) && ARE_EQUAL(maxComponent(state.feature_plane.normal), 1.0f)) {
                         state.feature_plane.normal = { state.feature_plane.normal[2], state.feature_plane.normal[0], state.feature_plane.normal[1] };
                     } else {
                         state.feature_plane.is_active = true;
@@ -1199,7 +1199,10 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
     }
 
     if (key_lambda('Z')) { // we handle the user pressing z by spoofing a key press at the feature_reference_point
-        fresh_event_from_user = { UI_EVENT_TYPE_MOUSE_2D_PRESS, 0.0f, 0.0f };
+        fresh_event_from_user = {};
+        fresh_event_from_user.type = UI_EVENT_TYPE_MOUSE_2D_PRESS;
+        fresh_event_from_user.mouse_x = 0.0f;
+        fresh_event_from_user.mouse_y = 0.0f;
     } else if (key_lambda('Z', true) || key_lambda('U')) { // undo
         #define _UNDO_STACK_NONEMPTY_ (history_A_undo != history_B_redo)
 
@@ -1880,7 +1883,7 @@ void conversation_draw() {
 void conversation_init() {
     if (1) {
         // FORNOW: TODO: figure out super_stacks_do__NOTE_clears_redo_stack
-        if (1) {
+        if (0) {
             conversation_dxf_load("splash.dxf");
             super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
             if (1) {
@@ -1896,8 +1899,8 @@ void conversation_init() {
                 spoof_KEY_event('5');
                 spoof_KEY_event('0');
                 spoof_KEY_event(COW_KEY_ENTER); // FORNOW
-                spoof_MOUSE_3D_event(50.0, 93.0, 76.0, -0.47, -0.43, -0.77);
-                spoof_MOUSE_2D_event(16.4, -9.5);
+                spoof_MOUSE_3D_event(50.0f, 93.0f, 76.0f, -0.47f, -0.43f, -0.77f);
+                spoof_MOUSE_2D_event(16.4f, -9.5f);
                 spoof_KEY_event('E', false, true);
                 spoof_KEY_event('4');
                 spoof_KEY_event('7');

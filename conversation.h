@@ -1006,7 +1006,7 @@ void cross_section_debug_draw(Camera2D *camera_2D, CrossSectionEvenOdd *cross_se
 
 void cross_section_free(CrossSectionEvenOdd *cross_section) {
     free(cross_section->num_vertices_in_polygonal_loops);
-    for (uint i = 0; i < cross_section->num_polygonal_loops; ++i) free(cross_section->polygonal_loops[i]);
+    for (uint32 i = 0; i < cross_section->num_polygonal_loops; ++i) free(cross_section->polygonal_loops[i]);
     free(cross_section->polygonal_loops);
 }
 
@@ -1138,7 +1138,7 @@ void fancy_mesh_deep_copy(FancyMesh *dst, FancyMesh *src) {
         memcpy(dst->triangle_normals, src->triangle_normals, size);
     }
     if (src->cosmetic_edges) {
-        uint size = 2 * src->num_cosmetic_edges * sizeof(uint32);
+        uint32 size = 2 * src->num_cosmetic_edges * sizeof(uint32);
         dst->cosmetic_edges = (uint32 *) malloc(size);
         memcpy(dst->cosmetic_edges, src->cosmetic_edges, size);
     }
