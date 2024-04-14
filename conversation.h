@@ -182,6 +182,7 @@ struct ScreenState {
 
     char space_bar_event_key;
     char dxf_filename_for_reload[128];
+    char drop_path[256];
 };
 
 struct WorldState {
@@ -1361,6 +1362,15 @@ bool _key_lambda(UserEvent event, uint32 key, bool super = false, bool shift = f
 ////////////////////////////////////////////////////////////////////////////////
 // world_state /////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+void world_state_deep_copy(WorldState *dst, WorldState *src) {
+    *dst = *src;
+    dst->dxf.entities = {};
+    dst->dxf.is_selected = {};
+    list_clone(&dst->dxf.entities,    &src->dxf.entities   );
+    list_clone(&dst->dxf.is_selected, &src->dxf.is_selected);
+    fancy_mesh_deep_copy(&dst->mesh, &src->mesh);
+}
 
 void world_state_free(WorldState *world_state) {
     fancy_mesh_free(&world_state->mesh);

@@ -1,3 +1,6 @@
+// TODO: make good map implementation
+// TODO: don't store FancyMesh as a bunch of alloc'd pointers
+
 #include "cs345.cpp"
 #include "manifoldc.h"
 #include "poe.cpp"
@@ -192,21 +195,20 @@ void conversation_save(char *filename) {
     }
 }
 
-char conversation_drop_path[512];
 void drop_callback(GLFWwindow *, int count, const char **paths) {
     if (count > 0) {
         char *filename = (char *) paths[0];
         conversation_load(filename);
         { // conversation_set_drop_path(filename)
             for (uint32 i = 0; i < strlen(filename); ++i) {
-                conversation_drop_path[i] = filename[i];
+                ui.drop_path[i] = filename[i];
                 if (filename[i] == '.') {
                     while (
                             (i != 0) &&
-                            (conversation_drop_path[i - 1] != '\\') &&
-                            (conversation_drop_path[i - 1] != '/')
+                            (ui.drop_path[i - 1] != '\\') &&
+                            (ui.drop_path[i - 1] != '/')
                           ) --i;
-                    conversation_drop_path[i] = '\0';
+                    ui.drop_path[i] = '\0';
                     break;
                 }
             }
@@ -517,10 +519,11 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                                     cross_section_free(&cross_section);
                                 }
 
-                                state.mesh = resulting_fancy_mesh; // NOTE: we don't free anything here because the old mesh was pushed to the undo super stack
+                                fancy_mesh_free(&state.mesh);
+                                state.mesh = resulting_fancy_mesh;
                             }
 
-                            {
+                            { // reset some stuff
                                 state.feature_plane = {};
                                 list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
                             }
@@ -532,7 +535,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                             if (revolve) conversation_messagef("[revolve] success");
                         } else { ASSERT((state.modes.enter_mode == ENTER_MODE_OPEN) || (state.modes.enter_mode == ENTER_MODE_SAVE));
                             static char full_filename_including_path[512];
-                            sprintf(full_filename_including_path, "%s%s", conversation_drop_path, state.console.buffer);
+                            sprintf(full_filename_including_path, "%s%s", ui.drop_path, state.console.buffer);
                             if (state.modes.enter_mode == ENTER_MODE_OPEN) {
                                 result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
                                 if (poe_suffix_match(full_filename_including_path, ".dxf")) {
@@ -1121,15 +1124,6 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
 Stack<WorldState> super_undo_stack;
 Stack<WorldState> super_redo_stack;
 
-void world_state_deep_copy(WorldState *dst, WorldState *src) {
-    *dst = *src;
-    dst->dxf.entities = {};
-    dst->dxf.is_selected = {};
-    list_clone(&dst->dxf.entities,    &src->dxf.entities   );
-    list_clone(&dst->dxf.is_selected, &src->dxf.is_selected);
-    fancy_mesh_deep_copy(&dst->mesh, &src->mesh);
-}
-
 void super_stacks_do__NOTE_clears_redo_stack() {
     for (uint32 i = 0; i < super_redo_stack.length; ++i) {
         world_state_free(&super_redo_stack.array[i]);
@@ -1140,7 +1134,7 @@ void super_stacks_do__NOTE_clears_redo_stack() {
     stack_push(&super_undo_stack, deep_copy);
 }
 
-void _super_stacks_deepcopy_peek_undo_stack() {
+void _super_stacks_deepcopy_peek_undo_stack_NOTE_frees() {
     world_state_free(&state);
 
     ASSERT(super_undo_stack.length);
@@ -1151,13 +1145,13 @@ void _super_stacks_deepcopy_peek_undo_stack() {
 void super_stacks_undo_and_load() {
     ASSERT(super_undo_stack.length);
     stack_push(&super_redo_stack, stack_pop(&super_undo_stack));
-    _super_stacks_deepcopy_peek_undo_stack();
+    _super_stacks_deepcopy_peek_undo_stack_NOTE_frees();
 }
 
 void super_stacks_redo_and_load() {
     ASSERT(super_redo_stack.length);
     stack_push(&super_undo_stack, stack_pop(&super_redo_stack));
-    _super_stacks_deepcopy_peek_undo_stack();
+    _super_stacks_deepcopy_peek_undo_stack_NOTE_frees();
 }
 
 // IDEA: mouse stuff should be immediately translated into world coordinates (by the callback)
@@ -1225,7 +1219,7 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
             state = {};
             {
                 if (!just_undid_super_checkpoint) {
-                    _super_stacks_deepcopy_peek_undo_stack();
+                    _super_stacks_deepcopy_peek_undo_stack_NOTE_frees();
                 } else {
                     super_stacks_undo_and_load();
                 }
@@ -1814,7 +1808,7 @@ void conversation_draw() {
                 sprintf(enter_message, "%c:%gmm %c:%gmm", glyph, p, glyph2, p2);
                 if (((state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) && IS_ZERO(console_param_2)) sprintf(enter_message, "%c:%gmm", glyph, p);
             } else if ((state.modes.enter_mode == ENTER_MODE_OPEN) || (state.modes.enter_mode == ENTER_MODE_SAVE)) {
-                sprintf(enter_message, "%s%s", conversation_drop_path, state.console.buffer);
+                sprintf(enter_message, "%s%s", ui.drop_path, state.console.buffer);
             }
 
             gui_printf("[Enter] %s %s",
@@ -1917,7 +1911,7 @@ void conversation_init() {
                 spoof_KEY_event('U', false, true);
                 spoof_KEY_event('U', false, true);
             }
-        } else if (0) {
+        } else if (1) {
             conversation_dxf_load("omax.dxf");
             super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
             if (1) {
