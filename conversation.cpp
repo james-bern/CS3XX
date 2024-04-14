@@ -21,7 +21,7 @@ ScreenState ui;
 
 void init_cameras() {
     ui.camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
-    camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
+    camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_entities_get_bounding_box(&state.dxf.entities));
     ui.camera_3D = { 2.0f * ui.camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
 }
 
@@ -139,11 +139,11 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
     list_free_AND_zero(&state.dxf.entities);
     list_free_AND_zero(&state.dxf.is_selected);
 
-    dxf_load(filename, &state.dxf.entities);
+    dxf_entities_load(filename, &state.dxf.entities);
     list_calloc_NOT_reserve(&state.dxf.is_selected, state.dxf.entities.length, sizeof(bool32));
 
     if (!preserve_cameras_and_dxf_origin) {
-        camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
+        camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_entities_get_bounding_box(&state.dxf.entities));
         state.dxf.feature_reference_point.x = 0.0f;
         state.dxf.feature_reference_point.y = 0.0f;
     }
@@ -556,7 +556,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                     ui.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - ui.camera_3D.angle_of_view;
                 } else if (key_lambda('X', false, true)) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
-                    camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_get_bounding_box(&state.dxf.entities));
+                    camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_entities_get_bounding_box(&state.dxf.entities));
                 } else if (key_lambda('G')) {
                     result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ui.hide_grid = !ui.hide_grid;
@@ -1066,7 +1066,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                         MAX(state.two_click_command.first_click.y, event.mouse_y)
                     };
                     for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
-                        if (bounding_box_contains(window, entity_get_bounding_box(&state.dxf.entities.array[i]))) {
+                        if (bounding_box_contains(window, dxf_entity_get_bounding_box(&state.dxf.entities.array[i]))) {
                             set_dxf_selection_mask(i, value_to_write_to_selection_mask);
                         }
                     }
@@ -1113,48 +1113,51 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
 
 //////////////////////////////////////////////////
 // PROCESS A FRESH (potentially special EVENT) ///
-// (undo, redo, space, ..., )                  ///
+// (HISTORY)                                   ///
+// (undo, redo, space, ...)                    ///
 //////////////////////////////////////////////////
 
+// TODO: HistoryStack
 Stack<WorldState> super_undo_stack;
 Stack<WorldState> super_redo_stack;
 
-void _state_copy_DEEP_ON_DXF(WorldState *dst, WorldState *src) {
+void world_state_deep_copy(WorldState *dst, WorldState *src) {
     *dst = *src;
-    // NOTE: we need deep copies of the lists FORNOW
     dst->dxf.entities = {};
     dst->dxf.is_selected = {};
-    list_clone(&dst->dxf.entities, &src->dxf.entities);
+    list_clone(&dst->dxf.entities,    &src->dxf.entities   );
     list_clone(&dst->dxf.is_selected, &src->dxf.is_selected);
+    fancy_mesh_deep_copy(&dst->mesh, &src->mesh);
 }
 
-void super_stacks_do__NOTE_kills_redo_super_stack() {
-    { // free redo stack
-        for (uint32 i = 0; i < super_redo_stack.length; ++i) {
-            fancy_mesh_free(&super_redo_stack.array[i].mesh);
-            list_free_AND_zero(&super_redo_stack.array[i].dxf.entities);
-            list_free_AND_zero(&super_redo_stack.array[i].dxf.is_selected);
-        }
+void super_stacks_do__NOTE_clears_redo_stack() {
+    for (uint32 i = 0; i < super_redo_stack.length; ++i) {
+        world_state_free(&super_redo_stack.array[i]);
     }
-    WorldState copy = {};
-    _state_copy_DEEP_ON_DXF(&copy, &state);
-    stack_push(&super_undo_stack, copy);
+
+    WorldState deep_copy;
+    world_state_deep_copy(&deep_copy, &state);
+    stack_push(&super_undo_stack, deep_copy);
 }
-void super_stacks_peek_and_load() {
+
+void _super_stacks_deepcopy_peek_undo_stack() {
+    world_state_free(&state);
+
     ASSERT(super_undo_stack.length);
-    WorldState other = stack_peek(&super_undo_stack); // FORNOW; TODO: pointer versions
-    _state_copy_DEEP_ON_DXF(&state, &other);
+    WorldState other = stack_peek(&super_undo_stack); // FORNOW; TODO: pointer version?
+    world_state_deep_copy(&state, &other);
 }
+
 void super_stacks_undo_and_load() {
     ASSERT(super_undo_stack.length);
-    WorldState other = stack_pop(&super_undo_stack); // FORNOW; TODO: pointer versions
-    stack_push(&super_redo_stack, other);
-    super_stacks_peek_and_load();
+    stack_push(&super_redo_stack, stack_pop(&super_undo_stack));
+    _super_stacks_deepcopy_peek_undo_stack();
 }
+
 void super_stacks_redo_and_load() {
-    WorldState other = stack_pop(&super_redo_stack); // FORNOW; TODO: pointer versions
-    stack_push(&super_undo_stack, other);
-    super_stacks_peek_and_load();
+    ASSERT(super_redo_stack.length);
+    stack_push(&super_undo_stack, stack_pop(&super_redo_stack));
+    _super_stacks_deepcopy_peek_undo_stack();
 }
 
 // IDEA: mouse stuff should be immediately translated into world coordinates (by the callback)
@@ -1222,7 +1225,7 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
             state = {};
             {
                 if (!just_undid_super_checkpoint) {
-                    super_stacks_peek_and_load();
+                    _super_stacks_deepcopy_peek_undo_stack();
                 } else {
                     super_stacks_undo_and_load();
                 }
@@ -1264,7 +1267,7 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
         } else if (category == PROCESSED_EVENT_CATEGORY_KILL_HISTORY) {
             history_B_redo = history_C_one_past_end_of_redo = history_A_undo;
             queue_free_AND_zero(&queue_of_fresh_events_from_user);
-            super_stacks_do__NOTE_kills_redo_super_stack();
+            super_stacks_do__NOTE_clears_redo_stack();
             ASSERT(false); // TODO
         } else {
             { // FORNOW (sloppy): assign checkpoint_type
@@ -1290,7 +1293,7 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
             }
 
             if (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) { // push super checkpoint if necessary
-                super_stacks_do__NOTE_kills_redo_super_stack();
+                super_stacks_do__NOTE_clears_redo_stack();
             }
 
         }
@@ -1604,7 +1607,7 @@ void conversation_draw() {
             }
         }
 
-        BoundingBox selection_bounding_box = dxf_get_bounding_box(&state.dxf.entities, state.dxf.is_selected.array);
+        BoundingBox selection_bounding_box = dxf_entities_get_bounding_box(&state.dxf.entities, state.dxf.is_selected.array);
 
         if (dxf_anything_selected) { // arrow
             if ((state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) {
@@ -1882,10 +1885,10 @@ void conversation_draw() {
 
 void conversation_init() {
     if (1) {
-        // FORNOW: TODO: figure out super_stacks_do__NOTE_kills_redo_super_stack
+        // FORNOW: TODO: figure out super_stacks_do__NOTE_clears_redo_stack
         if (1) {
             conversation_dxf_load("splash.dxf");
-            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
+            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
             if (1) {
                 spoof_KEY_event('Y');
                 spoof_KEY_event('S');
@@ -1916,7 +1919,7 @@ void conversation_init() {
             }
         } else if (0) {
             conversation_dxf_load("omax.dxf");
-            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
+            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
             if (1) {
                 UserEvent event = {};
                 event.type = UI_EVENT_TYPE_KEY_PRESS;
@@ -1932,10 +1935,10 @@ void conversation_init() {
             }
         } else if (0) {
             conversation_dxf_load("ik.dxf");
-            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
+            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
         } else if (0) {
             conversation_dxf_load("debug.dxf");
-            super_stacks_do__NOTE_kills_redo_super_stack(); // FORNOW: ?? here???
+            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
         }
     }
     init_cameras(); // FORNOW

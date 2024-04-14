@@ -1,33 +1,3 @@
-///////////////////////////////////////
-// Notes ///////////////////////////////
-////////////////////////////////////////
-
-// // Conversation
-// This is a little CAD program Jim is making :)
-// It takes in an OMAX List<DXFEntity> and let's you rapidly create a 3D-printable STL using Manifold.
-// Intuitiveness of Sketchup + Precision of SolidWorks
-
-// wonderful undo (including selections)
-// - TODO: remove history stack (old undo)
-// - TODO: remove dependence on stateful stuff in cow
-// - TODO: strip out draw (basically done)
-// - TODO: move pure functions and similar non-stateful stuff into conversation.h
-// - TODO: copy solidworks stl export params
-
-// typdef bool32 cow_bool;
-// TODO: write blow style ability for "game to play[/debug] itself"
-// revolves
-// - manifold bug(?) where you don't get any geometry if the loop is in left half plane
-// (m)iddle snap
-// stl layers--stuff only booleans with its own layer (why?)
-// IDEA: Translating and Rotating and scaling the (3D) workpiece (like in a mill)
-// figuring out how to actually deal with the memory allocation, etc. in the manifoldc bindings
-// TODO: color codes instead of ` in gui_printf
-// ? TODO: the Hard problem of avoiding the creation of ultra-thin features
-
-// TODO: incorporate console_params_preview_flip_flag fully into console_param_preview's (preview should have it all in there)
-
-
 ////////////////////////////////////////
 // Config-Tweaks ///////////////////////
 ////////////////////////////////////////
@@ -115,23 +85,23 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 // TODO: arenas ////////////////////////
 ////////////////////////////////////////
 
-#if 0
 struct Arena {
 
-}
+};
 
 Arena *arena_create() {
+    return NULL;
 }
 
-void arena_alloc(u64 num_bytes) {
+void arena_alloc(uint64) {
 }
 
 void arena_release() {
 }
 
 struct ArenaList {
-}
-#endif
+
+};
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -174,6 +144,7 @@ struct FancyMesh {
 
 struct UserEvent {
     uint32 type;
+
     union {
         struct {
             uint32 key;
@@ -189,8 +160,12 @@ struct UserEvent {
             vec3 dir;
         };
     }; 
-    bool32 checkpoint_ineligible; // not_checkpoint_eligible__NOTE_set_before_event_process
-    uint32 checkpoint_type; // checkpoint_type__NOTE_set_in_new_event_process
+
+    // not_checkpoint_eligible__NOTE_set_before_event_process
+    bool32 checkpoint_ineligible;
+
+    // checkpoint_type__NOTE_set_in_new_event_process
+    uint32 checkpoint_type;
 };
 
 struct ScreenState {
@@ -210,6 +185,8 @@ struct ScreenState {
 };
 
 struct WorldState {
+    Arena *arena;
+
     struct {
         List<DXFEntity> entities;
         List<bool32>    is_selected;
@@ -438,7 +415,7 @@ void entity_get_middle(DXFEntity *entity, real32 *middle_x, real32 *middle_y) {
 //     DXFEntity *entities;
 // };
 
-void dxf_load(char *filename, List<DXFEntity> *dxf_entities) {
+void dxf_entities_load(char *filename, List<DXFEntity> *dxf_entities) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
@@ -581,7 +558,7 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
 }
 
 
-void dxf_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+void dxf_entities_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
     eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
     for (DXFEntity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);
@@ -589,7 +566,7 @@ void dxf_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 ov
     eso_end();
 }
 
-BoundingBox entity_get_bounding_box(DXFEntity *entity) {
+BoundingBox dxf_entity_get_bounding_box(DXFEntity *entity) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
     real32 s[2][2];
     uint32 n = 2;
@@ -612,12 +589,12 @@ BoundingBox entity_get_bounding_box(DXFEntity *entity) {
     return result;
 }
 
-BoundingBox dxf_get_bounding_box(List<DXFEntity> *dxf_entities, bool32 *include = NULL) {
+BoundingBox dxf_entities_get_bounding_box(List<DXFEntity> *dxf_entities, bool32 *include = NULL) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL }; 
     for (uint32 i = 0; i < dxf_entities->length; ++i) {
         if ((include) && (!include[i])) continue;
         for (uint32 d = 0; d < 2; ++d) {
-            BoundingBox bounding_box = entity_get_bounding_box(&dxf_entities->array[i]);
+            BoundingBox bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
             result.min[d] = MIN(result.min[d], bounding_box.min[d]);
             result.max[d] = MAX(result.max[d], bounding_box.max[d]);
         }
@@ -1142,6 +1119,30 @@ void fancy_mesh_free(FancyMesh *fancy_mesh) {
     *fancy_mesh = {};
 }
 
+void fancy_mesh_deep_copy(FancyMesh *dst, FancyMesh *src) {
+    *dst = *src;
+    if (src->vertex_positions) {
+        uint32 size = 3 * src->num_vertices * sizeof(real32);
+        dst->vertex_positions = (real32 *) malloc(size);
+        memcpy(dst->vertex_positions, src->vertex_positions, size);
+    }
+    if (src->triangle_indices) {
+        uint32 size = 3 * src->num_triangles * sizeof(uint32);
+        dst->triangle_indices = (uint32 *) malloc(size);
+        memcpy(dst->triangle_indices, src->triangle_indices, size);
+    }
+    if (src->triangle_normals) {
+        uint32 size = 3 * src->num_triangles * sizeof(real32); 
+        dst->triangle_normals = (real32 *) malloc(size);
+        memcpy(dst->triangle_normals, src->triangle_normals, size);
+    }
+    if (src->cosmetic_edges) {
+        uint size = 2 * src->num_cosmetic_edges * sizeof(uint32);
+        dst->cosmetic_edges = (uint32 *) malloc(size);
+        memcpy(dst->cosmetic_edges, src->cosmetic_edges, size);
+    }
+}
+
 void stl_load(char *filename, FancyMesh *fancy_mesh) {
     // history_record_state(history, manifold_manifold, fancy_mesh); // FORNOW
 
@@ -1356,6 +1357,16 @@ bool _key_lambda(UserEvent event, uint32 key, bool super = false, bool shift = f
     bool shift_match = ((event.shift && shift) || (!event.shift && !shift)); // * bool32
     return (key_match && super_match && shift_match);
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// world_state /////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+void world_state_free(WorldState *world_state) {
+    fancy_mesh_free(&world_state->mesh);
+    list_free_AND_zero(&world_state->dxf.entities);
+    list_free_AND_zero(&world_state->dxf.is_selected);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // uh oh ///////////////////////////////////////////////////////////////////////

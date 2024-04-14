@@ -1,3 +1,33 @@
+///////////////////////////////////////
+// Notes ///////////////////////////////
+////////////////////////////////////////
+
+// // Conversation
+// This is a little CAD program Jim is making :)
+// It takes in an OMAX List<DXFEntity> and let's you rapidly create a 3D-printable STL using Manifold.
+// Intuitiveness of Sketchup + Precision of SolidWorks
+
+// wonderful undo (including selections)
+// - TODO: remove history stack (old undo)
+// - TODO: remove dependence on stateful stuff in cow
+// - TODO: strip out draw (basically done)
+// - TODO: move pure functions and similar non-stateful stuff into conversation.h
+// - TODO: copy solidworks stl export params
+
+// typdef bool32 cow_bool;
+// TODO: write blow style ability for "game to play[/debug] itself"
+// revolves
+// - manifold bug(?) where you don't get any geometry if the loop is in left half plane
+// (m)iddle snap
+// stl layers--stuff only booleans with its own layer (why?)
+// IDEA: Translating and Rotating and scaling the (3D) workpiece (like in a mill)
+// figuring out how to actually deal with the memory allocation, etc. in the manifoldc bindings
+// TODO: color codes instead of ` in gui_printf
+// ? TODO: the Hard problem of avoiding the creation of ultra-thin features
+
+// TODO: incorporate console_params_preview_flip_flag fully into console_param_preview's (preview should have it all in there)
+
+
 
 
 // // cleanup pass
