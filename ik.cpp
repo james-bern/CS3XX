@@ -13,13 +13,13 @@
 #define u32 DO_NOT_USE_u32_USE_uint32_INSTEAD
 
 #define NUM_LINKS 2
-real32 L[] = { 50.0f, 50.0f };
+real32 L[] = { 100.0f, 50.0f };
 real32 u[] = { 0.0f, 0.0f };
 
 real32 x_target = 100.0f;
 real32 y_target = 0.0f;
 
-#define TRACE_MAX_NUM_POINTS 1024
+#define TRACE_MAX_NUM_POINTS 100024
 Queue<vec2> trace;
 
 uint32 mode;
@@ -54,6 +54,13 @@ int main() {
             real32 B = acos((r2 + L20 - L21) / (2 * L[0] * r));
             u[0] = A - B;
             u[1] = acos((r2 - L20 - L21) / (2 * L[0] * L[1]));
+        } else {
+            static real32 time;
+            u[0] = 1.33 * time;
+            u[1] = 3.7 * time;
+            // u[0] = sin(1.33 * time) * RAD(90);
+            // u[1] = sin(4.7 * time) * RAD(90);
+            time += 0.01;
         }
 
         // FK
@@ -69,7 +76,10 @@ int main() {
 
         eso_begin(PV, SOUP_LINE_STRIP);
         eso_color(monokai.white);
-        for (uint32 i = 0; i < trace.length; ++i) eso_vertex(trace.array[i]);
+        for (uint32 i = 0; i < trace.length; ++i) {
+        eso_color(color_kelly(i / 100));
+            eso_vertex(trace.array[i]);
+        }
         eso_end();
 
         eso_begin(PV, SOUP_LINES, 12.0f);

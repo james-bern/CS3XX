@@ -1,14 +1,9 @@
-// TODO: make good map implementation
-// TODO: don't store FancyMesh as a bunch of alloc'd pointers
-
 #include "cs345.cpp"
 #include "manifoldc.h"
 #include "poe.cpp"
-#undef real // ??
 #define u32 DO_NOT_USE_u32_USE_uint32_INSTEAD
 #include "burkardt.cpp"
 #include "conversation.h"
-
 
 //////////////////////////////////////////////////
 // GLOBAL STATE //////////////////////////////////
@@ -180,7 +175,7 @@ void conversation_load(char *filename, bool preserve_cameras = false) {
 
 void conversation_stl_save(char *filename) {
     // TODO: prompt for overwriting
-    if (fancy_mesh_save_stl(&state.mesh, filename) ) {
+    if (mesh_save_stl(&state.mesh, filename) ) {
         conversation_messagef("[save] saved %s", filename);
     } else {
         conversation_messagef("[save] could not save open %s for writing.", filename);
@@ -334,12 +329,18 @@ void spoof_MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real
 }
 
 
-//////////////////////////////////////////////////
-// PROCESSING A SINGLE (NOT-special) EVENT  //////
-// (special events include undo, redo, ...) //////
-//////////////////////////////////////////////////
+/////////////////////////////////////////////////////////
+// PROCESSING A SINGLE (STANDARD / not-SPECIAL) EVENT  //
+// (special events include undo, redo, ...)            //
+/////////////////////////////////////////////////////////
 
-uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_because_we_are_loading_from_the_redo_stack = false) {
+struct StandardEventProcessResult {
+    uint32 category;
+    FancyMesh mesh;
+};
+StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_mesh_generation_because_we_are_loading_from_the_redo_stack = false) {
+    StandardEventProcessResult result = {};
+
     // // grug variables 
     bool32 extrude = ((state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT));
     bool32 revolve = ((state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT));
@@ -359,7 +360,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
     }
 
 
-    bool32 result = PROCESSED_EVENT_CATEGORY_RECORD; {
+    result.category = PROCESSED_EVENT_CATEGORY_RECORD; {
         auto push_back_dxf_entity_and_mask_bool_lambda = [&](DXFEntity entity) {
             list_push_back(&state.dxf.entities, entity);
             list_push_back(&state.dxf.is_selected, (bool32) false);
@@ -370,7 +371,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
         };
 
         if ((state.modes.enter_mode == ENTER_MODE_OPEN) || (state.modes.enter_mode == ENTER_MODE_SAVE)) {
-            result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+            result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
         }
 
 
@@ -410,7 +411,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                     if (state.modes.click_modifier == CLICK_MODIFIER_QUALITY) {
                         for (uint32 color = 0; color <= 9; ++color) {
                             if (key_lambda('0' + color)) {
-                                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                                 key_eaten_by_special__NOTE_dealt_with_up_top = true;
                                 for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
                                     if (state.dxf.entities.array[i].color == color) {
@@ -498,12 +499,12 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                         }
                     } else { // wrapper
                         if (extrude || revolve) {
-                            result = PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT;
+                            result.category = PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT;
 
                             if (!skip_mesh_generation_because_we_are_loading_from_the_redo_stack) {
-                                FancyMesh resulting_fancy_mesh; {
+                                { // result.mesh
                                     CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&state.dxf.entities, state.dxf.is_selected.array);
-                                    resulting_fancy_mesh = wrapper_manifold(
+                                    result.mesh = wrapper_manifold(
                                             &state.mesh,
                                             cross_section.num_polygonal_loops,
                                             cross_section.num_vertices_in_polygonal_loops,
@@ -519,25 +520,23 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                                     cross_section_free(&cross_section);
                                 }
 
-                                fancy_mesh_free(&state.mesh);
-                                state.mesh = resulting_fancy_mesh;
+
+                                if (state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) conversation_messagef("[extrude-add] success");
+                                if (state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) conversation_messagef("[extrude-cut] success");
+                                if (state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) conversation_messagef("[revolve-add] success");
+                                if (state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT) conversation_messagef("[revolve-cut] success");
+                                if (revolve) conversation_messagef("[revolve] success");
                             }
 
                             { // reset some stuff
                                 state.feature_plane = {};
                                 list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
                             }
-
-                            if (state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) conversation_messagef("[extrude-add] success");
-                            if (state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) conversation_messagef("[extrude-cut] success");
-                            if (state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) conversation_messagef("[revolve-add] success");
-                            if (state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT) conversation_messagef("[revolve-cut] success");
-                            if (revolve) conversation_messagef("[revolve] success");
                         } else { ASSERT((state.modes.enter_mode == ENTER_MODE_OPEN) || (state.modes.enter_mode == ENTER_MODE_SAVE));
                             static char full_filename_including_path[512];
                             sprintf(full_filename_including_path, "%s%s", ui.drop_path, state.console.buffer);
                             if (state.modes.enter_mode == ENTER_MODE_OPEN) {
-                                result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
+                                result.category = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
                                 if (poe_suffix_match(full_filename_including_path, ".dxf")) {
                                     conversation_dxf_load(full_filename_including_path, (strcmp(full_filename_including_path, ui.dxf_filename_for_reload) == 0));
                                 } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
@@ -555,41 +554,41 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                 } else if (key_lambda('Q', true)) {
                     exit(1);
                 } else if (key_lambda('0')) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ui.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - ui.camera_3D.angle_of_view;
                 } else if (key_lambda('X', false, true)) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_entities_get_bounding_box(&state.dxf.entities));
                 } else if (key_lambda('G')) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ui.hide_grid = !ui.hide_grid;
                 } else if (key_lambda('H')) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ui.show_help = !ui.show_help;
                 } else if (key_lambda('.')) { 
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ui.show_details = !ui.show_details;
                 } else if (key_lambda('K')) { 
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ui.show_command_stack = !ui.show_command_stack;
                 } else if (key_lambda('K', false, true)) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ui.hide_gui = !ui.hide_gui;
                 } else if (key_lambda('O', true)) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     state.modes.enter_mode = ENTER_MODE_OPEN;
                 } else if (key_lambda('S', true)) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     state.modes.enter_mode = ENTER_MODE_SAVE;
                 } else if (key_lambda('R', true, true)) {
-                    result = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
+                    result.category = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
                     conversation_dxf_load(ui.dxf_filename_for_reload, true);
                 } else if (key_lambda(COW_KEY_ESCAPE)) {
                     state.modes = {};
                     state.console = {};
                     state.feature_plane = {};
                 } else if (key_lambda(COW_KEY_TAB)) {
-                    result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     state.console.flip_flag = !state.console.flip_flag;
                 } else if (key_lambda('N')) {
                     if (state.feature_plane.is_active) {
@@ -612,10 +611,10 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                     if (((state.modes.click_mode == CLICK_MODE_SELECT) || (state.modes.click_mode == CLICK_MODE_DESELECT)) && (state.modes.click_modifier != CLICK_MODIFIER_CONNECTED)) {
                         state.modes.click_modifier = CLICK_MODIFIER_CONNECTED;
                     } else if (click_mode_SNAP_ELIGIBLE_) {
-                        result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                        result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
                     } else {
-                        result = PROCESSED_EVENT_CATEGORY_RECORD;
+                        result.category = PROCESSED_EVENT_CATEGORY_RECORD;
                         state.modes.click_mode = CLICK_MODE_CREATE_CIRCLE;
                         state.modes.click_modifier = CLICK_MODIFIER_NONE;
                         state.two_click_command.awaiting_second_click = false;
@@ -628,12 +627,12 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                     }
                 } else if (key_lambda('A')) {
                     if ((state.modes.click_mode == CLICK_MODE_SELECT) || (state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                        result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         bool32 value_to_write_to_selection_mask = (state.modes.click_mode == CLICK_MODE_SELECT);
                         for (uint32 i = 0; i < state.dxf.entities.length; ++i) state.dxf.is_selected.array[i] = value_to_write_to_selection_mask;
                     }
                 } else if (key_lambda('Y')) {
-                    result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
 
                     // already one of the three primary planes
                     if ((state.feature_plane.is_active) && ARE_EQUAL(state.feature_plane.signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(state.feature_plane.normal), 1.0f) && ARE_EQUAL(maxComponent(state.feature_plane.normal), 1.0f)) {
@@ -645,27 +644,27 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                     }
                 } else if (key_lambda('E')) {
                     if (click_mode_SNAP_ELIGIBLE_) {
-                        result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                        result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
                     } else {
-                        // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        // result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         state.modes.enter_mode = ENTER_MODE_EXTRUDE_ADD;
                         if (click_mode_NEEDS_CONSOLE) state.modes.click_mode = CLICK_MODE_NONE;
                         state.console = {};
                     }
                 } else if (key_lambda('M')) {
                     if (click_mode_SNAP_ELIGIBLE_) {
-                        result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                        result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
                         state.two_click_command.awaiting_second_click = false;
                     } else {
-                        result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                         state.modes.click_mode = CLICK_MODE_DXF_MOVE;
                         state.modes.click_modifier = CLICK_MODIFIER_NONE;
                         state.two_click_command.awaiting_second_click = false;
                     }
                 } else if (key_lambda('E', false, true)) {
-                    // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    // result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     state.modes.enter_mode = ENTER_MODE_EXTRUDE_CUT;
                     if (click_mode_NEEDS_CONSOLE) state.modes.click_mode = CLICK_MODE_NONE;
                     state.console = {};
@@ -680,24 +679,24 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                         state.two_click_command.awaiting_second_click = false;
                     }
                 } else if (key_lambda('M')) {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     state.modes.click_mode = CLICK_MODE_MEASURE;
                     state.modes.click_modifier = CLICK_MODIFIER_NONE;
                     state.two_click_command.awaiting_second_click = false;
                 } else if (key_lambda('L')) {
-                    result = PROCESSED_EVENT_CATEGORY_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_RECORD;
                     state.modes.click_mode = CLICK_MODE_CREATE_LINE;
                     state.modes.click_modifier = CLICK_MODIFIER_NONE;
                     state.two_click_command.awaiting_second_click = false;
                     ui.space_bar_event_key = 'L'; // FORNOW 
                 } else if (key_lambda('F')) {
-                    result = PROCESSED_EVENT_CATEGORY_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_RECORD;
                     state.modes.click_mode = CLICK_MODE_CREATE_FILLET;
                     state.modes.click_modifier = CLICK_MODIFIER_NONE;
                     state.modes.enter_mode = ENTER_MODE_NONE;
                     state.two_click_command.awaiting_second_click = false;
                 } else if (key_lambda('B')) {
-                    result = PROCESSED_EVENT_CATEGORY_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_RECORD;
                     state.modes.click_mode = CLICK_MODE_CREATE_BOX;
                     state.modes.click_modifier = CLICK_MODIFIER_NONE;
                     state.two_click_command.awaiting_second_click = false;
@@ -710,18 +709,18 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                     }
                     list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
                 } else {
-                    result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ;
                 }
             }
         } else if (event.type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
-            result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+            result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
 
             auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
                 // Only remember state.dxf.entities selection operations that actually change the mask
                 // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... ret result; approach fornow
                 if (state.dxf.is_selected.array[i] != value_to_write) {
-                    result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                     state.dxf.is_selected.array[i] = value_to_write;
                 }
             };
@@ -737,7 +736,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                         (state.modes.click_mode == CLICK_MODE_DXF_MOVE) ||
                         (((state.modes.click_mode == CLICK_MODE_SELECT) || (state.modes.click_mode == CLICK_MODE_DESELECT)) && (state.modes.click_modifier == CLICK_MODIFIER_WINDOW)))
                     && (!state.two_click_command.awaiting_second_click)) { 
-                result = (state.modes.click_mode == CLICK_MODE_MEASURE) ? PROCESSED_EVENT_CATEGORY_DONT_RECORD : PROCESSED_EVENT_CATEGORY_RECORD; 
+                result.category = (state.modes.click_mode == CLICK_MODE_MEASURE) ? PROCESSED_EVENT_CATEGORY_DONT_RECORD : PROCESSED_EVENT_CATEGORY_RECORD; 
                 if (!(((state.modes.click_mode == CLICK_MODE_SELECT) || (state.modes.click_mode == CLICK_MODE_DESELECT)) && (state.modes.click_modifier == CLICK_MODIFIER_WINDOW))) state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 state.two_click_command.awaiting_second_click = true;
                 state.two_click_command.first_click.x = event.mouse_x;
@@ -753,14 +752,14 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_LINE) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, event.mouse_x, event.mouse_y });
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_BOX) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, event.mouse_x, state.two_click_command.first_click.y });
@@ -770,7 +769,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
             } else if (state.modes.click_mode == CLICK_MODE_DXF_MOVE) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 real32 dx = event.mouse_x - state.two_click_command.first_click.x;
@@ -789,7 +788,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 real32 theta_a_in_degrees = DEG(atan2(event.mouse_y - state.two_click_command.first_click.y, event.mouse_x - state.two_click_command.first_click.x));
@@ -798,7 +797,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, r, theta_a_in_degrees, theta_b_in_degrees });
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, r, theta_b_in_degrees, theta_a_in_degrees });
             } else if (state.modes.click_mode == CLICK_MODE_ORIGIN_MOVE) {
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.dxf.feature_reference_point.x = event.mouse_x;
                 state.dxf.feature_reference_point.y = event.mouse_y;
                 state.modes.click_mode = CLICK_MODE_NONE;
@@ -807,7 +806,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_FILLET) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 int i = dxf_find_closest_entity(&state.dxf.entities, state.two_click_command.first_click.x, state.two_click_command.first_click.y);
                 int j = dxf_find_closest_entity(&state.dxf.entities, event.mouse_x, event.mouse_y);
@@ -909,8 +908,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                             #define GRID_CELL_WIDTH 0.001f
 
                             auto scalar_bucket = [&](real32 a) -> real32 {
-                                real32 result = roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
-                                return result;
+                                return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
                             };
 
                             auto make_key = [&](real32 x, real32 y) -> vec2 {
@@ -1061,7 +1059,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                 } else { ASSERT(state.modes.click_modifier == CLICK_MODIFIER_WINDOW);
                     ASSERT(state.two_click_command.awaiting_second_click);
                     state.two_click_command.awaiting_second_click = false;
-                    result = PROCESSED_EVENT_CATEGORY_RECORD;
+                    result.category = PROCESSED_EVENT_CATEGORY_RECORD;
                     BoundingBox window = {
                         MIN(state.two_click_command.first_click.x, event.mouse_x),
                         MIN(state.two_click_command.first_click.y, event.mouse_y),
@@ -1076,7 +1074,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
                 }
             }
         } else { ASSERT(event.type == UI_EVENT_TYPE_MOUSE_3D_PRESS);
-            result = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
+            result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
             int32 index_of_first_triangle_hit_by_ray = -1;
             {
                 real32 min_distance = HUGE_VAL;
@@ -1096,7 +1094,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
 
             if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                                                             // TODO don't record double click on same triangle
-                result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.feature_plane.is_active = true;
                 {
                     state.feature_plane.normal = get(state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
@@ -1113,76 +1111,31 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
     return result;
 }
 
+// TODO: should this write to state.mesh?--it already writes to state.dxf
+
+
+//////////////////////////////////////////////////
+// HISTORY ///////////////////////////////////////
+//////////////////////////////////////////////////
+
+void history_process_and_record_standard_fresh_user_event(UserEvent standard_event) {
+    StandardEventProcessResult result = standard_event_process(standard_event);
+    if (result.category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) {
+        mesh_free(&state.mesh);
+        state.mesh = result.mesh;
+    }
+}
+
+void history_perform_undo() {
+}
+
+void history_perform_redo() {
+}
+
 
 //////////////////////////////////////////////////
 // PROCESS A FRESH (potentially special EVENT) ///
-// (HISTORY)                                   ///
-// (undo, redo, space, ...)                    ///
 //////////////////////////////////////////////////
-
-// TODO: HistoryStack
-Stack<WorldState> super_undo_stack;
-Stack<WorldState> super_redo_stack;
-
-void super_stacks_do__NOTE_clears_redo_stack() {
-    for (uint32 i = 0; i < super_redo_stack.length; ++i) {
-        world_state_free(&super_redo_stack.array[i]);
-    }
-
-    WorldState deep_copy;
-    world_state_deep_copy(&deep_copy, &state);
-    stack_push(&super_undo_stack, deep_copy);
-}
-
-void _super_stacks_deepcopy_peek_undo_stack_NOTE_frees() {
-    world_state_free(&state);
-
-    ASSERT(super_undo_stack.length);
-    WorldState other = stack_peek(&super_undo_stack); // FORNOW; TODO: pointer version?
-    world_state_deep_copy(&state, &other);
-}
-
-void super_stacks_undo_and_load() {
-    ASSERT(super_undo_stack.length);
-    stack_push(&super_redo_stack, stack_pop(&super_undo_stack));
-    _super_stacks_deepcopy_peek_undo_stack_NOTE_frees();
-}
-
-void super_stacks_redo_and_load() {
-    ASSERT(super_redo_stack.length);
-    stack_push(&super_undo_stack, stack_pop(&super_redo_stack));
-    _super_stacks_deepcopy_peek_undo_stack_NOTE_frees();
-}
-
-// IDEA: mouse stuff should be immediately translated into world coordinates (by the callback)
-//       the camera should NOT be part of the state; it should be just a pre-filter on user input
-// (otherwise...we have to store all the clicking and dragging of the cameras -- which is actually quite involved)
-// but the cameras just map the click from NDC to world
-// - in 2D, a world point
-// - in 3D, a world ray
-// advantages: fastest path to goal (avoids having to do weird porting of camera math); avoids having to push a bunch of ui events (camera stuff can be treated separately)
-// disadvantage: a user input event now has to be able to store an entire ray (6 real's)
-
-// buffer -> # # # # # # 
-//                       
-// .                     
-// ^                     
-// |                     
-// A,B,C                 
-
-// / / / / / / / / / / / / / / / / / / / / / / / $ $ $ $ $ $ . . . . . .
-// ^                                             ^           ^          
-// |                                             |           |          
-// A                                             B           C          
-
-// / / / / / / / / / / / / / / / / / / / / / / / / / / / / / .    
-// ^                                                         ^    
-// |                                                         |    
-// 0                                                         A,B,C
-
-UserEvent history_A_undo[999999];
-UserEvent *history_B_redo = history_A_undo;
-UserEvent *history_C_one_past_end_of_redo = history_A_undo;
 
 void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
     auto key_lambda = [fresh_event_from_user](uint32 key, bool super = false, bool shift = false) -> bool {
@@ -1190,111 +1143,34 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
         return _key_lambda(fresh_event_from_user, key, super, shift);
     };
 
-    // space bar repeats previous command (TODO NOTE: This approach won't actually work; it needs to be in standard_event_process)
-    // (otherwise we can't differentiate between (c)enter and (c)icle)
-    if (key_lambda(' ')) {
-        fresh_event_from_user = {};
-        fresh_event_from_user.type = UI_EVENT_TYPE_KEY_PRESS;
-        fresh_event_from_user.key = ui.space_bar_event_key;
-    }
-
-    if (key_lambda('Z')) { // we handle the user pressing z by spoofing a key press at the feature_reference_point
-        fresh_event_from_user = {};
-        fresh_event_from_user.type = UI_EVENT_TYPE_MOUSE_2D_PRESS;
-        fresh_event_from_user.mouse_x = 0.0f;
-        fresh_event_from_user.mouse_y = 0.0f;
-    } else if (key_lambda('Z', true) || key_lambda('U')) { // undo
-        #define _UNDO_STACK_NONEMPTY_ (history_A_undo != history_B_redo)
-
-        if (_UNDO_STACK_NONEMPTY_) {
-            bool32 just_undid_super_checkpoint = false;
-            // // move history_B_redo
-            // pop back _through_ a first checkpoint__NOTE_set_in_new_event_process
-            do {
-                --history_B_redo;
-                just_undid_super_checkpoint |= (history_B_redo->checkpoint_type == CHECKPOINT_TYPE_SUPER_CHECKPOINT);
-            } while ((_UNDO_STACK_NONEMPTY_) && (history_B_redo->checkpoint_type == CHECKPOINT_TYPE_NONE));
-            // * short-circuit pop back _up to_ a second checkpoint
-            while ((_UNDO_STACK_NONEMPTY_) && ((history_B_redo - 1)->checkpoint_type == CHECKPOINT_TYPE_NONE)) {
-                --history_B_redo;
+    { // special cases that modify fresh_event_from_user
+        {// space bar repeats previous command (TODO NOTE: This approach won't actually work; it needs to be in standard_event_process)
+         // (otherwise we can't differentiate between (c)enter and (c)icle)
+            if (key_lambda(' ')) {
+                fresh_event_from_user = {};
+                fresh_event_from_user.type = UI_EVENT_TYPE_KEY_PRESS;
+                fresh_event_from_user.key = ui.space_bar_event_key;
             }
-
-            state = {};
-            {
-                if (!just_undid_super_checkpoint) {
-                    _super_stacks_deepcopy_peek_undo_stack_NOTE_frees();
-                } else {
-                    super_stacks_undo_and_load();
-                }
-            }
-
-            UserEvent *history_D_one_after_last_super_checkpoint; {
-                history_D_one_after_last_super_checkpoint = history_B_redo;
-                while ((history_A_undo != history_D_one_after_last_super_checkpoint) && (history_D_one_after_last_super_checkpoint - 1)->checkpoint_type != CHECKPOINT_TYPE_SUPER_CHECKPOINT) --history_D_one_after_last_super_checkpoint;
-            }
-
-            for (UserEvent *event = history_D_one_after_last_super_checkpoint; event < history_B_redo; ++event) standard_event_process(*event);
-
-            conversation_messagef("[undo] success");
-        } else {
-            conversation_messagef("[undo] nothing to undo");
         }
-    } else if (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true)) { // redo
-        if (history_B_redo != history_C_one_past_end_of_redo) {
-            do {
 
-                if (history_B_redo->checkpoint_type != CHECKPOINT_TYPE_SUPER_CHECKPOINT) {
-                    standard_event_process(*history_B_redo);
-                } else {
-                    standard_event_process(*history_B_redo, true);
-                    super_stacks_redo_and_load();
-                }
-
-                ++history_B_redo;
-
-            } while ((history_B_redo != history_C_one_past_end_of_redo) && ((history_B_redo - 1)->checkpoint_type == CHECKPOINT_TYPE_NONE));
-            conversation_messagef("[redo] success");
-        } else {
-            conversation_messagef("[redo] nothing to redo");
-        }
-    } else { // standard event
-        uint32 category = standard_event_process(fresh_event_from_user);
-
-        if (category == PROCESSED_EVENT_CATEGORY_DONT_RECORD) {
-        } else if (category == PROCESSED_EVENT_CATEGORY_KILL_HISTORY) {
-            history_B_redo = history_C_one_past_end_of_redo = history_A_undo;
-            queue_free_AND_zero(&queue_of_fresh_events_from_user);
-            super_stacks_do__NOTE_clears_redo_stack();
-            ASSERT(false); // TODO
-        } else {
-            { // FORNOW (sloppy): assign checkpoint_type
-                fresh_event_from_user.checkpoint_type = CHECKPOINT_TYPE_NONE; // FORNOW (not necessary)
-                if ((
-                            0
-                            || (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT)
-                            || (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT)
-                    )
-                        && (!fresh_event_from_user.checkpoint_ineligible)
-                   ) {
-                    if (category == PROCESSED_EVENT_CATEGORY_CHECKPOINT) {
-                        fresh_event_from_user.checkpoint_type = CHECKPOINT_TYPE_CHECKPOINT;
-                    } else if (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) {
-                        fresh_event_from_user.checkpoint_type = CHECKPOINT_TYPE_SUPER_CHECKPOINT;
-                    }
-                } 
+        { // we handle the user pressing z by spoofing a key press at the feature_reference_point
+            if (key_lambda('Z')) {
+                fresh_event_from_user = {};
+                fresh_event_from_user.type = UI_EVENT_TYPE_MOUSE_2D_PRESS;
+                fresh_event_from_user.mouse_x = 0.0f;
+                fresh_event_from_user.mouse_y = 0.0f;
             }
-
-            { // history_push_back(...)
-                *history_B_redo++ = fresh_event_from_user;
-                history_C_one_past_end_of_redo = history_B_redo; // kill redo "stack"
-            }
-
-            if (category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) { // push super checkpoint if necessary
-                super_stacks_do__NOTE_clears_redo_stack();
-            }
-
         }
     }
+
+    if (key_lambda('Z', true) || key_lambda('U')) {
+        history_perform_undo();
+    } else if (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true)) {
+        history_perform_redo();
+    } else {
+        history_process_and_record_standard_fresh_user_event(fresh_event_from_user);
+    }
+
 }
 
 
@@ -1303,6 +1179,7 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
 //////////////////////////////////////////////////
 
 void history_debug_draw__NOTE_guiprintf() {
+#if 0
     gui_printf("----------------");
     gui_printf("super_undo_stack.length = %d", super_undo_stack.length);
     gui_printf("note: top of the undo stack in blue");
@@ -1341,6 +1218,7 @@ void history_debug_draw__NOTE_guiprintf() {
             gui_printf("%c%s %c %s", leader_leader, leader, number, message);
         }
     }
+#endif
 }
 
 void conversation_draw() {
@@ -1882,10 +1760,8 @@ void conversation_draw() {
 
 void conversation_init() {
     if (1) {
-        // FORNOW: TODO: figure out super_stacks_do__NOTE_clears_redo_stack
-        if (0) {
+        if (1) {
             conversation_dxf_load("splash.dxf");
-            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
             if (1) {
                 spoof_KEY_event('Y');
                 spoof_KEY_event('S');
@@ -1916,7 +1792,6 @@ void conversation_init() {
             }
         } else if (1) {
             conversation_dxf_load("omax.dxf");
-            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
             if (1) {
                 UserEvent event = {};
                 event.type = UI_EVENT_TYPE_KEY_PRESS;
@@ -1932,10 +1807,8 @@ void conversation_init() {
             }
         } else if (0) {
             conversation_dxf_load("ik.dxf");
-            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
         } else if (0) {
             conversation_dxf_load("debug.dxf");
-            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
         }
     }
     init_cameras(); // FORNOW

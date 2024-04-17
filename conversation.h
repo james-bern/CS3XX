@@ -126,6 +126,7 @@ struct DXFArc {
 struct DXFEntity {
     uint32 type;
     uint32 color;
+    bool32 is_selected;
     // NOTE: naive "fat struct"
     DXFLine line;
     DXFArc arc;
@@ -188,13 +189,12 @@ struct ScreenState {
 struct WorldState {
     Arena *arena;
 
+    FancyMesh mesh;
+
     struct {
         List<DXFEntity> entities;
-        List<bool32>    is_selected;
         vec2            feature_reference_point;
     } dxf;
-
-    FancyMesh mesh;
 
     struct {
         char buffer[128];
@@ -455,11 +455,13 @@ void dxf_entities_load(char *filename, List<DXFEntity> *dxf_entities) {
                 if (poe_prefix_match(buffer, "LINE")) {
                     mode = DXF_OPEN_MODE_LINE;
                     code_is_hot = false;
-                    entity = { DXF_ENTITY_TYPE_LINE };
+                    entity = {};
+                    entity.type = DXF_ENTITY_TYPE_LINE;
                 } else if (poe_prefix_match(buffer, "ARC")) {
                     mode = DXF_OPEN_MODE_ARC;
                     code_is_hot = false;
-                    entity = { DXF_ENTITY_TYPE_ARC };
+                    entity = {};
+                    entity.type = DXF_ENTITY_TYPE_ARC;
                 }
             } else {
                 if (!code_is_hot) {
@@ -1015,27 +1017,27 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 ////////////////////////////////////////
 
 
-void fancy_mesh_triangle_normals_calculate(FancyMesh *fancy_mesh) {
-    fancy_mesh->triangle_normals = (real32 *) malloc(fancy_mesh->num_triangles * 3 * sizeof(real32));
+void mesh_triangle_normals_calculate(FancyMesh *mesh) {
+    mesh->triangle_normals = (real32 *) malloc(mesh->num_triangles * 3 * sizeof(real32));
     vec3 p[3];
-    for (uint32 i = 0; i < fancy_mesh->num_triangles; ++i) {
-        for (uint32 j = 0; j < 3; ++j) p[j] = get(fancy_mesh->vertex_positions, fancy_mesh->triangle_indices[3 * i + j]);
+    for (uint32 i = 0; i < mesh->num_triangles; ++i) {
+        for (uint32 j = 0; j < 3; ++j) p[j] = get(mesh->vertex_positions, mesh->triangle_indices[3 * i + j]);
         vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
-        set(fancy_mesh->triangle_normals, i, n);
+        set(mesh->triangle_normals, i, n);
     }
 }
 
-void fancy_mesh_cosmetic_edges_calculate(FancyMesh *fancy_mesh) {
+void mesh_cosmetic_edges_calculate(FancyMesh *mesh) {
     // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
     //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
     //           then go back and if passes some heuristic add that index to a stretchy buffer
     List<uint32> list = {}; {
         Map<Pair<uint32, uint32>, vec3> map = {}; {
-            for (uint32 i = 0; i < fancy_mesh->num_triangles; ++i) {
-                vec3 n = get(fancy_mesh->triangle_normals, i);
+            for (uint32 i = 0; i < mesh->num_triangles; ++i) {
+                vec3 n = get(mesh->triangle_normals, i);
                 for (uint32 jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
-                    uint32 j0 = fancy_mesh->triangle_indices[3 * i + jj0];
-                    uint32 j1 = fancy_mesh->triangle_indices[3 * i + jj1];
+                    uint32 j0 = mesh->triangle_indices[3 * i + jj0];
+                    uint32 j1 = mesh->triangle_indices[3 * i + jj1];
                     if (j0 > j1) {
                         uint32 tmp = j0;
                         j0 = j1;
@@ -1065,41 +1067,41 @@ void fancy_mesh_cosmetic_edges_calculate(FancyMesh *fancy_mesh) {
         map_free_and_zero(&map);
     }
     {
-        fancy_mesh->num_cosmetic_edges = list.length / 2;
-        fancy_mesh->cosmetic_edges = (uint32 *) calloc(2 * fancy_mesh->num_cosmetic_edges, sizeof(uint32));
-        memcpy(fancy_mesh->cosmetic_edges, list.array, 2 * fancy_mesh->num_cosmetic_edges * sizeof(uint32)); 
+        mesh->num_cosmetic_edges = list.length / 2;
+        mesh->cosmetic_edges = (uint32 *) calloc(2 * mesh->num_cosmetic_edges, sizeof(uint32));
+        memcpy(mesh->cosmetic_edges, list.array, 2 * mesh->num_cosmetic_edges * sizeof(uint32)); 
     }
     list_free_AND_zero(&list);
 }
 
 
-bool32 fancy_mesh_save_stl(FancyMesh *fancy_mesh, char *filename) {
+bool32 mesh_save_stl(FancyMesh *mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     if (!file) {
         return false;
     }
 
-    int num_bytes = 80 + 4 + 50 * fancy_mesh->num_triangles;
+    int num_bytes = 80 + 4 + 50 * mesh->num_triangles;
     char *buffer = (char *) calloc(num_bytes, 1); {
         int offset = 80;
-        memcpy(buffer + offset, &fancy_mesh->num_triangles, 4);
+        memcpy(buffer + offset, &mesh->num_triangles, 4);
         offset += 4;
-        for (uint32 i = 0; i < fancy_mesh->num_triangles; ++i) {
+        for (uint32 i = 0; i < mesh->num_triangles; ++i) {
             real32 triangle_normal[3];
             {
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
-                triangle_normal[0] =  fancy_mesh->triangle_normals[3 * i + 0];
-                triangle_normal[1] = -fancy_mesh->triangle_normals[3 * i + 2];
-                triangle_normal[2] =  fancy_mesh->triangle_normals[3 * i + 1];
+                triangle_normal[0] =  mesh->triangle_normals[3 * i + 0];
+                triangle_normal[1] = -mesh->triangle_normals[3 * i + 2];
+                triangle_normal[2] =  mesh->triangle_normals[3 * i + 1];
             }
             memcpy(buffer + offset, &triangle_normal, 12);
             offset += 12;
             real32 triangle_vertex_positions[9];
             for (uint32 j = 0; j < 3; ++j) {
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
-                triangle_vertex_positions[3 * j + 0] =  fancy_mesh->vertex_positions[3 * fancy_mesh->triangle_indices[3 * i + j] + 0];
-                triangle_vertex_positions[3 * j + 1] = -fancy_mesh->vertex_positions[3 * fancy_mesh->triangle_indices[3 * i + j] + 2];
-                triangle_vertex_positions[3 * j + 2] =  fancy_mesh->vertex_positions[3 * fancy_mesh->triangle_indices[3 * i + j] + 1];
+                triangle_vertex_positions[3 * j + 0] =  mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 0];
+                triangle_vertex_positions[3 * j + 1] = -mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 2];
+                triangle_vertex_positions[3 * j + 2] =  mesh->vertex_positions[3 * mesh->triangle_indices[3 * i + j] + 1];
             }
             memcpy(buffer + offset, triangle_vertex_positions, 36);
             offset += 38;
@@ -1112,15 +1114,15 @@ bool32 fancy_mesh_save_stl(FancyMesh *fancy_mesh, char *filename) {
     return true;
 }
 
-void fancy_mesh_free(FancyMesh *fancy_mesh) {
-    if (fancy_mesh->vertex_positions) free(fancy_mesh->vertex_positions);
-    if (fancy_mesh->triangle_indices) free(fancy_mesh->triangle_indices);
-    if (fancy_mesh->triangle_normals) free(fancy_mesh->triangle_normals);
-    if (fancy_mesh->cosmetic_edges)   free(fancy_mesh->cosmetic_edges);
-    *fancy_mesh = {};
+void mesh_free(FancyMesh *mesh) {
+    if (mesh->vertex_positions) free(mesh->vertex_positions);
+    if (mesh->triangle_indices) free(mesh->triangle_indices);
+    if (mesh->triangle_normals) free(mesh->triangle_normals);
+    if (mesh->cosmetic_edges)   free(mesh->cosmetic_edges);
+    *mesh = {};
 }
 
-void fancy_mesh_deep_copy(FancyMesh *dst, FancyMesh *src) {
+void mesh_deep_copy(FancyMesh *dst, FancyMesh *src) {
     *dst = *src;
     if (src->vertex_positions) {
         uint32 size = 3 * src->num_vertices * sizeof(real32);
@@ -1144,10 +1146,10 @@ void fancy_mesh_deep_copy(FancyMesh *dst, FancyMesh *src) {
     }
 }
 
-void stl_load(char *filename, FancyMesh *fancy_mesh) {
-    // history_record_state(history, manifold_manifold, fancy_mesh); // FORNOW
+void stl_load(char *filename, FancyMesh *mesh) {
+    // history_record_state(history, manifold_manifold, mesh); // FORNOW
 
-    { // fancy_mesh
+    { // mesh
         uint32 num_triangles;
         real32 *soup;
         {
@@ -1244,12 +1246,12 @@ void stl_load(char *filename, FancyMesh *fancy_mesh) {
             map_free_and_zero(&map);
             free(soup);
         }
-        fancy_mesh->num_vertices = num_vertices;
-        fancy_mesh->num_triangles = num_triangles;
-        fancy_mesh->vertex_positions = vertex_positions;
-        fancy_mesh->triangle_indices = triangle_indices;
-        fancy_mesh_triangle_normals_calculate(fancy_mesh);
-        fancy_mesh_cosmetic_edges_calculate(fancy_mesh);
+        mesh->num_vertices = num_vertices;
+        mesh->num_triangles = num_triangles;
+        mesh->vertex_positions = vertex_positions;
+        mesh->triangle_indices = triangle_indices;
+        mesh_triangle_normals_calculate(mesh);
+        mesh_cosmetic_edges_calculate(mesh);
     }
 }
 
@@ -1369,11 +1371,11 @@ void world_state_deep_copy(WorldState *dst, WorldState *src) {
     dst->dxf.is_selected = {};
     list_clone(&dst->dxf.entities,    &src->dxf.entities   );
     list_clone(&dst->dxf.is_selected, &src->dxf.is_selected);
-    fancy_mesh_deep_copy(&dst->mesh, &src->mesh);
+    mesh_deep_copy(&dst->mesh, &src->mesh);
 }
 
 void world_state_free(WorldState *world_state) {
-    fancy_mesh_free(&world_state->mesh);
+    mesh_free(&world_state->mesh);
     list_free_AND_zero(&world_state->dxf.entities);
     list_free_AND_zero(&world_state->dxf.is_selected);
 }
@@ -1385,7 +1387,7 @@ void world_state_free(WorldState *world_state) {
 // TODO: don't overwrite fancy mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
 FancyMesh wrapper_manifold(
-        FancyMesh *fancy_mesh, // dest__NOTE_GETS_OVERWRITTEN,
+        FancyMesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
         uint32 num_polygonal_loops,
         uint32 *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
@@ -1400,16 +1402,16 @@ FancyMesh wrapper_manifold(
     ASSERT(enter_mode != ENTER_MODE_NONE); // FORNOW
 
     ManifoldManifold *manifold_A; {
-        if (fancy_mesh->num_vertices == 0) {
+        if (mesh->num_vertices == 0) {
             manifold_A = NULL;
-        } else { // manifold <- fancy_mesh
+        } else { // manifold <- mesh
             ManifoldMeshGL *meshgl = manifold_meshgl(
                     malloc(manifold_meshgl_size()),
-                    fancy_mesh->vertex_positions,
-                    fancy_mesh->num_vertices,
+                    mesh->vertex_positions,
+                    mesh->num_vertices,
                     3,
-                    fancy_mesh->triangle_indices,
-                    fancy_mesh->num_triangles);
+                    mesh->triangle_indices,
+                    mesh->num_triangles);
 
             manifold_A = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
 
@@ -1502,8 +1504,8 @@ FancyMesh wrapper_manifold(
             result.num_triangles = manifold_meshgl_num_tri(meshgl);
             result.vertex_positions = manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real32)), meshgl);
             result.triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint32)), meshgl);
-            fancy_mesh_triangle_normals_calculate(&result);
-            fancy_mesh_cosmetic_edges_calculate(&result);
+            mesh_triangle_normals_calculate(&result);
+            mesh_cosmetic_edges_calculate(&result);
         }
 
         manifold_delete_meshgl(meshgl);

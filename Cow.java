@@ -24,8 +24,8 @@ import java.io.*;
 
 class Cow {
     public static void main(String[] arguments) {
-        // DemoKitchenSink.main(null);
-        DemoTicTacToe.main(null);
+        DemoKitchenSink.main(null);
+        // DemoTicTacToe.main(null);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -82,15 +82,8 @@ class Cow {
 
     }
 
-    static class NullOutputStream extends OutputStream {
-        @Override
-        public void write(int b) throws IOException {}
-    }
-
     static void draw_string(String string, double _x, double _y, int fontSize, boolean center) {
-        // Suppress Mac warnings about missing Times and Lucida.
-        PrintStream systemDotErr = System.err;
-        System.setErr(new PrintStream(new NullOutputStream())); {
+        {
             int x = X_pixel_from_world(_x);
             int y = Y_pixel_from_world(_y);
             if (center) {
@@ -100,7 +93,7 @@ class Cow {
             }
             _buffered_image_graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, fontSize)); 
             _buffered_image_graphics.drawString(string, x, y);
-        } System.setErr(systemDotErr);
+        }
     }
 
     // // core drawing API
@@ -233,12 +226,25 @@ class Cow {
     static CowJPanelExtender _jPanel_extender;
     static JFrame _jFrame;
     static boolean _cow_initialized;
+
+    static class NullOutputStream extends OutputStream {
+        @Override
+        public void write(int b) throws IOException {}
+    }
+
     static void _cow_initialize() {
         _buffered_image = new BufferedImage(canvas_pixel_width(), canvas_pixel_height, BufferedImage.TYPE_INT_ARGB);
         assert _buffered_image != null;
 
         _buffered_image_graphics = _buffered_image.createGraphics();
         assert _buffered_image_graphics != null;
+
+        { // Trigger and suppress one-time Mac warnings about missing fonts.
+            PrintStream systemDotErr = System.err;
+            System.setErr(new PrintStream(new NullOutputStream()));
+            FontMetrics fontMetrics = _buffered_image_graphics.getFontMetrics(); 
+            System.setErr(systemDotErr);
+        }
 
         _jPanel_extender = new CowJPanelExtender();
         _jPanel_extender.setPreferredSize(new Dimension(canvas_pixel_width(), canvas_pixel_height));
@@ -478,14 +484,14 @@ class DemoKitchenSink extends Cow {
             { // draw
 
                 /*
-                outline_rectangle(-5, -5, 5, 5, mouse_held ? GREEN : RED, 8.0);
-                draw_line(mouse_x, mouse_y, 3, 3, MAGENTA, 4.0);
-                fill_circle(x, y, 1, color_rainbow_swirl(time));
-                outline_circle(x, y, 1, BLACK, 3.0);
-                for (int i = 0; i < particles.size(); ++i) {
-                    fill_circle(particles.get(i).x, particles.get(i).y, 0.1, particles.get(i).color);
-                }
-                */
+                   outline_rectangle(-5, -5, 5, 5, mouse_held ? GREEN : RED, 8.0);
+                   draw_line(mouse_x, mouse_y, 3, 3, MAGENTA, 4.0);
+                   fill_circle(x, y, 1, color_rainbow_swirl(time));
+                   outline_circle(x, y, 1, BLACK, 3.0);
+                   for (int i = 0; i < particles.size(); ++i) {
+                   fill_circle(particles.get(i).x, particles.get(i).y, 0.1, particles.get(i).color);
+                   }
+                   */
 
                 //////////////////////////////////
 
@@ -605,6 +611,8 @@ class CowJPanelExtender extends JPanel {
                 return false;
             }
         });
+
+
     }
 
     @Override
