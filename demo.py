@@ -1,4 +1,6 @@
 from math import *
+import numpy as np
+from scipy.optimize import minimize
 
 ##################################################
 # PYGAME #########################################
@@ -47,15 +49,50 @@ def draw_point(p_world, color = BLACK):
 # APP ############################################
 ##################################################
 
-L1 = 100.0
-L2 = 100.0
+L0 = 50.0
+L1 = 50.0
+L2 = 50.0
+L3 = 50.0
+
+def FK(theta):
+    p0 = [L0 * cos(theta[0]), L0 * sin(theta[0])]
+    p1 = [p0[0] + L1 * cos(theta[0] + theta[1]), p0[1] + L1 * sin(theta[0] + theta[1])]
+    p2 = [p1[0] + (L2 + theta[4]) * cos(theta[0] + theta[1] + theta[2]), p1[1] + (L2 + theta[4]) * sin(theta[0] + theta[1] + theta[2])]
+    p3 = [p2[0] + L3 * cos(theta[0] + theta[1] + theta[2] + theta[3]), p2[1] + L3 * sin(theta[0] + theta[1] + theta[2] + theta[3])]
+    return p0, p1, p2, p3
+
+
+def objective(theta):
+    # squared length of the line connecting robot-tip and target
+    _, _, _, tip = FK(theta)
+    squared_length = ((tip[0] - target[0]) ** 2 + (tip[1] - target[1]) ** 2)
+    regularizer = 0.01 * theta[4] * theta[4]
+    return squared_length + regularizer
+    
+
+
+theta = [ 0.0, 0.0, 0.0, 0.0, 0.0 ]
+frame = 0
 while begin_frame():
-    mouse = world_from_pygame(pygame.mouse.get_pos())
-    theta1 = radians(mouse[0])
-    theta2 = radians(mouse[1])
-    p1 = [L1 * cos(theta1), L1 * sin(theta1)]
-    p2 = [p1[0] + L2 * cos(theta1 + theta2), p1[1] + L2 * sin(theta1 + theta2)]
-    draw_line([0, 0], p1, RED)
+    frame_angle = frame / 20.0
+    target = [150 + 100 * cos(frame_angle), 150 + 50 * sin(frame_angle)]
+    # target = targets[frame_index % len(targets)]
+    frame += 1
+
+    # NOTE: freaky scipy casting np.array <--> list
+    result = minimize(objective, np.array(theta), method = 'L-BFGS-B')
+    theta = list(result['x'])
+
+    p0, p1, p2, p3 = FK(theta)
+    draw_line([0, 0], p0, BLUE)
+    draw_line(p0, p1, BLUE)
     draw_line(p1, p2, BLUE)
-    draw_point(mouse, [128 + 128 * cos(time), 0, 0)
+    draw_line(p2, p3, BLUE)
+    draw_point(p0)
+    draw_point(p1)
+    draw_point(p2)
+    draw_point(target, GREEN)
+
+
+
 

@@ -73,35 +73,12 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 
 #define PROCESSED_EVENT_CATEGORY_DONT_RECORD              0
 #define PROCESSED_EVENT_CATEGORY_RECORD                   1
-#define PROCESSED_EVENT_CATEGORY_CHECKPOINT               2
-#define PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT         3
-#define PROCESSED_EVENT_CATEGORY_KILL_HISTORY             4
+#define PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT               2
+#define PROCESSED_EVENT_CATEGORY_CHECKPOINT_YES_SNAPSHOT         3
 
 #define CHECKPOINT_TYPE_NONE             0
-#define CHECKPOINT_TYPE_CHECKPOINT       1
-#define CHECKPOINT_TYPE_SUPER_CHECKPOINT 2
-
-////////////////////////////////////////
-// TODO: arenas ////////////////////////
-////////////////////////////////////////
-
-struct Arena {
-
-};
-
-Arena *arena_create() {
-    return NULL;
-}
-
-void arena_alloc(uint64) {
-}
-
-void arena_release() {
-}
-
-struct ArenaList {
-
-};
+#define CHECKPOINT_TYPE_CHECKPOINT_NO_SNAPSHOT       1
+#define CHECKPOINT_TYPE_CHECKPOINT_YES_SNAPSHOT 2
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -126,13 +103,16 @@ struct DXFArc {
 struct DXFEntity {
     uint32 type;
     uint32 color;
-    bool32 is_selected;
     // NOTE: naive "fat struct"
-    DXFLine line;
-    DXFArc arc;
+    union {
+        DXFLine line;
+        DXFArc arc;
+    };
+    // FORNOW: this goes last
+    bool32 is_selected;
 };
 
-struct FancyMesh {
+struct Mesh {
     uint32 num_vertices;
     uint32 num_triangles;
     real32 *vertex_positions;
@@ -187,9 +167,7 @@ struct ScreenState {
 };
 
 struct WorldState {
-    Arena *arena;
-
-    FancyMesh mesh;
+    Mesh mesh;
 
     struct {
         List<DXFEntity> entities;
@@ -592,10 +570,10 @@ BoundingBox dxf_entity_get_bounding_box(DXFEntity *entity) {
     return result;
 }
 
-BoundingBox dxf_entities_get_bounding_box(List<DXFEntity> *dxf_entities, bool32 *include = NULL) {
+BoundingBox dxf_entities_get_bounding_box(List<DXFEntity> *dxf_entities, bool32 only_consider_selected_entities = false) {
     BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL }; 
     for (uint32 i = 0; i < dxf_entities->length; ++i) {
-        if ((include) && (!include[i])) continue;
+        if ((only_consider_selected_entities) && (!dxf_entities->array[i].is_selected)) continue;
         for (uint32 d = 0; d < 2; ++d) {
             BoundingBox bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
             result.min[d] = MIN(result.min[d], bounding_box.min[d]);
@@ -705,7 +683,7 @@ struct DXFLoopAnalysisResult {
     uint32 *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf_entities, bool32 *include = NULL) {
+DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf_entities, bool32 only_consider_selected_entities) {
     if (dxf_entities->length == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
@@ -721,7 +699,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<DXFEntity> 
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
             bool32 *entity_already_added = (bool32 *) calloc(dxf_entities->length, sizeof(bool32));
             while (true) {
-                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!include || include[i]))
+                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!only_consider_selected_entities || dxf_entities->array[i].is_selected))
                 { // seed loop
                     bool32 added_and_seeded_new_loop = false;
                     for (uint32 entity_index = 0; entity_index < dxf_entities->length; ++entity_index) {
@@ -892,7 +870,7 @@ struct CrossSectionEvenOdd {
     vec2 **polygonal_loops;
 };
 
-CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf_entities, bool32 *include) {
+CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf_entities, bool32 only_consider_selected_entities) {
     #if 0
     {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf_entities);
@@ -920,7 +898,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<DXFEntity> *dxf_e
     #endif
     // populate List's
     List<List<vec2>> stretchy_list = {}; {
-        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf_entities, include);
+        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf_entities, only_consider_selected_entities);
         for (uint32 loop_index = 0; loop_index < analysis.num_loops; ++loop_index) {
             uint32 num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
@@ -1013,11 +991,11 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 }
 
 ////////////////////////////////////////
-// FancyMesh, STL //////////////////////
+// Mesh, STL //////////////////////
 ////////////////////////////////////////
 
 
-void mesh_triangle_normals_calculate(FancyMesh *mesh) {
+void mesh_triangle_normals_calculate(Mesh *mesh) {
     mesh->triangle_normals = (real32 *) malloc(mesh->num_triangles * 3 * sizeof(real32));
     vec3 p[3];
     for (uint32 i = 0; i < mesh->num_triangles; ++i) {
@@ -1027,7 +1005,7 @@ void mesh_triangle_normals_calculate(FancyMesh *mesh) {
     }
 }
 
-void mesh_cosmetic_edges_calculate(FancyMesh *mesh) {
+void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
     //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
     //           then go back and if passes some heuristic add that index to a stretchy buffer
@@ -1075,7 +1053,7 @@ void mesh_cosmetic_edges_calculate(FancyMesh *mesh) {
 }
 
 
-bool32 mesh_save_stl(FancyMesh *mesh, char *filename) {
+bool32 mesh_save_stl(Mesh *mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     if (!file) {
         return false;
@@ -1114,7 +1092,7 @@ bool32 mesh_save_stl(FancyMesh *mesh, char *filename) {
     return true;
 }
 
-void mesh_free(FancyMesh *mesh) {
+void mesh_free(Mesh *mesh) {
     if (mesh->vertex_positions) free(mesh->vertex_positions);
     if (mesh->triangle_indices) free(mesh->triangle_indices);
     if (mesh->triangle_normals) free(mesh->triangle_normals);
@@ -1122,7 +1100,7 @@ void mesh_free(FancyMesh *mesh) {
     *mesh = {};
 }
 
-void mesh_deep_copy(FancyMesh *dst, FancyMesh *src) {
+void mesh_deep_copy(Mesh *dst, Mesh *src) {
     *dst = *src;
     if (src->vertex_positions) {
         uint32 size = 3 * src->num_vertices * sizeof(real32);
@@ -1146,7 +1124,7 @@ void mesh_deep_copy(FancyMesh *dst, FancyMesh *src) {
     }
 }
 
-void stl_load(char *filename, FancyMesh *mesh) {
+void stl_load(char *filename, Mesh *mesh) {
     // history_record_state(history, manifold_manifold, mesh); // FORNOW
 
     { // mesh
@@ -1368,16 +1346,13 @@ bool _key_lambda(UserEvent event, uint32 key, bool super = false, bool shift = f
 void world_state_deep_copy(WorldState *dst, WorldState *src) {
     *dst = *src;
     dst->dxf.entities = {};
-    dst->dxf.is_selected = {};
     list_clone(&dst->dxf.entities,    &src->dxf.entities   );
-    list_clone(&dst->dxf.is_selected, &src->dxf.is_selected);
     mesh_deep_copy(&dst->mesh, &src->mesh);
 }
 
 void world_state_free(WorldState *world_state) {
     mesh_free(&world_state->mesh);
     list_free_AND_zero(&world_state->dxf.entities);
-    list_free_AND_zero(&world_state->dxf.is_selected);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1386,8 +1361,8 @@ void world_state_free(WorldState *world_state) {
 
 // TODO: don't overwrite fancy mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
-FancyMesh wrapper_manifold(
-        FancyMesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
+Mesh wrapper_manifold(
+        Mesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
         uint32 num_polygonal_loops,
         uint32 *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
@@ -1440,7 +1415,7 @@ FancyMesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
-                do_once { printf("[hack] inflating ENTER_MODE_EXTRUDE_CUT\n");};
+                do_once { printf("!-- [debug] hack: inflating ENTER_MODE_EXTRUDE_CUT\n");};
                 console_param += SGN(console_param) * TOLERANCE_DEFAULT;
                 console_param_2 += SGN(console_param_2) * TOLERANCE_DEFAULT;
             }
@@ -1476,7 +1451,7 @@ FancyMesh wrapper_manifold(
         manifold_delete_cross_section(cross_section);
     }
 
-    FancyMesh result; { // C <- f(A, B)
+    Mesh result; { // C <- f(A, B)
         ManifoldMeshGL *meshgl; {
             ManifoldManifold *manifold_C;
             if (manifold_A == NULL) {

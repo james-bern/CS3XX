@@ -6,6 +6,13 @@
 #include "conversation.h"
 
 //////////////////////////////////////////////////
+// DEBUG /////////////////////////////////////////
+//////////////////////////////////////////////////
+
+// #define DEBUG_DISABLE_HISTORY
+
+
+//////////////////////////////////////////////////
 // GLOBAL STATE //////////////////////////////////
 //////////////////////////////////////////////////
 
@@ -19,7 +26,7 @@ ScreenState ui;
 
 void init_cameras() {
     ui.camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
-    camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_entities_get_bounding_box(&state.dxf.entities));
+    if (state.dxf.entities.length) camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_entities_get_bounding_box(&state.dxf.entities));
     ui.camera_3D = { 2.0f * ui.camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
 }
 
@@ -125,7 +132,7 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
 
 
 //////////////////////////////////////////////////
-// LOADING AND SAVING STATE TO DISK //////////////
+// LOADING AND SAVING STATE TO/FROM DISK /////////
 //////////////////////////////////////////////////
 
 void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
@@ -135,10 +142,8 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
     }
 
     list_free_AND_zero(&state.dxf.entities);
-    list_free_AND_zero(&state.dxf.is_selected);
 
     dxf_entities_load(filename, &state.dxf.entities);
-    list_calloc_NOT_reserve(&state.dxf.is_selected, state.dxf.entities.length, sizeof(bool32));
 
     if (!preserve_cameras_and_dxf_origin) {
         camera2D_zoom_to_bounding_box(&ui.camera_2D, dxf_entities_get_bounding_box(&state.dxf.entities));
@@ -303,13 +308,27 @@ BEGIN_PRE_MAIN {
     glfwSetScrollCallback(     COW0._window_glfw_window, callback_scroll);
 } END_PRE_MAIN;
 
+// TODO: this API should match what is printed to the terminal in verbose output mode
+//       (so we can copy and paste a session for later use as an end to end test)
+
 void spoof_KEY_event(uint32 key, bool32 super = false, bool32 shift = false) {
+    ASSERT(!(('a' <= key) && (key <= 'z')));
+
     UserEvent event = {};
     event.type = UI_EVENT_TYPE_KEY_PRESS;
     event.key = key;
     event.super = super;
     event.shift = shift;
     queue_enqueue(&queue_of_fresh_events_from_user, event);
+}
+
+void spoof_string(char *string) {
+    uint32 n = (uint32) strlen(string);
+    for (uint32 i = 0; i < n; ++i) {
+        char key = string[i];
+        if (('a' <= key) && (key <= 'z')) key = 'A' + (key - 'a');
+        spoof_KEY_event(key);
+    }
 }
 
 void spoof_MOUSE_2D_event(real32 mouse_x, real32 mouse_y) {
@@ -330,15 +349,16 @@ void spoof_MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real
 
 
 /////////////////////////////////////////////////////////
-// PROCESSING A SINGLE (STANDARD / not-SPECIAL) EVENT  //
-// (special events include undo, redo, ...)            //
+// PROCESSING A SINGLE STANDARD EVENT ///////////////////
 /////////////////////////////////////////////////////////
+// NOTE: this function is called on "fresh event" (direct from user) AND by undo and redo routines
+// NOTE: this sometimes modifies state.dxf
+// NOTE: this sometimes modifies state.mesh (and frees what used to be there)
 
 struct StandardEventProcessResult {
     uint32 category;
-    FancyMesh mesh;
 };
-StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_mesh_generation_because_we_are_loading_from_the_redo_stack = false) {
+StandardEventProcessResult standard_event_process(UserEvent standard_event, bool32 skip_mesh_generation_because_the_caller_is_going_to_load_from_the_redo_stack = false) {
     StandardEventProcessResult result = {};
 
     // // grug variables 
@@ -349,7 +369,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
     bool32 dxf_anything_selected; {
         dxf_anything_selected = false;
         for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
-            if (state.dxf.is_selected.array[i]) {
+            if (state.dxf.entities.array[i].is_selected) {
                 dxf_anything_selected = true;
                 break;
             }
@@ -361,24 +381,26 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
 
 
     result.category = PROCESSED_EVENT_CATEGORY_RECORD; {
+
+
+        // FORNOW
         auto push_back_dxf_entity_and_mask_bool_lambda = [&](DXFEntity entity) {
             list_push_back(&state.dxf.entities, entity);
-            list_push_back(&state.dxf.is_selected, (bool32) false);
         };
         auto delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards = [&](uint32 i) {
             list_delete_at(&state.dxf.entities, i);
-            list_delete_at(&state.dxf.is_selected, i);
         };
+
 
         if ((state.modes.enter_mode == ENTER_MODE_OPEN) || (state.modes.enter_mode == ENTER_MODE_SAVE)) {
             result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
         }
 
 
-        if (event.type == UI_EVENT_TYPE_KEY_PRESS) {
-            auto key_lambda = [event](uint32 key, bool super = false, bool shift = false) -> bool {
-                if (event.type != UI_EVENT_TYPE_KEY_PRESS) return false; // TODO: ASSERT
-                return _key_lambda(event, key, super, shift);
+        if (standard_event.type == UI_EVENT_TYPE_KEY_PRESS) {
+            auto key_lambda = [standard_event](uint32 key, bool super = false, bool shift = false) -> bool {
+                if (standard_event.type != UI_EVENT_TYPE_KEY_PRESS) return false; // TODO: ASSERT
+                return _key_lambda(standard_event, key, super, shift);
             };
 
             bool32 click_mode_SNAP_ELIGIBLE_ =
@@ -399,9 +421,9 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
 
 
             char character_equivalent; {
-                character_equivalent = (char) event.key;
-                if (event.shift && (event.key == '-')) character_equivalent = '_';
-                if ((!event.shift) && ('A' <= event.key) && (event.key <= 'Z')) character_equivalent = (char) ('a' + (event.key - 'A'));
+                character_equivalent = (char) standard_event.key;
+                if (standard_event.shift && (standard_event.key == '-')) character_equivalent = '_';
+                if ((!standard_event.shift) && ('A' <= standard_event.key) && (standard_event.key <= 'Z')) character_equivalent = (char) ('a' + (standard_event.key - 'A'));
             }
 
             {
@@ -411,12 +433,12 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                     if (state.modes.click_modifier == CLICK_MODIFIER_QUALITY) {
                         for (uint32 color = 0; color <= 9; ++color) {
                             if (key_lambda('0' + color)) {
-                                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                                 key_eaten_by_special__NOTE_dealt_with_up_top = true;
                                 for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
                                     if (state.dxf.entities.array[i].color == color) {
                                         bool32 value_to_write_to_selection_mask = (state.modes.click_mode == CLICK_MODE_SELECT);
-                                        state.dxf.is_selected.array[i] = value_to_write_to_selection_mask;
+                                        state.dxf.entities.array[i].is_selected = value_to_write_to_selection_mask;
                                     }
                                 }
                                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
@@ -499,12 +521,12 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                         }
                     } else { // wrapper
                         if (extrude || revolve) {
-                            result.category = PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT;
+                            result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_YES_SNAPSHOT;
 
-                            if (!skip_mesh_generation_because_we_are_loading_from_the_redo_stack) {
+                            if (!skip_mesh_generation_because_the_caller_is_going_to_load_from_the_redo_stack) {
                                 { // result.mesh
-                                    CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&state.dxf.entities, state.dxf.is_selected.array);
-                                    result.mesh = wrapper_manifold(
+                                    CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&state.dxf.entities, true);
+                                    Mesh tmp = wrapper_manifold(
                                             &state.mesh,
                                             cross_section.num_polygonal_loops,
                                             cross_section.num_vertices_in_polygonal_loops,
@@ -515,9 +537,12 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                                             console_param_2,
                                             state.dxf.feature_reference_point.x,
                                             state.dxf.feature_reference_point.y,
-                                            state.console.flip_flag // FORNOW:revolve_use_x_instead
+                                            state.console.flip_flag
                                             );
                                     cross_section_free(&cross_section);
+
+                                    mesh_free(&state.mesh); // FORNOW
+                                    state.mesh = tmp; // FORNOW
                                 }
 
 
@@ -530,13 +555,12 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
 
                             { // reset some stuff
                                 state.feature_plane = {};
-                                list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
+                                for (uint32 i = 0; i < state.dxf.entities.length; ++i) state.dxf.entities.array[i].is_selected = false;
                             }
                         } else { ASSERT((state.modes.enter_mode == ENTER_MODE_OPEN) || (state.modes.enter_mode == ENTER_MODE_SAVE));
                             static char full_filename_including_path[512];
                             sprintf(full_filename_including_path, "%s%s", ui.drop_path, state.console.buffer);
                             if (state.modes.enter_mode == ENTER_MODE_OPEN) {
-                                result.category = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
                                 if (poe_suffix_match(full_filename_including_path, ".dxf")) {
                                     conversation_dxf_load(full_filename_including_path, (strcmp(full_filename_including_path, ui.dxf_filename_for_reload) == 0));
                                 } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
@@ -580,15 +604,12 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                 } else if (key_lambda('S', true)) {
                     result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     state.modes.enter_mode = ENTER_MODE_SAVE;
-                } else if (key_lambda('R', true, true)) {
-                    result.category = PROCESSED_EVENT_CATEGORY_KILL_HISTORY;
-                    conversation_dxf_load(ui.dxf_filename_for_reload, true);
                 } else if (key_lambda(COW_KEY_ESCAPE)) {
                     state.modes = {};
                     state.console = {};
                     state.feature_plane = {};
                 } else if (key_lambda(COW_KEY_TAB)) {
-                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                     state.console.flip_flag = !state.console.flip_flag;
                 } else if (key_lambda('N')) {
                     if (state.feature_plane.is_active) {
@@ -618,7 +639,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                         state.modes.click_mode = CLICK_MODE_CREATE_CIRCLE;
                         state.modes.click_modifier = CLICK_MODIFIER_NONE;
                         state.two_click_command.awaiting_second_click = false;
-                        ui.space_bar_event_key = 'C'; // FORNOW; TODO perhaps key_lambda can store the entirety of the event
+                        ui.space_bar_event_key = 'C'; // FORNOW; TODO perhaps key_lambda can store the entirety of the standard_event
                                                       // update_space_bar_event_off_of_most_recent_key_lambda
                     }
                 } else if (key_lambda('Q')) {
@@ -627,12 +648,12 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                     }
                 } else if (key_lambda('A')) {
                     if ((state.modes.click_mode == CLICK_MODE_SELECT) || (state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                        result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                         bool32 value_to_write_to_selection_mask = (state.modes.click_mode == CLICK_MODE_SELECT);
-                        for (uint32 i = 0; i < state.dxf.entities.length; ++i) state.dxf.is_selected.array[i] = value_to_write_to_selection_mask;
+                        for (uint32 i = 0; i < state.dxf.entities.length; ++i) state.dxf.entities.array[i].is_selected = value_to_write_to_selection_mask;
                     }
                 } else if (key_lambda('Y')) {
-                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
 
                     // already one of the three primary planes
                     if ((state.feature_plane.is_active) && ARE_EQUAL(state.feature_plane.signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(state.feature_plane.normal), 1.0f) && ARE_EQUAL(maxComponent(state.feature_plane.normal), 1.0f)) {
@@ -647,7 +668,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                         result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                         state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
                     } else {
-                        // result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        // result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                         state.modes.enter_mode = ENTER_MODE_EXTRUDE_ADD;
                         if (click_mode_NEEDS_CONSOLE) state.modes.click_mode = CLICK_MODE_NONE;
                         state.console = {};
@@ -658,13 +679,13 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                         state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
                         state.two_click_command.awaiting_second_click = false;
                     } else {
-                        result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                        result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                         state.modes.click_mode = CLICK_MODE_DXF_MOVE;
                         state.modes.click_modifier = CLICK_MODIFIER_NONE;
                         state.two_click_command.awaiting_second_click = false;
                     }
                 } else if (key_lambda('E', false, true)) {
-                    // result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                    // result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                     state.modes.enter_mode = ENTER_MODE_EXTRUDE_CUT;
                     if (click_mode_NEEDS_CONSOLE) state.modes.click_mode = CLICK_MODE_NONE;
                     state.console = {};
@@ -703,25 +724,25 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                     ui.space_bar_event_key = 'B'; // FORNOW
                 } else if (key_lambda(COW_KEY_BACKSPACE)) {
                     for (int32 i = state.dxf.entities.length - 1; i >= 0; --i) {
-                        if (state.dxf.is_selected.array[i]) {
+                        if (state.dxf.entities.array[i].is_selected) {
                             delete_dxf_entity_and_mask_bool_lambda_NOTE_if_iterating_must_be_going_backwards(i);
                         }
                     }
-                    list_memset(&state.dxf.is_selected, 0, state.dxf.entities.length * sizeof(bool32));
+                    for (uint32 i = 0; i < state.dxf.entities.length; ++i) state.dxf.entities.array[i].is_selected = false;
                 } else {
                     result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
                     ;
                 }
             }
-        } else if (event.type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
+        } else if (standard_event.type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
             result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
 
             auto set_dxf_selection_mask = [&result] (uint32 i, bool32 value_to_write) {
                 // Only remember state.dxf.entities selection operations that actually change the mask
                 // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... ret result; approach fornow
-                if (state.dxf.is_selected.array[i] != value_to_write) {
-                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
-                    state.dxf.is_selected.array[i] = value_to_write;
+                if (state.dxf.entities.array[i].is_selected != value_to_write) {
+                    result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
+                    state.dxf.entities.array[i].is_selected = value_to_write;
                 }
             };
 
@@ -739,77 +760,82 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                 result.category = (state.modes.click_mode == CLICK_MODE_MEASURE) ? PROCESSED_EVENT_CATEGORY_DONT_RECORD : PROCESSED_EVENT_CATEGORY_RECORD; 
                 if (!(((state.modes.click_mode == CLICK_MODE_SELECT) || (state.modes.click_mode == CLICK_MODE_DESELECT)) && (state.modes.click_modifier == CLICK_MODIFIER_WINDOW))) state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 state.two_click_command.awaiting_second_click = true;
-                state.two_click_command.first_click.x = event.mouse_x;
-                state.two_click_command.first_click.y = event.mouse_y;
+                state.two_click_command.first_click.x = standard_event.mouse_x;
+                state.two_click_command.first_click.y = standard_event.mouse_y;
             } else if (state.modes.click_mode == CLICK_MODE_MEASURE) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                real32 angle = DEG(atan2(event.mouse_y - state.two_click_command.first_click.y, event.mouse_x - state.two_click_command.first_click.x));
+                real32 angle = DEG(atan2(standard_event.mouse_y - state.two_click_command.first_click.y, standard_event.mouse_x - state.two_click_command.first_click.x));
                 if (angle < 0.0f) angle += 360.0f;
-                conversation_messagef("%gmm %gdeg", sqrt(squared_distance_point_point(state.two_click_command.first_click.x, state.two_click_command.first_click.y, event.mouse_x, event.mouse_y)), angle);
+                conversation_messagef("%gmm %gdeg", sqrt(squared_distance_point_point(state.two_click_command.first_click.x, state.two_click_command.first_click.y, standard_event.mouse_x, standard_event.mouse_y)), angle);
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_LINE) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, event.mouse_x, event.mouse_y });
+                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, standard_event.mouse_x, standard_event.mouse_y });
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_BOX) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, event.mouse_x, state.two_click_command.first_click.y });
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, state.two_click_command.first_click.x, event.mouse_y });
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse_x, event.mouse_y, event.mouse_x, state.two_click_command.first_click.y });
-                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse_x, event.mouse_y, state.two_click_command.first_click.x, event.mouse_y });
+                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, standard_event.mouse_x, state.two_click_command.first_click.y });
+                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, state.two_click_command.first_click.x, standard_event.mouse_y });
+                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, standard_event.mouse_x, standard_event.mouse_y, standard_event.mouse_x, state.two_click_command.first_click.y });
+                push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, standard_event.mouse_x, standard_event.mouse_y, state.two_click_command.first_click.x, standard_event.mouse_y });
             } else if (state.modes.click_mode == CLICK_MODE_DXF_MOVE) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                real32 dx = event.mouse_x - state.two_click_command.first_click.x;
-                real32 dy = event.mouse_y - state.two_click_command.first_click.y;
+                real32 dx = standard_event.mouse_x - state.two_click_command.first_click.x;
+                real32 dy = standard_event.mouse_y - state.two_click_command.first_click.y;
                 for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
                     DXFEntity *entity = &state.dxf.entities.array[i];
-                    if (state.dxf.is_selected.array[i]) {
-                        entity->line.start_x += dx;
-                        entity->line.start_y += dy;
-                        entity->line.end_x   += dx;
-                        entity->line.end_y   += dy;
-                        entity->arc.center_x += dx;
-                        entity->arc.center_y += dy;
+                    if (entity->is_selected) {
+                        if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                            DXFLine *line = &entity->line;
+                            line->start_x += dx;
+                            line->start_y += dy;
+                            line->end_x   += dx;
+                            line->end_y   += dy;
+                        } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                            DXFArc *arc = &entity->arc;
+                            arc->center_x += dx;
+                            arc->center_y += dy;
+                        }
                     }
                 }
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                real32 theta_a_in_degrees = DEG(atan2(event.mouse_y - state.two_click_command.first_click.y, event.mouse_x - state.two_click_command.first_click.x));
+                real32 theta_a_in_degrees = DEG(atan2(standard_event.mouse_y - state.two_click_command.first_click.y, standard_event.mouse_x - state.two_click_command.first_click.x));
                 real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                real32 r = SQRT(squared_distance_point_point(state.two_click_command.first_click.x, state.two_click_command.first_click.y, event.mouse_x, event.mouse_y));
+                real32 r = SQRT(squared_distance_point_point(state.two_click_command.first_click.x, state.two_click_command.first_click.y, standard_event.mouse_x, standard_event.mouse_y));
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, r, theta_a_in_degrees, theta_b_in_degrees });
                 push_back_dxf_entity_and_mask_bool_lambda({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, state.two_click_command.first_click.x, state.two_click_command.first_click.y, r, theta_b_in_degrees, theta_a_in_degrees });
             } else if (state.modes.click_mode == CLICK_MODE_ORIGIN_MOVE) {
-                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
-                state.dxf.feature_reference_point.x = event.mouse_x;
-                state.dxf.feature_reference_point.y = event.mouse_y;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
+                state.dxf.feature_reference_point.x = standard_event.mouse_x;
+                state.dxf.feature_reference_point.y = standard_event.mouse_y;
                 state.modes.click_mode = CLICK_MODE_NONE;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 state.modes.enter_mode = ENTER_MODE_NONE;
             } else if (state.modes.click_mode == CLICK_MODE_CREATE_FILLET) {
                 ASSERT(state.two_click_command.awaiting_second_click);
                 state.two_click_command.awaiting_second_click = false;
-                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                 state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 int i = dxf_find_closest_entity(&state.dxf.entities, state.two_click_command.first_click.x, state.two_click_command.first_click.y);
-                int j = dxf_find_closest_entity(&state.dxf.entities, event.mouse_x, event.mouse_y);
+                int j = dxf_find_closest_entity(&state.dxf.entities, standard_event.mouse_x, standard_event.mouse_y);
                 if ((i != j) && (i != -1) && (j != -1)) {
                     real32 radius = console_param_1;
                     DXFEntity *E_i = &state.dxf.entities.array[i];
@@ -839,7 +865,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
 
                             vec2 m; {
                                 vec2 m1 = { state.two_click_command.first_click.x, state.two_click_command.first_click.y };
-                                vec2 m2 = { event.mouse_x, event.mouse_y };
+                                vec2 m2 = { standard_event.mouse_x, standard_event.mouse_y };
                                 m = AVG(m1, m2);
                             }
 
@@ -900,7 +926,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                 }
             } else if ((state.modes.click_mode == CLICK_MODE_SELECT) || (state.modes.click_mode == CLICK_MODE_DESELECT)) {
                 if (state.modes.click_modifier != CLICK_MODIFIER_WINDOW) {
-                    int hot_entity_index = dxf_find_closest_entity(&state.dxf.entities, event.mouse_x, event.mouse_y);
+                    int hot_entity_index = dxf_find_closest_entity(&state.dxf.entities, standard_event.mouse_x, standard_event.mouse_y);
                     if (hot_entity_index != -1) {
                         if (state.modes.click_modifier == CLICK_MODIFIER_CONNECTED) {
                             #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -1061,10 +1087,10 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                     state.two_click_command.awaiting_second_click = false;
                     result.category = PROCESSED_EVENT_CATEGORY_RECORD;
                     BoundingBox window = {
-                        MIN(state.two_click_command.first_click.x, event.mouse_x),
-                        MIN(state.two_click_command.first_click.y, event.mouse_y),
-                        MAX(state.two_click_command.first_click.x, event.mouse_x),
-                        MAX(state.two_click_command.first_click.y, event.mouse_y)
+                        MIN(state.two_click_command.first_click.x, standard_event.mouse_x),
+                        MIN(state.two_click_command.first_click.y, standard_event.mouse_y),
+                        MAX(state.two_click_command.first_click.x, standard_event.mouse_x),
+                        MAX(state.two_click_command.first_click.y, standard_event.mouse_y)
                     };
                     for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
                         if (bounding_box_contains(window, dxf_entity_get_bounding_box(&state.dxf.entities.array[i]))) {
@@ -1073,7 +1099,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                     }
                 }
             }
-        } else { ASSERT(event.type == UI_EVENT_TYPE_MOUSE_3D_PRESS);
+        } else { ASSERT(standard_event.type == UI_EVENT_TYPE_MOUSE_3D_PRESS);
             result.category = PROCESSED_EVENT_CATEGORY_DONT_RECORD;
             int32 index_of_first_triangle_hit_by_ray = -1;
             {
@@ -1082,7 +1108,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
                     vec3 p[3]; {
                         for (uint32 j = 0; j < 3; ++j) p[j] = get(state.mesh.vertex_positions, state.mesh.triangle_indices[3 * i + j]);
                     }
-                    RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(event.o, event.dir, p[0], p[1], p[2]);
+                    RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(standard_event.o, standard_event.dir, p[0], p[1], p[2]);
                     if (ray_triangle_intersection_result.hit) {
                         if (ray_triangle_intersection_result.distance < min_distance) {
                             min_distance = ray_triangle_intersection_result.distance;
@@ -1094,7 +1120,7 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
 
             if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                                                             // TODO don't record double click on same triangle
-                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
+                result.category = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT;
                 state.feature_plane.is_active = true;
                 {
                     state.feature_plane.normal = get(state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
@@ -1106,36 +1132,165 @@ StandardEventProcessResult standard_event_process(UserEvent event, bool32 skip_m
             }
         }
     }
-    // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT; // FORNOW: testing
-    // result = PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT; // FORNOW: testing
+    // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT; // FORNOW: testing
+    // result = PROCESSED_EVENT_CATEGORY_CHECKPOINT_YES_SNAPSHOT; // FORNOW: testing
     return result;
 }
-
-// TODO: should this write to state.mesh?--it already writes to state.dxf
 
 
 //////////////////////////////////////////////////
 // HISTORY ///////////////////////////////////////
 //////////////////////////////////////////////////
 
+template <typename T> struct ElephantStack {
+    Stack<T> _undo_stack;
+    Stack<T> _redo_stack;
+};
+
+template <typename T> bool32 elephant_is_empty_undo(ElephantStack<T> *elephant) {
+    return (elephant->_undo_stack.length == 0);
+}
+
+template <typename T> bool32 elephant_is_empty_redo(ElephantStack<T> *elephant) {
+    return (elephant->_redo_stack.length == 0);
+}
+
+template <typename T> uint32 elephant_length_undo(ElephantStack<T> *elephant) {
+    return elephant->_undo_stack.length;
+}
+
+template <typename T> uint32 elephant_length_redo(ElephantStack<T> *elephant) {
+    return elephant->_undo_stack.length;
+}
+
+template <typename T> T elephant_pop_undo_push_redo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_undo_stack.length);
+    T result = stack_pop(&elephant->_undo_stack);
+    stack_push(&elephant->_redo_stack, result);
+    return result;
+}
+
+template <typename T> T elephant_pop_redo_push_undo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_redo_stack.length);
+    T result = stack_pop(&elephant->_redo_stack);
+    stack_push(&elephant->_undo_stack, result);
+    return result;
+}
+
+template <typename T> T elephant_peek_undo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_undo_stack.length);
+    return stack_peek(elephant->_undo_stack);
+}
+
+template <typename T> T elephant_peek_redo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_redo_stack.length);
+    return stack_peek(elephant->_redo_stack);
+}
+
+template <typename T> void elephant_push_undo_clear_redo(ElephantStack<T> *elephant, T item) {
+    stack_push(&elephant->_undo_stack, item);
+    stack_free_AND_zero(&elephant->_redo_stack);
+}
+
+#ifdef DEBUG_DISABLE_HISTORY
 void history_process_and_record_standard_fresh_user_event(UserEvent standard_event) {
-    StandardEventProcessResult result = standard_event_process(standard_event);
-    if (result.category == PROCESSED_EVENT_CATEGORY_SUPER_CHECKPOINT) {
-        mesh_free(&state.mesh);
-        state.mesh = result.mesh;
-    }
+    standard_event_process(standard_event);
+}
+void history_perform_undo() {}
+void history_perform_redo() {}
+#else
+
+struct {
+    ElephantStack<UserEvent> user_events;
+    ElephantStack<WorldState> snapshots;
+} history;
+
+void history_process_and_record_standard_fresh_user_event(UserEvent standard_event) {
+    // TODO: consider passing event to standard_event_process by pointer (so is modified by process)?
+    //       actually think this through
+    standard_event_process(standard_event);
+    // TODO:
+    elephant_push_undo_clear_redo(&history.user_events, standard_event);
 }
 
 void history_perform_undo() {
+
+    // TODO: loading an dxf shouldn't be special
+    //       (it's just another operation, to do it in conversation_init__NOTE_use_spoof_api_in_here, call a spoof method)
+    //       i.e., our starting point (with empty undo stack) is ALWAYS the 0 state struct
+    // NOTE: loading a dxf can be considered expensive, and should be saved just like creating/modifying a mesh
+
+    if (elephant_is_empty_undo(&history.user_events)) {
+        conversation_messagef("[undo] nothing left to undo");
+    } else {
+        elephant_pop_undo_push_redo(&history.user_events);
+
+        world_state_free(&state);
+        state = {};
+        // TODO: undo_start_ptr undo_end_ptr
+        for (uint32 i = 0; i < elephant_length_undo(&history.user_events); ++i) {
+            standard_event_process(history.user_events._undo_stack.array[i]);
+        }
+
+        conversation_messagef("[undo] success");
+    }
 }
 
 void history_perform_redo() {
 }
 
+#endif
 
 //////////////////////////////////////////////////
-// PROCESS A FRESH (potentially special EVENT) ///
+
+void history_debug_draw__NOTE_guiprintf() {
+#if 0
+    gui_printf("----------------");
+    gui_printf("super_undo_stack.length = %d", super_undo_stack.length);
+    gui_printf("note: top of the undo stack in blue");
+    gui_printf("----------------");
+    uint32 i = 0;
+    for (UserEvent *event = history_A_undo; event < history_C_one_past_end_of_redo; ++event) {
+        {
+            char leader_leader = (event->checkpoint_type == CHECKPOINT_TYPE_CHECKPOINT_YES_SNAPSHOT) ? '+' : ' ';
+            const char *leader = (event == history_B_redo - 1) ? "`" : "";
+            char number; {
+                number = ' ';
+                if (event->checkpoint_type != CHECKPOINT_TYPE_NONE) {
+                    number = (char) ((i < 10) ? '0' + i : 'A' + (i - 10));
+                    ++i;
+                }
+            }
+            char message[256]; {
+                if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
+                    if (event->key == COW_KEY_ENTER) {
+                        sprintf(message, "[ENTER]");
+                    } else if (event->key == COW_KEY_BACKSPACE) {
+                        sprintf(message, "[BACKSPACE]");
+                    } else if (event->key == COW_KEY_ESCAPE) {
+                        sprintf(message, "[ESCAPE]");
+                    } else {
+                        sprintf(message, "[%s%s%c]", (event->super) ? "CTRL+" : "", (event->shift) ? "SHIFT+" : "", (char) (event->key));
+                    }
+                } else if (event->type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
+                    // core = "[MOUSE_2D]";
+                    sprintf(message, "[MOUSE_2D] %g %g", event->mouse_x, event->mouse_y);
+                } else { ASSERT(event->type == UI_EVENT_TYPE_MOUSE_3D_PRESS);
+                    // core = "[MOUSE_3D]";
+                    sprintf(message, "[MOUSE_3D] %g %g %g %g %g %g", event->o.x, event->o.y, event->o.z, event->dir.x, event->dir.y, event->dir.z);
+                }
+            }
+            gui_printf("%c%s %c %s", leader_leader, leader, number, message);
+        }
+    }
+#endif
+}
+
+
 //////////////////////////////////////////////////
+// PROCESS A FRESH (potentially special) EVENT ///
+//////////////////////////////////////////////////
+// TODOLATER: new document
 
 void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
     auto key_lambda = [fresh_event_from_user](uint32 key, bool super = false, bool shift = false) -> bool {
@@ -1178,49 +1333,6 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
 // DRAW() ////////////////////////////////////////
 //////////////////////////////////////////////////
 
-void history_debug_draw__NOTE_guiprintf() {
-#if 0
-    gui_printf("----------------");
-    gui_printf("super_undo_stack.length = %d", super_undo_stack.length);
-    gui_printf("note: top of the undo stack in blue");
-    gui_printf("----------------");
-    uint32 i = 0;
-    for (UserEvent *event = history_A_undo; event < history_C_one_past_end_of_redo; ++event) {
-        {
-            char leader_leader = (event->checkpoint_type == CHECKPOINT_TYPE_SUPER_CHECKPOINT) ? '+' : ' ';
-            const char *leader = (event == history_B_redo - 1) ? "`" : "";
-            char number; {
-                number = ' ';
-                if (event->checkpoint_type != CHECKPOINT_TYPE_NONE) {
-                    number = (char) ((i < 10) ? '0' + i : 'A' + (i - 10));
-                    ++i;
-                }
-            }
-            char message[256]; {
-                if (event->type == UI_EVENT_TYPE_KEY_PRESS) {
-                    if (event->key == COW_KEY_ENTER) {
-                        sprintf(message, "[ENTER]");
-                    } else if (event->key == COW_KEY_BACKSPACE) {
-                        sprintf(message, "[BACKSPACE]");
-                    } else if (event->key == COW_KEY_ESCAPE) {
-                        sprintf(message, "[ESCAPE]");
-                    } else {
-                        sprintf(message, "[%s%s%c]", (event->super) ? "CTRL+" : "", (event->shift) ? "SHIFT+" : "", (char) (event->key));
-                    }
-                } else if (event->type == UI_EVENT_TYPE_MOUSE_2D_PRESS) {
-                    // core = "[MOUSE_2D]";
-                    sprintf(message, "[MOUSE_2D] %g %g", event->mouse_x, event->mouse_y);
-                } else { ASSERT(event->type == UI_EVENT_TYPE_MOUSE_3D_PRESS);
-                    // core = "[MOUSE_3D]";
-                    sprintf(message, "[MOUSE_3D] %g %g %g %g %g %g", event->o.x, event->o.y, event->o.z, event->dir.x, event->dir.y, event->dir.z);
-                }
-            }
-            gui_printf("%c%s %c %s", leader_leader, leader, number, message);
-        }
-    }
-#endif
-}
-
 void conversation_draw() {
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
@@ -1229,7 +1341,7 @@ void conversation_draw() {
     {
         dxf_anything_selected = false;
         for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
-            if (state.dxf.is_selected.array[i]) {
+            if (state.dxf.entities.array[i].is_selected) {
                 dxf_anything_selected = true;
                 break;
             }
@@ -1324,11 +1436,11 @@ void conversation_draw() {
                 eso_begin(PV_2D, SOUP_LINES);
                 for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
                     DXFEntity *entity = &state.dxf.entities.array[i];
-                    int32 color = (state.dxf.is_selected.array[i]) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
+                    int32 color = (state.dxf.entities.array[i].is_selected) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
                     if ((state.modes.click_mode == CLICK_MODE_DXF_MOVE) && (state.two_click_command.awaiting_second_click)) {
-                        if (state.dxf.is_selected.array[i]) {
+                        if (state.dxf.entities.array[i].is_selected) {
                             dx = mouse_x - state.two_click_command.first_click.x;
                             dy = mouse_y - state.two_click_command.first_click.y;
                             color = DXF_COLOR_WATER_ONLY;
@@ -1471,7 +1583,7 @@ void conversation_draw() {
                         eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
                         for (uint32 i = 0; i < state.dxf.entities.length; ++i) {
                             DXFEntity *entity = &state.dxf.entities.array[i];
-                            if (state.dxf.is_selected.array[i]) {
+                            if (state.dxf.entities.array[i].is_selected) {
                                 eso_dxf_entity__SOUP_LINES(entity, color);
                             }
                         }
@@ -1482,7 +1594,7 @@ void conversation_draw() {
             }
         }
 
-        BoundingBox selection_bounding_box = dxf_entities_get_bounding_box(&state.dxf.entities, state.dxf.is_selected.array);
+        BoundingBox selection_bounding_box = dxf_entities_get_bounding_box(&state.dxf.entities, true);
 
         if (dxf_anything_selected) { // arrow
             if ((state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) {
@@ -1744,6 +1856,7 @@ void conversation_draw() {
             gui_printf("(M)easure + (c)enter-of (e)nd-of (m)iddle-of (z)-feature_reference_point [Click]");
             gui_printf("");
             gui_printf("EXPERIMENTAL: (r)evolve-add (R)evolve-cut");
+            gui_printf("EXPERIMENTAL: (Ctrl + n)ew-session");
             gui_printf("");
             gui_printf("you can drag and drop *.dxf and *.stl into Conversation");
         }
@@ -1758,10 +1871,12 @@ void conversation_draw() {
 // TODO: load is no longer special; we should be able to undo / redo across it just like anything else
 // TODO: don't worry about user experience yet (it will grow to include panels toolbox etc)
 
-void conversation_init() {
+void conversation_init__NOTE_use_spoof_api_in_here() {
     if (1) {
         if (1) {
-            conversation_dxf_load("splash.dxf");
+            spoof_KEY_event('O', true);
+            spoof_string("splash.dxf"); // TODO: why doesn't this work
+            spoof_KEY_event(COW_KEY_ENTER);
             if (1) {
                 spoof_KEY_event('Y');
                 spoof_KEY_event('S');
@@ -1781,16 +1896,19 @@ void conversation_init() {
                 spoof_KEY_event('4');
                 spoof_KEY_event('7');
                 spoof_KEY_event(COW_KEY_ENTER); // FORNOW
-                spoof_KEY_event('U');
-                spoof_KEY_event('U');
-                spoof_KEY_event('U');
-                spoof_KEY_event('U');
-                spoof_KEY_event('U', false, true);
-                spoof_KEY_event('U', false, true);
-                spoof_KEY_event('U', false, true);
-                spoof_KEY_event('U', false, true);
+                spoof_KEY_event(COW_KEY_ESCAPE); // FORNOW
+                                                 //spoof_KEY_event('U');
+                                                 //spoof_KEY_event('U');
+                                                 //spoof_KEY_event('U');
+                                                 //spoof_KEY_event('U');
+                                                 //spoof_KEY_event('U', false, true);
+                                                 //spoof_KEY_event('U', false, true);
+                                                 //spoof_KEY_event('U', false, true);
+                                                 //spoof_KEY_event('U', false, true);
             }
-        } else if (1) {
+        }
+        #if 0 // TODO: update to use spoof api
+        else if (1) {
             conversation_dxf_load("omax.dxf");
             if (1) {
                 UserEvent event = {};
@@ -1810,6 +1928,7 @@ void conversation_init() {
         } else if (0) {
             conversation_dxf_load("debug.dxf");
         }
+        #endif
     }
     init_cameras(); // FORNOW
     conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
@@ -1818,7 +1937,10 @@ void conversation_init() {
 int main() {
     // _window_set_size(1.5 * 640.0, 1.5 * 360.0); // TODO the first frame crap gets buggered
 
-    conversation_init();
+    conversation_init__NOTE_use_spoof_api_in_here();
+    #ifdef DEBUG_DISABLE_HISTORY
+    conversation_messagef("!-- [debug] history disabled");
+    #endif
 
     {
         // FORNOW: first frame position
@@ -1828,9 +1950,6 @@ int main() {
     }
 
     while (cow_begin_frame()) {
-
-        // invariants
-        ASSERT(state.dxf.entities.length == state.dxf.is_selected.length);
 
         while (queue_of_fresh_events_from_user.length) {
             fresh_event_from_user_process(queue_dequeue(&queue_of_fresh_events_from_user));
