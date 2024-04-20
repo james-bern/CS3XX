@@ -92,9 +92,12 @@ for /F %%a in ('"prompt $E$S & echo on & for %%b in (1) do rem"') do set "ESC=%%
 exit /B
 
 
+
+
+
+
+
 BATCH
-
-
 
 if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
     echo "build and run   in   debug mode: [35m./build_and_run.bat hwXX.cpp [0m"
@@ -143,8 +146,6 @@ else
         else
             echo "[35m[cow] running executable[0m"
             ./executable
-
-            rm -r executable.dSYM
         fi
     fi
 fi

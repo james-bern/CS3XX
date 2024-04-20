@@ -67,18 +67,9 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define HOT_PANE_2D   1
 #define HOT_PANE_3D   2
 
-#define UI_EVENT_TYPE_KEY_PRESS      0
-#define UI_EVENT_TYPE_MOUSE_2D_PRESS 1
-#define UI_EVENT_TYPE_MOUSE_3D_PRESS 2
-
-#define PROCESSED_EVENT_CATEGORY_DONT_RECORD              0
-#define PROCESSED_EVENT_CATEGORY_RECORD                   1
-#define PROCESSED_EVENT_CATEGORY_CHECKPOINT_NO_SNAPSHOT               2
-#define PROCESSED_EVENT_CATEGORY_CHECKPOINT_YES_SNAPSHOT         3
-
-#define CHECKPOINT_TYPE_NONE             0
-#define CHECKPOINT_TYPE_CHECKPOINT_NO_SNAPSHOT       1
-#define CHECKPOINT_TYPE_CHECKPOINT_YES_SNAPSHOT 2
+#define USER_EVENT_TYPE_KEY_PRESS      0
+#define USER_EVENT_TYPE_MOUSE_2D_PRESS 1
+#define USER_EVENT_TYPE_MOUSE_3D_PRESS 2
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -135,6 +126,7 @@ struct UserEvent {
         struct {
             real32 mouse_x;
             real32 mouse_y;
+            bool32 mouse_held;
         };
         struct {
             vec3 o;
@@ -142,11 +134,9 @@ struct UserEvent {
         };
     }; 
 
-    // not_checkpoint_eligible__NOTE_set_before_event_process
-    bool32 checkpoint_ineligible;
-
-    // checkpoint_type__NOTE_set_in_new_event_process
-    uint32 checkpoint_type;
+    bool32 record_me;
+    bool32 checkpoint_me;
+    bool32 snapshot_me;
 };
 
 struct ScreenState {
@@ -157,7 +147,7 @@ struct ScreenState {
     bool32   hide_gui;
     bool32   show_details;
     bool32   show_help;
-    bool32   show_command_stack;
+    bool32   show_event_stack;
 
     uint32   hot_pane;
 
@@ -1331,7 +1321,7 @@ void conversation_message_buffer_update_and_draw() {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool _key_lambda(UserEvent event, uint32 key, bool super = false, bool shift = false) {
-    ASSERT(event.type == UI_EVENT_TYPE_KEY_PRESS);
+    ASSERT(event.type == USER_EVENT_TYPE_KEY_PRESS);
     ASSERT(!(('a' <= key) && (key <= 'z')));
     bool key_match = (event.key == key);
     bool super_match = ((event.super && super) || (!event.super && !super)); // * bool32

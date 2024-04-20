@@ -3266,9 +3266,6 @@ template <typename T> T list_pop_front(List<T> *list) {
 #define Stack List
 #define stack_push list_push_back
 #define stack_pop list_pop_back
-template <typename T> T stack_peek(Stack<T> *stack) {
-    return stack->array[stack->length - 1];
-}
 #define stack_free_AND_zero list_free_AND_zero
 
 
