@@ -20,13 +20,13 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define ENTER_MODE_REVOLVE_CUT        4
 #define ENTER_MODE_OPEN               5
 #define ENTER_MODE_SAVE               6
-#define ENTER_MODE_MOVE_DXF_ORIGIN_TO 7
+#define ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO 7
 #define ENTER_MODE_OFFSET_PLANE_BY    8
 
 #define CLICK_MODE_NONE               0
 #define CLICK_MODE_SELECT             1
 #define CLICK_MODE_DESELECT           2
-#define CLICK_MODE_ORIGIN_MOVE        3
+#define CLICK_MODE_MOVE_FEATURE_REFERENCE_POINT_TO        3
 #define CLICK_MODE_MEASURE            4
 #define CLICK_MODE_CREATE_LINE        5
 #define CLICK_MODE_CREATE_BOX         6
@@ -42,6 +42,7 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define CLICK_MODIFIER_SNAP_TO_END_OF        5
 #define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF     6
 #define CLICK_MODIFIER_SNAP_PERPENDICULAR_TO 7
+#define CLICK_MODIFIER_EXACT_X_Y_COORDINATES 8 // TODO
 
 #define DXF_COLOR_TRAVERSE        0
 #define DXF_COLOR_QUALITY_1       1
@@ -167,7 +168,8 @@ struct WorldState {
     struct {
         char buffer[128];
         uint32 num_bytes_written;
-        bool32 flip_flag;
+        bool32 flip_flag; // FORNOW
+        bool32 revolve_use_x_instead; // FORNOW
     } console;
 
     struct {
@@ -186,6 +188,22 @@ struct WorldState {
         bool32 awaiting_second_click;
         vec2 first_click;
     } two_click_command;
+
+    struct {
+        real32 param1;
+        real32 param2;
+        real32 circle_diameter;
+        real32 circle_radius;
+        real32 fillet_radius;
+
+        #define POPUP_MAX_FIELDS 4
+        #define POPUP_MAX_CHECKBOXES 4
+        uint32 num_fields;
+        uint32 num_checkboxes;
+        char fields[POPUP_MAX_FIELDS][256];
+        bool32 checkboxes[POPUP_MAX_CHECKBOXES];
+        bool32 is_active;
+    } popup;
 };
 
 
@@ -232,6 +250,8 @@ bool32 ANGLE_IS_BETWEEN_CCW(real32 p, real32 a, real32 b) {
     cow_real F_y = SIN(p);
     return (cross(E_x, E_y, F_x, F_y) > 0.0f);
 }
+
+#define warn_once(warning) do_once { printf(warning); printf("\n"); };
 
 ////////////////////////////////////////
 // Squared-Distance (TODO: move non-dxf_entities parts all up here);
@@ -1042,7 +1062,6 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     list_free_AND_zero(&list);
 }
 
-
 bool32 mesh_save_stl(Mesh *mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     if (!file) {
@@ -1082,7 +1101,7 @@ bool32 mesh_save_stl(Mesh *mesh, char *filename) {
     return true;
 }
 
-void mesh_free(Mesh *mesh) {
+void mesh_free_AND_zero(Mesh *mesh) {
     if (mesh->vertex_positions) free(mesh->vertex_positions);
     if (mesh->triangle_indices) free(mesh->triangle_indices);
     if (mesh->triangle_normals) free(mesh->triangle_normals);
@@ -1340,8 +1359,8 @@ void world_state_deep_copy(WorldState *dst, WorldState *src) {
     mesh_deep_copy(&dst->mesh, &src->mesh);
 }
 
-void world_state_free(WorldState *world_state) {
-    mesh_free(&world_state->mesh);
+void world_state_free_AND_zero(WorldState *world_state) {
+    mesh_free_AND_zero(&world_state->mesh);
     list_free_AND_zero(&world_state->dxf.entities);
 }
 
@@ -1405,7 +1424,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
-                do_once { printf("!-- [debug] hack: inflating ENTER_MODE_EXTRUDE_CUT\n");};
+                warn_once("[DEBUG] inflating ENTER_MODE_EXTRUDE_CUT\n");
                 console_param += SGN(console_param) * TOLERANCE_DEFAULT;
                 console_param_2 += SGN(console_param_2) * TOLERANCE_DEFAULT;
             }
