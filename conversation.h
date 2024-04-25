@@ -68,9 +68,10 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define HOT_PANE_2D   1
 #define HOT_PANE_3D   2
 
-#define USER_EVENT_TYPE_KEY_PRESS      0
-#define USER_EVENT_TYPE_MOUSE_2D_PRESS 1
-#define USER_EVENT_TYPE_MOUSE_3D_PRESS 2
+#define USER_EVENT_TYPE_NONE           0
+#define USER_EVENT_TYPE_KEY_PRESS      1
+#define USER_EVENT_TYPE_MOUSE_2D_PRESS 2
+#define USER_EVENT_TYPE_MOUSE_3D_PRESS 3
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -190,19 +191,19 @@ struct WorldState {
     } two_click_command;
 
     struct {
+        real32 param0;
         real32 param1;
-        real32 param2;
         real32 circle_diameter;
         real32 circle_radius;
         real32 fillet_radius;
 
-        #define POPUP_MAX_FIELDS 4
-        #define POPUP_MAX_CHECKBOXES 4
-        uint32 num_fields;
-        uint32 num_checkboxes;
-        char fields[POPUP_MAX_FIELDS][256];
-        bool32 checkboxes[POPUP_MAX_CHECKBOXES];
-        bool32 is_active;
+        #define POPUP_MAX_NUM_CELLS 4
+        char cells[POPUP_MAX_NUM_CELLS][256];
+        char *write_head;
+        uint32 active_cell_index;
+        bool32 initialized = false;
+
+        // TODO: checkboxes
     } popup;
 };
 

@@ -419,21 +419,6 @@ void spoof_MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real
 }
 
 
-/////////////////////////////////////////////////////////
-// POPUP ////////////////////////////////////////////////
-/////////////////////////////////////////////////////////
-
-// // TODO get this pass working and then if it does (??compatible with history??) backport???? CTRL+O, CTRL+S, E, SHIFT+E, ???
-void popup_popup(char *name1, real32 *param1, char *name2 = NULL, real32 *param2 = NULL) {
-    char buffer1[256];
-    char buffer2[256];
-    sprintf(buffer1, "`%s", name1);
-    sprintf(buffer2, "`%s", name2);
-    if (name1) gui_printf(buffer1);
-    if (name2) gui_printf(buffer2);
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(param1);
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(param2);
-}
 
 
 /////////////////////////////////////////////////////////
@@ -447,8 +432,10 @@ void popup_popup(char *name1, real32 *param1, char *name2 = NULL, real32 *param2
 // NOTE: this sometimes modifies global_world_state.dxf
 // NOTE: this sometimes modifies global_world_state.mesh (and frees what used to be there)
 
-void standard_event_process(UserEvent *standard_event, bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = false) {
-
+void standard_event_process(
+        UserEvent *standard_event,
+        bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = false
+        ) {
 
     // // short names (we have no reason to ever overwrite these things)
     uint32 enter_mode            = global_world_state.modes.enter_mode;
@@ -458,7 +445,10 @@ void standard_event_process(UserEvent *standard_event, bool32 skip_mesh_generati
     real32 first_click_x         = global_world_state.two_click_command.first_click.x;
     real32 first_click_y         = global_world_state.two_click_command.first_click.y;
 
-    // // 
+    bool32 is_key_event = (standard_event->type == USER_EVENT_TYPE_KEY_PRESS);
+    bool32 is_mouse_2d_event = (standard_event->type == USER_EVENT_TYPE_MOUSE_2D_PRESS);
+    bool32 is_mouse_3d_event = (standard_event->type == USER_EVENT_TYPE_MOUSE_3D_PRESS);
+    bool32 enter = (is_key_event && (standard_event->key == GLFW_KEY_ENTER));
 
     // // computed variables
     bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
@@ -474,17 +464,17 @@ void standard_event_process(UserEvent *standard_event, bool32 skip_mesh_generati
             }
         }
     }
-    real32 console_param_1, console_param_2; {
-        get_console_params(&console_param_1, &console_param_2);
-    }
+    real32 console_param_1, console_param_2; get_console_params(&console_param_1, &console_param_2);
 
-    { // unused warning suppression
+    { // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(extrude);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(revolve);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(add);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(cut);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(is_key_event);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(is_mouse_2d_event);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(is_mouse_3d_event);
     }
-
 
     // easy read functions
     auto DXF_ADD = [&](DXFEntity entity) { list_push_back(&global_world_state.dxf.entities, entity); };
@@ -494,46 +484,119 @@ void standard_event_process(UserEvent *standard_event, bool32 skip_mesh_generati
 
     standard_event->record_me = true; // FORNOW: event recorded is the default
 
-    { // popup_popups
-        real32 *param1               = &global_world_state.popup.param1;
-        real32 *param2               = &global_world_state.popup.param2;
-        real32 *circle_diameter      = &global_world_state.popup.circle_diameter;
-        real32 *circle_radius        = &global_world_state.popup.circle_radius;
-        real32 *fillet_radius        = &global_world_state.popup.fillet_radius;
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        bool32 ENTER = false; // FORNOW TODO ???
+    bool32 event_eaten_by_popup = false;
+
+    // TODO: fleury textbox
+    auto popup_popup = [&] (char *_name0, real32 *_value0, char *_name1 = NULL, real32 *_value1 = NULL) -> bool32 {
+        char *name[] = { _name0, _name1 };
+        real32 *value[] = { _value0, _value1 };
+
+
+        if (!global_world_state.popup.initialized) {
+            global_world_state.popup.initialized = true;
+            for (uint32 d = 0; d < 2; ++d) { // gui_printf
+                sprintf(global_world_state.popup.cells[d], "%g", *value[d]);
+            }
+        }
+
+
+        if (is_key_event) {
+            uint32 key = standard_event->key;
+
+            if (global_world_state.popup.write_head == NULL) {
+                global_world_state.popup.write_head = global_world_state.popup.cells[global_world_state.popup.active_cell_index];
+            }
+
+            if (key == GLFW_KEY_TAB) {
+                global_world_state.popup.active_cell_index = (global_world_state.popup.active_cell_index + 1) % 2;
+                sprintf(global_world_state.popup.cells[global_world_state.popup.active_cell_index], "%g", *value[global_world_state.popup.active_cell_index]);
+                global_world_state.popup.write_head = global_world_state.popup.cells[global_world_state.popup.active_cell_index];
+            }
+
+            bool32 key_is_digit = ('0' <= key) && (key <= '9');
+            bool32 key_is_numerical_punctuation = (key == '.') || (key == '-');
+            if (key_is_digit || key_is_numerical_punctuation) {
+                event_eaten_by_popup = true;
+                *global_world_state.popup.write_head++ = key;
+                *global_world_state.popup.write_head = '\0'; // FORNOW
+            }
+            if (key == GLFW_KEY_BACKSPACE) {
+                if (global_world_state.popup.write_head != global_world_state.popup.cells[global_world_state.popup.active_cell_index]) {
+                    *--global_world_state.popup.write_head = '\0';
+                }
+            }
+        }
+        #define _CELL_ACTIVE_(d) (global_world_state.popup.active_cell_index == d)
+        for (uint32 d = 0; d < 2; ++d) if (_CELL_ACTIVE_(d)) *value[d] = strtof(global_world_state.popup.cells[d], NULL);
+        for (uint32 d = 0; d < 2; ++d) { // gui_printf
+            char buffer[256];
+            if (_CELL_ACTIVE_(d)) sprintf(buffer, "`%s %s (%g)", name[d], global_world_state.popup.cells[d], *value[d]);
+            else                  sprintf(buffer,  "%s (%s) %g", name[d], global_world_state.popup.cells[d], *value[d]);
+            if (name[d]) gui_printf(buffer);
+        }
+
+        // TODOLATER: could refuse to enter if some values are zero
+        bool32 result = enter;
+
+        // shut down TODO load up
+        if (result) {
+            for (uint32 d = 0; d < 2; ++d) global_world_state.popup.cells[d][0] = '\0';
+            global_world_state.popup.write_head = NULL;
+            global_world_state.popup.active_cell_index = 0;
+            global_world_state.popup.initialized = false;
+        }
+
+        return result;
+    };
+
+    { // popup_popups
+        real32 *param0          = &global_world_state.popup.param0;
+        real32 *param1          = &global_world_state.popup.param1;
+        real32 *circle_diameter = &global_world_state.popup.circle_diameter;
+        real32 *circle_radius   = &global_world_state.popup.circle_radius;
+        real32 *fillet_radius   = &global_world_state.popup.fillet_radius;
+
 
         {
-            if (click_mode == CLICK_MODE_CREATE_BOX) {
-                if (awaiting_second_click) {
-                    popup_popup("box_width", param1, "box_length", param2);
-                    if (ENTER) spoof_MOUSE_2D_event(first_click_x + *param1, first_click_y + *param2);
-                }
-            } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
+            if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
                 if (awaiting_second_click) {
                     real32 prev_circle_diameter = *circle_diameter;
                     real32 prev_circle_radius = *circle_radius;
-                    popup_popup("circle_diameter", circle_diameter, "circle_radius", circle_radius);
-                    if (ENTER) {
-                        spoof_MOUSE_2D_event(first_click_x + *param1, first_click_y);
+                    if (popup_popup("circle_diameter", circle_diameter, "circle_radius", circle_radius)) {
+                        spoof_MOUSE_2D_event(first_click_x + *circle_radius, first_click_y); // FORNOW
                     } else {
                         if (*circle_diameter != prev_circle_diameter) *circle_radius = *circle_diameter / 2;
                         else if (*circle_radius != prev_circle_radius) *circle_diameter = 2 * *circle_radius;
                     }
                 }
+            } else if (click_mode == CLICK_MODE_CREATE_BOX) {
+                if (awaiting_second_click) {
+                    if (popup_popup("box_width", param0, "box_length", param1)) {
+                        spoof_MOUSE_2D_event(first_click_x + *param0, first_click_y + *param1);
+                    }
+                }
             } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
                 popup_popup("fillet radius", fillet_radius);
             } else if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) { // sus calling this a modifier but okay
-                popup_popup("x coordinate", param1, "y coordinate", param2);
-                if (ENTER) spoof_MOUSE_2D_event(*param1, *param2);
+                if (popup_popup("x coordinate", param0, "y coordinate", param1)) {
+                    spoof_MOUSE_2D_event(*param0, *param1);
+                }
             } else {
+                *param0 = 0;
                 *param1 = 0;
-                *param2 = 0;
             }
         }
     }
 
-    if (standard_event->type == USER_EVENT_TYPE_KEY_PRESS) {
+    if (event_eaten_by_popup) return;
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    if (standard_event->type == USER_EVENT_TYPE_NONE) {
+        ;
+    } else if (standard_event->type == USER_EVENT_TYPE_KEY_PRESS) {
         auto key_lambda = [standard_event](uint32 key, bool super = false, bool shift = false) -> bool {
             if (standard_event->type != USER_EVENT_TYPE_KEY_PRESS) return false; // TODO: ASSERT
             return _key_lambda(*standard_event, key, super, shift);
@@ -838,7 +901,7 @@ void standard_event_process(UserEvent *standard_event, bool32 skip_mesh_generati
                     global_world_state.modes.click_modifier = CLICK_MODIFIER_WINDOW;
                     global_world_state.two_click_command.awaiting_second_click = false;
                 }
-            } else if (key_lambda('M')) {
+            } else if (key_lambda('M', false, true)) {
                 standard_event->record_me = false;
                 global_world_state.modes.click_mode = CLICK_MODE_MEASURE;
                 global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
@@ -2157,12 +2220,16 @@ int main() {
     while (cow_begin_frame()) {
 
         { // queue_of_fresh_events_from_user
-          warn_once("FORNOW if not while (only one event per frame)--cause FORNOW drawing popup gui in fresh_event_from_user_process\n");
-          // TODO: upgrade to handle multiple events per frame while only drawing gui once
+            warn_once("FORNOW if not while (only one event per frame)--cause FORNOW drawing popup gui in fresh_event_from_user_process\n");
+            // TODO: upgrade to handle multiple events per frame while only drawing gui once
             {
                 if (queue_of_fresh_events_from_user.length) {
                     UserEvent fresh_event = queue_dequeue(&queue_of_fresh_events_from_user);
                     fresh_event_from_user_process(fresh_event);
+                } else {
+                    // NOTE: this is so we draw the popups
+                    UserEvent null_event = {};
+                    fresh_event_from_user_process(null_event);
                 }
             }
         }
