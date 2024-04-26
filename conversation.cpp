@@ -482,12 +482,14 @@ void standard_event_process(
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    standard_event->record_me = true; // FORNOW: event recorded is the default
+    standard_event->record_me = (standard_event->type != USER_EVENT_TYPE_NONE); // FORNOW: event recorded is the default
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     bool32 event_eaten_by_popup = false;
 
+    // TODO: fix teardown; can do it imguistyle off of _name0
+    // TODO: do we really need teardown and build up, or can we just stick it all in the initiazation routine (we can, though more is needed (user presses escape, repeats same command wise--need to detect that)
     // TODO: fleury textbox
     auto popup_popup = [&] (char *_name0, real32 *_value0, char *_name1 = NULL, real32 *_value1 = NULL) -> bool32 {
         char *name[] = { _name0, _name1 };
@@ -532,8 +534,10 @@ void standard_event_process(
         for (uint32 d = 0; d < 2; ++d) if (_CELL_ACTIVE_(d)) *value[d] = strtof(global_world_state.popup.cells[d], NULL);
         for (uint32 d = 0; d < 2; ++d) { // gui_printf
             char buffer[256];
-            if (_CELL_ACTIVE_(d)) sprintf(buffer, "`%s %s (%g)", name[d], global_world_state.popup.cells[d], *value[d]);
-            else                  sprintf(buffer,  "%s (%s) %g", name[d], global_world_state.popup.cells[d], *value[d]);
+            // if (_CELL_ACTIVE_(d)) sprintf(buffer, "`%s %s (%g)", name[d], global_world_state.popup.cells[d], *value[d]);
+            // else                  sprintf(buffer,  "%s (%s) %g", name[d], global_world_state.popup.cells[d], *value[d]);
+            if (_CELL_ACTIVE_(d)) sprintf(buffer, "`%s %s", name[d], global_world_state.popup.cells[d]);
+            else                  sprintf(buffer,  "%s %g", name[d], *value[d]);
             if (name[d]) gui_printf(buffer);
         }
 
@@ -1480,8 +1484,10 @@ void _history_user_event_draw_helper(UserEvent *event) {
                 sprintf(message, "[KEY] ENTER");
             } else if (event->key == GLFW_KEY_BACKSPACE) {
                 sprintf(message, "[KEY] BACKSPACE");
-            } else if (event->key == COW_KEY_ESCAPE) {
+            } else if (event->key == GLFW_KEY_ESCAPE) {
                 sprintf(message, "[KEY] ESCAPE");
+            } else if (event->key == GLFW_KEY_DELETE) {
+                sprintf(message, "[KEY] DELETE");
             } else {
                 sprintf(message, "[KEY] %s%s%c", (event->super) ? "CTRL+" : "", (event->shift) ? "SHIFT+" : "", (char) (event->key));
             }
@@ -2224,8 +2230,10 @@ int main() {
             // TODO: upgrade to handle multiple events per frame while only drawing gui once
             {
                 if (queue_of_fresh_events_from_user.length) {
-                    UserEvent fresh_event = queue_dequeue(&queue_of_fresh_events_from_user);
-                    fresh_event_from_user_process(fresh_event);
+                    while (queue_of_fresh_events_from_user.length) {
+                        UserEvent fresh_event = queue_dequeue(&queue_of_fresh_events_from_user);
+                        fresh_event_from_user_process(fresh_event);
+                    }
                 } else {
                     // NOTE: this is so we draw the popups
                     UserEvent null_event = {};
