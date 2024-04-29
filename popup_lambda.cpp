@@ -92,9 +92,6 @@ auto popup_popup = [&] (
         uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
 
-        // TODO: consider selection_left_right -> selection cursor (the other)
-
-
         popup_popup_ate_this_event = true; // default
         if (_tab_hack_so_aliases_not_introduced_too_far_up) {
         } else if (key == GLFW_KEY_LEFT) {
@@ -112,10 +109,11 @@ auto popup_popup = [&] (
                 popup->cursor = 0;
                 SELECTION_CURSOR_TO_CURSOR();
             } else { ASSERT(shift && super);
+                popup->selection_cursor = 0;
             }
         } else if (key == GLFW_KEY_RIGHT) {
             if (!shift && !super) {
-                if (SELECTION_NOT_ACTIVE()) {
+                if (SELECTION_NOT_ACTIVE()) 
                     if (popup->cursor < POPUP_CELL_LENGTH) ++popup->cursor;
                 } else {
                     popup->cursor = MAX(popup->cursor, popup->selection_cursor);
@@ -128,6 +126,7 @@ auto popup_popup = [&] (
                 popup->cursor = len;
                 SELECTION_CURSOR_TO_CURSOR();
             } else { ASSERT(shift && super);
+                popup->selection_cursor = len;
             }
         } else if (key == GLFW_KEY_BACKSPACE) {
             // * * * *|* * * * 
@@ -145,9 +144,9 @@ auto popup_popup = [&] (
                 // * * * * * * * * * * * * * * * *
                 // * * * * * * * * * * * * - - - -
                 //    L       R                   
-                popup->cursor = left_cursor;
                 memmove(&active_cell[left_cursor], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
                 memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - left_cursor)], 0, right_cursor - left_cursor);
+                popup->cursor = left_cursor;
             }
             popup->selection_cursor = popup->cursor;
         } else if (key_is_digit || key_is_numerical_punctuation) {
@@ -157,10 +156,10 @@ auto popup_popup = [&] (
                     active_cell[popup->cursor++] = key;
                 }
             } else {
-                popup->cursor = left_cursor;
-                active_cell[popup->cursor++] = key;
                 memmove(&active_cell[left_cursor + 1], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
                 memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
+                popup->cursor = left_cursor;
+                active_cell[popup->cursor++] = key;
             }
             popup->selection_cursor = popup->cursor;
         } else {
