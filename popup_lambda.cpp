@@ -171,19 +171,17 @@ auto popup_popup = [&] (
         }
     }
 
-#define _CELL_ACTIVE_(d) (popup->index_of_active_cell == d)
-
-    for (uint32 d = 0; d < num_cells; ++d) if (_CELL_ACTIVE_(d)) *value[d] = strtof(popup->cells[d], NULL);
+    for (uint32 d = 0; d < num_cells; ++d) if (popup->index_of_active_cell == d) *value[d] = strtof(popup->cells[d], NULL);
     if (!HACK_DONT_DRAW_IMGUI_UNDO_REDO_OTHERWISE_POPUPS_WEIRDNESS) {
         for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
             char buffer[256];
-            // if (_CELL_ACTIVE_(d)) sprintf(buffer, "`%s %s (%g)", name[d], popup->cells[d], *value[d]);
+            // if (popup->index_of_active_cell == d) sprintf(buffer, "`%s %s (%g)", name[d], popup->cells[d], *value[d]);
             // else                  sprintf(buffer,  "%s (%s) %g", name[d], popup->cells[d], *value[d]);
-            if (_CELL_ACTIVE_(d)) sprintf(buffer, "`%s %s", name[d], popup->cells[d]);
+            if (popup->index_of_active_cell == d) sprintf(buffer, "`%s %s", name[d], popup->cells[d]);
             else                  sprintf(buffer,  "%s %g", name[d], *value[d]);
             if (name[d]) {
-                if (!_CELL_ACTIVE_(d)) {
+                if (popup->index_of_active_cell != d) {
                     gui_printf(buffer);
                 } else { // FORNOW: horrifying; needs at least a variant of stb_easy_font_width that takes an offset; should also do the 2 * for us
                     if (!SELECTION_NOT_ACTIVE()) {
