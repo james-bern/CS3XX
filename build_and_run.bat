@@ -123,6 +123,7 @@ else
         -o executable \
         -std=c++11 \
         -fno-strict-aliasing \
+        -ferror-limit=256 \
         -O$OPTARG \
         -g \
         -Wall -Wextra \

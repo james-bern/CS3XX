@@ -37,8 +37,7 @@ auto popup_popup = [&] (
             if (*value[d] != 0) sprintf(popup->cells[d], "%g", *value[d]);
         }
         popup->cursor = 0;
-        popup->selection_left = 0;
-        popup->selection_right = strlen(popup->cells[popup->index_of_active_cell]);
+        popup->selection_cursor = strlen(popup->cells[popup->index_of_active_cell]);
     }
 
     // KEY PRESS ////////////////////////////////////////////////////
@@ -47,11 +46,13 @@ auto popup_popup = [&] (
 
     ASSERT(popup->index_of_active_cell >= 0);
     ASSERT(popup->index_of_active_cell <= num_cells);
-    ASSERT(popup->selection_left <= popup->selection_right);
-    ASSERT(popup->selection_right <= POPUP_CELL_LENGTH);
+    ASSERT(popup->cursor >= 0);
+    ASSERT(popup->cursor <= POPUP_CELL_LENGTH);
+    ASSERT(popup->selection_cursor >= 0);
+    ASSERT(popup->selection_cursor <= POPUP_CELL_LENGTH);
 
-    auto SELECTION_CLEAR = [&]() -> void { popup->selection_left = popup->selection_right = 0; };
-    auto SELECTION_NOT_ACTIVE = [&]() -> bool { return (popup->selection_left == popup->selection_right); };
+    auto SELECTION_CURSOR_TO_CURSOR = [&]() -> void { popup->selection_cursor = popup->cursor; };
+    auto SELECTION_NOT_ACTIVE = [&]() -> bool { return (popup->selection_cursor == popup->cursor); };
 
     if (_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) {
         _global_screen_state.popup_blinker_time = 0.0; // FORNOW
@@ -82,14 +83,13 @@ auto popup_popup = [&] (
             popup->cursor = 0;
             memset(popup->cells[popup->index_of_active_cell], 0, POPUP_CELL_LENGTH);
             sprintf(popup->cells[popup->index_of_active_cell], "%g", *value[popup->index_of_active_cell]);
-            { // active_cell_selection_*
-                popup->selection_left = 0;
-                popup->selection_right = strlen(popup->cells[popup->index_of_active_cell]); // FORNOW
-            }
+            popup->selection_cursor = strlen(popup->cells[popup->index_of_active_cell]);
         }
 
         char *active_cell = popup->cells[popup->index_of_active_cell];
         uint32 len = strlen(active_cell);
+        uint32 left_cursor = MIN(popup->cursor, popup->selection_cursor);
+        uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
 
         // TODO: consider selection_left_right -> selection cursor (the other)
@@ -102,46 +102,31 @@ auto popup_popup = [&] (
                 if (SELECTION_NOT_ACTIVE()) {
                     if (popup->cursor > 0) --popup->cursor;
                 } else {
-                    popup->cursor = popup->selection_left;
-                    SELECTION_CLEAR();
+                    popup->cursor = left_cursor;
                 }
+                popup->selection_cursor = popup->cursor;
             } else if (shift && !super) {
-                if (SELECTION_NOT_ACTIVE()) {
-                    popup->selection_right = popup->cursor;
-                    popup->selection_left = (popup->cursor > 0) ? popup->cursor - 1 : 0;
-                    popup->cursor = popup->selection_left;
-                } else {
-                    bool32 move_left = (popup->cursor == popup->selection_left);
-                    if (popup->cursor > 0) --popup->cursor;
-                    if (move_left) popup->selection_left = popup->cursor; else popup->selection_right = popup->cursor;
-                }
+                if (SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
+                if (popup->cursor > 0) --popup->cursor;
             } else if (super && !shift) {
                 popup->cursor = 0;
-                SELECTION_CLEAR();
+                SELECTION_CURSOR_TO_CURSOR();
             } else { ASSERT(shift && super);
             }
         } else if (key == GLFW_KEY_RIGHT) {
             if (!shift && !super) {
                 if (SELECTION_NOT_ACTIVE()) {
                     if (popup->cursor < POPUP_CELL_LENGTH) ++popup->cursor;
-                    popup->cursor = MIN(popup->cursor, strlen(active_cell)); // FORNOW
                 } else {
-                    popup->cursor = popup->selection_right;
-                    SELECTION_CLEAR();
+                    popup->cursor = MAX(popup->cursor, popup->selection_cursor);
                 }
+                popup->selection_cursor = popup->cursor;
             } else if (shift && !super) {
-                if (SELECTION_NOT_ACTIVE()) {
-                    popup->selection_left = popup->cursor;
-                    popup->selection_right = (popup->cursor < len) ? popup->cursor + 1 : len;
-                    popup->cursor = popup->selection_right;
-                } else {
-                    bool32 move_left = (popup->cursor == popup->selection_left);
-                    if (popup->cursor < len) ++popup->cursor;
-                    if (move_left) popup->selection_left = popup->cursor; else popup->selection_right = popup->cursor;
-                }
+                if (SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
+                if (popup->cursor < len) ++popup->cursor;
             } else if (super && !shift) {
                 popup->cursor = len;
-                SELECTION_CLEAR();
+                SELECTION_CURSOR_TO_CURSOR();
             } else { ASSERT(shift && super);
             }
         } else if (key == GLFW_KEY_BACKSPACE) {
@@ -160,11 +145,11 @@ auto popup_popup = [&] (
                 // * * * * * * * * * * * * * * * *
                 // * * * * * * * * * * * * - - - -
                 //    L       R                   
-                popup->cursor = popup->selection_left;
-                memmove(&active_cell[popup->selection_left], &active_cell[popup->selection_right], POPUP_CELL_LENGTH - popup->selection_right);
-                memset(&active_cell[POPUP_CELL_LENGTH - (popup->selection_right - popup->selection_left)], 0, popup->selection_right - popup->selection_left);
-                SELECTION_CLEAR();
+                popup->cursor = left_cursor;
+                memmove(&active_cell[left_cursor], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - left_cursor)], 0, right_cursor - left_cursor);
             }
+            popup->selection_cursor = popup->cursor;
         } else if (key_is_digit || key_is_numerical_punctuation) {
             if (SELECTION_NOT_ACTIVE()) {
                 if (popup->cursor < POPUP_CELL_LENGTH) {
@@ -172,12 +157,12 @@ auto popup_popup = [&] (
                     active_cell[popup->cursor++] = key;
                 }
             } else {
-                popup->cursor = popup->selection_left;
+                popup->cursor = left_cursor;
                 active_cell[popup->cursor++] = key;
-                memmove(&active_cell[popup->selection_left + 1], &active_cell[popup->selection_right], POPUP_CELL_LENGTH - popup->selection_right);
-                memset(&active_cell[POPUP_CELL_LENGTH - (popup->selection_right - (popup->selection_left + 1))], 0, popup->selection_right - (popup->selection_left + 1));
-                SELECTION_CLEAR();
+                memmove(&active_cell[left_cursor + 1], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
             }
+            popup->selection_cursor = popup->cursor;
         } else {
             popup_popup_ate_this_event = false;
         }
@@ -202,17 +187,17 @@ auto popup_popup = [&] (
                         uint32 o = COW1._gui_x_curr + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" "));
                         char tmp[4096]; // FORNOW
                         strcpy(tmp, popup->cells[d]);
-                        tmp[popup->selection_right] = '\0';
+                        tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
                         uint32 R = o + 2 * stb_easy_font_width(tmp) - 2.5;
-                        tmp[popup->selection_left] = '\0';
-                        uint32 L = o + 2 * stb_easy_font_width(tmp);
+                        tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
+                        uint32 left_cursor = o + 2 * stb_easy_font_width(tmp);
                         uint32 y = COW1._gui_y_curr;
                         eso_begin(globals._gui_NDC_from_Screen, SOUP_QUADS);
                         eso_color(0.6f, 0.6f, 0.0f);
-                        eso_vertex(L, y);
+                        eso_vertex(left_cursor, y);
                         eso_vertex(R, y);
                         eso_vertex(R, y + 20);
-                        eso_vertex(L, y + 20);
+                        eso_vertex(left_cursor, y + 20);
                         eso_end();
                     }
                     uint32 x = COW1._gui_x_curr;

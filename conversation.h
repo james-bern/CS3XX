@@ -174,8 +174,9 @@ struct PopupState {
 
     uint32 index_of_active_cell;
     uint32 cursor;
-    uint32 selection_left;
-    uint32 selection_right;
+    uint32 selection_cursor;
+    // uint32 selection_left;
+    // uint32 selection_right;
 
     void *_active_popup_unique_ID__FORNOW_name0;
 
