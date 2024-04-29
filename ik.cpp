@@ -1,3 +1,8 @@
+// [why are you going?]
+//
+// we're going [to the defense] to support charlie, i think
+// pretty much nobody knows anything about the stuff he's doing except he himself
+
 
 // TODO: They need a simulator app
 // TODO: Linear actuator with rack
@@ -44,6 +49,7 @@ int main() {
             y_target = mouse_s.y;
         }
 
+            static real32 time;
         // IK
         if (ik) {
             real32 L20 = L[0] * L[0];
@@ -55,9 +61,8 @@ int main() {
             u[0] = A - B;
             u[1] = acos((r2 - L20 - L21) / (2 * L[0] * L[1]));
         } else {
-            static real32 time;
-            u[0] = 1.33 * time;
-            u[1] = 3.7 * time;
+            u[0] = 2 * time;
+            u[1] = (PI + sin(time)) * time;
             // u[0] = sin(1.33 * time) * RAD(90);
             // u[1] = sin(4.7 * time) * RAD(90);
             time += 0.01;
@@ -77,7 +82,8 @@ int main() {
         eso_begin(PV, SOUP_LINE_STRIP);
         eso_color(monokai.white);
         for (uint32 i = 0; i < trace.length; ++i) {
-        eso_color(color_kelly(i / 100));
+            eso_color(color_plasma(0.5 + 0.5 * sin(i / 10. - 5.0 *
+                            time)));
             eso_vertex(trace.array[i]);
         }
         eso_end();

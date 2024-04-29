@@ -156,6 +156,30 @@ struct ScreenState {
     char space_bar_event_key;
     char dxf_filename_for_reload[128];
     char drop_path[256];
+
+    real32 popup_blinker_time;
+};
+
+struct PopupState {
+    real32 param0;
+    real32 param1;
+    real32 circle_diameter;
+    real32 circle_radius;
+    real32 circle_circumference;
+    real32 fillet_radius;
+
+    #define POPUP_MAX_NUM_CELLS 4
+    #define POPUP_CELL_LENGTH 256
+    char cells[POPUP_MAX_NUM_CELLS][POPUP_CELL_LENGTH];
+
+    uint32 index_of_active_cell;
+    uint32 cursor;
+    uint32 selection_left;
+    uint32 selection_right;
+
+    void *_active_popup_unique_ID__FORNOW_name0;
+
+    // TODO: checkboxes
 };
 
 struct WorldState {
@@ -190,21 +214,7 @@ struct WorldState {
         vec2 first_click;
     } two_click_command;
 
-    struct {
-        real32 param0;
-        real32 param1;
-        real32 circle_diameter;
-        real32 circle_radius;
-        real32 fillet_radius;
-
-        #define POPUP_MAX_NUM_CELLS 4
-        char cells[POPUP_MAX_NUM_CELLS][256];
-        char *write_head;
-        uint32 active_cell_index;
-        bool32 initialized = false;
-
-        // TODO: checkboxes
-    } popup;
+    PopupState popup;
 };
 
 
