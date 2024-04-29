@@ -34,15 +34,20 @@ auto popup_popup = [&] (
         for (uint32 d = 0; d < num_cells; ++d) {
             if (!name[d]) continue;
             memset(popup->cells[d], 0, POPUP_CELL_LENGTH);
-            if (*value[d] != 0) sprintf(popup->cells[d], "%g", *value[d]);
+            sprintf(popup->cells[d], "%g", *value[d]);
         }
-        popup->cursor = 0;
-        popup->selection_cursor = strlen(popup->cells[popup->index_of_active_cell]);
+        popup->cursor = strlen(popup->cells[popup->index_of_active_cell]);
+        popup->selection_cursor = 0;
     }
 
     // KEY PRESS ////////////////////////////////////////////////////
 
-    // TODO: paste, copy, etc.
+    // TODO: port extrude to use this
+    // TODO: 'X'
+    // TODO: mouse click
+    // TODO: mouse drag
+    // TODO: paste from os clipboard
+    // TODO: parsing math formulas
 
     ASSERT(popup->index_of_active_cell >= 0);
     ASSERT(popup->index_of_active_cell <= num_cells);
@@ -51,7 +56,6 @@ auto popup_popup = [&] (
     ASSERT(popup->selection_cursor >= 0);
     ASSERT(popup->selection_cursor <= POPUP_CELL_LENGTH);
 
-    auto SELECTION_CURSOR_TO_CURSOR = [&]() -> void { popup->selection_cursor = popup->cursor; };
     auto SELECTION_NOT_ACTIVE = [&]() -> bool { return (popup->selection_cursor == popup->cursor); };
 
     if (_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) {
@@ -80,10 +84,10 @@ auto popup_popup = [&] (
                 }
                 popup->index_of_active_cell = MODULO(popup->index_of_active_cell, num_cells);
             }
-            popup->cursor = 0;
             memset(popup->cells[popup->index_of_active_cell], 0, POPUP_CELL_LENGTH);
             sprintf(popup->cells[popup->index_of_active_cell], "%g", *value[popup->index_of_active_cell]);
-            popup->selection_cursor = strlen(popup->cells[popup->index_of_active_cell]);
+            popup->cursor = strlen(popup->cells[popup->index_of_active_cell]);
+            popup->selection_cursor = 0;
         }
 
         char *active_cell = popup->cells[popup->index_of_active_cell];
@@ -91,9 +95,11 @@ auto popup_popup = [&] (
         uint32 left_cursor = MIN(popup->cursor, popup->selection_cursor);
         uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
-
         popup_popup_ate_this_event = true; // default
         if (_tab_hack_so_aliases_not_introduced_too_far_up) {
+        } else if (super && (key == 'A')) {
+            popup->cursor = len;
+            popup->selection_cursor = 0;
         } else if (key == GLFW_KEY_LEFT) {
             if (!shift && !super) {
                 if (SELECTION_NOT_ACTIVE()) {
@@ -106,14 +112,13 @@ auto popup_popup = [&] (
                 if (SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
                 if (popup->cursor > 0) --popup->cursor;
             } else if (super && !shift) {
-                popup->cursor = 0;
-                SELECTION_CURSOR_TO_CURSOR();
+                popup->selection_cursor = popup->cursor = 0;
             } else { ASSERT(shift && super);
                 popup->selection_cursor = 0;
             }
         } else if (key == GLFW_KEY_RIGHT) {
             if (!shift && !super) {
-                if (SELECTION_NOT_ACTIVE()) 
+                if (SELECTION_NOT_ACTIVE()) {
                     if (popup->cursor < POPUP_CELL_LENGTH) ++popup->cursor;
                 } else {
                     popup->cursor = MAX(popup->cursor, popup->selection_cursor);
@@ -123,8 +128,7 @@ auto popup_popup = [&] (
                 if (SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
                 if (popup->cursor < len) ++popup->cursor;
             } else if (super && !shift) {
-                popup->cursor = len;
-                SELECTION_CURSOR_TO_CURSOR();
+                popup->selection_cursor = popup->cursor = len;
             } else { ASSERT(shift && super);
                 popup->selection_cursor = len;
             }
