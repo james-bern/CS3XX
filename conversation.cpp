@@ -1628,7 +1628,10 @@ void conversation_draw() {
     mat4 P_2D = camera_get_P(&_global_screen_state.camera_2D);
     mat4 V_2D = camera_get_V(&_global_screen_state.camera_2D);
     mat4 PV_2D = P_2D * V_2D;
+    // FORNOW TODO BAD NAME mouse_*
     real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
+    vec2 mouse_preview = { mouse_x, mouse_y };
+    snap_map(mouse_preview.x, mouse_preview.y, &mouse_preview.x, &mouse_preview.y);
     mat4 P_3D = camera_get_P(&_global_screen_state.camera_3D);
     mat4 V_3D = camera_get_V(&_global_screen_state.camera_3D);
     mat4 PV_3D = P_3D * V_3D;
@@ -1746,13 +1749,25 @@ void conversation_draw() {
             }
             { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
                 real32 funky_NDC_factor = _global_screen_state.camera_2D.screen_height_World / 120.0f;
+                real32 L = 10 * funky_NDC_factor;
+                real32 l = funky_NDC_factor;
+
                 // axis
                 eso_begin(PV_2D, SOUP_LINES);
                 eso_color(0.6f, 0.6f, 0.8f);
-                real32 L = 10 * funky_NDC_factor;
-                real32 l = funky_NDC_factor;
-                vec2 a = global_world_state.dxf.axis_base_point;
-                real32 theta = global_world_state.dxf.axis_angle;
+                vec2 a;
+                real32 theta; {
+                    if (global_world_state.modes.click_mode != CLICK_MODE_SET_AXIS) {
+                        a = global_world_state.dxf.axis_base_point;
+                        theta = global_world_state.dxf.axis_angle;
+                    } else if (!global_world_state.two_click_command.awaiting_second_click) {
+                        a = mouse_preview;
+                        theta = global_world_state.dxf.axis_angle;
+                    } else {
+                        a = global_world_state.two_click_command.first_click;
+                        theta = atan2(mouse_preview - a);
+                    }
+                }
                 vec2 b = a + L * e_theta(theta);
                 eso_vertex(a);
                 eso_vertex(b);
@@ -1761,14 +1776,21 @@ void conversation_draw() {
                 eso_vertex(b);
                 eso_vertex(b + l * e_theta(theta + PI + PI / 4));
                 eso_end();
-              // origin
+                // origin
+                vec2 o; {
+                    if (global_world_state.modes.click_mode != CLICK_MODE_SET_ORIGIN) {
+                        o = global_world_state.dxf.origin;
+                    } else {
+                        o = mouse_preview;
+                    }
+                }
                 eso_begin(PV_2D, SOUP_LINES);
                 eso_color(0.8f, 0.8f, 1.0f);
                 real32 r = funky_NDC_factor;
-                eso_vertex(global_world_state.dxf.origin.x + -r*.7f, global_world_state.dxf.origin.y + 0.0f);
-                eso_vertex(global_world_state.dxf.origin.x + r,      global_world_state.dxf.origin.y + 0.0f);
-                eso_vertex(global_world_state.dxf.origin.x + 0.0f,   global_world_state.dxf.origin.y + -r);
-                eso_vertex(global_world_state.dxf.origin.x + 0.0f,   global_world_state.dxf.origin.y + r*.7f);
+                eso_vertex(o.x + -r*.7f, o.y + 0.0f);
+                eso_vertex(o.x + r,      o.y + 0.0f);
+                eso_vertex(o.x + 0.0f,   o.y + -r);
+                eso_vertex(o.x + 0.0f,   o.y + r*.7f);
                 eso_end();
             }
 

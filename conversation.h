@@ -531,8 +531,8 @@ void _dxf_eso_color(uint32 color) {
     else if (color == 9) { eso_color(204 / 255.0f, 136 / 255.0f,   1 / 255.0f); }
     else if (color == DXF_COLOR_SELECTION) { eso_color(1.0f, 1.0f, 0.0f); }
     else {
-        // printf("WARNING: slits not implemented\n");
-        eso_color(1.0, 1.0, 1.0);
+        warn_once("WARNING: slits not implemented");
+        eso_color(0.3f, 0.3f, 0.3f);
     }
 }
 
