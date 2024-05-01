@@ -20,19 +20,20 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define ENTER_MODE_REVOLVE_CUT        4
 #define ENTER_MODE_OPEN               5
 #define ENTER_MODE_SAVE               6
-#define ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO 7
+#define ENTER_MODE_SET_ORIGIN 7
 #define ENTER_MODE_OFFSET_PLANE_BY    8
 
-#define CLICK_MODE_NONE               0
-#define CLICK_MODE_SELECT             1
-#define CLICK_MODE_DESELECT           2
-#define CLICK_MODE_MOVE_FEATURE_REFERENCE_POINT_TO        3
-#define CLICK_MODE_MEASURE            4
-#define CLICK_MODE_CREATE_LINE        5
-#define CLICK_MODE_CREATE_BOX         6
-#define CLICK_MODE_CREATE_CIRCLE      7
-#define CLICK_MODE_CREATE_FILLET      8
-#define CLICK_MODE_DXF_MOVE           9
+#define CLICK_MODE_NONE              0
+#define CLICK_MODE_SELECT            1
+#define CLICK_MODE_DESELECT          2
+#define CLICK_MODE_SET_ORIGIN        3
+#define CLICK_MODE_SET_AXIS          4
+#define CLICK_MODE_MEASURE           5
+#define CLICK_MODE_CREATE_LINE       6
+#define CLICK_MODE_CREATE_BOX        7
+#define CLICK_MODE_CREATE_CIRCLE     8
+#define CLICK_MODE_CREATE_FILLET     9
+#define CLICK_MODE_MOVE_DXF_ENTITIES 10
 
 #define CLICK_MODIFIER_NONE                  0
 #define CLICK_MODIFIER_CONNECTED             1

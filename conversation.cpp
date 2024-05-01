@@ -1,3 +1,7 @@
+// // TODO: fidget spinner
+// holding shift to snap mouse to 15 deg
+// CLICK_MODE_MOVE_FEATURE_REVOLVE_AXIS (two_click_command)
+
 // // TODO (soon): feature freeeze
 // TODO: rewrite cow/snail in C
 
@@ -565,12 +569,12 @@ void standard_event_process(
 
         bool32 click_mode_SNAP_ELIGIBLE_ =
             0
-            || (global_world_state.modes.click_mode == CLICK_MODE_MOVE_FEATURE_REFERENCE_POINT_TO)
+            || (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN)
             || (global_world_state.modes.click_mode == CLICK_MODE_MEASURE)
             || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE)
             || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX)
             || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE)
-            || (global_world_state.modes.click_mode == CLICK_MODE_DXF_MOVE)
+            || (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES)
             ;
 
         // TODO: _modes.enter_mode_NEEDS_CONSOLE
@@ -612,7 +616,7 @@ void standard_event_process(
                     if (0
                             || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD)
                             || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)
-                            || (global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO)
+                            || (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN)
                             || (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY)
                             || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET)
                        ) {
@@ -659,7 +663,7 @@ void standard_event_process(
                                 ASSERT(revolve);
                                 ;
                             }
-                        } else if (global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) {
+                        } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
                             ;
                         } else if (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
                             ;
@@ -714,7 +718,7 @@ void standard_event_process(
                             global_world_state.feature_plane = {};
                             for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
                         }
-                    } else if (global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) {
+                    } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
                         global_world_state.dxf.feature_reference_point.x = console_param_1;
                         global_world_state.dxf.feature_reference_point.y = console_param_2;
                     } else { ASSERT((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE));
@@ -786,8 +790,8 @@ void standard_event_process(
                 }
             } else if (key_lambda('Z', false, true)) {
                 global_world_state.modes = {};
-                global_world_state.modes.enter_mode = ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO;
-                global_world_state.modes.click_mode = CLICK_MODE_MOVE_FEATURE_REFERENCE_POINT_TO;
+                global_world_state.modes.enter_mode = ENTER_MODE_SET_ORIGIN;
+                global_world_state.modes.click_mode = CLICK_MODE_SET_ORIGIN;
                 global_world_state.console = {};
             } else if (key_lambda('S')) {
                 global_world_state.modes.click_mode = CLICK_MODE_SELECT;
@@ -847,7 +851,7 @@ void standard_event_process(
                     global_world_state.two_click_command.awaiting_second_click = false;
                 } else {
                     _standard_event->checkpoint_me = true;
-                    global_world_state.modes.click_mode = CLICK_MODE_DXF_MOVE;
+                    global_world_state.modes.click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
                     global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
                     global_world_state.two_click_command.awaiting_second_click = false;
                 }
@@ -918,7 +922,7 @@ void standard_event_process(
                  (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX) ||
                  (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) ||
                  (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) ||
-                 (global_world_state.modes.click_mode == CLICK_MODE_DXF_MOVE) ||
+                 (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) ||
                  (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier == CLICK_MODIFIER_WINDOW)))
                 && (!global_world_state.two_click_command.awaiting_second_click)
            ) { //
@@ -952,7 +956,7 @@ void standard_event_process(
             DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, global_world_state.two_click_command.first_click.x, effective_event.mouse_y });
             DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, effective_event.mouse_x, effective_event.mouse_y, effective_event.mouse_x, global_world_state.two_click_command.first_click.y });
             DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, effective_event.mouse_x, effective_event.mouse_y, global_world_state.two_click_command.first_click.x, effective_event.mouse_y });
-        } else if (global_world_state.modes.click_mode == CLICK_MODE_DXF_MOVE) {
+        } else if (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
             _standard_event->checkpoint_me = true;
@@ -987,7 +991,7 @@ void standard_event_process(
             real32 r = SQRT(squared_distance_point_point(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, effective_event.mouse_x, effective_event.mouse_y));
             DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_a_in_degrees, theta_b_in_degrees });
             DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_b_in_degrees, theta_a_in_degrees });
-        } else if (global_world_state.modes.click_mode == CLICK_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) {
+        } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN) {
             _standard_event->checkpoint_me = true;
             global_world_state.dxf.feature_reference_point.x = effective_event.mouse_x;
             global_world_state.dxf.feature_reference_point.y = effective_event.mouse_y;
@@ -1696,7 +1700,7 @@ void conversation_draw() {
                     int32 color = (global_world_state.dxf.entities.array[i].is_selected) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
-                    if ((global_world_state.modes.click_mode == CLICK_MODE_DXF_MOVE) && (global_world_state.two_click_command.awaiting_second_click)) {
+                    if ((global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) && (global_world_state.two_click_command.awaiting_second_click)) {
                         if (global_world_state.dxf.entities.array[i].is_selected) {
                             dx = mouse_x - global_world_state.two_click_command.first_click.x;
                             dy = mouse_y - global_world_state.two_click_command.first_click.y;
@@ -1799,7 +1803,7 @@ void conversation_draw() {
         glScissor(window_width / 2, 0, window_width / 2, window_height);
 
         { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
-            uint32 color = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) || (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
+            uint32 color = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) || (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
 
             uint32 NUM_TUBE_STACKS_INCLUSIVE;
             mat4 M;
@@ -1821,7 +1825,7 @@ void conversation_draw() {
                     real32 argument  = (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1);
                     mat4 R = ((global_world_state.console.revolve_use_x_instead) ? M4_RotationAboutXAxis(argument) : M4_RotationAboutYAxis(argument));
                     M_incr = M4_Translation(global_world_state.dxf.feature_reference_point.x, global_world_state.dxf.feature_reference_point.y, 0.0f) * R * M4_Translation(-global_world_state.dxf.feature_reference_point.x, -global_world_state.dxf.feature_reference_point.y, 0.0f);
-                } else if (global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) {
+                } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
                     // FORNOW
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D;
@@ -1927,7 +1931,7 @@ void conversation_draw() {
                 color = { 0.0f, 1.0f, 1.0f };
                 sign = 1.0f;
                 draw = true;
-            } else if (global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) {
+            } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
                 color = { 0.0f, 1.0f, 1.0f };
                 sign = 1.0f;
                 draw = true;
@@ -1965,7 +1969,7 @@ void conversation_draw() {
             char click_message[256] = {};
             gui_printf("[Click] %s %s %s",
                     (global_world_state.modes.click_mode == CLICK_MODE_NONE) ? "NONE" :
-                    (global_world_state.modes.click_mode == CLICK_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) ? "MOVE_ORIGIN_TO" :
+                    (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN) ? "MOVE_ORIGIN_TO" :
                     (global_world_state.modes.click_mode == CLICK_MODE_SELECT) ? "SELECT" :
                     (global_world_state.modes.click_mode == CLICK_MODE_DESELECT) ? "DESELECT" :
                     (global_world_state.modes.click_mode == CLICK_MODE_MEASURE) ? "MEASURE" :
@@ -1973,7 +1977,7 @@ void conversation_draw() {
                     (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX) ? "CREATE_BOX" :
                     (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) ? "CREATE_CIRCLE" :
                     (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) ? "CREATE_FILLET" :
-                    (global_world_state.modes.click_mode == CLICK_MODE_DXF_MOVE) ? "MOVE_DXF_TO" :
+                    (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) ? "MOVE_DXF_TO" :
                     "???",
                     (global_world_state.modes.click_modifier == CLICK_MODE_NONE) ? "" :
                     (global_world_state.modes.click_modifier == CLICK_MODIFIER_CONNECTED) ? "CONNECTED" :
@@ -1988,7 +1992,7 @@ void conversation_draw() {
 
         {
             char enter_message[256] = {};
-            if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO)) {
+            if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN)) {
                 real32 p, p2;
                 char glyph, glyph2;
                 if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
@@ -2003,7 +2007,7 @@ void conversation_draw() {
                     glyph  = (!global_world_state.console.flip_flag) ? '^' : 'v';
                     glyph2 = (!global_world_state.console.flip_flag) ? 'v' : '^';
                 } else {
-                    ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO);
+                    ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN);
                     p      = console_param_1;
                     p2     = console_param_2;
                     glyph  = 'x';
@@ -2022,7 +2026,7 @@ void conversation_draw() {
                     (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) ? "OPEN" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_MOVE_FEATURE_REFERENCE_POINT_TO) ? "MOVE_FEATURE_REFERENCE_POINT_TO" :
+                    (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) ? "MOVE_FEATURE_REFERENCE_POINT_TO" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) ? "OFFSET_PLANE_TO" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_NONE) ? "NONE" :
                     "???",

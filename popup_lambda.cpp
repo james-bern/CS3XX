@@ -119,7 +119,7 @@ auto popup_popup = [&] (
         } else if (key == GLFW_KEY_RIGHT) {
             if (!shift && !super) {
                 if (SELECTION_NOT_ACTIVE()) {
-                    if (popup->cursor < POPUP_CELL_LENGTH) ++popup->cursor;
+                    if (popup->cursor < len) ++popup->cursor;
                 } else {
                     popup->cursor = MAX(popup->cursor, popup->selection_cursor);
                 }
