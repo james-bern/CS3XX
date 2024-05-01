@@ -20,7 +20,7 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 #define ENTER_MODE_REVOLVE_CUT        4
 #define ENTER_MODE_OPEN               5
 #define ENTER_MODE_SAVE               6
-#define ENTER_MODE_SET_ORIGIN 7
+#define ENTER_MODE_SET_ORIGIN         7
 #define ENTER_MODE_OFFSET_PLANE_BY    8
 
 #define CLICK_MODE_NONE              0
@@ -120,22 +120,22 @@ struct Mesh {
 struct UserEvent {
     uint32 type;
 
-    union {
-        struct {
-            uint32 key;
-            bool32 super;
-            bool32 shift;
-        };
-        struct {
-            real32 mouse_x;
-            real32 mouse_y;
-            bool32 mouse_held;
-        };
-        struct {
-            vec3 o;
-            vec3 dir;
-        };
-    }; 
+    // union {
+    // struct {
+    uint32 key;
+    bool32 super;
+    bool32 shift;
+    // };
+    // struct {
+    real32 mouse_x;
+    real32 mouse_y;
+    bool32 mouse_held;
+    // };
+    // struct {
+    vec3 o;
+    vec3 dir;
+    // };
+    // }; 
 
     bool32 record_me;
     bool32 checkpoint_me;
@@ -189,7 +189,9 @@ struct WorldState {
 
     struct {
         List<DXFEntity> entities;
-        vec2            feature_reference_point;
+        vec2            origin;
+        vec2            axis_base_point;
+        real32          axis_angle;
     } dxf;
 
     struct {
