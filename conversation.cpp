@@ -1969,7 +1969,7 @@ void conversation_draw() {
             char click_message[256] = {};
             gui_printf("[Click] %s %s %s",
                     (global_world_state.modes.click_mode == CLICK_MODE_NONE) ? "NONE" :
-                    (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN) ? "MOVE_ORIGIN_TO" :
+                    (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN) ? "SET_ORIGIN" :
                     (global_world_state.modes.click_mode == CLICK_MODE_SELECT) ? "SELECT" :
                     (global_world_state.modes.click_mode == CLICK_MODE_DESELECT) ? "DESELECT" :
                     (global_world_state.modes.click_mode == CLICK_MODE_MEASURE) ? "MEASURE" :
@@ -2026,7 +2026,7 @@ void conversation_draw() {
                     (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) ? "OPEN" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) ? "MOVE_FEATURE_REFERENCE_POINT_TO" :
+                    (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) ? "SET_ORIGIN" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) ? "OFFSET_PLANE_TO" :
                     (global_world_state.modes.enter_mode == ENTER_MODE_NONE) ? "NONE" :
                     "???",
