@@ -92,17 +92,20 @@ for /F %%a in ('"prompt $E$S & echo on & for %%b in (1) do rem"') do set "ESC=%%
 exit /B
 
 
+
+
+
+
+
 BATCH
-
-
 
 if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
     echo "build and run   in   debug mode: [35m./build_and_run.bat hwXX.cpp [0m"
     echo "build and run   in release mode: [35m./build_and_run.bat hwXX.cpp --release[0m"
     echo "build and debug in      VS Code: [35m./build_and_run.bat hwXX.cpp --debug[0m"
 else
-    if [ -f "executable.exe" ]; then
-        rm executable.exe
+    if [ -f "executable" ]; then
+        rm executable
     fi
 
     clear
@@ -117,9 +120,10 @@ else
 
     clang++ \
         $1 \
-        -o executable.exe \
+        -o executable \
         -std=c++11 \
         -fno-strict-aliasing \
+        -ferror-limit=256 \
         -O$OPTARG \
         -g \
         -Wall -Wextra \
@@ -136,15 +140,13 @@ else
         # -arch x86_64 \
         # -mmacosx-version-min=11.0 \
 
-    if [ -f "executable.exe" ]; then
+    if [ -f "executable" ]; then
         if [ "$2" = "--debug" ]; then
             echo "[35m[cow] TODO: debugging $1 in Visual Studio Code[0m"
             source _xplat_debug_vscode.bat
         else
-            echo "[35m[cow] running executable.exe[0m"
-            ./executable.exe
-
-            rm -r executable.exe.dSYM
+            echo "[35m[cow] running executable[0m"
+            ./executable
         fi
     fi
 fi

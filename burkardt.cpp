@@ -8,6 +8,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wsometimes-uninitialized"
+#pragma clang diagnostic ignored "-Warray-parameter"
 #endif
 #include "geometry.h"
 #include "geometry.c"
