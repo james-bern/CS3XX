@@ -1,10 +1,12 @@
+// TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
+
 ////////////////////////////////////////
 // Config-Tweaks ///////////////////////
 ////////////////////////////////////////
 
 real32 Z_FIGHT_EPS = 0.05f;
 real32 TOLERANCE_DEFAULT = 1e-5f;
-uint32 NUM_SEGMENTS_PER_CIRCLE = 128;
+uint32 NUM_SEGMENTS_PER_CIRCLE = 64;
 real32 GRID_SIDE_LENGTH = 256.0f;
 real32 GRID_SPACING = 10.0f;
 real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
@@ -191,14 +193,13 @@ struct WorldState {
         List<DXFEntity> entities;
         vec2            origin;
         vec2            axis_base_point;
-        real32          axis_angle;
+        real32          axis_angle_from_y;
     } dxf;
 
     struct {
         char buffer[128];
         uint32 num_bytes_written;
         bool32 flip_flag; // FORNOW
-        bool32 revolve_use_x_instead; // FORNOW
     } console;
 
     struct {
@@ -304,6 +305,12 @@ bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
     return true;
 }
 
+vec2 bounding_box_clamp(vec2 p, BoundingBox bounding_box) {
+    for (uint32 d = 0; d < 2; ++d) {
+        p[d] = CLAMP(p[d], bounding_box.min[d], bounding_box.max[d]);
+    }
+    return p;
+}
 
 void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, BoundingBox bounding_box) {
     real32 new_o_x = AVG(bounding_box.min[0], bounding_box.max[0]);
@@ -1323,7 +1330,7 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
     glEnable(GL_CULL_FACE);
     glCullFace(GL_FRONT);
     real32 L = GRID_SIDE_LENGTH;
-    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, L / 2 - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
+    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
     glDisable(GL_CULL_FACE);
 }
 
@@ -1394,11 +1401,18 @@ Mesh wrapper_manifold(
         uint32 enter_mode,
         real32 console_param,
         real32 console_param_2,
-        real32 dxf_origin_x,
-        real32 dxf_origin_y,
-        bool32 revolve_use_x_instead) {
+        vec2   dxf_origin,
+        vec2   dxf_axis_base_point,
+        real32 dxf_axis_angle_from_y
+        ) {
 
-    ASSERT(enter_mode != ENTER_MODE_NONE); // FORNOW
+
+    bool32 add = (enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD);
+    bool32 cut = (enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT);
+    bool32 extrude = (enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT);
+    bool32 revolve = (enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT);
+    ASSERT(add || cut);
+    ASSERT(extrude || revolve);
 
     ManifoldManifold *manifold_A; {
         if (mesh->num_vertices == 0) {
@@ -1430,10 +1444,11 @@ Mesh wrapper_manifold(
         }
         ManifoldCrossSection *cross_section; {
             cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
-            cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin_x, -dxf_origin_y);
+            cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
 
-            if  (revolve_use_x_instead) {
-                manifold_cross_section_rotate(cross_section, cross_section, -90.0f);
+            if (revolve) {
+                manifold_cross_section_translate(cross_section, cross_section, -dxf_axis_base_point.x, -dxf_axis_base_point.y);
+                manifold_cross_section_rotate(cross_section, cross_section, DEG(-dxf_axis_angle_from_y)); // * has both the 90 y-up correction and the angle
             }
         }
 
@@ -1447,18 +1462,18 @@ Mesh wrapper_manifold(
             // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
             //       but we support (30, 40) -- which is equivalent to (40, 0)
 
-            if (enter_mode == ENTER_MODE_EXTRUDE_ADD || enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+            if (extrude) {
                 real32 min = MIN(0.0f, MIN(console_param, console_param_2));
                 real32 max = MAX(0.0f, MAX(console_param, console_param_2));
                 real32 length = max - min;
                 manifold_B = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
                 manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, min);
-            } else {
-                ASSERT((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+            } else { ASSERT(revolve);
                 // TODO: M_3D_from_2D 
                 manifold_B = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
-                if (revolve_use_x_instead) manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0f, -90.0f, 0.0f);
+                manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
                 manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
+                manifold_B = manifold_translate(manifold_B, manifold_B, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
             }
             manifold_B = manifold_transform(manifold_B, manifold_B,
                     M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
@@ -1479,7 +1494,7 @@ Mesh wrapper_manifold(
         ManifoldMeshGL *meshgl; {
             ManifoldManifold *manifold_C;
             if (manifold_A == NULL) {
-                ASSERT((enter_mode != ENTER_MODE_EXTRUDE_CUT) && (enter_mode != ENTER_MODE_REVOLVE_CUT));
+                ASSERT(!cut);
                 manifold_C = manifold_B;
             } else {
                 // TODO: ? manifold_delete_manifold(manifold_A);
@@ -1488,7 +1503,7 @@ Mesh wrapper_manifold(
                             malloc(manifold_manifold_size()),
                             manifold_A,
                             manifold_B,
-                            ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD)) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                            (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
                             );
                 manifold_delete_manifold(manifold_A);
                 manifold_delete_manifold(manifold_B);

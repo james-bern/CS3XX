@@ -1,3 +1,4 @@
+// TODO: wonkiness with setting axis
 // TODO: figure out system for exact (x, y) coordinates
 // TODO: figure out system for space bar
 
@@ -81,6 +82,7 @@ mat4 get_M_3D_from_2D() {
     return M4_xyzo(x, y, z, (global_world_state.feature_plane.signed_distance_to_world_origin) * global_world_state.feature_plane.normal);
 }
 
+
 void get_console_params(real32 *console_param_1, real32 *console_param_2) {
     char buffs[2][64] = {};
     uint32 buff_i = 0;
@@ -160,6 +162,9 @@ void snap_map(real32 before_x, real32 before_y, real32 *after_x, real32 *after_y
     *after_x = tmp_x;
     *after_y = tmp_y;
 }
+
+
+// TODO: angle_map
 
 void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     mat4 PVM_3D = P_3D * V_3D * M_3D;
@@ -306,18 +311,19 @@ BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); }
 Queue<UserEvent> queue_of_fresh_events_from_user;
 // TODO clean up
 bool32 callback_mouse_left_held;
+bool32 callback_mouse_shift_held; // TODO
 real32 callback_xpos; // FORNOW
 real32 callback_ypos; // FORNOW
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
         // NOTE: we do NOT forward bare modifier presses
-        if (key == GLFW_KEY_LEFT_CONTROL) return;
+        if (key == GLFW_KEY_LEFT_CONTROL)  return;
         if (key == GLFW_KEY_RIGHT_CONTROL) return;
-        if (key == GLFW_KEY_LEFT_SUPER) return;
-        if (key == GLFW_KEY_RIGHT_SUPER) return;
-        if (key == GLFW_KEY_LEFT_SHIFT) return;
-        if (key == GLFW_KEY_RIGHT_SHIFT) return;
+        if (key == GLFW_KEY_LEFT_SUPER)    return;
+        if (key == GLFW_KEY_RIGHT_SUPER)   return;
+        if (key == GLFW_KEY_LEFT_SHIFT)    return;
+        if (key == GLFW_KEY_RIGHT_SHIFT)   return;
 
         UserEvent event = {};
         event.type = USER_EVENT_TYPE_KEY_PRESS;
@@ -325,6 +331,8 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
         event.shift = (mods & GLFW_MOD_SHIFT);
         queue_enqueue(&queue_of_fresh_events_from_user, event);
+
+        // if (event.
     }
 }
 
@@ -707,10 +715,9 @@ void standard_event_process(
                                         global_world_state.modes.enter_mode,
                                         console_param_1,
                                         console_param_2,
-                                        global_world_state.dxf.origin.x,
-                                        global_world_state.dxf.origin.y,
-                                        global_world_state.console.revolve_use_x_instead
-                                        );
+                                        global_world_state.dxf.origin,
+                                        global_world_state.dxf.axis_base_point,
+                                        global_world_state.dxf.axis_angle_from_y);
                                 cross_section_free(&cross_section);
 
                                 mesh_free_AND_zero(&global_world_state.mesh); // FORNOW
@@ -726,7 +733,6 @@ void standard_event_process(
                         }
 
                         { // reset some stuff
-                            global_world_state.feature_plane = {};
                             for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
                         }
                     } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
@@ -783,15 +789,10 @@ void standard_event_process(
             } else if (key_lambda(COW_KEY_ESCAPE)) {
                 global_world_state.modes = {};
                 global_world_state.console = {};
-                global_world_state.feature_plane = {};
             } else if (key_lambda('1')) { // FORNOW
                 _standard_event->checkpoint_me = true;
                 // FORNOW
-                if (revolve) {
-                    global_world_state.console.revolve_use_x_instead = !global_world_state.console.revolve_use_x_instead;
-                } else {
-                    global_world_state.console.flip_flag = !global_world_state.console.flip_flag;
-                }
+                global_world_state.console.flip_flag = !global_world_state.console.flip_flag;
             } else if (key_lambda('N')) {
                 if (global_world_state.feature_plane.is_active) {
                     global_world_state.modes.enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
@@ -800,14 +801,11 @@ void standard_event_process(
                     conversation_messagef("[n] no plane is_selected");
                 }
             } else if (key_lambda('Z', false, true)) {
-                global_world_state.modes = {};
                 global_world_state.modes.click_mode = CLICK_MODE_SET_ORIGIN;
-                // NOTE: this can do something with the exact (x, y) coordinates
-                global_world_state.console = {};
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
             } else if (key_lambda('A', false, true)) {
-                global_world_state.modes = {};
                 global_world_state.modes.click_mode = CLICK_MODE_SET_AXIS;
-                global_world_state.console = {};
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 global_world_state.two_click_command.awaiting_second_click = false;
             } else if (key_lambda('S')) {
                 global_world_state.modes.click_mode = CLICK_MODE_SELECT;
@@ -841,6 +839,7 @@ void standard_event_process(
                     global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 }
             } else if (key_lambda('Y')) {
+                // TODO: 'Y' remembers last terminal choice of plane for next time
                 _standard_event->checkpoint_me = true;
 
                 // already one of the three primary planes
@@ -864,7 +863,6 @@ void standard_event_process(
                 if (click_mode_SNAP_ELIGIBLE_) {
                     _standard_event->record_me = false;
                     global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
-                    global_world_state.two_click_command.awaiting_second_click = false;
                 } else {
                     _standard_event->checkpoint_me = true;
                     global_world_state.modes.click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
@@ -1015,9 +1013,11 @@ void standard_event_process(
         } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
+            _standard_event->checkpoint_me = true;
             global_world_state.dxf.axis_base_point = first_click;
-            global_world_state.dxf.axis_angle = atan2(second_click - first_click);
-            global_world_state.modes = {};
+            global_world_state.dxf.axis_angle_from_y = (-PI / 2) + atan2(second_click - first_click);
+            global_world_state.modes.click_mode = CLICK_MODE_NONE;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
@@ -1596,18 +1596,28 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
 //////////////////////////////////////////////////
 
 void conversation_draw() {
+    mat4 P_2D = camera_get_P(&_global_screen_state.camera_2D);
+    mat4 V_2D = camera_get_V(&_global_screen_state.camera_2D);
+    mat4 PV_2D = P_2D * V_2D;
     mat4 M_3D_from_2D = get_M_3D_from_2D();
+
+    // FORNOW: sloppy--these change mid-frame
+    real32 console_param_1, console_param_2;
+    get_console_params(&console_param_1, &console_param_2);
 
     bool32 extrude = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT));
     bool32 revolve = ((global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT));
     bool32 add     = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
     bool32 cut     = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT));
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(extrude);
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(revolve);
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(add);
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(cut);
 
-    // FORNOW: repeated computation
+    { // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(extrude);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(revolve);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(add);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(cut);
+    }
+
+    // FORNOW: repeated computation; TODO function
     bool32 dxf_anything_selected;
     {
         dxf_anything_selected = false;
@@ -1618,20 +1628,43 @@ void conversation_draw() {
             }
         }
     }
-    // FORNOW: sloppy--these change mid-frame
-    real32 console_param_1, console_param_2;
-    get_console_params(&console_param_1, &console_param_2);
 
 
 
-    // FORNOW: repeated computation
-    mat4 P_2D = camera_get_P(&_global_screen_state.camera_2D);
-    mat4 V_2D = camera_get_V(&_global_screen_state.camera_2D);
-    mat4 PV_2D = P_2D * V_2D;
-    // FORNOW TODO BAD NAME mouse_*
-    real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
-    vec2 mouse_preview = { mouse_x, mouse_y };
-    snap_map(mouse_preview.x, mouse_preview.y, &mouse_preview.x, &mouse_preview.y);
+    // aliases
+    vec2 first_click = global_world_state.two_click_command.first_click;
+
+
+
+    // preview
+    vec2 preview_mouse; {
+        real32 mouse_x, mouse_y; { _input_get_mouse_position_and_change_in_position_in_world_coordinates(PV_2D.data, &mouse_x, &mouse_y, NULL, NULL); }
+        preview_mouse = { mouse_x, mouse_y };
+        snap_map(preview_mouse.x, preview_mouse.y, &preview_mouse.x, &preview_mouse.y);
+    }
+    vec2 preview_dxf_origin; {
+        if (global_world_state.modes.click_mode != CLICK_MODE_SET_ORIGIN) {
+            preview_dxf_origin = global_world_state.dxf.origin;
+        } else {
+            preview_dxf_origin = preview_mouse;
+        }
+    }
+    vec2 preview_dxf_axis_base_point;
+    real32 preview_dxf_axis_angle_from_y;
+    {
+        if (global_world_state.modes.click_mode != CLICK_MODE_SET_AXIS) {
+            preview_dxf_axis_base_point = global_world_state.dxf.axis_base_point;
+            preview_dxf_axis_angle_from_y = global_world_state.dxf.axis_angle_from_y;
+        } else if (!global_world_state.two_click_command.awaiting_second_click) {
+            preview_dxf_axis_base_point = preview_mouse;
+            preview_dxf_axis_angle_from_y = global_world_state.dxf.axis_angle_from_y;
+        } else {
+            preview_dxf_axis_base_point = first_click;
+            preview_dxf_axis_angle_from_y = atan2(preview_mouse - preview_dxf_axis_base_point) - PI / 2;
+        }
+    }
+
+
     mat4 P_3D = camera_get_P(&_global_screen_state.camera_3D);
     mat4 V_3D = camera_get_V(&_global_screen_state.camera_3D);
     mat4 PV_3D = P_3D * V_3D;
@@ -1644,44 +1677,11 @@ void conversation_draw() {
     }
 
     { // panes
-        { // draw
-            if (0) { // highlight
-                glDisable(GL_DEPTH_TEST);
-                if (_global_screen_state.hot_pane == HOT_PANE_2D) {
-                    eso_begin(globals.Identity, SOUP_QUADS);
-                    eso_color(0.1f, 0.1f, 0.0f);
-                    eso_vertex(-1.0f,  1.0f);
-                    eso_vertex(-1.0f, -1.0f);
-                    eso_vertex( 0.0f, -1.0f);
-                    eso_vertex( 0.0f,  1.0f);
-                    eso_end();
-                } else if (_global_screen_state.hot_pane == HOT_PANE_3D) {
-                    eso_begin(globals.Identity, SOUP_QUADS);
-                    eso_color(0.1f, 0.1f, 0.0f);
-                    eso_vertex(0.0f,  1.0f);
-                    eso_vertex(0.0f, -1.0f);
-                    eso_vertex(1.0f, -1.0f);
-                    eso_vertex(1.0f,  1.0f);
-                    eso_end();
-                }
-                glEnable(GL_DEPTH_TEST);
-            }
-
-            eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
-            eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f);
-            eso_vertex(0.0f,  1.0f);
-            eso_vertex(0.0f, -1.0f);
-            eso_end();
-            // if (app_mode == APP_MODE_CREATE_STL) {
-            //     eso_begin(globals.Identity, SOUP_QUADS);
-            //     eso_color(0.07f, 0.07f, 0.07f);
-            //     eso_vertex(-1.0f,  1.0f);
-            //     eso_vertex(-1.0f, -1.0f);
-            //     eso_vertex( 0.0f, -1.0f);
-            //     eso_vertex( 0.0f,  1.0f);
-            //     eso_end();
-            // }
-        }
+        eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
+        eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f);
+        eso_vertex(0.0f,  1.0f);
+        eso_vertex(0.0f, -1.0f);
+        eso_end();
     }
 
     { // draw 2D draw 2d draw
@@ -1725,8 +1725,8 @@ void conversation_draw() {
                     real32 dy = 0.0f;
                     if ((global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) && (global_world_state.two_click_command.awaiting_second_click)) {
                         if (global_world_state.dxf.entities.array[i].is_selected) {
-                            dx = mouse_x - global_world_state.two_click_command.first_click.x;
-                            dy = mouse_y - global_world_state.two_click_command.first_click.y;
+                            dx = preview_mouse.x - first_click.x;
+                            dy = preview_mouse.y - first_click.y;
                             color = DXF_COLOR_WATER_ONLY;
                         }
                     }
@@ -1749,91 +1749,65 @@ void conversation_draw() {
             }
             { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
                 real32 funky_NDC_factor = _global_screen_state.camera_2D.screen_height_World / 120.0f;
-                real32 L = 10 * funky_NDC_factor;
-                real32 l = funky_NDC_factor;
+                real32 LL = 1000 * funky_NDC_factor;
 
-                // axis
-                eso_begin(PV_2D, SOUP_LINES);
-                eso_color(0.6f, 0.6f, 0.8f);
-                vec2 a;
-                real32 theta; {
-                    if (global_world_state.modes.click_mode != CLICK_MODE_SET_AXIS) {
-                        a = global_world_state.dxf.axis_base_point;
-                        theta = global_world_state.dxf.axis_angle;
-                    } else if (!global_world_state.two_click_command.awaiting_second_click) {
-                        a = mouse_preview;
-                        theta = global_world_state.dxf.axis_angle;
-                    } else {
-                        a = global_world_state.two_click_command.first_click;
-                        theta = atan2(mouse_preview - a);
+                eso_begin(PV_2D, SOUP_LINES, 3.0f); {
+                    // axis
+                    { // eso_color
+                        if (global_world_state.modes.click_mode != CLICK_MODE_SET_AXIS) eso_color(V3(0.9f));
+                        else if (!global_world_state.two_click_command.awaiting_second_click) eso_color(V3(0.7f));
+                        else eso_color(V3(0.8f));
                     }
-                }
-                vec2 b = a + L * e_theta(theta);
-                eso_vertex(a);
-                eso_vertex(b);
-                eso_vertex(b);
-                eso_vertex(b + l * e_theta(theta + PI - PI / 4));
-                eso_vertex(b);
-                eso_vertex(b + l * e_theta(theta + PI + PI / 4));
-                eso_end();
-                // origin
-                vec2 o; {
-                    if (global_world_state.modes.click_mode != CLICK_MODE_SET_ORIGIN) {
-                        o = global_world_state.dxf.origin;
-                    } else {
-                        o = mouse_preview;
-                    }
-                }
-                eso_begin(PV_2D, SOUP_LINES);
-                eso_color(0.8f, 0.8f, 1.0f);
-                real32 r = funky_NDC_factor;
-                eso_vertex(o.x + -r*.7f, o.y + 0.0f);
-                eso_vertex(o.x + r,      o.y + 0.0f);
-                eso_vertex(o.x + 0.0f,   o.y + -r);
-                eso_vertex(o.x + 0.0f,   o.y + r*.7f);
-                eso_end();
+                    vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
+                    eso_vertex(preview_dxf_axis_base_point + v);
+                    eso_vertex(preview_dxf_axis_base_point - v);
+
+                    // origin
+                    eso_color(1.0f, 1.0f, 1.0f);
+                    real32 r = funky_NDC_factor;
+                    eso_vertex(preview_dxf_origin.x - r, preview_dxf_origin.y    );
+                    eso_vertex(preview_dxf_origin.x + r, preview_dxf_origin.y    );
+                    eso_vertex(preview_dxf_origin.x,     preview_dxf_origin.y - r);
+                    eso_vertex(preview_dxf_origin.x,     preview_dxf_origin.y + r);
+                } eso_end();
             }
 
             if (global_world_state.two_click_command.awaiting_second_click) {
                 if (global_world_state.modes.click_modifier == CLICK_MODIFIER_WINDOW) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(0.0f, 1.0f, 1.0f);
-                    real32 x0 = global_world_state.two_click_command.first_click.x;
-                    real32 y0 = global_world_state.two_click_command.first_click.y;
-                    real32 x1 = mouse_x;
-                    real32 y1 = mouse_y;
-                    eso_vertex(x0, y0);
-                    eso_vertex(x1, y0);
-                    eso_vertex(x1, y1);
-                    eso_vertex(x0, y1);
+                    eso_vertex(first_click.x, first_click.y);
+                    eso_vertex(preview_mouse.x, first_click.y);
+                    eso_vertex(preview_mouse.x, preview_mouse.y);
+                    eso_vertex(first_click.x, preview_mouse.y);
                     eso_end();
                 }
                 if (global_world_state.modes.click_mode == CLICK_MODE_MEASURE) { // measure line
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(0.0f, 1.0f, 1.0f);
-                    eso_vertex(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
-                    eso_vertex(mouse_x, mouse_y);
+                    eso_vertex(first_click);
+                    eso_vertex(preview_mouse);
                     eso_end();
                 }
                 if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE) { // measure line
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(0.0f, 1.0f, 1.0f);
                     eso_vertex(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
-                    eso_vertex(mouse_x, mouse_y);
+                    eso_vertex(preview_mouse);
                     eso_end();
                 }
                 if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(0.0f, 1.0f, 1.0f);
-                    eso_vertex(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
-                    eso_vertex(mouse_x,               global_world_state.two_click_command.first_click.y);
-                    eso_vertex(mouse_x,               mouse_y              );
-                    eso_vertex(global_world_state.two_click_command.first_click.x, mouse_y              );
+                    eso_vertex(first_click.x, first_click.y);
+                    eso_vertex(preview_mouse.x, first_click.y);
+                    eso_vertex(preview_mouse.x, preview_mouse.y);
+                    eso_vertex(first_click.x, preview_mouse.y);
                     eso_end();
                 }
                 if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) {
                     vec2 c = { global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y };
-                    vec2 p = { mouse_x, mouse_y };
+                    vec2 p = preview_mouse;
                     real32 r = norm(c - p);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(0.0f, 1.0f, 1.0f);
@@ -1865,7 +1839,9 @@ void conversation_draw() {
             uint32 NUM_TUBE_STACKS_INCLUSIVE;
             mat4 M;
             mat4 M_incr;
-            if (true) {
+            {
+                mat4 T_o = M4_Translation(preview_dxf_origin);
+                mat4 inv_T_o = M4_Translation(-preview_dxf_origin);
                 if (extrude) {
                     // NOTE: some repetition with wrapper
                     real32 a = MIN(0.0f, MIN(console_param_1, console_param_2));
@@ -1876,44 +1852,59 @@ void conversation_draw() {
                     M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                 } else if (revolve) {
                     NUM_TUBE_STACKS_INCLUSIVE = 64;
-                    M = M_3D_from_2D * M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, 0.0f);
-                    real32 a = 0.0f;
-                    real32 b = TAU;
-                    real32 argument  = (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1);
-                    mat4 R = ((global_world_state.console.revolve_use_x_instead) ? M4_RotationAboutXAxis(argument) : M4_RotationAboutYAxis(argument));
-                    M_incr = M4_Translation(global_world_state.dxf.origin.x, global_world_state.dxf.origin.y, 0.0f) * R * M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, 0.0f);
+                    M = M_3D_from_2D * inv_T_o;
+                    { // M_incr
+                        real32 a = 0.0f;
+                        real32 b = TAU;
+                        mat4 R_a = M4_RotationAbout(V3(e_theta(PI / 2 + preview_dxf_axis_angle_from_y), 0.0f), (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                        mat4 T_a = M4_Translation(V3(preview_dxf_axis_base_point, 0.0f));
+                        mat4 inv_T_a = inverse(T_a);
+                        M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
+                    }
                 } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
-                    // FORNOW
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D;
                     M_incr = M4_Identity();
                 } else if (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, console_param_1 + Z_FIGHT_EPS);
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, console_param_1 + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
-                } else {
+                } else { // default
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, Z_FIGHT_EPS);
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 }
+
                 for (uint32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
-                    {
-                        eso_begin(PV_3D * M, SOUP_LINES, 5.0f);
+                    eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
                         for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
                             DXFEntity *entity = &global_world_state.dxf.entities.array[i];
                             if (global_world_state.dxf.entities.array[i].is_selected) {
                                 eso_dxf_entity__SOUP_LINES(entity, color);
                             }
                         }
-                        eso_end();
-                    }
+                    } eso_end();
                     M *= M_incr;
                 }
             }
         }
 
-        BoundingBox selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
+        BoundingBox draw_bounding_box; {
+            BoundingBox _selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
+            if (dxf_anything_selected) {
+                draw_bounding_box = _selection_bounding_box;
+                real32 eps = 10.0f;
+                draw_bounding_box.min[0] -= eps;
+                draw_bounding_box.max[0] += eps;
+                draw_bounding_box.min[1] -= eps;
+                draw_bounding_box.max[1] += eps;
+            } else {
+                real32 r = 30.0f;
+                draw_bounding_box = { -r, -r, r, r };
+            }
+        }
 
+        #if 0
         if (dxf_anything_selected) { // arrow
             if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) {
 
@@ -1925,13 +1916,13 @@ void conversation_draw() {
                 bool32 toggle[2] = { global_world_state.console.flip_flag, !global_world_state.console.flip_flag };
                 mat4 A = M_3D_from_2D;
                 if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
-                    bounding_box_center(selection_bounding_box, &arrow_x, &arrow_y);
+                    bounding_box_center(_selection_bounding_box, &arrow_x, &arrow_y);
                     if (dxf_anything_selected) {
                         arrow_x -= global_world_state.dxf.origin.x;
                         arrow_y -= global_world_state.dxf.origin.y;
                     }
                 } else { ASSERT((global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT));
-                    H[0] = 10.0f + selection_bounding_box.max[(!global_world_state.console.flip_flag) ? 1 : 0];
+                    H[0] = 10.0f + _selection_bounding_box.max[(!global_world_state.console.flip_flag) ? 1 : 0];
                     H[1] = 0.0f;
                     toggle[0] = false;
                     toggle[1] = false;
@@ -1959,16 +1950,25 @@ void conversation_draw() {
                 }
             }
         }
+        #endif
 
         if (global_world_state.feature_plane.is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
             real32 r = _global_screen_state.camera_3D.ortho_screen_height_World / 120.0f;
+            real32 LL = 100.0f;
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES, 4.0f);
-            eso_color(0.7f, 0.7f, 1.0f);
+            eso_color(1.0f, 1.0f, 1.0f);
             // eso_color(0.0f, 0.0f, 0.0f);
-            eso_vertex(-r*0.6f, 0.0f);
-            eso_vertex(r, 0.0f);
+            eso_vertex(-r, 0.0f);
+            eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
-            eso_vertex(0.0f, r*0.6f);
+            eso_vertex(0.0f,  r);
+            // TODO: clip this on the feature_plane
+            vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
+            vec2 a = preview_dxf_axis_base_point + v;
+            vec2 b = preview_dxf_axis_base_point - v;
+            // vec2 a = bounding_box_clamp(preview_dxf_axis_base_point + v, draw_bounding_box);
+            eso_vertex(-preview_dxf_origin + a);
+            eso_vertex(-preview_dxf_origin + b); // FORNOW
             eso_end();
         }
 
@@ -1978,7 +1978,7 @@ void conversation_draw() {
             conversation_draw_3D_grid_box(P_3D, V_3D);
         }
 
-        { // floating sketch plane; NOTE: transparent
+        { // floating sketch plane; selection plane NOTE: transparent
             bool draw = true;
             mat4 PVM = PV_3D * M_3D_from_2D;
             vec3 color = monokai.yellow;
@@ -1995,25 +1995,13 @@ void conversation_draw() {
             } else {
                 if (dxf_anything_selected) PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, 0.0f); // FORNOW
             }
-            real32 r = 30.0f;
-            BoundingBox bounding_box;
-            if (dxf_anything_selected) {
-                bounding_box = selection_bounding_box;
-                real32 eps = 10.0f;
-                bounding_box.min[0] -= eps;
-                bounding_box.max[0] += eps;
-                bounding_box.min[1] -= eps;
-                bounding_box.max[1] += eps;
-            } else {
-                bounding_box = { -r, -r, r, r };
-            }
             if (draw) {
-                eso_begin(PVM, SOUP_OUTLINED_QUADS);
+                eso_begin(PVM, SOUP_QUADS);
                 eso_color(color, 0.35f);
-                eso_vertex(bounding_box.min[0], bounding_box.min[1], sign * Z_FIGHT_EPS);
-                eso_vertex(bounding_box.min[0], bounding_box.max[1], sign * Z_FIGHT_EPS);
-                eso_vertex(bounding_box.max[0], bounding_box.max[1], sign * Z_FIGHT_EPS);
-                eso_vertex(bounding_box.max[0], bounding_box.min[1], sign * Z_FIGHT_EPS);
+                eso_vertex(draw_bounding_box.min[0], draw_bounding_box.min[1], sign * Z_FIGHT_EPS);
+                eso_vertex(draw_bounding_box.min[0], draw_bounding_box.max[1], sign * Z_FIGHT_EPS);
+                eso_vertex(draw_bounding_box.max[0], draw_bounding_box.max[1], sign * Z_FIGHT_EPS);
+                eso_vertex(draw_bounding_box.max[0], draw_bounding_box.min[1], sign * Z_FIGHT_EPS);
                 eso_end();
             }
         }

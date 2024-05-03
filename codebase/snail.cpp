@@ -611,7 +611,7 @@ SnailMatrix<4> M4_RotationAboutZAxis(cow_real t) {
     return ret;
 }
 
-SnailMatrix<4> M4_RotationAxisAngle(SnailVector<3> axis, cow_real angle) {
+SnailMatrix<4> M4_RotationAbout(SnailVector<3> axis, cow_real angle) {
     cow_real x = axis.x;
     cow_real y = axis.y;
     cow_real z = axis.z;
@@ -627,7 +627,8 @@ SnailMatrix<4> M4_RotationAxisAngle(SnailVector<3> axis, cow_real angle) {
     return { col+x2*d, xy*d-z*s, xz*d+y*s, 0,
         xy*d+z*s, col+y2*d, yz*d-x*s, 0,
         xz*d-y*s, yz*d+x*s, col+z2*d, 0,
-        0, 0, 0, 1 };
+        0, 0, 0, 1
+    };
 }
 
 mat4 M4_RotationFrom(vec3 a, vec3 b) {
@@ -645,9 +646,9 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
     mat3 R = identityMatrix<3>() + v_x + v_x * v_x / (1 + col);
     return {
         R.data[0], R.data[1], R.data[2], 0.0,
-        R.data[3], R.data[4], R.data[5], 0.0,
-        R.data[6], R.data[7], R.data[8], 0.0,
-              0.0,       0.0,       0.0, 1.0 };
+            R.data[3], R.data[4], R.data[5], 0.0,
+            R.data[6], R.data[7], R.data[8], 0.0,
+            0.0,       0.0,       0.0, 1.0 };
 }
 
 // optimization stuff //////////////////////////////////////////////////////////
