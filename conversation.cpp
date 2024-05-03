@@ -1,3 +1,5 @@
+// TODO: enter mode needs to go away
+//
 // TODO: get text input into the popup system
 // TODO: figure out system for exact (x, y) coordinates
 // TODO: figure out system for space bar
@@ -155,7 +157,10 @@ vec2 magic_snap(vec2 before) {
                 }
             }
         } else if (
-                (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE)
+                ( 0 
+                  || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE)
+                  || (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS)
+                )
                 && (global_world_state.two_click_command.awaiting_second_click)
                 && (callback_mouse_shift_held)) {
             vec2 a = global_world_state.two_click_command.first_click;
@@ -322,7 +327,7 @@ real32 callback_ypos; // FORNOW
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if ((action == GLFW_PRESS) && (key == GLFW_KEY_LEFT_SHIFT)) callback_mouse_shift_held = true;
-    if ((action == GLFW_RELEASE) && (key == GLFW_KEY_LEFT_SHIFT)) callback_mouse_shift_held = true;
+    if ((action == GLFW_RELEASE) && (key == GLFW_KEY_LEFT_SHIFT)) callback_mouse_shift_held = false;
 
 
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
@@ -525,10 +530,13 @@ void standard_event_process(
                 if (popup_popup("x coordinate", param0, "y coordinate", param1)) {
                     effective_event = MOUSE_2D_event(*param0, *param1);
                 }
-            } else {
-                *param0 = 0;
-                *param1 = 0;
-            }
+                // } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
+                // if (popup_popup("direction 1", param0, "direction 2", param1)) {
+                // }
+        } else {
+            *param0 = 0;
+            *param1 = 0;
+        }
         }
     }
     if (!popup_popup_actually_called_this_event) global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
@@ -831,7 +839,7 @@ void standard_event_process(
                     global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
                     global_world_state.two_click_command.awaiting_second_click = false;
                     _global_screen_state.space_bar_event_key = 'C'; // FORNOW; TODO perhaps key_lambda can store the entirety of the standard_event
-                    // update_space_bar_event_off_of_most_recent_key_lambda
+                                                                    // update_space_bar_event_off_of_most_recent_key_lambda
                 }
             } else if (key_lambda('Q')) {
                 if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
@@ -1022,7 +1030,9 @@ void standard_event_process(
             global_world_state.two_click_command.awaiting_second_click = false;
             _standard_event->checkpoint_me = true;
             global_world_state.dxf.axis_base_point = first_click;
-            global_world_state.dxf.axis_angle_from_y = (-PI / 2) + atan2(second_click - first_click);
+            if (!IS_ZERO(squaredNorm(second_click - first_click))) {
+                global_world_state.dxf.axis_angle_from_y = (-PI / 2) + atan2(second_click - first_click);
+            }
             global_world_state.modes.click_mode = CLICK_MODE_NONE;
             global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) {
@@ -1413,8 +1423,8 @@ void history_undo() {
     }
 
     { // // manipulate stacks (undo -> redo)
-        // 1) pop through a first checkpoint 
-        // 2) pop up to a second checkpoint
+      // 1) pop through a first checkpoint 
+      // 2) pop up to a second checkpoint
         while (EVENT_UNDO_NONEMPTY()) { if (POP_UNDO_ONTO_REDO().user_event->checkpoint_me) break; }
         while (EVENT_UNDO_NONEMPTY()) {
             if (PEEK_UNDO().user_event->checkpoint_me) break;
@@ -1424,8 +1434,8 @@ void history_undo() {
     UserEvent *one_past_end = elephant_undo_ptr_one_past_end(&history.recorded_user_events);
     UserEvent *begin;
     { // // find beginning
-        // 1) walk back to snapshot event (or end of stack)
-        // TODO: this feels kind of sloppy still
+      // 1) walk back to snapshot event (or end of stack)
+      // TODO: this feels kind of sloppy still
         begin = one_past_end - 1; // ?
         world_state_free_AND_zero(&global_world_state);
         while (true) {
@@ -1566,7 +1576,7 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
 
     { // translation of one event into another: special cases that modify fresh_event_from_user
         {// space bar repeats previous command (TODO NOTE: This approach won't actually work; it needs to be in standard_event_process)
-            // (otherwise we can't differentiate between (c)enter and (c)icle)
+         // (otherwise we can't differentiate between (c)enter and (c)icle)
             if (key_lambda(' ')) {
                 fresh_event_from_user = {};
                 fresh_event_from_user.type = USER_EVENT_TYPE_KEY_PRESS;
@@ -2143,7 +2153,7 @@ void _spoof_string(char *string) {
 
 void conversation_init__NOTE_use_spoof_api_in_here() {
     if (1) {
-        if (0) {
+        if (1) {
             _spoof_KEY_event('O', true);
             _spoof_string("splash.dxf");
             _spoof_KEY_event(GLFW_KEY_ENTER);
