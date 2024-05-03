@@ -1096,6 +1096,7 @@ uint32 standard_event_process(UserEvent event, bool32 skip_mesh_generation_becau
 
             if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                                                             // TODO don't record double click on same triangle
+                conversation_messagef("asdf");
                 result = PROCESSED_EVENT_CATEGORY_CHECKPOINT;
                 state.feature_plane.is_active = true;
                 {
@@ -1883,7 +1884,10 @@ void conversation_draw() {
 void conversation_init() {
     if (1) {
         // FORNOW: TODO: figure out super_stacks_do__NOTE_clears_redo_stack
-        if (0) {
+        if (1) {
+            conversation_dxf_load("cricut.dxf");
+            super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
+        } else if (0) {
             conversation_dxf_load("splash.dxf");
             super_stacks_do__NOTE_clears_redo_stack(); // FORNOW: ?? here???
             if (1) {
