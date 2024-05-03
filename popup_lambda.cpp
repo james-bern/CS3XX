@@ -1,5 +1,7 @@
 // cool text animations when tabbing
 
+// TODO: field type
+
 auto popup_popup = [&] (
         char *_name0, real32 *_value0,
         char *_name1 = NULL, real32 *_value1 = NULL,
@@ -36,7 +38,7 @@ auto popup_popup = [&] (
             memset(popup->cells[d], 0, POPUP_CELL_LENGTH);
             sprintf(popup->cells[d], "%g", *value[d]);
         }
-        popup->cursor = strlen(popup->cells[popup->index_of_active_cell]);
+        popup->cursor = (uint32) strlen(popup->cells[popup->index_of_active_cell]);
         popup->selection_cursor = 0;
     }
 
@@ -86,12 +88,12 @@ auto popup_popup = [&] (
             }
             memset(popup->cells[popup->index_of_active_cell], 0, POPUP_CELL_LENGTH);
             sprintf(popup->cells[popup->index_of_active_cell], "%g", *value[popup->index_of_active_cell]);
-            popup->cursor = strlen(popup->cells[popup->index_of_active_cell]);
+            popup->cursor = (uint32) strlen(popup->cells[popup->index_of_active_cell]);
             popup->selection_cursor = 0;
         }
 
         char *active_cell = popup->cells[popup->index_of_active_cell];
-        uint32 len = strlen(active_cell);
+        uint32 len = (uint32) strlen(active_cell);
         uint32 left_cursor = MIN(popup->cursor, popup->selection_cursor);
         uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
@@ -157,13 +159,13 @@ auto popup_popup = [&] (
             if (SELECTION_NOT_ACTIVE()) {
                 if (popup->cursor < POPUP_CELL_LENGTH) {
                     memmove(&active_cell[popup->cursor + 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
-                    active_cell[popup->cursor++] = key;
+                    active_cell[popup->cursor++] = (char) key;
                 }
             } else {
                 memmove(&active_cell[left_cursor + 1], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
                 memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
                 popup->cursor = left_cursor;
-                active_cell[popup->cursor++] = key;
+                active_cell[popup->cursor++] = (char) key;
             }
             popup->selection_cursor = popup->cursor;
         } else {
@@ -185,24 +187,24 @@ auto popup_popup = [&] (
                     gui_printf(buffer);
                 } else { // FORNOW: horrifying; needs at least a variant of stb_easy_font_width that takes an offset; should also do the 2 * for us
                     if (!SELECTION_NOT_ACTIVE()) {
-                        uint32 o = COW1._gui_x_curr + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" "));
+                        real32 o = COW1._gui_x_curr + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" "));
                         char tmp[4096]; // FORNOW
                         strcpy(tmp, popup->cells[d]);
                         tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
-                        uint32 R = o + 2 * stb_easy_font_width(tmp) - 2.5;
+                        real32 R = o + 2 * stb_easy_font_width(tmp) - 2.5f;
                         tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
-                        uint32 left_cursor = o + 2 * stb_easy_font_width(tmp);
-                        uint32 y = COW1._gui_y_curr;
+                        real32 L = o + 2 * stb_easy_font_width(tmp);
+                        real32 y = COW1._gui_y_curr;
                         eso_begin(globals._gui_NDC_from_Screen, SOUP_QUADS);
                         eso_color(0.6f, 0.6f, 0.0f);
-                        eso_vertex(left_cursor, y);
+                        eso_vertex(L, y);
                         eso_vertex(R, y);
                         eso_vertex(R, y + 20);
-                        eso_vertex(left_cursor, y + 20);
+                        eso_vertex(L, y + 20);
                         eso_end();
                     }
-                    uint32 x = COW1._gui_x_curr;
-                    uint32 y = COW1._gui_y_curr;
+                    real32 x = COW1._gui_x_curr;
+                    real32 y = COW1._gui_y_curr;
                     gui_printf(buffer);
                     if (((int) (_global_screen_state.popup_blinker_time * 5)) % 10 < 5) {
                         char tmp[4096]; // FORNOW

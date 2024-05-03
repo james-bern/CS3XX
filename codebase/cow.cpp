@@ -20,11 +20,13 @@ typedef double cow_real;
 #define POW powf
 #define SIN sinf
 #define COS cosf
+#define ATAN2 atan2f
 #define SQRT sqrtf
 #else
 #define POW pow
 #define SIN sin
 #define COS cos
+#define ATAN2 atan2
 #define SQRT sqrt
 #endif
 

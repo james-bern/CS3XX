@@ -704,8 +704,8 @@ template <int T> SnailVector<T> cwiseProduct(SnailVector<T> a, SnailVector<T> b)
 SnailVector<2> e_theta(cow_real theta) {
     return { cos(theta), sin(theta) };
 }
-double atan2(SnailVector<2> a) {
-    return atan2(a.y, a.x);
+cow_real atan2(SnailVector<2> a) {
+    return atan2f(a.y, a.x);
 }
 SnailVector<2> rotated(SnailVector<2> a, cow_real theta) {
     return { cos(theta) * a.x - sin(theta) * a.y, sin(theta) * a.x + cos(theta) * a.y };
@@ -726,7 +726,7 @@ SnailMatrix<4> xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
 }
 #define M4_xyzo xyzo2mat4
 template <int T> SnailVector<T> magClamped(SnailVector<T> a, cow_real col) {
-    double norm_a = norm(a);
+    cow_real norm_a = norm(a);
     if (SNAIL_ABS(norm_a) < col) { return a; }
     return a / norm_a * SNAIL_CLAMP(norm_a, -col, col);
 }
