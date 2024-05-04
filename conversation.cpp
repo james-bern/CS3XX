@@ -170,6 +170,12 @@ vec2 magic_snap(vec2 before) {
             real32 factor = 360 / 15 / TAU;
             real32 theta = roundf(atan2(r) * factor) / factor;
             result = a + norm_r * e_theta(theta);
+        } else if (
+                (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX)
+                && (global_world_state.two_click_command.awaiting_second_click)
+                && (callback_mouse_shift_held)) {
+            // TODO (Felipe): snap square
+            result = before;
         }
     }
     return result;
@@ -496,7 +502,7 @@ void standard_event_process(
         real32 *circle_diameter      = &global_world_state.popup.circle_diameter;
         real32 *circle_radius        = &global_world_state.popup.circle_radius;
         real32 *circle_circumference = &global_world_state.popup.circle_circumference;
-        real32 *fillet_radius   = &global_world_state.popup.fillet_radius;
+        real32 *fillet_radius        = &global_world_state.popup.fillet_radius;
         {
             if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
                 if (awaiting_second_click) {
@@ -530,13 +536,14 @@ void standard_event_process(
                 if (popup_popup("x coordinate", param0, "y coordinate", param1)) {
                     effective_event = MOUSE_2D_event(*param0, *param1);
                 }
-                // } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
-                // if (popup_popup("direction 1", param0, "direction 2", param1)) {
-                // }
-        } else {
-            *param0 = 0;
-            *param1 = 0;
-        }
+            } else if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
+                popup_popup("direction 1", param0, "direction 2", param1);
+            } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
+                // popup_popup();
+            } else {
+                *param0 = 0;
+                *param1 = 0;
+            }
         }
     }
     if (!popup_popup_actually_called_this_event) global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
@@ -689,10 +696,11 @@ void standard_event_process(
                                 conversation_messagef("[enter] nothing to cut");
                                 send_key_to_console = false;
                             } else if (extrude) {
-                                if (IS_ZERO(console_param_1) && IS_ZERO(console_param_2)) {
-                                    conversation_messagef("[enter] extrude height is zero");
-                                    send_key_to_console = false;
-                                }
+                                warn_once("check for 0 extrude total height disabled");
+                                // if (IS_ZERO(console_param_1) && IS_ZERO(console_param_2)) {
+                                //     conversation_messagef("[enter] extrude height is zero");
+                                //     send_key_to_console = false;
+                                // }
                             } else {
                                 ASSERT(revolve);
                                 ;
@@ -728,8 +736,8 @@ void standard_event_process(
                                         cross_section.polygonal_loops,
                                         get_M_3D_from_2D(),
                                         global_world_state.modes.enter_mode,
-                                        console_param_1,
-                                        console_param_2,
+                                        global_world_state.popup.param0,
+                                        global_world_state.popup.param1,
                                         global_world_state.dxf.origin,
                                         global_world_state.dxf.axis_base_point,
                                         global_world_state.dxf.axis_angle_from_y);
@@ -750,29 +758,29 @@ void standard_event_process(
                         { // reset some stuff
                             for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
                         }
-                    } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
-                        global_world_state.dxf.origin.x = console_param_1;
-                        global_world_state.dxf.origin.y = console_param_2;
-                    } else { ASSERT((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE));
-                        static char full_filename_including_path[512];
-                        sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.console.buffer);
-                        if (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) {
-                            if (poe_suffix_match(full_filename_including_path, ".dxf")) {
-                                _standard_event->snapshot_me = _standard_event->checkpoint_me = true;
-                                conversation_dxf_load(full_filename_including_path,
-                                        skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack
-                                        || (strcmp(full_filename_including_path, _global_screen_state.dxf_filename_for_reload) == 0));
-                            } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
-                                conversation_stl_load(full_filename_including_path);
-                            } else {
-                                conversation_messagef("[open] %s not found", full_filename_including_path);
-                            }
-                        } else { ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SAVE);
-                            conversation_save(full_filename_including_path);
+                        // } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
+                        //     global_world_state.dxf.origin.x = console_param_1;
+                        //     global_world_state.dxf.origin.y = console_param_2;
+                } else { ASSERT((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE));
+                    static char full_filename_including_path[512];
+                    sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.console.buffer);
+                    if (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) {
+                        if (poe_suffix_match(full_filename_including_path, ".dxf")) {
+                            _standard_event->snapshot_me = _standard_event->checkpoint_me = true;
+                            conversation_dxf_load(full_filename_including_path,
+                                    skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack
+                                    || (strcmp(full_filename_including_path, _global_screen_state.dxf_filename_for_reload) == 0));
+                        } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
+                            conversation_stl_load(full_filename_including_path);
+                        } else {
+                            conversation_messagef("[open] %s not found", full_filename_including_path);
                         }
+                    } else { ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SAVE);
+                        conversation_save(full_filename_including_path);
                     }
-                    global_world_state.modes.enter_mode = {};
-                    global_world_state.console = {};
+                }
+                global_world_state.modes.enter_mode = {};
+                global_world_state.console = {};
                 }
             } else if (key_lambda('Q', true)) {
                 exit(1);
@@ -1481,6 +1489,8 @@ void history_redo() {
 
 void _history_user_event_draw_helper(UserEvent *event) {
     char message[256]; {
+        // TODO: Left and right arrow
+        // TODO: handle shift and super with the special characters
         if (event->type == USER_EVENT_TYPE_KEY_PRESS) {
             if (event->key == GLFW_KEY_ENTER) {
                 sprintf(message, "[KEY] ENTER");
@@ -2296,8 +2306,7 @@ int main() {
         _global_screen_state.popup_blinker_time += 0.0167f;
 
         { // queue_of_fresh_events_from_user
-            warn_once("FORNOW if not while (only one event per frame)--cause FORNOW drawing popup gui in fresh_event_from_user_process\n");
-            // TODO: upgrade to handle multiple events per frame while only drawing gui once
+          // TODO: upgrade to handle multiple events per frame while only drawing gui once
             {
                 if (queue_of_fresh_events_from_user.length) {
                     while (queue_of_fresh_events_from_user.length) {

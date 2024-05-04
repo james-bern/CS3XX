@@ -223,7 +223,7 @@ auto popup_popup = [&] (
 
     bool32 close_popup_and_execute; {
         close_popup_and_execute = ((_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event->key == GLFW_KEY_ENTER));
-        for (uint32 d = 0; d < num_cells; ++d) close_popup_and_execute &= (!IS_ZERO(*value[d])); // FORNOW
+        // for (uint32 d = 0; d < num_cells; ++d) close_popup_and_execute &= (!IS_ZERO(*value[d])); // FORNOW
     }
 
     return close_popup_and_execute;
