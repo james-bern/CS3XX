@@ -168,6 +168,7 @@ struct ScreenState {
 };
 
 struct PopupState {
+    #define POPUP_CELL_LENGTH 256
     real32 param0;
     real32 param1;
     real32 circle_diameter;
@@ -175,8 +176,9 @@ struct PopupState {
     real32 circle_circumference;
     real32 fillet_radius;
 
+    char buffer0[POPUP_CELL_LENGTH];
+
     #define POPUP_MAX_NUM_CELLS 4
-    #define POPUP_CELL_LENGTH 256
     char cells[POPUP_MAX_NUM_CELLS][POPUP_CELL_LENGTH];
 
     uint32 index_of_active_cell;
@@ -221,11 +223,6 @@ struct WorldState {
 
 
 
-    struct {
-        char buffer[128];
-        uint32 num_bytes_written;
-        bool32 flip_flag; // FORNOW
-    } console;
 };
 
 

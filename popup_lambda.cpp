@@ -1,22 +1,30 @@
-// cool text animations when tabbing
 
+// cool text animations when tabbing
+// TODO: 'X'
+// TODO: mouse click
+// TODO: mouse drag
+// TODO: paste from os clipboard
+// TODO: parsing math formulas
 // TODO: field type
 
-auto popup_popup = [&] (
-        char *_name0, real32 *_value0,
-        char *_name1 = NULL, real32 *_value1 = NULL,
-        char *_name2 = NULL, real32 *_value2 = NULL,
-        char *_name3 = NULL, real32 *_value3 = NULL
-        ) -> bool32 {
+#define CELL_TYPE_NONE    0
+#define CELL_TYPE_REAL32  1
+#define CELL_TYPE_CSTRING 2
 
-    ///
+auto popup_popup = [&] (
+        uint8 cell_type0, char *_name0, void *_value0,
+        uint8 cell_type1 = 0, char *_name1 = NULL, void *_value1 = NULL,
+        uint8 cell_type2 = 0, char *_name2 = NULL, void *_value2 = NULL,
+        uint8 cell_type3 = 0, char *_name3 = NULL, void *_value3 = NULL
+        ) -> bool32 {
 
     PopupState *popup = &global_world_state.popup;
 
     ///
 
-    char *name[]    = {  _name0,  _name1,  _name2,  _name3 };
-    real32 *value[] = { _value0, _value1, _value2, _value3 };
+    char *name[]       = {     _name0,     _name1,     _name2,     _name3 };
+    void *value[]      = {    _value0,    _value1,    _value2,    _value3 };
+    uint32 cell_type[] = { cell_type0, cell_type1, cell_type2, cell_type3 };
     uint32 num_cells; {
         num_cells = 0;
         for (uint32 d = 0; d < ARRAY_LENGTH(name); ++d) if (name[d]) ++num_cells;
@@ -28,6 +36,25 @@ auto popup_popup = [&] (
 
     popup_popup_actually_called_this_event = true;
 
+    /////////////////////////////////////////////////////////////////
+
+    auto LOAD_VALUE_INTO_CELL = [&](uint32 d) {
+        memset(popup->cells[d], 0, POPUP_CELL_LENGTH);
+        if (cell_type[d] == CELL_TYPE_REAL32) {
+            sprintf(popup->cells[d], "%g", *((real32 *) value[d]));
+        } else { ASSERT(cell_type[d] == CELL_TYPE_CSTRING);
+            strcpy(popup->cells[d], (char *) value[d]);
+        }
+    };
+
+    auto WRITE_CELL_INTO_VALUE = [&](uint32 d) {
+        if (cell_type[d] == CELL_TYPE_REAL32) {
+            *((real32 *) value[d]) = strtof(popup->cells[d], NULL);
+        } else { ASSERT(cell_type[d] == CELL_TYPE_CSTRING);
+            strcpy((char *) value[d], popup->cells[d]);
+        }
+    };
+
     // LOADING UP ///////////////////////////////////////////////////
 
     if (popup->_active_popup_unique_ID__FORNOW_name0 != _name0) {
@@ -35,8 +62,7 @@ auto popup_popup = [&] (
         popup->index_of_active_cell = 0;
         for (uint32 d = 0; d < num_cells; ++d) {
             if (!name[d]) continue;
-            memset(popup->cells[d], 0, POPUP_CELL_LENGTH);
-            sprintf(popup->cells[d], "%g", *value[d]);
+            LOAD_VALUE_INTO_CELL(d);
         }
         popup->cursor = (uint32) strlen(popup->cells[popup->index_of_active_cell]);
         popup->selection_cursor = 0;
@@ -44,12 +70,6 @@ auto popup_popup = [&] (
 
     // KEY PRESS ////////////////////////////////////////////////////
 
-    // TODO: port extrude to use this
-    // TODO: 'X'
-    // TODO: mouse click
-    // TODO: mouse drag
-    // TODO: paste from os clipboard
-    // TODO: parsing math formulas
 
     ASSERT(popup->index_of_active_cell >= 0);
     ASSERT(popup->index_of_active_cell <= num_cells);
@@ -68,8 +88,17 @@ auto popup_popup = [&] (
         bool32 super = _standard_event->super;
 
         bool32 key_is_digit = ('0' <= key) && (key <= '9');
-        bool32 key_is_numerical_punctuation = (key == '.') || (key == '-');
+        bool32 key_is_punc  = (key == '.') || (key == '-');
+        bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
 
+        bool32 key_is_valid_input_for_this_cell; {
+            key_is_valid_input_for_this_cell = false;
+            key_is_valid_input_for_this_cell |= key_is_digit;
+            key_is_valid_input_for_this_cell |= key_is_punc;
+            if (cell_type[popup->index_of_active_cell] == CELL_TYPE_CSTRING) {
+                key_is_valid_input_for_this_cell |= key_is_alpha;
+            }
+        }
 
         bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
         if (key == GLFW_KEY_TAB) {
@@ -86,8 +115,7 @@ auto popup_popup = [&] (
                 }
                 popup->index_of_active_cell = MODULO(popup->index_of_active_cell, num_cells);
             }
-            memset(popup->cells[popup->index_of_active_cell], 0, POPUP_CELL_LENGTH);
-            sprintf(popup->cells[popup->index_of_active_cell], "%g", *value[popup->index_of_active_cell]);
+            LOAD_VALUE_INTO_CELL(popup->index_of_active_cell);
             popup->cursor = (uint32) strlen(popup->cells[popup->index_of_active_cell]);
             popup->selection_cursor = 0;
         }
@@ -155,17 +183,23 @@ auto popup_popup = [&] (
                 popup->cursor = left_cursor;
             }
             popup->selection_cursor = popup->cursor;
-        } else if (key_is_digit || key_is_numerical_punctuation) {
+        } else if (key_is_valid_input_for_this_cell) {
+            char char_equivalent; {
+                char_equivalent = (char) key;
+                if (!shift && key_is_alpha) {
+                    char_equivalent = 'a' + (char_equivalent - 'A');
+                }
+            }
             if (SELECTION_NOT_ACTIVE()) {
                 if (popup->cursor < POPUP_CELL_LENGTH) {
                     memmove(&active_cell[popup->cursor + 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
-                    active_cell[popup->cursor++] = (char) key;
+                    active_cell[popup->cursor++] = char_equivalent;
                 }
             } else {
                 memmove(&active_cell[left_cursor + 1], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
                 memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
                 popup->cursor = left_cursor;
-                active_cell[popup->cursor++] = (char) key;
+                active_cell[popup->cursor++] = char_equivalent;
             }
             popup->selection_cursor = popup->cursor;
         } else {
@@ -173,15 +207,23 @@ auto popup_popup = [&] (
         }
     }
 
-    for (uint32 d = 0; d < num_cells; ++d) if (popup->index_of_active_cell == d) *value[d] = strtof(popup->cells[d], NULL);
+    WRITE_CELL_INTO_VALUE(popup->index_of_active_cell);
     if (!HACK_DISABLE_POPUP_DRAWING) {
         for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
-            char buffer[256];
-            // if (popup->index_of_active_cell == d) sprintf(buffer, "`%s %s (%g)", name[d], popup->cells[d], *value[d]);
-            // else                  sprintf(buffer,  "%s (%s) %g", name[d], popup->cells[d], *value[d]);
-            if (popup->index_of_active_cell == d) sprintf(buffer, "`%s %s", name[d], popup->cells[d]);
-            else                  sprintf(buffer,  "%s %g", name[d], *value[d]);
+            static char buffer[512]; // FORNOW; ???
+
+            // FORNOW gross;
+            if (d == popup->index_of_active_cell) {
+                sprintf(buffer, "`%s %s", name[d], popup->cells[d]);
+            } else {
+                if (cell_type[d] == CELL_TYPE_REAL32) {
+                    sprintf(buffer,  "%s %g", name[d], *((real32 *) value[d]));
+                } else { ASSERT(cell_type[d] == CELL_TYPE_CSTRING); 
+                    sprintf(buffer,  "%s %s", name[d], ((char *) value[d]));
+                }
+            }
+
             if (name[d]) {
                 if (popup->index_of_active_cell != d) {
                     gui_printf(buffer);
