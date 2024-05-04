@@ -85,30 +85,22 @@ mat4 get_M_3D_from_2D() {
     return M4_xyzo(x, y, z, (global_world_state.feature_plane.signed_distance_to_world_origin) * global_world_state.feature_plane.normal);
 }
 
-
-void get_console_params(real32 *console_param_1, real32 *console_param_2) {
-    char buffs[2][64] = {};
-    uint32 buff_i = 0;
-    uint32 i = 0;
-    for (char *c = global_world_state.console.buffer; (*c) != '\0'; ++c) {
-        if (*c == ',') {
-            if (++buff_i == 2) break;
-            i = 0;
-            continue;
-        }
-        buffs[buff_i][i++] = (*c);
-    }
-    real32 sign = 1.0f;
-    if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
-        sign = (!global_world_state.console.flip_flag) ? 1.0f : -1.0f;
-    }
-    *console_param_1 = sign * strtof(buffs[0], NULL);
-    *console_param_2 = sign * strtof(buffs[1], NULL);
-    if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
-        *console_param_2 *= -1;
-    }
+bool32 STATE_EXTRUDE() {
+    bool32 enter_mode = global_world_state.modes.enter_mode;
+    return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
 }
-
+bool32 STATE_REVOLVE() {
+    bool32 enter_mode = global_world_state.modes.enter_mode;
+    return ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+}
+bool32 STATE_ADD()     {
+    bool32 enter_mode = global_world_state.modes.enter_mode;
+    return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD));
+}
+bool32 STATE_CUT()     {
+    bool32 enter_mode = global_world_state.modes.enter_mode;
+    return ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+}
 
 //////////////////////////////////////////////////
 // STATE-DEPENDENT UTILITY FUNCTIONS /////////////
@@ -185,9 +177,6 @@ vec2 magic_snap(vec2 before) {
 
 void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     mat4 PVM_3D = P_3D * V_3D * M_3D;
-    real32 console_param_1, console_param_2; {
-        get_console_params(&console_param_1, &console_param_2);
-    }
 
     if (global_world_state.mesh.cosmetic_edges) {
         eso_begin(PVM_3D, SOUP_LINES); 
@@ -217,7 +206,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 if ((global_world_state.feature_plane.is_active) && (dot(n, global_world_state.feature_plane.normal) > 0.999f) && (ABS(x_n - global_world_state.feature_plane.signed_distance_to_world_origin) < 0.001f)) {
                     if (pass == 0) continue;
                     color = V3(0.85f, 0.87f, 0.30f);
-                    alpha = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((global_world_state.console.flip_flag) || (console_param_2 != 0.0f))) ? 0.7f : 1.0f;
+                    alpha = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((global_world_state.console.flip_flag) || (global_world_state.popup.param1 != 0.0f))) ? 0.7f : 1.0f;
                 } else {
                     if (pass == 1) continue;
                     color = color_n;
@@ -536,8 +525,10 @@ void standard_event_process(
                 if (popup_popup("x coordinate", param0, "y coordinate", param1)) {
                     effective_event = MOUSE_2D_event(*param0, *param1);
                 }
-            } else if ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
-                popup_popup("direction 1", param0, "direction 2", param1);
+            } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
+                popup_popup("out length", param0, "in length", param1);
+            } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+                popup_popup("in length", param1, "out length", param0);
             } else if ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT)) {
                 // popup_popup();
             } else {
@@ -572,7 +563,6 @@ void standard_event_process(
             }
         }
     }
-    real32 console_param_1, console_param_2; get_console_params(&console_param_1, &console_param_2); // FORNOW
 
     { // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(extrude);
@@ -697,7 +687,7 @@ void standard_event_process(
                                 send_key_to_console = false;
                             } else if (extrude) {
                                 warn_once("check for 0 extrude total height disabled");
-                                // if (IS_ZERO(console_param_1) && IS_ZERO(console_param_2)) {
+                                // if (IS_ZERO(global_world_state.popup.param0) && IS_ZERO(global_world_state.popup.param1)) {
                                 //     conversation_messagef("[enter] extrude height is zero");
                                 //     send_key_to_console = false;
                                 // }
@@ -759,8 +749,8 @@ void standard_event_process(
                             for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
                         }
                         // } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
-                        //     global_world_state.dxf.origin.x = console_param_1;
-                        //     global_world_state.dxf.origin.y = console_param_2;
+                        //     global_world_state.dxf.origin.x = global_world_state.popup.param0;
+                        //     global_world_state.dxf.origin.y = global_world_state.popup.param1;
                 } else { ASSERT((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE));
                     static char full_filename_including_path[512];
                     sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.console.buffer);
@@ -1627,10 +1617,6 @@ void conversation_draw() {
     mat4 PV_2D = P_2D * V_2D;
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
-    // FORNOW: sloppy--these change mid-frame
-    real32 console_param_1, console_param_2;
-    get_console_params(&console_param_1, &console_param_2);
-
     bool32 extrude = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT));
     bool32 revolve = ((global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT));
     bool32 add     = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
@@ -1659,6 +1645,8 @@ void conversation_draw() {
 
     // aliases
     vec2 first_click = global_world_state.two_click_command.first_click;
+    real32 param0 = global_world_state.popup.param0;
+    real32 param1 = global_world_state.popup.param1;
 
     // preview
     vec2 preview_mouse = magic_snap(mouse_get_position(PV_2D));
@@ -1683,6 +1671,8 @@ void conversation_draw() {
             preview_dxf_axis_angle_from_y = atan2(preview_mouse - preview_dxf_axis_base_point) - PI / 2;
         }
     }
+    real32 preview_extrude_length_out = param0;
+    real32 preview_extrude_length_in = param1;
 
 
     mat4 P_3D = camera_get_P(&_global_screen_state.camera_3D);
@@ -1853,13 +1843,11 @@ void conversation_draw() {
                 mat4 T_o = M4_Translation(preview_dxf_origin);
                 mat4 inv_T_o = M4_Translation(-preview_dxf_origin);
                 if (extrude) {
-                    // NOTE: some repetition with wrapper
-                    real32 a = MIN(0.0f, MIN(console_param_1, console_param_2));
-                    real32 b = MAX(0.0f, MAX(console_param_1, console_param_2));
-                    real32 length = b - a;
-                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64, uint32(roundf(length / 2.5f)) + 2);
-                    M = M_3D_from_2D * M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, a + Z_FIGHT_EPS);
-                    M_incr = M4_Translation(0.0f, 0.0f, (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                    real32 a = -preview_extrude_length_in;
+                    real32 L = preview_extrude_length_out + preview_extrude_length_in;
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64, uint32(roundf(L / 2.5f)) + 2);
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
+                    M_incr = M4_Translation(0.0f, 0.0f, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                 } else if (revolve) {
                     NUM_TUBE_STACKS_INCLUSIVE = 64;
                     M = M_3D_from_2D * inv_T_o;
@@ -1877,7 +1865,7 @@ void conversation_draw() {
                     M_incr = M4_Identity();
                 } else if (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, console_param_1 + Z_FIGHT_EPS);
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, global_world_state.popup.param0 + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 } else { // default
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -1922,7 +1910,7 @@ void conversation_draw() {
 
                 real32 arrow_x = 0.0f;
                 real32 arrow_y = 0.0f;
-                real32 H[2] = { console_param_1, console_param_2 };
+                real32 H[2] = { global_world_state.popup.param0, global_world_state.popup.param1 };
                 bool32 toggle[2] = { global_world_state.console.flip_flag, !global_world_state.console.flip_flag };
                 mat4 A = M_3D_from_2D;
                 if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
@@ -1993,7 +1981,7 @@ void conversation_draw() {
             vec3 color = monokai.yellow;
             real32 sign = -1.0f;
             if (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
-                PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, console_param_1);
+                PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, global_world_state.popup.param0);
                 color = { 0.0f, 1.0f, 1.0f };
                 sign = 1.0f;
                 draw = true;
@@ -2045,48 +2033,17 @@ void conversation_draw() {
                     click_message);
         }
 
-        {
-            char enter_message[256] = {};
-            if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN)) {
-                real32 p, p2;
-                char glyph, glyph2;
-                if ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
-                    p      =  console_param_1;
-                    p2     = -console_param_2;
-                    if (global_world_state.console.flip_flag) { // ??
-                        p *= -1;
-                        p2 *= -1;
-                    }
-                    if (IS_ZERO(p)) p = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
-                    if (IS_ZERO(p2)) p2 = 0.0f; // FORNOW makes minus sign go away in hud (not a big deal)
-                    glyph  = (!global_world_state.console.flip_flag) ? '^' : 'v';
-                    glyph2 = (!global_world_state.console.flip_flag) ? 'v' : '^';
-                } else {
-                    ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN);
-                    p      = console_param_1;
-                    p2     = console_param_2;
-                    glyph  = 'x';
-                    glyph2 = 'y';
-                }
-                sprintf(enter_message, "%c:%gmm %c:%gmm", glyph, p, glyph2, p2);
-                if (((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) && IS_ZERO(console_param_2)) sprintf(enter_message, "%c:%gmm", glyph, p);
-            } else if ((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE)) {
-                sprintf(enter_message, "%s%s", _global_screen_state.drop_path, global_world_state.console.buffer);
-            }
-
-            gui_printf("[Enter] %s %s",
-                    (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) ? "EXTRUDE_ADD" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) ? "EXTRUDE_CUT" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) ? "REVOLVE_ADD" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) ? "OPEN" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) ? "SET_ORIGIN" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) ? "OFFSET_PLANE_TO" :
-                    (global_world_state.modes.enter_mode == ENTER_MODE_NONE) ? "NONE" :
-                    "???",
-                    enter_message);
-        }
+        gui_printf("[Enter] %s",
+                (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) ? "EXTRUDE_ADD" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) ? "EXTRUDE_CUT" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) ? "REVOLVE_ADD" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) ? "OPEN" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) ? "SET_ORIGIN" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) ? "OFFSET_PLANE_TO" :
+                (global_world_state.modes.enter_mode == ENTER_MODE_NONE) ? "NONE" :
+                "???");
 
         if ((global_world_state.modes.enter_mode == ENTER_MODE_NONE) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) {
             gui_printf("> %s", global_world_state.console.buffer);
@@ -2188,7 +2145,10 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
                 _spoof_KEY_event(GLFW_KEY_ENTER); // FORNOW
                 _spoof_KEY_event('C');
                 _spoof_MOUSE_2D_event(16.0f, -16.0f);
-                _spoof_MOUSE_2D_event(32.0f, -16.0f);
+                _spoof_KEY_event(GLFW_KEY_TAB);
+                _spoof_KEY_event(GLFW_KEY_TAB);
+                _spoof_string("100");
+                _spoof_KEY_event(GLFW_KEY_ENTER);
                 _spoof_KEY_event('S');
                 _spoof_KEY_event('C');
                 _spoof_MOUSE_2D_event(32.0f, -16.0f);
@@ -2212,18 +2172,26 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
                 _spoof_KEY_event('0');
                 _spoof_KEY_event(GLFW_KEY_DELETE);
                 _spoof_KEY_event(GLFW_KEY_ESCAPE);
-                _spoof_KEY_event('C');
+                //_spoof_KEY_event('C');
+                //_spoof_KEY_event('Z');
+                //_spoof_KEY_event('0');
+                //_spoof_KEY_event('1');
+                //_spoof_KEY_event('2');
+                //_spoof_KEY_event('3');
+                //_spoof_KEY_event('4');
+                //_spoof_KEY_event('5');
+                //_spoof_KEY_event('6');
+                //_spoof_KEY_event('7');
+                //_spoof_KEY_event('8');
+                //_spoof_KEY_event('9');
+                _spoof_KEY_event('A', false, true);
                 _spoof_KEY_event('Z');
-                _spoof_KEY_event('0');
-                _spoof_KEY_event('1');
-                _spoof_KEY_event('2');
-                _spoof_KEY_event('3');
-                _spoof_KEY_event('4');
-                _spoof_KEY_event('5');
-                _spoof_KEY_event('6');
-                _spoof_KEY_event('7');
-                _spoof_KEY_event('8');
-                _spoof_KEY_event('9');
+                _spoof_MOUSE_2D_event(-5.0f, 10.0f);
+                _spoof_KEY_event('S');
+                _spoof_KEY_event('C');
+                _spoof_MOUSE_2D_event(37.2f, -47.7f);
+                _spoof_KEY_event('R');
+                _spoof_KEY_event(GLFW_KEY_ENTER);
 
 
                 //spoof_KEY_event('U');

@@ -24,8 +24,8 @@ import java.io.*;
 
 class Cow {
     public static void main(String[] arguments) {
-        DemoKitchenSink.main(null);
-        // DemoTicTacToe.main(null);
+        // DemoKitchenSink.main(null);
+        DemoTicTacToe.main(null);
     }
 
     /////////////////////////////////////////////////////////////////////////

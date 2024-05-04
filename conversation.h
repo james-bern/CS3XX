@@ -1405,8 +1405,8 @@ Mesh wrapper_manifold(
         vec2 **polygonal_loops,
         mat4 M_3D_from_2D,
         uint32 enter_mode,
-        real32 console_param,
-        real32 console_param_2,
+        real32 extrude_length_out,
+        real32 extrude_length_in,
         vec2   dxf_origin,
         vec2   dxf_axis_base_point,
         real32 dxf_axis_angle_from_y
@@ -1461,19 +1461,17 @@ Mesh wrapper_manifold(
         { // manifold_B
             if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
                 warn_once("[DEBUG] inflating ENTER_MODE_EXTRUDE_CUT\n");
-                console_param += SGN(console_param) * TOLERANCE_DEFAULT;
-                console_param_2 += SGN(console_param_2) * TOLERANCE_DEFAULT;
+                extrude_length_in += SGN(extrude_length_in) * TOLERANCE_DEFAULT;
+                extrude_length_out += SGN(extrude_length_out) * TOLERANCE_DEFAULT;
             }
 
             // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
             //       but we support (30, 40) -- which is equivalent to (40, 0)
 
             if (extrude) {
-                real32 min = MIN(0.0f, MIN(console_param, console_param_2));
-                real32 max = MAX(0.0f, MAX(console_param, console_param_2));
-                real32 length = max - min;
+                real32 length = extrude_length_in + extrude_length_out;
                 manifold_B = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
-                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, min);
+                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -extrude_length_in);
             } else { ASSERT(revolve);
                 // TODO: M_3D_from_2D 
                 manifold_B = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
