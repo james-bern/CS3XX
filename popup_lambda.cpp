@@ -174,7 +174,7 @@ auto popup_popup = [&] (
     }
 
     for (uint32 d = 0; d < num_cells; ++d) if (popup->index_of_active_cell == d) *value[d] = strtof(popup->cells[d], NULL);
-    if (!HACK_DONT_DRAW_IMGUI_UNDO_REDO_OTHERWISE_POPUPS_WEIRDNESS) {
+    if (!HACK_DISABLE_POPUP_DRAWING) {
         for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
             char buffer[256];

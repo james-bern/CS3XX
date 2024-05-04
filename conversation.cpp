@@ -1,5 +1,3 @@
-// TODO: enter mode needs to go away
-//
 // TODO: get text input into the popup system
 // TODO: figure out system for exact (x, y) coordinates
 // TODO: figure out system for space bar
@@ -51,7 +49,7 @@ WorldState global_world_state;
 ScreenState _global_screen_state;
 
 
-bool32 HACK_DONT_DRAW_IMGUI_UNDO_REDO_OTHERWISE_POPUPS_WEIRDNESS;
+bool32 HACK_DISABLE_POPUP_DRAWING;
 
 
 //////////////////////////////////////////////////
@@ -85,22 +83,22 @@ mat4 get_M_3D_from_2D() {
     return M4_xyzo(x, y, z, (global_world_state.feature_plane.signed_distance_to_world_origin) * global_world_state.feature_plane.normal);
 }
 
-bool32 STATE_EXTRUDE() {
-    bool32 enter_mode = global_world_state.modes.enter_mode;
-    return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
-}
-bool32 STATE_REVOLVE() {
-    bool32 enter_mode = global_world_state.modes.enter_mode;
-    return ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
-}
-bool32 STATE_ADD()     {
-    bool32 enter_mode = global_world_state.modes.enter_mode;
-    return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD));
-}
-bool32 STATE_CUT()     {
-    bool32 enter_mode = global_world_state.modes.enter_mode;
-    return ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
-}
+// bool32 EXTRUDE() {
+//     bool32 enter_mode = global_world_state.modes.enter_mode;
+//     return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
+// }
+// bool32 REVOLVE() {
+//     bool32 enter_mode = global_world_state.modes.enter_mode;
+//     return ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+// }
+// bool32 ADD() {
+//     bool32 enter_mode = global_world_state.modes.enter_mode;
+//     return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD));
+// }
+// bool32 CUT() {
+//     bool32 enter_mode = global_world_state.modes.enter_mode;
+//     return ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+// }
 
 //////////////////////////////////////////////////
 // STATE-DEPENDENT UTILITY FUNCTIONS /////////////
@@ -1594,13 +1592,13 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
     }
 
     if (key_lambda('Z', true) || key_lambda('U')) {
-        HACK_DONT_DRAW_IMGUI_UNDO_REDO_OTHERWISE_POPUPS_WEIRDNESS = true;
+        HACK_DISABLE_POPUP_DRAWING = true;
         history_undo();
-        HACK_DONT_DRAW_IMGUI_UNDO_REDO_OTHERWISE_POPUPS_WEIRDNESS = false;
+        HACK_DISABLE_POPUP_DRAWING = false;
     } else if (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true)) {
-        HACK_DONT_DRAW_IMGUI_UNDO_REDO_OTHERWISE_POPUPS_WEIRDNESS = true;
+        HACK_DISABLE_POPUP_DRAWING = true;
         history_redo();
-        HACK_DONT_DRAW_IMGUI_UNDO_REDO_OTHERWISE_POPUPS_WEIRDNESS = false;
+        HACK_DISABLE_POPUP_DRAWING = false;
     } else {
         history_process_and_potentially_checkpoint_and_or_snapshot_standard_fresh_user_event(fresh_event_from_user);
     }
@@ -2233,8 +2231,7 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
         }
         #endif
     }
-    init_cameras(); // FORNOW
-    conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
+    // conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
 }
 
 
@@ -2242,7 +2239,10 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
 int main() {
     // _window_set_size(1.5 * 640.0, 1.5 * 360.0); // TODO the first frame crap gets buggered
 
+    glfwHideWindow(COW0._window_glfw_window);
+
     conversation_init__NOTE_use_spoof_api_in_here();
+    init_cameras(); // FORNOW
 
     {
         // FORNOW: first frame position
@@ -2251,10 +2251,13 @@ int main() {
         callback_cursor_position(NULL, xpos, ypos);
     }
 
+    HACK_DISABLE_POPUP_DRAWING = true;
+    bool32 frame_0 = true;
+    bool32 frame_1 = false;
     while (cow_begin_frame()) {
         // Sleep(100);
-
-        { // camera_move, hot_pane, conversation_draw
+        if (frame_1) HACK_DISABLE_POPUP_DRAWING = false;
+        /*if (not_first_frame)*/ { // camera_move, hot_pane, conversation_draw
             { // camera_move (using shimmed globals.* global_world_state)
                 if (_global_screen_state.hot_pane == HOT_PANE_2D) {
                     camera_move(&_global_screen_state.camera_2D);
@@ -2275,22 +2278,30 @@ int main() {
 
         { // queue_of_fresh_events_from_user
           // TODO: upgrade to handle multiple events per frame while only drawing gui once
-            {
-                if (queue_of_fresh_events_from_user.length) {
-                    while (queue_of_fresh_events_from_user.length) {
-                        UserEvent fresh_event = queue_dequeue(&queue_of_fresh_events_from_user);
-                        fresh_event_from_user_process(fresh_event);
-                    }
-                } else {
-                    // NOTE: this is so we draw the popups
-                    UserEvent null_event = {};
-                    fresh_event_from_user_process(null_event);
+            if (queue_of_fresh_events_from_user.length) {
+                while (queue_of_fresh_events_from_user.length) {
+                    UserEvent fresh_event = queue_dequeue(&queue_of_fresh_events_from_user);
+                    fresh_event_from_user_process(fresh_event);
                 }
+            } else {
+                // NOTE: this is so we draw the popups
+                UserEvent null_event = {};
+                fresh_event_from_user_process(null_event);
             }
         }
 
         if (_global_screen_state.show_event_stack) history_debug_draw();
 
+        if (frame_1) glfwShowWindow(COW0._window_glfw_window);
+
+        {
+            if (frame_0) {
+                frame_0 = false;
+                frame_1 = true;
+            } else if (frame_1) {
+                frame_1 = false;
+            }
+        }
     }
 }
 
