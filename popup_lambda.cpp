@@ -1,4 +1,3 @@
-
 // cool text animations when tabbing
 // TODO: 'X'
 // TODO: mouse click
@@ -12,6 +11,7 @@
 #define CELL_TYPE_CSTRING 2
 
 auto popup_popup = [&] (
+        bool32 zero_on_load_up,
         uint8 cell_type0, char *_name0, void *_value0,
         uint8 cell_type1 = 0, char *_name1 = NULL, void *_value1 = NULL,
         uint8 cell_type2 = 0, char *_name2 = NULL, void *_value2 = NULL,
@@ -38,20 +38,33 @@ auto popup_popup = [&] (
 
     /////////////////////////////////////////////////////////////////
 
-    auto LOAD_VALUE_INTO_CELL = [&](uint32 d) {
-        memset(popup->cells[d], 0, POPUP_CELL_LENGTH);
+    auto LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER = [&]() {
+        uint32 d = popup->index_of_active_cell;
+        memset(popup->active_cell_buffer, 0, POPUP_CELL_LENGTH);
         if (cell_type[d] == CELL_TYPE_REAL32) {
-            sprintf(popup->cells[d], "%g", *((real32 *) value[d]));
+            sprintf(popup->active_cell_buffer, "%g", *((real32 *) value[d]));
         } else { ASSERT(cell_type[d] == CELL_TYPE_CSTRING);
-            strcpy(popup->cells[d], (char *) value[d]);
+            strcpy(popup->active_cell_buffer, (char *) value[d]);
         }
     };
 
-    auto WRITE_CELL_INTO_VALUE = [&](uint32 d) {
+    auto WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE = [&]() {
+        uint32 d = popup->index_of_active_cell;
         if (cell_type[d] == CELL_TYPE_REAL32) {
-            *((real32 *) value[d]) = strtof(popup->cells[d], NULL);
+            *((real32 *) value[d]) = strtof(popup->active_cell_buffer, NULL);
         } else { ASSERT(cell_type[d] == CELL_TYPE_CSTRING);
-            strcpy((char *) value[d], popup->cells[d]);
+            strcpy((char *) value[d], popup->active_cell_buffer);
+        }
+    };
+
+    auto CLEAR_ALL_VALUES_TO_ZERO = [&]() {
+        for (uint32 d = 0; d < num_cells; ++d) {
+            if (!name[d]) continue;
+            if (cell_type[d] == CELL_TYPE_REAL32) {
+                *((real32 *) value[d]) = 0.0f;
+            } else { ASSERT(cell_type[d] == CELL_TYPE_CSTRING);
+                memset(value[d], 0, POPUP_CELL_LENGTH);
+            }
         }
     };
 
@@ -60,11 +73,9 @@ auto popup_popup = [&] (
     if (popup->_active_popup_unique_ID__FORNOW_name0 != _name0) {
         popup->_active_popup_unique_ID__FORNOW_name0 = _name0;
         popup->index_of_active_cell = 0;
-        for (uint32 d = 0; d < num_cells; ++d) {
-            if (!name[d]) continue;
-            LOAD_VALUE_INTO_CELL(d);
-        }
-        popup->cursor = (uint32) strlen(popup->cells[popup->index_of_active_cell]);
+        if (zero_on_load_up) CLEAR_ALL_VALUES_TO_ZERO();
+        LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+        popup->cursor = (uint32) strlen(popup->active_cell_buffer);
         popup->selection_cursor = 0;
     }
 
@@ -115,12 +126,12 @@ auto popup_popup = [&] (
                 }
                 popup->index_of_active_cell = MODULO(popup->index_of_active_cell, num_cells);
             }
-            LOAD_VALUE_INTO_CELL(popup->index_of_active_cell);
-            popup->cursor = (uint32) strlen(popup->cells[popup->index_of_active_cell]);
+            LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+            popup->cursor = (uint32) strlen(popup->active_cell_buffer);
             popup->selection_cursor = 0;
         }
 
-        char *active_cell = popup->cells[popup->index_of_active_cell];
+        char *active_cell = popup->active_cell_buffer;
         uint32 len = (uint32) strlen(active_cell);
         uint32 left_cursor = MIN(popup->cursor, popup->selection_cursor);
         uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
@@ -205,9 +216,11 @@ auto popup_popup = [&] (
         } else {
             popup_popup_ate_this_event = false;
         }
+
     }
 
-    WRITE_CELL_INTO_VALUE(popup->index_of_active_cell);
+    WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
+
     if (!HACK_DISABLE_POPUP_DRAWING) {
         for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
@@ -215,7 +228,7 @@ auto popup_popup = [&] (
 
             // FORNOW gross;
             if (d == popup->index_of_active_cell) {
-                sprintf(buffer, "`%s %s", name[d], popup->cells[d]);
+                sprintf(buffer, "`%s %s", name[d], popup->active_cell_buffer);
             } else {
                 if (cell_type[d] == CELL_TYPE_REAL32) {
                     sprintf(buffer,  "%s %g", name[d], *((real32 *) value[d]));
@@ -231,14 +244,14 @@ auto popup_popup = [&] (
                     if (!SELECTION_NOT_ACTIVE()) {
                         real32 o = COW1._gui_x_curr + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" "));
                         char tmp[4096]; // FORNOW
-                        strcpy(tmp, popup->cells[d]);
+                        strcpy(tmp, popup->active_cell_buffer);
                         tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
                         real32 R = o + 2 * stb_easy_font_width(tmp) - 2.5f;
                         tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
                         real32 L = o + 2 * stb_easy_font_width(tmp);
                         real32 y = COW1._gui_y_curr;
                         eso_begin(globals._gui_NDC_from_Screen, SOUP_QUADS);
-                        eso_color(0.6f, 0.6f, 0.0f);
+                        eso_color(0.4f, 0.4f, 0.0f);
                         eso_vertex(L, y);
                         eso_vertex(R, y);
                         eso_vertex(R, y + 20);
@@ -250,7 +263,7 @@ auto popup_popup = [&] (
                     gui_printf(buffer);
                     if (((int) (_global_screen_state.popup_blinker_time * 5)) % 10 < 5) {
                         char tmp[4096]; // FORNOW
-                        strcpy(tmp, popup->cells[d]);
+                        strcpy(tmp, popup->active_cell_buffer);
                         tmp[popup->cursor] = '\0';
                         x += 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                         x -= 2.5;

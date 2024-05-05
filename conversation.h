@@ -169,17 +169,23 @@ struct ScreenState {
 
 struct PopupState {
     #define POPUP_CELL_LENGTH 256
-    real32 param0;
-    real32 param1;
+    real32 extrude_out_length;
+    real32 extrude_in_length;
     real32 circle_diameter;
     real32 circle_radius;
     real32 circle_circumference;
     real32 fillet_radius;
+    real32 box_width;
+    real32 box_height;
+    real32 x_coordinate;
+    real32 y_coordinate;
+    real32 plane_offset_distance;
 
-    char buffer0[POPUP_CELL_LENGTH];
+    char filename[POPUP_CELL_LENGTH];
 
     #define POPUP_MAX_NUM_CELLS 4
-    char cells[POPUP_MAX_NUM_CELLS][POPUP_CELL_LENGTH];
+    // char cells[POPUP_MAX_NUM_CELLS][POPUP_CELL_LENGTH];
+    char active_cell_buffer[POPUP_CELL_LENGTH];
 
     uint32 index_of_active_cell;
     uint32 cursor;
@@ -1341,7 +1347,7 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
 // messagef API ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-char conversation_message_buffer[256];
+char conversation_message_buffer[1024];
 uint32 conversation_message_cooldown;
 void conversation_messagef(char *format, ...) {
     va_list arg;
@@ -1357,7 +1363,7 @@ void conversation_message_buffer_update_and_draw() {
     } else {
         conversation_message_buffer[0] = '\0';
     }
-    gui_printf("< %s", conversation_message_buffer);
+    gui_printf("                                                                                                        C: %s", conversation_message_buffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1402,8 +1408,8 @@ Mesh wrapper_manifold(
         vec2 **polygonal_loops,
         mat4 M_3D_from_2D,
         uint32 enter_mode,
-        real32 extrude_length_out,
-        real32 extrude_length_in,
+        real32 extrude_out_length,
+        real32 extrude_in_length,
         vec2   dxf_origin,
         vec2   dxf_axis_base_point,
         real32 dxf_axis_angle_from_y
@@ -1458,17 +1464,17 @@ Mesh wrapper_manifold(
         { // manifold_B
             if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
                 warn_once("[DEBUG] inflating ENTER_MODE_EXTRUDE_CUT\n");
-                extrude_length_in += SGN(extrude_length_in) * TOLERANCE_DEFAULT;
-                extrude_length_out += SGN(extrude_length_out) * TOLERANCE_DEFAULT;
+                extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
+                extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
             }
 
             // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
             //       but we support (30, 40) -- which is equivalent to (40, 0)
 
             if (extrude) {
-                real32 length = extrude_length_in + extrude_length_out;
+                real32 length = extrude_in_length + extrude_out_length;
                 manifold_B = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
-                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -extrude_length_in);
+                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -extrude_in_length);
             } else { ASSERT(revolve);
                 // TODO: M_3D_from_2D 
                 manifold_B = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
