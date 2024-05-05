@@ -524,6 +524,17 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+    bool32 dxf_anything_selected; {
+        dxf_anything_selected = false;
+        for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
+            if (global_world_state.dxf.entities.array[i].is_selected) {
+                dxf_anything_selected = true;
+                break;
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     bool32 popup_popup_ate_this_event = false;
     bool32 popup_popup_actually_called_this_event = false;
@@ -542,6 +553,38 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     real32 *box_width            = &global_world_state.popup.box_width;
     real32 *box_height           = &global_world_state.popup.box_height;
     char *filename               = global_world_state.popup.filename;
+
+    auto WRAPPER_CALLER = [&]() { // wrapper
+        bool32 add     = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
+        if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
+            result.snapshot_me = true;
+            result.checkpoint_me = true;
+            _global_screen_state.successful_feature_time = 0.0f;
+            { // result.mesh
+                CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&global_world_state.dxf.entities, true);
+                Mesh tmp = wrapper_manifold(
+                        &global_world_state.mesh,
+                        cross_section.num_polygonal_loops,
+                        cross_section.num_vertices_in_polygonal_loops,
+                        cross_section.polygonal_loops,
+                        get_M_3D_from_2D(),
+                        global_world_state.modes.enter_mode,
+                        (add) ? global_world_state.popup.extrude_add_out_length : global_world_state.popup.extrude_cut_out_length,
+                        (add) ? global_world_state.popup.extrude_add_in_length : global_world_state.popup.extrude_cut_in_length,
+                        global_world_state.dxf.origin,
+                        global_world_state.dxf.axis_base_point,
+                        global_world_state.dxf.axis_angle_from_y);
+                cross_section_free(&cross_section);
+
+                mesh_free_AND_zero(&global_world_state.mesh); // FORNOW
+                global_world_state.mesh = tmp; // FORNOW
+            }
+        }
+
+        { // reset some stuff
+            for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
+        }
+    };
 
     bool32 enter = ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
 
@@ -600,18 +643,63 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
                     CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
             if (enter) {
-                // TODO
+                if (!dxf_anything_selected) {
+                    conversation_messagef("[extrude-add] no dxf elements selected");
+                } else if (!global_world_state.feature_plane.is_active) {
+                    conversation_messagef("[extrude-add] no plane selected");
+                } else if (IS_ZERO(global_world_state.popup.extrude_add_in_length) && IS_ZERO(global_world_state.popup.extrude_add_out_length)) {
+                    conversation_messagef("[extrude-add] must have non-zero total height");
+                } else {
+                    WRAPPER_CALLER();
+                    conversation_messagef("[extrude-add] success");
+                }
             }
         } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
             popup_popup(true,
                     CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
                     CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
             if (enter) {
-                // TODO
+                if (!dxf_anything_selected) {
+                    conversation_messagef("[extrude-cut] no dxf elements selected");
+                } else if (!global_world_state.feature_plane.is_active) {
+                    conversation_messagef("[extrude-cut] no plane selected");
+                } else if (IS_ZERO(global_world_state.popup.extrude_cut_in_length) && IS_ZERO(global_world_state.popup.extrude_cut_out_length)) {
+                    conversation_messagef("[extrude-cut] must have non-zero total height");
+                } else if (global_world_state.mesh.num_triangles == 0) {
+                    conversation_messagef("[extrude-cut] no mesh to cut from");
+                } else {
+                    WRAPPER_CALLER();
+                    conversation_messagef("[extrude-cut] success");
+                }
+            }
+        } else if (enter_mode == ENTER_MODE_REVOLVE_ADD) {
+            if (enter) {
+                if (!dxf_anything_selected) {
+                    conversation_messagef("[extrude-cut] no dxf elements selected");
+                } else if (!global_world_state.feature_plane.is_active) {
+                    conversation_messagef("[extrude-cut] no plane selected");
+                } else {
+                    WRAPPER_CALLER();
+                    conversation_messagef("[revolve-add] success");
+                }
+            }
+        } else if (enter_mode == ENTER_MODE_REVOLVE_CUT) {
+            if (enter) {
+                if (!dxf_anything_selected) {
+                    conversation_messagef("[extrude-cut] no dxf elements selected");
+                } else if (!global_world_state.feature_plane.is_active) {
+                    conversation_messagef("[extrude-cut] no plane selected");
+                } else if (global_world_state.mesh.num_triangles == 0) {
+                    conversation_messagef("[extrude-cut] no mesh to cut from");
+                } else {
+                    WRAPPER_CALLER();
+                    conversation_messagef("[revolve-cut] success");
+                }
             }
         }
 
     }
+
 
 
     if (!popup_popup_actually_called_this_event) global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
@@ -658,15 +746,6 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
     bool32 add     = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD));
     bool32 cut     = ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
-    bool32 dxf_anything_selected; {
-        dxf_anything_selected = false;
-        for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
-            if (global_world_state.dxf.entities.array[i].is_selected) {
-                dxf_anything_selected = true;
-                break;
-            }
-        }
-    }
 
     { // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(extrude);
@@ -710,279 +789,199 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             || (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES)
             ;
 
-        {
-            bool32 quality_number_special_case;
-            {
-                quality_number_special_case = false;
-                if (global_world_state.modes.click_modifier == CLICK_MODIFIER_QUALITY) {
-                    for (uint32 color = 0; color <= 9; ++color) {
-                        if (key_lambda('0' + color)) {
-                            result.checkpoint_me = true;
-                            quality_number_special_case = true;
-                            for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
-                                if (global_world_state.dxf.entities.array[i].color == color) {
-                                    bool32 value_to_write_to_selection_mask = (global_world_state.modes.click_mode == CLICK_MODE_SELECT);
-                                    global_world_state.dxf.entities.array[i].is_selected = value_to_write_to_selection_mask;
-                                }
+        bool32 quality_number_special_case; {
+            quality_number_special_case = false;
+            if (global_world_state.modes.click_modifier == CLICK_MODIFIER_QUALITY) {
+                for (uint32 color = 0; color <= 9; ++color) {
+                    if (key_lambda('0' + color)) {
+                        result.checkpoint_me = true;
+                        quality_number_special_case = true;
+                        for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
+                            if (global_world_state.dxf.entities.array[i].color == color) {
+                                bool32 value_to_write_to_selection_mask = (global_world_state.modes.click_mode == CLICK_MODE_SELECT);
+                                global_world_state.dxf.entities.array[i].is_selected = value_to_write_to_selection_mask;
                             }
-                            global_world_state.modes.click_mode = CLICK_MODE_NONE;
-                            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                            break;
                         }
+                        global_world_state.modes.click_mode = CLICK_MODE_NONE;
+                        global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+                        break;
                     }
                 }
             }
+        }
 
-            bool enter_success;
+        if (quality_number_special_case) {
+            ;
+        } else if (is_key_event && (event.key == GLFW_KEY_ENTER) &&
+                ((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE))) {
             {
-                enter_success = false;
-                if (key_lambda(GLFW_KEY_ENTER)) {
-                    enter_success = true;
-
-                    if (global_world_state.modes.enter_mode == ENTER_MODE_NONE) {
-                        // conversation_messagef("[enter] enter mode is none");
-                        enter_success = false;
-                    } else if (extrude || revolve) {
-                        if (!dxf_anything_selected) {
-                            conversation_messagef("[enter] no global_world_state.dxf.entities elements is_selected");
-                            enter_success = false;
-                        } else if (!global_world_state.feature_plane.is_active) {
-                            conversation_messagef("[enter] no plane is_selected");
-                            enter_success = false;
-                        } else if (cut && (global_world_state.mesh.num_triangles == 0)) { // FORNOW
-                            conversation_messagef("[enter] nothing to cut");
-                            enter_success = false;
-                        } else if (extrude) {
-                            warn_once("check for 0 extrude total height disabled");
-                            // if (IS_ZERO(global_world_state.popup.param0) && IS_ZERO(global_world_state.popup.param1)) {
-                            //     conversation_messagef("[enter] extrude height is zero");
-                            //     enter_success = false;
-                            // }
-                        } else {
-                            ASSERT(revolve);
-                            ;
-                        }
-                    } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
-                        ;
-                    } else if (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
-                        ;
+                static char full_filename_including_path[512];
+                sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.popup.filename);
+                if (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) {
+                    if (poe_suffix_match(full_filename_including_path, ".dxf")) {
+                        result.snapshot_me = result.checkpoint_me = true;
+                        conversation_dxf_load(full_filename_including_path,
+                                skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack
+                                || (strcmp(full_filename_including_path, _global_screen_state.dxf_filename_for_reload) == 0));
+                    } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
+                        conversation_stl_load(full_filename_including_path);
+                    } else {
+                        conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
                     }
+                } else { ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SAVE);
+                    conversation_save(full_filename_including_path);
                 }
             }
-
-            if (quality_number_special_case) {
-                ;
-            } else if (enter_success) {
-                { // wrapper
-                    if (extrude || revolve) {
-                        if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
-                            result.snapshot_me = true;
-                            result.checkpoint_me = true;
-                            _global_screen_state.successful_feature_time = 0.0f;
-                            { // result.mesh
-                                CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&global_world_state.dxf.entities, true);
-                                Mesh tmp = wrapper_manifold(
-                                        &global_world_state.mesh,
-                                        cross_section.num_polygonal_loops,
-                                        cross_section.num_vertices_in_polygonal_loops,
-                                        cross_section.polygonal_loops,
-                                        get_M_3D_from_2D(),
-                                        global_world_state.modes.enter_mode,
-                                        (add) ? global_world_state.popup.extrude_add_out_length : global_world_state.popup.extrude_cut_out_length,
-                                        (add) ? global_world_state.popup.extrude_add_in_length : global_world_state.popup.extrude_cut_in_length,
-                                        global_world_state.dxf.origin,
-                                        global_world_state.dxf.axis_base_point,
-                                        global_world_state.dxf.axis_angle_from_y);
-                                cross_section_free(&cross_section);
-
-                                mesh_free_AND_zero(&global_world_state.mesh); // FORNOW
-                                global_world_state.mesh = tmp; // FORNOW
-                            }
-
-
-                            if (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) conversation_messagef("[extrude-add] success");
-                            if (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) conversation_messagef("[extrude-cut] success");
-                            if (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD) conversation_messagef("[revolve-add] success");
-                            if (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT) conversation_messagef("[revolve-cut] success");
-                            if (revolve) conversation_messagef("[revolve] success");
-                        }
-
-                        { // reset some stuff
-                            for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
-                        }
-                        // } else if (global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) {
-                        //     global_world_state.dxf.origin.x = global_world_state.popup.param0;
-                        //     global_world_state.dxf.origin.y = global_world_state.popup.param1;
-                } else { ASSERT((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE));
-                    static char full_filename_including_path[512];
-                    sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.popup.filename);
-                    if (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) {
-                        if (poe_suffix_match(full_filename_including_path, ".dxf")) {
-                            result.snapshot_me = result.checkpoint_me = true;
-                            conversation_dxf_load(full_filename_including_path,
-                                    skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack
-                                    || (strcmp(full_filename_including_path, _global_screen_state.dxf_filename_for_reload) == 0));
-                        } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
-                            conversation_stl_load(full_filename_including_path);
-                        } else {
-                            conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
-                        }
-                    } else { ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SAVE);
-                        conversation_save(full_filename_including_path);
-                    }
-                }
-                global_world_state.modes.enter_mode = {};
-                }
-            } else if (key_lambda('Q', true)) {
-                exit(1);
-            } else if (key_lambda('0')) {
-                result.record_me = false;
-                _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
-            } else if (key_lambda('X', false, true)) {
-                result.record_me = false;
-                camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
-            } else if (key_lambda('G')) {
-                result.record_me = false;
-                _global_screen_state.hide_grid = !_global_screen_state.hide_grid;
-            } else if (key_lambda('H')) {
-                result.record_me = false;
-                _global_screen_state.show_help = !_global_screen_state.show_help;
-            } else if (key_lambda('.')) { 
-                result.record_me = false;
-                _global_screen_state.show_details = !_global_screen_state.show_details;
-            } else if (key_lambda('K')) { 
-                result.record_me = false;
-                _global_screen_state.show_event_stack = !_global_screen_state.show_event_stack;
-            } else if (key_lambda('K', false, true)) {
-                result.record_me = false;
-                _global_screen_state.hide_gui = !_global_screen_state.hide_gui;
-            } else if (key_lambda('O', true)) {
-                global_world_state.modes.enter_mode = ENTER_MODE_OPEN;
-            } else if (key_lambda('S', true)) {
-                global_world_state.modes.enter_mode = ENTER_MODE_SAVE;
-            } else if (key_lambda(COW_KEY_ESCAPE)) {
-                global_world_state.modes = {};
-            } else if (key_lambda('N')) {
-                if (global_world_state.feature_plane.is_active) {
-                    global_world_state.modes.enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
-                } else {
-                    conversation_messagef("[n] no plane is_selected");
-                }
-            } else if (key_lambda('Z', false, true)) {
-                global_world_state.modes.click_mode = CLICK_MODE_SET_ORIGIN;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('A', false, true)) {
-                global_world_state.modes.click_mode = CLICK_MODE_SET_AXIS;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda('S')) {
-                global_world_state.modes.click_mode = CLICK_MODE_SELECT;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('D')) {
-                global_world_state.modes.click_mode = CLICK_MODE_DESELECT;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('C')) {
-                if (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_CONNECTED)) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_CONNECTED;
-                } else if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
-                } else {
-                    global_world_state.modes.click_mode = CLICK_MODE_CREATE_CIRCLE;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                    global_world_state.two_click_command.awaiting_second_click = false;
-                    _global_screen_state.space_bar_event_key = 'C'; // FORNOW; TODO perhaps key_lambda can store the entirety of the standard_event
-                                                                    // update_space_bar_event_off_of_most_recent_key_lambda
-                }
-            } else if (key_lambda('Q')) {
-                if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_QUALITY;
-                }
-            } else if (key_lambda('A')) {
-                if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                    result.checkpoint_me = true;
-                    bool32 value_to_write_to_selection_mask = (global_world_state.modes.click_mode == CLICK_MODE_SELECT);
-                    for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = value_to_write_to_selection_mask;
-                    global_world_state.modes.click_mode = CLICK_MODE_NONE;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                }
-            } else if (key_lambda('Y')) {
-                // TODO: 'Y' remembers last terminal choice of plane for next time
-                result.checkpoint_me = true;
-
-                // already one of the three primary planes
-                if ((global_world_state.feature_plane.is_active) && ARE_EQUAL(global_world_state.feature_plane.signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(global_world_state.feature_plane.normal), 1.0f) && ARE_EQUAL(maxComponent(global_world_state.feature_plane.normal), 1.0f)) {
-                    global_world_state.feature_plane.normal = { global_world_state.feature_plane.normal[2], global_world_state.feature_plane.normal[0], global_world_state.feature_plane.normal[1] };
-                } else {
-                    global_world_state.feature_plane.is_active = true;
-                    global_world_state.feature_plane.signed_distance_to_world_origin = 0.0f;
-                    global_world_state.feature_plane.normal = { 0.0f, 1.0f, 0.0f };
-                }
-            } else if (key_lambda('X')) {
-                if (global_world_state.modes.click_mode != CLICK_MODE_NONE) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
-                }
-            } else if (key_lambda('E')) {
-                if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
-                } else {
-                    // result.checkpoint_me = true;
-                    global_world_state.modes.enter_mode = ENTER_MODE_EXTRUDE_ADD;
-                }
-            } else if (key_lambda('M')) {
-                if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
-                } else {
-                    result.checkpoint_me = true;
-                    global_world_state.modes.click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                    global_world_state.two_click_command.awaiting_second_click = false;
-                }
-            } else if (key_lambda('E', false, true)) {
-                // result.checkpoint_me = true;
-                global_world_state.modes.enter_mode = ENTER_MODE_EXTRUDE_CUT;
-            } else if (key_lambda('R')) {
-                global_world_state.modes.enter_mode = ENTER_MODE_REVOLVE_ADD;
-            } else if (key_lambda('R', false, true)) {
-                global_world_state.modes.enter_mode = ENTER_MODE_REVOLVE_CUT;
-            } else if (key_lambda('W')) {
-                if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_WINDOW;
-                    global_world_state.two_click_command.awaiting_second_click = false;
-                }
-            } else if (key_lambda('M', false, true)) {
-                result.record_me = false;
-                global_world_state.modes.click_mode = CLICK_MODE_MEASURE;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda('L')) {
-                global_world_state.modes.click_mode = CLICK_MODE_CREATE_LINE;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-                _global_screen_state.space_bar_event_key = 'L'; // FORNOW 
-            } else if (key_lambda('F')) {
-                global_world_state.modes.click_mode = CLICK_MODE_CREATE_FILLET;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda('B')) {
-                global_world_state.modes.click_mode = CLICK_MODE_CREATE_BOX;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-                _global_screen_state.space_bar_event_key = 'B'; // FORNOW
-            } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
-                for (int32 i = global_world_state.dxf.entities.length - 1; i >= 0; --i) {
-                    if (global_world_state.dxf.entities.array[i].is_selected) {
-                        DXF_DELETE(i);
-                    }
-                }
-                for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
+            global_world_state.modes.enter_mode = {};
+        } else if (key_lambda('Q', true)) {
+            exit(1);
+        } else if (key_lambda('0')) {
+            result.record_me = false;
+            _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
+        } else if (key_lambda('X', false, true)) {
+            result.record_me = false;
+            camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
+        } else if (key_lambda('G')) {
+            result.record_me = false;
+            _global_screen_state.hide_grid = !_global_screen_state.hide_grid;
+        } else if (key_lambda('H')) {
+            result.record_me = false;
+            _global_screen_state.show_help = !_global_screen_state.show_help;
+        } else if (key_lambda('.')) { 
+            result.record_me = false;
+            _global_screen_state.show_details = !_global_screen_state.show_details;
+        } else if (key_lambda('K')) { 
+            result.record_me = false;
+            _global_screen_state.show_event_stack = !_global_screen_state.show_event_stack;
+        } else if (key_lambda('K', false, true)) {
+            result.record_me = false;
+            _global_screen_state.hide_gui = !_global_screen_state.hide_gui;
+        } else if (key_lambda('O', true)) {
+            global_world_state.modes.enter_mode = ENTER_MODE_OPEN;
+        } else if (key_lambda('S', true)) {
+            global_world_state.modes.enter_mode = ENTER_MODE_SAVE;
+        } else if (key_lambda(COW_KEY_ESCAPE)) {
+            global_world_state.modes = {};
+        } else if (key_lambda('N')) {
+            if (global_world_state.feature_plane.is_active) {
+                global_world_state.modes.enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
             } else {
-                result.record_me = false;
-                ;
+                conversation_messagef("[n] no plane is_selected");
             }
+        } else if (key_lambda('Z', false, true)) {
+            global_world_state.modes.click_mode = CLICK_MODE_SET_ORIGIN;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+        } else if (key_lambda('A', false, true)) {
+            global_world_state.modes.click_mode = CLICK_MODE_SET_AXIS;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            global_world_state.two_click_command.awaiting_second_click = false;
+        } else if (key_lambda('S')) {
+            global_world_state.modes.click_mode = CLICK_MODE_SELECT;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+        } else if (key_lambda('D')) {
+            global_world_state.modes.click_mode = CLICK_MODE_DESELECT;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+        } else if (key_lambda('C')) {
+            if (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_CONNECTED)) {
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_CONNECTED;
+            } else if (click_mode_SNAP_ELIGIBLE_) {
+                result.record_me = false;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
+            } else {
+                global_world_state.modes.click_mode = CLICK_MODE_CREATE_CIRCLE;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+                global_world_state.two_click_command.awaiting_second_click = false;
+                _global_screen_state.space_bar_event_key = 'C'; // FORNOW; TODO perhaps key_lambda can store the entirety of the standard_event
+                                                                // update_space_bar_event_off_of_most_recent_key_lambda
+            }
+        } else if (key_lambda('Q')) {
+            if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_QUALITY;
+            }
+        } else if (key_lambda('A')) {
+            if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
+                result.checkpoint_me = true;
+                bool32 value_to_write_to_selection_mask = (global_world_state.modes.click_mode == CLICK_MODE_SELECT);
+                for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = value_to_write_to_selection_mask;
+                global_world_state.modes.click_mode = CLICK_MODE_NONE;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            }
+        } else if (key_lambda('Y')) {
+            // TODO: 'Y' remembers last terminal choice of plane for next time
+            result.checkpoint_me = true;
+
+            // already one of the three primary planes
+            if ((global_world_state.feature_plane.is_active) && ARE_EQUAL(global_world_state.feature_plane.signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(global_world_state.feature_plane.normal), 1.0f) && ARE_EQUAL(maxComponent(global_world_state.feature_plane.normal), 1.0f)) {
+                global_world_state.feature_plane.normal = { global_world_state.feature_plane.normal[2], global_world_state.feature_plane.normal[0], global_world_state.feature_plane.normal[1] };
+            } else {
+                global_world_state.feature_plane.is_active = true;
+                global_world_state.feature_plane.signed_distance_to_world_origin = 0.0f;
+                global_world_state.feature_plane.normal = { 0.0f, 1.0f, 0.0f };
+            }
+        } else if (key_lambda('X')) {
+            if (global_world_state.modes.click_mode != CLICK_MODE_NONE) {
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
+            }
+        } else if (key_lambda('E')) {
+            if (click_mode_SNAP_ELIGIBLE_) {
+                result.record_me = false;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
+            } else {
+                // result.checkpoint_me = true;
+                global_world_state.modes.enter_mode = ENTER_MODE_EXTRUDE_ADD;
+            }
+        } else if (key_lambda('M')) {
+            if (click_mode_SNAP_ELIGIBLE_) {
+                result.record_me = false;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
+            } else {
+                result.checkpoint_me = true;
+                global_world_state.modes.click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+                global_world_state.two_click_command.awaiting_second_click = false;
+            }
+        } else if (key_lambda('E', false, true)) {
+            // result.checkpoint_me = true;
+            global_world_state.modes.enter_mode = ENTER_MODE_EXTRUDE_CUT;
+        } else if (key_lambda('R')) {
+            global_world_state.modes.enter_mode = ENTER_MODE_REVOLVE_ADD;
+        } else if (key_lambda('R', false, true)) {
+            global_world_state.modes.enter_mode = ENTER_MODE_REVOLVE_CUT;
+        } else if (key_lambda('W')) {
+            if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_WINDOW;
+                global_world_state.two_click_command.awaiting_second_click = false;
+            }
+        } else if (key_lambda('M', false, true)) {
+            result.record_me = false;
+            global_world_state.modes.click_mode = CLICK_MODE_MEASURE;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            global_world_state.two_click_command.awaiting_second_click = false;
+        } else if (key_lambda('L')) {
+            global_world_state.modes.click_mode = CLICK_MODE_CREATE_LINE;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            global_world_state.two_click_command.awaiting_second_click = false;
+            _global_screen_state.space_bar_event_key = 'L'; // FORNOW 
+        } else if (key_lambda('F')) {
+            global_world_state.modes.click_mode = CLICK_MODE_CREATE_FILLET;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+            global_world_state.two_click_command.awaiting_second_click = false;
+        } else if (key_lambda('B')) {
+            global_world_state.modes.click_mode = CLICK_MODE_CREATE_BOX;
+            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            global_world_state.two_click_command.awaiting_second_click = false;
+            _global_screen_state.space_bar_event_key = 'B'; // FORNOW
+        } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
+            for (int32 i = global_world_state.dxf.entities.length - 1; i >= 0; --i) {
+                if (global_world_state.dxf.entities.array[i].is_selected) {
+                    DXF_DELETE(i);
+                }
+            }
+            for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
+        } else {
+            result.record_me = false;
+            ;
         }
     } else if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS) {
         result.record_me = true; // FORNOW: event recorded is the default
