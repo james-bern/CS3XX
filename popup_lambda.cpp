@@ -91,12 +91,12 @@ auto popup_popup = [&] (
 
     auto SELECTION_NOT_ACTIVE = [&]() -> bool { return (popup->selection_cursor == popup->cursor); };
 
-    if (_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) {
+    if (event.type == USER_EVENT_TYPE_KEY_PRESS) {
         _global_screen_state.popup_blinker_time = 0.0; // FORNOW
 
-        uint32 key = _standard_event->key;
-        bool32 shift = _standard_event->shift;
-        bool32 super = _standard_event->super;
+        uint32 key = event.key;
+        bool32 shift = event.shift;
+        bool32 super = event.super;
 
         bool32 key_is_digit = ('0' <= key) && (key <= '9');
         bool32 key_is_punc  = (key == '.') || (key == '-');
@@ -277,7 +277,7 @@ auto popup_popup = [&] (
     }
 
     // bool32 close_popup_and_execute; {
-    //     close_popup_and_execute = ((_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event->key == GLFW_KEY_ENTER));
+    //     close_popup_and_execute = ((_standard_event.type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event.key == GLFW_KEY_ENTER));
     // for (uint32 d = 0; d < num_cells; ++d) close_popup_and_execute &= (!IS_ZERO(*value[d])); // FORNOW
     // }
 
