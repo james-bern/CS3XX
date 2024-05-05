@@ -1,17 +1,13 @@
-// TODO: space bar
-// blow style messaging system with transparency, etc.
-
+// TODO: being able to type equations into boxes
 // FORNOW: extrude_* are funky because they share variables (this ends up being useful for draw; TODO: remove this dependency)
-// TODO: popup reuse for box and (x, y) TODO ? no generic case, just give everyone their own and reset if you want to reset
-// -- TODO remove param0, ... from PopupState; TODO rename buffer0 filename
 // TODO: bring offset plane back
-
 // TODO: figure out system for space bar
-
 // TODO: hotpanegui (mouse stuff)
-
+// blow style messaging system with transparency, etc.
 // // TODO (soon): feature freeeze
 // TODO: rewrite cow/snail in C
+
+// TODO: merge a copy of cow into the app (split off into own repo with a cow inside it)
 
 #include "cs345.cpp"
 #include "manifoldc.h"
@@ -21,14 +17,12 @@
 #include "conversation.h"
 #include "elephant.cpp"
 
-
 // TODO: ghostly section view on 2D side
-// TODO: ? remove cow callback dependencies
-// TODO: being able to type equations into boxes
-
 // TODO: gui printf that doesn't automatically add a newline
 // TODOLATER repeated keys shouldn't be recorded (unless enter mode changes) -- enter mode lambda in process
 // TODOLATER: don't record saving
+
+// TODO: various intersection commands
 
 //////////////////////////////////////////////////
 // DEBUG /////////////////////////////////////////
