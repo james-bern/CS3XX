@@ -165,12 +165,15 @@ struct ScreenState {
     char drop_path[256];
 
     real32 popup_blinker_time;
+    real32 successful_feature_time;
 };
 
 struct PopupState {
     #define POPUP_CELL_LENGTH 256
-    real32 extrude_out_length;
-    real32 extrude_in_length;
+    real32 extrude_add_out_length;
+    real32 extrude_add_in_length;
+    real32 extrude_cut_in_length;
+    real32 extrude_cut_out_length;
     real32 circle_diameter;
     real32 circle_radius;
     real32 circle_circumference;
@@ -226,9 +229,6 @@ struct WorldState {
     } two_click_command;
 
     PopupState popup;
-
-
-
 };
 
 
@@ -1363,7 +1363,7 @@ void conversation_message_buffer_update_and_draw() {
     } else {
         conversation_message_buffer[0] = '\0';
     }
-    gui_printf("                                                                                                        C: %s", conversation_message_buffer);
+    _text_draw((cow_real *) &globals._gui_NDC_from_Screen, conversation_message_buffer, 1024, 32, 0.0, 0.5, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -16,7 +16,7 @@ auto popup_popup = [&] (
         uint8 cell_type1 = 0, char *_name1 = NULL, void *_value1 = NULL,
         uint8 cell_type2 = 0, char *_name2 = NULL, void *_value2 = NULL,
         uint8 cell_type3 = 0, char *_name3 = NULL, void *_value3 = NULL
-        ) -> bool32 {
+        ) -> void {
 
     PopupState *popup = &global_world_state.popup;
 
@@ -72,8 +72,8 @@ auto popup_popup = [&] (
 
     if (popup->_active_popup_unique_ID__FORNOW_name0 != _name0) {
         popup->_active_popup_unique_ID__FORNOW_name0 = _name0;
-        popup->index_of_active_cell = 0;
         if (zero_on_load_up) CLEAR_ALL_VALUES_TO_ZERO();
+        popup->index_of_active_cell = 0;
         LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
         popup->cursor = (uint32) strlen(popup->active_cell_buffer);
         popup->selection_cursor = 0;
@@ -276,10 +276,10 @@ auto popup_popup = [&] (
         }
     }
 
-    bool32 close_popup_and_execute; {
-        close_popup_and_execute = ((_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event->key == GLFW_KEY_ENTER));
-        // for (uint32 d = 0; d < num_cells; ++d) close_popup_and_execute &= (!IS_ZERO(*value[d])); // FORNOW
-    }
+    // bool32 close_popup_and_execute; {
+    //     close_popup_and_execute = ((_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event->key == GLFW_KEY_ENTER));
+    // for (uint32 d = 0; d < num_cells; ++d) close_popup_and_execute &= (!IS_ZERO(*value[d])); // FORNOW
+    // }
 
-    return close_popup_and_execute;
+    // return close_popup_and_execute;
 };

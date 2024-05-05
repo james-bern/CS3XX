@@ -1,10 +1,33 @@
-// TODO: being able to type equations into boxes
+// TODO frame-imperfect issue
+// - user presses E
+// - this is handled as a hotkey (no popup triggered)
+// - enter_mode is EXTRUDE_ADD
+// - stale param values are drawn
+// - next frame's null event goes into the popup logic and clears params to zero
+// - fresh param values ((0,0)) are drawn
+
+// Question: why do popups come before hotkeys?
+// -- because some popups *transform the event
+// Could we split the popups across the hotkeys?
+// -- i think so
+// Does this make sense?
+// sorta kinda
+// type 1 popup -> transforms the event into a UserEvent
+// type 2 popup -> performs a terminal operation dependent on state
+
+// TODO: blow style cascading messaging system with transparency, etc.
+// TODO: move enter stuff up into popup handling (how is popup being closed)
+// -- TODO: move extrude and revolve up (let's start with them entirely separate)
 // FORNOW: extrude_* are funky because they share variables (this ends up being useful for draw; TODO: remove this dependency)
 // TODO: bring offset plane back
 // TODO: figure out system for space bar
 // TODO: hotpanegui (mouse stuff)
-// blow style messaging system with transparency, etc.
+// TODO: being able to type equations into boxes
+/////////////////////////////////////////////
 // // TODO (soon): feature freeeze
+// ---------------------------------
+// TODO: various intersection commands
+// ---------------------------------
 // TODO: rewrite cow/snail in C
 
 // TODO: merge a copy of cow into the app (split off into own repo with a cow inside it)
@@ -22,7 +45,6 @@
 // TODOLATER repeated keys shouldn't be recorded (unless enter mode changes) -- enter mode lambda in process
 // TODOLATER: don't record saving
 
-// TODO: various intersection commands
 
 //////////////////////////////////////////////////
 // DEBUG /////////////////////////////////////////
@@ -50,7 +72,9 @@ void init_cameras() {
     _global_screen_state.camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
     // FORNOW
     if (global_world_state.dxf.entities.length) camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
-    _global_screen_state.camera_3D = { 2.0f * _global_screen_state.camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
+    if (!global_world_state.mesh.num_vertices) {
+        _global_screen_state.camera_3D = { 2.0f * _global_screen_state.camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
+    }
 }
 
 
@@ -168,7 +192,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
 
     if (global_world_state.mesh.cosmetic_edges) {
         eso_begin(PVM_3D, SOUP_LINES); 
-        eso_color(monokai.black);
+        eso_color(CLAMPED_LERP(_global_screen_state.successful_feature_time, monokai.white, monokai.black));
         // 3 * num_triangles * 2 / 2
         for (uint32 k = 0; k < 2 * global_world_state.mesh.num_cosmetic_edges; ++k) eso_vertex(global_world_state.mesh.vertex_positions, global_world_state.mesh.cosmetic_edges[k]);
         eso_end();
@@ -201,7 +225,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                     alpha = 1.0f;
                 }
             }
-            eso_color(color, alpha);
+            eso_color(CLAMPED_LERP(_global_screen_state.successful_feature_time, monokai.white, color), alpha);
             eso_vertex(p[0]);
             eso_vertex(p[1]);
             eso_vertex(p[2]);
@@ -439,6 +463,9 @@ UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real3
 // NOTE: this sometimes modifies global_world_state.dxf
 // NOTE: this sometimes modifies global_world_state.mesh (and frees what used to be there)
 
+
+// TODO: let's make this not take a pointer and instead return a StandardEventProcessResult
+
 void standard_event_process(
         UserEvent *_standard_event,
         bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = false
@@ -461,6 +488,8 @@ void standard_event_process(
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     // TRANSFORMATION LAYER (EFFECTIVE_EVENT) ////////////////////////////////////////////////////////////
+    // NOTE: POPUP deals with some events all by itself (type 1: textbox events; type 2: terminal enter events
+    // and transforms others into effective events that are handled by the logic below ('X' -> mouse click)
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -470,84 +499,91 @@ void standard_event_process(
     // TODOLATER: gui weirdness on undo (do we need to draw anything?--no) -- this is unimportant; and is solveable by just turning off graphics updates globally during all the undo
     // -- TODO: it's worth thinking about this more but fornow at least i really think the only "problem" is that gui_printf is getting called multiple times per frame
 
+    // TODO: EventBools
+    // TODO: scope out this big ol' function into _standard_event and effective_event with separate EventBools for each
+
+
+
     bool32 popup_popup_ate_this_event = false;
     bool32 popup_popup_actually_called_this_event = false;
 #include "popup_lambda.cpp"
-    { // popup_popups
-        real32 *extrude_out_length   = &global_world_state.popup.extrude_out_length;
-        real32 *extrude_in_length    = &global_world_state.popup.extrude_in_length;
-        real32 *x_coordinate         = &global_world_state.popup.x_coordinate;
-        real32 *y_coordinate         = &global_world_state.popup.y_coordinate;
-        real32 *circle_diameter      = &global_world_state.popup.circle_diameter;
-        real32 *circle_radius        = &global_world_state.popup.circle_radius;
-        real32 *circle_circumference = &global_world_state.popup.circle_circumference;
-        real32 *fillet_radius        = &global_world_state.popup.fillet_radius;
-        real32 *box_width            = &global_world_state.popup.box_width;
-        real32 *box_height           = &global_world_state.popup.box_height;
-        char *filename               = global_world_state.popup.filename;
-        {
-            if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) { // sus calling this a modifier but okay; make sure it's first or else bad bad
-                if (popup_popup(true,
-                            CELL_TYPE_REAL32, "x coordinate", x_coordinate,
-                            CELL_TYPE_REAL32, "y coordinate", y_coordinate)) {
-                    effective_event = MOUSE_2D_event(*x_coordinate, *y_coordinate);
+
+    real32 *extrude_add_out_length   = &global_world_state.popup.extrude_add_out_length;
+    real32 *extrude_add_in_length    = &global_world_state.popup.extrude_add_in_length;
+    real32 *extrude_cut_in_length    = &global_world_state.popup.extrude_cut_in_length;
+    real32 *extrude_cut_out_length   = &global_world_state.popup.extrude_cut_out_length;
+    real32 *x_coordinate         = &global_world_state.popup.x_coordinate;
+    real32 *y_coordinate         = &global_world_state.popup.y_coordinate;
+    real32 *circle_diameter      = &global_world_state.popup.circle_diameter;
+    real32 *circle_radius        = &global_world_state.popup.circle_radius;
+    real32 *circle_circumference = &global_world_state.popup.circle_circumference;
+    real32 *fillet_radius        = &global_world_state.popup.fillet_radius;
+    real32 *box_width            = &global_world_state.popup.box_width;
+    real32 *box_height           = &global_world_state.popup.box_height;
+    char *filename               = global_world_state.popup.filename;
+
+    bool32 enter = ((_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event->key == GLFW_KEY_ENTER));
+
+
+
+    // TODO: create global ALREADY_DREW_A_POPUP_THIS_FRAME__NOTE_AESTHETIC__ONLY_AFFECTS_GUI_PRINTF
+    // TODO: replace the _standard_event and effective_event system with one true event (NOT passed by pointer) and a StandardEventProcessResult
+    // TODO: replace convenience booleans with lambda functions that capture the one true event by reference
+
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // TRANSFORMATION LAYER ////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+
+    if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
+        // sus calling this a modifier but okay; make sure it's first or else bad bad
+        popup_popup(true,
+                CELL_TYPE_REAL32, "x coordinate", x_coordinate,
+                CELL_TYPE_REAL32, "y coordinate", y_coordinate);
+        if (enter) {
+            effective_event = MOUSE_2D_event(*x_coordinate, *y_coordinate);
+        }
+    } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
+        if (awaiting_second_click) {
+            real32 prev_circle_diameter = *circle_diameter;
+            real32 prev_circle_radius = *circle_radius;
+            real32 prev_circle_circumference = *circle_circumference;
+            popup_popup(false,
+                    CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
+                    CELL_TYPE_REAL32, "circle_radius", circle_radius,
+                    CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
+            if (enter) {
+                effective_event = MOUSE_2D_event(first_click_x + *circle_radius, first_click_y);
+            } else {
+                if (*circle_diameter != prev_circle_diameter) {
+                    *circle_radius = *circle_diameter / 2;
+                    *circle_circumference = PI * *circle_diameter;
+                } else if (*circle_radius != prev_circle_radius) {
+                    *circle_diameter = 2 * *circle_radius;
+                    *circle_circumference = PI * *circle_diameter;
+                } else if (*circle_circumference != prev_circle_circumference) {
+                    *circle_diameter = *circle_circumference / PI;
+                    *circle_radius = *circle_diameter / 2;
                 }
-            } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
-                if (awaiting_second_click) {
-                    real32 prev_circle_diameter = *circle_diameter;
-                    real32 prev_circle_radius = *circle_radius;
-                    real32 prev_circle_circumference = *circle_circumference;
-                    if (popup_popup(false,
-                                CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
-                                CELL_TYPE_REAL32, "circle_radius", circle_radius,
-                                CELL_TYPE_REAL32, "circle_circumference", circle_circumference)) {
-                        effective_event = MOUSE_2D_event(first_click_x + *circle_radius, first_click_y);
-                    } else {
-                        if (*circle_diameter != prev_circle_diameter) {
-                            *circle_radius = *circle_diameter / 2;
-                            *circle_circumference = PI * *circle_diameter;
-                        } else if (*circle_radius != prev_circle_radius) {
-                            *circle_diameter = 2 * *circle_radius;
-                            *circle_circumference = PI * *circle_diameter;
-                        } else if (*circle_circumference != prev_circle_circumference) {
-                            *circle_diameter = *circle_circumference / PI;
-                            *circle_radius = *circle_diameter / 2;
-                        }
-                    }
-                }
-            } else if (click_mode == CLICK_MODE_CREATE_BOX) {
-                if (awaiting_second_click) {
-                    if (popup_popup(true,
-                                CELL_TYPE_REAL32, "box_width", box_width,
-                                CELL_TYPE_REAL32, "box_height", box_height)) {
-                        effective_event = MOUSE_2D_event(first_click_x + *box_width, first_click_y + *box_height);
-                    }
-                }
-            } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
-                popup_popup(false,
-                        CELL_TYPE_REAL32, "fillet radius", fillet_radius);
-            } else if ((enter_mode == ENTER_MODE_OPEN) || (enter_mode == ENTER_MODE_SAVE)) {
-                popup_popup(false,
-                        CELL_TYPE_CSTRING, "filename", filename);
-            } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
-                // FORNOW: extrude_* are funky because they share variables (this ends up being useful for draw; TODO: remove this dependency)
-                popup_popup(true,
-                        CELL_TYPE_REAL32, "extrude_out_length", extrude_out_length,
-                        CELL_TYPE_REAL32, "extrude_in_length", extrude_in_length);
-            } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
-                popup_popup(true,
-                        CELL_TYPE_REAL32, "extrude_in_length", extrude_in_length,
-                        CELL_TYPE_REAL32, "extrude_out_length", extrude_out_length);
             }
         }
-    }
-    if (!popup_popup_actually_called_this_event) global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
-    if (popup_popup_ate_this_event) {
-        _standard_event->record_me = true;
-        return;
+    } else if (click_mode == CLICK_MODE_CREATE_BOX) {
+        if (awaiting_second_click) {
+            popup_popup(true,
+                    CELL_TYPE_REAL32, "box_width", box_width,
+                    CELL_TYPE_REAL32, "box_height", box_height);
+            if (enter) {
+                effective_event = MOUSE_2D_event(first_click_x + *box_width, first_click_y + *box_height);
+            }
+        }
+    } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
+        popup_popup(false,
+                CELL_TYPE_REAL32, "fillet radius", fillet_radius);
+    } else if ((enter_mode == ENTER_MODE_OPEN) || (enter_mode == ENTER_MODE_SAVE)) {
+        popup_popup(false,
+                CELL_TYPE_CSTRING, "filename", filename);
     }
 
-    // FORNOW (TODO lambada)
     if (
             (effective_event.type == USER_EVENT_TYPE_KEY_PRESS)
             && (effective_event.key == 'Z')
@@ -558,6 +594,40 @@ void standard_event_process(
         effective_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
         effective_event.mouse = {};
     }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // TERMINAL POPUPS /////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////
+
+    // XXX: I don't think this will really work, because now we'll be calling two popups in a single frame
+    // (I think this might actually be fine, just make a giant global per frame that only draws one popup per frame max)
+
+    if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
+        popup_popup(true,
+                CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
+                CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
+        if (enter) {
+            // TODO
+        }
+    } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+        popup_popup(true,
+                CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
+                CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
+        if (enter) {
+            // TODO
+        }
+    }
+
+
+
+
+    if (!popup_popup_actually_called_this_event) global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
+    if (popup_popup_ate_this_event) {
+        _standard_event->record_me = true;
+        return;
+    }
+
+    // FORNOW (TODO lambada)
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
@@ -656,7 +726,7 @@ void standard_event_process(
                     enter_success = true;
 
                     if (global_world_state.modes.enter_mode == ENTER_MODE_NONE) {
-                        conversation_messagef("[enter] enter mode is none");
+                        // conversation_messagef("[enter] enter mode is none");
                         enter_success = false;
                     } else if (extrude || revolve) {
                         if (!dxf_anything_selected) {
@@ -693,6 +763,7 @@ void standard_event_process(
                     if (extrude || revolve) {
                         if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
                             _standard_event->snapshot_me = _standard_event->checkpoint_me = true;
+                            _global_screen_state.successful_feature_time = 0.0f;
                             { // result.mesh
                                 CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&global_world_state.dxf.entities, true);
                                 Mesh tmp = wrapper_manifold(
@@ -702,8 +773,8 @@ void standard_event_process(
                                         cross_section.polygonal_loops,
                                         get_M_3D_from_2D(),
                                         global_world_state.modes.enter_mode,
-                                        global_world_state.popup.extrude_out_length,
-                                        global_world_state.popup.extrude_in_length,
+                                        (add) ? global_world_state.popup.extrude_add_out_length : global_world_state.popup.extrude_cut_out_length,
+                                        (add) ? global_world_state.popup.extrude_add_in_length : global_world_state.popup.extrude_cut_in_length,
                                         global_world_state.dxf.origin,
                                         global_world_state.dxf.axis_base_point,
                                         global_world_state.dxf.axis_angle_from_y);
@@ -739,7 +810,7 @@ void standard_event_process(
                         } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
                             conversation_stl_load(full_filename_including_path);
                         } else {
-                            conversation_messagef("[open] %s not found", full_filename_including_path);
+                            conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
                         }
                     } else { ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SAVE);
                         conversation_save(full_filename_including_path);
@@ -946,14 +1017,20 @@ void standard_event_process(
             DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, effective_event.mouse.x, effective_event.mouse.y });
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
-            global_world_state.two_click_command.awaiting_second_click = false;
-            _standard_event->checkpoint_me = true;
-            global_world_state.modes.click_mode = CLICK_MODE_NONE;
-            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, effective_event.mouse.x, global_world_state.two_click_command.first_click.y });
-            DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, global_world_state.two_click_command.first_click.x, effective_event.mouse.y });
-            DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, effective_event.mouse.x, effective_event.mouse.y, effective_event.mouse.x, global_world_state.two_click_command.first_click.y });
-            DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, effective_event.mouse.x, effective_event.mouse.y, global_world_state.two_click_command.first_click.x, effective_event.mouse.y });
+            if (IS_ZERO(ABS(first_click.x - second_click.x))) {
+                conversation_messagef("[box] must have non-zero width ");
+            } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
+                conversation_messagef("[box] must have non-zero height");
+            } else {
+                global_world_state.two_click_command.awaiting_second_click = false;
+                _standard_event->checkpoint_me = true;
+                global_world_state.modes.click_mode = CLICK_MODE_NONE;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, effective_event.mouse.x, global_world_state.two_click_command.first_click.y });
+                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, global_world_state.two_click_command.first_click.x, effective_event.mouse.y });
+                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, effective_event.mouse.x, effective_event.mouse.y, effective_event.mouse.x, global_world_state.two_click_command.first_click.y });
+                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, effective_event.mouse.x, effective_event.mouse.y, global_world_state.two_click_command.first_click.x, effective_event.mouse.y });
+            }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
@@ -980,15 +1057,19 @@ void standard_event_process(
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
-            global_world_state.two_click_command.awaiting_second_click = false;
-            _standard_event->checkpoint_me = true;
-            global_world_state.modes.click_mode = CLICK_MODE_NONE;
-            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            real32 theta_a_in_degrees = DEG(atan2(effective_event.mouse.y - global_world_state.two_click_command.first_click.y, effective_event.mouse.x - global_world_state.two_click_command.first_click.x));
-            real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-            real32 r = SQRT(squared_distance_point_point(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, effective_event.mouse.x, effective_event.mouse.y));
-            DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_a_in_degrees, theta_b_in_degrees });
-            DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_b_in_degrees, theta_a_in_degrees });
+            if (IS_ZERO(norm(first_click - second_click))) {
+                conversation_messagef("[circle] must have non-zero diameter");
+            } else {
+                global_world_state.two_click_command.awaiting_second_click = false;
+                _standard_event->checkpoint_me = true;
+                global_world_state.modes.click_mode = CLICK_MODE_NONE;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+                real32 theta_a_in_degrees = DEG(atan2(effective_event.mouse.y - global_world_state.two_click_command.first_click.y, effective_event.mouse.x - global_world_state.two_click_command.first_click.x));
+                real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
+                real32 r = SQRT(squared_distance_point_point(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, effective_event.mouse.x, effective_event.mouse.y));
+                DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_a_in_degrees, theta_b_in_degrees });
+                DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_b_in_degrees, theta_a_in_degrees });
+            }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN) {
             _standard_event->checkpoint_me = true;
             global_world_state.dxf.origin = mouse;
@@ -1607,8 +1688,8 @@ void conversation_draw() {
 
     // aliases
     vec2 first_click = global_world_state.two_click_command.first_click;
-    real32 preview_extrude_out_length = global_world_state.popup.extrude_out_length;
-    real32 preview_extrude_in_length = global_world_state.popup.extrude_in_length;
+    real32 preview_extrude_in_length = (add) ? global_world_state.popup.extrude_add_in_length : global_world_state.popup.extrude_cut_in_length;
+    real32 preview_extrude_out_length = (add) ? global_world_state.popup.extrude_add_out_length : global_world_state.popup.extrude_cut_out_length;
     real32 preview_plane_offset_distance = global_world_state.popup.plane_offset_distance;
 
     // preview
@@ -2141,7 +2222,7 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
                 _spoof_MOUSE_2D_event(-5.0f, 10.0f);
                 _spoof_KEY_event('S');
                 _spoof_KEY_event('C');
-                _spoof_MOUSE_2D_event(37.2f, -47.7f);
+                _spoof_MOUSE_2D_event(70.0f, 4.0f);
                 _spoof_KEY_event('R');
                 _spoof_KEY_event(GLFW_KEY_ENTER);
 
@@ -2209,9 +2290,12 @@ int main() {
     bool32 frame_0 = true;
     bool32 frame_1 = false;
     while (cow_begin_frame()) {
+
         // Sleep(100);
+
         if (frame_1) HACK_DISABLE_POPUP_DRAWING = false;
-        /*if (not_first_frame)*/ { // camera_move, hot_pane, conversation_draw
+
+        { // camera_move, hot_pane, conversation_draw
             { // camera_move (using shimmed globals.* global_world_state)
                 if (_global_screen_state.hot_pane == HOT_PANE_2D) {
                     camera_move(&_global_screen_state.camera_2D);
@@ -2228,10 +2312,14 @@ int main() {
             conversation_draw();
         }
 
-        _global_screen_state.popup_blinker_time += 0.0167f;
+        { // animations
+            _global_screen_state.popup_blinker_time += 0.0167f;
+            // _global_screen_state.successful_feature_time += 0.03;
+            _global_screen_state.successful_feature_time = 1.0f;
+        }
 
         { // queue_of_fresh_events_from_user
-          // TODO: upgrade to handle multiple events per frame while only drawing gui once
+          // TODO: upgrade to handle multiple events per frame while only drawing gui once (simple simple with a boolean here -- reusing boolean is sus)
             if (queue_of_fresh_events_from_user.length) {
                 while (queue_of_fresh_events_from_user.length) {
                     UserEvent fresh_event = queue_dequeue(&queue_of_fresh_events_from_user);
@@ -2244,11 +2332,8 @@ int main() {
             }
         }
 
-        if (_global_screen_state.show_event_stack) history_debug_draw();
-
-        if (frame_1) glfwShowWindow(COW0._window_glfw_window);
-
-        {
+        { // frame_0, frame_1
+            if (frame_1) glfwShowWindow(COW0._window_glfw_window);
             if (frame_0) {
                 frame_0 = false;
                 frame_1 = true;
@@ -2256,6 +2341,10 @@ int main() {
                 frame_1 = false;
             }
         }
+
+        //
+
+        if (_global_screen_state.show_event_stack) history_debug_draw();
     }
 }
 
