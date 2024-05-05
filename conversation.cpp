@@ -466,6 +466,21 @@ UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real3
 
 // TODO: let's make this not take a pointer and instead return a StandardEventProcessResult
 
+// TODO: think for a  while abou the macro order
+// on the run it seemed like it would be nice to put hotkeys first, but then some keys should be eaten by the popup
+// there may not be a perfect answer here
+// NOTE: this will work, you know whether the active_cell_buffer is a CELL_TYPE_CSTRING, and therefore, what it should eat
+//       same bool/bool-returning function can be used
+
+// but regardless, not taking a pointer is a good first step
+// and moving the enter (extrude revovle open save) logic up is also good
+
+struct StandardEventProcessResult {
+    bool32 record_me;
+    bool32 checkpoint_me;
+    bool32 snapshot_me;
+};
+
 void standard_event_process(
         UserEvent *_standard_event,
         bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = false
@@ -508,123 +523,127 @@ void standard_event_process(
     bool32 popup_popup_actually_called_this_event = false;
 #include "popup_lambda.cpp"
 
-    real32 *extrude_add_out_length   = &global_world_state.popup.extrude_add_out_length;
-    real32 *extrude_add_in_length    = &global_world_state.popup.extrude_add_in_length;
-    real32 *extrude_cut_in_length    = &global_world_state.popup.extrude_cut_in_length;
-    real32 *extrude_cut_out_length   = &global_world_state.popup.extrude_cut_out_length;
-    real32 *x_coordinate         = &global_world_state.popup.x_coordinate;
-    real32 *y_coordinate         = &global_world_state.popup.y_coordinate;
-    real32 *circle_diameter      = &global_world_state.popup.circle_diameter;
-    real32 *circle_radius        = &global_world_state.popup.circle_radius;
-    real32 *circle_circumference = &global_world_state.popup.circle_circumference;
-    real32 *fillet_radius        = &global_world_state.popup.fillet_radius;
-    real32 *box_width            = &global_world_state.popup.box_width;
-    real32 *box_height           = &global_world_state.popup.box_height;
-    char *filename               = global_world_state.popup.filename;
+    {
+        real32 *extrude_add_out_length   = &global_world_state.popup.extrude_add_out_length;
+        real32 *extrude_add_in_length    = &global_world_state.popup.extrude_add_in_length;
+        real32 *extrude_cut_in_length    = &global_world_state.popup.extrude_cut_in_length;
+        real32 *extrude_cut_out_length   = &global_world_state.popup.extrude_cut_out_length;
+        real32 *x_coordinate         = &global_world_state.popup.x_coordinate;
+        real32 *y_coordinate         = &global_world_state.popup.y_coordinate;
+        real32 *circle_diameter      = &global_world_state.popup.circle_diameter;
+        real32 *circle_radius        = &global_world_state.popup.circle_radius;
+        real32 *circle_circumference = &global_world_state.popup.circle_circumference;
+        real32 *fillet_radius        = &global_world_state.popup.fillet_radius;
+        real32 *box_width            = &global_world_state.popup.box_width;
+        real32 *box_height           = &global_world_state.popup.box_height;
+        char *filename               = global_world_state.popup.filename;
 
-    bool32 enter = ((_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event->key == GLFW_KEY_ENTER));
+        bool32 enter = ((_standard_event->type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event->key == GLFW_KEY_ENTER));
 
-
-
-    // TODO: create global ALREADY_DREW_A_POPUP_THIS_FRAME__NOTE_AESTHETIC__ONLY_AFFECTS_GUI_PRINTF
-    // TODO: replace the _standard_event and effective_event system with one true event (NOT passed by pointer) and a StandardEventProcessResult
-    // TODO: replace convenience booleans with lambda functions that capture the one true event by reference
+        {
 
 
-    ////////////////////////////////////////////////////////////////////////////////
-    // TRANSFORMATION LAYER ////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
+            // TODO: create global ALREADY_DREW_A_POPUP_THIS_FRAME__NOTE_AESTHETIC__ONLY_AFFECTS_GUI_PRINTF
+            // TODO: replace the _standard_event and effective_event system with one true event (NOT passed by pointer) and a StandardEventProcessResult
+            // TODO: replace convenience booleans with lambda functions that capture the one true event by reference
 
-    if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
-        // sus calling this a modifier but okay; make sure it's first or else bad bad
-        popup_popup(true,
-                CELL_TYPE_REAL32, "x coordinate", x_coordinate,
-                CELL_TYPE_REAL32, "y coordinate", y_coordinate);
-        if (enter) {
-            effective_event = MOUSE_2D_event(*x_coordinate, *y_coordinate);
-        }
-    } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
-        if (awaiting_second_click) {
-            real32 prev_circle_diameter = *circle_diameter;
-            real32 prev_circle_radius = *circle_radius;
-            real32 prev_circle_circumference = *circle_circumference;
-            popup_popup(false,
-                    CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
-                    CELL_TYPE_REAL32, "circle_radius", circle_radius,
-                    CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
-            if (enter) {
-                effective_event = MOUSE_2D_event(first_click_x + *circle_radius, first_click_y);
-            } else {
-                if (*circle_diameter != prev_circle_diameter) {
-                    *circle_radius = *circle_diameter / 2;
-                    *circle_circumference = PI * *circle_diameter;
-                } else if (*circle_radius != prev_circle_radius) {
-                    *circle_diameter = 2 * *circle_radius;
-                    *circle_circumference = PI * *circle_diameter;
-                } else if (*circle_circumference != prev_circle_circumference) {
-                    *circle_diameter = *circle_circumference / PI;
-                    *circle_radius = *circle_diameter / 2;
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // TRANSFORMATION LAYER ////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////
+
+            if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
+                // sus calling this a modifier but okay; make sure it's first or else bad bad
+                popup_popup(true,
+                        CELL_TYPE_REAL32, "x coordinate", x_coordinate,
+                        CELL_TYPE_REAL32, "y coordinate", y_coordinate);
+                if (enter) {
+                    effective_event = MOUSE_2D_event(*x_coordinate, *y_coordinate);
+                }
+            } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
+                if (awaiting_second_click) {
+                    real32 prev_circle_diameter = *circle_diameter;
+                    real32 prev_circle_radius = *circle_radius;
+                    real32 prev_circle_circumference = *circle_circumference;
+                    popup_popup(false,
+                            CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
+                            CELL_TYPE_REAL32, "circle_radius", circle_radius,
+                            CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
+                    if (enter) {
+                        effective_event = MOUSE_2D_event(first_click_x + *circle_radius, first_click_y);
+                    } else {
+                        if (*circle_diameter != prev_circle_diameter) {
+                            *circle_radius = *circle_diameter / 2;
+                            *circle_circumference = PI * *circle_diameter;
+                        } else if (*circle_radius != prev_circle_radius) {
+                            *circle_diameter = 2 * *circle_radius;
+                            *circle_circumference = PI * *circle_diameter;
+                        } else if (*circle_circumference != prev_circle_circumference) {
+                            *circle_diameter = *circle_circumference / PI;
+                            *circle_radius = *circle_diameter / 2;
+                        }
+                    }
+                }
+            } else if (click_mode == CLICK_MODE_CREATE_BOX) {
+                if (awaiting_second_click) {
+                    popup_popup(true,
+                            CELL_TYPE_REAL32, "box_width", box_width,
+                            CELL_TYPE_REAL32, "box_height", box_height);
+                    if (enter) {
+                        effective_event = MOUSE_2D_event(first_click_x + *box_width, first_click_y + *box_height);
+                    }
+                }
+            } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
+                popup_popup(false,
+                        CELL_TYPE_REAL32, "fillet radius", fillet_radius);
+            } else if ((enter_mode == ENTER_MODE_OPEN) || (enter_mode == ENTER_MODE_SAVE)) {
+                popup_popup(false,
+                        CELL_TYPE_CSTRING, "filename", filename);
+            }
+
+            if (
+                    (effective_event.type == USER_EVENT_TYPE_KEY_PRESS)
+                    && (effective_event.key == 'Z')
+                    && (!effective_event.super)
+                    && (!effective_event.shift)
+               ) {
+                effective_event = {};
+                effective_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
+                effective_event.mouse = {};
+            }
+
+            ////////////////////////////////////////////////////////////////////////////////
+            // TERMINAL POPUPS /////////////////////////////////////////////////////////////
+            ////////////////////////////////////////////////////////////////////////////////
+
+            // XXX: I don't think this will really work, because now we'll be calling two popups in a single frame
+            // (I think this might actually be fine, just make a giant global per frame that only draws one popup per frame max)
+
+            if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
+                popup_popup(true,
+                        CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
+                        CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
+                if (enter) {
+                    // TODO
+                }
+            } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+                popup_popup(true,
+                        CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
+                        CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
+                if (enter) {
+                    // TODO
                 }
             }
+
         }
-    } else if (click_mode == CLICK_MODE_CREATE_BOX) {
-        if (awaiting_second_click) {
-            popup_popup(true,
-                    CELL_TYPE_REAL32, "box_width", box_width,
-                    CELL_TYPE_REAL32, "box_height", box_height);
-            if (enter) {
-                effective_event = MOUSE_2D_event(first_click_x + *box_width, first_click_y + *box_height);
-            }
+
+
+
+        if (!popup_popup_actually_called_this_event) global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
+        if (popup_popup_ate_this_event) {
+            _standard_event->record_me = true;
+            return;
         }
-    } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
-        popup_popup(false,
-                CELL_TYPE_REAL32, "fillet radius", fillet_radius);
-    } else if ((enter_mode == ENTER_MODE_OPEN) || (enter_mode == ENTER_MODE_SAVE)) {
-        popup_popup(false,
-                CELL_TYPE_CSTRING, "filename", filename);
-    }
-
-    if (
-            (effective_event.type == USER_EVENT_TYPE_KEY_PRESS)
-            && (effective_event.key == 'Z')
-            && (!effective_event.super)
-            && (!effective_event.shift)
-       ) {
-        effective_event = {};
-        effective_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
-        effective_event.mouse = {};
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////
-    // TERMINAL POPUPS /////////////////////////////////////////////////////////////
-    ////////////////////////////////////////////////////////////////////////////////
-
-    // XXX: I don't think this will really work, because now we'll be calling two popups in a single frame
-    // (I think this might actually be fine, just make a giant global per frame that only draws one popup per frame max)
-
-    if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
-        popup_popup(true,
-                CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
-                CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
-        if (enter) {
-            // TODO
-        }
-    } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
-        popup_popup(true,
-                CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
-                CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
-        if (enter) {
-            // TODO
-        }
-    }
-
-
-
-
-    if (!popup_popup_actually_called_this_event) global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
-    if (popup_popup_ate_this_event) {
-        _standard_event->record_me = true;
-        return;
     }
 
     // FORNOW (TODO lambada)
