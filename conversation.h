@@ -1,3 +1,4 @@
+// TODO: make Mesh vec3's and ivec3's
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
 ////////////////////////////////////////
@@ -122,6 +123,9 @@ struct Mesh {
 
     uint32 num_cosmetic_edges;
     uint32 *cosmetic_edges;
+
+    vec3 min;
+    vec3 max;
 };
 
 struct UserEvent {
@@ -1092,6 +1096,17 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     list_free_AND_zero(&list);
 }
 
+void mesh_bounding_box_calculate(Mesh *mesh) {
+    mesh->min = V3(HUGE_VAL);
+    mesh->max = V3(-HUGE_VAL);
+    for (uint32 i = 0; i < mesh->num_vertices; ++i) {
+        for (uint32 d = 0; d < 3; ++d) {
+            mesh->min[d] = MIN(mesh->min[d], mesh->vertex_positions[3 * i + d]);
+            mesh->max[d] = MAX(mesh->max[d], mesh->vertex_positions[3 * i + d]);
+        }
+    }
+}
+
 bool32 mesh_save_stl(Mesh *mesh, char *filename) {
     FILE *file = fopen(filename, "wb");
     if (!file) {
@@ -1269,6 +1284,7 @@ void stl_load(char *filename, Mesh *mesh) {
         mesh->triangle_indices = triangle_indices;
         mesh_triangle_normals_calculate(mesh);
         mesh_cosmetic_edges_calculate(mesh);
+        mesh_bounding_box_calculate(mesh);
     }
 }
 
@@ -1526,6 +1542,7 @@ Mesh wrapper_manifold(
             result.triangle_indices = manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint32)), meshgl);
             mesh_triangle_normals_calculate(&result);
             mesh_cosmetic_edges_calculate(&result);
+            mesh_bounding_box_calculate(&result);
         }
 
         manifold_delete_meshgl(meshgl);
