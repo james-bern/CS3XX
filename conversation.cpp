@@ -1,4 +1,5 @@
-//TODO: fix 'U'
+// TODO: fix 'U'
+// TODO: fix handling of save by redo
 
 // TODO: cursor in popup
 // TODO: fleury ops
@@ -201,7 +202,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
 
     if (global_world_state.mesh.cosmetic_edges) {
         eso_begin(PVM_3D, SOUP_LINES); 
-        eso_color(CLAMPED_LERP(_global_screen_state.successful_feature_time, monokai.white, monokai.black));
+        eso_color(CLAMPED_LERP(_global_screen_state.successful_feature_time, monokai.black, monokai.black));
         // 3 * num_triangles * 2 / 2
         for (uint32 k = 0; k < 2 * global_world_state.mesh.num_cosmetic_edges; ++k) eso_vertex(global_world_state.mesh.vertex_positions, global_world_state.mesh.cosmetic_edges[k]);
         eso_end();
@@ -263,8 +264,6 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
         global_world_state.dxf.origin.x = 0.0f;
         global_world_state.dxf.origin.y = 0.0f;
     }
-
-    strcpy(_global_screen_state.dxf_filename_for_reload, filename);
 
     conversation_messagef("[load] loaded %s", filename);
 }
@@ -554,9 +553,13 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     real32 *box_height           = &global_world_state.popup.box_height;
     char *filename               = global_world_state.popup.filename;
 
-    auto WRAPPER_CALLER = [&]() { // wrapper
+    // TODO: then we'll clean up
+    // TODO: THEN we'll move the hotkeys up (and leave the mouse down below)
+
+    auto WRAPPER_CALLER = [&]() {
         bool32 add     = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
         if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
+            result.record_me = true;
             result.snapshot_me = true;
             result.checkpoint_me = true;
             _global_screen_state.successful_feature_time = 0.0f;
@@ -582,13 +585,17 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         }
 
         { // reset some stuff
+            global_world_state.modes.enter_mode = ENTER_MODE_NONE;
             for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = false;
         }
     };
 
-    bool32 enter = ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
+    // FORNOW
+    static char full_filename_including_path[512];
+    sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.popup.filename);
 
     {
+        bool32 enter = ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
 
         if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
             // sus calling this a modifier but okay; make sure it's first or else bad bad
@@ -634,10 +641,36 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
             popup_popup(false,
                     CELL_TYPE_REAL32, "fillet radius", fillet_radius);
-        } else if ((enter_mode == ENTER_MODE_OPEN) || (enter_mode == ENTER_MODE_SAVE)) {
+        } else if (enter_mode == ENTER_MODE_OPEN) {
             popup_popup(false,
                     CELL_TYPE_CSTRING, "filename", filename);
-            // TODO and moving the enter (extrude revovle open save) logic up is also good
+            if (enter) {
+                if (poe_suffix_match(full_filename_including_path, ".dxf")) {
+                    result.record_me = true;
+                    result.checkpoint_me = true;
+                    result.snapshot_me = true;
+                    conversation_dxf_load(full_filename_including_path,
+                            skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
+                    global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+                    return result; // FORNOW (just one return would be best)
+                } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
+                    result.record_me = true;
+                    result.checkpoint_me = true;
+                    result.snapshot_me = true;
+                    conversation_stl_load(full_filename_including_path);
+                    global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+                    return result; // FORNOW (just one return would be best)
+                } else {
+                    conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
+                }
+            }
+        } else if (enter_mode == ENTER_MODE_SAVE) {
+            popup_popup(false,
+                    CELL_TYPE_CSTRING, "filename", filename);
+            if (enter) {
+                conversation_save(full_filename_including_path);
+                global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+            }
         } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
             popup_popup(true,
                     CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
@@ -652,6 +685,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 } else {
                     WRAPPER_CALLER();
                     conversation_messagef("[extrude-add] success");
+                    return result; // FORNOW (just one return would be best)
                 }
             }
         } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
@@ -670,34 +704,36 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 } else {
                     WRAPPER_CALLER();
                     conversation_messagef("[extrude-cut] success");
+                    return result; // FORNOW (just one return would be best)
                 }
             }
         } else if (enter_mode == ENTER_MODE_REVOLVE_ADD) {
             if (enter) {
                 if (!dxf_anything_selected) {
-                    conversation_messagef("[extrude-cut] no dxf elements selected");
+                    conversation_messagef("[revolve-add] no dxf elements selected");
                 } else if (!global_world_state.feature_plane.is_active) {
-                    conversation_messagef("[extrude-cut] no plane selected");
+                    conversation_messagef("[revolve-add] no plane selected");
                 } else {
                     WRAPPER_CALLER();
                     conversation_messagef("[revolve-add] success");
+                    return result; // FORNOW (just one return would be best)
                 }
             }
         } else if (enter_mode == ENTER_MODE_REVOLVE_CUT) {
             if (enter) {
                 if (!dxf_anything_selected) {
-                    conversation_messagef("[extrude-cut] no dxf elements selected");
+                    conversation_messagef("[revolve-cut] no dxf elements selected");
                 } else if (!global_world_state.feature_plane.is_active) {
-                    conversation_messagef("[extrude-cut] no plane selected");
+                    conversation_messagef("[revolve-cut] no plane selected");
                 } else if (global_world_state.mesh.num_triangles == 0) {
-                    conversation_messagef("[extrude-cut] no mesh to cut from");
+                    conversation_messagef("[revolve-cut] no mesh to cut from");
                 } else {
                     WRAPPER_CALLER();
                     conversation_messagef("[revolve-cut] success");
+                    return result; // FORNOW (just one return would be best)
                 }
             }
         }
-
     }
 
 
@@ -810,29 +846,11 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             }
         }
 
+
+        // TODO: the else is killing the recording
+
         if (quality_number_special_case) {
             ;
-        } else if (is_key_event && (event.key == GLFW_KEY_ENTER) &&
-                ((global_world_state.modes.enter_mode == ENTER_MODE_OPEN) || (global_world_state.modes.enter_mode == ENTER_MODE_SAVE))) {
-            {
-                static char full_filename_including_path[512];
-                sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.popup.filename);
-                if (global_world_state.modes.enter_mode == ENTER_MODE_OPEN) {
-                    if (poe_suffix_match(full_filename_including_path, ".dxf")) {
-                        result.snapshot_me = result.checkpoint_me = true;
-                        conversation_dxf_load(full_filename_including_path,
-                                skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack
-                                || (strcmp(full_filename_including_path, _global_screen_state.dxf_filename_for_reload) == 0));
-                    } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
-                        conversation_stl_load(full_filename_including_path);
-                    } else {
-                        conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
-                    }
-                } else { ASSERT(global_world_state.modes.enter_mode == ENTER_MODE_SAVE);
-                    conversation_save(full_filename_including_path);
-                }
-            }
-            global_world_state.modes.enter_mode = {};
         } else if (key_lambda('Q', true)) {
             exit(1);
         } else if (key_lambda('0')) {
@@ -984,7 +1002,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             ;
         }
     } else if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS) {
-        result.record_me = true; // FORNOW: event recorded is the default
+        result.record_me = true;
         auto set_dxf_selection_mask = [&] (uint32 i, bool32 value_to_write) {
             // Only remember global_world_state.dxf.entities selection operations that actually change the mask
             // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... ret result; approach fornow
@@ -1775,6 +1793,25 @@ void conversation_draw() {
                 eso_vertex(GRID_SIDE_LENGTH, 0.0f);
                 eso_end();
             }
+            { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
+                real32 funky_NDC_factor = _global_screen_state.camera_2D.screen_height_World / 120.0f;
+                real32 LL = 1000 * funky_NDC_factor;
+
+                eso_color(monokai.white);
+                eso_begin(PV_2D, SOUP_LINES, 3.0f); {
+                    // axis
+                    vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
+                    eso_vertex(preview_dxf_axis_base_point + v);
+                    eso_vertex(preview_dxf_axis_base_point - v);
+
+                    // origin
+                    real32 r = funky_NDC_factor;
+                    eso_vertex(preview_dxf_origin - V2(r, 0));
+                    eso_vertex(preview_dxf_origin + V2(r, 0));
+                    eso_vertex(preview_dxf_origin - V2(0, r));
+                    eso_vertex(preview_dxf_origin + V2(0, r));
+                } eso_end();
+            }
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
@@ -1805,25 +1842,6 @@ void conversation_draw() {
                     }
                     eso_end();
                 }
-            }
-            { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
-                real32 funky_NDC_factor = _global_screen_state.camera_2D.screen_height_World / 120.0f;
-                real32 LL = 1000 * funky_NDC_factor;
-
-                eso_color(monokai.white);
-                eso_begin(PV_2D, SOUP_LINES, 3.0f); {
-                    // axis
-                    vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
-                    eso_vertex(preview_dxf_axis_base_point + v);
-                    eso_vertex(preview_dxf_axis_base_point - v);
-
-                    // origin
-                    real32 r = funky_NDC_factor;
-                    eso_vertex(preview_dxf_origin - V2(r, 0));
-                    eso_vertex(preview_dxf_origin + V2(r, 0));
-                    eso_vertex(preview_dxf_origin - V2(0, r));
-                    eso_vertex(preview_dxf_origin + V2(0, r));
-                } eso_end();
             }
 
             if (global_world_state.two_click_command.awaiting_second_click) {
@@ -2302,6 +2320,12 @@ int main() {
 
         if (frame_1) HACK_DISABLE_POPUP_DRAWING = false;
 
+        { // animations
+            _global_screen_state.popup_blinker_time += 0.0167f;
+            _global_screen_state.successful_feature_time += 0.03;
+            // _global_screen_state.successful_feature_time = 1.0f;
+        }
+
         { // camera_move, hot_pane, conversation_draw
             { // camera_move (using shimmed globals.* global_world_state)
                 if (_global_screen_state.hot_pane == HOT_PANE_2D) {
@@ -2317,12 +2341,6 @@ int main() {
             }
 
             conversation_draw();
-        }
-
-        { // animations
-            _global_screen_state.popup_blinker_time += 0.0167f;
-            // _global_screen_state.successful_feature_time += 0.03;
-            _global_screen_state.successful_feature_time = 1.0f;
         }
 
         { // queue_of_fresh_events_from_user

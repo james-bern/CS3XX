@@ -161,7 +161,6 @@ struct ScreenState {
     uint32   hot_pane;
 
     char space_bar_event_key;
-    char dxf_filename_for_reload[128];
     char drop_path[256];
 
     real32 popup_blinker_time;
