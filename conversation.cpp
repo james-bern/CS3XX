@@ -2170,7 +2170,7 @@ void _spoof_MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, rea
     queue_enqueue(&queue_of_fresh_events_from_user, MOUSE_3D_event(o_x, o_y, o_z, dir_x, dir_y, dir_z));
 }
 
-void _spoof_string(char *string) {
+void _spoof_KEY_event(char *string) {
     uint32 n = (uint32) strlen(string);
     for (uint32 i = 0; i < n; ++i) {
         char key = string[i];
@@ -2183,7 +2183,7 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
     if (1) {
         if (1) {
             _spoof_KEY_event('O', true);
-            _spoof_string("splash.dxf");
+            _spoof_KEY_event("splash.dxf");
             _spoof_KEY_event(GLFW_KEY_ENTER);
             if (1) {
                 _spoof_KEY_event('Y');
@@ -2208,7 +2208,7 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
                 _spoof_MOUSE_2D_event(16.0f, -16.0f);
                 _spoof_KEY_event(GLFW_KEY_TAB);
                 _spoof_KEY_event(GLFW_KEY_TAB);
-                _spoof_string("100");
+                _spoof_KEY_event("100");
                 _spoof_KEY_event(GLFW_KEY_ENTER);
                 _spoof_KEY_event('S');
                 _spoof_KEY_event('C');
@@ -2219,18 +2219,11 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
                 _spoof_KEY_event('0');
                 _spoof_KEY_event(GLFW_KEY_ENTER);
                 _spoof_KEY_event('O', true);
-                _spoof_string("omax.dxf");
+                _spoof_KEY_event("omax.dxf");
                 _spoof_KEY_event(GLFW_KEY_ENTER);
-                _spoof_KEY_event('S');
-                _spoof_KEY_event('Q');
-                _spoof_KEY_event('1');
-                _spoof_KEY_event('Y');
-                _spoof_KEY_event('E');
-                _spoof_KEY_event('3');
+                _spoof_KEY_event("SQ1YE3");
                 _spoof_KEY_event(GLFW_KEY_ENTER);
-                _spoof_KEY_event('S');
-                _spoof_KEY_event('Q');
-                _spoof_KEY_event('0');
+                _spoof_KEY_event("SQ0");
                 _spoof_KEY_event(GLFW_KEY_DELETE);
                 _spoof_KEY_event(GLFW_KEY_ESCAPE);
                 //_spoof_KEY_event('C');
@@ -2255,6 +2248,10 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
                 _spoof_KEY_event(GLFW_KEY_ENTER);
                 for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U');
                 for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U', false, true);
+                _spoof_KEY_event("E100");
+                _spoof_KEY_event(GLFW_KEY_ESCAPE);
+                _spoof_KEY_event("SA");
+                _spoof_MOUSE_3D_event(51.2f, 89.0f, 81.0f, -0.4f, -0.85f, -0.38f);
 
 
                 //spoof_KEY_event('U');
@@ -2268,7 +2265,7 @@ void conversation_init__NOTE_use_spoof_api_in_here() {
             }
         } else {
             _spoof_KEY_event('O', true);
-            _spoof_string("fidget.dxf");
+            _spoof_KEY_event("fidget.dxf");
             _spoof_KEY_event(GLFW_KEY_ENTER);
             _spoof_KEY_event('L');
             _spoof_KEY_event('Z');
