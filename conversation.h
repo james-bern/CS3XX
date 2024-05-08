@@ -85,6 +85,10 @@ struct {
 #define USER_EVENT_TYPE_MOUSE_2D_PRESS 2
 #define USER_EVENT_TYPE_MOUSE_3D_PRESS 3
 
+#define CELL_TYPE_NONE    0
+#define CELL_TYPE_REAL32  1
+#define CELL_TYPE_CSTRING 2
+
 ////////////////////////////////////////
 // structs /////////////////////////////
 ////////////////////////////////////////
@@ -164,7 +168,6 @@ struct ScreenState {
 
     uint32   hot_pane;
 
-    char space_bar_event_key;
     char drop_path[256];
 
     real32 popup_blinker_time;
@@ -198,6 +201,8 @@ struct PopupState {
     uint32 selection_cursor;
     // uint32 selection_left;
     // uint32 selection_right;
+
+    uint32 _type_of_active_cell;
 
     void *_active_popup_unique_ID__FORNOW_name0;
 

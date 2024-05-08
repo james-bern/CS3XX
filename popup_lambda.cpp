@@ -6,9 +6,6 @@
 // TODO: parsing math formulas
 // TODO: field type
 
-#define CELL_TYPE_NONE    0
-#define CELL_TYPE_REAL32  1
-#define CELL_TYPE_CSTRING 2
 
 auto popup_popup = [&] (
         bool32 zero_on_load_up,
@@ -77,6 +74,7 @@ auto popup_popup = [&] (
         LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
         popup->cursor = (uint32) strlen(popup->active_cell_buffer);
         popup->selection_cursor = 0;
+        popup->_type_of_active_cell = cell_type[popup->index_of_active_cell];
     }
 
     // KEY PRESS ////////////////////////////////////////////////////
@@ -98,18 +96,6 @@ auto popup_popup = [&] (
         bool32 shift = event.shift;
         bool32 super = event.super;
 
-        bool32 key_is_digit = ('0' <= key) && (key <= '9');
-        bool32 key_is_punc  = (key == '.') || (key == '-');
-        bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
-
-        bool32 key_is_valid_input_for_this_cell; {
-            key_is_valid_input_for_this_cell = false;
-            key_is_valid_input_for_this_cell |= key_is_digit;
-            key_is_valid_input_for_this_cell |= key_is_punc;
-            if (cell_type[popup->index_of_active_cell] == CELL_TYPE_CSTRING) {
-                key_is_valid_input_for_this_cell |= key_is_alpha;
-            }
-        }
 
         bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
         if (key == GLFW_KEY_TAB) {
@@ -129,6 +115,7 @@ auto popup_popup = [&] (
             LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
             popup->cursor = (uint32) strlen(popup->active_cell_buffer);
             popup->selection_cursor = 0;
+            popup->_type_of_active_cell = cell_type[popup->index_of_active_cell];
         }
 
         char *active_cell = popup->active_cell_buffer;
@@ -136,7 +123,6 @@ auto popup_popup = [&] (
         uint32 left_cursor = MIN(popup->cursor, popup->selection_cursor);
         uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
-        popup_popup_ate_this_event = true; // default
         if (_tab_hack_so_aliases_not_introduced_too_far_up) {
         } else if (super && (key == 'A')) {
             popup->cursor = len;
@@ -194,7 +180,11 @@ auto popup_popup = [&] (
                 popup->cursor = left_cursor;
             }
             popup->selection_cursor = popup->cursor;
-        } else if (key_is_valid_input_for_this_cell) {
+        } else if ((!hotkey_consumed_this_event) && event_is_consumable_by_current_popup(event)) {
+            // TODO: strip char_equivalent into function
+
+            bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
+
             char char_equivalent; {
                 char_equivalent = (char) key;
                 if (!shift && key_is_alpha) {
@@ -213,8 +203,6 @@ auto popup_popup = [&] (
                 active_cell[popup->cursor++] = char_equivalent;
             }
             popup->selection_cursor = popup->cursor;
-        } else {
-            popup_popup_ate_this_event = false;
         }
 
     }
