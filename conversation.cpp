@@ -1220,7 +1220,29 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             }
             ADD_BUFFERED_ENTITIES();
         } else if (global_world_state.modes.click_mode == CLICK_MODE_Y_MIRROR) {
-            // TODO
+            result.checkpoint_me = true;
+            _for_each_selected_entity_ {
+                if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                    DXFLine *line = &entity->line;
+                    BUFFER_LINE(
+                            V2(line->start.x, -(line->start.y - mouse.y) + mouse.y),
+                            V2(line->end.x, -(line->end.y - mouse.y) + mouse.y),
+                            true,
+                            entity->color
+                            );
+                } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                    DXFArc *arc = &entity->arc;
+                    BUFFER_ARC(
+                            V2(arc->center.x, -(arc->center.y - mouse.y) + mouse.y),
+                            arc->radius,
+                            arc->end_angle_in_degrees, // TODO
+                            arc->start_angle_in_degrees, // TODO
+                            true,
+                            entity->color); // FORNOW + 180
+                }
+                entity->is_selected = false;
+            }
+            ADD_BUFFERED_ENTITIES();
         } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
