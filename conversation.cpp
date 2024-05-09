@@ -63,6 +63,14 @@
 // TODOLATER repeated keys shouldn't be recorded (unless enter mode changes) -- enter mode lambda in process
 // TODOLATER: don't record saving
 
+//////////////////////////////////////////////////
+// SCARY MACROS //////////////////////////////////
+//////////////////////////////////////////////////
+
+#define _for_each_selected_entity_ for (\
+        DXFEntity *entity = global_world_state.dxf.entities.array;\
+        entity < &global_world_state.dxf.entities.array[global_world_state.dxf.entities.length];\
+        ++entity) if (entity->is_selected)
 
 //////////////////////////////////////////////////
 // DEBUG /////////////////////////////////////////
@@ -561,11 +569,9 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     // global state computed varaibles
     bool32 dxf_anything_selected; {
         dxf_anything_selected = false;
-        for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
-            if (global_world_state.dxf.entities.array[i].is_selected) {
-                dxf_anything_selected = true;
-                break;
-            }
+        _for_each_selected_entity_ {
+            dxf_anything_selected = true;
+            break;
         }
     }
     // easy-read API
@@ -625,6 +631,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
     auto DXF_DELETE = [&](uint32 i) { list_delete_at(&global_world_state.dxf.entities, i); };
     auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 value_to_write) { for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = value_to_write; };
+
 
     ///////////////////////
     ///////////////////////
@@ -1102,7 +1109,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
 
         bool32 value_to_write_to_selection_mask = (global_world_state.modes.click_mode == CLICK_MODE_SELECT);
-        if (/////
+        if (///// // ???
                 (
                  (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS) ||
                  (global_world_state.modes.click_mode == CLICK_MODE_MEASURE) ||
@@ -1145,21 +1152,21 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 result.checkpoint_me = true;
                 global_world_state.modes.click_mode = CLICK_MODE_NONE;
                 global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                ADD_LINE(first_click,  V2(second_click.x, first_click.y));
-                ADD_LINE(first_click,  V2(first_click.x, second_click.y));
-                ADD_LINE(second_click, V2(second_click.x, first_click.y));
-                ADD_LINE(second_click, V2(first_click.x, second_click.y));
+                vec2 a = { first_click.x, second_click.y };
+                vec2 b = { second_click.x, first_click.y };
+                ADD_LINE(first_click,  a);
+                ADD_LINE(first_click,  b);
+                ADD_LINE(second_click, a);
+                ADD_LINE(second_click, b);
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) {
-            ASSERT(global_world_state.two_click_command.awaiting_second_click);
+            ASSERT(awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
             result.checkpoint_me = true;
             global_world_state.modes.click_mode = CLICK_MODE_NONE;
             global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
             vec2 ds = second_click - first_click;
-            for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
-                DXFEntity *entity = &global_world_state.dxf.entities.array[i];
-                if (!entity->is_selected) continue;
+            _for_each_selected_entity_ {
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
                     line->start += ds;
@@ -1190,10 +1197,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             global_world_state.modes = {};
         } else if (global_world_state.modes.click_mode == CLICK_MODE_X_MIRROR) {
             result.checkpoint_me = true;
-            uint32 N = global_world_state.dxf.entities.length;
-            for (uint32 i = 0; i < N; ++i) {
-                DXFEntity *entity = &global_world_state.dxf.entities.array[i];
-                if (!entity->is_selected) continue;
+            _for_each_selected_entity_ {
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
                     BUFFER_LINE(
@@ -1212,32 +1216,17 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                             true,
                             entity->color); // FORNOW + 180
                 }
-                global_world_state.dxf.entities.array[i].is_selected = false; // **
+                entity->is_selected = false;
             }
             ADD_BUFFERED_ENTITIES();
         } else if (global_world_state.modes.click_mode == CLICK_MODE_Y_MIRROR) {
-            result.checkpoint_me = true;
-            uint32 N = global_world_state.dxf.entities.length;
-            for (uint32 i = 0; i < N; ++i) {
-                DXFEntity *entity = &global_world_state.dxf.entities.array[i];
-                if (!entity->is_selected) continue;
-                if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                    DXFLine *line = &entity->line;
-                    _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, entity->color, line->start.x, -(line->start.y - mouse.y) + mouse.y, line->end.y, -(line->end.y - mouse.y) + mouse.y, 0.0, true }); // *
-                } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC); 
-                    DXFArc *arc = &entity->arc;
-                    _ADD_ENTITY({ DXF_ENTITY_TYPE_ARC, entity->color, arc->center.x, -(arc->center.y - mouse.y) + mouse.y, arc->radius, arc->start_angle_in_degrees + 180.0f, arc->end_angle_in_degrees + 180.0f, true }); // FORNOW + 180
-                }
-                global_world_state.dxf.entities.array[i].is_selected = false; // **
-            }
+            // TODO
         } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
             result.checkpoint_me = true;
             global_world_state.dxf.axis_base_point = first_click;
-            if (!IS_ZERO(squaredNorm(second_click - first_click))) {
-                global_world_state.dxf.axis_angle_from_y = (-PI / 2) + atan2(second_click - first_click);
-            }
+            global_world_state.dxf.axis_angle_from_y = (-PI / 2) + atan2(second_click - first_click);
             global_world_state.modes.click_mode = CLICK_MODE_NONE;
             global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) {
@@ -1830,11 +1819,9 @@ void conversation_draw() {
     bool32 dxf_anything_selected;
     {
         dxf_anything_selected = false;
-        for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
-            if (global_world_state.dxf.entities.array[i].is_selected) {
-                dxf_anything_selected = true;
-                break;
-            }
+        _for_each_selected_entity_ {
+            dxf_anything_selected = true;
+            break;
         }
     }
 
@@ -2071,11 +2058,8 @@ void conversation_draw() {
 
                 for (uint32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
                     eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
-                        for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
-                            DXFEntity *entity = &global_world_state.dxf.entities.array[i];
-                            if (global_world_state.dxf.entities.array[i].is_selected) {
-                                eso_dxf_entity__SOUP_LINES(entity, color);
-                            }
+                        _for_each_selected_entity_ {
+                            eso_dxf_entity__SOUP_LINES(entity, color);
                         }
                     } eso_end();
                     M *= M_incr;
