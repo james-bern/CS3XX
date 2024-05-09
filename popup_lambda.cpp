@@ -209,7 +209,13 @@ auto popup_popup = [&] (
 
     WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
 
-    if (!HACK_DISABLE_POPUP_DRAWING) {
+    if (! _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME) {
+        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
+    } else {
+        return;
+    }
+
+    {
         for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
             static char buffer[512]; // FORNOW; ???

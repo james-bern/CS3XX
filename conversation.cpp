@@ -1,3 +1,7 @@
+// TODO: grabbing pointers into an ArrayList (of dxf_entities) is sus if you're gonna add stuff!
+// TODO: buffering adds
+// FORNOW building DXFEntity's inline is sus
+
 // TODO: mirror X
 // TODO: mirror Y
 // TODO: line popup
@@ -75,7 +79,6 @@ WorldState global_world_state;
 ScreenState _global_screen_state;
 
 
-bool32 HACK_DISABLE_POPUP_DRAWING;
 
 
 //////////////////////////////////////////////////
@@ -87,7 +90,7 @@ void init_cameras() {
     // FORNOW
     if (global_world_state.dxf.entities.length) camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
     if (!global_world_state.mesh.num_vertices) {
-        _global_screen_state.camera_3D = { 2.0f * _global_screen_state.camera_2D.screen_height_World, CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
+        _global_screen_state.camera_3D = { 2.0f * MIN(150.0f, _global_screen_state.camera_2D.screen_height_World), CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
     }
 }
 
@@ -232,10 +235,12 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             {
                 vec3 n_camera = inv_transpose_V_3D * n;
                 vec3 color_n = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
-                if ((global_world_state.feature_plane.is_active) && (dot(n, global_world_state.feature_plane.normal) > 0.999f) && (ABS(x_n - global_world_state.feature_plane.signed_distance_to_world_origin) < 0.001f)) {
+                if ((global_world_state.feature_plane.is_active) && (dot(n, global_world_state.feature_plane.normal) > 0.99f) && (ABS(x_n - global_world_state.feature_plane.signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
-                    color = V3(0.85f, 0.87f, 0.30f);
-                    alpha = 0.8f;//((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD || (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT)) && ((global_world_state.console.flip_flag) || (global_world_state.popup.param1 != 0.0f))) ? 0.7f : 1.0f;
+                    color = CLAMPED_LERP(_global_screen_state.plane_selection_time, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
+                    alpha = CLAMPED_LERP(_global_screen_state.plane_selection_time, 1.0f, _global_screen_state.going_inside ? 
+                            CLAMPED_LERP(_global_screen_state.going_inside_time, 1.0f, 0.7f)
+                            : 1.0f);// ? 0.7f : 1.0f;
                 } else {
                     if (pass == 1) continue;
                     color = color_n;
@@ -484,16 +489,13 @@ UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real3
 
 
 // TODO: let's make this not take a pointer and instead return a StandardEventProcessResult
-
 // TODO: think for a  while abou the macro order
 // on the run it seemed like it would be nice to put hotkeys first, but then some keys should be eaten by the popup
 // there may not be a perfect answer here
 // NOTE: this will work, you know whether the active_cell_buffer is a CELL_TYPE_CSTRING, and therefore, what it should eat
 //       same bool/bool-returning function can be used
-
 // XXX but regardless, not taking a pointer is a good first step
-
-// TODO: create global ALREADY_DREW_A_POPUP_THIS_FRAME__NOTE_AESTHETIC__ONLY_AFFECTS_GUI_PRINTF
+// TODO: create global DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME
 // XXX: replace the _standard_event and effective_event system with one true event (NOT passed by pointer) and a StandardEventProcessResult
 // TODO: replace convenience booleans with lambda functions that capture the one true event by reference
 
@@ -521,17 +523,20 @@ bool32 event_is_consumable_by_current_popup(UserEvent event) {
     bool32 key_is_digit = ('0' <= key) && (key <= '9');
     bool32 key_is_punc  = (key == '.') || (key == '-');
     bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
+    bool32 key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
 
     bool32 result; {
         result = false;
+        result |= key_is_digit;
+        result |= key_is_punc;
+        result |= key_is_nav;
         if (popup->_type_of_active_cell == CELL_TYPE_REAL32) {
-            result |= key_is_digit;
-            result |= key_is_punc;
-        } if (popup->_type_of_active_cell == CELL_TYPE_CSTRING) {
-            result |= key_is_digit;
-            result |= key_is_punc;
+            ;
+        } else if (popup->_type_of_active_cell == CELL_TYPE_CSTRING) {
             result |= key_is_alpha;
-        } // ??
+        } else {
+            ASSERT(false);
+        }
     }
 
     return result;
@@ -564,7 +569,60 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         }
     }
     // easy-read API
-    auto DXF_ADD = [&](DXFEntity entity) { list_push_back(&global_world_state.dxf.entities, entity); };
+    auto _LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+        DXFEntity result = {};
+        result.type = DXF_ENTITY_TYPE_LINE;
+        DXFLine *line = &result.line;
+        line->start = start;
+        line->end = end;
+        result.is_selected = is_selected;
+        result.color = color;
+        return result;
+    };
+    auto _ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+        DXFEntity result = {};
+        result.type = DXF_ENTITY_TYPE_ARC;
+        DXFArc *arc = &result.arc;
+        arc->center = center;
+        arc->radius = radius;
+        arc->start_angle_in_degrees = start_angle_in_degrees;
+        arc->end_angle_in_degrees = end_angle_in_degrees;
+        result.is_selected = is_selected;
+        result.color = color;
+        return result;
+    };
+    auto _ADD_ENTITY = [&](DXFEntity entity) {
+        list_push_back(&global_world_state.dxf.entities, entity);
+    };
+    auto ADD_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+        DXFEntity entity = _LINE(start, end, is_selected, color);
+        _ADD_ENTITY(entity);
+    };
+    auto ADD_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+        DXFEntity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color);
+        _ADD_ENTITY(entity);
+    };
+
+    // TODO: arena could be cool here if there's other memory that just exists for this frame
+    List<DXFEntity> _entity_buffer = {};
+    defer { list_free_AND_zero(&_entity_buffer); };
+
+
+    auto _BUFFER_ENTITY = [&](DXFEntity entity) {
+        list_push_back(&_entity_buffer, entity);
+    };
+    auto BUFFER_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+        DXFEntity entity = _LINE(start, end, is_selected, color);
+        _BUFFER_ENTITY(entity);
+    };
+    auto BUFFER_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+        DXFEntity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color);
+        _BUFFER_ENTITY(entity);
+    };
+    auto ADD_BUFFERED_ENTITIES = [&]() {
+        for (uint32 i = 0; i < _entity_buffer.length; ++i)  _ADD_ENTITY(_entity_buffer.array[i]);
+    };
+
     auto DXF_DELETE = [&](uint32 i) { list_delete_at(&global_world_state.dxf.entities, i); };
     auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 value_to_write) { for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = value_to_write; };
 
@@ -630,6 +688,9 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             } else if (key_lambda('0')) {
                 result.record_me = false;
                 _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
+            } else if (key_lambda('9')) {
+                result.record_me = false;
+                global_world_state.feature_plane.is_active = false;
             } else if (key_lambda('X', true, true)) {
                 result.record_me = false;
                 camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
@@ -755,6 +816,12 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
                 global_world_state.modes.enter_mode = ENTER_MODE_NONE;
                 global_world_state.two_click_command.awaiting_second_click = false;
+            } else if (key_lambda('X', false, true)) {
+                global_world_state.modes.click_mode = CLICK_MODE_X_MIRROR;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_lambda('Y', false, true)) {
+                global_world_state.modes.click_mode = CLICK_MODE_Y_MIRROR;
+                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
             } else if (key_lambda('B')) {
                 global_world_state.modes.click_mode = CLICK_MODE_CREATE_BOX;
                 global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
@@ -777,9 +844,9 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         } 
     }
 
-    ////////////
-    // POP-UP //
-    ////////////
+    //////////////////
+    // POP-UP POPUP //
+    //////////////////
 
     result.record_me |= event_is_consumable_by_current_popup(event);
     {
@@ -1066,9 +1133,9 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             result.checkpoint_me = true;
             global_world_state.modes.click_mode = CLICK_MODE_NONE;
             global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, event.mouse.x, event.mouse.y });
+            _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, event.mouse.x, event.mouse.y });
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX) {
-            ASSERT(global_world_state.two_click_command.awaiting_second_click);
+            ASSERT(awaiting_second_click);
             if (IS_ZERO(ABS(first_click.x - second_click.x))) {
                 conversation_messagef("[box] must have non-zero width ");
             } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
@@ -1078,10 +1145,10 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 result.checkpoint_me = true;
                 global_world_state.modes.click_mode = CLICK_MODE_NONE;
                 global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, event.mouse.x, global_world_state.two_click_command.first_click.y });
-                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, global_world_state.two_click_command.first_click.x, event.mouse.y });
-                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse.x, event.mouse.y, event.mouse.x, global_world_state.two_click_command.first_click.y });
-                DXF_ADD({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, event.mouse.x, event.mouse.y, global_world_state.two_click_command.first_click.x, event.mouse.y });
+                ADD_LINE(first_click,  V2(second_click.x, first_click.y));
+                ADD_LINE(first_click,  V2(first_click.x, second_click.y));
+                ADD_LINE(second_click, V2(second_click.x, first_click.y));
+                ADD_LINE(second_click, V2(first_click.x, second_click.y));
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
@@ -1093,18 +1160,17 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             real32 dy = event.mouse.y - global_world_state.two_click_command.first_click.y;
             for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
                 DXFEntity *entity = &global_world_state.dxf.entities.array[i];
-                if (entity->is_selected) {
-                    if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                        DXFLine *line = &entity->line;
-                        line->start.x += dx;
-                        line->start.y += dy;
-                        line->end.x   += dx;
-                        line->end.y   += dy;
-                    } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                        DXFArc *arc = &entity->arc;
-                        arc->center.x += dx;
-                        arc->center.y += dy;
-                    }
+                if (!entity->is_selected) continue;
+                if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                    DXFLine *line = &entity->line;
+                    line->start.x += dx;
+                    line->start.y += dy;
+                    line->end.x   += dx;
+                    line->end.y   += dy;
+                } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                    DXFArc *arc = &entity->arc;
+                    arc->center.x += dx;
+                    arc->center.y += dy;
                 }
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) {
@@ -1119,13 +1185,55 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 real32 theta_a_in_degrees = DEG(atan2(event.mouse.y - global_world_state.two_click_command.first_click.y, event.mouse.x - global_world_state.two_click_command.first_click.x));
                 real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                 real32 r = SQRT(squared_distance_point_point(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, event.mouse.x, event.mouse.y));
-                DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_a_in_degrees, theta_b_in_degrees });
-                DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, r, theta_b_in_degrees, theta_a_in_degrees });
+                ADD_ARC(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
+                ADD_ARC(first_click, r, theta_b_in_degrees, theta_a_in_degrees);
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN) {
             result.checkpoint_me = true;
             global_world_state.dxf.origin = mouse;
             global_world_state.modes = {};
+        } else if (global_world_state.modes.click_mode == CLICK_MODE_X_MIRROR) {
+            result.checkpoint_me = true;
+            uint32 N = global_world_state.dxf.entities.length;
+            for (uint32 i = 0; i < N; ++i) {
+                DXFEntity *entity = &global_world_state.dxf.entities.array[i];
+                if (!entity->is_selected) continue;
+                if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                    DXFLine *line = &entity->line;
+                    BUFFER_LINE(
+                            V2(-(line->start.x - mouse.x) + mouse.x, line->start.y),
+                            V2(-(line->end.x - mouse.x) + mouse.x, line->end.y),
+                            true,
+                            entity->color
+                            );
+                } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                    DXFArc *arc = &entity->arc;
+                    BUFFER_ARC(
+                            V2(-(arc->center.x - mouse.x) + mouse.x, arc->center.y),
+                            arc->radius,
+                            arc->end_angle_in_degrees, // TODO
+                            arc->start_angle_in_degrees, // TODO
+                            true,
+                            entity->color); // FORNOW + 180
+                }
+                global_world_state.dxf.entities.array[i].is_selected = false; // **
+            }
+            ADD_BUFFERED_ENTITIES();
+        } else if (global_world_state.modes.click_mode == CLICK_MODE_Y_MIRROR) {
+            result.checkpoint_me = true;
+            uint32 N = global_world_state.dxf.entities.length;
+            for (uint32 i = 0; i < N; ++i) {
+                DXFEntity *entity = &global_world_state.dxf.entities.array[i];
+                if (!entity->is_selected) continue;
+                if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                    DXFLine *line = &entity->line;
+                    _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, entity->color, line->start.x, -(line->start.y - mouse.y) + mouse.y, line->end.y, -(line->end.y - mouse.y) + mouse.y, 0.0, true }); // *
+                } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC); 
+                    DXFArc *arc = &entity->arc;
+                    _ADD_ENTITY({ DXF_ENTITY_TYPE_ARC, entity->color, arc->center.x, -(arc->center.y - mouse.y) + mouse.y, arc->radius, arc->start_angle_in_degrees + 180.0f, arc->end_angle_in_degrees + 180.0f, true }); // FORNOW + 180
+                }
+                global_world_state.dxf.entities.array[i].is_selected = false; // **
+            }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
@@ -1207,8 +1315,8 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                             DXF_DELETE(MAX(i, j));
                             DXF_DELETE(MIN(i, j));
 
-                            DXF_ADD({ DXF_ENTITY_TYPE_LINE, color_i, s_ab.x, s_ab.y, t_ab.x, t_ab.y });
-                            DXF_ADD({ DXF_ENTITY_TYPE_LINE, color_j, s_cd.x, s_cd.y, t_cd.x, t_cd.y });
+                            _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, color_i, s_ab.x, s_ab.y, t_ab.x, t_ab.y });
+                            _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, color_j, s_cd.x, s_cd.y, t_cd.x, t_cd.y });
 
                             real32 theta_ab_in_degrees = DEG(atan2(t_ab.y - center.y, t_ab.x - center.x));
                             real32 theta_cd_in_degrees = DEG(atan2(t_cd.y - center.y, t_cd.x - center.x));
@@ -1223,7 +1331,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
                                 // TODO: consider tabbing to create chamfer
 
-                                DXF_ADD({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, center.x, center.y, radius, theta_ab_in_degrees, theta_cd_in_degrees });
+                                _ADD_ENTITY({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, center.x, center.y, radius, theta_ab_in_degrees, theta_cd_in_degrees });
                             }
                         }
                     }
@@ -1429,10 +1537,17 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             result.checkpoint_me = result.record_me = true;
             global_world_state.feature_plane.is_active = true;
             {
+                vec3 n_prev = global_world_state.feature_plane.normal;
+                real32 d_prev = global_world_state.feature_plane.signed_distance_to_world_origin;
+
                 global_world_state.feature_plane.normal = get(global_world_state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
                 { // FORNOW (gross) calculateion of global_world_state.feature_plane.signed_distance_to_world_origin
                     vec3 a_selected = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + 0]);
                     global_world_state.feature_plane.signed_distance_to_world_origin = dot(global_world_state.feature_plane.normal, a_selected);
+                }
+
+                if (!IS_ZERO(norm(n_prev - global_world_state.feature_plane.normal)) || !ARE_EQUAL(d_prev, global_world_state.feature_plane.signed_distance_to_world_origin)) {
+                    _global_screen_state.plane_selection_time = 0.0f;
                 }
             }
         }
@@ -1682,13 +1797,11 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
 
 
     if (key_lambda('Z', true) || key_lambda('U')) {
-        HACK_DISABLE_POPUP_DRAWING = true;
+        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
         history_undo();
-        HACK_DISABLE_POPUP_DRAWING = false;
     } else if (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true)) {
-        HACK_DISABLE_POPUP_DRAWING = true;
+        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
         history_redo();
-        HACK_DISABLE_POPUP_DRAWING = false;
     } else {
         history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(fresh_event_from_user);
     }
@@ -2062,7 +2175,7 @@ void conversation_draw() {
             conversation_draw_3D_grid_box(P_3D, V_3D);
         }
 
-        { // floating sketch plane; selection plane NOTE: transparent
+        if (global_world_state.feature_plane.is_active) { // floating sketch plane; selection plane NOTE: transparent
             bool draw = true;
             mat4 PVM = PV_3D * M_3D_from_2D;
             vec3 color = monokai.yellow;
@@ -2106,6 +2219,8 @@ void conversation_draw() {
                 (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) ? "CREATE_CIRCLE" :
                 (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) ? "CREATE_FILLET" :
                 (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) ? "MOVE_DXF_TO" :
+                (global_world_state.modes.click_mode == CLICK_MODE_X_MIRROR) ? "X_MIRROR" :
+                (global_world_state.modes.click_mode == CLICK_MODE_Y_MIRROR) ? "Y_MIRROR" :
                 "???MODE???",
                 (global_world_state.modes.click_modifier == CLICK_MODE_NONE) ? "" :
                 (global_world_state.modes.click_modifier == CLICK_MODIFIER_CONNECTED) ? "CONNECTED" :
@@ -2265,11 +2380,6 @@ void _SPOOF_CHAIN_END_TO_END_TEST() {
                 _spoof_KEY_event(GLFW_KEY_ENTER);
                 for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U');
                 for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U', false, true);
-                _spoof_KEY_event("E100");
-                _spoof_KEY_event(GLFW_KEY_ESCAPE);
-                _spoof_KEY_event("SA");
-                _spoof_MOUSE_3D_event(51.2f, 89.0f, 81.0f, -0.4f, -0.85f, -0.38f);
-
 
                 //spoof_KEY_event('U');
                 //spoof_KEY_event('U');
@@ -2320,7 +2430,7 @@ int main() {
 
     glfwHideWindow(COW0._window_glfw_window);
 
-    _SPOOF_CHAIN_END_TO_END_TEST();
+    // _SPOOF_CHAIN_END_TO_END_TEST();
     init_cameras(); // FORNOW
 
     {
@@ -2330,19 +2440,29 @@ int main() {
         callback_cursor_position(NULL, xpos, ypos);
     }
 
-    HACK_DISABLE_POPUP_DRAWING = true;
     bool32 frame_0 = true;
     bool32 frame_1 = false;
     while (cow_begin_frame()) {
+        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
 
         // Sleep(100);
-
-        if (frame_1) HACK_DISABLE_POPUP_DRAWING = false;
 
         { // animations
             _global_screen_state.popup_blinker_time += 0.0167f;
             _global_screen_state.successful_feature_time += 0.03;
+            _global_screen_state.plane_selection_time += 0.03;
             // _global_screen_state.successful_feature_time = 1.0f;
+
+            _global_screen_state.going_inside_time += 0.0167;
+            bool32 going_inside_next = 
+                ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) && (global_world_state.popup.extrude_add_in_length > 0.0f))
+                ||
+                (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT);
+            if (going_inside_next && !_global_screen_state.going_inside) {
+                _global_screen_state.going_inside_time = 0.0f;
+            }
+            _global_screen_state.going_inside= going_inside_next;
+
         }
 
         { // camera_move, hot_pane, conversation_draw

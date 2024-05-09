@@ -6,7 +6,7 @@
 ////////////////////////////////////////
 
 real32 Z_FIGHT_EPS = 0.05f;
-real32 TOLERANCE_DEFAULT = 1e-5f;
+real32 TOLERANCE_DEFAULT = 5e-4f;
 uint32 NUM_SEGMENTS_PER_CIRCLE = 64;
 real32 GRID_SIDE_LENGTH = 256.0f;
 real32 GRID_SPACING = 10.0f;
@@ -45,6 +45,8 @@ struct {
 #define CLICK_MODE_CREATE_CIRCLE     8
 #define CLICK_MODE_CREATE_FILLET     9
 #define CLICK_MODE_MOVE_DXF_ENTITIES 10
+#define CLICK_MODE_X_MIRROR          11
+#define CLICK_MODE_Y_MIRROR          12
 
 #define CLICK_MODIFIER_NONE                  0
 #define CLICK_MODIFIER_CONNECTED             1
@@ -172,6 +174,11 @@ struct ScreenState {
 
     real32 popup_blinker_time;
     real32 successful_feature_time;
+    real32 plane_selection_time;
+    real32 going_inside_time;
+    bool32 going_inside;
+
+    bool32 DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
 };
 
 struct PopupState {
