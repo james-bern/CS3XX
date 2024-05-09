@@ -1156,21 +1156,17 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             result.checkpoint_me = true;
             global_world_state.modes.click_mode = CLICK_MODE_NONE;
             global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            real32 dx = event.mouse.x - global_world_state.two_click_command.first_click.x;
-            real32 dy = event.mouse.y - global_world_state.two_click_command.first_click.y;
+            vec2 ds = second_click - first_click;
             for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
                 DXFEntity *entity = &global_world_state.dxf.entities.array[i];
                 if (!entity->is_selected) continue;
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
-                    line->start.x += dx;
-                    line->start.y += dy;
-                    line->end.x   += dx;
-                    line->end.y   += dy;
+                    line->start += ds;
+                    line->end   += ds;
                 } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                     DXFArc *arc = &entity->arc;
-                    arc->center.x += dx;
-                    arc->center.y += dy;
+                    arc->center += ds;
                 }
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) {
