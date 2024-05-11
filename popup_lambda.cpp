@@ -240,8 +240,8 @@ auto popup_popup = [&] (
                 }
             }
 
-            real32 x_mouse = callback_mouse_in_pixel_coordinates.x / 2;
-            real32 y_mouse = callback_mouse_in_pixel_coordinates.y / 2;
+            real32 x_mouse = callback_mouse_in_pixel_coordinates.x;
+            real32 y_mouse = callback_mouse_in_pixel_coordinates.y;
 
             real32 x_field_left;
             real32 x_field_right;
@@ -266,17 +266,21 @@ auto popup_popup = [&] (
             // TODO: move this somewhere better (up top)
             popup->field_boxes[d] = { x_field_left, y_top, x_field_right, y_bottom };
 
-            // eso_begin(globals._gui_NDC_from_Screen, SOUP_POINTS, 10.0f);
-            // eso_color(0.0f, 1.0f, 0.0f);
-            // eso_vertex(x_field_left, y_top);
-            // eso_vertex(x_field_right, y_bottom);
-            // eso_color(1.0f, 0.0f, 1.0f);
-            // eso_vertex(callback_mouse_in_pixel_coordinates);
-            // eso_end();
+            eso_begin(globals.NDC_from_Screen, SOUP_LINE_LOOP, 5.0f);
+            eso_color(0.0f, 0.0f, 1.0f);
+            eso_vertex(x_field_left, y_top);
+            eso_vertex(x_field_left, y_bottom);
+            eso_vertex(x_field_right, y_bottom);
+            eso_vertex(x_field_right, y_top);
+            eso_end();
+            eso_begin(globals.NDC_from_Screen, SOUP_POINTS, 10.0f);
+            eso_color(1.0f, 0.0f, 1.0f);
+            eso_vertex(callback_mouse_in_pixel_coordinates);
+            eso_end();
 
             bool32 hot = IS_BETWEEN(x_mouse, x_field_left, x_field_right) && IS_BETWEEN(y_mouse, y_top, y_bottom);
             if (hot) {
-                eso_begin(globals._gui_NDC_from_Screen, SOUP_QUADS);
+                eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
                 eso_color(0.0f, 0.4f, 0.4f);
                 eso_vertex(x_field_left, y_top);
                 eso_vertex(x_field_right, y_top);
@@ -297,7 +301,7 @@ auto popup_popup = [&] (
 
 
                     if (selection_is_active) {
-                        eso_begin(globals._gui_NDC_from_Screen, SOUP_QUADS);
+                        eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
                         eso_color(0.4f, 0.4f, 0.0f);
                         eso_vertex(x_selection_left, y_top);
                         eso_vertex(x_selection_right, y_top);
@@ -317,8 +321,8 @@ auto popup_popup = [&] (
                         x += 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                         x -= 2.5;
                         // FORNOW: silly way of getting longer |
-                        _text_draw((cow_real *) &globals._gui_NDC_from_Screen, "|", x, y - 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
-                        _text_draw((cow_real *) &globals._gui_NDC_from_Screen, "|", x, y + 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                        _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                        _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
                     }
                 }
             }

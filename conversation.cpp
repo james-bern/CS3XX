@@ -1,4 +1,6 @@
+
 // TODO: what would a demo app look like that proves you've actually gotten rid of all the /2 business (would need scissoring)
+// NOTE: it's possible you've just broken everything on windows. whatevrer
 
 // TODO: what about when popup becomes empty?--need some easy way of saying is zero or whatever, num_cells is worrisome
 
@@ -81,9 +83,9 @@ vec2 callback_mouse_in_pixel_coordinates;
 bool32 popup_mouse_is_hovering_over_a_field_of_the_currently_active_popup() {
     PopupState *popup = &global_world_state.popup;
     for (uint i = 0; i < popup->num_cells; ++i) {
-        // conversation_messagef("%f %f", callback_mouse_in_pixel_coordinates.x, callback_mouse_in_pixel_coordinates.y);
-        // conversation_messagef("%f %f %f %f", popup->field_boxes[i].min.x, popup->field_boxes[i].min.y, popup->field_boxes[i].max.x, popup->field_boxes[i].max.y);
-        if (bounding_box_contains(popup->field_boxes[i], callback_mouse_in_pixel_coordinates / 2)) return true;
+        conversation_messagef("%f %f", callback_mouse_in_pixel_coordinates.x, callback_mouse_in_pixel_coordinates.y);
+        conversation_messagef("%f %f %f %f", popup->field_boxes[i].min.x, popup->field_boxes[i].min.y, popup->field_boxes[i].max.x, popup->field_boxes[i].max.y);
+        if (bounding_box_contains(popup->field_boxes[i], callback_mouse_in_pixel_coordinates)) return true;
     }
     return false;
 }
@@ -397,8 +399,8 @@ UserEvent callback_mouse_event_helper() {
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
 
-    callback_mouse_in_pixel_coordinates.x = (real32) (xpos) * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    callback_mouse_in_pixel_coordinates.y = (real32) (ypos) * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    callback_mouse_in_pixel_coordinates.x = (real32) (xpos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    callback_mouse_in_pixel_coordinates.y = (real32) (ypos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 
     // // mouse held generates mouse presses
     // FORNOW repeated from callback_mouse_button

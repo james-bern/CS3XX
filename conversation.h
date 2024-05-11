@@ -1424,7 +1424,7 @@ void conversation_message_buffer_update_and_draw() {
         if (conversation_messages[i].cooldown > 0) {
             --conversation_messages[i].cooldown;
             _text_draw(
-                    (cow_real *) &globals._gui_NDC_from_Screen,
+                    (cow_real *) &globals.NDC_from_Screen,
                     conversation_messages[i].buffer,
                     512,
                     y,

@@ -38,6 +38,4 @@ BEGIN_PRE_MAIN {
     config.hotkeys_gui_hide = 0;
     config.hotkeys_app_next = 0;
     config.hotkeys_app_prev = 0;
-    config.tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 3.0f;
-    config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina /= 4.0f;
 } END_PRE_MAIN 

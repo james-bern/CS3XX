@@ -187,7 +187,6 @@ struct C2_READONLY_USER_FACING_DATA {
 
     _mat4 Identity = { 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 };
     _mat4 NDC_from_Screen;
-    _mat4 _gui_NDC_from_Screen;
 };
 
 // constants
@@ -2046,7 +2045,7 @@ void _text_draw(
     _window_get_size(&window_width_in_pixels, &window_height_in_pixels);
 
     if (IS_ZERO(font_size_in_pixels)) { font_size_in_pixels = 24; }
-    font_size_in_pixels *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
+    // font_size_in_pixels *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
 
     static char buffer[99999]; // ~500 chars
     int num_quads = stb_easy_font_print(0, 0, text, NULL, buffer, sizeof(buffer));
@@ -2164,7 +2163,7 @@ void gui_printf(const char *format, ...) {
     char *text = _text;
     char *sep = strchr(text, '`'); // fornow hacking in two color text
     if (!sep) {
-        _text_draw((cow_real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
+        _text_draw((cow_real *) &globals.NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
                 FORNOW_gui_printf_red_component,
                 1.0,
                 1.0,
@@ -2172,14 +2171,14 @@ void gui_printf(const char *format, ...) {
     } else {
         cow_real tmp = COW1._gui_x_curr; {
             *sep = 0;
-            _text_draw((cow_real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
+            _text_draw((cow_real *) &globals.NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
                     1.0,
                     1.0,
                     1.0,
                     1.0, 0, 0.0, 0.0, true);
             COW1._gui_x_curr += 2 * stb_easy_font_width(text);
             text = sep + 1;
-            _text_draw((cow_real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
+            _text_draw((cow_real *) &globals.NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
         } COW1._gui_x_curr = tmp;
     }
 
@@ -2243,7 +2242,7 @@ char *_gui_hotkey2string(int hotkey) {
 bool gui_button(char *name, int hotkey = '\0') {
     if (COW1._gui_hide_and_disable) { return false; }
     cow_real s_mouse[2];
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals.NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
 
     // fornow
     static char text[256];
@@ -2292,8 +2291,8 @@ bool gui_button(char *name, int hotkey = '\0') {
         if ((COW1._gui_hot == name) || globals.key_held[hotkey]) r += nudge; 
     }
     {
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+        _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 8;
     COW1._gui_y_curr += 4;
@@ -2308,7 +2307,7 @@ bool gui_button(char *name, int hotkey = '\0') {
 void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
     if (COW1._gui_hide_and_disable) { return; }
     cow_real s_mouse[2];
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals.NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
     cow_real L = 16;
     cow_real box[8] = {
         COW1._gui_x_curr    , COW1._gui_y_curr    ,
@@ -2347,8 +2346,8 @@ void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
         if ((COW1._gui_hot == variable) || globals.key_held[hotkey]) r += nudge; 
     }
     {
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+        _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 2 * L;
     if (hotkey) {
@@ -2362,7 +2361,7 @@ void gui_checkbox(char *name, bool *variable, int hotkey = '\0') {
 void _gui_slider(char *text, void *variable__for_ID_must_persist, cow_real *_variable__for_out_must_be_real, cow_real lower_bound, cow_real upper_bound) {
     COW1._gui_y_curr += 8;
     cow_real s_mouse[2];
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals.NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
     cow_real w = 166;
     cow_real band[4] = { COW1._gui_x_curr, COW1._gui_y_curr, COW1._gui_x_curr + w, COW1._gui_y_curr };
     cow_real s_dot[2] = { LERP(INVERSE_LERP(*_variable__for_out_must_be_real, lower_bound, upper_bound), band[0], band[2]), band[1] };
@@ -2392,9 +2391,9 @@ void _gui_slider(char *text, void *variable__for_ID_must_persist, cow_real *_var
         }
     }
     {
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6f, .6f, .6f, 1.f, 6.f, true);
+        _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_LINES, _SOUP_XY, _SOUP_RGB, 2, band, NULL, .6f, .6f, .6f, 1.f, 6.f, true);
         cow_real r = (COW1._gui_selected == variable__for_ID_must_persist) ? 1.f : (COW1._gui_hot == variable__for_ID_must_persist) ? .9f : .8f;
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1.f, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17.f : 14.f, true);
+        _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_POINTS, _SOUP_XY, _SOUP_RGB, 1, s_dot, NULL, r, r, r, 1.f, (COW1._gui_hot == variable__for_ID_must_persist && COW1._gui_selected != variable__for_ID_must_persist) ? 17.f : 14.f, true);
     }
     COW1._gui_y_curr -= 8;
     COW1._gui_x_curr += w + 16;
@@ -2462,7 +2461,7 @@ bool gui_textbox(char *text_buffer, char *message_to_display_if_buffer_empty = "
 
     if (COW1._gui_hide_and_disable) { return false; }
     cow_real s_mouse[2];
-    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals._gui_NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
+    _input_get_mouse_position_and_change_in_position_in_world_coordinates((cow_real *) &globals.NDC_from_Screen, s_mouse, s_mouse + 1, NULL, NULL);
 
     // fornow
     cow_real L = (cow_real) MAX(64, 2 * stb_easy_font_width(text_buffer) + 16);
@@ -2512,8 +2511,8 @@ bool gui_textbox(char *text_buffer, char *message_to_display_if_buffer_empty = "
             if (COW1._gui_hot == text_buffer) r += nudge; 
         }
 
-        _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
-        // _soup_draw((cow_real *) &globals._gui_NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
+        _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_QUADS, _SOUP_XY, _SOUP_RGB, 4, box, NULL, r, r, r, 1, 0, true);
+        // _soup_draw((cow_real *) &globals.NDC_from_Screen, SOUP_LINE_LOOP, _SOUP_XY, _SOUP_RGB, 4, box, NULL, 1, 1, 1, 1, 4, true);
     }
     COW1._gui_x_curr += 8;
     COW1._gui_y_curr += 4;
@@ -4611,17 +4610,6 @@ bool cow_begin_frame() {
 
     { // cow
         _window_get_NDC_from_Screen((cow_real *) &globals.NDC_from_Screen);
-        { // _gui_NDC_from_Screen
-            memcpy((cow_real *) &globals._gui_NDC_from_Screen, (cow_real *) &globals.NDC_from_Screen, 16 * sizeof(cow_real));
-            // if (config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina != 1) {
-            for (int i = 0; i < 3; ++i) {
-                for (int j = 0; j < 3; ++j) {
-                    _LINALG_4X4(((cow_real *) &globals._gui_NDC_from_Screen), i, j) *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
-                }
-            }
-            // }
-        }
-
         { // _cow_help_toggle overlay
             static bool push_gui_hide_and_disable;
             if (globals.key_shift_held && globals.key_pressed['/']) {
