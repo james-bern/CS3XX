@@ -1,26 +1,11 @@
-// TODO: what would a demo app look like that proves you've actually gotten rid of all the /2 business (would need scissoring)
-
-// TODO: what about when popup becomes empty?--need some easy way of saying is zero or whatever, num_cells is worrisome
-
-// TODO: move away from gui_printf for popups (bring cow into the app)
-
-// NOTE: this has to happen just working on cow
-// TODO: any changes to cow before the summer starts (size per vertex)
-// TODO: weird factor of 2-ness with mouse
-// (this is stupid macbook retina stuff)
-// TODO: get rid of all factors of 2
-// TODO: ? get rid of gui_NDC_from_screen versus NDC_from_screen
-
-// TODO: colors for messagef (warning, error, info, success)
-
-// cirle diameter goes back to zero for some reason after making a couple circles and pressing enter
-// recursive call is sus
-
-
+// // TODO: user presses c then clicks the mouse then presses tab twice all in one frame drops a tab
 // TODO: maybe we should just like...somehow *open* the popup when the user does the thing
+// ----- ????
 // TODO: this would be a big refactor
 
 // TODO: really formalize char_equivalent
+
+// TODO: line popup
 
 // TODO: cursor in popup
 // TODO: fleury ops
@@ -74,19 +59,7 @@
 WorldState global_world_state;
 ScreenState _global_screen_state;
 
-bool32 callback_mouse_shift_held; // TODO (where does this go?)
-bool32 callback_mouse_left_held;
-vec2 callback_mouse_in_pixel_coordinates;
 
-bool32 popup_mouse_is_hovering_over_a_field_of_the_currently_active_popup() {
-    PopupState *popup = &global_world_state.popup;
-    for (uint i = 0; i < popup->num_cells; ++i) {
-        // conversation_messagef("%f %f", callback_mouse_in_pixel_coordinates.x, callback_mouse_in_pixel_coordinates.y);
-        // conversation_messagef("%f %f %f %f", popup->field_boxes[i].min.x, popup->field_boxes[i].min.y, popup->field_boxes[i].max.x, popup->field_boxes[i].max.y);
-        if (bounding_box_contains(popup->field_boxes[i], callback_mouse_in_pixel_coordinates / 2)) return true;
-    }
-    return false;
-}
 
 
 //////////////////////////////////////////////////
@@ -143,6 +116,7 @@ mat4 get_M_3D_from_2D() {
 // STATE-DEPENDENT UTILITY FUNCTIONS /////////////
 //////////////////////////////////////////////////
 
+bool32 callback_mouse_shift_held; // TODO (where does this go?)
 
 vec2 magic_snap(vec2 before) {
     vec2 result = before;
@@ -358,6 +332,9 @@ BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); }
 
 Queue<UserEvent> queue_of_fresh_events_from_user;
 // TODO clean up
+bool32 callback_mouse_left_held;
+real32 callback_xpos; // FORNOW
+real32 callback_ypos; // FORNOW
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if ((action == GLFW_PRESS) && (key == GLFW_KEY_LEFT_SHIFT)) callback_mouse_shift_held = true;
@@ -384,27 +361,20 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     }
 }
 
-UserEvent callback_mouse_event_helper() {
-    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), callback_mouse_in_pixel_coordinates);
-    UserEvent result; {
-        result = {};
-        result.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
-        result.mouse = transformPoint(inverse(camera_get_PV(&_global_screen_state.camera_2D)), mouse_s_NDC);
-    }
-    return result;
-}
-
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
 
-    callback_mouse_in_pixel_coordinates.x = (real32) (xpos) * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    callback_mouse_in_pixel_coordinates.y = (real32) (ypos) * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    callback_xpos = (real32) (xpos * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS);
+    callback_ypos = (real32) (ypos * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS);
 
     // // mouse held generates mouse presses
     // FORNOW repeated from callback_mouse_button
     if ((_global_screen_state.hot_pane == HOT_PANE_2D) && (callback_mouse_left_held) && (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_WINDOW))) {
+        vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), V2(callback_xpos, callback_ypos));
         UserEvent event; {
-            event = callback_mouse_event_helper();
+            event = {};
+            event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
+            event.mouse = transformPoint(inverse(camera_get_PV(&_global_screen_state.camera_2D)), mouse_s_NDC);
             event.mouse_held = true;
         }
         queue_enqueue(&queue_of_fresh_events_from_user, event);
@@ -412,30 +382,28 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM for cameras
+    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM
 
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
             callback_mouse_left_held = true;
 
+            vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), V2(callback_xpos, callback_ypos));
             if (_global_screen_state.hot_pane == HOT_PANE_2D) {
-                if (popup_mouse_is_hovering_over_a_field_of_the_currently_active_popup()) {
-                    UserEvent event = {};
-                    event.type = USER_EVENT_TYPE_GUI_MOUSE_PRESS;
-                    event.mouse = callback_mouse_in_pixel_coordinates; // NOTE: reusing this
-                } else {
-                    UserEvent event; {
-                        event = callback_mouse_event_helper();
-                        event.mouse = magic_snap(event.mouse); // FORNOW (not mapping pixel coordinates)
+                UserEvent event; {
+                    event = {};
+                    event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
+                    {
+                        event.mouse = transformPoint(inverse(camera_get_PV(&_global_screen_state.camera_2D)), mouse_s_NDC);
+                        event.mouse = magic_snap(event.mouse);
                     }
-                    queue_enqueue(&queue_of_fresh_events_from_user, event);
                 }
+                queue_enqueue(&queue_of_fresh_events_from_user, event);
             } else if (_global_screen_state.hot_pane == HOT_PANE_3D) {
                 UserEvent event = {};
                 event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS;
                 {
                     mat4 inverse_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
-                    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), callback_mouse_in_pixel_coordinates);
                     event.o = transformPoint(inverse_PV_3D, V3(mouse_s_NDC, -1.0f));
                     event.dir = normalized(transformPoint(inverse_PV_3D, V3(mouse_s_NDC,  1.0f)) - event.o);
                 }
@@ -448,7 +416,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
 }
 
 void callback_scroll(GLFWwindow *, double, double yoffset) {
-    _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM for cameras
+    _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM
 }
 
 BEGIN_PRE_MAIN {
@@ -522,47 +490,42 @@ UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real3
 // and transforms others into effective events that are handled by the logic below ('X' -> mouse click)
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// XXX: I don't think this will really work, because now we'll be calling two popups in a single frame
+// (I think this might actually be fine, just make a giant global per frame that only draws one popup per frame max)
 
-bool32 popup_event_is_consumable_by_current_popup(UserEvent event) {
+bool32 event_is_consumable_by_current_popup(UserEvent event) {
     PopupState *popup = &global_world_state.popup;
 
     if (!popup->_active_popup_unique_ID__FORNOW_name0) return false; // FORNOW
-    if (event.type == USER_EVENT_TYPE_KEY_PRESS) {
-        uint32 key = event.key;
-        // bool32 shift = event.shift;
-        // bool32 super = event.super;
-        bool32 key_is_digit = ('0' <= key) && (key <= '9');
-        bool32 key_is_punc  = (key == '.') || (key == '-');
-        bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
-        bool32 key_is_delete = (key == GLFW_KEY_BACKSPACE) || (key == GLFW_KEY_DELETE);
-        bool32 key_is_enter = (key == GLFW_KEY_ENTER);
-        bool32 key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
 
-        bool32 result; {
-            result = false;
-            result |= key_is_digit;
-            result |= key_is_punc;
-            result |= key_is_delete;
-            result |= key_is_enter;
-            result |= key_is_nav;
-            if (popup->_type_of_active_cell == CELL_TYPE_REAL32) {
-                ;
-            } else if (popup->_type_of_active_cell == CELL_TYPE_CSTRING) {
-                result |= key_is_alpha;
-            } else {
-                ASSERT(false);
-            }
+    uint32 key = event.key;
+    // bool32 shift = event.shift;
+    // bool32 super = event.super;
+    bool32 key_is_digit = ('0' <= key) && (key <= '9');
+    bool32 key_is_punc  = (key == '.') || (key == '-');
+    bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
+    bool32 key_is_delete = (key == GLFW_KEY_BACKSPACE) || (key == GLFW_KEY_DELETE);
+    bool32 key_is_enter = (key == GLFW_KEY_ENTER);
+    bool32 key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
+
+    bool32 result; {
+        result = false;
+        result |= key_is_digit;
+        result |= key_is_punc;
+        result |= key_is_delete;
+        result |= key_is_enter;
+        result |= key_is_nav;
+        if (popup->_type_of_active_cell == CELL_TYPE_REAL32) {
+            ;
+        } else if (popup->_type_of_active_cell == CELL_TYPE_CSTRING) {
+            result |= key_is_alpha;
+        } else {
+            ASSERT(false);
         }
-
-        return result;
-    } else if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS) {
-        // ???
-        return false;
-    } else {
-        return false;
     }
-}
 
+    return result;
+}
 
 struct StandardEventProcessResult {
     bool32 record_me;
@@ -659,7 +622,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
     bool32 hotkey_consumed_this_event; {
         hotkey_consumed_this_event = false;
-        if ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (!popup_event_is_consumable_by_current_popup(event))) {
+        if ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (!event_is_consumable_by_current_popup(event))) {
             hotkey_consumed_this_event = true;
             result.record_me = true;
 
@@ -869,11 +832,223 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     // TODO the first mouse click for circle creates a popup
     // (this means we drop a tab)
 
+    //////////////////
+    // POP-UP POPUP //
+    //////////////////
+
+    result.record_me |= event_is_consumable_by_current_popup(event);
+    {
+        // popup state
+        real32 *extrude_add_out_length   = &global_world_state.popup.extrude_add_out_length;
+        real32 *extrude_add_in_length    = &global_world_state.popup.extrude_add_in_length;
+        real32 *extrude_cut_in_length    = &global_world_state.popup.extrude_cut_in_length;
+        real32 *extrude_cut_out_length   = &global_world_state.popup.extrude_cut_out_length;
+        real32 *x_coordinate             = &global_world_state.popup.x_coordinate;
+        real32 *y_coordinate             = &global_world_state.popup.y_coordinate;
+        real32 *circle_diameter          = &global_world_state.popup.circle_diameter;
+        real32 *circle_radius            = &global_world_state.popup.circle_radius;
+        real32 *circle_circumference     = &global_world_state.popup.circle_circumference;
+        real32 *fillet_radius            = &global_world_state.popup.fillet_radius;
+        real32 *box_width                = &global_world_state.popup.box_width;
+        real32 *box_height               = &global_world_state.popup.box_height;
+        char *filename                   = global_world_state.popup.filename;
+
+        // // FORNOW shtuff
+        static char full_filename_including_path[512]; {
+            sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.popup.filename);
+        }
+        auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
+            bool32 add = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
+            if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
+                result.record_me = true;
+                result.snapshot_me = true;
+                result.checkpoint_me = true;
+                _global_screen_state.successful_feature_time = 0.0f;
+                { // result.mesh
+                    CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&global_world_state.dxf.entities, true);
+                    Mesh tmp = wrapper_manifold(
+                            &global_world_state.mesh,
+                            cross_section.num_polygonal_loops,
+                            cross_section.num_vertices_in_polygonal_loops,
+                            cross_section.polygonal_loops,
+                            get_M_3D_from_2D(),
+                            global_world_state.modes.enter_mode,
+                            (add) ? global_world_state.popup.extrude_add_out_length : global_world_state.popup.extrude_cut_out_length,
+                            (add) ? global_world_state.popup.extrude_add_in_length : global_world_state.popup.extrude_cut_in_length,
+                            global_world_state.dxf.origin,
+                            global_world_state.dxf.axis_base_point,
+                            global_world_state.dxf.axis_angle_from_y);
+                    cross_section_free(&cross_section);
+
+                    mesh_free_AND_zero(&global_world_state.mesh); // FORNOW
+                    global_world_state.mesh = tmp; // FORNOW
+                }
+            }
+
+            // reset some stuff
+            global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+            DXF_CLEAR_SELECTION_MASK_TO(false);
+        };
+
+        uint32 _enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter = enter_mode;
+        bool32 popup_popup_actually_called_this_event = false;
+        #include "popup_lambda.cpp"
+        { // popup_popup
+            bool32 enter = ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
+            if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
+                // sus calling this a modifier but okay; make sure it's first or else bad bad
+                popup_popup(true,
+                        CELL_TYPE_REAL32, "x coordinate", x_coordinate,
+                        CELL_TYPE_REAL32, "y coordinate", y_coordinate);
+                if (enter) {
+                    event = MOUSE_2D_event(*x_coordinate, *y_coordinate);
+                }
+            } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
+                if (awaiting_second_click) {
+                    real32 prev_circle_diameter = *circle_diameter;
+                    real32 prev_circle_radius = *circle_radius;
+                    real32 prev_circle_circumference = *circle_circumference;
+                    popup_popup(false,
+                            CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
+                            CELL_TYPE_REAL32, "circle_radius", circle_radius,
+                            CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
+                    if (enter) {
+                        event = MOUSE_2D_event(first_click.x + *circle_radius, first_click.y);
+                    } else {
+                        if (*circle_diameter != prev_circle_diameter) {
+                            *circle_radius = *circle_diameter / 2;
+                            *circle_circumference = PI * *circle_diameter;
+                        } else if (*circle_radius != prev_circle_radius) {
+                            *circle_diameter = 2 * *circle_radius;
+                            *circle_circumference = PI * *circle_diameter;
+                        } else if (*circle_circumference != prev_circle_circumference) {
+                            *circle_diameter = *circle_circumference / PI;
+                            *circle_radius = *circle_diameter / 2;
+                        }
+                    }
+                }
+            } else if (click_mode == CLICK_MODE_CREATE_BOX) {
+                if (awaiting_second_click) {
+                    popup_popup(true,
+                            CELL_TYPE_REAL32, "box_width", box_width,
+                            CELL_TYPE_REAL32, "box_height", box_height);
+                    if (enter) {
+                        event = MOUSE_2D_event(first_click.x + *box_width, first_click.y + *box_height);
+                    }
+                }
+            } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
+                popup_popup(false,
+                        CELL_TYPE_REAL32, "fillet radius", fillet_radius);
+            } else if (enter_mode == ENTER_MODE_OPEN) {
+                popup_popup(false,
+                        CELL_TYPE_CSTRING, "filename", filename);
+                if (enter) {
+                    if (poe_suffix_match(full_filename_including_path, ".dxf")) {
+                        result.record_me = true;
+                        result.checkpoint_me = true;
+                        result.snapshot_me = true;
+                        conversation_dxf_load(full_filename_including_path,
+                                skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
+                        global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+                    } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
+                        result.record_me = true;
+                        result.checkpoint_me = true;
+                        result.snapshot_me = true;
+                        conversation_stl_load(full_filename_including_path);
+                        global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+                    } else {
+                        conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
+                    }
+                }
+            } else if (enter_mode == ENTER_MODE_SAVE) {
+                result.record_me = false;
+                popup_popup(false,
+                        CELL_TYPE_CSTRING, "filename", filename);
+                if (enter) {
+                    conversation_save(full_filename_including_path);
+                    global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+                }
+            } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
+                popup_popup(true,
+                        CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
+                        CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
+                if (enter) {
+                    if (!dxf_anything_selected) {
+                        conversation_messagef("[extrude-add] no dxf elements selected");
+                    } else if (!global_world_state.feature_plane.is_active) {
+                        conversation_messagef("[extrude-add] no plane selected");
+                    } else if (IS_ZERO(global_world_state.popup.extrude_add_in_length) && IS_ZERO(global_world_state.popup.extrude_add_out_length)) {
+                        conversation_messagef("[extrude-add] must have non-zero total height");
+                    } else {
+                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        conversation_messagef("[extrude-add] success");
+                    }
+                }
+            } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+                popup_popup(true,
+                        CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
+                        CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
+                if (enter) {
+                    if (!dxf_anything_selected) {
+                        conversation_messagef("[extrude-cut] no dxf elements selected");
+                    } else if (!global_world_state.feature_plane.is_active) {
+                        conversation_messagef("[extrude-cut] no plane selected");
+                    } else if (IS_ZERO(global_world_state.popup.extrude_cut_in_length) && IS_ZERO(global_world_state.popup.extrude_cut_out_length)) {
+                        conversation_messagef("[extrude-cut] must have non-zero total height");
+                    } else if (global_world_state.mesh.num_triangles == 0) {
+                        conversation_messagef("[extrude-cut] no mesh to cut from");
+                    } else {
+                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        conversation_messagef("[extrude-cut] success");
+                    }
+                }
+            } else if (enter_mode == ENTER_MODE_REVOLVE_ADD) {
+                if (enter) {
+                    if (!dxf_anything_selected) {
+                        conversation_messagef("[revolve-add] no dxf elements selected");
+                    } else if (!global_world_state.feature_plane.is_active) {
+                        conversation_messagef("[revolve-add] no plane selected");
+                    } else {
+                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        conversation_messagef("[revolve-add] success");
+                    }
+                }
+            } else if (enter_mode == ENTER_MODE_REVOLVE_CUT) {
+                if (enter) {
+                    if (!dxf_anything_selected) {
+                        conversation_messagef("[revolve-cut] no dxf elements selected");
+                    } else if (!global_world_state.feature_plane.is_active) {
+                        conversation_messagef("[revolve-cut] no plane selected");
+                    } else if (global_world_state.mesh.num_triangles == 0) {
+                        conversation_messagef("[revolve-cut] no mesh to cut from");
+                    } else {
+                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        conversation_messagef("[revolve-cut] success");
+                    }
+                }
+            } else {
+            }
+        }
+        { // popup_close (FORNOW: just doing off of enter transitions)
+          // NOTE: we need to do this so that the next key event doesn't get eaten by a dead popup
+            bool32 enter_mode_transitioned_to_ENTER_MODE_NONE = ((_enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter != ENTER_MODE_NONE) && (enter_mode == ENTER_MODE_NONE));
+            if (0
+                    || (!popup_popup_actually_called_this_event)
+                    || enter_mode_transitioned_to_ENTER_MODE_NONE
+               ) {
+                global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
+            }
+        }
+    }
 
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////
 
+
+
+
+    bool32 is_key_event = (event.type == USER_EVENT_TYPE_KEY_PRESS);
     bool32 is_mouse_2d_event = (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS);
     bool32 is_mouse_3d_event = (event.type == USER_EVENT_TYPE_MOUSE_3D_PRESS);
     // bool32 enter = (is_key_event && (event.key == GLFW_KEY_ENTER));
@@ -889,6 +1064,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(revolve);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(add);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(cut);
+        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(is_key_event);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(is_mouse_2d_event);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(is_mouse_3d_event);
     }
@@ -898,8 +1074,8 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // mouse aliases
-    vec2 mouse = event.mouse;
-    vec2 second_click = event.mouse;
+    vec2 mouse = { event.mouse.x, event.mouse.y };
+    vec2 second_click = mouse;
 
     if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS) {
         result.record_me = true;
@@ -1366,243 +1542,6 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         }
     }
 
-    //////////////////
-    // POP-UP POPUP //
-    //////////////////
-
-    result.record_me |= popup_event_is_consumable_by_current_popup(event);
-    {
-        // popup state
-        real32 *extrude_add_out_length   = &global_world_state.popup.extrude_add_out_length;
-        real32 *extrude_add_in_length    = &global_world_state.popup.extrude_add_in_length;
-        real32 *extrude_cut_in_length    = &global_world_state.popup.extrude_cut_in_length;
-        real32 *extrude_cut_out_length   = &global_world_state.popup.extrude_cut_out_length;
-        real32 *x_coordinate             = &global_world_state.popup.x_coordinate;
-        real32 *y_coordinate             = &global_world_state.popup.y_coordinate;
-        real32 *circle_diameter          = &global_world_state.popup.circle_diameter;
-        real32 *circle_radius            = &global_world_state.popup.circle_radius;
-        real32 *circle_circumference     = &global_world_state.popup.circle_circumference;
-        real32 *fillet_radius            = &global_world_state.popup.fillet_radius;
-        real32 *box_width                = &global_world_state.popup.box_width;
-        real32 *box_height               = &global_world_state.popup.box_height;
-        real32 *line_length              = &global_world_state.popup.line_length;
-        real32 *line_angle               = &global_world_state.popup.line_angle;
-        real32 *line_run                 = &global_world_state.popup.line_run;
-        real32 *line_rise                = &global_world_state.popup.line_rise;
-        char *filename                   = global_world_state.popup.filename;
-
-        // // FORNOW shtuff
-        static char full_filename_including_path[512]; {
-            sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.popup.filename);
-        }
-        auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
-            bool32 add = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
-            if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
-                result.record_me = true;
-                result.snapshot_me = true;
-                result.checkpoint_me = true;
-                _global_screen_state.successful_feature_time = 0.0f;
-                { // result.mesh
-                    CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&global_world_state.dxf.entities, true);
-                    Mesh tmp = wrapper_manifold(
-                            &global_world_state.mesh,
-                            cross_section.num_polygonal_loops,
-                            cross_section.num_vertices_in_polygonal_loops,
-                            cross_section.polygonal_loops,
-                            get_M_3D_from_2D(),
-                            global_world_state.modes.enter_mode,
-                            (add) ? global_world_state.popup.extrude_add_out_length : global_world_state.popup.extrude_cut_out_length,
-                            (add) ? global_world_state.popup.extrude_add_in_length : global_world_state.popup.extrude_cut_in_length,
-                            global_world_state.dxf.origin,
-                            global_world_state.dxf.axis_base_point,
-                            global_world_state.dxf.axis_angle_from_y);
-                    cross_section_free(&cross_section);
-
-                    mesh_free_AND_zero(&global_world_state.mesh); // FORNOW
-                    global_world_state.mesh = tmp; // FORNOW
-                }
-            }
-
-            // reset some stuff
-            global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-            DXF_CLEAR_SELECTION_MASK_TO(false);
-        };
-
-        uint32 _enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter = enter_mode;
-        bool32 popup_popup_actually_called_this_event = false;
-        #include "popup_lambda.cpp"
-        { // popup_popup
-            bool32 enter = ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
-            if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
-                // sus calling this a modifier but okay; make sure it's first or else bad bad
-                popup_popup(true,
-                        CELL_TYPE_REAL32, "x coordinate", x_coordinate,
-                        CELL_TYPE_REAL32, "y coordinate", y_coordinate);
-                if (enter) {
-                    return standard_event_process(MOUSE_2D_event(*x_coordinate, *y_coordinate));
-                }
-            } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
-                if (awaiting_second_click) {
-                    real32 prev_circle_diameter = *circle_diameter;
-                    real32 prev_circle_radius = *circle_radius;
-                    real32 prev_circle_circumference = *circle_circumference;
-                    popup_popup(false,
-                            CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
-                            CELL_TYPE_REAL32, "circle_radius", circle_radius,
-                            CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
-                    if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click.x + *circle_radius, first_click.y));
-                    } else {
-                        if (prev_circle_diameter != *circle_diameter) {
-                            *circle_radius = *circle_diameter / 2;
-                            *circle_circumference = PI * *circle_diameter;
-                        } else if (prev_circle_radius != *circle_radius) {
-                            *circle_diameter = 2 * *circle_radius;
-                            *circle_circumference = PI * *circle_diameter;
-                        } else if (prev_circle_circumference != *circle_circumference) {
-                            *circle_diameter = *circle_circumference / PI;
-                            *circle_radius = *circle_diameter / 2;
-                        }
-                    }
-                }
-            } else if (click_mode == CLICK_MODE_CREATE_LINE) {
-                if (awaiting_second_click) {
-                    real32 prev_line_length = *line_length;
-                    real32 prev_line_angle = *line_angle;
-                    real32 prev_line_run = *line_run;
-                    real32 prev_line_rise = *line_rise;
-                    popup_popup(false,
-                            CELL_TYPE_REAL32, "line_length", line_length,
-                            CELL_TYPE_REAL32, "line_angle", line_angle,
-                            CELL_TYPE_REAL32, "line_run", line_run,
-                            CELL_TYPE_REAL32, "line_rise", line_rise
-                            );
-                    if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click.x + *line_run, first_click.y + *line_rise));
-                    } else {
-                        if ((prev_line_length != *line_length) || (prev_line_angle != *line_angle)) {
-                            *line_run = *line_length * COS(RAD(*line_angle));
-                            *line_rise = *line_length * SIN(RAD(*line_angle));
-                        } else if ((prev_line_run != *line_run) || (prev_line_rise != *line_rise)) {
-                            *line_length = SQRT(*line_run * *line_run + *line_rise * *line_rise);
-                            *line_angle = DEG(ATAN2(*line_rise, *line_run));
-                        }
-                    }
-                }
-            } else if (click_mode == CLICK_MODE_CREATE_BOX) {
-                if (awaiting_second_click) {
-                    popup_popup(true,
-                            CELL_TYPE_REAL32, "box_width", box_width,
-                            CELL_TYPE_REAL32, "box_height", box_height);
-                    if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click.x + *box_width, first_click.y + *box_height));
-                    }
-                }
-            } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
-                popup_popup(false,
-                        CELL_TYPE_REAL32, "fillet radius", fillet_radius);
-            } else if (enter_mode == ENTER_MODE_OPEN) {
-                popup_popup(false,
-                        CELL_TYPE_CSTRING, "filename", filename);
-                if (enter) {
-                    if (poe_suffix_match(full_filename_including_path, ".dxf")) {
-                        result.record_me = true;
-                        result.checkpoint_me = true;
-                        result.snapshot_me = true;
-                        conversation_dxf_load(full_filename_including_path,
-                                skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
-                        global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-                    } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
-                        result.record_me = true;
-                        result.checkpoint_me = true;
-                        result.snapshot_me = true;
-                        conversation_stl_load(full_filename_including_path);
-                        global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-                    } else {
-                        conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
-                    }
-                }
-            } else if (enter_mode == ENTER_MODE_SAVE) {
-                result.record_me = false;
-                popup_popup(false,
-                        CELL_TYPE_CSTRING, "filename", filename);
-                if (enter) {
-                    conversation_save(full_filename_including_path);
-                    global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-                }
-            } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
-                popup_popup(true,
-                        CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
-                        CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
-                if (enter) {
-                    if (!dxf_anything_selected) {
-                        conversation_messagef("[extrude-add] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
-                        conversation_messagef("[extrude-add] no plane selected");
-                    } else if (IS_ZERO(global_world_state.popup.extrude_add_in_length) && IS_ZERO(global_world_state.popup.extrude_add_out_length)) {
-                        conversation_messagef("[extrude-add] must have non-zero total height");
-                    } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[extrude-add] success");
-                    }
-                }
-            } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
-                popup_popup(true,
-                        CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
-                        CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
-                if (enter) {
-                    if (!dxf_anything_selected) {
-                        conversation_messagef("[extrude-cut] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
-                        conversation_messagef("[extrude-cut] no plane selected");
-                    } else if (IS_ZERO(global_world_state.popup.extrude_cut_in_length) && IS_ZERO(global_world_state.popup.extrude_cut_out_length)) {
-                        conversation_messagef("[extrude-cut] must have non-zero total height");
-                    } else if (global_world_state.mesh.num_triangles == 0) {
-                        conversation_messagef("[extrude-cut] no mesh to cut from");
-                    } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[extrude-cut] success");
-                    }
-                }
-            } else if (enter_mode == ENTER_MODE_REVOLVE_ADD) {
-                if (enter) {
-                    if (!dxf_anything_selected) {
-                        conversation_messagef("[revolve-add] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
-                        conversation_messagef("[revolve-add] no plane selected");
-                    } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[revolve-add] success");
-                    }
-                }
-            } else if (enter_mode == ENTER_MODE_REVOLVE_CUT) {
-                if (enter) {
-                    if (!dxf_anything_selected) {
-                        conversation_messagef("[revolve-cut] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
-                        conversation_messagef("[revolve-cut] no plane selected");
-                    } else if (global_world_state.mesh.num_triangles == 0) {
-                        conversation_messagef("[revolve-cut] no mesh to cut from");
-                    } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[revolve-cut] success");
-                    }
-                }
-            } else {
-            }
-        }
-        { // popup_close (FORNOW: just doing off of enter transitions)
-          // NOTE: we need to do this so that the next key event doesn't get eaten by a dead popup
-            bool32 enter_mode_transitioned_to_ENTER_MODE_NONE = ((_enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter != ENTER_MODE_NONE) && (enter_mode == ENTER_MODE_NONE));
-            if (0
-                    || (!popup_popup_actually_called_this_event)
-                    || enter_mode_transitioned_to_ENTER_MODE_NONE
-               ) {
-                global_world_state.popup._active_popup_unique_ID__FORNOW_name0 = NULL;
-            }
-        }
-    }
-
     return result;
 }
 
@@ -1722,9 +1661,7 @@ void history_undo() {
             --begin;
         }
     }
-    IGNORE_NEW_MESSAGEFS = true; // TODO: why does this seem unnecessary in practice??
     for (UserEvent *event = begin; event < one_past_end; ++event) standard_event_process(*event);
-    IGNORE_NEW_MESSAGEFS = false;
     conversation_messagef("[undo] success");
 }
 
@@ -1734,7 +1671,6 @@ void history_redo() {
         return;
     }
 
-    IGNORE_NEW_MESSAGEFS = true;
     while (EVENT_REDO_NONEMPTY()) { // // manipulate stacks (undo <- redo)
         StackPointers popped = POP_REDO_ONTO_UNDO();
         UserEvent *user_event = popped.user_event;
@@ -1748,7 +1684,6 @@ void history_redo() {
 
         if (user_event->checkpoint_me) break;
     }
-    IGNORE_NEW_MESSAGEFS = false;
     conversation_messagef("[redo] success");
 }
 
@@ -1849,7 +1784,7 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
         return _key_lambda(fresh_event_from_user, key, super, shift);
     };
 
-    bool32 not_consumable = !popup_event_is_consumable_by_current_popup(fresh_event_from_user);
+    bool32 not_consumable = !event_is_consumable_by_current_popup(fresh_event_from_user);
     bool32 undo = (key_lambda('Z', true) || key_lambda('U'));
     bool32 redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
 
@@ -1943,11 +1878,7 @@ void conversation_draw() {
 
     { // panes
         eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
-        if (_global_screen_state.hot_pane == HOT_PANE_2D) {
-        eso_color(monokai.yellow);
-        } else {
-        eso_color(1.0f, 0.0f, 1.0f);
-        }
+        eso_color(monokai.gray);
         eso_vertex(0.0f,  1.0f);
         eso_vertex(0.0f, -1.0f);
         eso_end();
@@ -2370,7 +2301,6 @@ void _spoof_KEY_event(char *string) {
 void _SPOOF_CHAIN_END_TO_END_TEST() {
     if (1) {
         if (1) {
-            _spoof_KEY_event("CZ100"); return;
             _spoof_KEY_event('O', true);
             _spoof_KEY_event("splash.dxf");
             _spoof_KEY_event(GLFW_KEY_ENTER);
@@ -2502,7 +2432,6 @@ int main() {
     while (cow_begin_frame()) {
         _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
 
-        // conversation_messagef("%lf", global_world_state.popup.circle_diameter);
         // Sleep(100);
 
         { // animations
@@ -2523,7 +2452,7 @@ int main() {
 
         }
 
-        { // camera_move, hot_pane
+        { // camera_move, hot_pane, conversation_draw
             { // camera_move (using shimmed globals.* global_world_state)
                 if (_global_screen_state.hot_pane == HOT_PANE_2D) {
                     camera_move(&_global_screen_state.camera_2D);
@@ -2533,10 +2462,11 @@ int main() {
             }
 
             if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-                _global_screen_state.hot_pane = (callback_mouse_in_pixel_coordinates.x <= window_get_width() / 2) ? HOT_PANE_2D : HOT_PANE_3D;
-
+                _global_screen_state.hot_pane = (callback_xpos <= window_get_width() / 2) ? HOT_PANE_2D : HOT_PANE_3D;
                 if ((global_world_state.modes.click_modifier == CLICK_MODIFIER_WINDOW) && (global_world_state.two_click_command.awaiting_second_click)) _global_screen_state.hot_pane = HOT_PANE_2D;// FORNOW
             }
+
+            conversation_draw();
         }
 
         { // queue_of_fresh_events_from_user
@@ -2553,8 +2483,6 @@ int main() {
                 fresh_event_from_user_process(null_event);
             }
         }
-
-        conversation_draw(); // FORNOW: moving this down here (be wary of frame imperfections)
 
         { // frame_0, frame_1
             if (frame_1) glfwShowWindow(COW0._window_glfw_window);

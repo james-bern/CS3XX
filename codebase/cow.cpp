@@ -903,8 +903,8 @@ void _window_get_size(cow_real *width, cow_real *height) {
     ASSERT(COW0._window_glfw_window);
     int _width, _height;
     glfwGetFramebufferSize(COW0._window_glfw_window, &_width, &_height);
-    *width = cow_real(_width);
-    *height = cow_real(_height);
+    *width = cow_real(_width);// / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    *height = cow_real(_height);// / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 }
 cow_real _window_get_height() {
     ASSERT(COW0._window_glfw_window);
@@ -1286,10 +1286,10 @@ void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
     cow_real tmp_mouse_s_Screen_0 = globals.mouse_position_Screen[0];
     cow_real tmp_mouse_s_Screen_1 = globals.mouse_position_Screen[1];
 
-    { // macbook retina nonsense
-        xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-        ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    }
+    // { // macbook retina nonsense
+    //     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    //     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    // }
 
     globals.mouse_position_Screen[0] = xpos;
     globals.mouse_position_Screen[1] = ypos;
@@ -2144,6 +2144,7 @@ void _gui_begin_frame() {
     // }
 }
 
+cow_real FORNOW_gui_printf_red_component = 1.0f;
 void gui_printf(const char *format, ...) {
     if (COW1._gui_hide_and_disable) { return; }
     static char _text[256] = {};
@@ -2158,7 +2159,7 @@ void gui_printf(const char *format, ...) {
     char *sep = strchr(text, '`'); // fornow hacking in two color text
     if (!sep) {
         _text_draw((cow_real *) &globals._gui_NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
-                1.0,
+                FORNOW_gui_printf_red_component,
                 1.0,
                 1.0,
                 1.0, 0, 0.0, 0.0, true);
@@ -4606,13 +4607,13 @@ bool cow_begin_frame() {
         _window_get_NDC_from_Screen((cow_real *) &globals.NDC_from_Screen);
         { // _gui_NDC_from_Screen
             memcpy((cow_real *) &globals._gui_NDC_from_Screen, (cow_real *) &globals.NDC_from_Screen, 16 * sizeof(cow_real));
-            if (config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina != 1) {
-                for (int i = 0; i < 3; ++i) {
-                    for (int j = 0; j < 3; ++j) {
-                        _LINALG_4X4(((cow_real *) &globals._gui_NDC_from_Screen), i, j) *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
-                    }
+            // if (config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina != 1) {
+            for (int i = 0; i < 3; ++i) {
+                for (int j = 0; j < 3; ++j) {
+                    _LINALG_4X4(((cow_real *) &globals._gui_NDC_from_Screen), i, j) *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
                 }
             }
+            // }
         }
 
         { // _cow_help_toggle overlay

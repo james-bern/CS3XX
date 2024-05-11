@@ -1,6 +1,8 @@
 // TODO: make Mesh vec3's and ivec3's
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
+// TODO: void eso_bounding_box__SOUP_QUADS(BoundingBox bounding_box)
+
 ////////////////////////////////////////
 // Config-Tweaks ///////////////////////
 ////////////////////////////////////////
@@ -82,10 +84,11 @@ struct {
 #define HOT_PANE_2D   1
 #define HOT_PANE_3D   2
 
-#define USER_EVENT_TYPE_NONE           0
-#define USER_EVENT_TYPE_KEY_PRESS      1
-#define USER_EVENT_TYPE_MOUSE_2D_PRESS 2
-#define USER_EVENT_TYPE_MOUSE_3D_PRESS 3
+#define USER_EVENT_TYPE_NONE            0
+#define USER_EVENT_TYPE_KEY_PRESS       1
+#define USER_EVENT_TYPE_MOUSE_2D_PRESS  2
+#define USER_EVENT_TYPE_MOUSE_3D_PRESS  3
+#define USER_EVENT_TYPE_GUI_MOUSE_PRESS 4
 
 #define CELL_TYPE_NONE    0
 #define CELL_TYPE_REAL32  1
@@ -118,6 +121,11 @@ struct DXFEntity {
     };
     // FORNOW: this goes last
     bool32 is_selected;
+};
+
+struct BoundingBox {
+    vec2 min;
+    vec2 max;
 };
 
 struct Mesh {
@@ -196,7 +204,10 @@ struct PopupState {
     real32 x_coordinate;
     real32 y_coordinate;
     real32 plane_offset_distance;
-
+    real32 line_length;
+    real32 line_angle;
+    real32 line_run;
+    real32 line_rise;
     char filename[POPUP_CELL_LENGTH];
 
     #define POPUP_MAX_NUM_CELLS 4
@@ -210,11 +221,15 @@ struct PopupState {
     // uint32 selection_right;
 
     uint32 _type_of_active_cell;
-
     void *_active_popup_unique_ID__FORNOW_name0;
+
+    uint32 num_cells;
+    BoundingBox field_boxes[POPUP_MAX_NUM_CELLS];
 
     // TODO: checkboxes
 };
+
+
 
 struct WorldState {
     Mesh mesh;
@@ -307,11 +322,6 @@ real32 squared_distance_point_point(real32 x_A, real32 y_A, real32 x_B, real32 y
 // BoundingBox /////////////////////////
 ////////////////////////////////////////
 
-struct BoundingBox {
-    real32 min[2];
-    real32 max[2];
-};
-
 void pprint(BoundingBox bounding_box) {
     printf("(%f, %f) <-> (%f, %f)\n", bounding_box.min[0], bounding_box.min[1], bounding_box.max[0], bounding_box.max[1]);
 }
@@ -325,6 +335,13 @@ bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
     for (uint32 d = 0; d < 2; ++d) {
         if (outer.min[d] > inner.min[d]) return false;
         if (outer.max[d] < inner.max[d]) return false;
+    }
+    return true;
+}
+
+bool32 bounding_box_contains(BoundingBox bounding_box, vec2 point) {
+    for (uint32 d = 0; d < 2; ++d) {
+        if (!IS_BETWEEN(point[d], bounding_box.min[d], bounding_box.max[d])) return false;
     }
     return true;
 }
@@ -1374,23 +1391,62 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
 // messagef API ////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-char conversation_message_buffer[1024];
-uint32 conversation_message_cooldown;
+bool32 IGNORE_NEW_MESSAGEFS;
+
+#define MESSAGE_MAX_LENGTH 256
+#define MESSAGE_MAX_NUM_MESSAGES 64
+#define MESSAGE_COOLDOWN 300
+struct Message {
+    char buffer[MESSAGE_MAX_LENGTH];
+    uint32 cooldown;
+};
+uint32 message_index;
+Message conversation_messages[MESSAGE_MAX_NUM_MESSAGES];
 void conversation_messagef(char *format, ...) {
+    if (IGNORE_NEW_MESSAGEFS) return;
     va_list arg;
     va_start(arg, format);
-    vsnprintf(conversation_message_buffer, sizeof(conversation_message_buffer), format, arg);
+    Message *message = &conversation_messages[message_index];
+    vsnprintf(message->buffer, MESSAGE_MAX_LENGTH, format, arg);
     va_end(arg);
-    conversation_message_cooldown = 300;
-    printf("%s\n", conversation_message_buffer);
+
+    message->cooldown = MESSAGE_COOLDOWN;
+    message_index = (message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
+
+    printf("%s\n", message->buffer); // FORNOW print to terminal as well
 }
 void conversation_message_buffer_update_and_draw() {
-    if (conversation_message_cooldown > 0) {
-        --conversation_message_cooldown;
-    } else {
-        conversation_message_buffer[0] = '\0';
-    }
-    _text_draw((cow_real *) &globals._gui_NDC_from_Screen, conversation_message_buffer, 1024, 32, 0.0, 0.5, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
+    uint32 i_0 =  (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
+    real32 y = 32;
+
+    auto draw_lambda = [&](uint32 i) {
+        real32 a = real32(conversation_messages[i].cooldown) / MESSAGE_COOLDOWN;
+        if (conversation_messages[i].cooldown > 0) {
+            --conversation_messages[i].cooldown;
+            _text_draw(
+                    (cow_real *) &globals._gui_NDC_from_Screen,
+                    conversation_messages[i].buffer,
+                    512,
+                    y,
+                    0.0,
+                    0.5,
+                    1.0,
+                    1.0,
+                    a,
+                    0,
+                    0.0,
+                    0.0,
+                    true);
+            y += 32;
+        } else {
+            conversation_messages[i].cooldown = 0;
+        }
+    };
+
+    for (uint32 i = i_0; i > 0; --i) draw_lambda(i);
+    draw_lambda(0);
+    for (uint32 i = MESSAGE_MAX_NUM_MESSAGES - 1; i > i_0; --i) draw_lambda(i);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
