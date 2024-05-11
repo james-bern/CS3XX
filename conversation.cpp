@@ -1956,7 +1956,7 @@ void conversation_draw() {
     { // draw 2D draw 2d draw
         {
             glEnable(GL_SCISSOR_TEST);
-            glScissor(0, 0, window_width / 2, window_height);
+            gl_scissor_TODO_CHECK_ARGS(0, 0, window_width / 2, window_height);
         }
 
         {
@@ -2090,7 +2090,7 @@ void conversation_draw() {
 
     { // 3D draw 3D 3d draw 3d
         glEnable(GL_SCISSOR_TEST);
-        glScissor(window_width / 2, 0, window_width / 2, window_height);
+        gl_scissor_TODO_CHECK_ARGS(window_width / 2, 0, window_width / 2, window_height);
 
         { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             uint32 color = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_CUT) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((global_world_state.modes.enter_mode == ENTER_MODE_SET_ORIGIN) || (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;

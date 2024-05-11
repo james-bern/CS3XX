@@ -799,6 +799,12 @@ void window_set_decorated(bool decorated) {
     glfwSetWindowAttrib(COW0._window_glfw_window, GLFW_DECORATED, decorated);
 }
 
+void gl_scissor_TODO_CHECK_ARGS(cow_real x, cow_real y, cow_real dx, cow_real dy) {
+    cow_real factor = COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    glScissor(factor * x, factor * y, factor * dx, factor * dy);
+}
+#define glScissor RETINA_BREAKS_THIS_FUNCTION_USE_gl_scissor_WRAPPER
+
 void _callback_set_callbacks();
 void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos);
 void _window_get_NDC_from_Screen(cow_real *NDC_from_Screen);
@@ -903,8 +909,8 @@ void _window_get_size(cow_real *width, cow_real *height) {
     ASSERT(COW0._window_glfw_window);
     int _width, _height;
     glfwGetFramebufferSize(COW0._window_glfw_window, &_width, &_height);
-    *width = cow_real(_width);// / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    *height = cow_real(_height);// / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    *width = cow_real(_width) / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    *height = cow_real(_height) / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 }
 cow_real _window_get_height() {
     ASSERT(COW0._window_glfw_window);
