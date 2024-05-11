@@ -148,7 +148,7 @@ struct CW_USER_FACING_CONFIG {
     int hotkeys_app_menu = '=';
     int hotkeys_gui_hide = '-';
 
-    cow_real tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1; // set to 2 to make gui elements bigger (automatically done if macbook retina detected)
+    // cow_real tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 1; // set to 2 to make gui elements bigger (automatically done if macbook retina detected)
 
     bool tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = true;
     bool tweaks_ASSERT_crashes_the_program_without_you_having_to_press_Enter = false;
@@ -476,7 +476,7 @@ struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
 
     GLFWwindow *_window_glfw_window;
     void       *_window_hwnd__note_this_is_NULL_if_not_on_Windows;
-    cow_real        _window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    cow_real        _window_macbook_retina_fixer__VERY_MYSTERIOUS;
 };
 
 struct C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset {
@@ -799,7 +799,7 @@ void window_set_decorated(bool decorated) {
 }
 
 void gl_scissor_TODO_CHECK_ARGS(cow_real x, cow_real y, cow_real dx, cow_real dy) {
-    cow_real factor = COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    cow_real factor = COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
     glScissor(factor * x, factor * y, factor * dx, factor * dy);
 }
 #define glScissor RETINA_BREAKS_THIS_FUNCTION_USE_gl_scissor_WRAPPER
@@ -874,10 +874,10 @@ void _window_init() {
         int num, den, _;
         glfwGetFramebufferSize(COW0._window_glfw_window, &num, &_);
         glfwGetWindowSize(COW0._window_glfw_window, &den, &_);
-        COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS = cow_real(num / den);
-        if (COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS == 2) {
-            config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 2;
-        }
+        COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS = cow_real(num / den);
+        // if (COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS == 2) {
+        //     config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina = 2;
+        // }
     }
 
     _window_set_position(0.0, 30.0);
@@ -908,8 +908,8 @@ void _window_get_size(cow_real *width, cow_real *height) {
     ASSERT(COW0._window_glfw_window);
     int _width, _height;
     glfwGetFramebufferSize(COW0._window_glfw_window, &_width, &_height);
-    *width = cow_real(_width) / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    *height = cow_real(_height) / COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    *width = cow_real(_width) / COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
+    *height = cow_real(_height) / COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
 }
 cow_real _window_get_height() {
     ASSERT(COW0._window_glfw_window);
@@ -1292,8 +1292,8 @@ void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos) {
     cow_real tmp_mouse_s_Screen_1 = globals.mouse_position_Screen[1];
 
     // { // macbook retina nonsense
-    //     xpos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    //     ypos *= COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    //     xpos *= COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
+    //     ypos *= COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
     // }
 
     globals.mouse_position_Screen[0] = xpos;
@@ -1758,7 +1758,7 @@ void _soup_draw(
 
 
     if (IS_ZERO(size_in_pixels)) { size_in_pixels = config.tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels; }
-    size_in_pixels *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
+    // size_in_pixels *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
 
 
     cow_real color_if_vertex_colors_is_NULL[4] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL, a_if_vertex_colors_is_NULL };
@@ -4283,7 +4283,7 @@ void _recorder_begin_frame() { // record
     }
     if (COW0._recorder_recording) { // save frame
         if (!window_is_pointer_locked()) { // draw mouse draw cursor
-            cow_real f = config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
+            cow_real f = 1.0f;//config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
             eso_color(1.0f, 1.0f, 1.0f, 1.0f);
             _eso_begin((cow_real *) &globals.NDC_from_Screen, SOUP_TRIANGLE_FAN, 10.0, true);
             eso_vertex(globals.mouse_position_Screen[0] + f *  0, globals.mouse_position_Screen[1] + f *  0);
