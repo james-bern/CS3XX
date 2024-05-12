@@ -15,7 +15,6 @@ auto popup_popup = [&] (
         uint8 cell_type3 = 0, char *_name3 = NULL, void *_value3 = NULL
         ) -> void {
 
-    PopupState *popup = &global_world_state.popup;
 
     ///
 
@@ -266,7 +265,10 @@ auto popup_popup = [&] (
             }
 
             BoundingBox field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            if (bounding_box_contains(field_box, callback_mouse_in_pixel_coordinates)) popup->mouse_is_hovering = true;
+            if (bounding_box_contains(field_box, callback_mouse_in_pixel_coordinates)) {
+                popup->mouse_is_hovering = true;
+                popup->hover_field_index = d;
+            }
 
             // eso_begin(globals.NDC_from_Screen, SOUP_LINE_LOOP, 5.0f);
             // eso_color(0.0f, 0.0f, 1.0f);

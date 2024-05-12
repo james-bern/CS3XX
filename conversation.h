@@ -160,8 +160,8 @@ struct UserEvent {
     vec3 dir;
     // };
     // struct {
-    uint32 hot_field_index;
-    uint32 mouse_character_index;
+    uint32 hover_field_index;
+    // uint32 mouse_character_index;
     // };
     // }; 
 
@@ -228,8 +228,7 @@ struct PopupState {
     void *_active_popup_unique_ID__FORNOW_name0;
 
     bool32 mouse_is_hovering;
-    // uint32 num_cells;
-    // BoundingBox field_boxes[POPUP_MAX_NUM_CELLS];
+    uint32 hover_field_index;
 
     // TODO: checkboxes
 };
