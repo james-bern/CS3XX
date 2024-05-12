@@ -1,3 +1,5 @@
+// TODO: the USER_EVENT_TYPE_GUI_MOUSE_PRESS should be exactly what is ready to be consumed by the popup (it's just popup food) -- dragging comes later 
+
 
 // TODO: what would a demo app look like that proves you've actually gotten rid of all the /2 business (would need scissoring)
 // NOTE: it's possible you've just broken everything on windows. whatevrer
@@ -80,15 +82,6 @@ bool32 callback_mouse_shift_held; // TODO (where does this go?)
 bool32 callback_mouse_left_held;
 vec2 callback_mouse_in_pixel_coordinates;
 
-bool32 popup_mouse_is_hovering_over_a_field_of_the_currently_active_popup() {
-    PopupState *popup = &global_world_state.popup;
-    for (uint i = 0; i < popup->num_cells; ++i) {
-        conversation_messagef("%f %f", callback_mouse_in_pixel_coordinates.x, callback_mouse_in_pixel_coordinates.y);
-        conversation_messagef("%f %f %f %f", popup->field_boxes[i].min.x, popup->field_boxes[i].min.y, popup->field_boxes[i].max.x, popup->field_boxes[i].max.y);
-        if (bounding_box_contains(popup->field_boxes[i], callback_mouse_in_pixel_coordinates)) return true;
-    }
-    return false;
-}
 
 
 //////////////////////////////////////////////////
@@ -122,6 +115,12 @@ mat4 get_M_3D_from_2D() {
     }
 
     return M4_xyzo(x, y, z, (global_world_state.feature_plane.signed_distance_to_world_origin) * global_world_state.feature_plane.normal);
+}
+
+bool32 quality_poised_to_eat_digit() {
+    bool32 A = ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT));
+    bool32 B = (global_world_state.modes.click_modifier == CLICK_MODIFIER_QUALITY);
+    return A && B;
 }
 
 // bool32 EXTRUDE() {
@@ -420,18 +419,20 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
         if (action == GLFW_PRESS) { 
             callback_mouse_left_held = true;
 
-            if (_global_screen_state.hot_pane == HOT_PANE_2D) {
-                if (popup_mouse_is_hovering_over_a_field_of_the_currently_active_popup()) {
-                    UserEvent event = {};
+            if (global_world_state.popup.mouse_is_hovering) {
+                UserEvent event; {
+                    event = {};
                     event.type = USER_EVENT_TYPE_GUI_MOUSE_PRESS;
-                    event.mouse = callback_mouse_in_pixel_coordinates; // NOTE: reusing this
-                } else {
-                    UserEvent event; {
-                        event = callback_mouse_event_helper();
-                        event.mouse = magic_snap(event.mouse); // FORNOW (not mapping pixel coordinates)
-                    }
-                    queue_enqueue(&queue_of_fresh_events_from_user, event);
+                    // event.hot_field_index = TODO; 
+                    // event.mouse_character_index = TODO; 
                 }
+                queue_enqueue(&queue_of_fresh_events_from_user, event);
+            } else if (_global_screen_state.hot_pane == HOT_PANE_2D) {
+                UserEvent event; {
+                    event = callback_mouse_event_helper();
+                    event.mouse = magic_snap(event.mouse); // FORNOW (not mapping pixel coordinates)
+                }
+                queue_enqueue(&queue_of_fresh_events_from_user, event);
             } else if (_global_screen_state.hot_pane == HOT_PANE_3D) {
                 UserEvent event = {};
                 event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS;
@@ -542,7 +543,7 @@ bool32 popup_event_is_consumable_by_current_popup(UserEvent event) {
 
         bool32 result; {
             result = false;
-            result |= key_is_digit;
+            if (!quality_poised_to_eat_digit()) result |= key_is_digit;
             result |= key_is_punc;
             result |= key_is_delete;
             result |= key_is_enter;
@@ -577,11 +578,12 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
 
     // global state aliases
-    vec2 &first_click = global_world_state.two_click_command.first_click;
-    uint32 &enter_mode            = global_world_state.modes.enter_mode;
-    uint32 &click_mode            = global_world_state.modes.click_mode;
-    uint32 &click_modifier        = global_world_state.modes.click_modifier;
-    bool32 &awaiting_second_click = global_world_state.two_click_command.awaiting_second_click;
+    DXFState *dxf = &global_world_state.dxf;
+    vec2 *first_click             = &global_world_state.two_click_command.first_click;
+    uint32 *enter_mode            = &global_world_state.modes.enter_mode;
+    uint32 *click_mode            = &global_world_state.modes.click_mode;
+    uint32 *click_modifier        = &global_world_state.modes.click_modifier;
+    bool32 *awaiting_second_click = &global_world_state.two_click_command.awaiting_second_click;
     // global state computed varaibles
     bool32 dxf_anything_selected; {
         dxf_anything_selected = false;
@@ -614,7 +616,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         return result;
     };
     auto _ADD_ENTITY = [&](DXFEntity entity) {
-        list_push_back(&global_world_state.dxf.entities, entity);
+        list_push_back(&dxf->entities, entity);
     };
     auto ADD_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
         DXFEntity entity = _LINE(start, end, is_selected, color);
@@ -645,8 +647,8 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         for (uint32 i = 0; i < _entity_buffer.length; ++i)  _ADD_ENTITY(_entity_buffer.array[i]);
     };
 
-    auto DXF_DELETE = [&](uint32 i) { list_delete_at(&global_world_state.dxf.entities, i); };
-    auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 value_to_write) { for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) global_world_state.dxf.entities.array[i].is_selected = value_to_write; };
+    auto DXF_DELETE = [&](uint32 i) { list_delete_at(&dxf->entities, i); };
+    auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 value_to_write) { for (uint32 i = 0; i < dxf->entities.length; ++i) dxf->entities.array[i].is_selected = value_to_write; };
 
 
     ///////////////////////
@@ -672,114 +674,153 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
             bool32 click_mode_SNAP_ELIGIBLE_ =
                 0
-                || (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN)
-                || (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS)
-                || (global_world_state.modes.click_mode == CLICK_MODE_MEASURE)
-                || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE)
-                || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX)
-                || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE)
-                || (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES)
+                || (*click_mode == CLICK_MODE_SET_ORIGIN)
+                || (*click_mode == CLICK_MODE_SET_AXIS)
+                || (*click_mode == CLICK_MODE_MEASURE)
+                || (*click_mode == CLICK_MODE_CREATE_LINE)
+                || (*click_mode == CLICK_MODE_CREATE_BOX)
+                || (*click_mode == CLICK_MODE_CREATE_CIRCLE)
+                || (*click_mode == CLICK_MODE_MOVE_DXF_ENTITIES)
                 ;
 
-            // TODO: wrap this into a more regular case; should work even when extruding
             bool32 quality_number_special_case; {
                 quality_number_special_case = false;
-                if (global_world_state.modes.click_modifier == CLICK_MODIFIER_QUALITY) {
+                if (quality_poised_to_eat_digit()) {
                     for (uint32 color = 0; color <= 9; ++color) {
                         if (key_lambda('0' + color)) {
-                            result.checkpoint_me = true;
                             quality_number_special_case = true;
-                            for (uint32 i = 0; i < global_world_state.dxf.entities.length; ++i) {
-                                if (global_world_state.dxf.entities.array[i].color == color) {
-                                    bool32 value_to_write_to_selection_mask = (global_world_state.modes.click_mode == CLICK_MODE_SELECT);
-                                    global_world_state.dxf.entities.array[i].is_selected = value_to_write_to_selection_mask;
+                            result.checkpoint_me = true;
+                            bool32 value_to_write_to_selection_mask = (*click_mode == CLICK_MODE_SELECT);
+                            for (uint32 i = 0; i < dxf->entities.length; ++i) {
+                                if (dxf->entities.array[i].color == color) {
+                                    dxf->entities.array[i].is_selected = value_to_write_to_selection_mask;
                                 }
                             }
-                            global_world_state.modes.click_mode = CLICK_MODE_NONE;
-                            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+                            *click_mode = CLICK_MODE_NONE;
+                            *click_modifier = CLICK_MODIFIER_NONE;
                             break;
                         }
                     }
                 }
             }
 
-
             if (quality_number_special_case) {
                 ;
-            } else if (key_lambda('Q', true)) {
-                exit(1);
-            } else if (key_lambda('0')) {
-                result.record_me = false;
-                _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
-            } else if (key_lambda('9')) {
-                result.record_me = false;
-                global_world_state.feature_plane.is_active = false;
-            } else if (key_lambda('X', true, true)) {
-                result.record_me = false;
-                camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
+            } else if (key_lambda('A')) {
+                if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
+                    result.checkpoint_me = true;
+                    DXF_CLEAR_SELECTION_MASK_TO(*click_mode == CLICK_MODE_SELECT);
+                    *click_mode = CLICK_MODE_NONE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
+                }
+            } else if (key_lambda('A', false, true)) {
+                *click_mode = CLICK_MODE_SET_AXIS;
+                *click_modifier = CLICK_MODIFIER_NONE;
+                *awaiting_second_click = false;
+            } else if (key_lambda('B')) {
+                *click_mode = CLICK_MODE_CREATE_BOX;
+                *click_modifier = CLICK_MODIFIER_NONE;
+                *awaiting_second_click = false;
+            } else if (key_lambda('C')) {
+                if (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_CONNECTED)) {
+                    *click_modifier = CLICK_MODIFIER_CONNECTED;
+                } else if (click_mode_SNAP_ELIGIBLE_) {
+                    result.record_me = false;
+                    *click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
+                } else {
+                    *click_mode = CLICK_MODE_CREATE_CIRCLE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *awaiting_second_click = false;
+                }
+            } else if (key_lambda('D')) {
+                *click_mode = CLICK_MODE_DESELECT;
+                *click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_lambda('E')) {
+                if (click_mode_SNAP_ELIGIBLE_) {
+                    result.record_me = false;
+                    *click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
+                } else {
+                    // result.checkpoint_me = true;
+                    *enter_mode = ENTER_MODE_EXTRUDE_ADD;
+                }
+            } else if (key_lambda('E', false, true)) {
+                // result.checkpoint_me = true;
+                *enter_mode = ENTER_MODE_EXTRUDE_CUT;
+            } else if (key_lambda('F')) {
+                *click_mode = CLICK_MODE_CREATE_FILLET;
+                *click_modifier = CLICK_MODIFIER_NONE;
+                *enter_mode = ENTER_MODE_NONE;
+                *awaiting_second_click = false;
             } else if (key_lambda('G')) {
                 result.record_me = false;
                 _global_screen_state.hide_grid = !_global_screen_state.hide_grid;
             } else if (key_lambda('H')) {
                 result.record_me = false;
                 _global_screen_state.show_help = !_global_screen_state.show_help;
-            } else if (key_lambda('.')) { 
-                result.record_me = false;
-                _global_screen_state.show_details = !_global_screen_state.show_details;
             } else if (key_lambda('K')) { 
                 result.record_me = false;
                 _global_screen_state.show_event_stack = !_global_screen_state.show_event_stack;
             } else if (key_lambda('K', false, true)) {
                 result.record_me = false;
                 _global_screen_state.hide_gui = !_global_screen_state.hide_gui;
-            } else if (key_lambda('O', true)) {
-                global_world_state.modes.enter_mode = ENTER_MODE_OPEN;
-            } else if (key_lambda('S', true)) {
+            } else if (key_lambda('L')) {
+                *click_mode = CLICK_MODE_CREATE_LINE;
+                *click_modifier = CLICK_MODIFIER_NONE;
+                *awaiting_second_click = false;
+            } else if (key_lambda('M')) {
+                if (click_mode_SNAP_ELIGIBLE_) {
+                    result.record_me = false;
+                    *click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
+                } else {
+                    result.checkpoint_me = true;
+                    *click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
+                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *awaiting_second_click = false;
+                }
+            } else if (key_lambda('M', false, true)) {
                 result.record_me = false;
-                global_world_state.modes.enter_mode = ENTER_MODE_SAVE;
-            } else if (key_lambda(COW_KEY_ESCAPE)) {
-                global_world_state.modes = {};
+                *click_mode = CLICK_MODE_MEASURE;
+                *click_modifier = CLICK_MODIFIER_NONE;
+                *awaiting_second_click = false;
             } else if (key_lambda('N')) {
                 if (global_world_state.feature_plane.is_active) {
-                    global_world_state.modes.enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
+                    *enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
                 } else {
                     conversation_messagef("[n] no plane is_selected");
                 }
-            } else if (key_lambda('Z', false, true)) {
-                global_world_state.modes.click_mode = CLICK_MODE_SET_ORIGIN;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('A', false, true)) {
-                global_world_state.modes.click_mode = CLICK_MODE_SET_AXIS;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda('S')) {
-                global_world_state.modes.click_mode = CLICK_MODE_SELECT;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('D')) {
-                global_world_state.modes.click_mode = CLICK_MODE_DESELECT;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('C')) {
-                if (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_CONNECTED)) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_CONNECTED;
-                } else if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
-                } else {
-                    global_world_state.modes.click_mode = CLICK_MODE_CREATE_CIRCLE;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                    global_world_state.two_click_command.awaiting_second_click = false;
-                }
+            } else if (key_lambda('O', true)) {
+                *enter_mode = ENTER_MODE_OPEN;
             } else if (key_lambda('Q')) {
-                if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_QUALITY;
+                if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
+                    *click_modifier = CLICK_MODIFIER_QUALITY;
                 }
-            } else if (key_lambda('A')) {
-                if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                    result.checkpoint_me = true;
-                    DXF_CLEAR_SELECTION_MASK_TO(global_world_state.modes.click_mode == CLICK_MODE_SELECT);
-                    global_world_state.modes.click_mode = CLICK_MODE_NONE;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_lambda('Q', true)) {
+                exit(1);
+            } else if (key_lambda('R')) {
+                *enter_mode = ENTER_MODE_REVOLVE_ADD;
+            } else if (key_lambda('R', false, true)) {
+                *enter_mode = ENTER_MODE_REVOLVE_CUT;
+            } else if (key_lambda('S')) {
+                *click_mode = CLICK_MODE_SELECT;
+                *click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_lambda('S', true)) {
+                result.record_me = false;
+                *enter_mode = ENTER_MODE_SAVE;
+            } else if (key_lambda('W')) {
+                if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
+                    *click_modifier = CLICK_MODIFIER_WINDOW;
+                    *awaiting_second_click = false;
                 }
+            } else if (key_lambda('X')) {
+                if (*click_mode != CLICK_MODE_NONE) {
+                    *click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
+                }
+            } else if (key_lambda('X', false, true)) {
+                *click_mode = CLICK_MODE_X_MIRROR;
+                *click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_lambda('X', true, true)) {
+                result.record_me = false;
+                camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&dxf->entities));
             } else if (key_lambda('Y')) {
                 // TODO: 'Y' remembers last terminal choice of plane for next time
                 result.checkpoint_me = true;
@@ -792,74 +833,33 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     global_world_state.feature_plane.signed_distance_to_world_origin = 0.0f;
                     global_world_state.feature_plane.normal = { 0.0f, 1.0f, 0.0f };
                 }
-            } else if (key_lambda('X')) {
-                if (global_world_state.modes.click_mode != CLICK_MODE_NONE) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
-                }
-            } else if (key_lambda('E')) {
-                if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
-                } else {
-                    // result.checkpoint_me = true;
-                    global_world_state.modes.enter_mode = ENTER_MODE_EXTRUDE_ADD;
-                }
-            } else if (key_lambda('M')) {
-                if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
-                } else {
-                    result.checkpoint_me = true;
-                    global_world_state.modes.click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                    global_world_state.two_click_command.awaiting_second_click = false;
-                }
-            } else if (key_lambda('E', false, true)) {
-                // result.checkpoint_me = true;
-                global_world_state.modes.enter_mode = ENTER_MODE_EXTRUDE_CUT;
-            } else if (key_lambda('R')) {
-                global_world_state.modes.enter_mode = ENTER_MODE_REVOLVE_ADD;
-            } else if (key_lambda('R', false, true)) {
-                global_world_state.modes.enter_mode = ENTER_MODE_REVOLVE_CUT;
-            } else if (key_lambda('W')) {
-                if ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) {
-                    global_world_state.modes.click_modifier = CLICK_MODIFIER_WINDOW;
-                    global_world_state.two_click_command.awaiting_second_click = false;
-                }
-            } else if (key_lambda('M', false, true)) {
-                result.record_me = false;
-                global_world_state.modes.click_mode = CLICK_MODE_MEASURE;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda('L')) {
-                global_world_state.modes.click_mode = CLICK_MODE_CREATE_LINE;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda('F')) {
-                global_world_state.modes.click_mode = CLICK_MODE_CREATE_FILLET;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda('X', false, true)) {
-                global_world_state.modes.click_mode = CLICK_MODE_X_MIRROR;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
             } else if (key_lambda('Y', false, true)) {
-                global_world_state.modes.click_mode = CLICK_MODE_Y_MIRROR;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('B')) {
-                global_world_state.modes.click_mode = CLICK_MODE_CREATE_BOX;
-                global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                global_world_state.two_click_command.awaiting_second_click = false;
-            } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
-                for (int32 i = global_world_state.dxf.entities.length - 1; i >= 0; --i) {
-                    if (global_world_state.dxf.entities.array[i].is_selected) {
-                        DXF_DELETE(i);
-                    }
-                }
+                *click_mode = CLICK_MODE_Y_MIRROR;
+                *click_modifier = CLICK_MODIFIER_NONE;
             } else if (key_lambda('Z')) {
                 event = {};
                 event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
                 event.mouse = {};
+            } else if (key_lambda('Z', false, true)) {
+                *click_mode = CLICK_MODE_SET_ORIGIN;
+                *click_modifier = CLICK_MODIFIER_NONE;
+            } else if (key_lambda('0')) {
+                result.record_me = false;
+                _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
+            } else if (key_lambda('9')) {
+                result.record_me = false;
+                global_world_state.feature_plane.is_active = false;
+            } else if (key_lambda('.')) { 
+                result.record_me = false;
+                _global_screen_state.show_details = !_global_screen_state.show_details;
+            } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
+                for (int32 i = dxf->entities.length - 1; i >= 0; --i) {
+                    if (dxf->entities.array[i].is_selected) {
+                        DXF_DELETE(i);
+                    }
+                }
+            } else if (key_lambda(COW_KEY_ESCAPE)) {
+                global_world_state.modes = {};
             } else {
                 hotkey_consumed_this_event = false;
                 result.record_me = false;
@@ -881,10 +881,10 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     // bool32 enter = (is_key_event && (event.key == GLFW_KEY_ENTER));
 
     // // computed variables
-    bool32 extrude = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
-    bool32 revolve = ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
-    bool32 add     = ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD));
-    bool32 cut     = ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
+    bool32 extrude = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT));
+    bool32 revolve = ((*enter_mode == ENTER_MODE_REVOLVE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
+    bool32 add     = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD));
+    bool32 cut     = ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
 
     { // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(extrude);
@@ -900,80 +900,79 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     //////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // mouse aliases
-    vec2 mouse = event.mouse;
-    vec2 second_click = event.mouse;
+    vec2 *mouse = &event.mouse;
+    vec2 *second_click = &event.mouse;
 
     if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS) {
         result.record_me = true;
         auto set_dxf_selection_mask = [&] (uint32 i, bool32 value_to_write) {
             // Only remember global_world_state.dxf.entities selection operations that actually change the mask
             // NOTE: we could instead do a memcmp at the end, but let's stick with the simple bool32 result = false; ... ret result; approach fornow
-            if (global_world_state.dxf.entities.array[i].is_selected != value_to_write) {
+            if (dxf->entities.array[i].is_selected != value_to_write) {
                 result.record_me = true;
                 result.checkpoint_me = (!event.mouse_held);
-                global_world_state.dxf.entities.array[i].is_selected = value_to_write;
+                dxf->entities.array[i].is_selected = value_to_write;
             }
         };
 
 
-        bool32 value_to_write_to_selection_mask = (global_world_state.modes.click_mode == CLICK_MODE_SELECT);
+        bool32 value_to_write_to_selection_mask = (*click_mode == CLICK_MODE_SELECT);
         if (///// // ???
                 (
-                 (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS) ||
-                 (global_world_state.modes.click_mode == CLICK_MODE_MEASURE) ||
-                 (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE) ||
-                 (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX) ||
-                 (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) ||
-                 (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) ||
-                 (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) ||
-                 (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier == CLICK_MODIFIER_WINDOW)))
-                && (!global_world_state.two_click_command.awaiting_second_click)
+                 (*click_mode == CLICK_MODE_SET_AXIS) ||
+                 (*click_mode == CLICK_MODE_MEASURE) ||
+                 (*click_mode == CLICK_MODE_CREATE_LINE) ||
+                 (*click_mode == CLICK_MODE_CREATE_BOX) ||
+                 (*click_mode == CLICK_MODE_CREATE_CIRCLE) ||
+                 (*click_mode == CLICK_MODE_CREATE_FILLET) ||
+                 (*click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) ||
+                 (((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) && (*click_modifier == CLICK_MODIFIER_WINDOW)))
+                && (!*awaiting_second_click)
            ) { //
-            if (global_world_state.modes.click_mode == CLICK_MODE_MEASURE) result.record_me = false;
-            if (!(((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier == CLICK_MODIFIER_WINDOW))) global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            global_world_state.two_click_command.awaiting_second_click = true;
-            global_world_state.two_click_command.first_click.x = event.mouse.x;
-            global_world_state.two_click_command.first_click.y = event.mouse.y;
-        } else if (global_world_state.modes.click_mode == CLICK_MODE_MEASURE) {
-            ASSERT(global_world_state.two_click_command.awaiting_second_click);
-            global_world_state.two_click_command.awaiting_second_click = false;
-            global_world_state.modes.click_mode = CLICK_MODE_NONE;
-            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            real32 angle = DEG(atan2(event.mouse.y - global_world_state.two_click_command.first_click.y, event.mouse.x - global_world_state.two_click_command.first_click.x));
+            if (*click_mode == CLICK_MODE_MEASURE) result.record_me = false;
+            if (!(((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) && (*click_modifier == CLICK_MODIFIER_WINDOW))) *click_modifier = CLICK_MODIFIER_NONE;
+            *awaiting_second_click = true;
+            *first_click = event.mouse;
+        } else if (*click_mode == CLICK_MODE_MEASURE) {
+            ASSERT(*awaiting_second_click);
+            *awaiting_second_click = false;
+            *click_mode = CLICK_MODE_NONE;
+            *click_modifier = CLICK_MODIFIER_NONE;
+            real32 angle = DEG(atan2(event.mouse.y - first_click->y, event.mouse.x - first_click->x));
             if (angle < 0.0f) angle += 360.0f;
             conversation_messagef("%gmm %gdeg", sqrt(squared_distance_point_point(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, event.mouse.x, event.mouse.y)), angle);
-        } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE) {
-            ASSERT(global_world_state.two_click_command.awaiting_second_click);
-            global_world_state.two_click_command.awaiting_second_click = false;
+        } else if (*click_mode == CLICK_MODE_CREATE_LINE) {
+            ASSERT(*awaiting_second_click);
+            *awaiting_second_click = false;
             result.checkpoint_me = true;
-            global_world_state.modes.click_mode = CLICK_MODE_NONE;
-            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            *click_mode = CLICK_MODE_NONE;
+            *click_modifier = CLICK_MODIFIER_NONE;
             _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, event.mouse.x, event.mouse.y });
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_BOX) {
             ASSERT(awaiting_second_click);
-            if (IS_ZERO(ABS(first_click.x - second_click.x))) {
+            if (IS_ZERO(ABS(first_click->x - second_click->x))) {
                 conversation_messagef("[box] must have non-zero width ");
-            } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
+            } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
                 conversation_messagef("[box] must have non-zero height");
             } else {
                 global_world_state.two_click_command.awaiting_second_click = false;
                 result.checkpoint_me = true;
                 global_world_state.modes.click_mode = CLICK_MODE_NONE;
                 global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                vec2 a = { first_click.x, second_click.y };
-                vec2 b = { second_click.x, first_click.y };
-                ADD_LINE(first_click,  a);
-                ADD_LINE(first_click,  b);
-                ADD_LINE(second_click, a);
-                ADD_LINE(second_click, b);
+                vec2 a = { first_click->x, second_click->y };
+                vec2 b = { second_click->x, first_click->y };
+                ADD_LINE(*first_click,  a);
+                ADD_LINE(*first_click,  b);
+                ADD_LINE(*second_click, a);
+                ADD_LINE(*second_click, b);
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) {
-            ASSERT(awaiting_second_click);
+            ASSERT(*awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
             result.checkpoint_me = true;
             global_world_state.modes.click_mode = CLICK_MODE_NONE;
             global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-            vec2 ds = second_click - first_click;
+            vec2 ds = *second_click - *first_click;
             _for_each_selected_entity_ {
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
@@ -986,7 +985,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_CIRCLE) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
-            if (IS_ZERO(norm(first_click - second_click))) {
+            if (IS_ZERO(norm(*first_click - *second_click))) {
                 conversation_messagef("[circle] must have non-zero diameter");
             } else {
                 global_world_state.two_click_command.awaiting_second_click = false;
@@ -996,12 +995,12 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 real32 theta_a_in_degrees = DEG(atan2(event.mouse.y - global_world_state.two_click_command.first_click.y, event.mouse.x - global_world_state.two_click_command.first_click.x));
                 real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                 real32 r = SQRT(squared_distance_point_point(global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y, event.mouse.x, event.mouse.y));
-                ADD_ARC(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
-                ADD_ARC(first_click, r, theta_b_in_degrees, theta_a_in_degrees);
+                ADD_ARC(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
+                ADD_ARC(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
             }
         } else if (global_world_state.modes.click_mode == CLICK_MODE_SET_ORIGIN) {
             result.checkpoint_me = true;
-            global_world_state.dxf.origin = mouse;
+            global_world_state.dxf.origin = *mouse;
             global_world_state.modes = {};
         } else if (global_world_state.modes.click_mode == CLICK_MODE_X_MIRROR) {
             result.checkpoint_me = true;
@@ -1009,15 +1008,15 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
                     BUFFER_LINE(
-                            V2(-(line->start.x - mouse.x) + mouse.x, line->start.y),
-                            V2(-(line->end.x - mouse.x) + mouse.x, line->end.y),
+                            V2(-(line->start.x - mouse->x) + mouse->x, line->start.y),
+                            V2(-(line->end.x - mouse->x) + mouse->x, line->end.y),
                             true,
                             entity->color
                             );
                 } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                     DXFArc *arc = &entity->arc;
                     BUFFER_ARC(
-                            V2(-(arc->center.x - mouse.x) + mouse.x, arc->center.y),
+                            V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
                             arc->radius,
                             arc->end_angle_in_degrees, // TODO
                             arc->start_angle_in_degrees, // TODO
@@ -1033,15 +1032,15 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 if (entity->type == DXF_ENTITY_TYPE_LINE) {
                     DXFLine *line = &entity->line;
                     BUFFER_LINE(
-                            V2(line->start.x, -(line->start.y - mouse.y) + mouse.y),
-                            V2(line->end.x, -(line->end.y - mouse.y) + mouse.y),
+                            V2(line->start.x, -(line->start.y - mouse->y) + mouse->y),
+                            V2(line->end.x, -(line->end.y - mouse->y) + mouse->y),
                             true,
                             entity->color
                             );
                 } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                     DXFArc *arc = &entity->arc;
                     BUFFER_ARC(
-                            V2(arc->center.x, -(arc->center.y - mouse.y) + mouse.y),
+                            V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
                             arc->radius,
                             arc->end_angle_in_degrees, // TODO
                             arc->start_angle_in_degrees, // TODO
@@ -1055,10 +1054,10 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
             result.checkpoint_me = true;
-            global_world_state.dxf.axis_base_point = first_click;
-            global_world_state.dxf.axis_angle_from_y = (-PI / 2) + atan2(second_click - first_click);
-            global_world_state.modes.click_mode = CLICK_MODE_NONE;
-            global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
+            global_world_state.dxf.axis_base_point = *first_click;
+            global_world_state.dxf.axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
+            *click_mode = CLICK_MODE_NONE;
+            *click_modifier = CLICK_MODIFIER_NONE;
         } else if (global_world_state.modes.click_mode == CLICK_MODE_CREATE_FILLET) {
             ASSERT(global_world_state.two_click_command.awaiting_second_click);
             global_world_state.two_click_command.awaiting_second_click = false;
@@ -1430,12 +1429,12 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             DXF_CLEAR_SELECTION_MASK_TO(false);
         };
 
-        uint32 _enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter = enter_mode;
+        uint32 _enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter = *enter_mode;
         bool32 popup_popup_actually_called_this_event = false;
         #include "popup_lambda.cpp"
         { // popup_popup
             bool32 enter = ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
-            if (click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
+            if (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
                 popup_popup(true,
                         CELL_TYPE_REAL32, "x coordinate", x_coordinate,
@@ -1443,7 +1442,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 if (enter) {
                     return standard_event_process(MOUSE_2D_event(*x_coordinate, *y_coordinate));
                 }
-            } else if (click_mode == CLICK_MODE_CREATE_CIRCLE) {
+            } else if (*click_mode == CLICK_MODE_CREATE_CIRCLE) {
                 if (awaiting_second_click) {
                     real32 prev_circle_diameter = *circle_diameter;
                     real32 prev_circle_radius = *circle_radius;
@@ -1453,7 +1452,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                             CELL_TYPE_REAL32, "circle_radius", circle_radius,
                             CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
                     if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click.x + *circle_radius, first_click.y));
+                        return standard_event_process(MOUSE_2D_event(first_click->x + *circle_radius, first_click->y));
                     } else {
                         if (prev_circle_diameter != *circle_diameter) {
                             *circle_radius = *circle_diameter / 2;
@@ -1467,8 +1466,8 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         }
                     }
                 }
-            } else if (click_mode == CLICK_MODE_CREATE_LINE) {
-                if (awaiting_second_click) {
+            } else if (*click_mode == CLICK_MODE_CREATE_LINE) {
+                if (*awaiting_second_click) {
                     real32 prev_line_length = *line_length;
                     real32 prev_line_angle = *line_angle;
                     real32 prev_line_run = *line_run;
@@ -1480,7 +1479,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                             CELL_TYPE_REAL32, "line_rise", line_rise
                             );
                     if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click.x + *line_run, first_click.y + *line_rise));
+                        return standard_event_process(MOUSE_2D_event(first_click->x + *line_run, first_click->y + *line_rise));
                     } else {
                         if ((prev_line_length != *line_length) || (prev_line_angle != *line_angle)) {
                             *line_run = *line_length * COS(RAD(*line_angle));
@@ -1491,19 +1490,19 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         }
                     }
                 }
-            } else if (click_mode == CLICK_MODE_CREATE_BOX) {
-                if (awaiting_second_click) {
+            } else if (*click_mode == CLICK_MODE_CREATE_BOX) {
+                if (*awaiting_second_click) {
                     popup_popup(true,
                             CELL_TYPE_REAL32, "box_width", box_width,
                             CELL_TYPE_REAL32, "box_height", box_height);
                     if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click.x + *box_width, first_click.y + *box_height));
+                        return standard_event_process(MOUSE_2D_event(first_click->x + *box_width, first_click->y + *box_height));
                     }
                 }
-            } else if (click_mode == CLICK_MODE_CREATE_FILLET) {
+            } else if (*click_mode == CLICK_MODE_CREATE_FILLET) {
                 popup_popup(false,
                         CELL_TYPE_REAL32, "fillet radius", fillet_radius);
-            } else if (enter_mode == ENTER_MODE_OPEN) {
+            } else if (*enter_mode == ENTER_MODE_OPEN) {
                 popup_popup(false,
                         CELL_TYPE_CSTRING, "filename", filename);
                 if (enter) {
@@ -1524,7 +1523,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
                     }
                 }
-            } else if (enter_mode == ENTER_MODE_SAVE) {
+            } else if (*enter_mode == ENTER_MODE_SAVE) {
                 result.record_me = false;
                 popup_popup(false,
                         CELL_TYPE_CSTRING, "filename", filename);
@@ -1532,7 +1531,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     conversation_save(full_filename_including_path);
                     global_world_state.modes.enter_mode = ENTER_MODE_NONE;
                 }
-            } else if (enter_mode == ENTER_MODE_EXTRUDE_ADD) {
+            } else if (*enter_mode == ENTER_MODE_EXTRUDE_ADD) {
                 popup_popup(true,
                         CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
                         CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
@@ -1548,7 +1547,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         conversation_messagef("[extrude-add] success");
                     }
                 }
-            } else if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+            } else if (*enter_mode == ENTER_MODE_EXTRUDE_CUT) {
                 popup_popup(true,
                         CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
                         CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
@@ -1566,7 +1565,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         conversation_messagef("[extrude-cut] success");
                     }
                 }
-            } else if (enter_mode == ENTER_MODE_REVOLVE_ADD) {
+            } else if (*enter_mode == ENTER_MODE_REVOLVE_ADD) {
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-add] no dxf elements selected");
@@ -1577,7 +1576,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         conversation_messagef("[revolve-add] success");
                     }
                 }
-            } else if (enter_mode == ENTER_MODE_REVOLVE_CUT) {
+            } else if (*enter_mode == ENTER_MODE_REVOLVE_CUT) {
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-cut] no dxf elements selected");
@@ -1595,7 +1594,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
           // NOTE: we need to do this so that the next key event doesn't get eaten by a dead popup
-            bool32 enter_mode_transitioned_to_ENTER_MODE_NONE = ((_enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter != ENTER_MODE_NONE) && (enter_mode == ENTER_MODE_NONE));
+            bool32 enter_mode_transitioned_to_ENTER_MODE_NONE = ((_enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter != ENTER_MODE_NONE) && (*enter_mode == ENTER_MODE_NONE));
             if (0
                     || (!popup_popup_actually_called_this_event)
                     || enter_mode_transitioned_to_ENTER_MODE_NONE
@@ -1946,9 +1945,9 @@ void conversation_draw() {
     { // panes
         eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
         if (_global_screen_state.hot_pane == HOT_PANE_2D) {
-        eso_color(monokai.yellow);
+            eso_color(monokai.yellow);
         } else {
-        eso_color(1.0f, 0.0f, 1.0f);
+            eso_color(1.0f, 0.0f, 1.0f);
         }
         eso_vertex(0.0f,  1.0f);
         eso_vertex(0.0f, -1.0f);
@@ -2372,7 +2371,7 @@ void _spoof_KEY_event(char *string) {
 void _SPOOF_CHAIN_END_TO_END_TEST() {
     if (1) {
         if (1) {
-            _spoof_KEY_event("CZ100"); return;
+            // _spoof_KEY_event("CZ100"); return;
             _spoof_KEY_event('O', true);
             _spoof_KEY_event("splash.dxf");
             _spoof_KEY_event(GLFW_KEY_ENTER);

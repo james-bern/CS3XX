@@ -159,6 +159,10 @@ struct UserEvent {
     vec3 o;
     vec3 dir;
     // };
+    // struct {
+    uint32 hot_field_index;
+    uint32 mouse_character_index;
+    // };
     // }; 
 
     bool32 record_me;
@@ -223,23 +227,26 @@ struct PopupState {
     uint32 _type_of_active_cell;
     void *_active_popup_unique_ID__FORNOW_name0;
 
-    uint32 num_cells;
-    BoundingBox field_boxes[POPUP_MAX_NUM_CELLS];
+    bool32 mouse_is_hovering;
+    // uint32 num_cells;
+    // BoundingBox field_boxes[POPUP_MAX_NUM_CELLS];
 
     // TODO: checkboxes
 };
 
 
+struct DXFState {
+    List<DXFEntity> entities;
+    vec2            origin;
+    vec2            axis_base_point;
+    real32          axis_angle_from_y;
+};
+
 
 struct WorldState {
     Mesh mesh;
 
-    struct {
-        List<DXFEntity> entities;
-        vec2            origin;
-        vec2            axis_base_point;
-        real32          axis_angle_from_y;
-    } dxf;
+    DXFState dxf;
 
     struct {
         bool32 is_active;

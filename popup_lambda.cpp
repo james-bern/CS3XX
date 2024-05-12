@@ -24,12 +24,11 @@ auto popup_popup = [&] (
     uint32 cell_type[] = { cell_type0, cell_type1, cell_type2, cell_type3 };
 
 
-    // TODO: store some metadata
-    { // popup->num_cells
-        popup->num_cells = 0;
-        for (uint32 d = 0; d < ARRAY_LENGTH(name); ++d) if (name[d]) ++popup->num_cells;
+    uint32 num_cells; { // popup->num_cells
+        num_cells = 0;
+        for (uint32 d = 0; d < ARRAY_LENGTH(name); ++d) if (name[d]) ++num_cells;
     }
-    ASSERT(popup->num_cells);
+    ASSERT(num_cells);
     // TODO: field_boxes go here
 
 
@@ -61,7 +60,7 @@ auto popup_popup = [&] (
     };
 
     auto CLEAR_ALL_VALUES_TO_ZERO = [&]() {
-        for (uint32 d = 0; d < popup->num_cells; ++d) {
+        for (uint32 d = 0; d < num_cells; ++d) {
             if (!name[d]) continue;
             if (cell_type[d] == CELL_TYPE_REAL32) {
                 *((real32 *) value[d]) = 0.0f;
@@ -87,7 +86,7 @@ auto popup_popup = [&] (
 
 
     ASSERT(popup->index_of_active_cell >= 0);
-    ASSERT(popup->index_of_active_cell <= popup->num_cells);
+    ASSERT(popup->index_of_active_cell <= num_cells);
     ASSERT(popup->cursor >= 0);
     ASSERT(popup->cursor <= POPUP_CELL_LENGTH);
     ASSERT(popup->selection_cursor >= 0);
@@ -113,10 +112,10 @@ auto popup_popup = [&] (
                     if (popup->index_of_active_cell != 0) {
                         --popup->index_of_active_cell;
                     } else {
-                        popup->index_of_active_cell = popup->num_cells - 1;
+                        popup->index_of_active_cell = num_cells - 1;
                     }
                 }
-                popup->index_of_active_cell = MODULO(popup->index_of_active_cell, popup->num_cells);
+                popup->index_of_active_cell = MODULO(popup->index_of_active_cell, num_cells);
             }
             LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
             popup->cursor = (uint32) strlen(popup->active_cell_buffer);
@@ -223,8 +222,11 @@ auto popup_popup = [&] (
         return;
     }
 
+
+
+    popup->mouse_is_hovering = false; // TODO: rearrange popup_lambda to be less awful
     {
-        for (uint32 d = 0; d < popup->num_cells; ++d) { // gui_printf
+        for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
 
             static char buffer[512]; {
@@ -263,20 +265,20 @@ auto popup_popup = [&] (
                 y_bottom = y_top + 16;
             }
 
-            // TODO: move this somewhere better (up top)
-            popup->field_boxes[d] = { x_field_left, y_top, x_field_right, y_bottom };
+            BoundingBox field_box = { x_field_left, y_top, x_field_right, y_bottom };
+            if (bounding_box_contains(field_box, callback_mouse_in_pixel_coordinates)) popup->mouse_is_hovering = true;
 
-            eso_begin(globals.NDC_from_Screen, SOUP_LINE_LOOP, 5.0f);
-            eso_color(0.0f, 0.0f, 1.0f);
-            eso_vertex(x_field_left, y_top);
-            eso_vertex(x_field_left, y_bottom);
-            eso_vertex(x_field_right, y_bottom);
-            eso_vertex(x_field_right, y_top);
-            eso_end();
-            eso_begin(globals.NDC_from_Screen, SOUP_POINTS, 10.0f);
-            eso_color(1.0f, 0.0f, 1.0f);
-            eso_vertex(callback_mouse_in_pixel_coordinates);
-            eso_end();
+            // eso_begin(globals.NDC_from_Screen, SOUP_LINE_LOOP, 5.0f);
+            // eso_color(0.0f, 0.0f, 1.0f);
+            // eso_vertex(x_field_left, y_top);
+            // eso_vertex(x_field_left, y_bottom);
+            // eso_vertex(x_field_right, y_bottom);
+            // eso_vertex(x_field_right, y_top);
+            // eso_end();
+            // eso_begin(globals.NDC_from_Screen, SOUP_POINTS, 10.0f);
+            // eso_color(1.0f, 0.0f, 1.0f);
+            // eso_vertex(callback_mouse_in_pixel_coordinates);
+            // eso_end();
 
             bool32 hot = IS_BETWEEN(x_mouse, x_field_left, x_field_right) && IS_BETWEEN(y_mouse, y_top, y_bottom);
             if (hot) {
@@ -331,7 +333,7 @@ auto popup_popup = [&] (
 
     // bool32 close_popup_and_execute; {
     //     close_popup_and_execute = ((_standard_event.type == USER_EVENT_TYPE_KEY_PRESS) && (_standard_event.key == GLFW_KEY_ENTER));
-    // for (uint32 d = 0; d < popup->num_cells; ++d) close_popup_and_execute &= (!IS_ZERO(*value[d])); // FORNOW
+    // for (uint32 d = 0; d < num_cells; ++d) close_popup_and_execute &= (!IS_ZERO(*value[d])); // FORNOW
     // }
 
     // return close_popup_and_execute;
