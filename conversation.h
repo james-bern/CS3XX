@@ -241,17 +241,18 @@ struct DXFState {
     real32          axis_angle_from_y;
 };
 
+struct FeaturePlaneState {
+    bool32 is_active;
+    vec3 normal;
+    real32 signed_distance_to_world_origin;
+};
 
 struct WorldState {
     Mesh mesh;
 
     DXFState dxf;
 
-    struct {
-        bool32 is_active;
-        vec3 normal;
-        real32 signed_distance_to_world_origin;
-    } feature_plane;
+    FeaturePlaneState feature_plane;
 
     struct {
         uint32 click_mode;
@@ -1401,7 +1402,7 @@ bool32 IGNORE_NEW_MESSAGEFS;
 
 #define MESSAGE_MAX_LENGTH 256
 #define MESSAGE_MAX_NUM_MESSAGES 64
-#define MESSAGE_COOLDOWN 300
+#define MESSAGE_COOLDOWN 256
 struct Message {
     char buffer[MESSAGE_MAX_LENGTH];
     uint32 cooldown;
@@ -1426,7 +1427,9 @@ void conversation_message_buffer_update_and_draw() {
     real32 y = 32;
 
     auto draw_lambda = [&](uint32 i) {
-        real32 a = real32(conversation_messages[i].cooldown) / MESSAGE_COOLDOWN;
+        real32 f = real32(conversation_messages[i].cooldown) / MESSAGE_COOLDOWN;
+        real32 a = f * f;
+        real32 b = CLAMP(10 * f - 8.2f , 0.0f, 1.0f);
         if (conversation_messages[i].cooldown > 0) {
             --conversation_messages[i].cooldown;
             _text_draw(
@@ -1435,10 +1438,12 @@ void conversation_message_buffer_update_and_draw() {
                     512,
                     y,
                     0.0,
-                    0.5,
+
+                    b,
                     1.0,
                     1.0,
                     a,
+
                     0,
                     0.0,
                     0.0,

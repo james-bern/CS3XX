@@ -28,7 +28,7 @@ struct LineLineIntersectionResult {
     vec2 position;
 };
 
-LineLineIntersectionResult line_line_intersection(vec2 a, vec2 b, vec2 c, vec2 d) {
+LineLineIntersectionResult burkardt_line_line_intersection(vec2 a, vec2 b, vec2 c, vec2 d) {
     double p1[2];
     double p2[2];
     double p3[2];
@@ -52,7 +52,7 @@ LineLineIntersectionResult line_line_intersection(vec2 a, vec2 b, vec2 c, vec2 d
 }
 
 
-real32 three_point_angle(vec2 p, vec2 center, vec2 q) {
+real32 burkardt_three_point_angle(vec2 p, vec2 center, vec2 q) {
     double p1[2];
     double p2[2];
     double p3[2];

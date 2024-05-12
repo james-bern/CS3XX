@@ -1,3 +1,13 @@
+// consider a setter like SET_ECC_RCS(uint32 enter_mode, uint32 click_mode, uint32 click_modifier, bool32 record_me, bool32 checkpoint_me, bool32 snapshot_me)
+// of ECC(...), RCS(...)
+
+// void SET_ECC_RCS(int32 enter_mode, int32 click_mode, int32 click_modifier, bool32 record_me, bool32 checkpoint_me, bool32 snapshot_me) {
+// }
+
+
+// // TODO: good undergrad tasks
+// TODO: add LAYOUT's two click mirror
+
 // if (awaiting_second_click) // BAD VERY BAD NOW
 
 // TODO: the USER_EVENT_TYPE_GUI_MOUSE_PRESS should be exactly what is ready to be consumed by the popup (it's just popup food) -- dragging comes later 
@@ -113,6 +123,7 @@ real32 *line_angle               = &popup->line_angle;
 real32 *line_run                 = &popup->line_run;
 real32 *line_rise                = &popup->line_rise;
 Mesh *mesh = &global_world_state.mesh;
+FeaturePlaneState *feature_plane = &global_world_state.feature_plane;
 
 //////////////////////////////////////////////////
 // NON-ZERO INITIALIZERS /////////////////////////
@@ -121,7 +132,7 @@ Mesh *mesh = &global_world_state.mesh;
 void init_cameras() {
     _global_screen_state.camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
     // FORNOW
-    if (global_world_state.dxf.entities.length) camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
+    if (dxf->entities.length) camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
     if (!global_world_state.mesh.num_vertices) {
         _global_screen_state.camera_3D = { 2.0f * MIN(150.0f, _global_screen_state.camera_2D.screen_height_World), CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
     }
@@ -131,12 +142,13 @@ void init_cameras() {
 //////////////////////////////////////////////////
 // GETTERS (STATE NOT WORTH TROUBLE OF STORING) //
 //////////////////////////////////////////////////
+// getters
 
 mat4 get_M_3D_from_2D() {
     vec3 up = { 0.0f, 1.0f, 0.0f };
-    real32 dot_product = dot(global_world_state.feature_plane.normal, up);
+    real32 dot_product = dot(feature_plane->normal, up);
     vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
-    vec3 x = normalized(cross(y, global_world_state.feature_plane.normal));
+    vec3 x = normalized(cross(y, feature_plane->normal));
     vec3 z = cross(x, y);
 
     // FORNOW
@@ -144,31 +156,19 @@ mat4 get_M_3D_from_2D() {
         y *= -1;
     }
 
-    return M4_xyzo(x, y, z, (global_world_state.feature_plane.signed_distance_to_world_origin) * global_world_state.feature_plane.normal);
+    return M4_xyzo(x, y, z, (feature_plane->signed_distance_to_world_origin) * feature_plane->normal);
+}
+
+
+bool32 click_mode_SELECT_OR_DESELECT() {
+    return ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT));
 }
 
 bool32 select_or_deselct_quality_poised_to_eat_digit() {
-    bool32 A = ((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT));
+    bool32 A = click_mode_SELECT_OR_DESELECT();
     bool32 B = (global_world_state.modes.click_modifier == CLICK_MODIFIER_QUALITY);
     return A && B;
 }
-
-// bool32 EXTRUDE() {
-//     bool32 enter_mode = global_world_state.modes.enter_mode;
-//     return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_EXTRUDE_CUT));
-// }
-// bool32 REVOLVE() {
-//     bool32 enter_mode = global_world_state.modes.enter_mode;
-//     return ((enter_mode == ENTER_MODE_REVOLVE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
-// }
-// bool32 ADD() {
-//     bool32 enter_mode = global_world_state.modes.enter_mode;
-//     return ((enter_mode == ENTER_MODE_EXTRUDE_ADD) || (enter_mode == ENTER_MODE_REVOLVE_ADD));
-// }
-// bool32 CUT() {
-//     bool32 enter_mode = global_world_state.modes.enter_mode;
-//     return ((enter_mode == ENTER_MODE_EXTRUDE_CUT) || (enter_mode == ENTER_MODE_REVOLVE_CUT));
-// }
 
 //////////////////////////////////////////////////
 // STATE-DEPENDENT UTILITY FUNCTIONS /////////////
@@ -217,8 +217,8 @@ vec2 magic_snap(vec2 before) {
             }
         } else if (
                 ( 0 
-                  || (global_world_state.modes.click_mode == CLICK_MODE_CREATE_LINE)
-                  || (global_world_state.modes.click_mode == CLICK_MODE_SET_AXIS)
+                  || (*click_mode == CLICK_MODE_CREATE_LINE)
+                  || (*click_mode == CLICK_MODE_SET_AXIS)
                 )
                 && (*awaiting_second_click)
                 && (callback_mouse_shift_held)) {
@@ -272,7 +272,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             {
                 vec3 n_camera = inv_transpose_V_3D * n;
                 vec3 color_n = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
-                if ((global_world_state.feature_plane.is_active) && (dot(n, global_world_state.feature_plane.normal) > 0.99f) && (ABS(x_n - global_world_state.feature_plane.signed_distance_to_world_origin) < 0.01f)) {
+                if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
                     color = CLAMPED_LERP(_global_screen_state.plane_selection_time, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
                     alpha = CLAMPED_LERP(_global_screen_state.plane_selection_time, 1.0f, _global_screen_state.going_inside ? 
@@ -806,7 +806,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 *click_modifier = CLICK_MODIFIER_NONE;
                 *awaiting_second_click = false;
             } else if (key_lambda('N')) {
-                if (global_world_state.feature_plane.is_active) {
+                if (feature_plane->is_active) {
                     *enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
                 } else {
                     conversation_messagef("[n] no plane is_selected");
@@ -849,12 +849,12 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 result.checkpoint_me = true;
 
                 // already one of the three primary planes
-                if ((global_world_state.feature_plane.is_active) && ARE_EQUAL(global_world_state.feature_plane.signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(global_world_state.feature_plane.normal), 1.0f) && ARE_EQUAL(maxComponent(global_world_state.feature_plane.normal), 1.0f)) {
-                    global_world_state.feature_plane.normal = { global_world_state.feature_plane.normal[2], global_world_state.feature_plane.normal[0], global_world_state.feature_plane.normal[1] };
+                if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
+                    feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
                 } else {
-                    global_world_state.feature_plane.is_active = true;
-                    global_world_state.feature_plane.signed_distance_to_world_origin = 0.0f;
-                    global_world_state.feature_plane.normal = { 0.0f, 1.0f, 0.0f };
+                    feature_plane->is_active = true;
+                    feature_plane->signed_distance_to_world_origin = 0.0f;
+                    feature_plane->normal = { 0.0f, 1.0f, 0.0f };
                 }
             } else if (key_lambda('Y', false, true)) {
                 *click_mode = CLICK_MODE_Y_MIRROR;
@@ -871,7 +871,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
             } else if (key_lambda('9')) {
                 result.record_me = false;
-                global_world_state.feature_plane.is_active = false;
+                feature_plane->is_active = false;
             } else if (key_lambda('.')) { 
                 result.record_me = false;
                 _global_screen_state.show_details = !_global_screen_state.show_details;
@@ -912,8 +912,8 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
             }
         };
 
-        bool32 click_mode_SELECT_OR_DESELECT = ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT));
-        bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT && (*click_modifier == CLICK_MODIFIER_WINDOW));
+
+        bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_WINDOW));
 
         bool32 click_mode_TWO_CLICK_COMMAND = 0 ||
             (*click_mode == CLICK_MODE_SET_AXIS) ||
@@ -934,15 +934,15 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     *awaiting_second_click = false;
                     *click_mode = CLICK_MODE_NONE;
                     *click_modifier = CLICK_MODIFIER_NONE;
-                    real32 angle = DEG(atan2(event.mouse.y - first_click->y, event.mouse.x - first_click->x));
+                    real32 angle = DEG(atan2(*second_click - *first_click));
                     if (angle < 0.0f) angle += 360.0f;
-                    conversation_messagef("[measure] %gmm %gdeg", sqrt(squared_distance_point_point(first_click->x, first_click->y, event.mouse.x, event.mouse.y)), angle);
+                    conversation_messagef("[measure] %gmm %gdeg", norm(*second_click - *first_click), angle);
                 } else if (*click_mode == CLICK_MODE_CREATE_LINE) {
                     *awaiting_second_click = false;
                     result.checkpoint_me = true;
                     *click_mode = CLICK_MODE_NONE;
                     *click_modifier = CLICK_MODIFIER_NONE;
-                    _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, DXF_COLOR_TRAVERSE, first_click->x, first_click->y, event.mouse.x, event.mouse.y });
+                    ADD_LINE(*first_click, *second_click);
                 } else if (*click_mode == CLICK_MODE_CREATE_BOX) {
                     if (IS_ZERO(ABS(first_click->x - second_click->x))) {
                         conversation_messagef("[box] must have non-zero width ");
@@ -953,12 +953,12 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         result.checkpoint_me = true;
                         *click_mode = CLICK_MODE_NONE;
                         *click_modifier = CLICK_MODIFIER_NONE;
-                        vec2 a = { first_click->x, second_click->y };
-                        vec2 b = { second_click->x, first_click->y };
-                        ADD_LINE(*first_click,  a);
-                        ADD_LINE(*first_click,  b);
-                        ADD_LINE(*second_click, a);
-                        ADD_LINE(*second_click, b);
+                        vec2 other_corner_A = { first_click->x, second_click->y };
+                        vec2 other_corner_B = { second_click->x, first_click->y };
+                        ADD_LINE(*first_click,  other_corner_A);
+                        ADD_LINE(*first_click,  other_corner_B);
+                        ADD_LINE(*second_click, other_corner_A);
+                        ADD_LINE(*second_click, other_corner_B);
                     }
                 } else if (*click_mode == CLICK_MODE_MOVE_DXF_ENTITIES) {
                     *awaiting_second_click = false;
@@ -984,9 +984,9 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                         result.checkpoint_me = true;
                         *click_mode = CLICK_MODE_NONE;
                         *click_modifier = CLICK_MODIFIER_NONE;
-                        real32 theta_a_in_degrees = DEG(atan2(event.mouse.y - first_click->y, event.mouse.x - first_click->x));
+                        real32 theta_a_in_degrees = DEG(atan2(*second_click - *first_click));
                         real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                        real32 r = SQRT(squared_distance_point_point(first_click->x, first_click->y, event.mouse.x, event.mouse.y));
+                        real32 r = norm(*second_click - *first_click);
                         ADD_ARC(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
                         ADD_ARC(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
                     }
@@ -1005,14 +1005,14 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     int j = dxf_find_closest_entity(&global_world_state.dxf.entities, event.mouse.x, event.mouse.y);
                     if ((i != j) && (i != -1) && (j != -1)) {
                         real32 radius = *fillet_radius;
-                        DXFEntity *E_i = &global_world_state.dxf.entities.array[i];
-                        DXFEntity *E_j = &global_world_state.dxf.entities.array[j];
+                        DXFEntity *E_i = &dxf->entities.array[i];
+                        DXFEntity *E_j = &dxf->entities.array[j];
                         if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
                             vec2 a, b, c, d;
                             entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
                             entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
 
-                            LineLineIntersectionResult _p = line_line_intersection(a, b, c, d);
+                            LineLineIntersectionResult _p = burkardt_line_line_intersection(a, b, c, d);
                             if (_p.is_valid) {
                                 vec2 p = _p.position;
 
@@ -1050,7 +1050,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                                 vec2 s_ab = (keep_a) ? a : b;
                                 vec2 s_cd = (keep_c) ? c : d;
                                 real32 half_angle; {
-                                    real32 angle = three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
+                                    real32 angle = burkardt_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
                                     if (angle > PI) angle = TAU - angle;
                                     half_angle = angle / 2;
                                 }
@@ -1058,7 +1058,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                                 vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
                                 vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
-                                LineLineIntersectionResult _center = line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
+                                LineLineIntersectionResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
                                 if (_center.is_valid) {
                                     vec2 center = _center.position;
 
@@ -1067,14 +1067,14 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                                     DXF_DELETE(MAX(i, j));
                                     DXF_DELETE(MIN(i, j));
 
-                                    _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, color_i, s_ab.x, s_ab.y, t_ab.x, t_ab.y });
-                                    _ADD_ENTITY({ DXF_ENTITY_TYPE_LINE, color_j, s_cd.x, s_cd.y, t_cd.x, t_cd.y });
+                                    ADD_LINE(s_ab, t_ab, false, color_i);
+                                    ADD_LINE(s_cd, t_cd, false, color_j);
 
-                                    real32 theta_ab_in_degrees = DEG(atan2(t_ab.y - center.y, t_ab.x - center.x));
-                                    real32 theta_cd_in_degrees = DEG(atan2(t_cd.y - center.y, t_cd.x - center.x));
+                                    real32 theta_ab_in_degrees = DEG(atan2(t_ab - center));
+                                    real32 theta_cd_in_degrees = DEG(atan2(t_cd - center));
 
                                     if (!IS_ZERO(radius)) {
-                                        if (three_point_angle(t_ab, center, t_cd) < PI) {
+                                        if (burkardt_three_point_angle(t_ab, center, t_cd) < PI) {
                                             // FORNOW TODO consider swap
                                             real32 tmp = theta_ab_in_degrees;
                                             theta_ab_in_degrees = theta_cd_in_degrees;
@@ -1083,7 +1083,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
                                         // TODO: consider tabbing to create chamfer
 
-                                        _ADD_ENTITY({ DXF_ENTITY_TYPE_ARC, DXF_COLOR_TRAVERSE, center.x, center.y, radius, theta_ab_in_degrees, theta_cd_in_degrees });
+                                        ADD_ARC(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
                                     }
                                 }
                             }
@@ -1159,169 +1159,166 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     entity->is_selected = false;
                 }
                 ADD_BUFFERED_ENTITIES();
-            } else if (click_mode_SELECT_OR_DESELECT) {
+            } else if (click_mode_SELECT_OR_DESELECT()) { // includes dealing with connected modifier
                 result.record_me = false;
-                {
-                    int hot_entity_index = dxf_find_closest_entity(&global_world_state.dxf.entities, event.mouse.x, event.mouse.y);
-                    if (hot_entity_index != -1) {
-                        if (global_world_state.modes.click_modifier == CLICK_MODIFIER_CONNECTED) {
-                            #if 1 // TODO: consider just using the O(n*m) algorithm here instead
+                int hot_entity_index = dxf_find_closest_entity(&global_world_state.dxf.entities, event.mouse.x, event.mouse.y);
+                if (hot_entity_index != -1) {
+                    if (global_world_state.modes.click_modifier != CLICK_MODIFIER_CONNECTED) {
+                        SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+                    } else {
+                        #if 1 // TODO: consider just using the O(n*m) algorithm here instead
 
-                            #define GRID_CELL_WIDTH 0.001f
+                        #define GRID_CELL_WIDTH 0.001f
 
-                            auto scalar_bucket = [&](real32 a) -> real32 {
-                                return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
-                            };
+                        auto scalar_bucket = [&](real32 a) -> real32 {
+                            return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
+                        };
 
-                            auto make_key = [&](real32 x, real32 y) -> vec2 {
-                                return { scalar_bucket(x), scalar_bucket(y) };
+                        auto make_key = [&](real32 x, real32 y) -> vec2 {
+                            return { scalar_bucket(x), scalar_bucket(y) };
 
-                            };
+                        };
 
-                            auto nudge_key = [&](vec2 key, int dx, int dy) -> vec2 {
-                                return make_key(key.x + dx * GRID_CELL_WIDTH, key.y + dy * GRID_CELL_WIDTH);
-                            };
+                        auto nudge_key = [&](vec2 key, int dx, int dy) -> vec2 {
+                            return make_key(key.x + dx * GRID_CELL_WIDTH, key.y + dy * GRID_CELL_WIDTH);
+                        };
 
-                            struct GridPointSlot {
-                                bool32 populated;
-                                int32 entity_index;
-                                bool32 end_NOT_start;
-                            };
+                        struct GridPointSlot {
+                            bool32 populated;
+                            int32 entity_index;
+                            bool32 end_NOT_start;
+                        };
 
-                            struct GridCell {
-                                GridPointSlot slots[2];
-                            };
+                        struct GridCell {
+                            GridPointSlot slots[2];
+                        };
 
-                            Map<vec2, GridCell> grid; { // TODO: build grid
-                                grid = {};
+                        Map<vec2, GridCell> grid; { // TODO: build grid
+                            grid = {};
 
-                                auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](real32 x, real32 y, uint32 entity_index, bool32 end_NOT_start) {
-                                    vec2 key = make_key(x, y);
-                                    GridCell *cell = _map_get_pointer(&grid, key);
-                                    if (cell == NULL) {
-                                        map_put(&grid, key, {});
-                                        cell = _map_get_pointer(&grid, key);
-                                    }
-                                    for (uint32 i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
-                                        GridPointSlot *slot = &cell->slots[i];
-                                        if (slot->populated) continue;
-                                        slot->populated = true;
-                                        slot->entity_index = entity_index;
-                                        slot->end_NOT_start = end_NOT_start;
-                                        // printf("%f %f [%d]\n", key.x, key.y, i);
-                                        break;
-                                    }
-                                };
-
-                                for (uint32 entity_index = 0; entity_index < global_world_state.dxf.entities.length; ++entity_index) {
-                                    DXFEntity *entity = &global_world_state.dxf.entities.array[entity_index];
-
-                                    real32 start_x, start_y, end_x, end_y;
-                                    entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
-                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(start_x, start_y, entity_index, false);
-                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(end_x, end_y, entity_index, true);
-                                }
-                            }
-
-                            bool32 *edge_marked = (bool32 *) calloc(global_world_state.dxf.entities.length, sizeof(bool32));
-
-                            ////////////////////////////////////////////////////////////////////////////////
-                            // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
-                            //       We will use _map_get_pointer(...)
-                            ////////////////////////////////////////////////////////////////////////////////
-
-
-                            auto get_key = [&](GridPointSlot *point, bool32 other_endpoint) {
-                                bool32 end_NOT_start; {
-                                    end_NOT_start = point->end_NOT_start;
-                                    if (other_endpoint) end_NOT_start = !end_NOT_start;
-                                }
-                                real32 x, y; {
-                                    DXFEntity *entity = &global_world_state.dxf.entities.array[point->entity_index];
-                                    if (end_NOT_start) {
-                                        entity_get_end_point(entity, &x, &y);
-                                    } else {
-                                        entity_get_start_point(entity, &x, &y);
-                                    }
-                                }
-                                return make_key(x, y);
-                            };
-
-                            auto get_any_point_not_part_of_an_marked_entity = [&](vec2 key) -> GridPointSlot * {
+                            auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](real32 x, real32 y, uint32 entity_index, bool32 end_NOT_start) {
+                                vec2 key = make_key(x, y);
                                 GridCell *cell = _map_get_pointer(&grid, key);
-                                if (!cell) return NULL;
-
+                                if (cell == NULL) {
+                                    map_put(&grid, key, {});
+                                    cell = _map_get_pointer(&grid, key);
+                                }
                                 for (uint32 i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
                                     GridPointSlot *slot = &cell->slots[i];
-                                    if (!slot->populated) continue;
-                                    if (edge_marked[slot->entity_index]) continue;
-                                    return slot;
+                                    if (slot->populated) continue;
+                                    slot->populated = true;
+                                    slot->entity_index = entity_index;
+                                    slot->end_NOT_start = end_NOT_start;
+                                    // printf("%f %f [%d]\n", key.x, key.y, i);
+                                    break;
                                 }
-                                return NULL;
                             };
 
+                            for (uint32 entity_index = 0; entity_index < global_world_state.dxf.entities.length; ++entity_index) {
+                                DXFEntity *entity = &global_world_state.dxf.entities.array[entity_index];
+
+                                real32 start_x, start_y, end_x, end_y;
+                                entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
+                                push_into_grid_unless_cell_full__make_cell_if_none_exists(start_x, start_y, entity_index, false);
+                                push_into_grid_unless_cell_full__make_cell_if_none_exists(end_x, end_y, entity_index, true);
+                            }
+                        }
+
+                        bool32 *edge_marked = (bool32 *) calloc(global_world_state.dxf.entities.length, sizeof(bool32));
+
+                        ////////////////////////////////////////////////////////////////////////////////
+                        // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
+                        //       We will use _map_get_pointer(...)
+                        ////////////////////////////////////////////////////////////////////////////////
 
 
-                            // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
-                            edge_marked[hot_entity_index] = true;
-                            SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
-
-                            for (uint32 pass = 0; pass <= 1; ++pass) {
-
-                                vec2 seed; {
-                                    real32 x, y;
-                                    if (pass == 0) {
-                                        entity_get_start_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
-                                    } else {
-                                        entity_get_end_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
-                                    }
-                                    seed = make_key(x, y);
+                        auto get_key = [&](GridPointSlot *point, bool32 other_endpoint) {
+                            bool32 end_NOT_start; {
+                                end_NOT_start = point->end_NOT_start;
+                                if (other_endpoint) end_NOT_start = !end_NOT_start;
+                            }
+                            real32 x, y; {
+                                DXFEntity *entity = &global_world_state.dxf.entities.array[point->entity_index];
+                                if (end_NOT_start) {
+                                    entity_get_end_point(entity, &x, &y);
+                                } else {
+                                    entity_get_start_point(entity, &x, &y);
                                 }
+                            }
+                            return make_key(x, y);
+                        };
 
-                                GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
-                                while (true) {
-                                    if (curr == NULL) break;
-                                    SET_IS_SELECTED(&dxf->entities.array[curr->entity_index], value_to_write_to_selection_mask);
-                                    edge_marked[curr->entity_index] = true;
-                                    curr = get_any_point_not_part_of_an_marked_entity(get_key(curr, true)); // get other end
-                                    if (curr == NULL) break;
-                                    { // curr <- next (9-cell)
-                                        vec2 key = get_key(curr, false);
-                                        {
-                                            curr = NULL;
-                                            for (int dx = -1; dx <= 1; ++dx) {
-                                                for (int dy = -1; dy <= 1; ++dy) {
-                                                    GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(key, dx, dy));
-                                                    if (tmp) curr = tmp;
-                                                }
+                        auto get_any_point_not_part_of_an_marked_entity = [&](vec2 key) -> GridPointSlot * {
+                            GridCell *cell = _map_get_pointer(&grid, key);
+                            if (!cell) return NULL;
+
+                            for (uint32 i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
+                                GridPointSlot *slot = &cell->slots[i];
+                                if (!slot->populated) continue;
+                                if (edge_marked[slot->entity_index]) continue;
+                                return slot;
+                            }
+                            return NULL;
+                        };
+
+
+
+                        // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
+                        edge_marked[hot_entity_index] = true;
+                        SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+
+                        for (uint32 pass = 0; pass <= 1; ++pass) {
+
+                            vec2 seed; {
+                                real32 x, y;
+                                if (pass == 0) {
+                                    entity_get_start_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
+                                } else {
+                                    entity_get_end_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
+                                }
+                                seed = make_key(x, y);
+                            }
+
+                            GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
+                            while (true) {
+                                if (curr == NULL) break;
+                                SET_IS_SELECTED(&dxf->entities.array[curr->entity_index], value_to_write_to_selection_mask);
+                                edge_marked[curr->entity_index] = true;
+                                curr = get_any_point_not_part_of_an_marked_entity(get_key(curr, true)); // get other end
+                                if (curr == NULL) break;
+                                { // curr <- next (9-cell)
+                                    vec2 key = get_key(curr, false);
+                                    {
+                                        curr = NULL;
+                                        for (int dx = -1; dx <= 1; ++dx) {
+                                            for (int dy = -1; dy <= 1; ++dy) {
+                                                GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(key, dx, dy));
+                                                if (tmp) curr = tmp;
                                             }
                                         }
                                     }
                                 }
                             }
-
-
-
-
-                            map_free_and_zero(&grid);
-                            free(edge_marked);
-
-                            #else // old O(n^2) version
-                            uint32 loop_index = dxf_pick_loops.loop_index_from_entity_index[hot_entity_index];
-                            DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
-                            uint32 num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
-                            for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
-                                SET_IS_SELECTED(&dxf->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
-                            }
-                            #endif
-                        } else {
-                            SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
                         }
+
+
+
+
+                        map_free_and_zero(&grid);
+                        free(edge_marked);
+
+                        #else // old O(n^2) version
+                        uint32 loop_index = dxf_pick_loops.loop_index_from_entity_index[hot_entity_index];
+                        DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
+                        uint32 num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
+                        for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
+                            SET_IS_SELECTED(&dxf->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
+                        }
+                        #endif
                     }
                 }
             }
         }
-
     } else if (event.type == USER_EVENT_TYPE_MOUSE_3D_PRESS) {
         result.record_me = false;
         int32 index_of_first_triangle_hit_by_ray = -1;
@@ -1343,18 +1340,18 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
         if (index_of_first_triangle_hit_by_ray != -1) { // something hit
             result.checkpoint_me = result.record_me = true;
-            global_world_state.feature_plane.is_active = true;
+            feature_plane->is_active = true;
             {
-                vec3 n_prev = global_world_state.feature_plane.normal;
-                real32 d_prev = global_world_state.feature_plane.signed_distance_to_world_origin;
+                vec3 n_prev = feature_plane->normal;
+                real32 d_prev = feature_plane->signed_distance_to_world_origin;
 
-                global_world_state.feature_plane.normal = get(global_world_state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
-                { // FORNOW (gross) calculateion of global_world_state.feature_plane.signed_distance_to_world_origin
+                feature_plane->normal = get(global_world_state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
+                { // FORNOW (gross) calculateion of feature_plane->signed_distance_to_world_origin
                     vec3 a_selected = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + 0]);
-                    global_world_state.feature_plane.signed_distance_to_world_origin = dot(global_world_state.feature_plane.normal, a_selected);
+                    feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, a_selected);
                 }
 
-                if (!IS_ZERO(norm(n_prev - global_world_state.feature_plane.normal)) || !ARE_EQUAL(d_prev, global_world_state.feature_plane.signed_distance_to_world_origin)) {
+                if (!IS_ZERO(norm(n_prev - feature_plane->normal)) || !ARE_EQUAL(d_prev, feature_plane->signed_distance_to_world_origin)) {
                     _global_screen_state.plane_selection_time = 0.0f;
                 }
             }
@@ -1471,7 +1468,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[extrude-add] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
+                    } else if (!feature_plane->is_active) {
                         conversation_messagef("[extrude-add] no plane selected");
                     } else if (IS_ZERO(global_world_state.popup.extrude_add_in_length) && IS_ZERO(global_world_state.popup.extrude_add_out_length)) {
                         conversation_messagef("[extrude-add] must have non-zero total height");
@@ -1487,7 +1484,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[extrude-cut] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
+                    } else if (!feature_plane->is_active) {
                         conversation_messagef("[extrude-cut] no plane selected");
                     } else if (IS_ZERO(global_world_state.popup.extrude_cut_in_length) && IS_ZERO(global_world_state.popup.extrude_cut_out_length)) {
                         conversation_messagef("[extrude-cut] must have non-zero total height");
@@ -1502,7 +1499,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-add] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
+                    } else if (!feature_plane->is_active) {
                         conversation_messagef("[revolve-add] no plane selected");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
@@ -1513,7 +1510,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-cut] no dxf elements selected");
-                    } else if (!global_world_state.feature_plane.is_active) {
+                    } else if (!feature_plane->is_active) {
                         conversation_messagef("[revolve-cut] no plane selected");
                     } else if (global_world_state.mesh.num_triangles == 0) {
                         conversation_messagef("[revolve-cut] no mesh to cut from");
@@ -1939,11 +1936,12 @@ void conversation_draw() {
 
     { // panes
         eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
-        if (_global_screen_state.hot_pane == HOT_PANE_2D) {
-            eso_color(monokai.yellow);
-        } else {
-            eso_color(1.0f, 0.0f, 1.0f);
-        }
+        eso_color(monokai.gray);
+        // if (_global_screen_state.hot_pane == HOT_PANE_2D) {
+        //     eso_color(monokai.yellow);
+        // } else {
+        //     eso_color(1.0f, 0.0f, 1.0f);
+        // }
         eso_vertex(0.0f,  1.0f);
         eso_vertex(0.0f, -1.0f);
         eso_end();
@@ -2019,7 +2017,7 @@ void conversation_draw() {
             }
             { // dots
                 if (_global_screen_state.show_details) {
-                    eso_begin(camera_get_PV(&_global_screen_state.camera_2D), SOUP_POINTS, 8.0f);
+                    eso_begin(camera_get_PV(&_global_screen_state.camera_2D), SOUP_POINTS, 4.0f);
                     eso_color(monokai.white);
                     _for_each_entity_ {
                         real32 start_x, start_y, end_x, end_y;
@@ -2201,7 +2199,7 @@ void conversation_draw() {
         }
         #endif
 
-        if (global_world_state.feature_plane.is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
+        if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
             real32 r = _global_screen_state.camera_3D.ortho_screen_height_World / 120.0f;
             real32 LL = 100.0f;
             eso_color(monokai.white);
@@ -2226,7 +2224,7 @@ void conversation_draw() {
             conversation_draw_3D_grid_box(P_3D, V_3D);
         }
 
-        if (global_world_state.feature_plane.is_active) { // floating sketch plane; selection plane NOTE: transparent
+        if (feature_plane->is_active) { // floating sketch plane; selection plane NOTE: transparent
             bool draw = true;
             mat4 PVM = PV_3D * M_3D_from_2D;
             vec3 color = monokai.yellow;
