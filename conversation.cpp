@@ -1,3 +1,35 @@
+// // things we are unwilling to compromise on
+// frame-perfect UI / graphics (except first frame FORNOW)
+// ability to churn through a bunch of events in a single frame (either by user interacting really fast, spoofing, or undo/redo-ing)
+
+// TODO: consuming a bunch of events in one frame broken again
+// until ctrl+o is processed, we can't know that the next event should be a GUI event
+// TODO: we need actually a whole nother layer and intermediate rep that happens preclassification
+// TODO: RAW_EVENT_TYPE_KEY_PRESS
+// TODO: RAW_EVENT_TYPE_MOUSE_PRESS // TODO FIRST TODO FIRST TODO bake these
+
+// TODO: bring back undo/redo
+
+// TODO: restore click and drag selection functionality
+
+// TODO: restore SQ[0-9] functionality
+
+// TODO: restore shift held 15deg snap functionality
+
+// TODO: restore spoofing api
+
+// // TODO: figuring out what kind of an event an interaction is needs to happen in the callback layer
+// TODO: undo redo
+
+// TODO: GUI_MOUSE getting triggered when it shouldn't
+
+
+
+
+
+
+
+
 // TODO: switch entities over to taking vec2's (compression too important)
 
 // consider a setter like SET_ECC_RCS(uint32 enter_mode, uint32 click_mode, uint32 click_modifier, bool32 record_me, bool32 checkpoint_me, bool32 snapshot_me)
@@ -121,6 +153,10 @@ real32 *line_length              = &popup->line_length;
 real32 *line_angle               = &popup->line_angle;
 real32 *line_run                 = &popup->line_run;
 real32 *line_rise                = &popup->line_rise;
+real32 *revolve_add_dummy        = &popup->revolve_add_dummy;
+real32 *revolve_cut_dummy        = &popup->revolve_cut_dummy;
+char *open_filename = popup->open_filename;
+char *save_filename = popup->open_filename;
 Mesh *mesh = &global_world_state.mesh;
 FeaturePlaneState *feature_plane = &global_world_state.feature_plane;
 
@@ -243,7 +279,6 @@ vec2 magic_snap(vec2 before) {
 
 void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     mat4 PVM_3D = P_3D * V_3D * M_3D;
-
 
     if (mesh->cosmetic_edges) {
         eso_begin(PVM_3D, SOUP_LINES); 
@@ -385,12 +420,167 @@ BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); }
 // GATHERING NEW EVENTS FROM USER ////////////////
 //////////////////////////////////////////////////
 
-Queue<UserEvent> queue_of_fresh_events_from_user;
-// TODO clean up
+Queue<RawUserEvent> raw_user_event_queue;
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
+    if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
+        RawUserEvent raw_event = {}; {
+            raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
+            raw_event.key = key;
+            raw_event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
+            raw_event.shift = (mods & GLFW_MOD_SHIFT);
+        }
+        queue_enqueue(&raw_user_event_queue, raw_event);
+    }
+}
+
+void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
+    _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
+
+    _global_screen_state.mouse_in_pixel_coordinates = { real32(xpos), real32(ypos) };
+
+    #if 0
+    // // mouse held generates mouse presses
+    // FORNOW repeated from callback_mouse_button
+    if ((_global_screen_state.hot_pane == HOT_PANE_2D) && (_global_screen_state.mouse_left_held) && (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_WINDOW))) {
+        UserEvent event; {
+            event = callback_mouse_event_helper();
+            event.mouse_held = true;
+        }
+        queue_enqueue(&queue_of_fresh_events_from_user, event);
+    }
+    #endif
+}
+
+void callback_mouse_button(GLFWwindow *, int button, int action, int) {
+    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM for cameras
+
+    if ((button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_PRESS)) {
+        RawUserEvent raw_event; {
+            raw_event = {};
+            raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
+            raw_event.mouse_in_pixel_coordinates = _global_screen_state.mouse_in_pixel_coordinates; // FORNOW
+        }
+        queue_enqueue(&raw_user_event_queue, raw_event);
+    }
+}
+
+bool32 get_baked_type_of_raw_key_event(RawUserEvent raw_event) {
+    if (!popup->_active_popup_unique_ID__FORNOW_name0) return USER_EVENT_TYPE_HOTKEY_PRESS;
+
+    uint32 key = raw_event.key;
+    // bool32 shift = event.shift;
+    // bool32 super = event.super;
+    bool32 key_is_digit = ('0' <= key) && (key <= '9');
+    bool32 key_is_punc  = (key == '.') || (key == '-');
+    bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
+    bool32 key_is_delete = (key == GLFW_KEY_BACKSPACE) || (key == GLFW_KEY_DELETE);
+    bool32 key_is_enter = (key == GLFW_KEY_ENTER);
+    bool32 key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
+
+    bool32 is_consumable_by_popup; {
+        is_consumable_by_popup = false;
+        if (!select_or_deselct_quality_poised_to_eat_digit()) is_consumable_by_popup |= key_is_digit;
+        is_consumable_by_popup |= key_is_punc;
+        is_consumable_by_popup |= key_is_delete;
+        is_consumable_by_popup |= key_is_enter;
+        is_consumable_by_popup |= key_is_nav;
+        if (popup->_type_of_active_cell == CELL_TYPE_REAL32) {
+            ;
+        } else if (popup->_type_of_active_cell == CELL_TYPE_CSTRING) {
+            is_consumable_by_popup |= key_is_alpha;
+        } else {
+            ASSERT(false);
+        }
+    }
+    if (is_consumable_by_popup) return USER_EVENT_TYPE_GUI_KEY_PRESS;
+    return USER_EVENT_TYPE_HOTKEY_PRESS;
+}
+
+UserEvent bake_user_event(RawUserEvent raw_event) {
+    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(raw_event);
+    UserEvent result = {};
+
+    if (raw_event.type == RAW_USER_EVENT_TYPE_KEY_PRESS) {
+        result.key = raw_event.key;
+        result.super = raw_event.super;
+        result.shift = raw_event.shift;
+        result.type = get_baked_type_of_raw_key_event(raw_event);
+        // todo U CTRL+Z SQ[0-9] SHIFT+U
+    } else { ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_MOUSE_PRESS);
+    }
+
+    return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+void callback_scroll(GLFWwindow *, double, double yoffset) {
+    _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM for cameras
+}
+
+BEGIN_PRE_MAIN {
+    glfwSetKeyCallback(        COW0._window_glfw_window, callback_key);
+    glfwSetCursorPosCallback(  COW0._window_glfw_window, callback_cursor_position);
+    glfwSetMouseButtonCallback(COW0._window_glfw_window, callback_mouse_button);
+    glfwSetScrollCallback(     COW0._window_glfw_window, callback_scroll);
+} END_PRE_MAIN;
+
+// TODO: this API should match what is printed to the terminal in verbose output mode
+//       (so we can copy and paste a session for later use as an end to end test)
+
+UserEvent KEY_event(uint32 key, bool32 super = false, bool32 shift = false) {
+    ASSERT(!(('a' <= key) && (key <= 'z')));
+    UserEvent event = {};
+    event.type = USER_EVENT_TYPE_HOTKEY_PRESS;
+    event.key = key;
+    event.super = super;
+    event.shift = shift;
+    return event;
+}
+
+UserEvent MOUSE_2D_event(real32 mouse_x, real32 mouse_y) {
+    UserEvent event = {};
+    event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
+    event.mouse.x = mouse_x;
+    event.mouse.y = mouse_y;
+    return event;
+}
+
+UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir_y, real32 dir_z) {
+    UserEvent event = {};
+    event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS;
+    event.o = { o_x, o_y, o_z };
+    event.dir = { dir_x, dir_y, dir_z };
+    return event;
+}
+
+
+
+#if 0
+
+UserEvent TODO_callback_mouse_event_helper() {
+    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), _global_screen_state.mouse_in_pixel_coordinates);
+    UserEvent result; {
+        result = {};
+        result.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
+        result.mouse = transformPoint(inverse(camera_get_PV(&_global_screen_state.camera_2D)), mouse_s_NDC);
+    }
+    return result;
+}
+
+void TODO_callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if ((action == GLFW_PRESS) && (key == GLFW_KEY_LEFT_SHIFT)) _global_screen_state.mouse_shift_held = true;
     if ((action == GLFW_RELEASE) && (key == GLFW_KEY_LEFT_SHIFT)) _global_screen_state.mouse_shift_held = false;
+
+    // NOTE: we do NOT forward bare modifier presses
+    if (key == GLFW_KEY_LEFT_CONTROL)  return;
+    if (key == GLFW_KEY_RIGHT_CONTROL) return;
+    if (key == GLFW_KEY_LEFT_SUPER)    return;
+    if (key == GLFW_KEY_RIGHT_SUPER)   return;
+    if (key == GLFW_KEY_LEFT_SHIFT)    return;
+    if (key == GLFW_KEY_RIGHT_SHIFT)   return;
 
 
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
@@ -403,47 +593,19 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         if (key == GLFW_KEY_RIGHT_SHIFT)   return;
 
         UserEvent event = {};
-        event.type = USER_EVENT_TYPE_KEY_PRESS;
         event.key = key;
         event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
         event.shift = (mods & GLFW_MOD_SHIFT);
-        queue_enqueue(&queue_of_fresh_events_from_user, event);
-
-        // if (event.
-    }
-}
-
-UserEvent callback_mouse_event_helper() {
-    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), _global_screen_state.mouse_in_pixel_coordinates);
-    UserEvent result; {
-        result = {};
-        result.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
-        result.mouse = transformPoint(inverse(camera_get_PV(&_global_screen_state.camera_2D)), mouse_s_NDC);
-    }
-    return result;
-}
-
-void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
-    _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
-
-    _global_screen_state.mouse_in_pixel_coordinates.x = (real32) (xpos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    _global_screen_state.mouse_in_pixel_coordinates.y = (real32) (ypos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-
-    // // mouse held generates mouse presses
-    // FORNOW repeated from callback_mouse_button
-    if ((_global_screen_state.hot_pane == HOT_PANE_2D) && (_global_screen_state.mouse_left_held) && (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_WINDOW))) {
-        UserEvent event; {
-            event = callback_mouse_event_helper();
-            event.mouse_held = true;
+        event.type = USER_EVENT_TYPE_HOTKEY_PRESS;
+        // FORNOW
+        if (event_is_consumable_by_current_popup(event)) {
+            event.type = USER_EVENT_TYPE_GUI_KEY_PRESS;
         }
         queue_enqueue(&queue_of_fresh_events_from_user, event);
     }
 }
 
-void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM for cameras
-
-
+void TODO_callback_mouse_button(GLFWwindow *, int button, int action, int) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
             _global_screen_state.mouse_left_held = true;
@@ -479,46 +641,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     }
 }
 
-void callback_scroll(GLFWwindow *, double, double yoffset) {
-    _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM for cameras
-}
-
-BEGIN_PRE_MAIN {
-    glfwSetKeyCallback(        COW0._window_glfw_window, callback_key);
-    glfwSetCursorPosCallback(  COW0._window_glfw_window, callback_cursor_position);
-    glfwSetMouseButtonCallback(COW0._window_glfw_window, callback_mouse_button);
-    glfwSetScrollCallback(     COW0._window_glfw_window, callback_scroll);
-} END_PRE_MAIN;
-
-// TODO: this API should match what is printed to the terminal in verbose output mode
-//       (so we can copy and paste a session for later use as an end to end test)
-
-UserEvent KEY_event(uint32 key, bool32 super = false, bool32 shift = false) {
-    ASSERT(!(('a' <= key) && (key <= 'z')));
-    UserEvent event = {};
-    event.type = USER_EVENT_TYPE_KEY_PRESS;
-    event.key = key;
-    event.super = super;
-    event.shift = shift;
-    return event;
-}
-
-UserEvent MOUSE_2D_event(real32 mouse_x, real32 mouse_y) {
-    UserEvent event = {};
-    event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
-    event.mouse.x = mouse_x;
-    event.mouse.y = mouse_y;
-    return event;
-}
-
-UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir_y, real32 dir_z) {
-    UserEvent event = {};
-    event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS;
-    event.o = { o_x, o_y, o_z };
-    event.dir = { dir_x, dir_y, dir_z };
-    return event;
-}
-
+#endif
 
 
 /////////////////////////////////////////////////////////
@@ -555,44 +678,6 @@ UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real3
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-bool32 popup_event_is_consumable_by_current_popup(UserEvent event) {
-
-    if (!popup->_active_popup_unique_ID__FORNOW_name0) return false; // FORNOW
-    if (event.type == USER_EVENT_TYPE_KEY_PRESS) {
-        uint32 key = event.key;
-        // bool32 shift = event.shift;
-        // bool32 super = event.super;
-        bool32 key_is_digit = ('0' <= key) && (key <= '9');
-        bool32 key_is_punc  = (key == '.') || (key == '-');
-        bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
-        bool32 key_is_delete = (key == GLFW_KEY_BACKSPACE) || (key == GLFW_KEY_DELETE);
-        bool32 key_is_enter = (key == GLFW_KEY_ENTER);
-        bool32 key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
-
-        bool32 result; {
-            result = false;
-            if (!select_or_deselct_quality_poised_to_eat_digit()) result |= key_is_digit;
-            result |= key_is_punc;
-            result |= key_is_delete;
-            result |= key_is_enter;
-            result |= key_is_nav;
-            if (popup->_type_of_active_cell == CELL_TYPE_REAL32) {
-                ;
-            } else if (popup->_type_of_active_cell == CELL_TYPE_CSTRING) {
-                result |= key_is_alpha;
-            } else {
-                ASSERT(false);
-            }
-        }
-
-        return result;
-    } else if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS) {
-        // ???
-        return false;
-    } else {
-        return false;
-    }
-}
 
 
 struct StandardEventProcessResult {
@@ -683,212 +768,213 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     // HOT-KEYS //
     //////////////
 
-    bool32 hotkey_consumed_this_event; {
-        hotkey_consumed_this_event = false;
-        if ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (!popup_event_is_consumable_by_current_popup(event))) {
-            hotkey_consumed_this_event = true;
-            result.record_me = true;
+    if (event.type == USER_EVENT_TYPE_HOTKEY_PRESS) {
+        result.record_me = true;
 
-            auto key_lambda = [event](uint32 key, bool super = false, bool shift = false) -> bool {
-                if (event.type != USER_EVENT_TYPE_KEY_PRESS) return false; // TODO: ASSERT
-                return _key_lambda(event, key, super, shift);
-            };
+        auto key_lambda = [event](uint32 key, bool super = false, bool shift = false) -> bool {
+            if (event.type != USER_EVENT_TYPE_HOTKEY_PRESS) return false; // TODO: ASSERT
+            return _key_lambda(event, key, super, shift);
+        };
 
-            bool32 click_mode_SNAP_ELIGIBLE_ =
-                0
-                || (*click_mode == CLICK_MODE_SET_ORIGIN)
-                || (*click_mode == CLICK_MODE_SET_AXIS)
-                || (*click_mode == CLICK_MODE_MEASURE)
-                || (*click_mode == CLICK_MODE_CREATE_LINE)
-                || (*click_mode == CLICK_MODE_CREATE_BOX)
-                || (*click_mode == CLICK_MODE_CREATE_CIRCLE)
-                || (*click_mode == CLICK_MODE_MOVE_DXF_ENTITIES)
-                ;
+        bool32 click_mode_SNAP_ELIGIBLE_ =
+            0
+            || (*click_mode == CLICK_MODE_SET_ORIGIN)
+            || (*click_mode == CLICK_MODE_SET_AXIS)
+            || (*click_mode == CLICK_MODE_MEASURE)
+            || (*click_mode == CLICK_MODE_CREATE_LINE)
+            || (*click_mode == CLICK_MODE_CREATE_BOX)
+            || (*click_mode == CLICK_MODE_CREATE_CIRCLE)
+            || (*click_mode == CLICK_MODE_MOVE_DXF_ENTITIES)
+            ;
 
-            bool32 handled_before_big_if_else__NOTE_FORNOW_just_poised_eater; {
-                handled_before_big_if_else__NOTE_FORNOW_just_poised_eater = false;
-                if (select_or_deselct_quality_poised_to_eat_digit()) {
-                    for (uint32 color = 0; color <= 9; ++color) {
-                        if (key_lambda('0' + color)) {
-                            handled_before_big_if_else__NOTE_FORNOW_just_poised_eater = true;
-                            result.checkpoint_me = true;
-                            bool32 value_to_write_to_selection_mask = (*click_mode == CLICK_MODE_SELECT);
-                            for (uint32 i = 0; i < dxf->entities.length; ++i) {
-                                if (dxf->entities.array[i].color == color) {
-                                    dxf->entities.array[i].is_selected = value_to_write_to_selection_mask;
-                                }
-                            }
-                            *click_mode = CLICK_MODE_NONE;
-                            *click_modifier = CLICK_MODIFIER_NONE;
-                            break;
-                        }
-                    }
-                }
-            }
 
-            if (handled_before_big_if_else__NOTE_FORNOW_just_poised_eater) {
-                ;
-            } else if (key_lambda('A')) {
-                if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
-                    result.checkpoint_me = true;
-                    DXF_CLEAR_SELECTION_MASK_TO(*click_mode == CLICK_MODE_SELECT);
-                    *click_mode = CLICK_MODE_NONE;
-                    *click_modifier = CLICK_MODIFIER_NONE;
-                }
-            } else if (key_lambda('A', false, true)) {
-                *click_mode = CLICK_MODE_SET_AXIS;
-                *click_modifier = CLICK_MODIFIER_NONE;
-                *awaiting_second_click = false;
-            } else if (key_lambda('B')) {
-                *click_mode = CLICK_MODE_CREATE_BOX;
-                *click_modifier = CLICK_MODIFIER_NONE;
-                *awaiting_second_click = false;
-            } else if (key_lambda('C')) {
-                if (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_CONNECTED)) {
-                    *click_modifier = CLICK_MODIFIER_CONNECTED;
-                } else if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    *click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
-                } else {
-                    *click_mode = CLICK_MODE_CREATE_CIRCLE;
-                    *click_modifier = CLICK_MODIFIER_NONE;
-                    *awaiting_second_click = false;
-                }
-            } else if (key_lambda('D')) {
-                *click_mode = CLICK_MODE_DESELECT;
-                *click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('E')) {
-                if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    *click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
-                } else {
-                    // result.checkpoint_me = true;
-                    *enter_mode = ENTER_MODE_EXTRUDE_ADD;
-                }
-            } else if (key_lambda('E', false, true)) {
-                // result.checkpoint_me = true;
-                *enter_mode = ENTER_MODE_EXTRUDE_CUT;
-            } else if (key_lambda('F')) {
-                *click_mode = CLICK_MODE_CREATE_FILLET;
-                *click_modifier = CLICK_MODIFIER_NONE;
-                *enter_mode = ENTER_MODE_NONE;
-                *awaiting_second_click = false;
-            } else if (key_lambda('G')) {
-                result.record_me = false;
-                _global_screen_state.hide_grid = !_global_screen_state.hide_grid;
-            } else if (key_lambda('H')) {
-                result.record_me = false;
-                _global_screen_state.show_help = !_global_screen_state.show_help;
-            } else if (key_lambda('K')) { 
-                result.record_me = false;
-                _global_screen_state.show_event_stack = !_global_screen_state.show_event_stack;
-            } else if (key_lambda('K', false, true)) {
-                result.record_me = false;
-                _global_screen_state.hide_gui = !_global_screen_state.hide_gui;
-            } else if (key_lambda('L')) {
-                *click_mode = CLICK_MODE_CREATE_LINE;
-                *click_modifier = CLICK_MODIFIER_NONE;
-                *awaiting_second_click = false;
-            } else if (key_lambda('M')) {
-                if (click_mode_SNAP_ELIGIBLE_) {
-                    result.record_me = false;
-                    *click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
-                } else {
-                    result.checkpoint_me = true;
-                    *click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
-                    *click_modifier = CLICK_MODIFIER_NONE;
-                    *awaiting_second_click = false;
-                }
-            } else if (key_lambda('M', false, true)) {
-                result.record_me = false;
-                *click_mode = CLICK_MODE_MEASURE;
-                *click_modifier = CLICK_MODIFIER_NONE;
-                *awaiting_second_click = false;
-            } else if (key_lambda('N')) {
-                if (feature_plane->is_active) {
-                    *enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
-                } else {
-                    conversation_messagef("[n] no plane is_selected");
-                }
-            } else if (key_lambda('O', true)) {
-                *enter_mode = ENTER_MODE_OPEN;
-            } else if (key_lambda('Q')) {
-                if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
-                    *click_modifier = CLICK_MODIFIER_QUALITY;
-                }
-            } else if (key_lambda('Q', true)) {
-                exit(1);
-            } else if (key_lambda('R')) {
-                *enter_mode = ENTER_MODE_REVOLVE_ADD;
-            } else if (key_lambda('R', false, true)) {
-                *enter_mode = ENTER_MODE_REVOLVE_CUT;
-            } else if (key_lambda('S')) {
-                *click_mode = CLICK_MODE_SELECT;
-                *click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('S', true)) {
-                result.record_me = false;
-                *enter_mode = ENTER_MODE_SAVE;
-            } else if (key_lambda('W')) {
-                if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
-                    *click_modifier = CLICK_MODIFIER_WINDOW;
-                    *awaiting_second_click = false;
-                }
-            } else if (key_lambda('X')) {
-                if (*click_mode != CLICK_MODE_NONE) {
-                    *click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
-                }
-            } else if (key_lambda('X', false, true)) {
-                *click_mode = CLICK_MODE_X_MIRROR;
-                *click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('X', true, true)) {
-                result.record_me = false;
-                camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&dxf->entities));
-            } else if (key_lambda('Y')) {
-                // TODO: 'Y' remembers last terminal choice of plane for next time
-                result.checkpoint_me = true;
 
-                // already one of the three primary planes
-                if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
-                    feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
-                } else {
-                    feature_plane->is_active = true;
-                    feature_plane->signed_distance_to_world_origin = 0.0f;
-                    feature_plane->normal = { 0.0f, 1.0f, 0.0f };
-                }
-            } else if (key_lambda('Y', false, true)) {
-                *click_mode = CLICK_MODE_Y_MIRROR;
-                *click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('Z')) {
-                event = {};
-                event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
-                event.mouse = {};
-            } else if (key_lambda('Z', false, true)) {
-                *click_mode = CLICK_MODE_SET_ORIGIN;
-                *click_modifier = CLICK_MODIFIER_NONE;
-            } else if (key_lambda('0')) {
-                result.record_me = false;
-                _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
-            } else if (key_lambda('9')) {
-                result.record_me = false;
-                feature_plane->is_active = false;
-            } else if (key_lambda('.')) { 
-                result.record_me = false;
-                _global_screen_state.show_details = !_global_screen_state.show_details;
-            } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
-                for (int32 i = dxf->entities.length - 1; i >= 0; --i) {
-                    if (dxf->entities.array[i].is_selected) {
-                        DXF_DELETE(i);
-                    }
-                }
-            } else if (key_lambda(COW_KEY_ESCAPE)) {
-                global_world_state.modes = {};
-            } else {
-                hotkey_consumed_this_event = false;
-                result.record_me = false;
-                ;
-            }
-        } 
-    }
+        // TODO: this logic should be moved into the callback;
+        // it is a problem that we're still trying to figure out whether this event gets
+        // dispatched to the gui or to the hotkeys
+
+        // bool32 handled_before_big_if_else__NOTE_FORNOW_just_poised_eater; {
+        //     handled_before_big_if_else__NOTE_FORNOW_just_poised_eater = false;
+        //     if (select_or_deselct_quality_poised_to_eat_digit()) {
+        //         for (uint32 color = 0; color <= 9; ++color) {
+        //             if (key_lambda('0' + color)) {
+        //                 handled_before_big_if_else__NOTE_FORNOW_just_poised_eater = true;
+        //                 result.checkpoint_me = true;
+        //                 bool32 value_to_write_to_selection_mask = (*click_mode == CLICK_MODE_SELECT);
+        //                 for (uint32 i = 0; i < dxf->entities.length; ++i) {
+        //                     if (dxf->entities.array[i].color == color) {
+        //                         dxf->entities.array[i].is_selected = value_to_write_to_selection_mask;
+        //                     }
+        //                 }
+        //                 *click_mode = CLICK_MODE_NONE;
+        //                 *click_modifier = CLICK_MODIFIER_NONE;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
+
+        /*if (handled_before_big_if_else__NOTE_FORNOW_just_poised_eater) {
+          ;
+          } else*/ if (key_lambda('A')) {
+              if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
+                  result.checkpoint_me = true;
+                  DXF_CLEAR_SELECTION_MASK_TO(*click_mode == CLICK_MODE_SELECT);
+                  *click_mode = CLICK_MODE_NONE;
+                  *click_modifier = CLICK_MODIFIER_NONE;
+              }
+          } else if (key_lambda('A', false, true)) {
+              *click_mode = CLICK_MODE_SET_AXIS;
+              *click_modifier = CLICK_MODIFIER_NONE;
+              *awaiting_second_click = false;
+          } else if (key_lambda('B')) {
+              *click_mode = CLICK_MODE_CREATE_BOX;
+              *click_modifier = CLICK_MODIFIER_NONE;
+              *awaiting_second_click = false;
+          } else if (key_lambda('C')) {
+              if (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_CONNECTED)) {
+                  *click_modifier = CLICK_MODIFIER_CONNECTED;
+              } else if (click_mode_SNAP_ELIGIBLE_) {
+                  result.record_me = false;
+                  *click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
+              } else {
+                  *click_mode = CLICK_MODE_CREATE_CIRCLE;
+                  *click_modifier = CLICK_MODIFIER_NONE;
+                  *awaiting_second_click = false;
+              }
+          } else if (key_lambda('D')) {
+              *click_mode = CLICK_MODE_DESELECT;
+              *click_modifier = CLICK_MODIFIER_NONE;
+          } else if (key_lambda('E')) {
+              if (click_mode_SNAP_ELIGIBLE_) {
+                  result.record_me = false;
+                  *click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
+              } else {
+                  // result.checkpoint_me = true;
+                  *enter_mode = ENTER_MODE_EXTRUDE_ADD;
+              }
+          } else if (key_lambda('E', false, true)) {
+              // result.checkpoint_me = true;
+              *enter_mode = ENTER_MODE_EXTRUDE_CUT;
+          } else if (key_lambda('F')) {
+              *click_mode = CLICK_MODE_CREATE_FILLET;
+              *click_modifier = CLICK_MODIFIER_NONE;
+              *enter_mode = ENTER_MODE_NONE;
+              *awaiting_second_click = false;
+          } else if (key_lambda('G')) {
+              result.record_me = false;
+              _global_screen_state.hide_grid = !_global_screen_state.hide_grid;
+          } else if (key_lambda('H')) {
+              result.record_me = false;
+              _global_screen_state.show_help = !_global_screen_state.show_help;
+          } else if (key_lambda('K')) { 
+              result.record_me = false;
+              _global_screen_state.show_event_stack = !_global_screen_state.show_event_stack;
+          } else if (key_lambda('K', false, true)) {
+              result.record_me = false;
+              _global_screen_state.hide_gui = !_global_screen_state.hide_gui;
+          } else if (key_lambda('L')) {
+              *click_mode = CLICK_MODE_CREATE_LINE;
+              *click_modifier = CLICK_MODIFIER_NONE;
+              *awaiting_second_click = false;
+          } else if (key_lambda('M')) {
+              if (click_mode_SNAP_ELIGIBLE_) {
+                  result.record_me = false;
+                  *click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
+              } else {
+                  result.checkpoint_me = true;
+                  *click_mode = CLICK_MODE_MOVE_DXF_ENTITIES;
+                  *click_modifier = CLICK_MODIFIER_NONE;
+                  *awaiting_second_click = false;
+              }
+          } else if (key_lambda('M', false, true)) {
+              result.record_me = false;
+              *click_mode = CLICK_MODE_MEASURE;
+              *click_modifier = CLICK_MODIFIER_NONE;
+              *awaiting_second_click = false;
+          } else if (key_lambda('N')) {
+              if (feature_plane->is_active) {
+                  *enter_mode = ENTER_MODE_OFFSET_PLANE_BY;
+              } else {
+                  conversation_messagef("[n] no plane is_selected");
+              }
+          } else if (key_lambda('O', true)) {
+              *enter_mode = ENTER_MODE_OPEN;
+          } else if (key_lambda('Q')) {
+              if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
+                  *click_modifier = CLICK_MODIFIER_QUALITY;
+              }
+          } else if (key_lambda('Q', true)) {
+              exit(1);
+          } else if (key_lambda('R')) {
+              *enter_mode = ENTER_MODE_REVOLVE_ADD;
+          } else if (key_lambda('R', false, true)) {
+              *enter_mode = ENTER_MODE_REVOLVE_CUT;
+          } else if (key_lambda('S')) {
+              *click_mode = CLICK_MODE_SELECT;
+              *click_modifier = CLICK_MODIFIER_NONE;
+          } else if (key_lambda('S', true)) {
+              result.record_me = false;
+              *enter_mode = ENTER_MODE_SAVE;
+          } else if (key_lambda('W')) {
+              if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
+                  *click_modifier = CLICK_MODIFIER_WINDOW;
+                  *awaiting_second_click = false;
+              }
+          } else if (key_lambda('X')) {
+              if (*click_mode != CLICK_MODE_NONE) {
+                  *click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
+              }
+          } else if (key_lambda('X', false, true)) {
+              *click_mode = CLICK_MODE_X_MIRROR;
+              *click_modifier = CLICK_MODIFIER_NONE;
+          } else if (key_lambda('X', true, true)) {
+              result.record_me = false;
+              camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&dxf->entities));
+          } else if (key_lambda('Y')) {
+              // TODO: 'Y' remembers last terminal choice of plane for next time
+              result.checkpoint_me = true;
+
+              // already one of the three primary planes
+              if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
+                  feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
+              } else {
+                  feature_plane->is_active = true;
+                  feature_plane->signed_distance_to_world_origin = 0.0f;
+                  feature_plane->normal = { 0.0f, 1.0f, 0.0f };
+              }
+          } else if (key_lambda('Y', false, true)) {
+              *click_mode = CLICK_MODE_Y_MIRROR;
+              *click_modifier = CLICK_MODIFIER_NONE;
+          } else if (key_lambda('Z')) {
+              event = {};
+              event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
+              event.mouse = {};
+          } else if (key_lambda('Z', false, true)) {
+              *click_mode = CLICK_MODE_SET_ORIGIN;
+              *click_modifier = CLICK_MODIFIER_NONE;
+          } else if (key_lambda('0')) {
+              result.record_me = false;
+              _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
+          } else if (key_lambda('9')) {
+              result.record_me = false;
+              feature_plane->is_active = false;
+          } else if (key_lambda('.')) { 
+              result.record_me = false;
+              _global_screen_state.show_details = !_global_screen_state.show_details;
+          } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
+              for (int32 i = dxf->entities.length - 1; i >= 0; --i) {
+                  if (dxf->entities.array[i].is_selected) {
+                      DXF_DELETE(i);
+                  }
+              }
+          } else if (key_lambda(COW_KEY_ESCAPE)) {
+              global_world_state.modes = {};
+          } else {
+              result.record_me = false;
+              ;
+          }
+    } 
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////
     // MOUSE PRESSES (2D and 3D) /////////////////////////////////////////////////////////////////////////
@@ -1355,64 +1441,18 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                 }
             }
         }
-    } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE_PRESS) {
-        // NOTE: this is shady af
-        // TODO: popup should expose an API for switching between fields
-        // (however, the approach below (May 15, 2024) of event spamming is fine for protoyping)
-        result.record_me = true;
-        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true; {
-            { // hover_cell_index
-                bool32 shift;
-                uint32 reps;
-                {
-                    if (event.hover_cell_index == popup->active_cell_index) {
-                        shift = false;
-                        reps = 0;
-                    } else if (event.hover_cell_index > popup->active_cell_index) {
-                        shift = false;
-                        reps = event.hover_cell_index - popup->active_cell_index;
-                    } else { ASSERT(event.hover_cell_index < popup->active_cell_index);
-                        shift = true;
-                        reps = popup->active_cell_index - event.hover_cell_index;
-                    }
-                }
-                for (uint rep = 0; rep < reps; ++rep) standard_event_process(KEY_event(GLFW_KEY_TAB, false, shift));
-            }
-            { // hover_cursor TODO first click into another cell buggered
-                // TODO: right and left side of character (middle of characters)
-                uint32 key;
-                uint32 reps;
-                {
-                    if (event.hover_cursor == popup->cursor) {
-                        key = 0; // whatever
-                        reps = 0;
-                    } else if (event.hover_cursor > popup->cursor) {
-                        key = GLFW_KEY_RIGHT;
-                        reps = event.hover_cursor - popup->cursor;
-                    } else { ASSERT(event.hover_cursor < popup->cursor);
-                        key = GLFW_KEY_LEFT;
-                        reps = popup->cursor - event.hover_cursor;
-                    }
-                }
-                for (uint rep = 0; rep < reps; ++rep) standard_event_process(KEY_event(key));
-            }
-        } _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
     }
 
-    //////////////////
-    // POP-UP POPUP //
-    //////////////////
+    /////////////////////////
+    // POP-UP POPUP        //
+    // (GUI_KEY, GUI_MOUSE //
+    /////////////////////////
 
-    result.record_me |= popup_event_is_consumable_by_current_popup(event);
+    result.record_me |= (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS);
+    result.record_me |= (event.type == USER_EVENT_TYPE_GUI_MOUSE_PRESS);
     {
-        // popup state
-        char *filename                   =  popup->filename;
+        static char full_filename_scratch_buffer[512];
 
-
-        // // FORNOW shtuff
-        static char full_filename_including_path[512]; {
-            sprintf(full_filename_including_path, "%s%s", _global_screen_state.drop_path, global_world_state.popup.filename);
-        }
         auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
             bool32 add = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
             if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
@@ -1450,34 +1490,36 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
         bool32 popup_popup_actually_called_this_event = false;
         #include "popup_lambda.cpp"
         { // popup_popup
-            bool32 enter = ((event.type == USER_EVENT_TYPE_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
+            bool32 enter = ((event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
             if (*enter_mode == ENTER_MODE_OPEN) {
+                sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, open_filename);
                 popup_popup(false,
-                        CELL_TYPE_CSTRING, "filename", filename);
+                        CELL_TYPE_CSTRING, "open_filename", open_filename);
                 if (enter) {
-                    if (poe_suffix_match(full_filename_including_path, ".dxf")) {
+                    if (poe_suffix_match(full_filename_scratch_buffer, ".dxf")) {
                         result.record_me = true;
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
-                        conversation_dxf_load(full_filename_including_path,
+                        conversation_dxf_load(full_filename_scratch_buffer,
                                 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
                         global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-                    } else if (poe_suffix_match(full_filename_including_path, ".stl")) {
+                    } else if (poe_suffix_match(full_filename_scratch_buffer, ".stl")) {
                         result.record_me = true;
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
-                        conversation_stl_load(full_filename_including_path);
+                        conversation_stl_load(full_filename_scratch_buffer);
                         global_world_state.modes.enter_mode = ENTER_MODE_NONE;
                     } else {
-                        conversation_messagef("[open] \"%s\" not found", full_filename_including_path);
+                        conversation_messagef("[open] \"%s\" not found", full_filename_scratch_buffer);
                     }
                 }
             } else if (*enter_mode == ENTER_MODE_SAVE) {
                 result.record_me = false;
+                sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, save_filename);
                 popup_popup(false,
-                        CELL_TYPE_CSTRING, "filename", filename);
+                        CELL_TYPE_CSTRING, "save_filename", save_filename);
                 if (enter) {
-                    conversation_save(full_filename_including_path);
+                    conversation_save(full_filename_scratch_buffer);
                     global_world_state.modes.enter_mode = ENTER_MODE_NONE;
                 }
             } else if (*enter_mode == ENTER_MODE_EXTRUDE_ADD) {
@@ -1515,6 +1557,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     }
                 }
             } else if (*enter_mode == ENTER_MODE_REVOLVE_ADD) {
+                popup_popup(true, CELL_TYPE_REAL32, "revolve_add_dummy", revolve_add_dummy);
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-add] no dxf elements selected");
@@ -1526,6 +1569,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
                     }
                 }
             } else if (*enter_mode == ENTER_MODE_REVOLVE_CUT) {
+                popup_popup(true, CELL_TYPE_REAL32, "revolve_cut_dummy", revolve_cut_dummy);
                 if (enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-cut] no dxf elements selected");
@@ -1775,26 +1819,61 @@ void _history_user_event_draw_helper(UserEvent *event) {
     char message[256]; {
         // TODO: Left and right arrow
         // TODO: handle shift and super with the special characters
-        if (event->type == USER_EVENT_TYPE_KEY_PRESS) {
-            if (event->key == GLFW_KEY_ENTER) {
-                sprintf(message, "[KEY] ENTER");
-            } else if (event->key == GLFW_KEY_TAB) {
-                sprintf(message, "[KEY] TAB");
-            } else if (event->key == GLFW_KEY_ESCAPE) {
-                sprintf(message, "[KEY] ESCAPE");
-            } else if (event->key == GLFW_KEY_BACKSPACE) {
-                sprintf(message, "[KEY] BACKSPACE");
-            } else if (event->key == GLFW_KEY_DELETE) {
-                sprintf(message, "[KEY] DELETE");
-            } else {
-                sprintf(message, "[KEY] %s%s%c", (event->super) ? "CTRL+" : "", (event->shift) ? "SHIFT+" : "", (char) (event->key));
+        if ((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS)) {
+            char *boxed; {
+                if (event->type == USER_EVENT_TYPE_HOTKEY_PRESS) {
+                    boxed = "[HOTKEY]";
+                } else { ASSERT(event->type == USER_EVENT_TYPE_GUI_KEY_PRESS);
+                    boxed = "[GUI_KEY]";
+                }
             }
+
+            char *_ctrl_plus; {
+                if (!event->super) {
+                    _ctrl_plus = "";
+                } else {
+                    _ctrl_plus = "CTRL+";
+                }
+            }
+
+            char *_shift_plus; {
+                if (!event->shift) {
+                    _shift_plus = "";
+                } else {
+                    _shift_plus = "SHIFT+";
+                }
+            }
+
+            char _key_buffer[2];
+            char *_key; {
+                if (event->key == GLFW_KEY_ENTER) {
+                    _key = "ENTER";
+                } else if (event->key == GLFW_KEY_TAB) {
+                    _key = "TAB";
+                } else if (event->key == GLFW_KEY_ESCAPE) {
+                    _key = "ESCAPE";
+                } else if (event->key == GLFW_KEY_BACKSPACE) {
+                    _key = "BACKSPACE";
+                } else if (event->key == GLFW_KEY_DELETE) {
+                    _key = "DELETE";
+                } else if (event->key == GLFW_KEY_LEFT) {
+                    _key = "LEFT";
+                } else if (event->key == GLFW_KEY_RIGHT) {
+                    _key = "RIGHT";
+                } else {
+                    _key_buffer[0] = (char) event->key;
+                    _key_buffer[1] = '\0';
+                    _key = _key_buffer;
+                }
+            }
+
+            sprintf(message, "%s %s%s%s", boxed, _ctrl_plus, _shift_plus, _key);
         } else if (event->type == USER_EVENT_TYPE_MOUSE_2D_PRESS) {
-            sprintf(message, "[MOUSE_2D] %g %g", event->mouse.x, event->mouse.y);
+            sprintf(message, "[MOUSE-2D] %g %g", event->mouse.x, event->mouse.y);
         } else if (event->type == USER_EVENT_TYPE_MOUSE_3D_PRESS) {
-            sprintf(message, "[MOUSE_3D] %g %g %g %g %g %g", event->o.x, event->o.y, event->o.z, event->dir.x, event->dir.y, event->dir.z);
+            sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", event->o.x, event->o.y, event->o.z, event->dir.x, event->dir.y, event->dir.z);
         } else { ASSERT(event->type == USER_EVENT_TYPE_GUI_MOUSE_PRESS);
-            sprintf(message, "[GUI]");
+            sprintf(message, "[GUI-MOUSE-2D] %d %d", event->hover_cell_index, event->hover_cursor);
         }
     }
     gui_printf("%c%c %s",
@@ -1843,7 +1922,11 @@ void history_debug_draw() {
         }
         gui_printf("`^ redo (%d)", elephant_length_redo(&history.recorded_user_events));
     }
-    if ((history.recorded_user_events._redo_stack.length) || (history.recorded_user_events._undo_stack.length)) gui_printf("`  RECORDED_USER_EVENTS");
+    if ((history.recorded_user_events._redo_stack.length) || (history.recorded_user_events._undo_stack.length)) {
+        gui_printf("`  RECORDED_USER_EVENTS");
+    } else {
+        gui_printf("`--- no history ---");
+    }
     if (history.recorded_user_events._undo_stack.length) {
         gui_printf("`v undo (%d)", elephant_length_undo(&history.recorded_user_events));
         for (////
@@ -1864,12 +1947,14 @@ void history_debug_draw() {
 //////////////////////////////////////////////////
 
 void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
+    #if 0
     auto key_lambda = [fresh_event_from_user](uint32 key, bool super = false, bool shift = false) -> bool {
-        if (fresh_event_from_user.type != USER_EVENT_TYPE_KEY_PRESS) return false;
+        if (fresh_event_from_user.type != USER_EVENT_TYPE_HOTKEY_PRESS) return false;
         return _key_lambda(fresh_event_from_user, key, super, shift);
     };
 
-    bool32 not_consumable = !popup_event_is_consumable_by_current_popup(fresh_event_from_user);
+    // TODO: this also needs to get moved in to the key callback
+    bool32 not_consumable = !event_is_consumable_by_current_popup(fresh_event_from_user);
     bool32 undo = (key_lambda('Z', true) || key_lambda('U'));
     bool32 redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
 
@@ -1880,8 +1965,11 @@ void fresh_event_from_user_process(UserEvent fresh_event_from_user) {
         _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
         history_redo();
     } else {
+        #endif
         history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(fresh_event_from_user);
+        #if 0
     }
+    #endif
 }
 
 
@@ -2358,6 +2446,8 @@ void conversation_draw() {
 // TODO: load is no longer special; we should be able to undo / redo across it just like anything else
 // TODO: don't worry about user experience yet (it will grow to include panels toolbox etc)
 
+#if 0
+
 void _spoof_KEY_event(uint32 key, bool32 super = false, bool32 shift = false) {
     queue_enqueue(&queue_of_fresh_events_from_user, KEY_event(key, super, shift));
 }
@@ -2379,12 +2469,14 @@ void _spoof_KEY_event(char *string) {
     }
 }
 
-void _SPOOF_CHAIN_END_TO_END_TEST() {
+void INIT_SPOOF_CHAIN_END_TO_END_TEST() {
+    // TODO: key event string that can handle shift and super ~^
     if (1) {
         if (1) {
-            _spoof_KEY_event("CZ100"); return;
+            // _spoof_KEY_event("CZ100"); return;
             _spoof_KEY_event('O', true);
             _spoof_KEY_event("splash.dxf");
+            return;
             _spoof_KEY_event(GLFW_KEY_ENTER);
             if (1) {
                 _spoof_KEY_event('Y');
@@ -2471,7 +2563,7 @@ void _SPOOF_CHAIN_END_TO_END_TEST() {
             conversation_dxf_load("omax.dxf");
             if (1) {
                 UserEvent event = {};
-                event.type = USER_EVENT_TYPE_KEY_PRESS;
+                event.type = USER_EVENT_TYPE_HOTKEY_PRESS;
                 for (int i = 0; i < 5; ++i) {
                     spoof_KEY_event('Y');
                     spoof_KEY_event('S');
@@ -2492,14 +2584,14 @@ void _SPOOF_CHAIN_END_TO_END_TEST() {
     // conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
 }
 
-
+#endif
 
 int main() {
     // _window_set_size(1.5 * 640.0, 1.5 * 360.0); // TODO the first frame crap gets buggered
 
     glfwHideWindow(COW0._window_glfw_window);
 
-    _SPOOF_CHAIN_END_TO_END_TEST();
+    // INIT_SPOOF_CHAIN_END_TO_END_TEST();
     init_cameras(); // FORNOW
 
     {
@@ -2553,10 +2645,11 @@ int main() {
 
         { // queue_of_fresh_events_from_user
           // TODO: upgrade to handle multiple events per frame while only drawing gui once (simple simple with a boolean here -- reusing boolean is sus)
-            if (queue_of_fresh_events_from_user.length) {
-                while (queue_of_fresh_events_from_user.length) {
-                    UserEvent fresh_event = queue_dequeue(&queue_of_fresh_events_from_user);
-                    fresh_event_from_user_process(fresh_event);
+            if (raw_user_event_queue.length) {
+                while (raw_user_event_queue.length) {
+                    RawUserEvent raw_event = queue_dequeue(&raw_user_event_queue);
+                    UserEvent freshly_baked_event = bake_user_event(raw_event);
+                    fresh_event_from_user_process(freshly_baked_event);
                 }
             } else {
                 // NOTE: this is so we draw the popups

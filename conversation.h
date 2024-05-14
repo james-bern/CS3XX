@@ -85,10 +85,16 @@ struct {
 #define HOT_PANE_3D   2
 
 #define USER_EVENT_TYPE_NONE            0
-#define USER_EVENT_TYPE_KEY_PRESS       1
+#define USER_EVENT_TYPE_HOTKEY_PRESS    1
 #define USER_EVENT_TYPE_MOUSE_2D_PRESS  2
 #define USER_EVENT_TYPE_MOUSE_3D_PRESS  3
-#define USER_EVENT_TYPE_GUI_MOUSE_PRESS 4
+#define USER_EVENT_TYPE_GUI_KEY_PRESS   4
+#define USER_EVENT_TYPE_GUI_MOUSE_PRESS 5
+
+#define RAW_USER_EVENT_TYPE_NONE        0
+#define RAW_USER_EVENT_TYPE_KEY_PRESS   1
+#define RAW_USER_EVENT_TYPE_MOUSE_PRESS 2
+// TODO: drag?
 
 #define CELL_TYPE_NONE    0
 #define CELL_TYPE_REAL32  1
@@ -140,6 +146,16 @@ struct Mesh {
 
     vec3 min;
     vec3 max;
+};
+
+struct RawUserEvent {
+    uint32 type;
+
+    uint32 key;
+    bool32 super;
+    bool32 shift;
+
+    vec2 mouse_in_pixel_coordinates;
 };
 
 struct UserEvent {
@@ -216,7 +232,10 @@ struct PopupState {
     real32 line_angle;
     real32 line_run;
     real32 line_rise;
-    char filename[POPUP_CELL_LENGTH];
+    real32 revolve_add_dummy;
+    real32 revolve_cut_dummy;
+    char open_filename[POPUP_CELL_LENGTH];
+    char save_filename[POPUP_CELL_LENGTH];
 
     #define POPUP_MAX_NUM_CELLS 4
     // char cells[POPUP_MAX_NUM_CELLS][POPUP_CELL_LENGTH];
@@ -1470,7 +1489,7 @@ void conversation_message_buffer_update_and_draw() {
 ////////////////////////////////////////////////////////////////////////////////
 
 bool _key_lambda(UserEvent event, uint32 key, bool super = false, bool shift = false) {
-    ASSERT(event.type == USER_EVENT_TYPE_KEY_PRESS);
+    ASSERT(event.type == USER_EVENT_TYPE_HOTKEY_PRESS);
     ASSERT(!(('a' <= key) && (key <= 'z')));
     bool key_match = (event.key == key);
     bool super_match = ((event.super && super) || (!event.super && !super)); // * bool32

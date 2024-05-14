@@ -1,3 +1,11 @@
+// TODO: the flow here is a bit tortuous
+// on the previous frame we store information about the hover state (is the user hovering?--over which cell?--what new cursor position?)
+// then...when the user clicks (in the click callback) we can generate a USER_EVENT_TYPE_GUI_MOUSE_PRESS of the appropraite type, which gets processed by the next pass through the popup
+// this seems generally fine, i guess what feels weird is that we need to retain some state / store some data (?? perhaps this is morally speaking ScreenState data) in order to classify the event--but i suppose this makes sense
+
+// there is a parallel with deciding what to do with key input
+// NOTE: this could be split into two event types
+
 // cool text animations when tabbing
 // TODO: 'X'
 // TODO: mouse click
@@ -6,6 +14,8 @@
 // TODO: parsing math formulas
 // TODO: field type
 
+
+#define FONT_WIDTH(cstring) (2 * stb_easy_font_width(cstring))
 
 auto popup_popup = [&] (
         bool32 zero_on_load_up,
@@ -93,7 +103,15 @@ auto popup_popup = [&] (
 
     auto SELECTION_NOT_ACTIVE = [&]() -> bool { return (popup->selection_cursor == popup->cursor); };
 
-    if (event.type == USER_EVENT_TYPE_KEY_PRESS) {
+    auto SET_ACTIVE_CELL_INDEX = [&](uint new_active_cell_index) {
+        popup->active_cell_index = new_active_cell_index;
+        LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+        popup->cursor = (uint32) strlen(popup->active_cell_buffer);
+        popup->selection_cursor = 0; // select whole cell
+        popup->_type_of_active_cell = cell_type[popup->active_cell_index];
+    };
+
+    if (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) {
         _global_screen_state.popup_blinker_time = 0.0; // FORNOW
 
         uint32 key = event.key;
@@ -103,22 +121,19 @@ auto popup_popup = [&] (
         bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
         if (key == GLFW_KEY_TAB) {
             _tab_hack_so_aliases_not_introduced_too_far_up = true;
-            { // change active_cell_index
+            uint32 new_active_cell_index; {
+                // FORNOW
                 if (!shift) {
-                    ++popup->active_cell_index;
+                    new_active_cell_index = (popup->active_cell_index + 1) % num_cells;
                 } else {
                     if (popup->active_cell_index != 0) {
-                        --popup->active_cell_index;
+                        new_active_cell_index = popup->active_cell_index - 1;
                     } else {
-                        popup->active_cell_index = num_cells - 1;
+                        new_active_cell_index = num_cells - 1;
                     }
                 }
-                popup->active_cell_index = MODULO(popup->active_cell_index, num_cells);
             }
-            LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
-            popup->cursor = (uint32) strlen(popup->active_cell_buffer);
-            popup->selection_cursor = 0;
-            popup->_type_of_active_cell = cell_type[popup->active_cell_index];
+            SET_ACTIVE_CELL_INDEX(new_active_cell_index);
         }
 
         char *active_cell = popup->active_cell_buffer;
@@ -185,7 +200,7 @@ auto popup_popup = [&] (
             popup->selection_cursor = popup->cursor;
         } else if (key == GLFW_KEY_ENTER) {
             ;
-        } else if ((!hotkey_consumed_this_event) && popup_event_is_consumable_by_current_popup(event)) {
+        } else {
             // TODO: strip char_equivalent into function
 
             bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
@@ -209,7 +224,20 @@ auto popup_popup = [&] (
             }
             popup->selection_cursor = popup->cursor;
         }
+    } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE_PRESS) {
+        _global_screen_state.popup_blinker_time = 0.0f;
+        if (event.hover_cell_index == popup->active_cell_index) {
+            ;
+        } else {
+            SET_ACTIVE_CELL_INDEX(event.hover_cell_index);
+        }
 
+        if (event.hover_cursor == popup->cursor) { // FORNOW TODO: time limit
+            ;
+        } else {
+            popup->cursor = event.hover_cursor;
+            popup->selection_cursor = popup->cursor;
+        }
     }
 
     WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
@@ -229,7 +257,13 @@ auto popup_popup = [&] (
         for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
 
-            static char buffer[512]; {
+
+            uint32 _strlen_name;
+            uint32 _strlen_extra;
+            uint32 strlen_other;
+            uint32 strlen_cell;
+            static char buffer[512];
+            {
                 // FORNOW gross;
                 if (d == popup->active_cell_index) {
                     sprintf(buffer, "%s %s", name[d], popup->active_cell_buffer);
@@ -240,7 +274,13 @@ auto popup_popup = [&] (
                         sprintf(buffer,  "%s %s", name[d], ((char *) value[d]));
                     }
                 }
+
+                _strlen_name = strlen(name[d]);
+                _strlen_extra = 1;
+                strlen_other = _strlen_name + _strlen_extra;
+                strlen_cell = strlen(buffer) - strlen_other;
             }
+
 
             real32 X_MARGIN_OFFSET = COW1._gui_x_curr;
 
@@ -257,11 +297,11 @@ auto popup_popup = [&] (
                 static char tmp[4096]; // FORNOW
                 strcpy(tmp, &buffer[strlen(name[d]) + 1]); // + 1 for ' '
 
-                x_field_left = X_MARGIN_OFFSET + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" "));
-                x_field_right = x_field_left + 2 * stb_easy_font_width(tmp) - 2.5f;
+                x_field_left = X_MARGIN_OFFSET + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" ")) - 2.5f;
+                x_field_right = x_field_left + 2 * stb_easy_font_width(tmp);
 
                 tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
-                x_selection_right = x_field_left + 2 * stb_easy_font_width(tmp) - 2.5f;
+                x_selection_right = x_field_left + 2 * stb_easy_font_width(tmp);
                 tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
                 x_selection_left = x_field_left + 2 * stb_easy_font_width(tmp);
                 y_top = COW1._gui_y_curr;
@@ -272,21 +312,29 @@ auto popup_popup = [&] (
             if (bounding_box_contains(field_box, _global_screen_state.mouse_in_pixel_coordinates)) {
                 popup->mouse_is_hovering = true;
                 popup->hover_cell_index = d;
-                popup->hover_cursor = strlen(buffer) - (strlen(name[d]) - 1);
+                popup->hover_cursor = 0; // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
                 { // popup->hover_cursor
-                    static char tmp[4096]; // FORNOW
-                    strcpy(tmp, buffer);
-                    conversation_messagef("---%f\n", x_mouse);
-                    for (uint32 i = strlen(buffer) - 1; i > strlen(name[d]) + 1; --i) {
-                        tmp[i] = '\0';
-                        real32 right = X_MARGIN_OFFSET + 2 * stb_easy_font_width(tmp) - 2.5f;
-                        int curse = (i - strlen(name[d]) - 2);
-                        conversation_messagef("%d : %f\n", curse, right);
-                        if (x_mouse > right) {
-                            conversation_messagef("=> %d", curse);
-                            popup->hover_cursor = (uint32) curse;
-                            break;
+                    char _2char[2] = {};
+                    // conversation_messagef("---%f\n", x_mouse);
+                    real32 x_char_middle = x_field_left - 2.5f;
+                    real32 half_char_width_prev = 0;
+                    for (uint32 i = 0; i < strlen_cell; ++i) {
+                        x_char_middle += half_char_width_prev;
+                        {
+                            _2char[0] = buffer[strlen_other + i];
+                            half_char_width_prev = FONT_WIDTH(_2char) / 2;
                         }
+                        x_char_middle += half_char_width_prev;
+
+                        if (x_mouse > x_char_middle) popup->hover_cursor = i + 1;
+
+                        #if 0
+                        eso_begin(globals.NDC_from_Screen, SOUP_LINES, 5.0f);
+                        eso_color(color_kelly(i));
+                        eso_vertex(x_char_middle, y_top);
+                        eso_vertex(x_char_middle, y_bottom);
+                        eso_end();
+                        #endif
                     }
                 }
             }
@@ -320,12 +368,7 @@ auto popup_popup = [&] (
                     gui_printf(buffer);
                 } else { // FORNOW: horrifying; needs at least a variant of stb_easy_font_width that takes an offset; should also do the 2 * for us
 
-                    bool32 selection_is_active = !SELECTION_NOT_ACTIVE();
-
-
-
-
-                    if (selection_is_active) {
+                    if (!SELECTION_NOT_ACTIVE()) {
                         eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
                         eso_color(0.4f, 0.4f, 0.0f);
                         eso_vertex(x_selection_left, y_top);
@@ -334,20 +377,23 @@ auto popup_popup = [&] (
                         eso_vertex(x_selection_left, y_bottom);
                         eso_end();
                     }
+
                     real32 x = COW1._gui_x_curr;
                     real32 y = COW1._gui_y_curr;
                     FORNOW_gui_printf_red_component = 0.0f;
                     gui_printf(buffer);
                     FORNOW_gui_printf_red_component = 1.0f;
-                    if (((int) (_global_screen_state.popup_blinker_time * 5)) % 10 < 5) {
-                        char tmp[4096]; // FORNOW
-                        strcpy(tmp, popup->active_cell_buffer);
-                        tmp[popup->cursor] = '\0';
-                        x += 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
-                        x -= 2.5;
-                        // FORNOW: silly way of getting longer |
-                        _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
-                        _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                    if (SELECTION_NOT_ACTIVE()) { // cursor
+                        if (((int) (_global_screen_state.popup_blinker_time * 5)) % 10 < 5) {
+                            char tmp[4096]; // FORNOW
+                            strcpy(tmp, popup->active_cell_buffer);
+                            tmp[popup->cursor] = '\0';
+                            x += 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
+                            x -= 2.5;
+                            // FORNOW: silly way of getting longer |
+                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                        }
                     }
                 }
             }
