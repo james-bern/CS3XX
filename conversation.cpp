@@ -8,7 +8,11 @@
 // TODO: RAW_EVENT_TYPE_KEY_PRESS
 // TODO: RAW_EVENT_TYPE_MOUSE_PRESS // TODO FIRST TODO FIRST TODO bake these
 
-// TODO: bring back undo/redo
+// TODO: restore back undo/redo
+
+// TODO: restore ability to move cameras
+
+// TODO: restore hot pane persistence when dragging
 
 // TODO: restore click and drag selection functionality
 
@@ -22,8 +26,6 @@
 // TODO: undo redo
 
 // TODO: GUI_MOUSE getting triggered when it shouldn't
-
-
 
 
 
@@ -508,6 +510,7 @@ UserEvent bake_user_event(RawUserEvent raw_event) {
         result.type = get_baked_type_of_raw_key_event(raw_event);
         // todo U CTRL+Z SQ[0-9] SHIFT+U
     } else { ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_MOUSE_PRESS);
+        // TODO: 2D (hotkey vs gui) vs 3D
         // TODO: hot_pane...
         // TODO: gui clicking should happen here (gui shouldn't be the one doing this computation)
         // (fine to draw the raw stuff as preview, but it should really be limited to draw--should not leak into logic
@@ -2630,6 +2633,7 @@ int main() {
 
         }
 
+        #if 0
         { // camera_move, hot_pane
             { // camera_move (using shimmed globals.* global_world_state)
                 if (_global_screen_state.hot_pane == HOT_PANE_2D) {
@@ -2645,6 +2649,7 @@ int main() {
                 if ((global_world_state.modes.click_modifier == CLICK_MODIFIER_WINDOW) && (*awaiting_second_click)) _global_screen_state.hot_pane = HOT_PANE_2D;// FORNOW
             }
         }
+        #endif
 
         { // queue_of_fresh_events_from_user
           // TODO: upgrade to handle multiple events per frame while only drawing gui once (simple simple with a boolean here -- reusing boolean is sus)
