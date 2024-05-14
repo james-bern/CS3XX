@@ -453,7 +453,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM for cameras
+    _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM for cow Camera's
 
     if ((button == GLFW_MOUSE_BUTTON_LEFT) && (action == GLFW_PRESS)) {
         RawUserEvent raw_event; {
@@ -508,6 +508,10 @@ UserEvent bake_user_event(RawUserEvent raw_event) {
         result.type = get_baked_type_of_raw_key_event(raw_event);
         // todo U CTRL+Z SQ[0-9] SHIFT+U
     } else { ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_MOUSE_PRESS);
+        // TODO: hot_pane...
+        // TODO: gui clicking should happen here (gui shouldn't be the one doing this computation)
+        // (fine to draw the raw stuff as preview, but it should really be limited to draw--should not leak into logic
+        // -- as it currently does with the gui
     }
 
     return result;
@@ -559,7 +563,6 @@ UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real3
 
 
 #if 0
-
 UserEvent TODO_callback_mouse_event_helper() {
     vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), _global_screen_state.mouse_in_pixel_coordinates);
     UserEvent result; {
