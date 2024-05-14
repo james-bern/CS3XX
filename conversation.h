@@ -160,8 +160,8 @@ struct UserEvent {
     vec3 dir;
     // };
     // struct {
-    uint32 hover_field_index;
-    // uint32 mouse_character_index;
+    uint32 hover_cell_index;
+    uint32 hover_cursor;
     // };
     // }; 
 
@@ -181,6 +181,10 @@ struct ScreenState {
     bool32   show_event_stack;
 
     uint32   hot_pane;
+
+    vec2 mouse_in_pixel_coordinates;
+    bool32 mouse_shift_held;
+    bool32 mouse_left_held;
 
     char drop_path[256];
 
@@ -218,7 +222,7 @@ struct PopupState {
     // char cells[POPUP_MAX_NUM_CELLS][POPUP_CELL_LENGTH];
     char active_cell_buffer[POPUP_CELL_LENGTH];
 
-    uint32 index_of_active_cell;
+    uint32 active_cell_index;
     uint32 cursor;
     uint32 selection_cursor;
     // uint32 selection_left;
@@ -228,7 +232,8 @@ struct PopupState {
     void *_active_popup_unique_ID__FORNOW_name0;
 
     bool32 mouse_is_hovering;
-    uint32 hover_field_index;
+    uint32 hover_cell_index;
+    uint32 hover_cursor;
 
     // TODO: checkboxes
 };
@@ -1402,7 +1407,7 @@ bool32 IGNORE_NEW_MESSAGEFS;
 
 #define MESSAGE_MAX_LENGTH 256
 #define MESSAGE_MAX_NUM_MESSAGES 64
-#define MESSAGE_COOLDOWN 256
+#define MESSAGE_COOLDOWN 333
 struct Message {
     char buffer[MESSAGE_MAX_LENGTH];
     uint32 cooldown;

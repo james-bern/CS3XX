@@ -1,3 +1,5 @@
+// TODO: switch entities over to taking vec2's (compression too important)
+
 // consider a setter like SET_ECC_RCS(uint32 enter_mode, uint32 click_mode, uint32 click_modifier, bool32 record_me, bool32 checkpoint_me, bool32 snapshot_me)
 // of ECC(...), RCS(...)
 
@@ -93,9 +95,6 @@
 WorldState global_world_state;
 ScreenState _global_screen_state;
 
-bool32 callback_mouse_shift_held; // TODO (where does this go?)
-bool32 callback_mouse_left_held;
-vec2 callback_mouse_in_pixel_coordinates;
 
 
 // short-name pointers
@@ -221,7 +220,7 @@ vec2 magic_snap(vec2 before) {
                   || (*click_mode == CLICK_MODE_SET_AXIS)
                 )
                 && (*awaiting_second_click)
-                && (callback_mouse_shift_held)) {
+                && (_global_screen_state.mouse_shift_held)) {
             vec2 a = global_world_state.two_click_command.first_click;
             vec2 b = before;
             vec2 r = b - a; 
@@ -232,7 +231,7 @@ vec2 magic_snap(vec2 before) {
         } else if (
                 (*click_mode == CLICK_MODE_CREATE_BOX)
                 && (*awaiting_second_click)
-                && (callback_mouse_shift_held)) {
+                && (_global_screen_state.mouse_shift_held)) {
             // TODO (Felipe): snap square
             result = before;
         }
@@ -254,7 +253,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         for (uint32 k = 0; k < 2 * mesh->num_cosmetic_edges; ++k) eso_vertex(mesh->vertex_positions, mesh->cosmetic_edges[k]);
         eso_end();
     }
-    for (uint32 pass = 0; pass <= 1; ++pass) {
+    for (uint32 pass = 0; pass < 2; ++pass) {
         eso_begin(PVM_3D, (!_global_screen_state.show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
 
         mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
@@ -390,8 +389,8 @@ Queue<UserEvent> queue_of_fresh_events_from_user;
 // TODO clean up
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
-    if ((action == GLFW_PRESS) && (key == GLFW_KEY_LEFT_SHIFT)) callback_mouse_shift_held = true;
-    if ((action == GLFW_RELEASE) && (key == GLFW_KEY_LEFT_SHIFT)) callback_mouse_shift_held = false;
+    if ((action == GLFW_PRESS) && (key == GLFW_KEY_LEFT_SHIFT)) _global_screen_state.mouse_shift_held = true;
+    if ((action == GLFW_RELEASE) && (key == GLFW_KEY_LEFT_SHIFT)) _global_screen_state.mouse_shift_held = false;
 
 
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
@@ -415,7 +414,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
 }
 
 UserEvent callback_mouse_event_helper() {
-    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), callback_mouse_in_pixel_coordinates);
+    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), _global_screen_state.mouse_in_pixel_coordinates);
     UserEvent result; {
         result = {};
         result.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
@@ -427,12 +426,12 @@ UserEvent callback_mouse_event_helper() {
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
 
-    callback_mouse_in_pixel_coordinates.x = (real32) (xpos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
-    callback_mouse_in_pixel_coordinates.y = (real32) (ypos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    _global_screen_state.mouse_in_pixel_coordinates.x = (real32) (xpos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
+    _global_screen_state.mouse_in_pixel_coordinates.y = (real32) (ypos);// * COW0._window_macbook_retina_scale_ONLY_USED_FOR_FIXING_CURSOR_POS;
 
     // // mouse held generates mouse presses
     // FORNOW repeated from callback_mouse_button
-    if ((_global_screen_state.hot_pane == HOT_PANE_2D) && (callback_mouse_left_held) && (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_WINDOW))) {
+    if ((_global_screen_state.hot_pane == HOT_PANE_2D) && (_global_screen_state.mouse_left_held) && (((global_world_state.modes.click_mode == CLICK_MODE_SELECT) || (global_world_state.modes.click_mode == CLICK_MODE_DESELECT)) && (global_world_state.modes.click_modifier != CLICK_MODIFIER_WINDOW))) {
         UserEvent event; {
             event = callback_mouse_event_helper();
             event.mouse_held = true;
@@ -447,14 +446,14 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
 
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { 
-            callback_mouse_left_held = true;
+            _global_screen_state.mouse_left_held = true;
 
             if (popup->mouse_is_hovering) {
                 UserEvent event; {
                     event = {};
                     event.type = USER_EVENT_TYPE_GUI_MOUSE_PRESS;
-                    event.hover_field_index = popup->hover_field_index; 
-                    // event.mouse_character_index = TODO; 
+                    event.hover_cell_index = popup->hover_cell_index; 
+                    event.hover_cursor = popup->hover_cursor; 
                 }
                 queue_enqueue(&queue_of_fresh_events_from_user, event);
             } else if (_global_screen_state.hot_pane == HOT_PANE_2D) {
@@ -468,14 +467,14 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
                 event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS;
                 {
                     mat4 inverse_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
-                    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), callback_mouse_in_pixel_coordinates);
+                    vec2 mouse_s_NDC = transformPoint(_window_get_NDC_from_Screen(), _global_screen_state.mouse_in_pixel_coordinates);
                     event.o = transformPoint(inverse_PV_3D, V3(mouse_s_NDC, -1.0f));
                     event.dir = normalized(transformPoint(inverse_PV_3D, V3(mouse_s_NDC,  1.0f)) - event.o);
                 }
                 queue_enqueue(&queue_of_fresh_events_from_user, event);
             }
         } else if (action == GLFW_RELEASE) {
-            callback_mouse_left_held = false;
+            _global_screen_state.mouse_left_held = false;
         }
     }
 }
@@ -1359,25 +1358,45 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
     } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE_PRESS) {
         // NOTE: this is shady af
         // TODO: popup should expose an API for switching between fields
-        // (however, this is find for protoyping)
-        bool32 shift;
-        uint32 reps;
-        {
-            if (event.hover_field_index == popup->index_of_active_cell) {
-                shift = false;
-                reps = 0;
-            } else if (event.hover_field_index > popup->index_of_active_cell) {
-                shift = false;
-                reps = event.hover_field_index - popup->index_of_active_cell;
-            } else { ASSERT(event.hover_field_index < popup->index_of_active_cell);
-                shift = true;
-                reps = popup->index_of_active_cell - event.hover_field_index;
-            }
-        }
-        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
-        for (uint rep = 0; rep < reps; ++rep) standard_event_process(KEY_event(GLFW_KEY_TAB, false, shift));
-        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
+        // (however, the approach below (May 15, 2024) of event spamming is fine for protoyping)
         result.record_me = true;
+        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true; {
+            { // hover_cell_index
+                bool32 shift;
+                uint32 reps;
+                {
+                    if (event.hover_cell_index == popup->active_cell_index) {
+                        shift = false;
+                        reps = 0;
+                    } else if (event.hover_cell_index > popup->active_cell_index) {
+                        shift = false;
+                        reps = event.hover_cell_index - popup->active_cell_index;
+                    } else { ASSERT(event.hover_cell_index < popup->active_cell_index);
+                        shift = true;
+                        reps = popup->active_cell_index - event.hover_cell_index;
+                    }
+                }
+                for (uint rep = 0; rep < reps; ++rep) standard_event_process(KEY_event(GLFW_KEY_TAB, false, shift));
+            }
+            { // hover_cursor TODO first click into another cell buggered
+                // TODO: right and left side of character (middle of characters)
+                uint32 key;
+                uint32 reps;
+                {
+                    if (event.hover_cursor == popup->cursor) {
+                        key = 0; // whatever
+                        reps = 0;
+                    } else if (event.hover_cursor > popup->cursor) {
+                        key = GLFW_KEY_RIGHT;
+                        reps = event.hover_cursor - popup->cursor;
+                    } else { ASSERT(event.hover_cursor < popup->cursor);
+                        key = GLFW_KEY_LEFT;
+                        reps = popup->cursor - event.hover_cursor;
+                    }
+                }
+                for (uint rep = 0; rep < reps; ++rep) standard_event_process(KEY_event(key));
+            }
+        } _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
     }
 
     //////////////////
@@ -2363,7 +2382,7 @@ void _spoof_KEY_event(char *string) {
 void _SPOOF_CHAIN_END_TO_END_TEST() {
     if (1) {
         if (1) {
-            // _spoof_KEY_event("CZ100"); return;
+            _spoof_KEY_event("CZ100"); return;
             _spoof_KEY_event('O', true);
             _spoof_KEY_event("splash.dxf");
             _spoof_KEY_event(GLFW_KEY_ENTER);
@@ -2526,7 +2545,7 @@ int main() {
             }
 
             if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-                _global_screen_state.hot_pane = (callback_mouse_in_pixel_coordinates.x <= window_get_width() / 2) ? HOT_PANE_2D : HOT_PANE_3D;
+                _global_screen_state.hot_pane = (_global_screen_state.mouse_in_pixel_coordinates.x <= window_get_width() / 2) ? HOT_PANE_2D : HOT_PANE_3D;
 
                 if ((global_world_state.modes.click_modifier == CLICK_MODIFIER_WINDOW) && (*awaiting_second_click)) _global_screen_state.hot_pane = HOT_PANE_2D;// FORNOW
             }

@@ -40,7 +40,7 @@ auto popup_popup = [&] (
     /////////////////////////////////////////////////////////////////
 
     auto LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER = [&]() {
-        uint32 d = popup->index_of_active_cell;
+        uint32 d = popup->active_cell_index;
         memset(popup->active_cell_buffer, 0, POPUP_CELL_LENGTH);
         if (cell_type[d] == CELL_TYPE_REAL32) {
             sprintf(popup->active_cell_buffer, "%g", *((real32 *) value[d]));
@@ -50,7 +50,7 @@ auto popup_popup = [&] (
     };
 
     auto WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE = [&]() {
-        uint32 d = popup->index_of_active_cell;
+        uint32 d = popup->active_cell_index;
         if (cell_type[d] == CELL_TYPE_REAL32) {
             *((real32 *) value[d]) = strtof(popup->active_cell_buffer, NULL);
         } else { ASSERT(cell_type[d] == CELL_TYPE_CSTRING);
@@ -74,18 +74,18 @@ auto popup_popup = [&] (
     if (popup->_active_popup_unique_ID__FORNOW_name0 != _name0) {
         popup->_active_popup_unique_ID__FORNOW_name0 = _name0;
         if (zero_on_load_up) CLEAR_ALL_VALUES_TO_ZERO();
-        popup->index_of_active_cell = 0;
+        popup->active_cell_index = 0;
         LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
         popup->cursor = (uint32) strlen(popup->active_cell_buffer);
         popup->selection_cursor = 0;
-        popup->_type_of_active_cell = cell_type[popup->index_of_active_cell];
+        popup->_type_of_active_cell = cell_type[popup->active_cell_index];
     }
 
     // KEY PRESS ////////////////////////////////////////////////////
 
 
-    ASSERT(popup->index_of_active_cell >= 0);
-    ASSERT(popup->index_of_active_cell <= num_cells);
+    ASSERT(popup->active_cell_index >= 0);
+    ASSERT(popup->active_cell_index <= num_cells);
     ASSERT(popup->cursor >= 0);
     ASSERT(popup->cursor <= POPUP_CELL_LENGTH);
     ASSERT(popup->selection_cursor >= 0);
@@ -100,26 +100,25 @@ auto popup_popup = [&] (
         bool32 shift = event.shift;
         bool32 super = event.super;
 
-
         bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
         if (key == GLFW_KEY_TAB) {
             _tab_hack_so_aliases_not_introduced_too_far_up = true;
-            { // change index_of_active_cell
+            { // change active_cell_index
                 if (!shift) {
-                    ++popup->index_of_active_cell;
+                    ++popup->active_cell_index;
                 } else {
-                    if (popup->index_of_active_cell != 0) {
-                        --popup->index_of_active_cell;
+                    if (popup->active_cell_index != 0) {
+                        --popup->active_cell_index;
                     } else {
-                        popup->index_of_active_cell = num_cells - 1;
+                        popup->active_cell_index = num_cells - 1;
                     }
                 }
-                popup->index_of_active_cell = MODULO(popup->index_of_active_cell, num_cells);
+                popup->active_cell_index = MODULO(popup->active_cell_index, num_cells);
             }
             LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
             popup->cursor = (uint32) strlen(popup->active_cell_buffer);
             popup->selection_cursor = 0;
-            popup->_type_of_active_cell = cell_type[popup->index_of_active_cell];
+            popup->_type_of_active_cell = cell_type[popup->active_cell_index];
         }
 
         char *active_cell = popup->active_cell_buffer;
@@ -224,13 +223,15 @@ auto popup_popup = [&] (
 
 
     popup->mouse_is_hovering = false; // TODO: rearrange popup_lambda to be less awful
+                                      // popup->hover_cell_index
+                                      // popup->hover_cursor
     {
         for (uint32 d = 0; d < num_cells; ++d) { // gui_printf
             if (!name[d]) continue;
 
             static char buffer[512]; {
                 // FORNOW gross;
-                if (d == popup->index_of_active_cell) {
+                if (d == popup->active_cell_index) {
                     sprintf(buffer, "%s %s", name[d], popup->active_cell_buffer);
                 } else {
                     if (cell_type[d] == CELL_TYPE_REAL32) {
@@ -241,8 +242,10 @@ auto popup_popup = [&] (
                 }
             }
 
-            real32 x_mouse = callback_mouse_in_pixel_coordinates.x;
-            real32 y_mouse = callback_mouse_in_pixel_coordinates.y;
+            real32 X_MARGIN_OFFSET = COW1._gui_x_curr;
+
+            real32 x_mouse = _global_screen_state.mouse_in_pixel_coordinates.x;
+            real32 y_mouse = _global_screen_state.mouse_in_pixel_coordinates.y;
 
             real32 x_field_left;
             real32 x_field_right;
@@ -252,10 +255,11 @@ auto popup_popup = [&] (
             real32 y_bottom;
             {
                 static char tmp[4096]; // FORNOW
-                strcpy(tmp, &buffer[strlen(name[d]) + 1]); // TODO: needs to take any cell
+                strcpy(tmp, &buffer[strlen(name[d]) + 1]); // + 1 for ' '
 
-                x_field_left = COW1._gui_x_curr + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" "));
+                x_field_left = X_MARGIN_OFFSET + 2 * (stb_easy_font_width(name[d]) + stb_easy_font_width(" "));
                 x_field_right = x_field_left + 2 * stb_easy_font_width(tmp) - 2.5f;
+
                 tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
                 x_selection_right = x_field_left + 2 * stb_easy_font_width(tmp) - 2.5f;
                 tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
@@ -265,9 +269,26 @@ auto popup_popup = [&] (
             }
 
             BoundingBox field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            if (bounding_box_contains(field_box, callback_mouse_in_pixel_coordinates)) {
+            if (bounding_box_contains(field_box, _global_screen_state.mouse_in_pixel_coordinates)) {
                 popup->mouse_is_hovering = true;
-                popup->hover_field_index = d;
+                popup->hover_cell_index = d;
+                popup->hover_cursor = strlen(buffer) - (strlen(name[d]) - 1);
+                { // popup->hover_cursor
+                    static char tmp[4096]; // FORNOW
+                    strcpy(tmp, buffer);
+                    conversation_messagef("---%f\n", x_mouse);
+                    for (uint32 i = strlen(buffer) - 1; i > strlen(name[d]) + 1; --i) {
+                        tmp[i] = '\0';
+                        real32 right = X_MARGIN_OFFSET + 2 * stb_easy_font_width(tmp) - 2.5f;
+                        int curse = (i - strlen(name[d]) - 2);
+                        conversation_messagef("%d : %f\n", curse, right);
+                        if (x_mouse > right) {
+                            conversation_messagef("=> %d", curse);
+                            popup->hover_cursor = (uint32) curse;
+                            break;
+                        }
+                    }
+                }
             }
 
             // eso_begin(globals.NDC_from_Screen, SOUP_LINE_LOOP, 5.0f);
@@ -279,7 +300,7 @@ auto popup_popup = [&] (
             // eso_end();
             // eso_begin(globals.NDC_from_Screen, SOUP_POINTS, 10.0f);
             // eso_color(1.0f, 0.0f, 1.0f);
-            // eso_vertex(callback_mouse_in_pixel_coordinates);
+            // eso_vertex(_global_screen_state.mouse_in_pixel_coordinates);
             // eso_end();
 
             bool32 hot = IS_BETWEEN(x_mouse, x_field_left, x_field_right) && IS_BETWEEN(y_mouse, y_top, y_bottom);
@@ -294,7 +315,7 @@ auto popup_popup = [&] (
             }
 
             if (name[d]) {
-                if (popup->index_of_active_cell != d) {
+                if (popup->active_cell_index != d) {
                     // TODO: don't use gui_printf here
                     gui_printf(buffer);
                 } else { // FORNOW: horrifying; needs at least a variant of stb_easy_font_width that takes an offset; should also do the 2 * for us
