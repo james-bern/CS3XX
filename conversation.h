@@ -36,29 +36,31 @@ struct {
 #define ENTER_MODE_SET_ORIGIN         7
 #define ENTER_MODE_OFFSET_PLANE_BY    8
 
-#define CLICK_MODE_NONE              0
-#define CLICK_MODE_SELECT            1
-#define CLICK_MODE_DESELECT          2
-#define CLICK_MODE_SET_ORIGIN        3
-#define CLICK_MODE_SET_AXIS          4
-#define CLICK_MODE_MEASURE           5
-#define CLICK_MODE_CREATE_LINE       6
-#define CLICK_MODE_CREATE_BOX        7
-#define CLICK_MODE_CREATE_CIRCLE     8
-#define CLICK_MODE_CREATE_FILLET     9
+#define CLICK_MODE_NONE               0
+#define CLICK_MODE_SELECT             1
+#define CLICK_MODE_DESELECT           2
+#define CLICK_MODE_SET_ORIGIN         3
+#define CLICK_MODE_SET_AXIS           4
+#define CLICK_MODE_MEASURE            5
+#define CLICK_MODE_CREATE_LINE        6
+#define CLICK_MODE_CREATE_BOX         7
+#define CLICK_MODE_CREATE_CIRCLE      8
+#define CLICK_MODE_CREATE_FILLET      9
 #define CLICK_MODE_MOVE_DXF_ENTITIES 10
 #define CLICK_MODE_X_MIRROR          11
 #define CLICK_MODE_Y_MIRROR          12
+#define CLICK_MODE_SET_QUALITY       13
 
-#define CLICK_MODIFIER_NONE                  0
-#define CLICK_MODIFIER_CONNECTED             1
-#define CLICK_MODIFIER_QUALITY               2
-#define CLICK_MODIFIER_WINDOW                3
-#define CLICK_MODIFIER_SNAP_TO_CENTER_OF     4
-#define CLICK_MODIFIER_SNAP_TO_END_OF        5
-#define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF     6
-#define CLICK_MODIFIER_SNAP_PERPENDICULAR_TO 7
-#define CLICK_MODIFIER_EXACT_X_Y_COORDINATES 8 // TODO
+#define CLICK_MODIFIER_NONE                   0
+#define CLICK_MODIFIER_CONNECTED              1
+#define CLICK_MODIFIER_QUALITY                2
+#define CLICK_MODIFIER_WINDOW                 3
+#define CLICK_MODIFIER_SNAP_TO_CENTER_OF      4
+#define CLICK_MODIFIER_SNAP_TO_END_OF         5
+#define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF      6
+#define CLICK_MODIFIER_SNAP_PERPENDICULAR_TO  7
+#define CLICK_MODIFIER_EXACT_X_Y_COORDINATES  8
+#define CLICK_MODIFIER_SELECTED               9
 
 #define DXF_COLOR_TRAVERSE        0
 #define DXF_COLOR_QUALITY_1       1
@@ -96,9 +98,12 @@ struct {
 #define RAW_USER_EVENT_TYPE_MOUSE_PRESS 2
 // TODO: drag?
 
-#define CELL_TYPE_NONE    0
-#define CELL_TYPE_REAL32  1
-#define CELL_TYPE_CSTRING 2
+#define POPUP_CELL_TYPE_NONE    0
+#define POPUP_CELL_TYPE_REAL32  1
+#define POPUP_CELL_TYPE_CSTRING 2
+
+#define POPUP_CELL_LENGTH 256
+    #define POPUP_MAX_NUM_CELLS 4
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -214,7 +219,24 @@ struct ScreenState {
 };
 
 struct PopupState {
-    #define POPUP_CELL_LENGTH 256
+    uint8 cell_type[POPUP_MAX_NUM_CELLS];
+    char *name[POPUP_MAX_NUM_CELLS];
+    void *value[POPUP_MAX_NUM_CELLS];
+    uint32 num_cells;
+
+    char active_cell_buffer[POPUP_CELL_LENGTH];
+    uint32 active_cell_index;
+    uint32 cursor;
+    uint32 selection_cursor;
+
+    uint32 _type_of_active_cell;
+    void *_active_popup_unique_ID__FORNOW_name0;
+
+    bool32 mouse_is_hovering;
+    uint32 hover_cell_index;
+    uint32 hover_cursor;
+
+
     real32 extrude_add_out_length;
     real32 extrude_add_in_length;
     real32 extrude_cut_in_length;
@@ -236,25 +258,6 @@ struct PopupState {
     real32 revolve_cut_dummy;
     char open_filename[POPUP_CELL_LENGTH];
     char save_filename[POPUP_CELL_LENGTH];
-
-    #define POPUP_MAX_NUM_CELLS 4
-    // char cells[POPUP_MAX_NUM_CELLS][POPUP_CELL_LENGTH];
-    char active_cell_buffer[POPUP_CELL_LENGTH];
-
-    uint32 active_cell_index;
-    uint32 cursor;
-    uint32 selection_cursor;
-    // uint32 selection_left;
-    // uint32 selection_right;
-
-    uint32 _type_of_active_cell;
-    void *_active_popup_unique_ID__FORNOW_name0;
-
-    bool32 mouse_is_hovering;
-    uint32 hover_cell_index;
-    uint32 hover_cursor;
-
-    // TODO: checkboxes
 };
 
 
@@ -282,6 +285,7 @@ struct WorldState {
         uint32 click_mode;
         uint32 click_modifier;
         uint32 enter_mode;
+        uint32 click_color;
     } modes;
 
     struct {
