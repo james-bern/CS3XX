@@ -1,3 +1,9 @@
+// TODO: toolbox you can click on that copies over a sketch (like the counter sunk nuts
+// TODO: ability to scroll through toolbox with mouse
+// TODO: switch key_lambda over to strings like the scripts "a" "A" "^a" "^A"
+
+// 'P'
+
 // // things we are unwilling to compromise on
 // frame-perfect UI / graphics (except first frame FORNOW)
 // ability to churn through a bunch of events in a single frame (either by user interacting really fast, spoofing, or undo/redo-ing)
@@ -2369,31 +2375,10 @@ void conversation_draw() {
 //////////////////////////////////////////////////
 // TODO: SPOOF ///////////////////////////////////
 //////////////////////////////////////////////////
-void todo_spoof() {
-    // m2d
-    // m3d
-    // gui
+void script_process(char *string) {
+    // TODO: gui
     // TODOLATER (weird 'X' version): char *string = "^osplash.dxf\nyscx2020\ne\t50";
     #define TAG_LENGTH 3
-
-    // char *string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\n";
-    // char *string = "cz0123456789";
-    char *string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
-    #if 0
-    _spoof_KEY_event("SQ0");
-    _spoof_KEY_event(GLFW_KEY_DELETE);
-    _spoof_KEY_event(GLFW_KEY_ESCAPE);
-    _spoof_KEY_event('A', false, true);
-    _spoof_KEY_event('Z');
-    _spoof_MOUSE_2D_event(-5.0f, 10.0f);
-    _spoof_KEY_event('S');
-    _spoof_KEY_event('C');
-    _spoof_MOUSE_2D_event(70.0f, 4.0f);
-    _spoof_KEY_event('R');
-    _spoof_KEY_event(GLFW_KEY_ENTER);
-    // for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U');
-    // for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U', false, true);
-    #endif
     bool32 super = false;
     for (uint32 i = 0; string[i]; ++i) {
         char c = string[i];
@@ -2454,155 +2439,15 @@ void todo_spoof() {
 // MAIN() ////////////////////////////////////////
 //////////////////////////////////////////////////
 
-// TODO: load is no longer special; we should be able to undo / redo across it just like anything else
-// TODO: don't worry about user experience yet (it will grow to include panels toolbox etc)
-
-#if 0
-
-void _spoof_KEY_event(uint32 key, bool32 super = false, bool32 shift = false) {
-    queue_enqueue(&queue_of_fresh_events_from_user, KEY_event(key, super, shift));
-}
-
-void _spoof_MOUSE_2D_event(real32 mouse_x, real32 mouse_y) {
-    queue_enqueue(&queue_of_fresh_events_from_user, MOUSE_2D_event(mouse_x, mouse_y));
-}
-
-void _spoof_MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir_y, real32 dir_z) {
-    queue_enqueue(&queue_of_fresh_events_from_user, MOUSE_3D_event(o_x, o_y, o_z, dir_x, dir_y, dir_z));
-}
-
-void _spoof_KEY_event(char *string) {
-    for (uint32 i = 0; i < string[i]; ++i) {
-        char key = string[i];
-        if (('a' <= key) && (key <= 'z')) key = 'A' + (key - 'a');
-        _spoof_KEY_event(key);
-    }
-}
-
-void INIT_SPOOF_CHAIN_END_TO_END_TEST() {
-    // TODO: key event string that can handle shift and super ~^
-    if (1) {
-        if (1) {
-            // _spoof_KEY_event("CZ100"); return;
-            _spoof_KEY_event('O', true);
-            _spoof_KEY_event("splash.dxf");
-            return;
-            _spoof_KEY_event(GLFW_KEY_ENTER);
-            if (1) {
-                _spoof_KEY_event('Y');
-                _spoof_KEY_event('S');
-                _spoof_KEY_event('C');
-                _spoof_MOUSE_2D_event( 20.0,  20.0);
-                _spoof_MOUSE_2D_event( 16.0,  16.0);
-                _spoof_MOUSE_2D_event( 16.0, -16.0);
-                _spoof_MOUSE_2D_event(-16.0, -16.0);
-                _spoof_MOUSE_2D_event(-16.0,  16.0);
-                _spoof_KEY_event('E');
-                _spoof_KEY_event('5');
-                _spoof_KEY_event('0');
-                _spoof_KEY_event(GLFW_KEY_ENTER); // FORNOW
-                _spoof_MOUSE_3D_event(50.0f, 93.0f, 76.0f, -0.47f, -0.43f, -0.77f);
-                _spoof_MOUSE_2D_event(16.4f, -9.5f);
-                _spoof_KEY_event('E', false, true);
-                _spoof_KEY_event('4');
-                _spoof_KEY_event('7');
-                _spoof_KEY_event(GLFW_KEY_ENTER); // FORNOW
-                _spoof_KEY_event('C');
-                _spoof_MOUSE_2D_event(16.0f, -16.0f);
-                _spoof_KEY_event(GLFW_KEY_TAB);
-                _spoof_KEY_event(GLFW_KEY_TAB);
-                _spoof_KEY_event("100");
-                _spoof_KEY_event(GLFW_KEY_ENTER);
-                _spoof_KEY_event('S');
-                _spoof_KEY_event('C');
-                _spoof_MOUSE_2D_event(32.0f, -16.0f);
-                _spoof_MOUSE_3D_event(74.0f, 132.0f, 113.0f, -0.4f, -0.6f, -0.7f);
-                _spoof_KEY_event('E', false, true);
-                _spoof_KEY_event('6');
-                _spoof_KEY_event('0');
-                _spoof_KEY_event(GLFW_KEY_ENTER);
-                _spoof_KEY_event('O', true);
-                _spoof_KEY_event("omax.dxf");
-                _spoof_KEY_event(GLFW_KEY_ENTER);
-                _spoof_KEY_event("SQ1YE3");
-                _spoof_KEY_event(GLFW_KEY_ENTER);
-                _spoof_KEY_event("SQ0");
-                _spoof_KEY_event(GLFW_KEY_DELETE);
-                _spoof_KEY_event(GLFW_KEY_ESCAPE);
-                //_spoof_KEY_event('C');
-                //_spoof_KEY_event('Z');
-                //_spoof_KEY_event('0');
-                //_spoof_KEY_event('1');
-                //_spoof_KEY_event('2');
-                //_spoof_KEY_event('3');
-                //_spoof_KEY_event('4');
-                //_spoof_KEY_event('5');
-                //_spoof_KEY_event('6');
-                //_spoof_KEY_event('7');
-                //_spoof_KEY_event('8');
-                //_spoof_KEY_event('9');
-                _spoof_KEY_event('A', false, true);
-                _spoof_KEY_event('Z');
-                _spoof_MOUSE_2D_event(-5.0f, 10.0f);
-                _spoof_KEY_event('S');
-                _spoof_KEY_event('C');
-                _spoof_MOUSE_2D_event(70.0f, 4.0f);
-                _spoof_KEY_event('R');
-                _spoof_KEY_event(GLFW_KEY_ENTER);
-                // for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U');
-                // for (uint32 i = 0; i < 1024; ++i) _spoof_KEY_event('U', false, true);
-
-                //spoof_KEY_event('U');
-                //spoof_KEY_event('U');
-                //spoof_KEY_event('U');
-                //spoof_KEY_event('U');
-                //spoof_KEY_event('U', false, true);
-                //spoof_KEY_event('U', false, true);
-                //spoof_KEY_event('U', false, true);
-                //spoof_KEY_event('U', false, true);
-            }
-        } else {
-            _spoof_KEY_event('O', true);
-            _spoof_KEY_event("fidget.dxf");
-            _spoof_KEY_event(GLFW_KEY_ENTER);
-            _spoof_KEY_event('L');
-            _spoof_KEY_event('Z');
-        }
-        #if 0 // TODO: update to use spoof api
-        else if (1) {
-            conversation_dxf_load("omax.dxf");
-            if (1) {
-                UserEvent event = {};
-                event.type = USER_EVENT_TYPE_HOTKEY_PRESS;
-                for (int i = 0; i < 5; ++i) {
-                    spoof_KEY_event('Y');
-                    spoof_KEY_event('S');
-                    spoof_KEY_event('Q');
-                    spoof_KEY_event('0' + i);
-                    spoof_KEY_event('E');
-                    spoof_KEY_event('1' + i);
-                    spoof_KEY_event(GLFW_KEY_ENTER);
-                }
-            }
-        } else if (0) {
-            conversation_dxf_load("ik.dxf");
-        } else if (0) {
-            conversation_dxf_load("debug.dxf");
-        }
-        #endif
-    }
-    // conversation_messagef("type h for help `// pre-alpha " __DATE__ " " __TIME__);
-}
-
-#endif
-
 int main() {
     // _window_set_size(1.5 * 640.0, 1.5 * 360.0); // TODO the first frame crap gets buggered
 
     glfwHideWindow(COW0._window_glfw_window);
 
-    // INIT_SPOOF_CHAIN_END_TO_END_TEST();
-    todo_spoof();
+    // char *string = "cz0123456789";
+    char *string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
+    script_process(string);
+
     init_cameras(); // FORNOW
 
     {
