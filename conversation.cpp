@@ -2338,8 +2338,12 @@ void todo_spoof() {
     // m3d
     // gui
     // TODOLATER (weird 'X' version): char *string = "^osplash.dxf\nyscx2020\ne\t50";
+    #define TAG_LENGTH 3
 
-    char *string = "^osplash.dxf\nysc{m2d 20 20}\ne\t50\n";
+    char *string = "^osplash.dxf\n"
+                    "ysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16}e50\n"
+                    // TODO m3d
+                    ;
     bool32 super = false;
     for (uint32 i = 0; string[i]; ++i) {
         char c = string[i];
@@ -2352,13 +2356,11 @@ void todo_spoof() {
                     while (string[++next_i] != '}') {}
                 }
                 {
-                    ++i;
-                    char tag[4] = { string[i], string[i + 1], string[i + 2], '\0' };
-                    i += 3;
-                    if (strcmp(tag, "m2d") == 0) {
-                        printf("asdf");
+                    char *tag = &string[i + 1];
+                    char *params = &string[i + 1 + TAG_LENGTH];
+                    if (strncmp(tag, "m2d", TAG_LENGTH) == 0) {
                         instabaked_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
-                        sscanf(&string[i], "%f %f", &instabaked_event.mouse.x, &instabaked_event.mouse.y);
+                        sscanf(params, "%f %f", &instabaked_event.mouse.x, &instabaked_event.mouse.y);
                     }
                 }
                 i = next_i;
