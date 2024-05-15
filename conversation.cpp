@@ -406,7 +406,7 @@ void drop_callback(GLFWwindow *, int count, const char **paths) {
         char *filename = (char *) paths[0];
         conversation_load(filename);
         { // conversation_set_drop_path(filename)
-            for (uint32 i = 0; i < strlen(filename); ++i) {
+            for (uint32 i = 0; filename[i]; ++i) {
                 _global_screen_state.drop_path[i] = filename[i];
                 if (filename[i] == '.') {
                     while (
@@ -583,38 +583,12 @@ UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real3
 /////////////////////////////////////////////////////////
 // PROCESSING A SINGLE STANDARD EVENT ///////////////////
 /////////////////////////////////////////////////////////
-
-// NOTE: this function is called on "fresh event" (direct from user) AND by undo and redo routines
-// NOTE: this sometimes writes to standard_event (setting its category)--it never reads
-//       (FORNOW: it will (over-)write the same data every time. *shrug*)
-//       really it should just write on the fresh event, and then leave alone for undo/redo
+// NOTE: this function is (a teeny bit) recursive D;
 // NOTE: this sometimes modifies global_world_state.dxf
-// NOTE: this sometimes modifies global_world_state.mesh (and frees what used to be there)
-
-
-// TODO: let's make this not take a pointer and instead return a StandardEventProcessResult
-// TODO: think for a  while abou the macro order
-// on the run it seemed like it would be nice to put hotkeys first, but then some keys should be eaten by the popup
-// there may not be a perfect answer here
-// NOTE: this will work, you know whether the active_cell_buffer is a CELL_TYPE_CSTRING, and therefore, what it should eat
-//       same bool/bool-returning function can be used
-// XXX but regardless, not taking a pointer is a good first step
-// TODO: create global DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME
-// XXX: replace the _standard_event and effective_event system with one true event (NOT passed by pointer) and a StandardEventProcessResult
-// TODO: replace convenience booleans with lambda functions that capture the one true event by reference
-
+// NOTE: this sometimes modifies global_world_state.mesh
 // NOTE (May 5, 2024): 
 // - returns flags for how the fresh event processor should deal with this event
 // - is the event is marked as a snapshotted event (by construction, only possible for non-fresh events), then skips the expensive stuff
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-// TRANSFORMATION LAYER (EFFECTIVE_EVENT) ////////////////////////////////////////////////////////////
-// NOTE: POPUP deals with some events all by itself (type 1: textbox events; type 2: terminal enter events
-// and transforms others into effective events that are handled by the logic below ('X' -> mouse click)
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-
 
 struct StandardEventProcessResult {
     bool32 record_me;
@@ -622,7 +596,6 @@ struct StandardEventProcessResult {
     bool32 snapshot_me;
 };
 
-// NOTE: this function is (a teeny bit) recursive D;
 StandardEventProcessResult standard_event_process(const UserEvent event) {
     // computed from function arguments
     bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
@@ -1597,7 +1570,6 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
     return result;
 }
 
-
 //////////////////////////////////////////////////
 // HISTORY ///////////////////////////////////////
 //////////////////////////////////////////////////
@@ -1610,8 +1582,6 @@ void history_redo() { conversation_messagef("[DEBUG] history disabled"); }
 void history_debug_draw() { gui_printf("[DEBUG] history disabled"); }
 //
 #else
-
-// TODO: consider different ElephantStack internals
 
 struct {
     ElephantStack<UserEvent> recorded_user_events;
@@ -1742,7 +1712,6 @@ void history_redo() {
     IGNORE_NEW_MESSAGEFS = false;
     conversation_messagef("[redo] success");
 }
-
 
 void _history_user_event_draw_helper(UserEvent *event) {
     char message[256]; {
@@ -1893,7 +1862,6 @@ void freshly_baked_event_process(UserEvent freshly_baked_event) {
         history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(freshly_baked_event);
     }
 }
-
 
 //////////////////////////////////////////////////
 // DRAW() ////////////////////////////////////////
@@ -2360,6 +2328,38 @@ void conversation_draw() {
     }
 }
 
+//////////////////////////////////////////////////
+// TODO: SPOOF ///////////////////////////////////
+//////////////////////////////////////////////////
+void todo_spoof() {
+    char *string = "^osplash.dxf\nysc";
+    // char *string = "^osplash.dxf\nysc{mouse_2d 20 20}e50\n";
+    bool32 super = false;
+    for (uint32 i = 0; string[i]; ++i) {
+        char c = string[i];
+        if (c == '^') {
+            super = true;
+        } else {
+            RawUserEvent event = {};
+            event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
+            event.super = super;
+            {
+                if ('a' <= c && c <= 'z') {
+                    event.key = 'A' + (c - 'a');
+                } else if ('A' <= c && c <= 'Z') {
+                    event.shift = true;
+                    event.key = c;
+                } else if (c == '\n') {
+                    event.key = GLFW_KEY_ENTER;
+                } else {
+                    event.key = c;
+                }
+            }
+            queue_enqueue(&raw_user_event_queue, event);
+            super = false;
+        }
+    }
+}
 
 //////////////////////////////////////////////////
 // MAIN() ////////////////////////////////////////
@@ -2383,8 +2383,7 @@ void _spoof_MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, rea
 }
 
 void _spoof_KEY_event(char *string) {
-    uint32 n = (uint32) strlen(string);
-    for (uint32 i = 0; i < n; ++i) {
+    for (uint32 i = 0; i < string[i]; ++i) {
         char key = string[i];
         if (('a' <= key) && (key <= 'z')) key = 'A' + (key - 'a');
         _spoof_KEY_event(key);
@@ -2514,6 +2513,7 @@ int main() {
     glfwHideWindow(COW0._window_glfw_window);
 
     // INIT_SPOOF_CHAIN_END_TO_END_TEST();
+    todo_spoof();
     init_cameras(); // FORNOW
 
     {

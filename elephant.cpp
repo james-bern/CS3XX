@@ -1,3 +1,4 @@
+// TODO: consider different ElephantStack internals
 
 template <typename T> struct ElephantStack {
     Stack<T> _undo_stack;
