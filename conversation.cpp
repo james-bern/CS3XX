@@ -35,6 +35,8 @@
 
 // TODO: move aesthetics to an AestheticsState
 
+// TODO: click and drag in the text boxes
+
 
 
 
@@ -2332,31 +2334,57 @@ void conversation_draw() {
 // TODO: SPOOF ///////////////////////////////////
 //////////////////////////////////////////////////
 void todo_spoof() {
-    char *string = "^osplash.dxf\nysc";
-    // char *string = "^osplash.dxf\nysc{mouse_2d 20 20}e50\n";
+    // m2d
+    // m3d
+    // gui
+    // TODOLATER (weird 'X' version): char *string = "^osplash.dxf\nyscx2020\ne\t50";
+
+    char *string = "^osplash.dxf\nysc{m2d 20 20}\ne\t50\n";
     bool32 super = false;
     for (uint32 i = 0; string[i]; ++i) {
         char c = string[i];
         if (c == '^') {
             super = true;
+        } else if (c == '{') {
+            UserEvent instabaked_event = {}; {
+                uint32 next_i; {
+                    next_i = i;
+                    while (string[++next_i] != '}') {}
+                }
+                {
+                    ++i;
+                    char tag[4] = { string[i], string[i + 1], string[i + 2], '\0' };
+                    i += 3;
+                    if (strcmp(tag, "m2d") == 0) {
+                        printf("asdf");
+                        instabaked_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS;
+                        sscanf(&string[i], "%f %f", &instabaked_event.mouse.x, &instabaked_event.mouse.y);
+                    }
+                }
+                i = next_i;
+            }
+            freshly_baked_event_process(instabaked_event);
         } else {
-            RawUserEvent event = {};
-            event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
-            event.super = super;
+            RawUserEvent raw_event = {};
+            raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
+            raw_event.super = super;
             {
                 if ('a' <= c && c <= 'z') {
-                    event.key = 'A' + (c - 'a');
+                    raw_event.key = 'A' + (c - 'a');
                 } else if ('A' <= c && c <= 'Z') {
-                    event.shift = true;
-                    event.key = c;
+                    raw_event.shift = true;
+                    raw_event.key = c;
                 } else if (c == '\n') {
-                    event.key = GLFW_KEY_ENTER;
+                    raw_event.key = GLFW_KEY_ENTER;
+                } else if (c == '\t') {
+                    raw_event.key = GLFW_KEY_TAB;
                 } else {
-                    event.key = c;
+                    raw_event.key = c;
                 }
             }
-            queue_enqueue(&raw_user_event_queue, event);
             super = false;
+            UserEvent freshly_baked_event = bake_user_event(raw_event);
+            freshly_baked_event_process(freshly_baked_event);
         }
     }
 }
