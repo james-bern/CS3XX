@@ -2338,67 +2338,70 @@ void conversation_draw() {
 
     if (!_global_screen_state.hide_gui) { // gui
 
-        char _COLOR_X[64] = {};
-        if (*click_mode == CLICK_MODE_COLOR) sprintf(_COLOR_X, "COLOR %d", *click_color);
 
-        _text_draw(
-                (cow_real *) &globals.NDC_from_Screen,
-                (char *) (
-                    (*click_mode == CLICK_MODE_NONE)       ? "" :
-                    (*click_mode == CLICK_MODE_AXIS)       ? "AXIS" :
-                    (*click_mode == CLICK_MODE_BOX)        ? "BOX" :
-                    (*click_mode == CLICK_MODE_CIRCLE)     ? "CIRCLE" :
-                    (*click_mode == CLICK_MODE_COLOR)      ? _COLOR_X :
-                    (*click_mode == CLICK_MODE_DESELECT)   ? "DESELECT" :
-                    (*click_mode == CLICK_MODE_FILLET)     ? "FILLET" :
-                    (*click_mode == CLICK_MODE_LINE)       ? "LINE" :
-                    (*click_mode == CLICK_MODE_MEASURE)    ? "MEASURE" :
-                    (*click_mode == CLICK_MODE_MOVE)       ? "MOVE" :
-                    (*click_mode == CLICK_MODE_ORIGIN)     ? "ORIGIN" :
-                    (*click_mode == CLICK_MODE_SELECT)     ? "SELECT" :
-                    (*click_mode == CLICK_MODE_X_MIRROR)   ? "X_MIRROR" :
-                    (*click_mode == CLICK_MODE_Y_MIRROR)   ? "Y_MIRROR" :
-                    "???MODE???"),
-                _global_screen_state.mouse_in_pixel_coordinates.x + 12,
-                _global_screen_state.mouse_in_pixel_coordinates.y + 14,
-                0.0,
+        if (_global_screen_state.hot_pane == HOT_PANE_2D) { // cursor decorations
+            char _COLOR_X[64] = {};
+            if (*click_mode == CLICK_MODE_COLOR) sprintf(_COLOR_X, "COLOR %d", *click_color);
 
-                1.0,
-                1.0,
-                1.0,
-                1.0,
+            _text_draw(
+                    (cow_real *) &globals.NDC_from_Screen,
+                    (char *) (
+                        (*click_mode == CLICK_MODE_NONE)       ? "" :
+                        (*click_mode == CLICK_MODE_AXIS)       ? "AXIS" :
+                        (*click_mode == CLICK_MODE_BOX)        ? "BOX" :
+                        (*click_mode == CLICK_MODE_CIRCLE)     ? "CIRCLE" :
+                        (*click_mode == CLICK_MODE_COLOR)      ? _COLOR_X :
+                        (*click_mode == CLICK_MODE_DESELECT)   ? "DESELECT" :
+                        (*click_mode == CLICK_MODE_FILLET)     ? "FILLET" :
+                        (*click_mode == CLICK_MODE_LINE)       ? "LINE" :
+                        (*click_mode == CLICK_MODE_MEASURE)    ? "MEASURE" :
+                        (*click_mode == CLICK_MODE_MOVE)       ? "MOVE" :
+                        (*click_mode == CLICK_MODE_ORIGIN)     ? "ORIGIN" :
+                        (*click_mode == CLICK_MODE_SELECT)     ? "SELECT" :
+                        (*click_mode == CLICK_MODE_X_MIRROR)   ? "X_MIRROR" :
+                        (*click_mode == CLICK_MODE_Y_MIRROR)   ? "Y_MIRROR" :
+                        "???MODE???"),
+                    _global_screen_state.mouse_in_pixel_coordinates.x + 12,
+                    _global_screen_state.mouse_in_pixel_coordinates.y + 14,
+                    0.0,
 
-                12,
-                0.0,
-                0.0,
-                true);
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0,
 
-        _text_draw(
-                (cow_real *) &globals.NDC_from_Screen,
-                (char *) (
-                    (*click_modifier == CLICK_MODIFIER_NONE)                  ? "" :
-                    (*click_modifier == CLICK_MODIFIER_SNAP_TO_CENTER_OF)     ? "CENTER" :
-                    (*click_modifier == CLICK_MODIFIER_CONNECTED)             ? "CONNECTED" :
-                    (*click_modifier == CLICK_MODIFIER_SNAP_TO_END_OF)        ? "END" :
-                    (*click_modifier == CLICK_MODIFIER_COLOR)                 ? "COLOR" :
-                    (*click_modifier == CLICK_MODIFIER_SNAP_TO_MIDDLE_OF)     ? "MIDDLE" :
-                    (*click_modifier == CLICK_MODIFIER_SELECTED)              ? "SELECTED" :
-                    (*click_modifier == CLICK_MODIFIER_WINDOW)                ? "WINDOW" :
-                    (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) ? "(X, Y)" :
-                    "???MODIFIER???"),
-                _global_screen_state.mouse_in_pixel_coordinates.x + 12,
-                _global_screen_state.mouse_in_pixel_coordinates.y + 24,
-                0.0,
+                    12,
+                    0.0,
+                    0.0,
+                    true);
 
-                1.0,
-                1.0,
-                1.0,
-                1.0,
+            _text_draw(
+                    (cow_real *) &globals.NDC_from_Screen,
+                    (char *) (
+                        (*click_modifier == CLICK_MODIFIER_NONE)                  ? "" :
+                        (*click_modifier == CLICK_MODIFIER_SNAP_TO_CENTER_OF)     ? "CENTER" :
+                        (*click_modifier == CLICK_MODIFIER_CONNECTED)             ? "CONNECTED" :
+                        (*click_modifier == CLICK_MODIFIER_SNAP_TO_END_OF)        ? "END" :
+                        (*click_modifier == CLICK_MODIFIER_COLOR)                 ? "COLOR" :
+                        (*click_modifier == CLICK_MODIFIER_SNAP_TO_MIDDLE_OF)     ? "MIDDLE" :
+                        (*click_modifier == CLICK_MODIFIER_SELECTED)              ? "SELECTED" :
+                        (*click_modifier == CLICK_MODIFIER_WINDOW)                ? "WINDOW" :
+                        (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) ? "(X, Y)" :
+                        "???MODIFIER???"),
+                    _global_screen_state.mouse_in_pixel_coordinates.x + 12,
+                    _global_screen_state.mouse_in_pixel_coordinates.y + 24,
+                    0.0,
 
-                12,
-                0.0,
-                0.0,
-                true);
+                    1.0,
+                    1.0,
+                    1.0,
+                    1.0,
+
+                    12,
+                    0.0,
+                    0.0,
+                    true);
+        }
 
         // gui_printf("[Enter] %s",
         //         (global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) ? "EXTRUDE_ADD" :
@@ -2523,8 +2526,8 @@ int main() {
     glfwHideWindow(COW0._window_glfw_window);
 
     char *string;
-    string = "cz0123456789";
-    // string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
+    // string = "cz0123456789";
+    string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
     script_process(string);
 
     init_cameras(); // FORNOW
