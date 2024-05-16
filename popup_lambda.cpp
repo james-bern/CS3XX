@@ -205,7 +205,7 @@ auto popup_popup = [&] (
                     gui_printf(buffer);
                     FORNOW_gui_printf_red_component = 1.0f;
                     if (POPUP_SELECTION_NOT_ACTIVE()) { // cursor
-                        if (((int) (_global_screen_state.popup_blinker_time * 5)) % 10 < 5) {
+                        if (((int) (timers->cursor_blink * 5)) % 10 < 5) {
                             char tmp[4096]; // FORNOW
                             strcpy(tmp, popup->active_cell_buffer);
                             tmp[popup->cursor] = '\0';

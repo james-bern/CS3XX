@@ -33,27 +33,27 @@ struct {
 #define ENTER_MODE_REVOLVE_CUT        4
 #define ENTER_MODE_OPEN               5
 #define ENTER_MODE_SAVE               6
-#define ENTER_MODE_SET_ORIGIN         7
+#define ENTER_MODE_ORIGIN         7
 #define ENTER_MODE_OFFSET_PLANE_BY    8
 
 #define CLICK_MODE_NONE               0
 #define CLICK_MODE_SELECT             1
 #define CLICK_MODE_DESELECT           2
-#define CLICK_MODE_SET_ORIGIN         3
-#define CLICK_MODE_SET_AXIS           4
+#define CLICK_MODE_ORIGIN         3
+#define CLICK_MODE_AXIS           4
 #define CLICK_MODE_MEASURE            5
-#define CLICK_MODE_CREATE_LINE        6
-#define CLICK_MODE_CREATE_BOX         7
-#define CLICK_MODE_CREATE_CIRCLE      8
-#define CLICK_MODE_CREATE_FILLET      9
-#define CLICK_MODE_MOVE_DXF_ENTITIES 10
+#define CLICK_MODE_LINE        6
+#define CLICK_MODE_BOX         7
+#define CLICK_MODE_CIRCLE      8
+#define CLICK_MODE_FILLET      9
+#define CLICK_MODE_MOVE 10
 #define CLICK_MODE_X_MIRROR          11
 #define CLICK_MODE_Y_MIRROR          12
-#define CLICK_MODE_SET_QUALITY       13
+#define CLICK_MODE_COLOR       13
 
 #define CLICK_MODIFIER_NONE                   0
 #define CLICK_MODIFIER_CONNECTED              1
-#define CLICK_MODIFIER_QUALITY                2
+#define CLICK_MODIFIER_COLOR                2
 #define CLICK_MODIFIER_WINDOW                 3
 #define CLICK_MODIFIER_SNAP_TO_CENTER_OF      4
 #define CLICK_MODIFIER_SNAP_TO_END_OF         5
@@ -67,6 +67,7 @@ struct {
 #define DXF_COLOR_QUALITY_2       2
 #define DXF_COLOR_QUALITY_3       3
 #define DXF_COLOR_QUALITY_4       4
+#define DXF_COLOR_QUALITY_5       5
 #define DXF_COLOR_QUALITY_5       5
 #define DXF_COLOR_ETCH            6
 #define DXF_COLOR_WATER_ONLY      8
@@ -88,10 +89,10 @@ struct {
 
 #define USER_EVENT_TYPE_NONE            0
 #define USER_EVENT_TYPE_HOTKEY_PRESS    1
-#define USER_EVENT_TYPE_MOUSE_2D_PRESS  2
-#define USER_EVENT_TYPE_MOUSE_3D_PRESS  3
+#define USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD  2
+#define USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD  3
 #define USER_EVENT_TYPE_GUI_KEY_PRESS   4
-#define USER_EVENT_TYPE_GUI_MOUSE_PRESS 5
+#define USER_EVENT_TYPE_GUI_MOUSE       5
 
 #define RAW_USER_EVENT_TYPE_NONE        0
 #define RAW_USER_EVENT_TYPE_KEY_PRESS   1
@@ -103,7 +104,7 @@ struct {
 #define POPUP_CELL_TYPE_CSTRING 2
 
 #define POPUP_CELL_LENGTH 256
-    #define POPUP_MAX_NUM_CELLS 4
+#define POPUP_MAX_NUM_CELLS 4
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -161,34 +162,30 @@ struct RawUserEvent {
     bool32 shift;
 
     vec2 mouse_in_pixel_coordinates;
+    bool32 mouse_held;
 };
 
 struct UserEvent {
     uint32 type;
 
-    // union {
-    // struct {
-    uint32 key;
-    bool32 super;
-    bool32 shift;
-    // };
-    // struct {
-    vec2 mouse;
-    bool32 mouse_held;
-    // };
-    // struct {
-    vec3 o;
-    vec3 dir;
-    // };
-    // struct {
-    uint32 hover_cell_index;
-    uint32 hover_cursor;
-    // };
-    // }; 
-
     bool32 record_me;
     bool32 checkpoint_me;
     bool32 snapshot_me;
+
+    uint32 key;
+    bool32 super;
+    bool32 shift;
+
+    bool32 mouse_held;
+
+    vec2 mouse;
+
+    vec3 o;
+    vec3 dir;
+
+    uint32 cell_index;
+    uint32 cursor;
+    uint32 selection_cursor;
 };
 
 struct ScreenState {
@@ -204,18 +201,23 @@ struct ScreenState {
     uint32   hot_pane;
 
     vec2 mouse_in_pixel_coordinates;
-    bool32 mouse_shift_held;
-    bool32 mouse_left_held;
+    bool32 mouse_shift_held; // TODO
+    bool32 mouse_held;
 
     char drop_path[256];
-
-    real32 popup_blinker_time;
-    real32 successful_feature_time;
-    real32 plane_selection_time;
-    real32 going_inside_time;
-    bool32 going_inside;
-
     bool32 DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
+};
+
+struct Timers {
+    real32 cursor_blink;
+    real32 successful_feature;
+    real32 plane_selected;
+    real32 going_inside;
+    bool32 _helper_going_inside;
+};
+
+struct AestheticsState {
+    Timers timers;
 };
 
 struct PopupState {
@@ -274,6 +276,7 @@ struct FeaturePlaneState {
     real32 signed_distance_to_world_origin;
 };
 
+// NOTE: arrangement into structs is all about what memory is cleared to zero together
 struct WorldState {
     Mesh mesh;
 
@@ -285,8 +288,8 @@ struct WorldState {
         uint32 click_mode;
         uint32 click_modifier;
         uint32 enter_mode;
-        uint32 click_color;
     } modes;
+    uint32 click_color; // we don't actually want to clear this with global_world_state.modes = {}
 
     struct {
         bool32 awaiting_second_click;
