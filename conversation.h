@@ -33,27 +33,26 @@ struct {
 #define ENTER_MODE_REVOLVE_CUT        4
 #define ENTER_MODE_OPEN               5
 #define ENTER_MODE_SAVE               6
-#define ENTER_MODE_ORIGIN         7
 #define ENTER_MODE_OFFSET_PLANE_BY    8
 
-#define CLICK_MODE_NONE               0
-#define CLICK_MODE_SELECT             1
-#define CLICK_MODE_DESELECT           2
-#define CLICK_MODE_ORIGIN         3
-#define CLICK_MODE_AXIS           4
-#define CLICK_MODE_MEASURE            5
-#define CLICK_MODE_LINE        6
-#define CLICK_MODE_BOX         7
-#define CLICK_MODE_CIRCLE      8
-#define CLICK_MODE_FILLET      9
-#define CLICK_MODE_MOVE 10
-#define CLICK_MODE_X_MIRROR          11
-#define CLICK_MODE_Y_MIRROR          12
-#define CLICK_MODE_COLOR       13
+#define CLICK_MODE_NONE      0
+#define CLICK_MODE_SELECT    1
+#define CLICK_MODE_DESELECT  2
+#define CLICK_MODE_ORIGIN    3
+#define CLICK_MODE_AXIS      4
+#define CLICK_MODE_MEASURE   5
+#define CLICK_MODE_LINE      6
+#define CLICK_MODE_BOX       7
+#define CLICK_MODE_CIRCLE    8
+#define CLICK_MODE_FILLET    9
+#define CLICK_MODE_MOVE     10
+#define CLICK_MODE_X_MIRROR 11
+#define CLICK_MODE_Y_MIRROR 12
+#define CLICK_MODE_COLOR    13
 
 #define CLICK_MODIFIER_NONE                   0
 #define CLICK_MODIFIER_CONNECTED              1
-#define CLICK_MODIFIER_COLOR                2
+#define CLICK_MODIFIER_COLOR                  2
 #define CLICK_MODIFIER_WINDOW                 3
 #define CLICK_MODIFIER_SNAP_TO_CENTER_OF      4
 #define CLICK_MODIFIER_SNAP_TO_END_OF         5
@@ -297,6 +296,8 @@ struct WorldState {
     } two_click_command;
 
     PopupState popup;
+
+    UserEvent space_bar_event;
 };
 
 
@@ -1659,4 +1660,47 @@ Mesh wrapper_manifold(
     }
 
     return result;
+}
+
+char *inline_key_event_as_string(const UserEvent *event) {
+    ASSERT((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS));
+
+    static char buffer[256];
+
+    char *_ctrl_plus; {
+        if (!event->super) {
+            _ctrl_plus = "";
+        } else {
+            _ctrl_plus = "CTRL+";
+        }
+    }
+
+    char *_shift_plus; {
+        if (!event->shift) {
+            _shift_plus = "";
+        } else {
+            _shift_plus = "SHIFT+";
+        }
+    }
+
+    char _key_buffer[2];
+    char *_key; {
+        if (0) {
+        } else if (event->key == GLFW_KEY_BACKSPACE) { _key = "BACKSPACE";
+        } else if (event->key == GLFW_KEY_DELETE) { _key = "DELETE";
+        } else if (event->key == GLFW_KEY_ENTER) { _key = "ENTER";
+        } else if (event->key == GLFW_KEY_ESCAPE) { _key = "ESCAPE";
+        } else if (event->key == GLFW_KEY_LEFT) { _key = "LEFT";
+        } else if (event->key == GLFW_KEY_RIGHT) { _key = "RIGHT";
+        } else if (event->key == GLFW_KEY_SPACE) { _key = "SPACE";
+        } else if (event->key == GLFW_KEY_TAB) { _key = "TAB";
+        } else {
+            _key_buffer[0] = (char) event->key;
+            _key_buffer[1] = '\0';
+            _key = _key_buffer;
+        }
+    }
+
+    sprintf(buffer, "%s%s%s", _ctrl_plus, _shift_plus, _key);
+    return buffer;
 }
