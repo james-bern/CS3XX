@@ -1,12 +1,34 @@
+//////////////////////////////////////////////////
+// DEBUG /////////////////////////////////////////
+//////////////////////////////////////////////////
+
+// #define DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
+// #define DEBUG_HISTORY_DISABLE_SNAPSHOTTING
+
+//////////////////////////////////////////////////
+// NOTES /////////////////////////////////////////
+//////////////////////////////////////////////////
+
+// TODO: problem with spoof in how you're handling snapping
+// snap only getting called in the real version
+// maybe let's just snap later?--i don't really like this
+
+// TODO: good end to end test
+
+// TODO hotkey not recognized message should print string equivalent of what the hotkey was
+
 // // TODO: consider recording an event based on whether anything in the state changed
 //          (this would remove the need to do all the dirty checks)
 //          and you would only need to do it for new events
 // NOTE: this is a good idea
 
+// TODO#define DEBUG_HISTORY_RECORD_EVERYTHING
+// TODO#define DEBUG_HISTORY_CHECKPOINT_EVERYTHING
+
 // BUG: clicking with sc doesn't do anything sometimes
 // BUG: sw broken for very short arcs of huge circles
 
-// the recursive crap in standard_event_process you're doing now could be a problem
+// the recursive crap in _standard_event_process_NOTE_RECURSIVE you're doing now could be a problem
 // (another layer atop it would probably do the trick -- _original_call_standard_event_process)
 
 // // TODO: toolbox you can click on that copies over a sketch (like the counter sunk nuts)
@@ -46,8 +68,8 @@
 // XXX: consuming a bunch of events in one frame broken again
 // XXX  until ctrl+o is processed, we can't know that the next event should be a GUI event
 // XXX: we need actually a whole nother layer and intermediate rep that happens preclassification
-// XXX: RAW_EVENT_TYPE_KEY_PRESS
-// XXX: RAW_EVENT_TYPE_MOUSE_PRESS
+// XXX: RAW_USER_EVENT_TYPE_KEY_PRESS
+// XXX: RAW_USER_EVENT_TYPE_MOUSE_PRESS
 // XXX: restore back undo/redo
 // XXX: muratori type "language" for scripts
 // XXX: restore color clicking
@@ -139,11 +161,7 @@
 
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected)
 
-//////////////////////////////////////////////////
-// DEBUG /////////////////////////////////////////
-//////////////////////////////////////////////////
 
-// #define DEBUG_DISABLE_HISTORY
 
 
 //////////////////////////////////////////////////
@@ -183,6 +201,7 @@ real32 *line_run                 = &popup->line_run;
 real32 *line_rise                = &popup->line_rise;
 real32 *revolve_add_dummy        = &popup->revolve_add_dummy;
 real32 *revolve_cut_dummy        = &popup->revolve_cut_dummy;
+real32 *plane_offset             = &popup->plane_offset;
 char *open_filename = popup->open_filename;
 char *save_filename = popup->open_filename;
 Mesh *mesh = &global_world_state.mesh;
@@ -197,7 +216,7 @@ void init_cameras() {
     _global_screen_state.camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
     // FORNOW
     if (dxf->entities.length) camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
-    if (!global_world_state.mesh.num_vertices) {
+    if ((!_global_screen_state.camera_3D.persp_distance_to_origin) || (!global_world_state.mesh.num_vertices)) {
         _global_screen_state.camera_3D = { 2.0f * MIN(150.0f, _global_screen_state.camera_2D.screen_height_World), CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
     }
 }
@@ -245,6 +264,7 @@ bool32 _SELECT_OR_DESELECT_COLOR() {
 //////////////////////////////////////////////////
 
 
+// TODO: preview the 15 deg but not magic snap
 vec2 magic_snap(vec2 before) {
     vec2 result = before;
     {
@@ -291,7 +311,7 @@ vec2 magic_snap(vec2 before) {
                   || (*click_mode == CLICK_MODE_AXIS)
                 )
                 && (*awaiting_second_click)
-                && (_global_screen_state.mouse_shift_held)) {
+                && (_global_screen_state.shift_held)) {
             vec2 a = global_world_state.two_click_command.first_click;
             vec2 b = before;
             vec2 r = b - a; 
@@ -302,7 +322,7 @@ vec2 magic_snap(vec2 before) {
         } else if (
                 (*click_mode == CLICK_MODE_BOX)
                 && (*awaiting_second_click)
-                && (_global_screen_state.mouse_shift_held)) {
+                && (_global_screen_state.shift_held)) {
             // TODO (Felipe): snap square
             result = before;
         }
@@ -458,6 +478,19 @@ BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); }
 Queue<RawUserEvent> raw_user_event_queue;
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
+    if (key == GLFW_KEY_LEFT_SHIFT) {
+        if (action == GLFW_PRESS) {
+            _global_screen_state.shift_held = true;
+        } else if (action == GLFW_RELEASE) {
+            _global_screen_state.shift_held = false;
+        }
+    }
+    if (key == GLFW_KEY_LEFT_SHIFT) return;
+    if (key == GLFW_KEY_RIGHT_SHIFT) return;
+    if (key == GLFW_KEY_LEFT_CONTROL) return;
+    if (key == GLFW_KEY_RIGHT_CONTROL) return;
+    if (key == GLFW_KEY_LEFT_SUPER) return;
+    if (key == GLFW_KEY_RIGHT_SUPER) return;
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
         RawUserEvent raw_event = {}; {
             raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
@@ -536,6 +569,8 @@ bool32 get_baked_type_of_raw_key_event(RawUserEvent raw_event) {
 }
 
 // NOTE: this function does global_world_state-dependent stuff (magic-snapping)
+// NOTE: a lot of stuff is happening at once here:
+//       pixel coords -> pre-snapped world coords -> snapped world-coords
 UserEvent bake_event(RawUserEvent raw_event) {
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(raw_event);
 
@@ -635,7 +670,19 @@ struct StandardEventProcessResult {
     bool32 snapshot_me;
 };
 
+#if 0
+// TODO
 StandardEventProcessResult standard_event_process(const UserEvent event) {
+    bool32 global_world_state_changed;
+    StandardEventProcessResult result = _standard_event_process_NOTE_RECURSIVE(event);
+    if (global_world_state_changed) {
+        result.record_me = true;
+    }
+    return result;
+}
+#endif
+
+StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEvent event) {
     bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
 
     bool32 dxf_anything_selected; {
@@ -762,7 +809,6 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                 result.record_me = false;
                 *click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
             } else {
-                result.checkpoint_me = true;
                 *click_mode = CLICK_MODE_MOVE;
                 *click_modifier = CLICK_MODIFIER_NONE;
                 *awaiting_second_click = false;
@@ -778,6 +824,16 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
             } else {
                 conversation_messagef("[n] no plane is_selected");
             }
+        } else if (key_lambda('N', true, false)) {
+            result.checkpoint_me = true;
+            result.snapshot_me = true;
+            list_free_AND_zero(&dxf->entities);
+            *dxf = {};
+        } else if (key_lambda('N', true, true)) {
+            result.checkpoint_me = true;
+            result.snapshot_me = true;
+            mesh_free_AND_zero(mesh);
+            *feature_plane = {};
         } else if (key_lambda('O', true)) {
             *enter_mode = ENTER_MODE_OPEN;
         } else if (key_lambda('Q')) {
@@ -833,7 +889,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
             UserEvent equivalent = {};
             equivalent.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
             equivalent.mouse = {};
-            return standard_event_process(equivalent);
+            return _standard_event_process_NOTE_RECURSIVE(equivalent);
         } else if (key_lambda('Z', false, true)) {
             *click_mode = CLICK_MODE_ORIGIN;
             *click_modifier = CLICK_MODIFIER_NONE;
@@ -852,7 +908,6 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
             result.record_me = false;
             _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
         } else if (key_lambda('=')) {
-            result.record_me = false;
             feature_plane->is_active = false;
         } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
             for (int32 i = dxf->entities.length - 1; i >= 0; --i) {
@@ -860,10 +915,10 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                     _DXF_REMOVE_ENTITY(i);
                 }
             }
-        } else if (key_lambda(COW_KEY_ESCAPE)) {
+        } else if (key_lambda(GLFW_KEY_ESCAPE)) {
             global_world_state.modes = {};
         } else {
-            conversation_messagef("hotkey not recognized");
+            conversation_messagef("hotkey not recognized %d %d %d", event.super, event.shift, event.key);
             result.record_me = false;
             ;
         }
@@ -1493,7 +1548,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
                         conversation_stl_load(full_filename_scratch_buffer);
-                        global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+                        *enter_mode = ENTER_MODE_NONE;
                     } else {
                         conversation_messagef("[open] \"%s\" not found", full_filename_scratch_buffer);
                     }
@@ -1505,7 +1560,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                         POPUP_CELL_TYPE_CSTRING, "save_filename", save_filename);
                 if (enter) {
                     conversation_save(full_filename_scratch_buffer);
-                    global_world_state.modes.enter_mode = ENTER_MODE_NONE;
+                    *enter_mode = ENTER_MODE_NONE;
                 }
             } else if (*enter_mode == ENTER_MODE_EXTRUDE_ADD) {
                 popup_popup(true,
@@ -1516,7 +1571,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                         conversation_messagef("[extrude-add] no dxf elements selected");
                     } else if (!feature_plane->is_active) {
                         conversation_messagef("[extrude-add] no plane selected");
-                    } else if (IS_ZERO(global_world_state.popup.extrude_add_in_length) && IS_ZERO(global_world_state.popup.extrude_add_out_length)) {
+                    } else if (IS_ZERO(*extrude_add_in_length) && IS_ZERO(*extrude_add_out_length)) {
                         conversation_messagef("[extrude-add] must have non-zero total height");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
@@ -1567,6 +1622,15 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                         conversation_messagef("[revolve-cut] success");
                     }
                 }
+            } else if (*enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
+                popup_popup(false,
+                        POPUP_CELL_TYPE_REAL32, "plane_offset", plane_offset);
+                if (enter) {
+                    result.record_me = true;
+                    result.checkpoint_me = true;
+                    feature_plane->signed_distance_to_world_origin = *plane_offset;
+                    *enter_mode = ENTER_MODE_NONE;
+                }
             } else if (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
                 popup_popup(true,
@@ -1575,7 +1639,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                 if (enter) {
                     // popup->_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                     global_world_state.modes.click_modifier = CLICK_MODIFIER_NONE;
-                    return standard_event_process(MOUSE_2D_event(*x_coordinate, *y_coordinate));
+                    return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(*x_coordinate, *y_coordinate));
                 }
             } else if (*click_mode == CLICK_MODE_CIRCLE) {
                 if (*awaiting_second_click) {
@@ -1587,7 +1651,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                             POPUP_CELL_TYPE_REAL32, "circle_radius", circle_radius,
                             POPUP_CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
                     if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click->x + *circle_radius, first_click->y));
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *circle_radius, first_click->y));
                     } else {
                         if (prev_circle_diameter != *circle_diameter) {
                             *circle_radius = *circle_diameter / 2;
@@ -1614,7 +1678,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                             POPUP_CELL_TYPE_REAL32, "line_rise", line_rise
                             );
                     if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click->x + *line_run, first_click->y + *line_rise));
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *line_run, first_click->y + *line_rise));
                     } else {
                         if ((prev_line_length != *line_length) || (prev_line_angle != *line_angle)) {
                             *line_run = *line_length * COS(RAD(*line_angle));
@@ -1631,12 +1695,12 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
                             POPUP_CELL_TYPE_REAL32, "box_width", box_width,
                             POPUP_CELL_TYPE_REAL32, "box_height", box_height);
                     if (enter) {
-                        return standard_event_process(MOUSE_2D_event(first_click->x + *box_width, first_click->y + *box_height));
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *box_width, first_click->y + *box_height));
                     }
                 }
             } else if (*click_mode == CLICK_MODE_FILLET) {
                 popup_popup(false,
-                        POPUP_CELL_TYPE_REAL32, "fillet radius", fillet_radius);
+                        POPUP_CELL_TYPE_REAL32, "fillet_radius", fillet_radius);
             }
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
@@ -1658,9 +1722,9 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
 // HISTORY ///////////////////////////////////////
 //////////////////////////////////////////////////
 
-#ifdef DEBUG_DISABLE_HISTORY
+#ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 //
-void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(UserEvent standard_event) { standard_event_process(standard_event); }
+void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(UserEvent standard_event) { _standard_event_process_NOTE_RECURSIVE(standard_event); }
 void history_undo() { conversation_messagef("[DEBUG] history disabled"); }
 void history_redo() { conversation_messagef("[DEBUG] history disabled"); }
 void history_debug_draw() { gui_printf("[DEBUG] history disabled"); }
@@ -1725,10 +1789,12 @@ void PUSH_UNDO_CLEAR_REDO(UserEvent standard_event) {
 }
 
 void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(UserEvent standard_event) {
-    StandardEventProcessResult tmp = standard_event_process(standard_event);
+    StandardEventProcessResult tmp = _standard_event_process_NOTE_RECURSIVE(standard_event);
     standard_event.record_me = tmp.record_me;
     standard_event.checkpoint_me = tmp.checkpoint_me;
+    #ifndef DEBUG_HISTORY_DISABLE_SNAPSHOTTING
     standard_event.snapshot_me = tmp.snapshot_me;
+    #endif
     if (standard_event.record_me) PUSH_UNDO_CLEAR_REDO(standard_event);
 }
 
@@ -1768,7 +1834,7 @@ void history_undo() {
         }
     }
     IGNORE_NEW_MESSAGEFS = true; // TODO: why does this seem unnecessary in practice??
-    for (UserEvent *event = begin; event < one_past_end; ++event) standard_event_process(*event);
+    for (UserEvent *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
     IGNORE_NEW_MESSAGEFS = false;
     conversation_messagef("[undo] success");
 }
@@ -1785,7 +1851,7 @@ void history_redo() {
         UserEvent *user_event = popped.user_event;
         WorldState *world_state = popped.world_state;
 
-        standard_event_process(*user_event);
+        _standard_event_process_NOTE_RECURSIVE(*user_event);
         if (world_state) {
             world_state_free_AND_zero(&global_world_state);
             world_state_deep_copy(&global_world_state, world_state);
@@ -1977,7 +2043,7 @@ void conversation_draw() {
     // aliases
     real32 preview_extrude_in_length = (add) ? *extrude_add_in_length : *extrude_cut_in_length;
     real32 preview_extrude_out_length = (add) ? *extrude_add_out_length : *extrude_cut_out_length;
-    real32 preview_plane_offset_distance = global_world_state.popup.plane_offset_distance;
+    real32 preview_plane_offset = global_world_state.popup.plane_offset;
 
     // preview
     vec2 preview_mouse = /*magic_snap*/(mouse_get_position(PV_2D));
@@ -2065,12 +2131,13 @@ void conversation_draw() {
                 real32 LL = 1000 * funky_NDC_factor;
 
                 eso_color(monokai.white);
-                eso_begin(PV_2D, SOUP_LINES, 3.0f); {
+                eso_begin(PV_2D, SOUP_LINES, 1.5f); {
                     // axis
                     vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                     eso_vertex(preview_dxf_axis_base_point + v);
                     eso_vertex(preview_dxf_axis_base_point - v);
-
+                } eso_end();
+                eso_begin(PV_2D, SOUP_LINES, 3.0f); {
                     // origin
                     real32 r = funky_NDC_factor;
                     eso_vertex(preview_dxf_origin - V2(r, 0));
@@ -2198,7 +2265,7 @@ void conversation_draw() {
                     M_incr = M4_Identity();
                 } else if (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview_plane_offset_distance + Z_FIGHT_EPS);
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview_plane_offset + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 } else { // default
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -2311,7 +2378,7 @@ void conversation_draw() {
             vec3 color = monokai.yellow;
             real32 sign = -1.0f;
             if (global_world_state.modes.enter_mode == ENTER_MODE_OFFSET_PLANE_BY) {
-                PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, preview_plane_offset_distance);
+                PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, preview_plane_offset);
                 color = { 0.0f, 1.0f, 1.0f };
                 sign = 1.0f;
                 draw = true;
@@ -2466,25 +2533,43 @@ void script_process(char *string) {
         if (c == '^') {
             super = true;
         } else if (c == '{') {
-            UserEvent instabaked_event = {}; {
+            bool32 is_instabaked = true;
+            UserEvent instabaked_event = {};
+            RawUserEvent _raw_event = {};
+            {
                 uint32 next_i; {
                     next_i = i;
-                    while (string[++next_i] != '}') {}
+                    while (string[++next_i] != '}') {} // ++next_i intentional
                 }
                 {
                     char *tag = &string[i + 1];
-                    char *params = &string[i + 1 + TAG_LENGTH];
                     if (strncmp(tag, "m2d", TAG_LENGTH) == 0) {
+                        // // NOTE: this is very subtle
+                        // the reason we have to instabake here is that the user of the spoofing api
+                        // is specifying a click in pre-snapped world coordinates
+                        // (as opposed to (pre-snapped) pixel coordinates, which is what bake_event takes)
+                        char *params = &string[i + 1 + TAG_LENGTH];
                         instabaked_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
                         sscanf(params, "%f %f", &instabaked_event.mouse.x, &instabaked_event.mouse.y);
+                        instabaked_event.mouse = magic_snap(instabaked_event.mouse);
                     } else if (strncmp(tag, "m3d", TAG_LENGTH) == 0) {
+                        char *params = &string[i + 1 + TAG_LENGTH];
                         instabaked_event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
                         sscanf(params, "%f %f %f %f %f %f", &instabaked_event.o.x, &instabaked_event.o.y, &instabaked_event.o.z, &instabaked_event.dir.x, &instabaked_event.dir.y, &instabaked_event.dir.z);
+                    } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
+                        is_instabaked = false;
+                        _raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
+                        _raw_event.key = GLFW_KEY_ESCAPE;
                     }
                 }
                 i = next_i;
             }
-            freshly_baked_event_process(instabaked_event);
+            if (is_instabaked) {
+                freshly_baked_event_process(instabaked_event);
+            } else {
+                UserEvent freshly_baked_event = bake_event(_raw_event);
+                freshly_baked_event_process(freshly_baked_event);
+            }
         } else {
             RawUserEvent raw_event = {};
             raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
@@ -2527,7 +2612,35 @@ int main() {
 
     char *string;
     // string = "cz0123456789";
-    string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
+    // string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
+    string = \
+             "cz\t10\n"
+             "cz10\n"
+             "bzx30\t30\n"
+             "ysadcz"
+             ";5\t15\n"
+             "sc{m2d 0 30}qs3"
+             "1{m2d 30 15}0{esc}"
+             "sq1sq3me{m2d 40 40}x15\t15\n"
+             ":3\n"
+             "sczZm{m2d -50 0}\'\n"
+             "^n"
+             "cx30\t30\n3.4\n"
+             "saXzYzXzsa;1\n"
+             "^osplash.dxf\nsc{m2d 24 0}{m2d 16 0};\t10\n"
+             "Ac{m2d 15.3 15.4}c{m2d -16.4 -16.3}sc{m2d -16 16}\'\n"
+             "^n"
+             "l{m2d 0 0}{m2d 0 10}l{m2d 0 10}{m2d 10 0}l{m2d 10 0}{m2d 0 0}"
+             "n25\n"
+             "sa;1\n"
+             "n0\n"
+             "^n"
+             "cz8\n"
+             "{m3d 1 100 -1 0 -1 0}"
+             "sa:100\n"
+             "^n"
+             "="
+             ;
     script_process(string);
 
     init_cameras(); // FORNOW

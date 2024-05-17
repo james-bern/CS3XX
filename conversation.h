@@ -201,7 +201,7 @@ struct ScreenState {
     uint32   hot_pane;
 
     vec2 mouse_in_pixel_coordinates;
-    bool32 mouse_shift_held; // TODO
+    bool32 shift_held;
     bool32 mouse_held;
 
     char drop_path[256];
@@ -251,7 +251,7 @@ struct PopupState {
     real32 box_height;
     real32 x_coordinate;
     real32 y_coordinate;
-    real32 plane_offset_distance;
+    real32 plane_offset;
     real32 line_length;
     real32 line_angle;
     real32 line_run;
