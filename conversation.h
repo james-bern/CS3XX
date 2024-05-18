@@ -18,22 +18,39 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 // colors //////////////////////////////
 ////////////////////////////////////////
 
+#define RGB256(r, g, b) { (r) / 255.0f, (g) / 255.0f, (b) / 255.0f }
+
+vec3 omax_pallete[] = {
+    RGB256( 83, 255,  85),
+    RGB256(255,   0,   0),
+    RGB256(238,   0, 119),
+    RGB256(255,   0, 255),
+    RGB256(170,   1, 255),
+    RGB256(  0,  85, 255),
+    RGB256(136, 136, 136),
+    RGB256(205, 205, 205),
+    RGB256(  0, 255, 255),
+    RGB256(204, 136,   1),
+};
+
+
 struct {
+    vec3 yellow = { 1.0f, 1.0f, 0.0f };
     vec3 cyan = { 0.0f, 1.0f, 1.0f };
-} omax;
+} basic;
 
 ////////////////////////////////////////
 // #defines ////////////////////////////
 ////////////////////////////////////////
 
-#define ENTER_MODE_NONE               0
-#define ENTER_MODE_EXTRUDE_ADD        1
-#define ENTER_MODE_EXTRUDE_CUT        2
-#define ENTER_MODE_REVOLVE_ADD        3
-#define ENTER_MODE_REVOLVE_CUT        4
-#define ENTER_MODE_OPEN               5
-#define ENTER_MODE_SAVE               6
-#define ENTER_MODE_OFFSET_PLANE_BY    8
+#define ENTER_MODE_NONE         0
+#define ENTER_MODE_OPEN         1
+#define ENTER_MODE_SAVE         2
+#define ENTER_MODE_EXTRUDE_ADD  3
+#define ENTER_MODE_EXTRUDE_CUT  4
+#define ENTER_MODE_REVOLVE_ADD  5
+#define ENTER_MODE_REVOLVE_CUT  6
+#define ENTER_MODE_OFFSET_PLANE 7
 
 #define CLICK_MODE_NONE      0
 #define CLICK_MODE_SELECT    1
@@ -71,12 +88,12 @@ struct {
 #define DXF_COLOR_ETCH            6
 #define DXF_COLOR_WATER_ONLY      8
 #define DXF_COLOR_LEAD_IO         9
+#define DXF_COLOR_SELECTION      10
 #define DXF_COLOR_QUALITY_SLIT_1 21
 #define DXF_COLOR_QUALITY_SLIT_2 22
 #define DXF_COLOR_QUALITY_SLIT_3 23
 #define DXF_COLOR_QUALITY_SLIT_4 24
 #define DXF_COLOR_QUALITY_SLIT_5 25
-#define DXF_COLOR_SELECTION     254
 #define DXF_COLOR_DONT_OVERRIDE 255
 
 #define DXF_ENTITY_TYPE_LINE 0
@@ -275,6 +292,12 @@ struct FeaturePlaneState {
     real32 signed_distance_to_world_origin;
 };
 
+struct ModesState {
+    uint32 click_mode;
+    uint32 click_modifier;
+    uint32 enter_mode;
+};
+
 // NOTE: arrangement into structs is all about what memory is cleared to zero together
 struct WorldState {
     Mesh mesh;
@@ -283,21 +306,19 @@ struct WorldState {
 
     FeaturePlaneState feature_plane;
 
-    struct {
-        uint32 click_mode;
-        uint32 click_modifier;
-        uint32 enter_mode;
-    } modes;
+    ModesState modes;
+
     uint32 click_color; // we don't actually want to clear this with global_world_state.modes = {}
 
-    struct {
-        bool32 awaiting_second_click;
-        vec2 first_click;
-    } two_click_command;
+struct {
+    bool32 awaiting_second_click;
+    vec2 first_click;
+} two_click_command;
 
-    PopupState popup;
+PopupState popup;
 
-    UserEvent space_bar_event;
+UserEvent space_bar_event;
+UserEvent shift_space_bar_event;
 };
 
 
@@ -606,18 +627,11 @@ void dxf_entities_load(char *filename, List<DXFEntity> *dxf_entities) {
 }
 
 void _dxf_eso_color(uint32 color) {
-    if      (color == 0) { eso_color( 83 / 255.0f, 255 / 255.0f,  85 / 255.0f); }
-    else if (color == 1) { eso_color(255 / 255.0f,   0 / 255.0f,   0 / 255.0f); }
-    else if (color == 2) { eso_color(238 / 255.0f,   0 / 255.0f, 119 / 255.0f); }
-    else if (color == 3) { eso_color(255 / 255.0f,   0 / 255.0f, 255 / 255.0f); }
-    else if (color == 4) { eso_color(170 / 255.0f,   1 / 255.0f, 255 / 255.0f); }
-    else if (color == 5) { eso_color(  0 / 255.0f,  85 / 255.0f, 255 / 255.0f); }
-    else if (color == 6) { eso_color(136 / 255.0f, 136 / 255.0f, 136 / 255.0f); }
-    else if (color == 7) { eso_color(205 / 255.0f, 205 / 255.0f, 205 / 255.0f); }
-    else if (color == 8) { eso_color(  0 / 255.0f, 255 / 255.0f, 255 / 255.0f); }
-    else if (color == 9) { eso_color(204 / 255.0f, 136 / 255.0f,   1 / 255.0f); }
-    else if (color == DXF_COLOR_SELECTION) { eso_color(1.0f, 1.0f, 0.0f); }
-    else {
+    if (color <= 9) {
+        eso_color(omax_pallete[color]);
+    } else if (color == DXF_COLOR_SELECTION) {
+        eso_color(basic.yellow);
+    } else {
         warn_once("WARNING: slits not implemented");
         eso_color(0.3f, 0.3f, 0.3f);
     }

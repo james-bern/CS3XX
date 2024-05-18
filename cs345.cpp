@@ -30,6 +30,8 @@ typedef uint64_t uint64;
 typedef float real32;
 typedef double real64;
 
+#include "string.cpp"
+
 BEGIN_PRE_MAIN {
     _cow_init();
     _cow_reset();
