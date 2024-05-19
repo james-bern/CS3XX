@@ -4,6 +4,13 @@
 // TODO: void eso_bounding_box__SOUP_QUADS(BoundingBox bounding_box)
 
 ////////////////////////////////////////
+// FORNOW: forward declarations ////////
+////////////////////////////////////////
+
+void conversation_messagef(char *format, ...);
+
+
+////////////////////////////////////////
 // Config-Tweaks ///////////////////////
 ////////////////////////////////////////
 
@@ -99,9 +106,10 @@ struct {
 #define DXF_ENTITY_TYPE_LINE 0
 #define DXF_ENTITY_TYPE_ARC  1
 
-#define HOT_PANE_NONE 0
-#define HOT_PANE_2D   1
-#define HOT_PANE_3D   2
+#define PANE_NONE    0
+#define PANE_LEFT    1
+#define PANE_RIGHT   2
+#define PANE_DIVIDER 3
 
 #define USER_EVENT_TYPE_NONE            0
 #define USER_EVENT_TYPE_HOTKEY_PRESS    1
@@ -215,10 +223,13 @@ struct ScreenState {
     bool32   show_event_stack;
 
     uint32   hot_pane;
+    uint32   owner_pane;
 
     vec2 mouse_in_pixel_coordinates;
     bool32 shift_held;
     bool32 mouse_held;
+
+    real32 divider_fraction_offset_from_one_half;
 
     char drop_path[256];
     bool32 DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
@@ -365,8 +376,6 @@ bool32 ANGLE_IS_BETWEEN_CCW(real32 p, real32 a, real32 b) {
     real32 F_y = SIN(p);
     return (cross(E_x, E_y, F_x, F_y) > 0.0f);
 }
-
-#define warn_once(warning) do_once { printf(warning); printf("\n"); };
 
 ////////////////////////////////////////
 // Squared-Distance (TODO: move non-dxf_entities parts all up here);
@@ -632,7 +641,7 @@ void _dxf_eso_color(uint32 color) {
     } else if (color == DXF_COLOR_SELECTION) {
         eso_color(basic.yellow);
     } else {
-        warn_once("WARNING: slits not implemented");
+        do_once { conversation_messagef("WARNING: slits not implemented"); };
         eso_color(0.3f, 0.3f, 0.3f);
     }
 }
@@ -1466,7 +1475,7 @@ void conversation_messagef(char *format, ...) {
     message->cooldown = MESSAGE_COOLDOWN;
     message_index = (message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
 
-    printf("%s\n", message->buffer); // FORNOW print to terminal as well
+    // printf("%s\n", message->buffer); // FORNOW print to terminal as well
 }
 void conversation_message_buffer_update_and_draw() {
     uint32 i_0 =  (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
@@ -1603,7 +1612,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == ENTER_MODE_EXTRUDE_CUT) {
-                warn_once("[DEBUG] inflating ENTER_MODE_EXTRUDE_CUT\n");
+                do_once { conversation_messagef("[DEBUG] inflating ENTER_MODE_EXTRUDE_CUT\n"); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
             }

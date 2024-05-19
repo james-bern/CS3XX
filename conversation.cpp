@@ -13,6 +13,9 @@
 // frame-perfect UI / graphics (except first frame FORNOW)
 // ability to churn through a bunch of events in a single frame (either by user interacting really fast, spoofing, or undo/redo-ing)
 
+// // things we're usually unwilling to compromise on
+// zero is initialization
+
 // BUG: clicking with sc doesn't do anything sometimes
 // BUG: sw broken for very short arcs of huge circles
 
@@ -51,6 +54,9 @@
 
 
 // // TODO: good undergrad tasks
+// TODO: ROTATE
+// TODO: COPY
+// TODO: SCALE
 // TODO: OFFSET
 // TODO: shell (OFFSET CONNECTED)
 // TODO: FILLET CONNECTED
@@ -60,7 +66,7 @@
 // TODO: add LAYOUT's two click mirror
 // TODO: being able to type equations into boxes
 // TODO: holding shift to make box a square
-// TODO: eraser tool
+// TODO: ERASE (including drawing the eraser circle in pixel coordinates
 // TODO: three click circle
 // TODO: elipse
 // TODO: fillet line-arc
@@ -83,7 +89,6 @@
 #include "burkardt.cpp"
 #include "conversation.h"
 #include "elephant.cpp"
-
 
 //////////////////////////////////////////////////
 // SCARY MACROS //////////////////////////////////
@@ -112,6 +117,8 @@ PopupState *popup = &global_world_state.popup;
 Timers *timers = &aesthetics.timers;
 UserEvent *space_bar_event = &global_world_state.space_bar_event;
 UserEvent *shift_space_bar_event = &global_world_state.shift_space_bar_event;
+uint32 *hot_pane = &_global_screen_state.hot_pane;
+uint32 *owner_pane = &_global_screen_state.owner_pane;
 bool32 *awaiting_second_click = &global_world_state.two_click_command.awaiting_second_click;
 char *open_filename = popup->open_filename;
 char *save_filename = popup->open_filename;
@@ -466,19 +473,48 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     }
 }
 
+// TODO: hover_pane held_pane
+// TODO: screen state mouse state that ends up looking a lot like hot_pane selected_pane
+//       (bring the cameras on into the app very very soon)
+// FORNOW: gui stuff that we don't record is handled here
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
-    _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
+    { // FORNOW: camera_move (using shimmed globals.* global_world_state)
+        _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
+    }
+
+    { // hot_pane
+        real32 eps = 8;
+        real32 x = _global_screen_state.mouse_in_pixel_coordinates.x;
+        real32 divider = window_get_width() * (0.5f + _global_screen_state.divider_fraction_offset_from_one_half);
+        if (x < divider - eps) {
+            *hot_pane = PANE_LEFT;
+        } else if (x < divider + eps) {
+            *hot_pane = PANE_DIVIDER;
+        } else {
+            *hot_pane = PANE_RIGHT;
+        }
+    }
+
+
+    // TODOLATER: window special case
+    // if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
+    //     if ((*click_modifier == CLICK_MODIFIER_WINDOW) && (*awaiting_second_click)) _global_screen_state.hot_pane = PANE_LEFT;// FORNOW
+    // }
 
     _global_screen_state.mouse_in_pixel_coordinates = { real32(xpos), real32(ypos) };
 
-    if (_global_screen_state.mouse_held) {
-        RawUserEvent raw_event; {
-            raw_event = {};
-            raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
-            raw_event.mouse_in_pixel_coordinates = _global_screen_state.mouse_in_pixel_coordinates;
-            raw_event.mouse_held = true;
+    if (globals.mouse_left_held) {
+        if (*owner_pane == PANE_LEFT) {
+            RawUserEvent raw_event; {
+                raw_event = {};
+                raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
+                raw_event.mouse_in_pixel_coordinates = _global_screen_state.mouse_in_pixel_coordinates;
+                raw_event.mouse_held = true;
+            }
+            queue_enqueue(&raw_user_event_queue, raw_event);
+        } else if (*owner_pane == PANE_DIVIDER) {
+            _global_screen_state.divider_fraction_offset_from_one_half = (xpos / window_get_width()) - 0.5f;
         }
-        queue_enqueue(&raw_user_event_queue, raw_event);
     }
 }
 
@@ -488,6 +524,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { // NOTE: mouse does not have GLFW_REPEAT
             _global_screen_state.mouse_held = true; // NOTE: for callback_cursor_position
+            *owner_pane = *hot_pane;
             RawUserEvent raw_event; {
                 raw_event = {};
                 raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
@@ -496,6 +533,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
             queue_enqueue(&raw_user_event_queue, raw_event);
         } else { ASSERT(action == GLFW_RELEASE); 
             _global_screen_state.mouse_held = false; // NOTE: for callback_cursor_position
+            *owner_pane = PANE_NONE;
         }
     }
 }
@@ -868,6 +906,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 result.record_me = false;
                 _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
             } else if (key_lambda('=')) {
+                result.checkpoint_me = true;
                 feature_plane->is_active = false;
             } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
                 for (int32 i = dxf->entities.length - 1; i >= 0; --i) {
@@ -1638,7 +1677,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                     real32 prev_line_angle = *line_angle;
                     real32 prev_line_run = *line_run;
                     real32 prev_line_rise = *line_rise;
-                    popup_popup(false,
+                    popup_popup(true,
                             POPUP_CELL_TYPE_REAL32, "line_length", line_length,
                             POPUP_CELL_TYPE_REAL32, "line_angle", line_angle,
                             POPUP_CELL_TYPE_REAL32, "line_run", line_run,
@@ -2010,14 +2049,15 @@ void conversation_draw() {
 
     { // panes
         eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
-        eso_color(monokai.gray);
-        // if (_global_screen_state.hot_pane == HOT_PANE_2D) {
+        eso_color((*owner_pane == PANE_DIVIDER) ? monokai.yellow : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
+        // if (_global_screen_state.hot_pane == PANE_LEFT) {
         //     eso_color(monokai.yellow);
         // } else {
         //     eso_color(1.0f, 0.0f, 1.0f);
         // }
-        eso_vertex(0.0f,  1.0f);
-        eso_vertex(0.0f, -1.0f);
+        real32 x = LINEAR_REMAP(_global_screen_state.divider_fraction_offset_from_one_half, -0.5f, 0.5f, -1.0f, 1.0f);
+        eso_vertex(x,  1.0f);
+        eso_vertex(x, -1.0f);
         eso_end();
     }
 
@@ -2334,7 +2374,7 @@ void conversation_draw() {
 
 
         { // cursor decorations
-            real32 a = (_global_screen_state.hot_pane == HOT_PANE_2D) ? 1.0f : 0.5f;
+            real32 a = (_global_screen_state.hot_pane == PANE_LEFT) ? 1.0f : 0.5f;
             real32 r, g, b;
             r = g = b = 1.0f;
             char _COLOR_X[64] = {};
@@ -2601,6 +2641,12 @@ int main() {
     while (cow_begin_frame()) {
         _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
 
+        if (*owner_pane == PANE_LEFT) {
+            camera_move(&_global_screen_state.camera_2D);
+        } else if (*owner_pane == PANE_RIGHT) {
+            camera_move(&_global_screen_state.camera_3D);
+        }
+
         // conversation_messagef("%lf", global_world_state.popup.circle_diameter);
         // Sleep(100);
 
@@ -2620,24 +2666,6 @@ int main() {
             }
             timers->_helper_going_inside = _going_inside_next;
         }
-
-        #if 1
-        { // camera_move, hot_pane
-            { // camera_move (using shimmed globals.* global_world_state)
-                if (_global_screen_state.hot_pane == HOT_PANE_2D) {
-                    camera_move(&_global_screen_state.camera_2D);
-                } else if (_global_screen_state.hot_pane == HOT_PANE_3D) {
-                    camera_move(&_global_screen_state.camera_3D);
-                }
-            }
-
-            if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-                _global_screen_state.hot_pane = (_global_screen_state.mouse_in_pixel_coordinates.x <= window_get_width() / 2) ? HOT_PANE_2D : HOT_PANE_3D;
-
-                if ((*click_modifier == CLICK_MODIFIER_WINDOW) && (*awaiting_second_click)) _global_screen_state.hot_pane = HOT_PANE_2D;// FORNOW
-            }
-        }
-        #endif
 
         { // queue_of_fresh_events_from_user
           // TODO: upgrade to handle multiple events per frame while only drawing gui once (simple simple with a boolean here -- reusing boolean is sus)
