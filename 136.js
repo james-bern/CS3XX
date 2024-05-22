@@ -11,7 +11,7 @@ var aspect = window.innerWidth / window.innerHeight;
 var camera = new THREE.PerspectiveCamera(90, aspect, 0.1, 9999);
 camera.position.z = worldHeight / 2;
 
-var renderer = new THREE.WebGLRenderer({antialias:false});
+var renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setClearColor("#FFFFFF");
 renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );

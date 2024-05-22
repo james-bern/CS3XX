@@ -146,6 +146,8 @@ uint32 *click_mode     = &global_world_state.modes.click_mode;
 uint32 *click_modifier = &global_world_state.modes.click_modifier;
 uint32 *enter_mode     = &global_world_state.modes.enter_mode;
 vec2 *first_click = &global_world_state.two_click_command.first_click;
+Camera2D *camera_2D = &_global_screen_state.camera_2D;
+Camera3D *camera_3D = &_global_screen_state.camera_3D;
 
 //////////////////////////////////////////////////
 // NON-ZERO INITIALIZERS /////////////////////////
@@ -164,6 +166,10 @@ void init_cameras() {
 // GETTERS (STATE NOT WORTH TROUBLE OF STORING) //
 //////////////////////////////////////////////////
 // getters
+
+real32 get_x_divider_Screen() {
+    return LINEAR_REMAP(_global_screen_state.x_divider_NDC, -1.0f, 1.0f, 0.0f, window_get_width());
+}
 
 mat4 get_M_3D_from_2D() {
     vec3 up = { 0.0f, 1.0f, 0.0f };
@@ -483,12 +489,12 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // hot_pane
+        real32 x_divider_Screen = get_x_divider_Screen();
         real32 eps = 8;
         real32 x = _global_screen_state.mouse_in_pixel_coordinates.x;
-        real32 divider = window_get_width() * (0.5f + _global_screen_state.divider_fraction_offset_from_one_half);
-        if (x < divider - eps) {
+        if (x < x_divider_Screen - eps) {
             *hot_pane = PANE_LEFT;
-        } else if (x < divider + eps) {
+        } else if (x < x_divider_Screen + eps) {
             *hot_pane = PANE_DIVIDER;
         } else {
             *hot_pane = PANE_RIGHT;
@@ -513,7 +519,11 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             }
             queue_enqueue(&raw_user_event_queue, raw_event);
         } else if (*owner_pane == PANE_DIVIDER) {
-            _global_screen_state.divider_fraction_offset_from_one_half = (xpos / window_get_width()) - 0.5f;
+            real32 x_prev = _global_screen_state.x_divider_NDC;
+            _global_screen_state.x_divider_NDC = CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_width(), -1.0f, 1.0f), -0.99f, 0.99f);
+            real32 dx_NDC = 0.5f * (_global_screen_state.x_divider_NDC - x_prev);
+            camera_2D->t_x_NDC += dx_NDC;
+            camera_3D->t_x_NDC += dx_NDC;
         }
     }
 }
@@ -521,6 +531,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM for cow Camera's
 
+    // TODO dont allow right and left held at same time (first to click wins)
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) { // NOTE: mouse does not have GLFW_REPEAT
             _global_screen_state.mouse_held = true; // NOTE: for callback_cursor_position
@@ -2055,16 +2066,17 @@ void conversation_draw() {
         // } else {
         //     eso_color(1.0f, 0.0f, 1.0f);
         // }
-        real32 x = LINEAR_REMAP(_global_screen_state.divider_fraction_offset_from_one_half, -0.5f, 0.5f, -1.0f, 1.0f);
-        eso_vertex(x,  1.0f);
-        eso_vertex(x, -1.0f);
+        eso_vertex(_global_screen_state.x_divider_NDC,  1.0f);
+        eso_vertex(_global_screen_state.x_divider_NDC, -1.0f);
         eso_end();
     }
+
+    real32 x_divider_Screen = get_x_divider_Screen();
 
     { // draw 2D draw 2d draw
         {
             glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(0, 0, window_width / 2, window_height);
+            gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_Screen, window_height);
         }
 
         {
@@ -2197,8 +2209,11 @@ void conversation_draw() {
     }
 
     { // 3D draw 3D 3d draw 3d
-        glEnable(GL_SCISSOR_TEST);
-        gl_scissor_TODO_CHECK_ARGS(window_width / 2, 0, window_width / 2, window_height);
+        {
+            glEnable(GL_SCISSOR_TEST);
+            real32 o = _global_screen_state.x_divider_NDC;
+            gl_scissor_TODO_CHECK_ARGS(x_divider_Screen, 0, window_width - x_divider_Screen, window_height);
+        }
 
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             uint32 color = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((*click_mode == CLICK_MODE_ORIGIN) || (*enter_mode == ENTER_MODE_OFFSET_PLANE)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;

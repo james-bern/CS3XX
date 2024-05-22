@@ -229,7 +229,7 @@ struct ScreenState {
     bool32 shift_held;
     bool32 mouse_held;
 
-    real32 divider_fraction_offset_from_one_half;
+    real32 x_divider_NDC;
 
     char drop_path[256];
     bool32 DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
