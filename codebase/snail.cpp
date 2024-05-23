@@ -535,7 +535,9 @@ template <int T> SnailVector<T> transformPoint(const SnailMatrix<4> &M, SnailVec
     return ret;
 }
 template <int T> SnailVector<T> transformVector(const SnailMatrix<4> &M, SnailVector<T> v) {
-    SnailVector<3> ret_hom = M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)) * v;
+    SnailVector<3> v_3D = {};
+    memcpy(&v_3D, &v, T * sizeof(cow_real));
+    SnailVector<3> ret_hom = M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)) * v_3D;
     SnailVector<T> ret = {};
     memcpy(&ret, &ret_hom, T * sizeof(cow_real));
     return ret;

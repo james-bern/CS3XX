@@ -1,3 +1,9 @@
+// TODO: printing program to console (storing program as a string)
+
+// TODO: cow upgrades
+
+// TODO: follow 2-3 hours of autocad tutorials
+
 //////////////////////////////////////////////////
 // DEBUG /////////////////////////////////////////
 //////////////////////////////////////////////////
@@ -15,6 +21,9 @@
 
 // // things we're usually unwilling to compromise on
 // zero is initialization
+// keep the tool (line, circle, box, move, ...) code simple
+// - repetition is fine; don't be clever; follow the formula
+
 
 // BUG: clicking with sc doesn't do anything sometimes
 // BUG: sw broken for very short arcs of huge circles
@@ -54,6 +63,7 @@
 
 
 // // TODO: good undergrad tasks
+// TODO: popup_popup real32 fields automatically parse formulas
 // TODO: ROTATE
 // TODO: COPY
 // TODO: SCALE
@@ -118,7 +128,8 @@ Timers *timers = &aesthetics.timers;
 UserEvent *space_bar_event = &global_world_state.space_bar_event;
 UserEvent *shift_space_bar_event = &global_world_state.shift_space_bar_event;
 uint32 *hot_pane = &_global_screen_state.hot_pane;
-uint32 *owner_pane = &_global_screen_state.owner_pane;
+uint32 *mouse_left_drag_pane = &_global_screen_state.mouse_left_drag_pane;
+uint32 *mouse_right_drag_pane = &_global_screen_state.mouse_right_drag_pane;
 bool32 *awaiting_second_click = &global_world_state.two_click_command.awaiting_second_click;
 char *open_filename = popup->open_filename;
 char *save_filename = popup->open_filename;
@@ -136,6 +147,10 @@ real32 *line_angle               = &popup->line_angle;
 real32 *line_length              = &popup->line_length;
 real32 *line_rise                = &popup->line_rise;
 real32 *line_run                 = &popup->line_run;
+real32 *move_angle               = &popup->move_angle;
+real32 *move_length              = &popup->move_length;
+real32 *move_rise                = &popup->move_rise;
+real32 *move_run                 = &popup->move_run;
 real32 *plane_offset             = &popup->plane_offset;
 real32 *revolve_add_dummy        = &popup->revolve_add_dummy;
 real32 *revolve_cut_dummy        = &popup->revolve_cut_dummy;
@@ -211,6 +226,8 @@ bool32 click_mode_SNAP_ELIGIBLE() {
         || (*click_mode == CLICK_MODE_MEASURE)
         || (*click_mode == CLICK_MODE_MOVE)
         || (*click_mode == CLICK_MODE_ORIGIN)
+        || (*click_mode == CLICK_MODE_X_MIRROR)
+        || (*click_mode == CLICK_MODE_Y_MIRROR)
         ;
 }
 
@@ -484,68 +501,97 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
 //       (bring the cameras on into the app very very soon)
 // FORNOW: gui stuff that we don't record is handled here
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
-    { // FORNOW: camera_move (using shimmed globals.* global_world_state)
-        _callback_cursor_position(NULL, xpos, ypos); // FORNOW TODO TODO TODO SHIM
-    }
-
     { // hot_pane
         real32 x_divider_Screen = get_x_divider_Screen();
         real32 eps = 8;
-        real32 x = _global_screen_state.mouse_in_pixel_coordinates.x;
+        real32 x = _global_screen_state.mouse_Pixel.x;
         if (x < x_divider_Screen - eps) {
-            *hot_pane = PANE_LEFT;
+            *hot_pane = PANE_2D;
         } else if (x < x_divider_Screen + eps) {
             *hot_pane = PANE_DIVIDER;
         } else {
-            *hot_pane = PANE_RIGHT;
+            *hot_pane = PANE_3D;
         }
     }
 
+    // mouse_*
+    vec2 delta_mouse_World; {
+        vec2 prev_mouse_NDC = _global_screen_state.mouse_NDC;
+        _global_screen_state.mouse_Pixel = { real32(xpos), real32(ypos) };
+        _global_screen_state.mouse_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_Pixel);
+        delta_mouse_World = transformVector(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC - prev_mouse_NDC);
+    }
 
-    // TODOLATER: window special case
-    // if ((!globals.mouse_left_held && !globals.mouse_right_held) || globals.mouse_left_pressed || globals.mouse_right_pressed) {
-    //     if ((*click_modifier == CLICK_MODIFIER_WINDOW) && (*awaiting_second_click)) _global_screen_state.hot_pane = PANE_LEFT;// FORNOW
-    // }
-
-    _global_screen_state.mouse_in_pixel_coordinates = { real32(xpos), real32(ypos) };
-
-    if (globals.mouse_left_held) {
-        if (*owner_pane == PANE_LEFT) {
+    {
+        if (*mouse_left_drag_pane == PANE_2D) {
             RawUserEvent raw_event; {
                 raw_event = {};
                 raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
-                raw_event.mouse_in_pixel_coordinates = _global_screen_state.mouse_in_pixel_coordinates;
+                raw_event.mouse_Pixel = _global_screen_state.mouse_Pixel;
                 raw_event.mouse_held = true;
             }
             queue_enqueue(&raw_user_event_queue, raw_event);
-        } else if (*owner_pane == PANE_DIVIDER) {
+        }
+
+        if (*mouse_left_drag_pane == PANE_DIVIDER) {
             real32 x_prev = _global_screen_state.x_divider_NDC;
             _global_screen_state.x_divider_NDC = CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_width(), -1.0f, 1.0f), -0.99f, 0.99f);
-            real32 dx_NDC = 0.5f * (_global_screen_state.x_divider_NDC - x_prev);
-            camera_2D->t_x_NDC += dx_NDC;
-            camera_3D->t_x_NDC += dx_NDC;
+            real32 delta = 0.5f * (_global_screen_state.x_divider_NDC - x_prev);
+            camera_2D->t_NDC.x += delta;
+            camera_3D->t_NDC.x += delta;
+        }
+    }
+
+    { // camera_*D
+        // NOTE: stolen from cow
+        // NOTE: _not_ accumulating; just going for it on every event (shrug)
+        if (*mouse_right_drag_pane == PANE_2D) camera_2D->o -= delta_mouse_World;
+        { // TODO: camera_3D
+        if ((*mouse_left_drag_pane == PANE_3D) || (*mouse_right_drag_pane == PANE_3D)) camera_move(&_global_screen_state.camera_3D);
         }
     }
 }
 
+// NOTE: mouse does not have GLFW_REPEAT
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     _callback_mouse_button(NULL, button, action, 0); // FORNOW TODO TODO TODO SHIM for cow Camera's
 
-    // TODO dont allow right and left held at same time (first to click wins)
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
-        if (action == GLFW_PRESS) { // NOTE: mouse does not have GLFW_REPEAT
-            _global_screen_state.mouse_held = true; // NOTE: for callback_cursor_position
-            *owner_pane = *hot_pane;
-            RawUserEvent raw_event; {
-                raw_event = {};
-                raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
-                raw_event.mouse_in_pixel_coordinates = _global_screen_state.mouse_in_pixel_coordinates;
+        if (action == GLFW_PRESS) {
+            *mouse_left_drag_pane = *hot_pane;
+
+            // RAW_USER_EVENT_TYPE_MOUSE_PRESS
+            if (*hot_pane != PANE_DIVIDER) {
+                RawUserEvent raw_event; {
+                    raw_event = {};
+                    raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
+                    raw_event.mouse_Pixel = _global_screen_state.mouse_Pixel;
+                }
+                queue_enqueue(&raw_user_event_queue, raw_event);
             }
-            queue_enqueue(&raw_user_event_queue, raw_event);
-        } else { ASSERT(action == GLFW_RELEASE); 
-            _global_screen_state.mouse_held = false; // NOTE: for callback_cursor_position
-            *owner_pane = PANE_NONE;
+        } else { ASSERT(action == GLFW_RELEASE);
+            *mouse_left_drag_pane = PANE_NONE;
         }
+    } else { ASSERT(button == GLFW_MOUSE_BUTTON_RIGHT);
+        if (action == GLFW_PRESS) {
+            *mouse_right_drag_pane = *hot_pane;
+        } else { ASSERT(action == GLFW_RELEASE);
+            *mouse_right_drag_pane = PANE_NONE;
+        }
+    }
+}
+
+void callback_scroll(GLFWwindow *, double, double yoffset) {
+    // NOTE: stolen from cow
+    // NOTE: _not_ accumulating; just going for it on every event (shrug)
+    if (*hot_pane == PANE_2D) {
+        // GOAL: mouse_World_2D_III equal-to mouse_World_2D_I
+        #define GET_MOUSE_WORLD
+        vec2 mouse_World_2D_I  = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
+        camera_2D->screen_height_World *= (1.0f - 0.1f * yoffset);
+        vec2 mouse_World_2D_II = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
+        camera_2D->o -= (mouse_World_2D_II - mouse_World_2D_I);
+    } else if (*hot_pane == PANE_3D) {
     }
 }
 
@@ -595,13 +641,14 @@ UserEvent bake_event(RawUserEvent raw_event) {
         event.type = get_baked_type_of_raw_key_event(raw_event);
     } else { ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_MOUSE_PRESS);
         // NOTE: changed _window_get_NDC_from_Screen() -> globals.NDC_from_Screen
-        vec2 mouse_in_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_in_pixel_coordinates);
-        bool32 left_pane = _global_screen_state.mouse_in_pixel_coordinates.x < window_get_width() / 2;
+        vec2 mouse_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_Pixel);
+        bool32 left_pane = _global_screen_state.mouse_Pixel.x < get_x_divider_Screen(); // FORNOW
         if (left_pane) {
             if (!popup->mouse_is_hovering) {
-                mat4 inv_PV_2D = inverse(camera_get_PV(&_global_screen_state.camera_2D));
+                mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
+                vec2 mouse_World_2D = transformPoint(inv_PV_2D, mouse_NDC);
                 event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
-                event.mouse = magic_snap(transformPoint(inv_PV_2D, mouse_in_NDC));
+                event.mouse = magic_snap(mouse_World_2D);
                 event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
             } else {
                 event.type = USER_EVENT_TYPE_GUI_MOUSE;
@@ -617,19 +664,12 @@ UserEvent bake_event(RawUserEvent raw_event) {
         } else { // right pane
             mat4 inv_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
             event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
-            event.o = transformPoint(inv_PV_3D, V3(mouse_in_NDC, -1.0f));
-            event.dir = normalized(transformPoint(inv_PV_3D, V3(mouse_in_NDC, 1.0f)) - event.o);
+            event.o = transformPoint(inv_PV_3D, V3(mouse_NDC, -1.0f));
+            event.dir = normalized(transformPoint(inv_PV_3D, V3(mouse_NDC, 1.0f)) - event.o);
             event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
         }
     }
     return event;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-
-void callback_scroll(GLFWwindow *, double, double yoffset) {
-    _callback_scroll(NULL, 0, yoffset); // FORNOW TODO TODO TODO SHIM for cameras
 }
 
 BEGIN_PRE_MAIN {
@@ -1715,6 +1755,31 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                         return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *box_width, first_click->y + *box_height));
                     }
                 }
+            } else if (*click_mode == CLICK_MODE_MOVE) {
+                // FORNOW: this is repeated from LINE
+                if (*awaiting_second_click) {
+                    real32 prev_move_length = *move_length;
+                    real32 prev_move_angle = *move_angle;
+                    real32 prev_move_run = *move_run;
+                    real32 prev_move_rise = *move_rise;
+                    popup_popup(true,
+                            POPUP_CELL_TYPE_REAL32, "move_length", move_length,
+                            POPUP_CELL_TYPE_REAL32, "move_angle", move_angle,
+                            POPUP_CELL_TYPE_REAL32, "move_run", move_run,
+                            POPUP_CELL_TYPE_REAL32, "move_rise", move_rise
+                            );
+                    if (enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *move_run, first_click->y + *move_rise));
+                    } else {
+                        if ((prev_move_length != *move_length) || (prev_move_angle != *move_angle)) {
+                            *move_run = *move_length * COS(RAD(*move_angle));
+                            *move_rise = *move_length * SIN(RAD(*move_angle));
+                        } else if ((prev_move_run != *move_run) || (prev_move_rise != *move_rise)) {
+                            *move_length = SQRT(*move_run * *move_run + *move_rise * *move_rise);
+                            *move_angle = DEG(ATAN2(*move_rise, *move_run));
+                        }
+                    }
+                }
             } else if (*click_mode == CLICK_MODE_FILLET) {
                 popup_popup(false,
                         POPUP_CELL_TYPE_REAL32, "fillet_radius", fillet_radius);
@@ -1998,6 +2063,8 @@ void conversation_draw() {
     mat4 P_2D = camera_get_P(&_global_screen_state.camera_2D);
     mat4 V_2D = camera_get_V(&_global_screen_state.camera_2D);
     mat4 PV_2D = P_2D * V_2D;
+    mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
+    vec2 mouse_World_2D = transformPoint(inv_PV_2D, _global_screen_state.mouse_NDC);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
     bool32 extrude = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT));
@@ -2023,7 +2090,7 @@ void conversation_draw() {
     real32 preview_plane_offset = global_world_state.popup.plane_offset;
 
     // preview
-    vec2 preview_mouse = magic_snap(mouse_get_position(PV_2D), true);
+    vec2 preview_mouse = magic_snap(mouse_World_2D, true);
     vec2 preview_dxf_origin; {
         if (*click_mode != CLICK_MODE_ORIGIN) {
             preview_dxf_origin = global_world_state.dxf.origin;
@@ -2059,9 +2126,9 @@ void conversation_draw() {
     }
 
     { // panes
-        eso_begin(globals.Identity, SOUP_LINES, 5.0f, true);
-        eso_color((*owner_pane == PANE_DIVIDER) ? monokai.yellow : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
-        // if (_global_screen_state.hot_pane == PANE_LEFT) {
+        eso_begin(globals.Identity, SOUP_LINES, (*mouse_left_drag_pane == PANE_DIVIDER) ? 3.0f : 5.0f, true);
+        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.white : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
+        // if (_global_screen_state.hot_pane == PANE_2D) {
         //     eso_color(monokai.yellow);
         // } else {
         //     eso_color(1.0f, 0.0f, 1.0f);
@@ -2211,7 +2278,6 @@ void conversation_draw() {
     { // 3D draw 3D 3d draw 3d
         {
             glEnable(GL_SCISSOR_TEST);
-            real32 o = _global_screen_state.x_divider_NDC;
             gl_scissor_TODO_CHECK_ARGS(x_divider_Screen, 0, window_width - x_divider_Screen, window_height);
         }
 
@@ -2389,7 +2455,7 @@ void conversation_draw() {
 
 
         { // cursor decorations
-            real32 a = (_global_screen_state.hot_pane == PANE_LEFT) ? 1.0f : 0.5f;
+            real32 a = (_global_screen_state.hot_pane == PANE_2D) ? 1.0f : 0.5f;
             real32 r, g, b;
             r = g = b = 1.0f;
             char _COLOR_X[64] = {};
@@ -2427,8 +2493,8 @@ void conversation_draw() {
                         (*click_mode == CLICK_MODE_X_MIRROR) ? "X_MIRROR" :
                         (*click_mode == CLICK_MODE_Y_MIRROR) ? "Y_MIRROR" :
                         "???MODE???"),
-                    _global_screen_state.mouse_in_pixel_coordinates.x + 12,
-                    _global_screen_state.mouse_in_pixel_coordinates.y + 14,
+                    _global_screen_state.mouse_Pixel.x + 12,
+                    _global_screen_state.mouse_Pixel.y + 14,
                     0.0,
 
                     r,
@@ -2454,8 +2520,8 @@ void conversation_draw() {
                         (*click_modifier == CLICK_MODIFIER_WINDOW)                ? "WINDOW" :
                         (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) ? _X_Y :
                         "???MODIFIER???"),
-                    _global_screen_state.mouse_in_pixel_coordinates.x + 12,
-                    _global_screen_state.mouse_in_pixel_coordinates.y + 24,
+                    _global_screen_state.mouse_Pixel.x + 12,
+                    _global_screen_state.mouse_Pixel.y + 24,
                     0.0,
 
                     1.0,
@@ -2655,12 +2721,6 @@ int main() {
     bool32 frame_1 = false;
     while (cow_begin_frame()) {
         _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
-
-        if (*owner_pane == PANE_LEFT) {
-            camera_move(&_global_screen_state.camera_2D);
-        } else if (*owner_pane == PANE_RIGHT) {
-            camera_move(&_global_screen_state.camera_3D);
-        }
 
         // conversation_messagef("%lf", global_world_state.popup.circle_diameter);
         // Sleep(100);

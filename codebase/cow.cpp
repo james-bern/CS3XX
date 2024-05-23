@@ -2836,10 +2836,8 @@ void mesh_draw(
 // this is an "ortho camera" that points at (o_x, o_y)   
 struct Camera2D {
     cow_real screen_height_World;
-    cow_real o_x;
-    cow_real o_y;
-    cow_real t_x_NDC;
-    cow_real t_y_NDC;
+    vec2 o;
+    vec2 t_NDC;
 };
 
 // this is an "orbit camera" that points at the origia*  
@@ -2859,16 +2857,14 @@ struct Camera3D {
     cow_real angle_of_view; // set to 0 to use an ortho camera
     cow_real theta; // yaw
     cow_real phi; // pitch
-    cow_real o_x;
-    cow_real o_y;
-    cow_real t_x_NDC;
-    cow_real t_y_NDC;
+    vec2 o;
+    vec2 t_NDC;
 };
 
 void camera_attach_to_gui(Camera2D *camera) {
     gui_slider("screen_height_World", &camera->screen_height_World, 0.1f, 100.0f, false);
-    gui_slider("o_x", &camera->o_x, -camera->screen_height_World, camera->screen_height_World, false);
-    gui_slider("o_y", &camera->o_y, -camera->screen_height_World, camera->screen_height_World, false);
+    gui_slider("o_x", &camera->o.x, -camera->screen_height_World, camera->screen_height_World, false);
+    gui_slider("o_y", &camera->o.y, -camera->screen_height_World, camera->screen_height_World, false);
 }
 
 void camera_attach_to_gui(Camera3D *camera) {
@@ -2880,20 +2876,20 @@ void camera_attach_to_gui(Camera3D *camera) {
     gui_slider("angle_of_view", &camera->angle_of_view, RAD(0.0), RAD(180.0), true);
     gui_slider("theta", &camera->theta, RAD(-180.0), RAD(180.0), true);
     gui_slider("phi", &camera->phi, RAD(-90.0), RAD(90.0), true);
-    gui_slider("o_x", &camera->o_x, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
-    gui_slider("o_y", &camera->o_y, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
+    gui_slider("o_x", &camera->o.x, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
+    gui_slider("o_y", &camera->o.y, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
 }
 
 void _camera_get_P(Camera2D *camera, cow_real *P) {
-    _window_get_P_ortho(P, camera->screen_height_World, camera->t_x_NDC, camera->t_y_NDC);
+    _window_get_P_ortho(P, camera->screen_height_World, camera->t_NDC.x, camera->t_NDC.y);
 }
 
 void _camera_get_V(Camera2D *camera, cow_real *V) {
-    _window_get_V_ortho_2D(V, camera->o_x, camera->o_y);
+    _window_get_V_ortho_2D(V, camera->o.x, camera->o.y);
 }
 
 void _camera_get_PV(Camera2D *camera, cow_real *PV) {
-    _window_get_PV_ortho_2D(PV, camera->screen_height_World, camera->o_x, camera->o_y, camera->t_x_NDC, camera->t_y_NDC);
+    _window_get_PV_ortho_2D(PV, camera->screen_height_World, camera->o.x, camera->o.y, camera->t_NDC.x, camera->t_NDC.y);
 }
 
 cow_real camera_get_screen_height_World(Camera3D *camera) {
@@ -2910,8 +2906,8 @@ void _camera_get_coordinate_system(Camera3D *camera, cow_real *C_out, cow_real *
 
     cow_real C[16]; {
         cow_real T[16] = {
-            1, 0, 0, camera->o_x,
-            0, 1, 0, camera->o_y, // fornow
+            1, 0, 0, camera->o.x,
+            0, 1, 0, camera->o.y, // fornow
             0, 0, 1, camera_o_z,
             0, 0, 0, 1,
         };
@@ -2958,9 +2954,9 @@ void _camera_get_coordinate_system(Camera3D *camera, cow_real *C_out, cow_real *
 
 void _camera_get_P(Camera3D *camera, cow_real *P) {
     if (IS_ZERO(camera->angle_of_view)) {
-        _window_get_P_ortho(P, camera->ortho_screen_height_World, camera->t_x_NDC, camera->t_y_NDC);
+        _window_get_P_ortho(P, camera->ortho_screen_height_World, camera->t_NDC.x, camera->t_NDC.y);
     } else {
-        _window_get_P_perspective(P, camera->angle_of_view, camera->t_x_NDC, camera->t_y_NDC);
+        _window_get_P_perspective(P, camera->angle_of_view, camera->t_NDC.x, camera->t_NDC.y);
     }
 }
 
@@ -2983,8 +2979,8 @@ void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom =
     if (!disable_pan && globals.mouse_right_held) {
         cow_real dx, dy;
         _input_get_mouse_position_and_change_in_position_in_world_coordinates(NDC_from_World, NULL, NULL, &dx, &dy);
-        camera->o_x -= dx;
-        camera->o_y -= dy;
+        camera->o.x -= dx;
+        camera->o.y -= dy;
     }
     else if (!disable_zoom && !IS_ZERO(globals.mouse_wheel_offset)) {
         camera->screen_height_World *= (1.f - .1f * globals.mouse_wheel_offset);
@@ -3017,14 +3013,14 @@ void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom =
             _linalg_mat4_times_vec4_persp_divide(mouse_NDC, NDC_from_World, mouse_World); 
         }
         _linalg_mat4_times_vec4_persp_divide(a, inv_P_prime, mouse_NDC);
-        for (int d = 0; d < 2; ++d) (&camera->o_x)[d] = mouse_World[d] - a[d];
+        for (int d = 0; d < 2; ++d) (&camera->o.x)[d] = mouse_World[d] - a[d];
     }
 }
 
 void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom = false, bool disable_rotate = false) {
     disable_rotate |= (globals._input_owner != COW_INPUT_OWNER_NONE);
     { // 2D transforms
-        Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->o_x, camera->o_y, camera->t_x_NDC, camera->t_y_NDC };
+        Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->o.x, camera->o.y, camera->t_NDC.x, camera->t_NDC.y };
         camera_move(&tmp2D, disable_pan, disable_zoom);
 
         if (IS_ZERO(camera->angle_of_view)) { // ortho
@@ -3042,8 +3038,8 @@ void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom =
             camera->persp_distance_to_origin = r_y / tan(theta);
         }
 
-        camera->o_x = tmp2D.o_x;
-        camera->o_y = tmp2D.o_y;
+        camera->o.x = tmp2D.o.x;
+        camera->o.y = tmp2D.o.y;
     }
     if (!disable_rotate && globals.mouse_left_held) {
         cow_real fac = 2;

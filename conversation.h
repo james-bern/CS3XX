@@ -107,8 +107,8 @@ struct {
 #define DXF_ENTITY_TYPE_ARC  1
 
 #define PANE_NONE    0
-#define PANE_LEFT    1
-#define PANE_RIGHT   2
+#define PANE_2D    1
+#define PANE_3D   2
 #define PANE_DIVIDER 3
 
 #define USER_EVENT_TYPE_NONE            0
@@ -121,7 +121,6 @@ struct {
 #define RAW_USER_EVENT_TYPE_NONE        0
 #define RAW_USER_EVENT_TYPE_KEY_PRESS   1
 #define RAW_USER_EVENT_TYPE_MOUSE_PRESS 2
-// TODO: drag?
 
 #define POPUP_CELL_TYPE_NONE    0
 #define POPUP_CELL_TYPE_REAL32  1
@@ -185,7 +184,7 @@ struct RawUserEvent {
     bool32 super;
     bool32 shift;
 
-    vec2 mouse_in_pixel_coordinates;
+    vec2 mouse_Pixel;
     bool32 mouse_held;
 };
 
@@ -222,12 +221,15 @@ struct ScreenState {
     bool32   show_help;
     bool32   show_event_stack;
 
-    uint32   hot_pane;
-    uint32   owner_pane;
+    uint32 hot_pane;
+    uint32 mouse_left_drag_pane;
+    uint32 mouse_right_drag_pane;
 
-    vec2 mouse_in_pixel_coordinates;
+    vec2 mouse_NDC;
+    vec2 mouse_Pixel;
     bool32 shift_held;
-    bool32 mouse_held;
+    bool32 mouse_left_held;
+    bool32 mouse_right_held;
 
     real32 x_divider_NDC;
 
@@ -283,6 +285,10 @@ struct PopupState {
     real32 line_angle;
     real32 line_run;
     real32 line_rise;
+    real32 move_length;
+    real32 move_angle;
+    real32 move_run;
+    real32 move_rise;
     real32 revolve_add_dummy;
     real32 revolve_cut_dummy;
     char open_filename[POPUP_CELL_LENGTH];
@@ -428,8 +434,8 @@ void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, BoundingBox bounding_box
     real32 new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / _window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
     camera_2D->screen_height_World = new_height;
-    camera_2D->o_x = new_o_x;
-    camera_2D->o_y = new_o_y;
+    camera_2D->o.x = new_o_x;
+    camera_2D->o.y = new_o_y;
 }
 
 ////////////////////////////////////////

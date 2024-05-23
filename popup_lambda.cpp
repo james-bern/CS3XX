@@ -105,8 +105,8 @@ auto popup_popup = [&] (
 
             real32 X_MARGIN_OFFSET = COW1._gui_x_curr;
 
-            real32 x_mouse = _global_screen_state.mouse_in_pixel_coordinates.x;
-            real32 y_mouse = _global_screen_state.mouse_in_pixel_coordinates.y;
+            real32 x_mouse = _global_screen_state.mouse_Pixel.x;
+            real32 y_mouse = _global_screen_state.mouse_Pixel.y;
 
             real32 x_field_left;
             real32 x_field_right;
@@ -130,7 +130,7 @@ auto popup_popup = [&] (
             }
 
             BoundingBox field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            if (bounding_box_contains(field_box, _global_screen_state.mouse_in_pixel_coordinates)) {
+            if (bounding_box_contains(field_box, _global_screen_state.mouse_Pixel)) {
                 popup->mouse_is_hovering = true;
                 popup->hover_cell_index = d;
                 popup->hover_cursor = 0; // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
