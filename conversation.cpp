@@ -173,7 +173,7 @@ void init_cameras() {
     // FORNOW
     if (dxf->entities.length) camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&global_world_state.dxf.entities));
     if ((!_global_screen_state.camera_3D.persp_distance_to_origin) || (!global_world_state.mesh.num_vertices)) {
-        _global_screen_state.camera_3D = { 2.0f * MIN(150.0f, _global_screen_state.camera_2D.screen_height_World), CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
+        _global_screen_state.camera_3D = { 2.0f * MIN(150.0f, _global_screen_state.camera_2D.height_World), CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
     }
 }
 
@@ -545,7 +545,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     { // camera_*D
         // NOTE: stolen from cow
         // NOTE: _not_ accumulating; just going for it on every event (shrug)
-        if (*mouse_right_drag_pane == PANE_2D) camera_2D->position_World -= delta_mouse_World;
+        if (*mouse_right_drag_pane == PANE_2D) camera_2D->center_World -= delta_mouse_World;
         { // TODO: camera_3D
         if ((*mouse_left_drag_pane == PANE_3D) || (*mouse_right_drag_pane == PANE_3D)) camera_move(&_global_screen_state.camera_3D);
         }
@@ -588,9 +588,9 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
         // GOAL: mouse_World_2D_III equal-to mouse_World_2D_I
         #define GET_MOUSE_WORLD
         vec2 mouse_World_2D_I  = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
-        camera_2D->screen_height_World *= (1.0f - 0.1f * yoffset);
+        camera_2D->height_World *= (1.0f - 0.1f * yoffset);
         vec2 mouse_World_2D_II = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
-        camera_2D->position_World -= (mouse_World_2D_II - mouse_World_2D_I);
+        camera_2D->center_World -= (mouse_World_2D_II - mouse_World_2D_I);
     } else if (*hot_pane == PANE_3D) {
     }
 }
@@ -2173,7 +2173,7 @@ void conversation_draw() {
                 eso_end();
             }
             { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
-                real32 funky_NDC_factor = _global_screen_state.camera_2D.screen_height_World / 120.0f;
+                real32 funky_NDC_factor = _global_screen_state.camera_2D.height_World / 120.0f;
                 real32 LL = 1000 * funky_NDC_factor;
 
                 eso_color(monokai.white);
