@@ -534,18 +534,18 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         }
 
         if (*mouse_left_drag_pane == PANE_DIVIDER) {
-            real32 x_prev = _global_screen_state.x_divider_NDC;
+            real32 prev_x_divider_NDC = _global_screen_state.x_divider_NDC;
             _global_screen_state.x_divider_NDC = CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_width(), -1.0f, 1.0f), -0.99f, 0.99f);
-            real32 delta = 0.5f * (_global_screen_state.x_divider_NDC - x_prev);
-            camera_2D->t_NDC.x += delta;
-            camera_3D->t_NDC.x += delta;
+            real32 delta_NDC = 0.5f * (_global_screen_state.x_divider_NDC - prev_x_divider_NDC);
+            camera_2D->display_nudge_NDC.x += delta_NDC;
+            camera_3D->display_nudge_NDC.x += delta_NDC;
         }
     }
 
     { // camera_*D
         // NOTE: stolen from cow
         // NOTE: _not_ accumulating; just going for it on every event (shrug)
-        if (*mouse_right_drag_pane == PANE_2D) camera_2D->o -= delta_mouse_World;
+        if (*mouse_right_drag_pane == PANE_2D) camera_2D->position_World -= delta_mouse_World;
         { // TODO: camera_3D
         if ((*mouse_left_drag_pane == PANE_3D) || (*mouse_right_drag_pane == PANE_3D)) camera_move(&_global_screen_state.camera_3D);
         }
@@ -590,7 +590,7 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
         vec2 mouse_World_2D_I  = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
         camera_2D->screen_height_World *= (1.0f - 0.1f * yoffset);
         vec2 mouse_World_2D_II = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
-        camera_2D->o -= (mouse_World_2D_II - mouse_World_2D_I);
+        camera_2D->position_World -= (mouse_World_2D_II - mouse_World_2D_I);
     } else if (*hot_pane == PANE_3D) {
     }
 }

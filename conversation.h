@@ -434,8 +434,8 @@ void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, BoundingBox bounding_box
     real32 new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / _window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
     camera_2D->screen_height_World = new_height;
-    camera_2D->o.x = new_o_x;
-    camera_2D->o.y = new_o_y;
+    camera_2D->position_World.x = new_o_x;
+    camera_2D->position_World.y = new_o_y;
 }
 
 ////////////////////////////////////////
