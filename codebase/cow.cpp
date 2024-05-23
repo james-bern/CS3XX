@@ -2840,7 +2840,7 @@ struct Camera2D {
     vec2 display_nudge_NDC;
 };
 
-// this is an "orbit camera" that points at the origia*  
+// this is an "orbit camera" that points at the origin*  
 //                               *unless o_x, o_y nonzero
 //                                                       
 // it is stuck to the surface of a sphere at (theta, phi)

@@ -357,7 +357,8 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 vec3 color_n = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
                 if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
-                    color = CLAMPED_LERP(timers->plane_selected, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
+                    color = CLAMPED_LERP(timers->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
+                    if (timers->plane_selected < 0.5f) color = monokai.white;
                     alpha = CLAMPED_LERP(timers->plane_selected, 1.0f, timers->_helper_going_inside ? 
                             CLAMPED_LERP(timers->going_inside, 1.0f, 0.7f)
                             : 1.0f);// ? 0.7f : 1.0f;
@@ -2126,8 +2127,8 @@ void conversation_draw() {
     }
 
     { // panes
-        eso_begin(globals.Identity, SOUP_LINES, (*mouse_left_drag_pane == PANE_DIVIDER) ? 3.0f : 5.0f, true);
-        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.white : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
+        eso_begin(globals.Identity, SOUP_LINES, (*mouse_left_drag_pane == PANE_DIVIDER) ? 3.0f : (*hot_pane == PANE_DIVIDER) ? 6.0f : 5.0f, true);
+        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.blue : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
         // if (_global_screen_state.hot_pane == PANE_2D) {
         //     eso_color(monokai.yellow);
         // } else {
