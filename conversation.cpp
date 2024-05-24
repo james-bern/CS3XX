@@ -353,12 +353,12 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             vec3 color; 
             real32 alpha;
             {
-                vec3 n_camera = inv_transpose_V_3D * n;
-                vec3 color_n = V3(0.5f + 0.5f * n_camera.x, 0.5f + 0.5f * n_camera.y, 1.0f);
+                vec3 n_Camera = inv_transpose_V_3D * n;
+                vec3 color_n = V3(0.5f + 0.5f * n_Camera.x, 0.5f + 0.5f * n_Camera.y, 1.0f);
                 if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
                     color = CLAMPED_LERP(timers->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
-                    if (timers->plane_selected < 0.5f) color = monokai.white;
+                    if (timers->plane_selected < 0.3f) color = monokai.white;
                     alpha = CLAMPED_LERP(timers->plane_selected, 1.0f, timers->_helper_going_inside ? 
                             CLAMPED_LERP(timers->going_inside, 1.0f, 0.7f)
                             : 1.0f);// ? 0.7f : 1.0f;
@@ -516,11 +516,14 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     // mouse_*
-    vec2 delta_mouse_World; {
+    vec2 delta_mouse_NDC;
+    vec2 delta_mouse_World_2D;
+    {
         vec2 prev_mouse_NDC = _global_screen_state.mouse_NDC;
         _global_screen_state.mouse_Pixel = { real32(xpos), real32(ypos) };
         _global_screen_state.mouse_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_Pixel);
-        delta_mouse_World = transformVector(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC - prev_mouse_NDC);
+        delta_mouse_NDC = _global_screen_state.mouse_NDC - prev_mouse_NDC;
+        delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_2D)), delta_mouse_NDC);
     }
 
     {
@@ -544,11 +547,20 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // camera_*D
-        // NOTE: stolen from cow
-        // NOTE: _not_ accumulating; just going for it on every event (shrug)
-        if (*mouse_right_drag_pane == PANE_2D) camera_2D->center_World -= delta_mouse_World;
-        { // TODO: camera_3D
-        if ((*mouse_left_drag_pane == PANE_3D) || (*mouse_right_drag_pane == PANE_3D)) camera_move(&_global_screen_state.camera_3D);
+      // NOTE: stolen from cow
+      // NOTE: _not_ accumulating; just going for it on every event (shrug)
+        if (*mouse_right_drag_pane == PANE_2D) camera_2D->center_World -= delta_mouse_World_2D;
+        if (*mouse_right_drag_pane == PANE_3D) {
+            // FORNOW: bad, repetitive
+            Camera2D tmp_2D = { camera_get_screen_height_World(camera_3D), camera_3D->_center_World.x, camera_3D->_center_World.y, camera_3D->display_nudge_NDC.x, camera_3D->display_nudge_NDC.y };
+            tmp_2D.center_World -= transformVector(inverse(camera_get_PV(&tmp_2D)), delta_mouse_NDC);
+            camera_3D->_center_World = tmp_2D.center_World;
+        }
+        if (*mouse_left_drag_pane == PANE_3D) {
+            cow_real fac = 2;
+            camera_3D->theta -= fac * delta_mouse_NDC.x;
+            camera_3D->phi += fac * delta_mouse_NDC.y;
+            camera_3D->phi = CLAMP(camera_3D->phi, -RAD(90), RAD(90));
         }
     }
 }
@@ -582,17 +594,29 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     }
 }
 
+void _callback_scroll_helper(Camera2D *camera, double yoffset) {
+    // GOAL: mouse_World_2D_III equal-to mouse_World_2D_I
+    vec2 mouse_World_2D_I  = transformPoint(inverse(camera_get_PV(camera)), _global_screen_state.mouse_NDC);
+    camera->height_World *= (1.0f - 0.1f * yoffset);
+    vec2 mouse_World_2D_II = transformPoint(inverse(camera_get_PV(camera)), _global_screen_state.mouse_NDC);
+    camera->center_World -= (mouse_World_2D_II - mouse_World_2D_I);
+}
 void callback_scroll(GLFWwindow *, double, double yoffset) {
     // NOTE: stolen from cow
     // NOTE: _not_ accumulating; just going for it on every event (shrug)
     if (*hot_pane == PANE_2D) {
-        // GOAL: mouse_World_2D_III equal-to mouse_World_2D_I
-        #define GET_MOUSE_WORLD
-        vec2 mouse_World_2D_I  = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
-        camera_2D->height_World *= (1.0f - 0.1f * yoffset);
-        vec2 mouse_World_2D_II = transformPoint(inverse(camera_get_PV(camera_2D)), _global_screen_state.mouse_NDC);
-        camera_2D->center_World -= (mouse_World_2D_II - mouse_World_2D_I);
+        _callback_scroll_helper(camera_2D, yoffset);
     } else if (*hot_pane == PANE_3D) {
+        Camera2D tmp_2D = { camera_get_screen_height_World(camera_3D), camera_3D->_center_World.x, camera_3D->_center_World.y, camera_3D->display_nudge_NDC.x, camera_3D->display_nudge_NDC.y };
+        _callback_scroll_helper(&tmp_2D, yoffset);
+        if (IS_ZERO(camera_3D->angle_of_view)) {
+            camera_3D->ortho_screen_height_World = tmp_2D.height_World;
+        } else {
+            real32 r_y = tmp_2D.height_World / 2;
+            real32 theta = camera_3D->angle_of_view / 2;
+            camera_3D->persp_distance_to_origin = r_y / tan(theta);
+        }
+        camera_3D->_center_World = tmp_2D.center_World;
     }
 }
 
@@ -1232,10 +1256,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                     } else if (*click_mode == CLICK_MODE_AXIS) {
                         *awaiting_second_click = false;
                         result.checkpoint_me = true;
-                        dxf->axis_base_point = *first_click;
-                        dxf->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
                         *click_mode = CLICK_MODE_NONE;
                         *click_modifier = CLICK_MODIFIER_NONE;
+                        dxf->axis_base_point = *first_click;
+                        dxf->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
                     } else if (*click_mode == CLICK_MODE_FILLET) {
                         *awaiting_second_click = false;
                         result.checkpoint_me = true;
@@ -1348,10 +1372,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             } else {
                 if (*click_mode == CLICK_MODE_ORIGIN) {
                     result.checkpoint_me = true;
+                    *click_mode = CLICK_MODE_NONE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
                     dxf->origin = *mouse;
-                    global_world_state.modes = {};
                 } else if (*click_mode == CLICK_MODE_X_MIRROR) {
                     result.checkpoint_me = true;
+                    *click_mode = CLICK_MODE_NONE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
                     _for_each_selected_entity_ {
                         if (entity->type == DXF_ENTITY_TYPE_LINE) {
                             DXFLine *line = &entity->line;
@@ -1376,6 +1403,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                     DXF_ADD_BUFFERED_ENTITIES();
                 } else if (*click_mode == CLICK_MODE_Y_MIRROR) {
                     result.checkpoint_me = true;
+                    *click_mode = CLICK_MODE_NONE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
                     _for_each_selected_entity_ {
                         if (entity->type == DXF_ENTITY_TYPE_LINE) {
                             DXFLine *line = &entity->line;
@@ -1424,19 +1453,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                 result.checkpoint_me = result.record_me = true;
                 feature_plane->is_active = true;
+                timers->plane_selected = 0.0f;
                 {
-                    vec3 n_prev = feature_plane->normal;
-                    real32 d_prev = feature_plane->signed_distance_to_world_origin;
-
                     feature_plane->normal = get(global_world_state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
                     { // FORNOW (gross) calculateion of feature_plane->signed_distance_to_world_origin
                         vec3 a_selected = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + 0]);
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, a_selected);
                     }
 
-                    if (!IS_ZERO(norm(n_prev - feature_plane->normal)) || !ARE_EQUAL(d_prev, feature_plane->signed_distance_to_world_origin)) {
-                        timers->plane_selected = 0.0f;
-                    }
                 }
             }
         }
@@ -2310,7 +2334,7 @@ void conversation_draw() {
                     }
                 } else if (*click_mode == CLICK_MODE_ORIGIN) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D;
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 } else if (*enter_mode == ENTER_MODE_OFFSET_PLANE) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -2440,7 +2464,8 @@ void conversation_draw() {
             }
             if (draw) {
                 eso_begin(PVM, SOUP_QUADS);
-                eso_color(color, 0.35f);
+
+                eso_color(color, CLAMPED_LERP(SQRT(timers->plane_selected), 0.0f, 0.35f));
                 eso_vertex(draw_bounding_box.min[0], draw_bounding_box.min[1], sign * Z_FIGHT_EPS);
                 eso_vertex(draw_bounding_box.min[0], draw_bounding_box.max[1], sign * Z_FIGHT_EPS);
                 eso_vertex(draw_bounding_box.max[0], draw_bounding_box.max[1], sign * Z_FIGHT_EPS);
@@ -2704,7 +2729,6 @@ int main() {
              "cz8\n"
              "{m3d 1 100 -1 0 -1 0}"
              "sa:100\n"
-             "^n"
              "="
              ;
     script_process(string);

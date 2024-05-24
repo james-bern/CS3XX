@@ -2857,7 +2857,7 @@ struct Camera3D {
     cow_real angle_of_view; // set to 0 to use an ortho camera
     cow_real theta; // yaw
     cow_real phi; // pitch
-    vec2 o;
+    vec2 _center_World;
     vec2 display_nudge_NDC;
 };
 
@@ -2876,8 +2876,8 @@ void camera_attach_to_gui(Camera3D *camera) {
     gui_slider("angle_of_view", &camera->angle_of_view, RAD(0.0), RAD(180.0), true);
     gui_slider("theta", &camera->theta, RAD(-180.0), RAD(180.0), true);
     gui_slider("phi", &camera->phi, RAD(-90.0), RAD(90.0), true);
-    gui_slider("o_x", &camera->o.x, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
-    gui_slider("o_y", &camera->o.y, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
+    gui_slider("o_x", &camera->_center_World.x, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
+    gui_slider("o_y", &camera->_center_World.y, -camera->persp_distance_to_origin, camera->persp_distance_to_origin, false);
 }
 
 void _camera_get_P(Camera2D *camera, cow_real *P) {
@@ -2906,8 +2906,8 @@ void _camera_get_coordinate_system(Camera3D *camera, cow_real *C_out, cow_real *
 
     cow_real C[16]; {
         cow_real T[16] = {
-            1, 0, 0, camera->o.x,
-            0, 1, 0, camera->o.y, // fornow
+            1, 0, 0, camera->_center_World.x,
+            0, 1, 0, camera->_center_World.y, // fornow
             0, 0, 1, camera_o_z,
             0, 0, 0, 1,
         };
@@ -3020,7 +3020,7 @@ void camera_move(Camera2D *camera, bool disable_pan = false, bool disable_zoom =
 void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom = false, bool disable_rotate = false) {
     disable_rotate |= (globals._input_owner != COW_INPUT_OWNER_NONE);
     { // 2D transforms
-        Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->o.x, camera->o.y, camera->display_nudge_NDC.x, camera->display_nudge_NDC.y };
+        Camera2D tmp2D = { camera_get_screen_height_World(camera), camera->_center_World.x, camera->_center_World.y, camera->display_nudge_NDC.x, camera->display_nudge_NDC.y };
         camera_move(&tmp2D, disable_pan, disable_zoom);
 
         if (IS_ZERO(camera->angle_of_view)) { // ortho
@@ -3038,8 +3038,8 @@ void camera_move(Camera3D *camera, bool disable_pan = false, bool disable_zoom =
             camera->persp_distance_to_origin = r_y / tan(theta);
         }
 
-        camera->o.x = tmp2D.center_World.x;
-        camera->o.y = tmp2D.center_World.y;
+        camera->_center_World.x = tmp2D.center_World.x;
+        camera->_center_World.y = tmp2D.center_World.y;
     }
     if (!disable_rotate && globals.mouse_left_held) {
         cow_real fac = 2;
