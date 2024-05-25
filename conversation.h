@@ -107,9 +107,10 @@ struct {
 #define DXF_ENTITY_TYPE_ARC  1
 
 #define PANE_NONE    0
-#define PANE_2D    1
-#define PANE_3D   2
+#define PANE_2D      1
+#define PANE_3D      2
 #define PANE_DIVIDER 3
+#define PANE_POPUP   4
 
 #define USER_EVENT_TYPE_NONE            0
 #define USER_EVENT_TYPE_HOTKEY_PRESS    1
@@ -156,7 +157,7 @@ struct DXFEntity {
     };
     // FORNOW: this goes last
     bool32 is_selected;
-    real32 time_since_selected;
+    real32 time_since_is_selected_changed;
 };
 
 struct BoundingBox {
@@ -187,6 +188,8 @@ struct RawUserEvent {
 
     vec2 mouse_Pixel;
     bool32 mouse_held;
+
+    uint32 pane;
 };
 
 struct UserEvent {

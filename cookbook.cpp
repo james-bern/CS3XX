@@ -74,7 +74,7 @@ auto DXF_ENTITY_SET_IS_SELECTED = [&](DXFEntity *entity, bool32 is_selected) {
         result.record_me = true;
         result.checkpoint_me = (!event.mouse_held);
         entity->is_selected = is_selected;
-        if (entity->is_selected) entity->time_since_selected = 0.0f;
+        entity->time_since_is_selected_changed = 0.0f;
     }
 };
 

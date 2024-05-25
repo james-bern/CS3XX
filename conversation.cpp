@@ -1,9 +1,13 @@
+// TODO: fix up the dragging of the mouse while grabbing the popup
+
+// TODO: color -> color_code
 // TODO: programmatic toggle on Sleep
 
-// TODO: floating sketch plane should tween in size
-// TODO: initial plane should be scaled to match the size of the selected face 
 
-// TODO: selection timer on dxf entities so they can flash white
+// TODO: update help
+
+// XXX: selection timer on dxf entities so they can flash white
+// TODOLATER: entities transparency appear and disappear better
 
 // TODO: printing program to console (storing program as a string)
 // TODO: drag and drop of program
@@ -12,6 +16,10 @@
 // TODO: cow upgrades
 
 // TODO: follow 2-3 hours of autocad tutorials
+
+
+// TODO: floating sketch plane should tween in size
+// TODO: initial plane should be scaled to match the size of the selected face 
 
 //////////////////////////////////////////////////
 // DEBUG /////////////////////////////////////////
@@ -509,16 +517,15 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     }
 }
 
-// TODO: hover_pane held_pane
-// TODO: screen state mouse state that ends up looking a lot like hot_pane selected_pane
-//       (bring the cameras on into the app very very soon)
 // FORNOW: gui stuff that we don't record is handled here
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     { // hot_pane
         real32 x_divider_Screen = get_x_divider_Screen();
         real32 eps = 8;
         real32 x = _global_screen_state.mouse_Pixel.x;
-        if (x < x_divider_Screen - eps) {
+        if (popup->mouse_is_hovering) {
+            *hot_pane = PANE_POPUP;
+        } else if (x < x_divider_Screen - eps) {
             *hot_pane = PANE_2D;
         } else if (x < x_divider_Screen + eps) {
             *hot_pane = PANE_DIVIDER;
@@ -526,6 +533,9 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             *hot_pane = PANE_3D;
         }
     }
+
+
+    // TODO: is a PANE_POPUP a bad idea?--maybe just try it??
 
     // mouse_*
     vec2 delta_mouse_NDC;
@@ -538,17 +548,23 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_2D)), delta_mouse_NDC);
     }
 
-    {
-        if (*mouse_left_drag_pane == PANE_2D) {
+    { // special draggin mouse_held RAW_USER_EVENT_TYPE_MOUSE_PRESS
+        if (0
+                || (*mouse_left_drag_pane == PANE_2D)
+                || (*mouse_left_drag_pane == PANE_POPUP)
+                ) {
             RawUserEvent raw_event; {
                 raw_event = {};
                 raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
                 raw_event.mouse_Pixel = _global_screen_state.mouse_Pixel;
                 raw_event.mouse_held = true;
+                raw_event.pane = *mouse_left_drag_pane;
             }
             queue_enqueue(&raw_user_event_queue, raw_event);
         }
+    }
 
+    { // dragging divider
         if (*mouse_left_drag_pane == PANE_DIVIDER) {
             real32 prev_x_divider_NDC = _global_screen_state.x_divider_NDC;
             _global_screen_state.x_divider_NDC = CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_width(), -1.0f, 1.0f), -0.99f, 0.99f);
@@ -558,9 +574,10 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         }
     }
 
-    { // camera_*D
-      // NOTE: stolen from cow
-      // NOTE: _not_ accumulating; just going for it on every event (shrug)
+    { // moving cameras
+        ;
+        // NOTE: stolen from cow
+        // NOTE: _not_ accumulating; just going for it on every event (shrug)
         if (*mouse_right_drag_pane == PANE_2D) camera_2D->center_World -= delta_mouse_World_2D;
         if (*mouse_right_drag_pane == PANE_3D) {
             // FORNOW: bad, repetitive
@@ -584,16 +601,13 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
             *mouse_left_drag_pane = *hot_pane;
-
-            // RAW_USER_EVENT_TYPE_MOUSE_PRESS
-            if (*hot_pane != PANE_DIVIDER) {
-                RawUserEvent raw_event; {
-                    raw_event = {};
-                    raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
-                    raw_event.mouse_Pixel = _global_screen_state.mouse_Pixel;
-                }
-                queue_enqueue(&raw_user_event_queue, raw_event);
+            RawUserEvent raw_event; {
+                raw_event = {};
+                raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
+                raw_event.mouse_Pixel = _global_screen_state.mouse_Pixel;
+                raw_event.pane = *hot_pane;
             }
+            queue_enqueue(&raw_user_event_queue, raw_event);
         } else { ASSERT(action == GLFW_RELEASE);
             *mouse_left_drag_pane = PANE_NONE;
         }
@@ -667,6 +681,8 @@ bool32 get_baked_type_of_raw_key_event(RawUserEvent raw_event) {
 // NOTE: this function does global_world_state-dependent stuff (magic-snapping)
 // NOTE: a lot of stuff is happening at once here:
 //       pixel coords -> pre-snapped world coords -> snapped world-coords
+// NOTE: this function can "drop" raw_event's by returning the null event.
+//       this smells a bit (should probs fail earlier, but I like the previous layer not knowing this stuff)
 UserEvent bake_event(RawUserEvent raw_event) {
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(raw_event);
 
@@ -679,31 +695,32 @@ UserEvent bake_event(RawUserEvent raw_event) {
     } else { ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_MOUSE_PRESS);
         // NOTE: changed _window_get_NDC_from_Screen() -> globals.NDC_from_Screen
         vec2 mouse_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_Pixel);
-        bool32 left_pane = _global_screen_state.mouse_Pixel.x < get_x_divider_Screen(); // FORNOW
-        if (left_pane) {
-            if (!popup->mouse_is_hovering) {
-                mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
-                vec2 mouse_World_2D = transformPoint(inv_PV_2D, mouse_NDC);
-                event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
-                event.mouse = magic_snap(mouse_World_2D);
-                event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
+        if (raw_event.pane == PANE_2D) {
+            mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
+            vec2 mouse_World_2D = transformPoint(inv_PV_2D, mouse_NDC);
+            event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
+            event.mouse = magic_snap(mouse_World_2D);
+            event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
+        } else if (raw_event.pane == PANE_POPUP) {
+            // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
+            event.type = USER_EVENT_TYPE_GUI_MOUSE;
+            event.cell_index = popup->hover_cell_index; 
+            event.mouse_held = raw_event.mouse_held;
+            if (!raw_event.mouse_held) {
+                event.cursor = popup->hover_cursor; 
             } else {
-                event.type = USER_EVENT_TYPE_GUI_MOUSE;
-                event.cell_index = popup->hover_cell_index; 
-                if (!raw_event.mouse_held) {
-                    event.cursor = popup->hover_cursor; 
-                } else {
-                    // preserve old value; NOTE: could also be achieved with event.set_cursor = false;
-                    event.cursor = popup->cursor;
-                }
-                event.selection_cursor = popup->hover_cursor; 
+                // preserve old value; NOTE: could also be achieved with event.set_cursor = false;
+                event.cursor = popup->cursor;
             }
-        } else { // right pane
+            event.selection_cursor = popup->hover_cursor; 
+        } else if (raw_event.pane == PANE_3D) {
             mat4 inv_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
             event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
             event.o = transformPoint(inv_PV_3D, V3(mouse_NDC, -1.0f));
             event.dir = normalized(transformPoint(inv_PV_3D, V3(mouse_NDC, 1.0f)) - event.o);
             event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
+        } else { ASSERT(raw_event.pane == PANE_DIVIDER);
+            event = {};
         }
     }
     return event;
@@ -773,7 +790,7 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
 }
 #endif
 
-void history_printf_program(); // FORNOW forward declaration
+void history_printf_script(); // FORNOW forward declaration
 
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEvent event) {
     bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
@@ -877,7 +894,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 _global_screen_state.hide_grid = !_global_screen_state.hide_grid;
             } else if (key_lambda('H')) {
                 result.record_me = false;
-                history_printf_program();
+                history_printf_script();
             } else if (key_lambda('K')) { 
                 result.record_me = false;
                 _global_screen_state.show_event_stack = !_global_screen_state.show_event_stack;
@@ -1600,10 +1617,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
     } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE) {
         time_since->cursor_blink = 0.0f;
         result.record_me = false;
-        if (popup->active_cell_index != event.cell_index) {
+        if ((!event.mouse_held) && (popup->active_cell_index != event.cell_index)) {
             result.record_me = true;
             POPUP_SET_ACTIVE_CELL_INDEX(event.cell_index);
         }
+        // NOTE: this if is really gross and patches a problem where if you drag the mouse off the cell things break
+        // TODO: this should be fixed earlier in the chain; better guarantees about what the event is sending you
+        // (TODO: you should be able to leave the box)
+if (popup->active_cell_index == event.cell_index) {
         if (popup->cursor != event.cursor) {
             result.record_me = true;
             popup->cursor = event.cursor;
@@ -1612,6 +1633,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             result.record_me = true;
             popup->selection_cursor = event.selection_cursor;
         }
+}
     } else { ASSERT(event.type == USER_EVENT_TYPE_NONE);
         result.record_me = false;
     }
@@ -2072,7 +2094,7 @@ void history_debug_draw() {
     }
 }
 
-void history_printf_program() {
+void history_printf_script() {
     List<char> program = {};
     for (////
             UserEvent *event = history.recorded_user_events._undo_stack.array;
@@ -2080,8 +2102,15 @@ void history_printf_program() {
             ++event
         ) {//
         if ((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS)) {
-            char char_equivalent = (char) event->key;
-            list_push_back(&program, (char) char_equivalent);
+            if (event->super) list_push_back(&program, '^');
+            if (event->key == GLFW_KEY_ENTER) {
+                list_push_back(&program, '\\');
+                list_push_back(&program, 'n');
+            } else {
+                char char_equivalent = (char) event->key;
+                if ((('A' <= event->key) && (event->key <= 'Z')) && !event->shift) char_equivalent = 'a' + (char_equivalent - 'A');
+                list_push_back(&program, (char) char_equivalent);
+            }
         }
     }
     printf("%.*s\n", program.length, program.array);
@@ -2186,7 +2215,7 @@ void conversation_draw() {
 
     { // panes
         eso_begin(globals.Identity, SOUP_LINES, (*mouse_left_drag_pane == PANE_DIVIDER) ? 3.0f : (*hot_pane == PANE_DIVIDER) ? 6.0f : 5.0f, true);
-        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.purple : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
+        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.white : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
         // if (_global_screen_state.hot_pane == PANE_2D) {
         //     eso_color(monokai.yellow);
         // } else {
@@ -2404,8 +2433,15 @@ void conversation_draw() {
                 for (uint32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
                     eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
                         _for_each_selected_entity_ {
-                            real32 alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_selected, time_since->plane_selected), 0.0f, 1.0f);
-                            vec3 _color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_selected), monokai.white, color_as_vec3(color));
+                            real32 alpha;
+                            vec3 _color;
+                            // if (entity->is_selected) {
+                            alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_is_selected_changed, time_since->plane_selected), 0.0f, 1.0f);
+                            _color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), monokai.white, color_as_vec3(color));
+                            // } else {
+                            //     alpha = CLAMPED_LERP(5.0f * entity->time_since_is_selected_changed, 1.0f, 0.0f);
+                            //     _color = color_as_vec3(color);
+                            // }
                             eso_color(_color, alpha);
                             eso_dxf_entity__SOUP_LINES(entity);
                         }
@@ -2524,7 +2560,7 @@ void conversation_draw() {
 
 
         { // cursor decorations
-            real32 a = (_global_screen_state.hot_pane == PANE_2D) ? 1.0f : 0.5f;
+            real32 a = ((*hot_pane == PANE_2D) && ((*mouse_left_drag_pane == PANE_NONE) || (*mouse_left_drag_pane == PANE_2D))) ? 1.0f : 0.5f;
             real32 r, g, b;
             r = g = b = 1.0f;
             char _COLOR_X[64] = {};
@@ -2747,10 +2783,10 @@ int main() {
 
     glfwHideWindow(COW0._window_glfw_window);
 
-    char *string;
-    // string = "cz0123456789";
-    // string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
-    string = \
+    char *script;
+    // script = "cz0123456789";
+    // script = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
+    script = \
              // "cz\t10\n"
              // "cz10\n"
              // "bzx30\t30\n"
@@ -2780,7 +2816,7 @@ int main() {
              "^odemo.dxf\n"
              "y"
              ;
-    script_process(string);
+    script_process(script);
 
     init_cameras(); // FORNOW
 
@@ -2800,7 +2836,7 @@ int main() {
 
         { // time_since
             real32 dt = 0.0167f;
-            _for_each_selected_entity_ entity->time_since_selected += dt;
+            _for_each_entity_ entity->time_since_is_selected_changed += dt;
             time_since->cursor_blink += dt;
             time_since->successful_feature += dt;
             time_since->plane_selected += dt;
