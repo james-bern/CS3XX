@@ -156,6 +156,7 @@ struct DXFEntity {
     };
     // FORNOW: this goes last
     bool32 is_selected;
+    real32 time_since_selected;
 };
 
 struct BoundingBox {
@@ -237,7 +238,7 @@ struct ScreenState {
     bool32 DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
 };
 
-struct Timers {
+struct TimeSince {
     real32 cursor_blink;
     real32 successful_feature;
     real32 plane_selected;
@@ -246,7 +247,7 @@ struct Timers {
 };
 
 struct AestheticsState {
-    Timers timers;
+    TimeSince time_since;
 };
 
 struct PopupState {
@@ -641,21 +642,20 @@ void dxf_entities_load(char *filename, List<DXFEntity> *dxf_entities) {
     fclose(file);
 }
 
-void _dxf_eso_color(uint32 color) {
+vec3 color_as_vec3(uint32 color) {
     if (color <= 9) {
-        eso_color(omax_pallete[color]);
+        return omax_pallete[color];
     } else if (color == DXF_COLOR_SELECTION) {
-        eso_color(basic.yellow);
+        return basic.yellow;
     } else {
         do_once { conversation_messagef("WARNING: slits not implemented"); };
-        eso_color(0.3f, 0.3f, 0.3f);
+        return V3(0.3f);
     }
 }
 
-void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_COLOR_DONT_OVERRIDE, real32 dx = 0.0f, real32 dy = 0.0f) {
+void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, real32 dx = 0.0f, real32 dy = 0.0f) {
     if (entity->type == DXF_ENTITY_TYPE_LINE) {
         DXFLine *line = &entity->line;
-        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : entity->color);
         eso_vertex(line->start.x + dx, line->start.y + dy);
         eso_vertex(line->end.x + dx,   line->end.y + dy);
     } else {
@@ -667,7 +667,6 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
         uint32 num_segments = (uint32) (1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
         real32 increment = delta_angle / num_segments;
         real32 current_angle = start_angle;
-        _dxf_eso_color((override_color != DXF_COLOR_DONT_OVERRIDE) ? override_color : entity->color);
         for (uint32 i = 0; i < num_segments; ++i) {
             real32 x, y;
             get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc->center.x, arc->center.y, arc->radius, current_angle);

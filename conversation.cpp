@@ -1,4 +1,13 @@
+// TODO: programmatic toggle on Sleep
+
+// TODO: floating sketch plane should tween in size
+// TODO: initial plane should be scaled to match the size of the selected face 
+
+// TODO: selection timer on dxf entities so they can flash white
+
 // TODO: printing program to console (storing program as a string)
+// TODO: drag and drop of program
+// TODO: how are we going to distribute files
 
 // TODO: cow upgrades
 
@@ -15,14 +24,17 @@
 // NOTES /////////////////////////////////////////
 //////////////////////////////////////////////////
 
-// // things we are unwilling to compromise on
+// // things we are always unwilling to compromise on
 // frame-perfect UI / graphics (except first frame FORNOW)
 // ability to churn through a bunch of events in a single frame (either by user interacting really fast, spoofing, or undo/redo-ing)
 
-// // things we're usually unwilling to compromise on
+// // things we are almost always unwilling to compromise on
 // zero is initialization
-// keep the tool (line, circle, box, move, ...) code simple
-// - repetition is fine; don't be clever; follow the formula
+// keep the tool (line, circle, box, move, ...) code simple, formulaic, and not-clever
+// - repetition is fine
+
+// // thing we aspire for Conversation to be
+// "juicy"
 
 
 // BUG: clicking with sc doesn't do anything sometimes
@@ -69,7 +81,7 @@
 // TODO: SCALE
 // TODO: OFFSET
 // TODO: shell (OFFSET CONNECTED)
-// TODO: FILLET CONNECTED
+// TODO: FILLET CONNECTED (super fillet 'F')
 // TODO: perpendicular snap
 // TODO: quad snap
 // TODO: LAYOUT polygon
@@ -124,7 +136,7 @@ DXFState *dxf = &global_world_state.dxf;
 FeaturePlaneState *feature_plane = &global_world_state.feature_plane;
 Mesh *mesh = &global_world_state.mesh;
 PopupState *popup = &global_world_state.popup;
-Timers *timers = &aesthetics.timers;
+TimeSince *time_since = &aesthetics.time_since;
 UserEvent *space_bar_event = &global_world_state.space_bar_event;
 UserEvent *shift_space_bar_event = &global_world_state.shift_space_bar_event;
 uint32 *hot_pane = &_global_screen_state.hot_pane;
@@ -331,7 +343,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
 
     if (mesh->cosmetic_edges) {
         eso_begin(PVM_3D, SOUP_LINES); 
-        // eso_color(CLAMPED_LERP(2 * timers->successful_feature, monokai.white, monokai.black));
+        // eso_color(CLAMPED_LERP(2 * time_since->successful_feature, monokai.white, monokai.black));
         eso_color(monokai.black);
         // 3 * num_triangles * 2 / 2
         for (uint32 k = 0; k < 2 * mesh->num_cosmetic_edges; ++k) eso_vertex(mesh->vertex_positions, mesh->cosmetic_edges[k]);
@@ -357,10 +369,10 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 vec3 color_n = V3(0.5f + 0.5f * n_Camera.x, 0.5f + 0.5f * n_Camera.y, 1.0f);
                 if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
-                    color = CLAMPED_LERP(timers->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
-                    if (timers->plane_selected < 0.3f) color = monokai.white;
-                    alpha = CLAMPED_LERP(timers->plane_selected, 1.0f, timers->_helper_going_inside ? 
-                            CLAMPED_LERP(timers->going_inside, 1.0f, 0.7f)
+                    color = CLAMPED_LERP(2.0f * time_since->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
+                    if (2.0f * time_since->plane_selected < 0.3f) color = monokai.white;
+                    alpha = CLAMPED_LERP(2.0f * time_since->plane_selected, 1.0f, time_since->_helper_going_inside ? 
+                            CLAMPED_LERP(time_since->going_inside, 1.0f, 0.7f)
                             : 1.0f);// ? 0.7f : 1.0f;
                 } else {
                     if (pass == 1) continue;
@@ -368,12 +380,12 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                     alpha = 1.0f;
                 }
             }
-            real32 mask = CLAMP(.6 * timers->successful_feature, 0.0f, 2.0f);
-            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[0].y, mesh->max.y, mesh->min.y) + 0.5f * timers->successful_feature), monokai.white, color), alpha);
+            real32 mask = CLAMP(1.2f * time_since->successful_feature, 0.0f, 2.0f);
+            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[0].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
             eso_vertex(p[0]);
-            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[1].y, mesh->max.y, mesh->min.y) + 0.5f * timers->successful_feature), monokai.white, color), alpha);
+            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[1].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
             eso_vertex(p[1]);
-            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[2].y, mesh->max.y, mesh->min.y) + 0.5f * timers->successful_feature), monokai.white, color), alpha);
+            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[2].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
             eso_vertex(p[2]);
         }
         eso_end();
@@ -761,6 +773,8 @@ StandardEventProcessResult standard_event_process(const UserEvent event) {
 }
 #endif
 
+void history_printf_program(); // FORNOW forward declaration
+
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEvent event) {
     bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
 
@@ -863,7 +877,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 _global_screen_state.hide_grid = !_global_screen_state.hide_grid;
             } else if (key_lambda('H')) {
                 result.record_me = false;
-                _global_screen_state.show_help = !_global_screen_state.show_help;
+                history_printf_program();
             } else if (key_lambda('K')) { 
                 result.record_me = false;
                 _global_screen_state.show_event_stack = !_global_screen_state.show_event_stack;
@@ -943,6 +957,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             } else if (key_lambda('Y')) {
                 // TODO: 'Y' remembers last terminal choice of plane for next time
                 result.checkpoint_me = true;
+                time_since->plane_selected = 0.0f;
 
                 // already one of the three primary planes
                 if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
@@ -967,21 +982,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 return _standard_event_process_NOTE_RECURSIVE(*space_bar_event);
             } else if (key_lambda(' ', false, true)) {
                 return _standard_event_process_NOTE_RECURSIVE(*shift_space_bar_event);
-            } else if (key_lambda(';')) {
+            } else if (key_lambda('[')) {
                 *enter_mode = ENTER_MODE_EXTRUDE_ADD;
-            } else if (key_lambda(';', false, true)) {
+            } else if (key_lambda('[', false, true)) {
                 *enter_mode = ENTER_MODE_EXTRUDE_CUT;
-            } else if (key_lambda('\'')) {
+            } else if (key_lambda(']')) {
                 *enter_mode = ENTER_MODE_REVOLVE_ADD;
-            } else if (key_lambda('\'', false, true)) {
+            } else if (key_lambda(']', false, true)) {
                 *enter_mode = ENTER_MODE_REVOLVE_CUT;
             } else if (key_lambda('.')) { 
                 result.record_me = false;
                 _global_screen_state.show_details = !_global_screen_state.show_details;
-            } else if (key_lambda('-')) {
+            } else if (key_lambda(';')) {
                 result.record_me = false;
                 _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
-            } else if (key_lambda('=')) {
+            } else if (key_lambda('\'')) {
                 result.checkpoint_me = true;
                 feature_plane->is_active = false;
             } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
@@ -990,6 +1005,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                         _DXF_REMOVE_ENTITY(i);
                     }
                 }
+            } else if (key_lambda('/', false, true)) {
+                result.record_me = false;
+                _global_screen_state.show_help = !_global_screen_state.show_help;
             } else if (key_lambda(GLFW_KEY_ESCAPE)) {
                 global_world_state.modes = {};
             } else {
@@ -1453,7 +1471,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                 result.checkpoint_me = result.record_me = true;
                 feature_plane->is_active = true;
-                timers->plane_selected = 0.0f;
+                time_since->plane_selected = 0.0f;
                 {
                     feature_plane->normal = get(global_world_state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
                     { // FORNOW (gross) calculateion of feature_plane->signed_distance_to_world_origin
@@ -1467,7 +1485,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
     } else if (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) {
         result.record_me = true;
 
-        timers->cursor_blink = 0.0; // FORNOW
+        time_since->cursor_blink = 0.0; // FORNOW
 
         uint32 key = event.key;
         bool32 shift = event.shift;
@@ -1580,7 +1598,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             popup->selection_cursor = popup->cursor;
         }
     } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE) {
-        timers->cursor_blink = 0.0f;
+        time_since->cursor_blink = 0.0f;
         result.record_me = false;
         if (popup->active_cell_index != event.cell_index) {
             result.record_me = true;
@@ -2054,6 +2072,22 @@ void history_debug_draw() {
     }
 }
 
+void history_printf_program() {
+    List<char> program = {};
+    for (////
+            UserEvent *event = history.recorded_user_events._undo_stack.array;
+            event < history.recorded_user_events._undo_stack.array + history.recorded_user_events._undo_stack.length;
+            ++event
+        ) {//
+        if ((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS)) {
+            char char_equivalent = (char) event->key;
+            list_push_back(&program, (char) char_equivalent);
+        }
+    }
+    printf("%.*s\n", program.length, program.array);
+    list_free_AND_zero(&program);
+}
+
 #endif
 
 
@@ -2152,7 +2186,7 @@ void conversation_draw() {
 
     { // panes
         eso_begin(globals.Identity, SOUP_LINES, (*mouse_left_drag_pane == PANE_DIVIDER) ? 3.0f : (*hot_pane == PANE_DIVIDER) ? 6.0f : 5.0f, true);
-        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.blue : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
+        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.purple : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
         // if (_global_screen_state.hot_pane == PANE_2D) {
         //     eso_color(monokai.yellow);
         // } else {
@@ -2220,7 +2254,7 @@ void conversation_draw() {
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
-                    int32 color = (entity->is_selected) ? DXF_COLOR_SELECTION : DXF_COLOR_DONT_OVERRIDE;
+                    uint32 color = (!entity->is_selected) ? entity->color : DXF_COLOR_SELECTION;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
                     if ((*click_mode == CLICK_MODE_MOVE) && (*awaiting_second_click)) {
@@ -2230,7 +2264,8 @@ void conversation_draw() {
                             color = DXF_COLOR_WATER_ONLY;
                         }
                     }
-                    eso_dxf_entity__SOUP_LINES(entity, color, dx, dy);
+                    eso_color(color_as_vec3(color));
+                    eso_dxf_entity__SOUP_LINES(entity, dx, dy);
                 }
                 eso_end();
             }
@@ -2290,8 +2325,8 @@ void conversation_draw() {
                     int i = dxf_find_closest_entity(&global_world_state.dxf.entities, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
                     if (i != -1) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(basic.cyan);
-                        eso_dxf_entity__SOUP_LINES(&global_world_state.dxf.entities.array[i], DXF_COLOR_WATER_ONLY);
+                        eso_color(color_as_vec3(DXF_COLOR_WATER_ONLY));
+                        eso_dxf_entity__SOUP_LINES(&global_world_state.dxf.entities.array[i]);
                         eso_end();
                     }
                 }
@@ -2304,6 +2339,26 @@ void conversation_draw() {
         {
             glEnable(GL_SCISSOR_TEST);
             gl_scissor_TODO_CHECK_ARGS(x_divider_Screen, 0, window_width - x_divider_Screen, window_height);
+        }
+
+
+        BoundingBox draw_bounding_box; {
+            BoundingBox _selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
+            if (dxf_anything_selected) {
+                draw_bounding_box = _selection_bounding_box;
+                real32 eps = 10.0f;
+                draw_bounding_box.min[0] -= eps;
+                draw_bounding_box.max[0] += eps;
+                draw_bounding_box.min[1] -= eps;
+                draw_bounding_box.max[1] += eps;
+            } else {
+                real32 r = 30.0f;
+                draw_bounding_box = { -r, -r, r, r };
+            }
+        }
+
+        if (!_global_screen_state.hide_grid) { // grid 3D grid 3d grid
+            conversation_draw_3D_grid_box(P_3D, V_3D);
         }
 
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
@@ -2349,26 +2404,14 @@ void conversation_draw() {
                 for (uint32 tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
                     eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
                         _for_each_selected_entity_ {
-                            eso_dxf_entity__SOUP_LINES(entity, color);
+                            real32 alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_selected, time_since->plane_selected), 0.0f, 1.0f);
+                            vec3 _color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_selected), monokai.white, color_as_vec3(color));
+                            eso_color(_color, alpha);
+                            eso_dxf_entity__SOUP_LINES(entity);
                         }
                     } eso_end();
                     M *= M_incr;
                 }
-            }
-        }
-
-        BoundingBox draw_bounding_box; {
-            BoundingBox _selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
-            if (dxf_anything_selected) {
-                draw_bounding_box = _selection_bounding_box;
-                real32 eps = 10.0f;
-                draw_bounding_box.min[0] -= eps;
-                draw_bounding_box.max[0] += eps;
-                draw_bounding_box.min[1] -= eps;
-                draw_bounding_box.max[1] += eps;
-            } else {
-                real32 r = 30.0f;
-                draw_bounding_box = { -r, -r, r, r };
             }
         }
 
@@ -2422,14 +2465,14 @@ void conversation_draw() {
 
         if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
             real32 r = _global_screen_state.camera_3D.ortho_screen_height_World / 120.0f;
-            real32 LL = 100.0f;
             eso_color(monokai.white);
-            eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES, 4.0f);
+            eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES, 2.0f);
             eso_vertex(-r, 0.0f);
             eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
             eso_vertex(0.0f,  r);
-            // TODO: clip this on the feature_plane
+            real32 LL = 10.0f;
+            // TODO: clip this to the feature_plane
             vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
             vec2 a = preview_dxf_axis_base_point + v;
             vec2 b = preview_dxf_axis_base_point - v;
@@ -2441,9 +2484,6 @@ void conversation_draw() {
 
         mesh_draw(P_3D, V_3D, M4_Identity());
 
-        if (!_global_screen_state.hide_grid) { // grid 3D grid 3d grid
-            conversation_draw_3D_grid_box(P_3D, V_3D);
-        }
 
         if (feature_plane->is_active) { // floating sketch plane; selection plane NOTE: transparent
             bool draw = true;
@@ -2463,16 +2503,19 @@ void conversation_draw() {
                 if (dxf_anything_selected) PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, 0.0f); // FORNOW
             }
             if (draw) {
+                real32 f = CLAMPED_LERP(SQRT(3.0f * time_since->plane_selected), 0.0f, 1.0f);
                 eso_begin(PVM, SOUP_QUADS);
-
-                eso_color(color, CLAMPED_LERP(SQRT(timers->plane_selected), 0.0f, 0.35f));
-                eso_vertex(draw_bounding_box.min[0], draw_bounding_box.min[1], sign * Z_FIGHT_EPS);
-                eso_vertex(draw_bounding_box.min[0], draw_bounding_box.max[1], sign * Z_FIGHT_EPS);
-                eso_vertex(draw_bounding_box.max[0], draw_bounding_box.max[1], sign * Z_FIGHT_EPS);
-                eso_vertex(draw_bounding_box.max[0], draw_bounding_box.min[1], sign * Z_FIGHT_EPS);
+                eso_color(color, f * 0.35f);
+                vec2 center = (draw_bounding_box.max + draw_bounding_box.min) / 2.0f;
+                vec2 radius = LERP(f, 0.5f, 1.0f) * (draw_bounding_box.max - draw_bounding_box.min) / 2.0f;
+                eso_vertex(center.x + radius.x, center.y + radius.y, sign * Z_FIGHT_EPS);
+                eso_vertex(center.x + radius.x, center.y - radius.y, sign * Z_FIGHT_EPS);
+                eso_vertex(center.x - radius.x, center.y - radius.y, sign * Z_FIGHT_EPS);
+                eso_vertex(center.x - radius.x, center.y + radius.y, sign * Z_FIGHT_EPS);
                 eso_end();
             }
         }
+
 
         glDisable(GL_SCISSOR_TEST);
     }
@@ -2589,6 +2632,8 @@ void conversation_draw() {
                 eso_vertex( 1.0f, -1.0f);
                 eso_end();
             }
+            gui_printf("TODO: update help popup");
+            #if 0
             gui_printf("show/hide-(h)elp");
             gui_printf("(Escape)-from-current-enter_and_modes.click_modes");
             gui_printf("(s)elect (d)eselect + (c)onected (a)ll [Click] / (q)uality + (012345)");
@@ -2607,6 +2652,7 @@ void conversation_draw() {
             gui_printf("EXPERIMENTAL: (Ctrl + n)ew-session");
             gui_printf("");
             gui_printf("you can drag and drop *.dxf and *.stl into Conversation");
+            #endif
         }
     }
 }
@@ -2705,31 +2751,34 @@ int main() {
     // string = "cz0123456789";
     // string = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
     string = \
-             "cz\t10\n"
-             "cz10\n"
-             "bzx30\t30\n"
-             "ysadcz"
-             ";5\t15\n"
-             "sc{m2d 0 30}qs3"
-             "1{m2d 30 15}0{esc}"
-             "sq1sq3me{m2d 40 40}x15\t15\n"
-             ":3\n"
-             "sczZm{m2d -50 0}\'\n"
-             "^n"
-             "cx30\t30\n3.4\n"
-             "saXzYzXzsa;1\n"
-             "^osplash.dxf\nsc{m2d 24 0}{m2d 16 0};\t10\n"
-             "Ac{m2d 15.3 15.4}c{m2d -16.4 -16.3}sc{m2d -16 16}\'\n"
-             "^n"
-             "l{m2d 0 0}{m2d 0 10}l{m2d 0 10}{m2d 10 0}l{m2d 10 0}{m2d 0 0}"
-             "n25\n"
-             "sa;1\n"
-             "n0\n"
-             "^n"
-             "cz8\n"
-             "{m3d 1 100 -1 0 -1 0}"
-             "sa:100\n"
-             "="
+             // "cz\t10\n"
+             // "cz10\n"
+             // "bzx30\t30\n"
+             // "ysadcz"
+             // ";5\t15\n"
+             // "sc{m2d 0 30}qs3"
+             // "1{m2d 30 15}0{esc}"
+             // "sq1sq3me{m2d 40 40}x15\t15\n"
+             // ":3\n"
+             // "sczZm{m2d -50 0}\'\n"
+             // "^n"
+             // "cx30\t30\n3.4\n"
+             // "saXzYzXzsa;1\n"
+             // "^osplash.dxf\nsc{m2d 24 0}{m2d 16 0};\t10\n"
+             // "Ac{m2d 15.3 15.4}c{m2d -16.4 -16.3}sc{m2d -16 16}\'\n"
+             // "^n"
+             // "l{m2d 0 0}{m2d 0 10}l{m2d 0 10}{m2d 10 0}l{m2d 10 0}{m2d 0 0}"
+             // "n25\n"
+             // "sa;1\n"
+             // "n0\n"
+             // "^n"
+             // "cz8\n"
+             // "{m3d 1 100 -1 0 -1 0}"
+             // "sa:100\n"
+             // "="
+             // "^N"
+             "^odemo.dxf\n"
+             "y"
              ;
     script_process(string);
 
@@ -2742,29 +2791,30 @@ int main() {
         callback_cursor_position(NULL, xpos, ypos);
     }
 
-    bool32 frame_0 = true;
-    bool32 frame_1 = false;
+    uint32 frame = 0;
     while (cow_begin_frame()) {
         _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
 
         // conversation_messagef("%lf", global_world_state.popup.circle_diameter);
         // Sleep(100);
 
-        { // timers
-            timers->cursor_blink += 0.0167f;
-            timers->successful_feature += 0.03;
-            timers->plane_selected += 0.03;
-            // timers->successful_feature = 1.0f;
+        { // time_since
+            real32 dt = 0.0167f;
+            _for_each_selected_entity_ entity->time_since_selected += dt;
+            time_since->cursor_blink += dt;
+            time_since->successful_feature += dt;
+            time_since->plane_selected += dt;
+            // time_since->successful_feature = 1.0f;
 
-            timers->going_inside += 0.0167;
+            time_since->going_inside += dt;
             bool32 _going_inside_next = 
                 ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) && (global_world_state.popup.extrude_add_in_length > 0.0f))
                 ||
                 (*enter_mode == ENTER_MODE_EXTRUDE_CUT);
-            if (_going_inside_next && !timers->_helper_going_inside) {
-                timers->going_inside = 0.0f;
+            if (_going_inside_next && !time_since->_helper_going_inside) {
+                time_since->going_inside = 0.0f;
             }
-            timers->_helper_going_inside = _going_inside_next;
+            time_since->_helper_going_inside = _going_inside_next;
         }
 
         { // queue_of_fresh_events_from_user
@@ -2784,19 +2834,7 @@ int main() {
         }
 
         conversation_draw(); // FORNOW: moving this down here (be wary of frame imperfections)
-
-        { // frame_0, frame_1
-            if (frame_1) glfwShowWindow(COW0._window_glfw_window);
-            if (frame_0) {
-                frame_0 = false;
-                frame_1 = true;
-            } else if (frame_1) {
-                frame_1 = false;
-            }
-        }
-
-        //
-
+        if (frame++ == 1) glfwShowWindow(COW0._window_glfw_window);
         if (_global_screen_state.show_event_stack) history_debug_draw();
     }
 }

@@ -60,7 +60,6 @@ auto DXF_ADD_BUFFERED_ENTITIES = [&]() {
     for (uint32 i = 0; i < _entity_buffer.length; ++i)  _DXF_ADD_ENTITY(_entity_buffer.array[i]);
 };
 
-auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 value_to_write) { for (uint32 i = 0; i < dxf->entities.length; ++i) dxf->entities.array[i].is_selected = value_to_write; };
 
 auto _DXF_REMOVE_ENTITY = [&](uint32 i) { list_delete_at(&dxf->entities, i); };
 
@@ -75,7 +74,12 @@ auto DXF_ENTITY_SET_IS_SELECTED = [&](DXFEntity *entity, bool32 is_selected) {
         result.record_me = true;
         result.checkpoint_me = (!event.mouse_held);
         entity->is_selected = is_selected;
+        if (entity->is_selected) entity->time_since_selected = 0.0f;
     }
+};
+
+auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 is_selected) {
+    _for_each_entity_ DXF_ENTITY_SET_IS_SELECTED(entity, is_selected);
 };
 
 auto DXF_ENTITY_SET_COLOR = [&](DXFEntity *entity, uint32 color) {
@@ -140,7 +144,7 @@ auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
         result.record_me = true;
         result.snapshot_me = true;
         result.checkpoint_me = true;
-        timers->successful_feature = 0.0f;
+        time_since->successful_feature = 0.0f;
         { // result.mesh
             CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&global_world_state.dxf.entities, true);
             Mesh tmp = wrapper_manifold(
