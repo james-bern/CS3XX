@@ -243,9 +243,6 @@ struct ScreenState {
     char drop_path[256];
     bool32 DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
 
-    bbox2 preview_feature_plane;
-    real32 preview_extrude_in_length;
-    real32 preview_extrude_out_length;
 };
 
 struct TimeSince {
@@ -258,6 +255,9 @@ struct TimeSince {
 
 struct AestheticsState {
     TimeSince time_since;
+    bbox2 preview_feature_plane;
+    real32 preview_extrude_in_length;
+    real32 preview_extrude_out_length;
 };
 
 struct PopupState {
@@ -1532,9 +1532,17 @@ void conversation_message_buffer_update_and_draw() {
                 - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_TIME, 0.0f, 0.0f, 1.0f);
         }
 
-        real32 r = 0
-            + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 3.0f * FADE_TIME, 1.0f, 0.0f)
-            + CLAMPED_LINEAR_REMAP(message->time_remaining, 3.0f * FADE_TIME, FADE_TIME, 0.0f, 1.0f);
+        real32 r = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 3.0f * FADE_TIME, 1.0f, 0.0f);
+        real32 g = CLAMPED_LINEAR_REMAP(message->time_remaining, 3.0f * FADE_TIME, FADE_TIME, 1.0f, 0.5f);
+        real32 b = 1.0f;
+        // real32 t_stop = 0.6f;
+        // real32 t = 0 \
+        //            + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - 1.0f * FADE_TIME, 1.0f, t_stop)
+        //            - CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - 1.0f * FADE_TIME, 0.0f, 0.0f, t_stop);
+        // vec3 rgb = color_plasma(t);
+        // real32 r = rgb.x;
+        // real32 g = rgb.y;
+        // real32 b = rgb.z;
 
         real32 y_target = 16.0f + num_drawn++ * 16.0f;
         if (message->time_remaining < FADE_TIME) y_target += 16.0f;
@@ -1550,8 +1558,8 @@ void conversation_message_buffer_update_and_draw() {
                     0.0,
 
                     r,
-                    1.0,
-                    1.0,
+                    g,
+                    b,
                     a,
 
                     0,

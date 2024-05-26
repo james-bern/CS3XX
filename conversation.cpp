@@ -189,9 +189,9 @@ uint32 *enter_mode     = &global_world_state.modes.enter_mode;
 vec2 *first_click = &global_world_state.two_click_command.first_click;
 Camera2D *camera_2D = &_global_screen_state.camera_2D;
 Camera3D *camera_3D = &_global_screen_state.camera_3D;
-bbox2 *preview_feature_plane = &_global_screen_state.preview_feature_plane;
-real32 *preview_extrude_in_length = &_global_screen_state.preview_extrude_in_length;
-real32 *preview_extrude_out_length = &_global_screen_state.preview_extrude_out_length;
+bbox2 *preview_feature_plane = &aesthetics.preview_feature_plane;
+real32 *preview_extrude_in_length = &aesthetics.preview_extrude_in_length;
+real32 *preview_extrude_out_length = &aesthetics.preview_extrude_out_length;
 
 //////////////////////////////////////////////////
 // NON-ZERO INITIALIZERS /////////////////////////
@@ -2669,7 +2669,7 @@ void conversation_draw() {
                         (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) ? _X_Y :
                         "???MODIFIER???"),
                     _global_screen_state.mouse_Pixel.x + 12,
-                    _global_screen_state.mouse_Pixel.y + 12,
+                    _global_screen_state.mouse_Pixel.y + 24,
                     0.0,
 
                     1.0,
