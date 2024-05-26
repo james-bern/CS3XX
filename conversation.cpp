@@ -1,3 +1,7 @@
+// TODO: something is slow now
+
+// TODO: overwrite the tween (bool?) when clicking the mouse
+
 // TODO: fix up the dragging of the mouse while grabbing the popup
 
 // TODO: color -> color_code
@@ -43,6 +47,8 @@
 
 // // thing we aspire for Conversation to be
 // "juicy"
+// - watch this: https://www.youtube.com/watch?v=Fy0aCDmgnxg
+// - watch this: https://www.youtube.com/watch?v=AJdEqssNZ-U
 
 
 // BUG: clicking with sc doesn't do anything sometimes
@@ -183,6 +189,9 @@ uint32 *enter_mode     = &global_world_state.modes.enter_mode;
 vec2 *first_click = &global_world_state.two_click_command.first_click;
 Camera2D *camera_2D = &_global_screen_state.camera_2D;
 Camera3D *camera_3D = &_global_screen_state.camera_3D;
+bbox2 *preview_feature_plane = &_global_screen_state.preview_feature_plane;
+real32 *preview_extrude_in_length = &_global_screen_state.preview_extrude_in_length;
+real32 *preview_extrude_out_length = &_global_screen_state.preview_extrude_out_length;
 
 //////////////////////////////////////////////////
 // NON-ZERO INITIALIZERS /////////////////////////
@@ -1015,8 +1024,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 return _standard_event_process_NOTE_RECURSIVE(*shift_space_bar_event);
             } else if (key_lambda('[')) {
                 *enter_mode = ENTER_MODE_EXTRUDE_ADD;
+                *preview_extrude_in_length = 0; // FORNOW
+                *preview_extrude_out_length = 0; // FORNOW
             } else if (key_lambda('[', false, true)) {
                 *enter_mode = ENTER_MODE_EXTRUDE_CUT;
+                *preview_extrude_in_length = 0; // FORNOW
+                *preview_extrude_out_length = 0; // FORNOW
             } else if (key_lambda(']')) {
                 *enter_mode = ENTER_MODE_REVOLVE_ADD;
             } else if (key_lambda(']', false, true)) {
@@ -2188,10 +2201,15 @@ void conversation_draw() {
 
 
 
-    // aliases
-    real32 preview_extrude_in_length = (add) ? *extrude_add_in_length : *extrude_cut_in_length;
-    real32 preview_extrude_out_length = (add) ? *extrude_add_out_length : *extrude_cut_out_length;
-    real32 preview_plane_offset = global_world_state.popup.plane_offset;
+    { // preview_extrude_*_length
+        real32 target_extrude_in_length = (add) ? *extrude_add_in_length : *extrude_cut_in_length;
+        real32 target_extrude_out_length = (add) ? *extrude_add_out_length : *extrude_cut_out_length;
+        *preview_extrude_in_length += 0.1f * (target_extrude_in_length - *preview_extrude_in_length);
+        *preview_extrude_out_length += 0.1f * (target_extrude_out_length - *preview_extrude_out_length);
+    }
+
+    // TODO
+    real32 preview_plane_offset = global_world_state.popup.plane_offset; // TODO: preview
 
     // preview
     vec2 preview_mouse = magic_snap(mouse_World_2D, true);
@@ -2400,8 +2418,8 @@ void conversation_draw() {
                 mat4 T_o = M4_Translation(preview_dxf_origin);
                 mat4 inv_T_o = M4_Translation(-preview_dxf_origin);
                 if (extrude) {
-                    real32 a = -preview_extrude_in_length;
-                    real32 L = preview_extrude_out_length + preview_extrude_in_length;
+                    real32 a = -*preview_extrude_in_length;
+                    real32 L = *preview_extrude_out_length + *preview_extrude_in_length;
                     NUM_TUBE_STACKS_INCLUSIVE = MIN(64, uint32(roundf(L / 2.5f)) + 2);
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                     M_incr = M4_Translation(0.0f, 0.0f, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
@@ -2512,33 +2530,37 @@ void conversation_draw() {
             vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
             vec2 a = preview_dxf_axis_base_point + v;
             vec2 b = preview_dxf_axis_base_point - v;
-            // vec2 a = bounding_box_clamp(preview_dxf_axis_base_point + v, draw_bounding_box);
             eso_vertex(-preview_dxf_origin + a);
             eso_vertex(-preview_dxf_origin + b); // FORNOW
             eso_end();
         }
 
 
-        bbox2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
-        bbox2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
-        bbox2 draw_bounding_box; {
-            draw_bounding_box = bounding_box_union(face_selection_bounding_box, dxf_selection_bounding_box);
-            for (uint32 d = 0; d < 2; ++d) {
-                if (draw_bounding_box.min[d] > draw_bounding_box.max[d]) {
-                    draw_bounding_box.min[d] = 0.0f;
-                    draw_bounding_box.max[d] = 0.0f;
+        { // preview_feature_plane
+            bbox2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
+            bbox2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
+            bbox2 target_bounding_box; {
+                target_bounding_box = bounding_box_union(face_selection_bounding_box, dxf_selection_bounding_box);
+                for (uint32 d = 0; d < 2; ++d) {
+                    if (target_bounding_box.min[d] > target_bounding_box.max[d]) {
+                        target_bounding_box.min[d] = 0.0f;
+                        target_bounding_box.max[d] = 0.0f;
+                    }
+                }
+                {
+                    real32 eps = 10.0f;
+                    target_bounding_box.min[0] -= eps;
+                    target_bounding_box.max[0] += eps;
+                    target_bounding_box.min[1] -= eps;
+                    target_bounding_box.max[1] += eps;
                 }
             }
+            preview_feature_plane->min += 0.1f * (target_bounding_box.min - preview_feature_plane->min);
+            preview_feature_plane->max += 0.1f * (target_bounding_box.max - preview_feature_plane->max);
+            if (time_since->plane_selected == 0.0f) { // FORNOW
+                *preview_feature_plane = target_bounding_box;
+            }
         }
-        {
-            real32 eps = 10.0f;
-            draw_bounding_box.min[0] -= eps;
-            draw_bounding_box.max[0] += eps;
-            draw_bounding_box.min[1] -= eps;
-            draw_bounding_box.max[1] += eps;
-        }
-
-
 
         if (feature_plane->is_active) { // floating sketch plane; selection plane NOTE: transparent
             bool draw = true;
@@ -2563,8 +2585,8 @@ void conversation_draw() {
                 real32 f = CLAMPED_LERP(SQRT(3.0f * time_since->plane_selected), 0.0f, 1.0f);
                 eso_begin(PVM, SOUP_QUADS);
                 eso_color(color, f * 0.35f);
-                vec2 center = (draw_bounding_box.max + draw_bounding_box.min) / 2.0f;
-                vec2 radius = LERP(f, 0.5f, 1.0f) * (draw_bounding_box.max - draw_bounding_box.min) / 2.0f;
+                vec2 center = (preview_feature_plane->max + preview_feature_plane->min) / 2.0f;
+                vec2 radius = LERP(f, 0.5f, 1.0f) * (preview_feature_plane->max - preview_feature_plane->min) / 2.0f;
                 eso_vertex(center.x + radius.x, center.y + radius.y, sign * Z_FIGHT_EPS);
                 eso_vertex(center.x + radius.x, center.y - radius.y, sign * Z_FIGHT_EPS);
                 eso_vertex(center.x - radius.x, center.y - radius.y, sign * Z_FIGHT_EPS);
@@ -2865,7 +2887,7 @@ int main() {
 
             time_since->going_inside += dt;
             bool32 _going_inside_next = 
-                ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) && (global_world_state.popup.extrude_add_in_length > 0.0f))
+                ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) && (*extrude_add_in_length > 0.0f))
                 ||
                 (*enter_mode == ENTER_MODE_EXTRUDE_CUT);
             if (_going_inside_next && !time_since->_helper_going_inside) {

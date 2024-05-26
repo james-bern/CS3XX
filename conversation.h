@@ -242,6 +242,10 @@ struct ScreenState {
 
     char drop_path[256];
     bool32 DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
+
+    bbox2 preview_feature_plane;
+    real32 preview_extrude_in_length;
+    real32 preview_extrude_out_length;
 };
 
 struct TimeSince {
@@ -1519,15 +1523,23 @@ void conversation_message_buffer_update_and_draw() {
     uint32 num_drawn = 0;
     auto draw_lambda = [&](uint32 message_index) {
         Message *message = &conversation_messages[message_index];
+
         real32 FADE_TIME = 0.33f;
+
         real32 a; { // ramp on ramp off
             a = 0
                 + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_TIME, 0.0f, 1.0f)
                 - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_TIME, 0.0f, 0.0f, 1.0f);
         }
-        real32 r = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 3.0f * FADE_TIME, 1.0f, 0.0f);
+
+        real32 r = 0
+            + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 3.0f * FADE_TIME, 1.0f, 0.0f)
+            + CLAMPED_LINEAR_REMAP(message->time_remaining, 3.0f * FADE_TIME, FADE_TIME, 0.0f, 1.0f);
+
         real32 y_target = 16.0f + num_drawn++ * 16.0f;
-        message->y += MIN(SQRT(MAX(0.0f, y_target - message->y)), 6.0f);
+        if (message->time_remaining < FADE_TIME) y_target += 16.0f;
+
+        message->y += 0.1f * (MAX(0.0f, y_target - message->y)); // https://youtu.be/Fy0aCDmgnxg?si=GdgklPYfeYj1o4bD&t=229
         if (message->time_remaining > 0) {
             message->time_remaining -= 0.0167f;;
             _text_draw(
