@@ -216,6 +216,8 @@ SnailVector<4> V4(SnailVector<3> xyz, cow_real w) { return { xyz.x, xyz.y, xyz.z
 SnailVector<2> V2(cow_real x) { return { x, x }; }
 SnailVector<3> V3(cow_real x) { return { x, x, x }; }
 SnailVector<4> V4(cow_real x) { return { x, x, x, x }; }
+SnailVector<2> _V2(SnailVector<3> xyz) { return { xyz.x, xyz.y }; }
+SnailVector<3> _V3(SnailVector<4> xyzw) { return { xyzw.x, xyzw.y, xyzw.z }; }
 
 SnailMatrix<2> M2(cow_real a0, cow_real a1, cow_real a2, cow_real a3) { SnailMatrix<2> ret = { a0, a1, a2, a3 }; return ret; }
 SnailMatrix<3> M3(cow_real a0, cow_real a1, cow_real a2, cow_real a3, cow_real a4, cow_real a5, cow_real a6, cow_real a7, cow_real a8) { SnailMatrix<3> ret = { a0, a1, a2, a3, a4, a5, a6, a7, a8 }; return ret; }

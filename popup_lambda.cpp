@@ -14,9 +14,6 @@
 // TODO: parsing math formulas
 // TODO: field type
 
-
-#define FONT_WIDTH(cstring) (2 * stb_easy_font_width(cstring))
-
 auto popup_popup = [&] (
         bool32 zero_on_load_up,
         uint8 _cell_type0,     char *_name0,        void *_value0,
@@ -106,7 +103,7 @@ auto popup_popup = [&] (
             real32 X_MARGIN_OFFSET = COW1._gui_x_curr;
 
             real32 x_mouse = _global_screen_state.mouse_Pixel.x;
-            real32 y_mouse = _global_screen_state.mouse_Pixel.y;
+            // real32 y_mouse = _global_screen_state.mouse_Pixel.y;
 
             real32 x_field_left;
             real32 x_field_right;
@@ -118,18 +115,18 @@ auto popup_popup = [&] (
                 static char tmp[4096]; // FORNOW
                 strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
 
-                x_field_left = X_MARGIN_OFFSET + 2 * (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 2.5f;
-                x_field_right = x_field_left + 2 * stb_easy_font_width(tmp);
+                x_field_left = X_MARGIN_OFFSET + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
+                x_field_right = x_field_left + stb_easy_font_width(tmp);
 
                 tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
-                x_selection_right = x_field_left + 2 * stb_easy_font_width(tmp);
+                x_selection_right = x_field_left + stb_easy_font_width(tmp);
                 tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
-                x_selection_left = x_field_left + 2 * stb_easy_font_width(tmp);
+                x_selection_left = x_field_left + stb_easy_font_width(tmp);
                 y_top = COW1._gui_y_curr;
-                y_bottom = y_top + 16;
+                y_bottom = y_top + 8;
             }
 
-            BoundingBox field_box = { x_field_left, y_top, x_field_right, y_bottom };
+            bbox2 field_box = { x_field_left, y_top, x_field_right, y_bottom };
             if (bounding_box_contains(field_box, _global_screen_state.mouse_Pixel)) {
                 popup->mouse_is_hovering = true;
                 popup->hover_cell_index = d;
@@ -137,13 +134,13 @@ auto popup_popup = [&] (
                 { // popup->hover_cursor
                     char _2char[2] = {};
                     // conversation_messagef("---%f\n", x_mouse);
-                    real32 x_char_middle = x_field_left - 2.5f;
+                    real32 x_char_middle = x_field_left - 1.25f;
                     real32 half_char_width_prev = 0;
                     for (uint32 i = 0; i < strlen_cell; ++i) {
                         x_char_middle += half_char_width_prev;
                         {
                             _2char[0] = buffer[strlen_other + i];
-                            half_char_width_prev = FONT_WIDTH(_2char) / 2;
+                            half_char_width_prev = stb_easy_font_width(_2char) / 2;
                         }
                         x_char_middle += half_char_width_prev;
 
@@ -172,8 +169,8 @@ auto popup_popup = [&] (
             // eso_vertex(_global_screen_state.mouse_in_pixel_coordinates);
             // eso_end();
 
-            bool32 hot = IS_BETWEEN(x_mouse, x_field_left, x_field_right) && IS_BETWEEN(y_mouse, y_top, y_bottom);
-            if (hot) {
+            #if 1
+            {
                 eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
                 eso_color(0.0f, 0.4f, 0.4f);
                 eso_vertex(x_field_left, y_top);
@@ -182,12 +179,13 @@ auto popup_popup = [&] (
                 eso_vertex(x_field_left, y_bottom);
                 eso_end();
             }
+            #endif
 
             if (popup->name[d]) {
                 if (popup->active_cell_index != d) {
                     // TODO: don't use gui_printf here
                     gui_printf(buffer);
-                } else { // FORNOW: horrifying; needs at least a variant of stb_easy_font_width that takes an offset; should also do the 2 * for us
+                } else {
 
                     if (!POPUP_SELECTION_NOT_ACTIVE()) {
                         eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
@@ -209,11 +207,11 @@ auto popup_popup = [&] (
                             char tmp[4096]; // FORNOW
                             strcpy(tmp, popup->active_cell_buffer);
                             tmp[popup->cursor] = '\0';
-                            x += 2 * (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
-                            x -= 2.5;
+                            x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
+                            x -= 1.25f;
                             // FORNOW: silly way of getting longer |
-                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
-                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 2.5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 2.5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
                         }
                     }
                 }

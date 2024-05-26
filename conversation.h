@@ -1,7 +1,7 @@
 // TODO: make Mesh vec3's and ivec3's
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
-// TODO: void eso_bounding_box__SOUP_QUADS(BoundingBox bounding_box)
+// TODO: void eso_bounding_box__SOUP_QUADS(bbox2 bounding_box)
 
 ////////////////////////////////////////
 // FORNOW: forward declarations ////////
@@ -160,10 +160,13 @@ struct DXFEntity {
     real32 time_since_is_selected_changed;
 };
 
-struct BoundingBox {
-    vec2 min;
-    vec2 max;
+template <uint32 D> struct BoundingBox {
+    SnailVector<D> min;
+    SnailVector<D> max;
 };
+
+typedef BoundingBox<2> bbox2;
+typedef BoundingBox<2> bbox3;
 
 struct Mesh {
     uint32 num_vertices;
@@ -342,7 +345,18 @@ UserEvent space_bar_event;
 UserEvent shift_space_bar_event;
 };
 
+////////////////////////////////////////
+// "constants" /////////////////////////
+////////////////////////////////////////
 
+template <uint32 D> BoundingBox<D> BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
+    BoundingBox<D> result;
+    for (uint32 d = 0; d < D; ++d) {
+        result.min[d] = HUGE_VAL;
+        result.max[d] = -HUGE_VAL;
+    }
+    return result;
+}
 
 ////////////////////////////////////////
 // Data-Oriented Snail /////////////////
@@ -398,19 +412,19 @@ real32 squared_distance_point_point(real32 x_A, real32 y_A, real32 x_B, real32 y
 };
 
 ////////////////////////////////////////
-// BoundingBox /////////////////////////
+// bbox2 /////////////////////////
 ////////////////////////////////////////
 
-void pprint(BoundingBox bounding_box) {
+void pprint(bbox2 bounding_box) {
     printf("(%f, %f) <-> (%f, %f)\n", bounding_box.min[0], bounding_box.min[1], bounding_box.max[0], bounding_box.max[1]);
 }
 
-void bounding_box_center(BoundingBox bounding_box, real32 *x, real32 *y) {
+void bounding_box_center(bbox2 bounding_box, real32 *x, real32 *y) {
     *x = (bounding_box.min[0] + bounding_box.max[0]) / 2;
     *y = (bounding_box.min[1] + bounding_box.max[1]) / 2;
 }
 
-bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
+bool32 bounding_box_contains(bbox2 outer, bbox2 inner) {
     for (uint32 d = 0; d < 2; ++d) {
         if (outer.min[d] > inner.min[d]) return false;
         if (outer.max[d] < inner.max[d]) return false;
@@ -418,21 +432,36 @@ bool32 bounding_box_contains(BoundingBox outer, BoundingBox inner) {
     return true;
 }
 
-bool32 bounding_box_contains(BoundingBox bounding_box, vec2 point) {
+bool32 bounding_box_contains(bbox2 bounding_box, vec2 point) {
     for (uint32 d = 0; d < 2; ++d) {
         if (!IS_BETWEEN(point[d], bounding_box.min[d], bounding_box.max[d])) return false;
     }
     return true;
 }
 
-vec2 bounding_box_clamp(vec2 p, BoundingBox bounding_box) {
+vec2 bounding_box_clamp(vec2 p, bbox2 bounding_box) {
     for (uint32 d = 0; d < 2; ++d) {
         p[d] = CLAMP(p[d], bounding_box.min[d], bounding_box.max[d]);
     }
     return p;
 }
 
-void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, BoundingBox bounding_box) {
+void bounding_box_add_point(bbox2 *bounding_box, vec2 p) {
+    for (uint32 d = 0; d < 2; ++d) {
+        bounding_box->min[d] = MIN(bounding_box->min[d], p[d]);
+        bounding_box->max[d] = MAX(bounding_box->max[d], p[d]);
+    }
+}
+
+bbox2 bounding_box_union(bbox2 a, bbox2 b) {
+    for (uint32 d = 0; d < 2; ++d) {
+        a.min[d] = MIN(a.min[d], b.min[d]);
+        a.max[d] = MAX(a.max[d], b.max[d]);
+    }
+    return a;
+}
+
+void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, bbox2 bounding_box) {
     real32 new_o_x = AVG(bounding_box.min[0], bounding_box.max[0]);
     real32 new_o_y = AVG(bounding_box.min[1], bounding_box.max[1]);
     real32 new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / _window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
@@ -690,8 +719,8 @@ void dxf_entities_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities,
     eso_end();
 }
 
-BoundingBox dxf_entity_get_bounding_box(DXFEntity *entity) {
-    BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL };
+bbox2 dxf_entity_get_bounding_box(DXFEntity *entity) {
+    bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     real32 s[2][2];
     uint32 n = 2;
     entity_get_start_and_end_points(entity, &s[0][0], &s[0][1], &s[1][0], &s[1][1]);
@@ -713,15 +742,12 @@ BoundingBox dxf_entity_get_bounding_box(DXFEntity *entity) {
     return result;
 }
 
-BoundingBox dxf_entities_get_bounding_box(List<DXFEntity> *dxf_entities, bool32 only_consider_selected_entities = false) {
-    BoundingBox result = { HUGE_VAL, HUGE_VAL, -HUGE_VAL, -HUGE_VAL }; 
+bbox2 dxf_entities_get_bounding_box(List<DXFEntity> *dxf_entities, bool32 only_consider_selected_entities = false) {
+    bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     for (uint32 i = 0; i < dxf_entities->length; ++i) {
         if ((only_consider_selected_entities) && (!dxf_entities->array[i].is_selected)) continue;
-        for (uint32 d = 0; d < 2; ++d) {
-            BoundingBox bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
-            result.min[d] = MIN(result.min[d], bounding_box.min[d]);
-            result.max[d] = MAX(result.max[d], bounding_box.max[d]);
-        }
+        bbox2 bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
+        result = bounding_box_union(result, bounding_box);
     }
     return result;
 }
@@ -1465,10 +1491,11 @@ bool32 IGNORE_NEW_MESSAGEFS;
 
 #define MESSAGE_MAX_LENGTH 256
 #define MESSAGE_MAX_NUM_MESSAGES 64
-#define MESSAGE_COOLDOWN 333
+#define MESSAGE_MAX_TIME 6.0f
 struct Message {
     char buffer[MESSAGE_MAX_LENGTH];
-    uint32 cooldown;
+    real32 time_remaining;
+    real32 y;
 };
 uint32 message_index;
 Message conversation_messages[MESSAGE_MAX_NUM_MESSAGES];
@@ -1480,29 +1507,37 @@ void conversation_messagef(char *format, ...) {
     vsnprintf(message->buffer, MESSAGE_MAX_LENGTH, format, arg);
     va_end(arg);
 
-    message->cooldown = MESSAGE_COOLDOWN;
+    message->time_remaining = MESSAGE_MAX_TIME;
     message_index = (message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
+    message->y = 0.0f;
 
     // printf("%s\n", message->buffer); // FORNOW print to terminal as well
 }
 void conversation_message_buffer_update_and_draw() {
     uint32 i_0 =  (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
-    real32 y = 32;
 
-    auto draw_lambda = [&](uint32 i) {
-        real32 f = real32(conversation_messages[i].cooldown) / MESSAGE_COOLDOWN;
-        real32 a = f * f;
-        real32 b = CLAMP(10 * f - 8.2f , 0.0f, 1.0f);
-        if (conversation_messages[i].cooldown > 0) {
-            --conversation_messages[i].cooldown;
+    uint32 num_drawn = 0;
+    auto draw_lambda = [&](uint32 message_index) {
+        Message *message = &conversation_messages[message_index];
+        real32 FADE_TIME = 0.33f;
+        real32 a; { // ramp on ramp off
+            a = 0
+                + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_TIME, 0.0f, 1.0f)
+                - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_TIME, 0.0f, 0.0f, 1.0f);
+        }
+        real32 r = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 3.0f * FADE_TIME, 1.0f, 0.0f);
+        real32 y_target = 16.0f + num_drawn++ * 16.0f;
+        message->y += MIN(SQRT(MAX(0.0f, y_target - message->y)), 6.0f);
+        if (message->time_remaining > 0) {
+            message->time_remaining -= 0.0167f;;
             _text_draw(
                     (cow_real *) &globals.NDC_from_Screen,
-                    conversation_messages[i].buffer,
+                    message->buffer,
                     512,
-                    y,
+                    message->y,
                     0.0,
 
-                    b,
+                    r,
                     1.0,
                     1.0,
                     a,
@@ -1511,16 +1546,22 @@ void conversation_message_buffer_update_and_draw() {
                     0.0,
                     0.0,
                     true);
-            y += 32;
         } else {
-            conversation_messages[i].cooldown = 0;
+            message->time_remaining = 0.0f;
         }
     };
 
-    for (uint32 i = i_0; i > 0; --i) draw_lambda(i);
-    draw_lambda(0);
-    for (uint32 i = MESSAGE_MAX_NUM_MESSAGES - 1; i > i_0; --i) draw_lambda(i);
+    { // this is pretty gross
+        uint32 i = i_0;
+        while (true) {
+            draw_lambda(i);
 
+            if (i > 0) --i;
+            else if (i == 0) i = MESSAGE_MAX_NUM_MESSAGES - 1;
+
+            if (i == i_0) break;
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

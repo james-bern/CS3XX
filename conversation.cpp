@@ -346,7 +346,10 @@ vec2 magic_snap(vec2 before, bool32 calling_this_function_for_drawing_preview = 
     return result;
 }
 
-void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
+bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
+    bbox2 face_selection_bounding_box = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+    mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
+
     mat4 PVM_3D = P_3D * V_3D * M_3D;
 
     if (mesh->cosmetic_edges) {
@@ -361,6 +364,7 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         eso_begin(PVM_3D, (!_global_screen_state.show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
 
         mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
+
 
         for (uint32 i = 0; i < mesh->num_triangles; ++i) {
             vec3 n = get(mesh->triangle_normals, i);
@@ -382,6 +386,13 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                     alpha = CLAMPED_LERP(2.0f * time_since->plane_selected, 1.0f, time_since->_helper_going_inside ? 
                             CLAMPED_LERP(time_since->going_inside, 1.0f, 0.7f)
                             : 1.0f);// ? 0.7f : 1.0f;
+
+
+                    bounding_box_add_point(&face_selection_bounding_box, _V2(transformPoint(inv_M_3D_from_2D, p[0])));
+                    bounding_box_add_point(&face_selection_bounding_box, _V2(transformPoint(inv_M_3D_from_2D, p[1])));
+                    bounding_box_add_point(&face_selection_bounding_box, _V2(transformPoint(inv_M_3D_from_2D, p[2])));
+
+
                 } else {
                     if (pass == 1) continue;
                     color = color_n;
@@ -398,6 +409,8 @@ void mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         }
         eso_end();
     }
+
+    return face_selection_bounding_box;
 }
 
 //////////////////////////////////////////////////
@@ -552,7 +565,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         if (0
                 || (*mouse_left_drag_pane == PANE_2D)
                 || (*mouse_left_drag_pane == PANE_POPUP)
-                ) {
+           ) {
             RawUserEvent raw_event; {
                 raw_event = {};
                 raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
@@ -703,6 +716,7 @@ UserEvent bake_event(RawUserEvent raw_event) {
             event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
         } else if (raw_event.pane == PANE_POPUP) {
             // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
+            // TODO: gross gross gross
             event.type = USER_EVENT_TYPE_GUI_MOUSE;
             event.cell_index = popup->hover_cell_index; 
             event.mouse_held = raw_event.mouse_held;
@@ -1391,7 +1405,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                         }
                     } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
                         *awaiting_second_click = false;
-                        BoundingBox window = {
+                        bbox2 window = {
                             MIN(first_click->x, second_click->x),
                             MIN(first_click->y, second_click->y),
                             MAX(first_click->x, second_click->x),
@@ -1617,6 +1631,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
     } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE) {
         time_since->cursor_blink = 0.0f;
         result.record_me = false;
+
+        // TODO: probably also gross
         if ((!event.mouse_held) && (popup->active_cell_index != event.cell_index)) {
             result.record_me = true;
             POPUP_SET_ACTIVE_CELL_INDEX(event.cell_index);
@@ -1624,16 +1640,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
         // NOTE: this if is really gross and patches a problem where if you drag the mouse off the cell things break
         // TODO: this should be fixed earlier in the chain; better guarantees about what the event is sending you
         // (TODO: you should be able to leave the box)
-if (popup->active_cell_index == event.cell_index) {
-        if (popup->cursor != event.cursor) {
-            result.record_me = true;
-            popup->cursor = event.cursor;
+        if (popup->active_cell_index == event.cell_index) {
+            if (popup->cursor != event.cursor) {
+                result.record_me = true;
+                popup->cursor = event.cursor;
+            }
+            if (popup->selection_cursor != event.selection_cursor) {
+                result.record_me = true;
+                popup->selection_cursor = event.selection_cursor;
+            }
         }
-        if (popup->selection_cursor != event.selection_cursor) {
-            result.record_me = true;
-            popup->selection_cursor = event.selection_cursor;
-        }
-}
     } else { ASSERT(event.type == USER_EVENT_TYPE_NONE);
         result.record_me = false;
     }
@@ -2370,22 +2386,6 @@ void conversation_draw() {
             gl_scissor_TODO_CHECK_ARGS(x_divider_Screen, 0, window_width - x_divider_Screen, window_height);
         }
 
-
-        BoundingBox draw_bounding_box; {
-            BoundingBox _selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
-            if (dxf_anything_selected) {
-                draw_bounding_box = _selection_bounding_box;
-                real32 eps = 10.0f;
-                draw_bounding_box.min[0] -= eps;
-                draw_bounding_box.max[0] += eps;
-                draw_bounding_box.min[1] -= eps;
-                draw_bounding_box.max[1] += eps;
-            } else {
-                real32 r = 30.0f;
-                draw_bounding_box = { -r, -r, r, r };
-            }
-        }
-
         if (!_global_screen_state.hide_grid) { // grid 3D grid 3d grid
             conversation_draw_3D_grid_box(P_3D, V_3D);
         }
@@ -2518,7 +2518,26 @@ void conversation_draw() {
             eso_end();
         }
 
-        mesh_draw(P_3D, V_3D, M4_Identity());
+
+        bbox2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
+        bbox2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
+        bbox2 draw_bounding_box; {
+            draw_bounding_box = bounding_box_union(face_selection_bounding_box, dxf_selection_bounding_box);
+            for (uint32 d = 0; d < 2; ++d) {
+                if (draw_bounding_box.min[d] > draw_bounding_box.max[d]) {
+                    draw_bounding_box.min[d] = 0.0f;
+                    draw_bounding_box.max[d] = 0.0f;
+                }
+            }
+        }
+        {
+            real32 eps = 10.0f;
+            draw_bounding_box.min[0] -= eps;
+            draw_bounding_box.max[0] += eps;
+            draw_bounding_box.min[1] -= eps;
+            draw_bounding_box.max[1] += eps;
+        }
+
 
 
         if (feature_plane->is_active) { // floating sketch plane; selection plane NOTE: transparent
@@ -2538,6 +2557,8 @@ void conversation_draw() {
             } else {
                 if (dxf_anything_selected) PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, 0.0f); // FORNOW
             }
+
+
             if (draw) {
                 real32 f = CLAMPED_LERP(SQRT(3.0f * time_since->plane_selected), 0.0f, 1.0f);
                 eso_begin(PVM, SOUP_QUADS);
@@ -2626,7 +2647,7 @@ void conversation_draw() {
                         (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) ? _X_Y :
                         "???MODIFIER???"),
                     _global_screen_state.mouse_Pixel.x + 12,
-                    _global_screen_state.mouse_Pixel.y + 24,
+                    _global_screen_state.mouse_Pixel.y + 12,
                     0.0,
 
                     1.0,
@@ -2705,14 +2726,14 @@ void script_process(char *string) {
         char c = string[i];
         if (c == '^') {
             super = true;
-        } else if (c == '{') {
+        } else if (c == '<') {
             bool32 is_instabaked = true;
             UserEvent instabaked_event = {};
             RawUserEvent _raw_event = {};
             {
                 uint32 next_i; {
                     next_i = i;
-                    while (string[++next_i] != '}') {} // ++next_i intentional
+                    while (string[++next_i] != '>') {} // ++next_i intentional
                 }
                 {
                     char *tag = &string[i + 1];
@@ -2753,12 +2774,12 @@ void script_process(char *string) {
                 } else if ('A' <= c && c <= 'Z') {
                     raw_event.shift = true;
                     raw_event.key = c;
-                } else if (c == ':') {
+                } else if (c == '{') {
                     raw_event.shift = true;
-                    raw_event.key = ';';
-                } else if (c == '\"') {
+                    raw_event.key = '[';
+                } else if (c == '}') {
                     raw_event.shift = true;
-                    raw_event.key = '\'';
+                    raw_event.key = ']';
                 } else if (c == '\n') {
                     raw_event.key = GLFW_KEY_ENTER;
                 } else if (c == '\t') {
@@ -2785,37 +2806,37 @@ int main() {
 
     char *script;
     // script = "cz0123456789";
-    // script = "^osplash.dxf\nysc{m2d 20 20}{m2d 16 16}{m2d 16 -16}{m2d -16 -16}{m2d -16 16};50\n{m3d 0 100 0 0 -1 0}{m2d 0 17.5}:47\nc{m2d 16 -16}\t\t100\nsc{m2d 32 -16}{m3d 74 132 113 -0.4 -0.6 -0.7}:60\n^oomax.dxf\nsq0sq1y;3\n";
+    // script = "^osplash.dxf\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.dxf\nsq0sq1y[3\n";
+    #if 1
     script = \
-             // "cz\t10\n"
-             // "cz10\n"
-             // "bzx30\t30\n"
-             // "ysadcz"
-             // ";5\t15\n"
-             // "sc{m2d 0 30}qs3"
-             // "1{m2d 30 15}0{esc}"
-             // "sq1sq3me{m2d 40 40}x15\t15\n"
-             // ":3\n"
-             // "sczZm{m2d -50 0}\'\n"
-             // "^n"
-             // "cx30\t30\n3.4\n"
-             // "saXzYzXzsa;1\n"
-             // "^osplash.dxf\nsc{m2d 24 0}{m2d 16 0};\t10\n"
-             // "Ac{m2d 15.3 15.4}c{m2d -16.4 -16.3}sc{m2d -16 16}\'\n"
-             // "^n"
-             // "l{m2d 0 0}{m2d 0 10}l{m2d 0 10}{m2d 10 0}l{m2d 10 0}{m2d 0 0}"
-             // "n25\n"
-             // "sa;1\n"
-             // "n0\n"
-             // "^n"
-             // "cz8\n"
-             // "{m3d 1 100 -1 0 -1 0}"
-             // "sa:100\n"
-             // "="
-             // "^N"
+             "cz10\n"
+             "cz\t10\n"
+             "bzx30\t30\n"
+             "ysadcz"
+             "[5\t15\n"
+             "sc<m2d 0 30>qs3"
+             "1<m2d 30 15>0<esc>"
+             "sq1sq3me<m2d 40 40>x15\t15\n"
+             "{3\n"
+             "sczZm<m2d -50 0>]\n"
+             "^n"
+             "cx30\t30\n3.4\n"
+             "saXzYzXzsa[1\n"
+             "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n"
+             "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n"
+             "^n"
+             "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>"
+             "n25\n"
+             "sa[1\n"
+             "n0\n"
+             "^n"
+             "cz8\n"
+             "<m3d 1 100 -1 0 -1 0>"
+             "sa{100\n"
+             "\'"
              "^odemo.dxf\n"
-             "y"
              ;
+    #endif
     script_process(script);
 
     init_cameras(); // FORNOW

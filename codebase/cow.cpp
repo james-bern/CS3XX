@@ -2044,7 +2044,7 @@ void _text_draw(
     cow_real window_width_in_pixels, window_height_in_pixels;
     _window_get_size(&window_width_in_pixels, &window_height_in_pixels);
 
-    if (IS_ZERO(font_size_in_pixels)) { font_size_in_pixels = 24; }
+    if (IS_ZERO(font_size_in_pixels)) { font_size_in_pixels = 12; }
     // font_size_in_pixels *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
 
     static char buffer[99999]; // ~500 chars
@@ -2182,7 +2182,7 @@ void gui_printf(const char *format, ...) {
         } COW1._gui_x_curr = tmp;
     }
 
-    COW1._gui_y_curr += 28;
+    COW1._gui_y_curr += 12;
 }
 
 void gui_readout(char *name, bool *variable) {
