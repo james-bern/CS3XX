@@ -46,6 +46,10 @@
 // keep the tool (line, circle, box, move, ...) code simple, formulaic, and not-clever
 // - repetition is fine
 
+// // things i feel weird/uncomfy about
+// i have a type variable and substructs in DXFEntity and UserEvent so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
+// i have some repetition (grug say hmmm...) HotkeyUserEvent and GUIKeyUserEvent are the same thing... popup MOVE and popup LINE are the same thing...
+
 // // thing we aspire for Conversation to be
 // "juicy"
 // - watch this: https://www.youtube.com/watch?v=Fy0aCDmgnxg
@@ -670,7 +674,9 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
     }
 }
 
-bool32 get_baked_type_of_raw_key_event(RawUserEvent raw_event) {
+bool32 classify_baked_type_of_raw_key_event(RawUserEvent raw_event) {
+    ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_KEY_PRESS);
+
     if (!popup->_active_popup_unique_ID__FORNOW_name0) return USER_EVENT_TYPE_HOTKEY_PRESS;
 
     uint32 key = raw_event.key;
@@ -712,10 +718,18 @@ UserEvent bake_event(RawUserEvent raw_event) {
 
     UserEvent event = {};
     if (raw_event.type == RAW_USER_EVENT_TYPE_KEY_PRESS) {
-        event.key = raw_event.key;
-        event.super = raw_event.super;
-        event.shift = raw_event.shift;
-        event.type = get_baked_type_of_raw_key_event(raw_event);
+        event.type = classify_baked_type_of_raw_key_event(raw_event);
+        if (event.type == USER_EVENT_TYPE_HOTKEY_PRESS) {
+            HotkeyUserEvent *hotkey = &event.hotkey;
+            hotkey->key = raw_event.key;
+            hotkey->super = raw_event.super;
+            hotkey->shift = raw_event.shift;
+        } else { ASSERT(event.type == USER_EVENT_TYPE_GUI_KEY_PRESS);
+            GUIKeyUserEvent *gui_key = &event.gui_key;
+            gui_key->key = raw_event.key;
+            gui_key->super = raw_event.super;
+            gui_key->shift = raw_event.shift;
+        }
     } else { ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_MOUSE_PRESS);
         // NOTE: changed _window_get_NDC_from_Screen() -> globals.NDC_from_Screen
         vec2 mouse_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_Pixel);
@@ -763,16 +777,6 @@ BEGIN_PRE_MAIN {
 
 // TODO: this API should match what is printed to the terminal in verbose output mode
 //       (so we can copy and paste a session for later use as an end to end test)
-
-UserEvent KEY_event(uint32 key, bool32 super = false, bool32 shift = false) {
-    ASSERT(!(('a' <= key) && (key <= 'z')));
-    UserEvent event = {};
-    event.type = USER_EVENT_TYPE_HOTKEY_PRESS;
-    event.key = key;
-    event.super = super;
-    event.shift = shift;
-    return event;
-}
 
 UserEvent MOUSE_2D_event(real32 mouse_x, real32 mouse_y) {
     UserEvent event = {};
@@ -839,6 +843,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
     #include "cookbook.cpp"
 
     if (event.type == USER_EVENT_TYPE_HOTKEY_PRESS) {
+        const HotkeyUserEvent *hotkey = &event.hotkey;
+
         result.record_me = true;
 
         auto key_lambda = [event](uint32 key, bool super = false, bool shift = false) -> bool {
@@ -1063,7 +1069,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             } else if (key_lambda(GLFW_KEY_ESCAPE)) {
                 global_world_state.modes = {};
             } else {
-                conversation_messagef("[hotkey] %s not recognized", inline_key_event_as_string(&event), event.super, event.shift, event.key);
+                conversation_messagef("[hotkey] %s not recognized", key_event_get_string_for_guiprintf_NOTE_ONLY_USE_INLINE(&event), hotkey->super, hotkey->shift, hotkey->key);
                 result.record_me = false;
                 ;
             }
@@ -1534,13 +1540,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             }
         }
     } else if (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) {
+        const GUIKeyUserEvent *gui_key = &event.gui_key;
+
         result.record_me = true;
 
         time_since->cursor_start = 0.0; // FORNOW
 
-        uint32 key = event.key;
-        bool32 shift = event.shift;
-        bool32 super = event.super;
+        uint32 key = gui_key->key;
+        bool32 shift = gui_key->shift;
+        bool32 super = gui_key->super;
 
         bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
         if (key == GLFW_KEY_TAB) {
@@ -1690,12 +1698,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
         bool32 popup_popup_actually_called_this_event = false;
         #include "popup_lambda.cpp"
         { // popup_popup
-            bool32 enter = ((event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) && (event.key == GLFW_KEY_ENTER));
+
+            bool32 gui_key_enter; {
+                gui_key_enter = false;
+                if (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) {
+                    const GUIKeyUserEvent *gui_key = &event.gui_key;
+                    gui_key_enter = (gui_key->key == GLFW_KEY_ENTER);
+                }
+            }
+
             if (*enter_mode == ENTER_MODE_OPEN) {
                 sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, open_filename);
                 popup_popup(false,
                         POPUP_CELL_TYPE_CSTRING, "open_filename", open_filename);
-                if (enter) {
+                if (gui_key_enter) {
                     if (poe_suffix_match(full_filename_scratch_buffer, ".dxf")) {
                         result.record_me = true;
                         result.checkpoint_me = true;
@@ -1718,7 +1734,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, save_filename);
                 popup_popup(false,
                         POPUP_CELL_TYPE_CSTRING, "save_filename", save_filename);
-                if (enter) {
+                if (gui_key_enter) {
                     conversation_save(full_filename_scratch_buffer);
                     *enter_mode = ENTER_MODE_NONE;
                 }
@@ -1726,7 +1742,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 popup_popup(true,
                         POPUP_CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
                         POPUP_CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
-                if (enter) {
+                if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[extrude-add] no dxf elements selected");
                     } else if (!feature_plane->is_active) {
@@ -1742,7 +1758,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 popup_popup(true,
                         POPUP_CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
                         POPUP_CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
-                if (enter) {
+                if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[extrude-cut] no dxf elements selected");
                     } else if (!feature_plane->is_active) {
@@ -1758,7 +1774,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 }
             } else if (*enter_mode == ENTER_MODE_REVOLVE_ADD) {
                 popup_popup(true, POPUP_CELL_TYPE_REAL32, "revolve_add_dummy", revolve_add_dummy);
-                if (enter) {
+                if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-add] no dxf elements selected");
                     } else if (!feature_plane->is_active) {
@@ -1770,7 +1786,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 }
             } else if (*enter_mode == ENTER_MODE_REVOLVE_CUT) {
                 popup_popup(true, POPUP_CELL_TYPE_REAL32, "revolve_cut_dummy", revolve_cut_dummy);
-                if (enter) {
+                if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         conversation_messagef("[revolve-cut] no dxf elements selected");
                     } else if (!feature_plane->is_active) {
@@ -1785,7 +1801,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             } else if (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) {
                 popup_popup(true,
                         POPUP_CELL_TYPE_REAL32, "feature_plane_nudge", feature_plane_nudge);
-                if (enter) {
+                if (gui_key_enter) {
                     result.record_me = true;
                     result.checkpoint_me = true;
                     feature_plane->signed_distance_to_world_origin += *feature_plane_nudge;
@@ -1796,7 +1812,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 popup_popup(true,
                         POPUP_CELL_TYPE_REAL32, "x_coordinate", x_coordinate,
                         POPUP_CELL_TYPE_REAL32, "y_coordinate", y_coordinate);
-                if (enter) {
+                if (gui_key_enter) {
                     // popup->_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                     *click_modifier = CLICK_MODIFIER_NONE;
                     return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(*x_coordinate, *y_coordinate));
@@ -1810,7 +1826,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                             POPUP_CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
                             POPUP_CELL_TYPE_REAL32, "circle_radius", circle_radius,
                             POPUP_CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
-                    if (enter) {
+                    if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *circle_radius, first_click->y));
                     } else {
                         if (prev_circle_diameter != *circle_diameter) {
@@ -1837,7 +1853,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                             POPUP_CELL_TYPE_REAL32, "line_run", line_run,
                             POPUP_CELL_TYPE_REAL32, "line_rise", line_rise
                             );
-                    if (enter) {
+                    if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *line_run, first_click->y + *line_rise));
                     } else {
                         if ((prev_line_length != *line_length) || (prev_line_angle != *line_angle)) {
@@ -1854,7 +1870,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                     popup_popup(true,
                             POPUP_CELL_TYPE_REAL32, "box_width", box_width,
                             POPUP_CELL_TYPE_REAL32, "box_height", box_height);
-                    if (enter) {
+                    if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *box_width, first_click->y + *box_height));
                     }
                 }
@@ -1871,7 +1887,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                             POPUP_CELL_TYPE_REAL32, "move_run", move_run,
                             POPUP_CELL_TYPE_REAL32, "move_rise", move_rise
                             );
-                    if (enter) {
+                    if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *move_run, first_click->y + *move_rise));
                     } else {
                         if ((prev_move_length != *move_length) || (prev_move_angle != *move_angle)) {
@@ -2060,7 +2076,7 @@ void _history_user_event_draw_helper(UserEvent *event) {
                     boxed = "[GUI_KEY]";
                 }
             }
-            sprintf(message, "%s %s", boxed, inline_key_event_as_string(event));
+            sprintf(message, "%s %s", boxed, key_event_get_string_for_guiprintf_NOTE_ONLY_USE_INLINE(event));
         } else if (event->type == USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD) {
             Mouse2DUserEvent *mouse_2D = &event->mouse_2D;
             sprintf(message, "[MOUSE-2D] %g %g", mouse_2D->mouse.x, mouse_2D->mouse.y);
@@ -2143,13 +2159,19 @@ void history_printf_script() {
             ++event
         ) {//
         if ((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS)) {
-            if (event->super) list_push_back(&program, '^');
-            if (event->key == GLFW_KEY_ENTER) {
+
+            const bool32 *super;
+            const bool32 *shift;
+            const uint32 *key;
+            key_event_get_ptrs_super_shift_key(event, &super, &shift, &key);
+
+            if (*super) list_push_back(&program, '^');
+            if (*key == GLFW_KEY_ENTER) {
                 list_push_back(&program, '\\');
                 list_push_back(&program, 'n');
             } else {
-                char char_equivalent = (char) event->key;
-                if ((('A' <= event->key) && (event->key <= 'Z')) && !event->shift) char_equivalent = 'a' + (char_equivalent - 'A');
+                char char_equivalent = (char) *key;
+                if ((('A' <= *key) && (*key <= 'Z')) && !*shift) char_equivalent = 'a' + (char_equivalent - 'A');
                 list_push_back(&program, (char) char_equivalent);
             }
         }
