@@ -195,6 +195,31 @@ struct RawUserEvent {
 };
 
 // TODO: this is confusing;  TODO: fat struct it Key
+
+struct HotkeyUserEvent {
+};
+struct Mouse2DUserEvent {
+    vec2 mouse;
+    bool32 mouse_held;
+};
+struct Mouse3DUserEvent {
+    vec3 o;
+    vec3 dir;
+    bool32 mouse_held;
+};
+struct GUIKeyUserEvent {
+};
+struct GUIMouseUserEvent {
+    uint32 cell_index;
+    uint32 cursor;
+    uint32 selection_cursor;
+    bool32 mouse_held;
+};
+
+#define USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD  2
+#define USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD  3
+#define USER_EVENT_TYPE_GUI_KEY_PRESS   4
+#define USER_EVENT_TYPE_GUI_MOUSE       5
 struct UserEvent {
     uint32 type;
 
@@ -206,16 +231,11 @@ struct UserEvent {
     bool32 super;
     bool32 shift;
 
-    bool32 mouse_held;
+    Mouse2DUserEvent mouse_2D;
+    Mouse3DUserEvent mouse_3D;
+    GUIMouseUserEvent gui_mouse;
 
-    vec2 mouse;
 
-    vec3 o;
-    vec3 dir;
-
-    uint32 cell_index;
-    uint32 cursor;
-    uint32 selection_cursor;
 };
 
 struct ScreenState {

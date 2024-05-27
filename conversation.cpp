@@ -414,8 +414,8 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             }
             real32 mask = CLAMP(1.2f * time_since->successful_feature, 0.0f, 2.0f);
             for (uint32 d = 0; d < 3; ++d ) {
-            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[d].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
-            eso_vertex(p[d]);
+                eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[d].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
+                eso_vertex(p[d]);
             }
         }
         eso_end();
@@ -723,27 +723,30 @@ UserEvent bake_event(RawUserEvent raw_event) {
             mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
             vec2 mouse_World_2D = transformPoint(inv_PV_2D, mouse_NDC);
             event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
-            event.mouse = magic_snap(mouse_World_2D);
-            event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
+            Mouse2DUserEvent *mouse_2D = &event.mouse_2D;
+            mouse_2D->mouse = magic_snap(mouse_World_2D);
+            mouse_2D->mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
         } else if (raw_event.pane == PANE_POPUP) {
             // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
             // TODO: gross gross gross
             event.type = USER_EVENT_TYPE_GUI_MOUSE;
-            event.cell_index = popup->hover_cell_index; 
-            event.mouse_held = raw_event.mouse_held;
+            GUIMouseUserEvent *gui_mouse = &event.gui_mouse;
+            gui_mouse->cell_index = popup->hover_cell_index; 
+            gui_mouse->mouse_held = raw_event.mouse_held;
             if (!raw_event.mouse_held) {
-                event.cursor = popup->hover_cursor; 
+                gui_mouse->cursor = popup->hover_cursor; 
             } else {
                 // preserve old value; NOTE: could also be achieved with event.set_cursor = false;
-                event.cursor = popup->cursor;
+                gui_mouse->cursor = popup->cursor;
             }
-            event.selection_cursor = popup->hover_cursor; 
+            gui_mouse->selection_cursor = popup->hover_cursor; 
         } else if (raw_event.pane == PANE_3D) {
             mat4 inv_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
             event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
-            event.o = transformPoint(inv_PV_3D, V3(mouse_NDC, -1.0f));
-            event.dir = normalized(transformPoint(inv_PV_3D, V3(mouse_NDC, 1.0f)) - event.o);
-            event.mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
+            Mouse3DUserEvent *mouse_3D = &event.mouse_3D;
+            mouse_3D->o = transformPoint(inv_PV_3D, V3(mouse_NDC, -1.0f));
+            mouse_3D->dir = normalized(transformPoint(inv_PV_3D, V3(mouse_NDC, 1.0f)) - mouse_3D->o);
+            mouse_3D->mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
         } else { ASSERT(raw_event.pane == PANE_DIVIDER);
             event = {};
         }
@@ -774,16 +777,18 @@ UserEvent KEY_event(uint32 key, bool32 super = false, bool32 shift = false) {
 UserEvent MOUSE_2D_event(real32 mouse_x, real32 mouse_y) {
     UserEvent event = {};
     event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
-    event.mouse.x = mouse_x;
-    event.mouse.y = mouse_y;
+    Mouse2DUserEvent *mouse_2D = &event.mouse_2D;
+    mouse_2D->mouse.x = mouse_x;
+    mouse_2D->mouse.y = mouse_y;
     return event;
 }
 
 UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir_y, real32 dir_z) {
     UserEvent event = {};
     event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
-    event.o = { o_x, o_y, o_z };
-    event.dir = { dir_x, dir_y, dir_z };
+    Mouse3DUserEvent *mouse_3D = &event.mouse_3D;
+    mouse_3D->o = { o_x, o_y, o_z };
+    mouse_3D->dir = { dir_x, dir_y, dir_z };
     return event;
 }
 
@@ -1016,7 +1021,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             } else if (key_lambda('Z')) {
                 UserEvent equivalent = {};
                 equivalent.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
-                equivalent.mouse = {};
+                // .mouse = {};
                 return _standard_event_process_NOTE_RECURSIVE(equivalent);
             } else if (key_lambda('Z', false, true)) {
                 *click_mode = CLICK_MODE_ORIGIN;
@@ -1069,12 +1074,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
         if (changed_enter_mode && enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE()) *shift_space_bar_event = event;
 
     } else if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD) {
+        const Mouse2DUserEvent *mouse_2D = &event.mouse_2D;
+
         result.record_me = true;
         if (*click_mode == CLICK_MODE_MEASURE) result.record_me = false;
-        if (event.mouse_held) result.record_me = false;
+        if (mouse_2D->mouse_held) result.record_me = false;
 
-        const vec2 *mouse = &event.mouse;
-        const vec2 *second_click = &event.mouse;
+        const vec2 *mouse = &mouse_2D->mouse;
+        const vec2 *second_click = &mouse_2D->mouse;
 
         bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_WINDOW));
 
@@ -1091,7 +1098,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
         // fornow window wonky case
         if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes scand qc
             result.record_me = false;
-            int hot_entity_index = dxf_find_closest_entity(&global_world_state.dxf.entities, event.mouse.x, event.mouse.y);
+            int hot_entity_index = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_2D->mouse.x, mouse_2D->mouse.y);
             if (hot_entity_index != -1) {
                 if (*click_modifier != CLICK_MODIFIER_CONNECTED) {
                     if (click_mode_SELECT_OR_DESELECT()) {
@@ -1251,11 +1258,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                     #endif
                 }
             }
-        } else if (!event.mouse_held) {
+        } else if (!mouse_2D->mouse_held) {
             if (click_mode_TWO_CLICK_COMMAND) {
                 if (!*awaiting_second_click) {
                     *awaiting_second_click = true;
-                    *first_click = event.mouse;
+                    *first_click = mouse_2D->mouse;
                     if (*click_modifier != CLICK_MODIFIER_WINDOW) *click_modifier = CLICK_MODIFIER_NONE;
                 } else {
                     if (*click_mode == CLICK_MODE_MEASURE) {
@@ -1330,7 +1337,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                         result.checkpoint_me = true;
                         *click_modifier = CLICK_MODIFIER_NONE;
                         int i = dxf_find_closest_entity(&dxf->entities, first_click->x, first_click->y);
-                        int j = dxf_find_closest_entity(&global_world_state.dxf.entities, event.mouse.x, event.mouse.y);
+                        int j = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_2D->mouse.x, mouse_2D->mouse.y);
                         if ((i != j) && (i != -1) && (j != -1)) {
                             real32 radius = *fillet_radius;
                             DXFEntity *E_i = &dxf->entities.array[i];
@@ -1358,11 +1365,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                                     //    m    |                 m    |       
                                     //         c                      s       
 
-                                    vec2 m; {
-                                        vec2 m1 = *first_click;
-                                        vec2 m2 = { event.mouse.x, event.mouse.y };
-                                        m = AVG(m1, m2);
-                                    }
+                                    vec2 m = AVG(*first_click, *second_click);
 
                                     vec2 e_ab = normalized(b - a);
                                     vec2 e_cd = normalized(d - c);
@@ -1496,8 +1499,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             }
         }
     } else if (event.type == USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD) {
+        const Mouse3DUserEvent *mouse_3D = &event.mouse_3D;
         result.record_me = false;
-        if (!event.mouse_held) {
+        if (!mouse_3D->mouse_held) {
             int32 index_of_first_triangle_hit_by_ray = -1;
             {
                 real32 min_distance = HUGE_VAL;
@@ -1505,7 +1509,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                     vec3 p[3]; {
                         for (uint32 j = 0; j < 3; ++j) p[j] = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * i + j]);
                     }
-                    RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(event.o, event.dir, p[0], p[1], p[2]);
+                    RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_3D->o, mouse_3D->dir, p[0], p[1], p[2]);
                     if (ray_triangle_intersection_result.hit) {
                         if (ray_triangle_intersection_result.distance < min_distance) {
                             min_distance = ray_triangle_intersection_result.distance;
@@ -1645,25 +1649,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             popup->selection_cursor = popup->cursor;
         }
     } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE) {
+        const GUIMouseUserEvent *gui_mouse = &event.gui_mouse;
+
         result.record_me = false;
         time_since->cursor_start = 0.0f;
 
         // TODO: probably also gross
-        if ((!event.mouse_held) && (popup->active_cell_index != event.cell_index)) {
+        if ((!gui_mouse->mouse_held) && (popup->active_cell_index != gui_mouse->cell_index)) {
             result.record_me = true;
-            POPUP_SET_ACTIVE_CELL_INDEX(event.cell_index);
+            POPUP_SET_ACTIVE_CELL_INDEX(gui_mouse->cell_index);
         }
         // NOTE: this if is really gross and patches a problem where if you drag the mouse off the cell things break
         // TODO: this should be fixed earlier in the chain; better guarantees about what the event is sending you
         // (TODO: you should be able to leave the box)
-        if (popup->active_cell_index == event.cell_index) {
-            if (popup->cursor != event.cursor) {
+        if (popup->active_cell_index == gui_mouse->cell_index) {
+            if (popup->cursor != gui_mouse->cursor) {
                 result.record_me = true;
-                popup->cursor = event.cursor;
+                popup->cursor = gui_mouse->cursor;
             }
-            if (popup->selection_cursor != event.selection_cursor) {
+            if (popup->selection_cursor != gui_mouse->selection_cursor) {
                 result.record_me = true;
-                popup->selection_cursor = event.selection_cursor;
+                popup->selection_cursor = gui_mouse->selection_cursor;
             }
         }
     } else { ASSERT(event.type == USER_EVENT_TYPE_NONE);
@@ -2056,11 +2062,14 @@ void _history_user_event_draw_helper(UserEvent *event) {
             }
             sprintf(message, "%s %s", boxed, inline_key_event_as_string(event));
         } else if (event->type == USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD) {
-            sprintf(message, "[MOUSE-2D] %g %g", event->mouse.x, event->mouse.y);
+            Mouse2DUserEvent *mouse_2D = &event->mouse_2D;
+            sprintf(message, "[MOUSE-2D] %g %g", mouse_2D->mouse.x, mouse_2D->mouse.y);
         } else if (event->type == USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD) {
-            sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", event->o.x, event->o.y, event->o.z, event->dir.x, event->dir.y, event->dir.z);
+            Mouse3DUserEvent *mouse_3D = &event->mouse_3D;
+            sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_3D->o.x, mouse_3D->o.y, mouse_3D->o.z, mouse_3D->dir.x, mouse_3D->dir.y, mouse_3D->dir.z);
         } else { ASSERT(event->type == USER_EVENT_TYPE_GUI_MOUSE);
-            sprintf(message, "[GUI-MOUSE] %d %d %d", event->cell_index, event->cursor, event->selection_cursor);
+            GUIMouseUserEvent *gui_mouse = &event->gui_mouse;
+            sprintf(message, "[GUI-MOUSE] %d %d %d", gui_mouse->cell_index, gui_mouse->cursor, gui_mouse->selection_cursor);
         }
     }
     gui_printf("%c%c %s",
@@ -2782,18 +2791,20 @@ void script_process(char *string) {
                 {
                     char *tag = &string[i + 1];
                     if (strncmp(tag, "m2d", TAG_LENGTH) == 0) {
+                        char *params = &string[i + 1 + TAG_LENGTH];
                         // // NOTE: this is very subtle
                         // the reason we have to instabake here is that the user of the spoofing api
                         // is specifying a click in pre-snapped world coordinates
                         // (as opposed to (pre-snapped) pixel coordinates, which is what bake_event takes)
-                        char *params = &string[i + 1 + TAG_LENGTH];
                         instabaked_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
-                        sscanf(params, "%f %f", &instabaked_event.mouse.x, &instabaked_event.mouse.y);
-                        instabaked_event.mouse = magic_snap(instabaked_event.mouse);
+                        Mouse2DUserEvent *mouse_2D = &instabaked_event.mouse_2D;
+                        sscanf(params, "%f %f", &mouse_2D->mouse.x, &mouse_2D->mouse.y);
+                        mouse_2D->mouse = magic_snap(mouse_2D->mouse);
                     } else if (strncmp(tag, "m3d", TAG_LENGTH) == 0) {
                         char *params = &string[i + 1 + TAG_LENGTH];
                         instabaked_event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
-                        sscanf(params, "%f %f %f %f %f %f", &instabaked_event.o.x, &instabaked_event.o.y, &instabaked_event.o.z, &instabaked_event.dir.x, &instabaked_event.dir.y, &instabaked_event.dir.z);
+                        Mouse3DUserEvent *mouse_3D = &instabaked_event.mouse_3D;
+                        sscanf(params, "%f %f %f %f %f %f", &mouse_3D->o.x, &mouse_3D->o.y, &mouse_3D->o.z, &mouse_3D->dir.x, &mouse_3D->dir.y, &mouse_3D->dir.z);
                     } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
                         is_instabaked = false;
                         _raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;

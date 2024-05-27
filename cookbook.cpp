@@ -72,7 +72,7 @@ auto _DXF_REMOVE_ENTITY = [&](uint32 i) { list_delete_at(&dxf->entities, i); };
 auto DXF_ENTITY_SET_IS_SELECTED = [&](DXFEntity *entity, bool32 is_selected) {
     if (entity->is_selected != is_selected) {
         result.record_me = true;
-        result.checkpoint_me = (!event.mouse_held);
+        result.checkpoint_me = !((event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD) && (event.mouse_2D.mouse_held)); // FORNOW
         entity->is_selected = is_selected;
         entity->time_since_is_selected_changed = 0.0f;
     }
