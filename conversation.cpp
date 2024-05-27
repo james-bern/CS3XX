@@ -1645,8 +1645,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             popup->selection_cursor = popup->cursor;
         }
     } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE) {
-        time_since->cursor_start = 0.0f;
         result.record_me = false;
+        time_since->cursor_start = 0.0f;
 
         // TODO: probably also gross
         if ((!event.mouse_held) && (popup->active_cell_index != event.cell_index)) {
@@ -2187,10 +2187,10 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, _global_screen_state.mouse_NDC);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
-    bool32 extrude = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT));
-    bool32 revolve = ((*enter_mode == ENTER_MODE_REVOLVE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
-    bool32 add     = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD));
-    // bool32 cut     = ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
+    bool32 extruding = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT));
+    bool32 revolving = ((*enter_mode == ENTER_MODE_REVOLVE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
+    bool32 adding     = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD));
+    bool32 cutting     = ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
 
     // FORNOW: repeated computation; TODO function
     bool32 dxf_anything_selected;
@@ -2205,11 +2205,11 @@ void conversation_draw() {
 
 
     { // preview_extrude_in_length
-        real32 target = (add) ? *extrude_add_in_length : *extrude_cut_in_length;
+        real32 target = (adding) ? *extrude_add_in_length : *extrude_cut_in_length;
         JUICE_IT_EASY_TWEEN(preview_extrude_in_length, target);
     }
     { // preview_extrude_out_length
-        real32 target = (add) ? *extrude_add_out_length : *extrude_cut_out_length;
+        real32 target = (adding) ? *extrude_add_out_length : *extrude_cut_out_length;
         JUICE_IT_EASY_TWEEN(preview_extrude_out_length, target);
     }
     // TODO
@@ -2326,14 +2326,14 @@ void conversation_draw() {
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
-                    uint32 color_code = (!entity->is_selected) ? entity->color_code : DFX_COLOR_CODE_SELECTION;
+                    uint32 color_code = (!entity->is_selected) ? entity->color_code : DXF_COLOR_CODE_SELECTION;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
                     if ((*click_mode == CLICK_MODE_MOVE) && (*awaiting_second_click)) {
                         if (entity->is_selected) {
                             dx = preview_mouse.x - first_click->x;
                             dy = preview_mouse.y - first_click->y;
-                            color_code = DFX_COLOR_CODE_WATER_ONLY;
+                            color_code = DXF_COLOR_CODE_WATER_ONLY;
                         }
                     }
                     eso_color(get_color(color_code));
@@ -2397,7 +2397,7 @@ void conversation_draw() {
                     int i = dxf_find_closest_entity(&global_world_state.dxf.entities, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
                     if (i != -1) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(DFX_COLOR_CODE_WATER_ONLY));
+                        eso_color(get_color(DXF_COLOR_CODE_WATER_ONLY));
                         eso_dxf_entity__SOUP_LINES(&global_world_state.dxf.entities.array[i]);
                         eso_end();
                     }
@@ -2420,8 +2420,13 @@ void conversation_draw() {
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
             // FORNOW
-            vec3 target_color = get_color(((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DFX_COLOR_CODE_TRAVERSE : ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DFX_COLOR_CODE_QUALITY_1 : ((*click_mode == CLICK_MODE_ORIGIN) || (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE)) ? DFX_COLOR_CODE_WATER_ONLY : DFX_COLOR_CODE_SELECTION);
-            JUICE_IT_EASY_TWEEN(preview_tubes_color, target_color);
+            bool32 moving_stuff = ((*click_mode == CLICK_MODE_ORIGIN) || (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE));
+            vec3 target_preview_tubes_color = (0) ? V3(0)
+                : (adding) ? get_color(DXF_COLOR_CODE_TRAVERSE)
+                : (cutting) ? get_color(DXF_COLOR_CODE_QUALITY_1)
+                : (moving_stuff) ? get_color(DXF_COLOR_CODE_WATER_ONLY)
+                : monokai.yellow;
+            JUICE_IT_EASY_TWEEN(preview_tubes_color, target_preview_tubes_color);
 
             uint32 NUM_TUBE_STACKS_INCLUSIVE;
             mat4 M;
@@ -2429,13 +2434,13 @@ void conversation_draw() {
             {
                 mat4 T_o = M4_Translation(preview_dxf_origin);
                 mat4 inv_T_o = M4_Translation(-preview_dxf_origin);
-                if (extrude) {
+                if (extruding) {
                     real32 a = -*preview_extrude_in_length;
                     real32 L = *preview_extrude_out_length + *preview_extrude_in_length;
                     NUM_TUBE_STACKS_INCLUSIVE = MIN(64, uint32(roundf(L / 2.5f)) + 2);
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                     M_incr = M4_Translation(0.0f, 0.0f, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
-                } else if (revolve) {
+                } else if (revolving) {
                     NUM_TUBE_STACKS_INCLUSIVE = 64;
                     M = M_3D_from_2D * inv_T_o;
                     { // M_incr

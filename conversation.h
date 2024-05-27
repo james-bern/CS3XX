@@ -85,23 +85,23 @@ struct {
 #define CLICK_MODIFIER_EXACT_X_Y_COORDINATES  8
 #define CLICK_MODIFIER_SELECTED               9
 
-#define DFX_COLOR_CODE_TRAVERSE        0
-#define DFX_COLOR_CODE_QUALITY_1       1
-#define DFX_COLOR_CODE_QUALITY_2       2
-#define DFX_COLOR_CODE_QUALITY_3       3
-#define DFX_COLOR_CODE_QUALITY_4       4
-#define DFX_COLOR_CODE_QUALITY_5       5
-#define DFX_COLOR_CODE_QUALITY_5       5
-#define DFX_COLOR_CODE_ETCH            6
-#define DFX_COLOR_CODE_WATER_ONLY      8
-#define DFX_COLOR_CODE_LEAD_IO         9
-#define DFX_COLOR_CODE_SELECTION      10
-#define DFX_COLOR_CODE_QUALITY_SLIT_1 21
-#define DFX_COLOR_CODE_QUALITY_SLIT_2 22
-#define DFX_COLOR_CODE_QUALITY_SLIT_3 23
-#define DFX_COLOR_CODE_QUALITY_SLIT_4 24
-#define DFX_COLOR_CODE_QUALITY_SLIT_5 25
-#define DFX_COLOR_CODE_DONT_OVERRIDE 255
+#define DXF_COLOR_CODE_TRAVERSE        0
+#define DXF_COLOR_CODE_QUALITY_1       1
+#define DXF_COLOR_CODE_QUALITY_2       2
+#define DXF_COLOR_CODE_QUALITY_3       3
+#define DXF_COLOR_CODE_QUALITY_4       4
+#define DXF_COLOR_CODE_QUALITY_5       5
+#define DXF_COLOR_CODE_QUALITY_5       5
+#define DXF_COLOR_CODE_ETCH            6
+#define DXF_COLOR_CODE_WATER_ONLY      8
+#define DXF_COLOR_CODE_LEAD_IO         9
+#define DXF_COLOR_CODE_SELECTION      10
+#define DXF_COLOR_CODE_QUALITY_SLIT_1 21
+#define DXF_COLOR_CODE_QUALITY_SLIT_2 22
+#define DXF_COLOR_CODE_QUALITY_SLIT_3 23
+#define DXF_COLOR_CODE_QUALITY_SLIT_4 24
+#define DXF_COLOR_CODE_QUALITY_SLIT_5 25
+#define DXF_COLOR_CODE_DONT_OVERRIDE 255
 
 #define DXF_ENTITY_TYPE_LINE 0
 #define DXF_ENTITY_TYPE_ARC  1
@@ -150,11 +150,10 @@ struct DXFArc {
 struct DXFEntity {
     uint32 type;
     uint32 color_code;
-    // NOTE: naive "fat struct"
-    union {
+    // union {
         DXFLine line;
         DXFArc arc;
-    };
+    // };
     // FORNOW: this goes last
     bool32 is_selected;
     real32 time_since_is_selected_changed;
@@ -195,6 +194,7 @@ struct RawUserEvent {
     uint32 pane;
 };
 
+// TODO: this is confusing;  TODO: fat struct it Key
 struct UserEvent {
     uint32 type;
 
@@ -692,7 +692,7 @@ void dxf_entities_load(char *filename, List<DXFEntity> *dxf_entities) {
 vec3 get_color(uint32 color) {
     if (color <= 9) {
         return omax_pallete[color];
-    } else if (color == DFX_COLOR_CODE_SELECTION) {
+    } else if (color == DXF_COLOR_CODE_SELECTION) {
         return basic.yellow;
     } else {
         do_once { conversation_messagef("WARNING: slits not implemented"); };
@@ -726,7 +726,7 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, real32 dx = 0.0f, real32 dy =
 }
 
 
-void dxf_entities_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DFX_COLOR_CODE_DONT_OVERRIDE) {
+void dxf_entities_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DXF_COLOR_CODE_DONT_OVERRIDE) {
     eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
     for (DXFEntity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);

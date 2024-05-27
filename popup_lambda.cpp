@@ -75,7 +75,6 @@ auto popup_popup = [&] (
         for (uint32 d = 0; d < popup->num_cells; ++d) { // gui_printf
             if (!popup->name[d]) continue;
 
-
             uint32 _strlen_name;
             uint32 _strlen_extra;
             uint32 strlen_other;
