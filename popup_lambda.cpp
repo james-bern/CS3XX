@@ -203,15 +203,18 @@ auto popup_popup = [&] (
                     gui_printf(buffer);
                     FORNOW_gui_printf_red_component = 1.0f;
                     if (POPUP_SELECTION_NOT_ACTIVE()) { // cursor
-                        if (((int) (time_since->cursor_blink * 5)) % 10 < 5) {
+                        // if (((int) (time_since->cursor_start * 5)) % 10 < 5)
+                        {
+                            real32 a = 0.5f + 0.5f * SIN(time_since->cursor_start * 7);
+                            real32 b = CLAMPED_LINEAR_REMAP(time_since->cursor_start, 0.0f, 1.0f, 1.0f, 0.0f);
                             char tmp[4096]; // FORNOW
                             strcpy(tmp, popup->active_cell_buffer);
                             tmp[popup->cursor] = '\0';
                             x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                             x -= 1.25f;
                             // FORNOW: silly way of getting longer |
-                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 2.5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
-                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 2.5, 0.0, 1.0, 1.0, 0.0, 1.0, 0, 0.0, 0.0, true);
+                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
+                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
                         }
                     }
                 }

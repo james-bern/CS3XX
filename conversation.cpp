@@ -31,6 +31,7 @@
 
 // #define DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 // #define DEBUG_HISTORY_DISABLE_SNAPSHOTTING
+// #define DEBUG_DISABLE_EASY_TWEEN
 
 //////////////////////////////////////////////////
 // NOTES /////////////////////////////////////////
@@ -177,18 +178,21 @@ real32 *move_angle               = &popup->move_angle;
 real32 *move_length              = &popup->move_length;
 real32 *move_rise                = &popup->move_rise;
 real32 *move_run                 = &popup->move_run;
-real32 *plane_offset             = &popup->plane_offset;
+real32 *feature_plane_nudge             = &popup->feature_plane_nudge;
 real32 *revolve_add_dummy        = &popup->revolve_add_dummy;
 real32 *revolve_cut_dummy        = &popup->revolve_cut_dummy;
 real32 *x_coordinate             = &popup->x_coordinate;
 real32 *y_coordinate             = &popup->y_coordinate;
-uint32 *click_color    = &global_world_state.click_color;
+uint32 *click_color_code    = &global_world_state.click_color_code;
 uint32 *click_mode     = &global_world_state.modes.click_mode;
 uint32 *click_modifier = &global_world_state.modes.click_modifier;
 uint32 *enter_mode     = &global_world_state.modes.enter_mode;
 vec2 *first_click = &global_world_state.two_click_command.first_click;
 Camera2D *camera_2D = &_global_screen_state.camera_2D;
 Camera3D *camera_3D = &_global_screen_state.camera_3D;
+vec3 *preview_tubes_color = &aesthetics.preview_tubes_color;
+vec3 *preview_feature_plane_color = &aesthetics.preview_feature_plane_color;
+real32 *preview_feature_plane_offset = &aesthetics.preview_feature_plane_offset;
 bbox2 *preview_feature_plane = &aesthetics.preview_feature_plane;
 real32 *preview_extrude_in_length = &aesthetics.preview_extrude_in_length;
 real32 *preview_extrude_out_length = &aesthetics.preview_extrude_out_length;
@@ -281,7 +285,7 @@ bool32 enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (*enter_mode == ENTER_MODE_EXTRUDE_CUT)
         || (*enter_mode == ENTER_MODE_REVOLVE_ADD)
         || (*enter_mode == ENTER_MODE_REVOLVE_CUT)
-        || (*enter_mode == ENTER_MODE_OFFSET_PLANE)
+        || (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE)
         ;
 }
 //////////////////////////////////////////////////
@@ -388,7 +392,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             {
                 vec3 n_Camera = inv_transpose_V_3D * n;
                 vec3 color_n = V3(0.5f + 0.5f * n_Camera.x, 0.5f + 0.5f * n_Camera.y, 1.0f);
-                if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
+                if ((feature_plane->is_active) && (ABS(dot(n, feature_plane->normal)) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
                     color = CLAMPED_LERP(2.0f * time_since->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
                     if (2.0f * time_since->plane_selected < 0.3f) color = monokai.white;
@@ -409,12 +413,10 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 }
             }
             real32 mask = CLAMP(1.2f * time_since->successful_feature, 0.0f, 2.0f);
-            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[0].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
-            eso_vertex(p[0]);
-            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[1].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
-            eso_vertex(p[1]);
-            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[2].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
-            eso_vertex(p[2]);
+            for (uint32 d = 0; d < 3; ++d ) {
+            eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[d].y, mesh->max.y, mesh->min.y) + 0.5f * time_since->successful_feature), monokai.white, color), alpha);
+            eso_vertex(p[d]);
+            }
         }
         eso_end();
     }
@@ -857,7 +859,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             if (digit_lambda) {
                 if (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_COLOR)) { // [sd]q0
                     _for_each_entity_ {
-                        if (entity->color != digit) continue;
+                        if (entity->color_code != digit) continue;
                         DXF_ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                     }
                     *click_mode = CLICK_MODE_NONE;
@@ -870,7 +872,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 } else { // 0
                     result.record_me = true;
                     *click_mode = CLICK_MODE_COLOR;
-                    *click_color = digit;
+                    *click_color_code = digit;
                     *click_modifier = CLICK_MODIFIER_NONE;
                 }
             } else if (key_lambda('A')) {
@@ -944,7 +946,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                 *awaiting_second_click = false;
             } else if (key_lambda('N')) {
                 if (feature_plane->is_active) {
-                    *enter_mode = ENTER_MODE_OFFSET_PLANE;
+                    *enter_mode = ENTER_MODE_NUDGE_FEATURE_PLANE;
+                    *preview_feature_plane_offset = 0.0f; // FORNOW
                 } else {
                     conversation_messagef("[n] no plane is_selected");
                 }
@@ -1094,7 +1097,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                     if (click_mode_SELECT_OR_DESELECT()) {
                         DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
                     } else {
-                        DXF_ENTITY_SET_COLOR(&dxf->entities.array[hot_entity_index], *click_color);
+                        DXF_ENTITY_SET_COLOR(&dxf->entities.array[hot_entity_index], *click_color_code);
                     }
                 } else {
                     #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -1387,8 +1390,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                                     if (_center.is_valid) {
                                         vec2 center = _center.position;
 
-                                        uint32 color_i = E_i->color;
-                                        uint32 color_j = E_j->color;
+                                        uint32 color_i = E_i->color_code;
+                                        uint32 color_j = E_j->color_code;
                                         _DXF_REMOVE_ENTITY(MAX(i, j));
                                         _DXF_REMOVE_ENTITY(MIN(i, j));
 
@@ -1448,7 +1451,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                                     V2(-(line->start.x - mouse->x) + mouse->x, line->start.y),
                                     V2(-(line->end.x - mouse->x) + mouse->x, line->end.y),
                                     true,
-                                    entity->color
+                                    entity->color_code
                                     );
                         } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                             DXFArc *arc = &entity->arc;
@@ -1458,7 +1461,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                                     arc->end_angle_in_degrees, // TODO
                                     arc->start_angle_in_degrees, // TODO
                                     true,
-                                    entity->color); // FORNOW + 180
+                                    entity->color_code); // FORNOW + 180
                         }
                         entity->is_selected = false;
                     }
@@ -1474,7 +1477,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                                     V2(line->start.x, -(line->start.y - mouse->y) + mouse->y),
                                     V2(line->end.x, -(line->end.y - mouse->y) + mouse->y),
                                     true,
-                                    entity->color
+                                    entity->color_code
                                     );
                         } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                             DXFArc *arc = &entity->arc;
@@ -1484,7 +1487,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                                     arc->end_angle_in_degrees, // TODO
                                     arc->start_angle_in_degrees, // TODO
                                     true,
-                                    entity->color); // FORNOW + 180
+                                    entity->color_code); // FORNOW + 180
                         }
                         entity->is_selected = false;
                     }
@@ -1529,7 +1532,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
     } else if (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) {
         result.record_me = true;
 
-        time_since->cursor_blink = 0.0; // FORNOW
+        time_since->cursor_start = 0.0; // FORNOW
 
         uint32 key = event.key;
         bool32 shift = event.shift;
@@ -1642,7 +1645,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
             popup->selection_cursor = popup->cursor;
         }
     } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE) {
-        time_since->cursor_blink = 0.0f;
+        time_since->cursor_start = 0.0f;
         result.record_me = false;
 
         // TODO: probably also gross
@@ -1773,13 +1776,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEven
                         conversation_messagef("[revolve-cut] success");
                     }
                 }
-            } else if (*enter_mode == ENTER_MODE_OFFSET_PLANE) {
-                popup_popup(false,
-                        POPUP_CELL_TYPE_REAL32, "plane_offset", plane_offset);
+            } else if (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) {
+                popup_popup(true,
+                        POPUP_CELL_TYPE_REAL32, "feature_plane_nudge", feature_plane_nudge);
                 if (enter) {
                     result.record_me = true;
                     result.checkpoint_me = true;
-                    feature_plane->signed_distance_to_world_origin = *plane_offset;
+                    feature_plane->signed_distance_to_world_origin += *feature_plane_nudge;
                     *enter_mode = ENTER_MODE_NONE;
                 }
             } else if (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
@@ -2201,21 +2204,25 @@ void conversation_draw() {
 
 
 
-    { // preview_extrude_*_length
-        real32 target_extrude_in_length = (add) ? *extrude_add_in_length : *extrude_cut_in_length;
-        real32 target_extrude_out_length = (add) ? *extrude_add_out_length : *extrude_cut_out_length;
-        *preview_extrude_in_length += 0.1f * (target_extrude_in_length - *preview_extrude_in_length);
-        *preview_extrude_out_length += 0.1f * (target_extrude_out_length - *preview_extrude_out_length);
+    { // preview_extrude_in_length
+        real32 target = (add) ? *extrude_add_in_length : *extrude_cut_in_length;
+        JUICE_IT_EASY_TWEEN(preview_extrude_in_length, target);
     }
-
+    { // preview_extrude_out_length
+        real32 target = (add) ? *extrude_add_out_length : *extrude_cut_out_length;
+        JUICE_IT_EASY_TWEEN(preview_extrude_out_length, target);
+    }
     // TODO
-    real32 preview_plane_offset = global_world_state.popup.plane_offset; // TODO: preview
+    { // preview_feature_plane_offset
+        real32 target = (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) ? *feature_plane_nudge : 0.0f;
+        JUICE_IT_EASY_TWEEN(preview_feature_plane_offset, target);
+    }
 
     // preview
     vec2 preview_mouse = magic_snap(mouse_World_2D, true);
     vec2 preview_dxf_origin; {
         if (*click_mode != CLICK_MODE_ORIGIN) {
-            preview_dxf_origin = global_world_state.dxf.origin;
+            preview_dxf_origin = dxf->origin;
         } else {
             preview_dxf_origin = preview_mouse;
         }
@@ -2294,17 +2301,19 @@ void conversation_draw() {
                 eso_vertex(GRID_SIDE_LENGTH, 0.0f);
                 eso_end();
             }
-            { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
+            if (1) { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
                 real32 funky_NDC_factor = _global_screen_state.camera_2D.height_World / 120.0f;
                 real32 LL = 1000 * funky_NDC_factor;
 
                 eso_color(monokai.white);
-                eso_begin(PV_2D, SOUP_LINES, 1.5f); {
-                    // axis
-                    vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
-                    eso_vertex(preview_dxf_axis_base_point + v);
-                    eso_vertex(preview_dxf_axis_base_point - v);
-                } eso_end();
+                if (0) {
+                    eso_begin(PV_2D, SOUP_LINES, 1.5f); {
+                        // axis
+                        vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
+                        eso_vertex(preview_dxf_axis_base_point + v);
+                        eso_vertex(preview_dxf_axis_base_point - v);
+                    } eso_end();
+                }
                 eso_begin(PV_2D, SOUP_LINES, 3.0f); {
                     // origin
                     real32 r = funky_NDC_factor;
@@ -2317,17 +2326,17 @@ void conversation_draw() {
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
-                    uint32 color = (!entity->is_selected) ? entity->color : DXF_COLOR_SELECTION;
+                    uint32 color_code = (!entity->is_selected) ? entity->color_code : DFX_COLOR_CODE_SELECTION;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
                     if ((*click_mode == CLICK_MODE_MOVE) && (*awaiting_second_click)) {
                         if (entity->is_selected) {
                             dx = preview_mouse.x - first_click->x;
                             dy = preview_mouse.y - first_click->y;
-                            color = DXF_COLOR_WATER_ONLY;
+                            color_code = DFX_COLOR_CODE_WATER_ONLY;
                         }
                     }
-                    eso_color(color_as_vec3(color));
+                    eso_color(get_color(color_code));
                     eso_dxf_entity__SOUP_LINES(entity, dx, dy);
                 }
                 eso_end();
@@ -2388,7 +2397,7 @@ void conversation_draw() {
                     int i = dxf_find_closest_entity(&global_world_state.dxf.entities, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
                     if (i != -1) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(color_as_vec3(DXF_COLOR_WATER_ONLY));
+                        eso_color(get_color(DFX_COLOR_CODE_WATER_ONLY));
                         eso_dxf_entity__SOUP_LINES(&global_world_state.dxf.entities.array[i]);
                         eso_end();
                     }
@@ -2409,7 +2418,10 @@ void conversation_draw() {
         }
 
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
-            uint32 color = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DXF_COLOR_TRAVERSE : ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DXF_COLOR_QUALITY_1 : ((*click_mode == CLICK_MODE_ORIGIN) || (*enter_mode == ENTER_MODE_OFFSET_PLANE)) ? DXF_COLOR_WATER_ONLY : DXF_COLOR_SELECTION;
+            ;
+            // FORNOW
+            vec3 target_color = get_color(((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD)) ? DFX_COLOR_CODE_TRAVERSE : ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT)) ? DFX_COLOR_CODE_QUALITY_1 : ((*click_mode == CLICK_MODE_ORIGIN) || (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE)) ? DFX_COLOR_CODE_WATER_ONLY : DFX_COLOR_CODE_SELECTION);
+            JUICE_IT_EASY_TWEEN(preview_tubes_color, target_color);
 
             uint32 NUM_TUBE_STACKS_INCLUSIVE;
             mat4 M;
@@ -2438,9 +2450,9 @@ void conversation_draw() {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
-                } else if (*enter_mode == ENTER_MODE_OFFSET_PLANE) {
+                } else if (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview_plane_offset + Z_FIGHT_EPS);
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, *preview_feature_plane_offset + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
                 } else { // default
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -2452,15 +2464,15 @@ void conversation_draw() {
                     eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
                         _for_each_selected_entity_ {
                             real32 alpha;
-                            vec3 _color;
+                            vec3 color;
                             // if (entity->is_selected) {
                             alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_is_selected_changed, time_since->plane_selected), 0.0f, 1.0f);
-                            _color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), monokai.white, color_as_vec3(color));
+                            color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), monokai.white, *preview_tubes_color);
                             // } else {
                             //     alpha = CLAMPED_LERP(5.0f * entity->time_since_is_selected_changed, 1.0f, 0.0f);
-                            //     _color = color_as_vec3(color);
+                            //     color = get_color(color);
                             // }
-                            eso_color(_color, alpha);
+                            eso_color(color, alpha);
                             eso_dxf_entity__SOUP_LINES(entity);
                         }
                     } eso_end();
@@ -2525,18 +2537,20 @@ void conversation_draw() {
             eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
             eso_vertex(0.0f,  r);
-            real32 LL = 10.0f;
-            // TODO: clip this to the feature_plane
-            vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
-            vec2 a = preview_dxf_axis_base_point + v;
-            vec2 b = preview_dxf_axis_base_point - v;
-            eso_vertex(-preview_dxf_origin + a);
-            eso_vertex(-preview_dxf_origin + b); // FORNOW
+            if (0) {
+                // TODO: clip this to the feature_plane
+                real32 LL = 10.0f;
+                vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
+                vec2 a = preview_dxf_axis_base_point + v;
+                vec2 b = preview_dxf_axis_base_point - v;
+                eso_vertex(-preview_dxf_origin + a);
+                eso_vertex(-preview_dxf_origin + b); // FORNOW
+            }
             eso_end();
         }
 
 
-        { // preview_feature_plane
+        { // feature plane feature-plane feature_plane
             bbox2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
             bbox2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&global_world_state.dxf.entities, true);
             bbox2 target_bounding_box; {
@@ -2555,8 +2569,8 @@ void conversation_draw() {
                     target_bounding_box.max[1] += eps;
                 }
             }
-            preview_feature_plane->min += 0.1f * (target_bounding_box.min - preview_feature_plane->min);
-            preview_feature_plane->max += 0.1f * (target_bounding_box.max - preview_feature_plane->max);
+            JUICE_IT_EASY_TWEEN(&preview_feature_plane->min, target_bounding_box.min);
+            JUICE_IT_EASY_TWEEN(&preview_feature_plane->max, target_bounding_box.max);
             if (time_since->plane_selected == 0.0f) { // FORNOW
                 *preview_feature_plane = target_bounding_box;
             }
@@ -2565,26 +2579,29 @@ void conversation_draw() {
         if (feature_plane->is_active) { // floating sketch plane; selection plane NOTE: transparent
             bool draw = true;
             mat4 PVM = PV_3D * M_3D_from_2D;
-            vec3 color = monokai.yellow;
+            vec3 target_feature_plane_color = monokai.yellow;
             real32 sign = -1.0f;
-            if (*enter_mode == ENTER_MODE_OFFSET_PLANE) {
-                PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, preview_plane_offset);
-                color = { 0.0f, 1.0f, 1.0f };
-                sign = 1.0f;
-                draw = true;
-            } else if (*click_mode == CLICK_MODE_ORIGIN) {
-                color = { 0.0f, 1.0f, 1.0f };
-                sign = 1.0f;
-                draw = true;
-            } else {
-                if (dxf_anything_selected) PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, 0.0f); // FORNOW
+            {
+                if (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) {
+                    PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, *preview_feature_plane_offset);
+                    target_feature_plane_color = { 0.0f, 1.0f, 1.0f };
+                    sign = 1.0f;
+                    draw = true;
+                } else if (*click_mode == CLICK_MODE_ORIGIN) {
+                    target_feature_plane_color = { 0.0f, 1.0f, 1.0f };
+                    sign = 1.0f;
+                    draw = true;
+                } else {
+                    if (dxf_anything_selected) PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, 0.0f); // FORNOW
+                }
             }
 
+            JUICE_IT_EASY_TWEEN(preview_feature_plane_color, target_feature_plane_color);
 
             if (draw) {
                 real32 f = CLAMPED_LERP(SQRT(3.0f * time_since->plane_selected), 0.0f, 1.0f);
                 eso_begin(PVM, SOUP_QUADS);
-                eso_color(color, f * 0.35f);
+                eso_color(*preview_feature_plane_color, f * 0.35f);
                 vec2 center = (preview_feature_plane->max + preview_feature_plane->min) / 2.0f;
                 vec2 radius = LERP(f, 0.5f, 1.0f) * (preview_feature_plane->max - preview_feature_plane->min) / 2.0f;
                 eso_vertex(center.x + radius.x, center.y + radius.y, sign * Z_FIGHT_EPS);
@@ -2611,8 +2628,8 @@ void conversation_draw() {
                 if (*click_modifier == CLICK_MODIFIER_SELECTED) {
                     sprintf(_COLOR_X, "COLOR");
                 } else {
-                    sprintf(_COLOR_X, "COLOR %d", *click_color);
-                    vec3 rgb = omax_pallete[*click_color];
+                    sprintf(_COLOR_X, "COLOR %d", *click_color_code);
+                    vec3 rgb = omax_pallete[*click_color_code];
                     r = rgb[0];
                     g = rgb[1];
                     b = rgb[2];
@@ -2691,7 +2708,7 @@ void conversation_draw() {
         //         (*enter_mode == ENTER_MODE_OPEN) ? "OPEN" :
         //         (*enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
         //         (*enter_mode == ENTER_MODE_ORIGIN) ? "SET_ORIGIN" :
-        //         (*enter_mode == ENTER_MODE_OFFSET_PLANE) ? "OFFSET_PLANE_TO" :
+        //         (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) ? "OFFSET_PLANE_TO" :
         //         (*enter_mode == ENTER_MODE_NONE) ? "NONE" :
         //         "???ENTER???");
 
@@ -2880,7 +2897,7 @@ int main() {
         { // time_since
             real32 dt = 0.0167f;
             _for_each_entity_ entity->time_since_is_selected_changed += dt;
-            time_since->cursor_blink += dt;
+            time_since->cursor_start += dt;
             time_since->successful_feature += dt;
             time_since->plane_selected += dt;
             // time_since->successful_feature = 1.0f;

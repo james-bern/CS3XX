@@ -2,18 +2,18 @@
 // DXF //
 /////////
 
-auto _DXF_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+auto _DXF_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = DFX_COLOR_CODE_TRAVERSE) {
     DXFEntity result = {};
     result.type = DXF_ENTITY_TYPE_LINE;
     DXFLine *line = &result.line;
     line->start = start;
     line->end = end;
     result.is_selected = is_selected;
-    result.color = color;
+    result.color_code = color_code;
     return result;
 };
 
-auto _DXF_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
+auto _DXF_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = DFX_COLOR_CODE_TRAVERSE) {
     DXFEntity result = {};
     result.type = DXF_ENTITY_TYPE_ARC;
     DXFArc *arc = &result.arc;
@@ -22,20 +22,20 @@ auto _DXF_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, r
     arc->start_angle_in_degrees = start_angle_in_degrees;
     arc->end_angle_in_degrees = end_angle_in_degrees;
     result.is_selected = is_selected;
-    result.color = color;
+    result.color_code = color_code;
     return result;
 };
 auto _DXF_ADD_ENTITY = [&](DXFEntity entity) {
     list_push_back(&dxf->entities, entity);
 };
 
-auto DXF_ADD_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
-    DXFEntity entity = _DXF_LINE(start, end, is_selected, color);
+auto DXF_ADD_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = DFX_COLOR_CODE_TRAVERSE) {
+    DXFEntity entity = _DXF_LINE(start, end, is_selected, color_code);
     _DXF_ADD_ENTITY(entity);
 };
 
-auto DXF_ADD_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
-    DXFEntity entity = _DXF_ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color);
+auto DXF_ADD_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = DFX_COLOR_CODE_TRAVERSE) {
+    DXFEntity entity = _DXF_ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
     _DXF_ADD_ENTITY(entity);
 };
 
@@ -46,13 +46,13 @@ auto _DXF_BUFFER_ENTITY = [&](DXFEntity entity) {
     list_push_back(&_entity_buffer, entity);
 };
 
-auto DXF_BUFFER_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
-    DXFEntity entity = _DXF_LINE(start, end, is_selected, color);
+auto DXF_BUFFER_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = DFX_COLOR_CODE_TRAVERSE) {
+    DXFEntity entity = _DXF_LINE(start, end, is_selected, color_code);
     _DXF_BUFFER_ENTITY(entity);
 };
 
-auto DXF_BUFFER_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color = DXF_COLOR_TRAVERSE) {
-    DXFEntity entity = _DXF_ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color);
+auto DXF_BUFFER_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = DFX_COLOR_CODE_TRAVERSE) {
+    DXFEntity entity = _DXF_ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
     _DXF_BUFFER_ENTITY(entity);
 };
 
@@ -82,11 +82,11 @@ auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 is_selected) {
     _for_each_entity_ DXF_ENTITY_SET_IS_SELECTED(entity, is_selected);
 };
 
-auto DXF_ENTITY_SET_COLOR = [&](DXFEntity *entity, uint32 color) {
-    if (entity->color != color) {
+auto DXF_ENTITY_SET_COLOR = [&](DXFEntity *entity, uint32 color_code) {
+    if (entity->color_code != color_code) {
         result.record_me = true;
         result.checkpoint_me = true;
-        entity->color = color;
+        entity->color_code = color_code;
     }
 };
 

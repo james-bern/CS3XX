@@ -2133,8 +2133,8 @@ template<int D_pos = 3, int D_color = 3> void text_draw(
 ////////////////////////////////////////////////////////////////////////////////
 
 void _gui_begin_frame() {
-    COW1._gui_x_curr = 32;
-    COW1._gui_y_curr = 48;
+    COW1._gui_x_curr = 16;
+    COW1._gui_y_curr = 16;
     if (globals.key_pressed[config.hotkeys_gui_hide]) {
         COW1._gui_hide_and_disable = !COW1._gui_hide_and_disable;
     }

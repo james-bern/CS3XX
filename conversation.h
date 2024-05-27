@@ -57,7 +57,7 @@ struct {
 #define ENTER_MODE_EXTRUDE_CUT  4
 #define ENTER_MODE_REVOLVE_ADD  5
 #define ENTER_MODE_REVOLVE_CUT  6
-#define ENTER_MODE_OFFSET_PLANE 7
+#define ENTER_MODE_NUDGE_FEATURE_PLANE 7
 
 #define CLICK_MODE_NONE      0
 #define CLICK_MODE_SELECT    1
@@ -85,23 +85,23 @@ struct {
 #define CLICK_MODIFIER_EXACT_X_Y_COORDINATES  8
 #define CLICK_MODIFIER_SELECTED               9
 
-#define DXF_COLOR_TRAVERSE        0
-#define DXF_COLOR_QUALITY_1       1
-#define DXF_COLOR_QUALITY_2       2
-#define DXF_COLOR_QUALITY_3       3
-#define DXF_COLOR_QUALITY_4       4
-#define DXF_COLOR_QUALITY_5       5
-#define DXF_COLOR_QUALITY_5       5
-#define DXF_COLOR_ETCH            6
-#define DXF_COLOR_WATER_ONLY      8
-#define DXF_COLOR_LEAD_IO         9
-#define DXF_COLOR_SELECTION      10
-#define DXF_COLOR_QUALITY_SLIT_1 21
-#define DXF_COLOR_QUALITY_SLIT_2 22
-#define DXF_COLOR_QUALITY_SLIT_3 23
-#define DXF_COLOR_QUALITY_SLIT_4 24
-#define DXF_COLOR_QUALITY_SLIT_5 25
-#define DXF_COLOR_DONT_OVERRIDE 255
+#define DFX_COLOR_CODE_TRAVERSE        0
+#define DFX_COLOR_CODE_QUALITY_1       1
+#define DFX_COLOR_CODE_QUALITY_2       2
+#define DFX_COLOR_CODE_QUALITY_3       3
+#define DFX_COLOR_CODE_QUALITY_4       4
+#define DFX_COLOR_CODE_QUALITY_5       5
+#define DFX_COLOR_CODE_QUALITY_5       5
+#define DFX_COLOR_CODE_ETCH            6
+#define DFX_COLOR_CODE_WATER_ONLY      8
+#define DFX_COLOR_CODE_LEAD_IO         9
+#define DFX_COLOR_CODE_SELECTION      10
+#define DFX_COLOR_CODE_QUALITY_SLIT_1 21
+#define DFX_COLOR_CODE_QUALITY_SLIT_2 22
+#define DFX_COLOR_CODE_QUALITY_SLIT_3 23
+#define DFX_COLOR_CODE_QUALITY_SLIT_4 24
+#define DFX_COLOR_CODE_QUALITY_SLIT_5 25
+#define DFX_COLOR_CODE_DONT_OVERRIDE 255
 
 #define DXF_ENTITY_TYPE_LINE 0
 #define DXF_ENTITY_TYPE_ARC  1
@@ -149,7 +149,7 @@ struct DXFArc {
 
 struct DXFEntity {
     uint32 type;
-    uint32 color;
+    uint32 color_code;
     // NOTE: naive "fat struct"
     union {
         DXFLine line;
@@ -246,7 +246,7 @@ struct ScreenState {
 };
 
 struct TimeSince {
-    real32 cursor_blink;
+    real32 cursor_start;
     real32 successful_feature;
     real32 plane_selected;
     real32 going_inside;
@@ -258,6 +258,9 @@ struct AestheticsState {
     bbox2 preview_feature_plane;
     real32 preview_extrude_in_length;
     real32 preview_extrude_out_length;
+    vec3 preview_tubes_color;
+    vec3 preview_feature_plane_color;
+real32 preview_feature_plane_offset;
 };
 
 struct PopupState {
@@ -291,7 +294,7 @@ struct PopupState {
     real32 box_height;
     real32 x_coordinate;
     real32 y_coordinate;
-    real32 plane_offset;
+    real32 feature_plane_nudge;
     real32 line_length;
     real32 line_angle;
     real32 line_run;
@@ -336,7 +339,7 @@ struct WorldState {
 
     ModesState modes;
 
-    uint32 click_color; // we don't actually want to clear this with global_world_state.modes = {}
+    uint32 click_color_code; // we don't actually want to clear this with global_world_state.modes = {}
 
 struct {
     bool32 awaiting_second_click;
@@ -403,6 +406,14 @@ bool32 ANGLE_IS_BETWEEN_CCW(real32 p, real32 a, real32 b) {
     real32 F_x = COS(p) - 1.0f;
     real32 F_y = SIN(p);
     return (cross(E_x, E_y, F_x, F_y) > 0.0f);
+}
+
+template <typename T> void JUICE_IT_EASY_TWEEN(T *a, T b) {
+    real32 f = 0.1f;
+    #ifdef DEBUG_DISABLE_EASY_TWEEN
+    f = 1.0f;
+    #endif
+    *a += f * (b - *a);
 }
 
 ////////////////////////////////////////
@@ -640,7 +651,7 @@ void dxf_entities_load(char *filename, List<DXFEntity> *dxf_entities) {
                     if (code == 62) {
                         int value;
                         sscanf(buffer, "%d", &value);
-                        entity.color = value; 
+                        entity.color_code = value; 
                     } else {
                         float value;
                         sscanf(buffer, "%f", &value);
@@ -678,10 +689,10 @@ void dxf_entities_load(char *filename, List<DXFEntity> *dxf_entities) {
     fclose(file);
 }
 
-vec3 color_as_vec3(uint32 color) {
+vec3 get_color(uint32 color) {
     if (color <= 9) {
         return omax_pallete[color];
-    } else if (color == DXF_COLOR_SELECTION) {
+    } else if (color == DFX_COLOR_CODE_SELECTION) {
         return basic.yellow;
     } else {
         do_once { conversation_messagef("WARNING: slits not implemented"); };
@@ -715,7 +726,7 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, real32 dx = 0.0f, real32 dy =
 }
 
 
-void dxf_entities_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+void dxf_entities_debug_draw(Camera2D *camera_2D, List<DXFEntity> *dxf_entities, int32 override_color = DFX_COLOR_CODE_DONT_OVERRIDE) {
     eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
     for (DXFEntity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);
@@ -1532,8 +1543,8 @@ void conversation_message_buffer_update_and_draw() {
                 - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_TIME, 0.0f, 0.0f, 1.0f);
         }
 
-        real32 r = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 3.0f * FADE_TIME, 1.0f, 0.0f);
-        real32 g = CLAMPED_LINEAR_REMAP(message->time_remaining, 3.0f * FADE_TIME, FADE_TIME, 1.0f, 0.5f);
+        real32 r = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 4.0f * FADE_TIME, 1.0f, 0.0f);
+        real32 g = CLAMPED_LINEAR_REMAP(message->time_remaining, 3.0f * FADE_TIME, 2.0f * FADE_TIME, 1.0f, 0.5f);
         real32 b = 1.0f;
         // real32 t_stop = 0.6f;
         // real32 t = 0 \
@@ -1545,15 +1556,15 @@ void conversation_message_buffer_update_and_draw() {
         // real32 b = rgb.z;
 
         real32 y_target = 16.0f + num_drawn++ * 16.0f;
-        if (message->time_remaining < FADE_TIME) y_target += 16.0f;
+        if (message->time_remaining < 2.0f * FADE_TIME) y_target += 8.0f;
 
-        message->y += 0.1f * (MAX(0.0f, y_target - message->y)); // https://youtu.be/Fy0aCDmgnxg?si=GdgklPYfeYj1o4bD&t=229
+        JUICE_IT_EASY_TWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
             message->time_remaining -= 0.0167f;;
             _text_draw(
                     (cow_real *) &globals.NDC_from_Screen,
                     message->buffer,
-                    512,
+                    window_get_width() / 2 + 16,
                     message->y,
                     0.0,
 
