@@ -50,6 +50,8 @@ struct {
 // #defines ////////////////////////////
 ////////////////////////////////////////
 
+// TODO: switch to enums
+
 #define ENTER_MODE_NONE         0
 #define ENTER_MODE_OPEN         1
 #define ENTER_MODE_SAVE         2
@@ -85,6 +87,34 @@ struct {
 #define CLICK_MODIFIER_EXACT_X_Y_COORDINATES  8
 #define CLICK_MODIFIER_SELECTED               9
 
+#define DXF_ENTITY_TYPE_LINE 0
+#define DXF_ENTITY_TYPE_ARC  1
+
+#define PANE_NONE    0
+#define PANE_2D      1
+#define PANE_3D      2
+#define PANE_DIVIDER 3
+#define PANE_POPUP   4
+
+#define POPUP_CELL_TYPE_NONE    0
+#define POPUP_CELL_TYPE_REAL32  1
+#define POPUP_CELL_TYPE_CSTRING 2
+
+#define EVENT_TYPE_NONE  0
+#define EVENT_TYPE_KEY   1
+#define EVENT_TYPE_MOUSE 2
+
+#define KEY_EVENT_SUBTYPE_NONE   0
+#define KEY_EVENT_SUBTYPE_HOTKEY 1
+#define KEY_EVENT_SUBTYPE_GUI    2
+
+#define MOUSE_EVENT_SUBTYPE_NONE 0
+#define MOUSE_EVENT_SUBTYPE_2D   1
+#define MOUSE_EVENT_SUBTYPE_3D   2
+#define MOUSE_EVENT_SUBTYPE_GUI  3
+
+/////////////////
+
 #define DXF_COLOR_CODE_TRAVERSE        0
 #define DXF_COLOR_CODE_QUALITY_1       1
 #define DXF_COLOR_CODE_QUALITY_2       2
@@ -102,36 +132,6 @@ struct {
 #define DXF_COLOR_CODE_QUALITY_SLIT_4 24
 #define DXF_COLOR_CODE_QUALITY_SLIT_5 25
 #define DXF_COLOR_CODE_DONT_OVERRIDE 255
-
-#define DXF_ENTITY_TYPE_LINE 0
-#define DXF_ENTITY_TYPE_ARC  1
-
-#define PANE_NONE    0
-#define PANE_2D      1
-#define PANE_3D      2
-#define PANE_DIVIDER 3
-#define PANE_POPUP   4
-
-#define RAW_EVENT_TYPE_NONE        0
-#define RAW_EVENT_TYPE_KEY_PRESS   1
-#define RAW_EVENT_TYPE_MOUSE_PRESS 2
-
-#define EVENT_TYPE_NONE  0
-#define EVENT_TYPE_KEY   1
-#define EVENT_TYPE_MOUSE 2
-
-#define KEY_EVENT_SUBTYPE_NONE   0
-#define KEY_EVENT_SUBTYPE_HOTKEY 1
-#define KEY_EVENT_SUBTYPE_GUI    2
-
-#define MOUSE_EVENT_SUBTYPE_NONE 0
-#define MOUSE_EVENT_SUBTYPE_2D   1
-#define MOUSE_EVENT_SUBTYPE_3D   2
-#define MOUSE_EVENT_SUBTYPE_GUI  3
-
-#define POPUP_CELL_TYPE_NONE    0
-#define POPUP_CELL_TYPE_REAL32  1
-#define POPUP_CELL_TYPE_CSTRING 2
 
 #define POPUP_CELL_LENGTH 256
 #define POPUP_MAX_NUM_CELLS 4
@@ -187,7 +187,7 @@ struct Mesh {
     vec3 max;
 };
 
-struct RawUserEvent {
+struct RawEvent {
     uint32 type;
 
     uint32 key;
@@ -239,7 +239,7 @@ struct KeyEvent {
     bool32 shift;
 };
 
-struct UserEvent {
+struct Event {
     uint32 type;
 
     bool32 record_me;
@@ -380,8 +380,8 @@ struct {
 
 PopupState popup;
 
-UserEvent space_bar_event;
-UserEvent shift_space_bar_event;
+Event space_bar_event;
+Event shift_space_bar_event;
 };
 
 ////////////////////////////////////////

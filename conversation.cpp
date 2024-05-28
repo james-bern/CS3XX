@@ -1,3 +1,6 @@
+// TODO: select connected broken on 10mm filleted 50mm box
+// TODO: restore checkpoint one before on extrudes?
+
 // TODO: something is slow now
 
 // TODO: overwrite the tween (bool?) when clicking the mouse
@@ -47,7 +50,7 @@
 // - repetition is fine
 
 // // things i feel weird/uncomfy about
-// i have a type variable and substructs in DXFEntity and UserEvent so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
+// i have a type variable and substructs in DXFEntity and Event so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
 // i have some repetition (grug say hmmm...) HotkeyUserEvent and GUIKeyUserEvent are the same thing... popup MOVE and popup LINE are the same thing...
 
 // // thing we aspire for Conversation to be
@@ -156,8 +159,8 @@ FeaturePlaneState *feature_plane = &global_world_state.feature_plane;
 Mesh *mesh = &global_world_state.mesh;
 PopupState *popup = &global_world_state.popup;
 TimeSince *time_since = &aesthetics.time_since;
-UserEvent *space_bar_event = &global_world_state.space_bar_event;
-UserEvent *shift_space_bar_event = &global_world_state.shift_space_bar_event;
+Event *space_bar_event = &global_world_state.space_bar_event;
+Event *shift_space_bar_event = &global_world_state.shift_space_bar_event;
 uint32 *hot_pane = &_global_screen_state.hot_pane;
 uint32 *mouse_left_drag_pane = &_global_screen_state.mouse_left_drag_pane;
 uint32 *mouse_right_drag_pane = &_global_screen_state.mouse_right_drag_pane;
@@ -398,7 +401,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             {
                 vec3 n_Camera = inv_transpose_V_3D * n;
                 vec3 color_n = V3(0.5f + 0.5f * n_Camera.x, 0.5f + 0.5f * n_Camera.y, 1.0f);
-                if ((feature_plane->is_active) && (ABS(dot(n, feature_plane->normal)) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
+                if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
                     color = CLAMPED_LERP(2.0f * time_since->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
                     if (2.0f * time_since->plane_selected < 0.3f) color = monokai.white;
@@ -520,7 +523,7 @@ BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); }
 // GATHERING NEW EVENTS FROM USER ////////////////
 //////////////////////////////////////////////////
 
-Queue<RawUserEvent> raw_user_event_queue;
+Queue<RawEvent> raw_user_event_queue;
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (key == GLFW_KEY_LEFT_SHIFT) {
@@ -537,8 +540,8 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (key == GLFW_KEY_LEFT_SUPER) return;
     if (key == GLFW_KEY_RIGHT_SUPER) return;
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
-        RawUserEvent raw_event = {}; {
-            raw_event.type = RAW_EVENT_TYPE_KEY_PRESS;
+        RawEvent raw_event = {}; {
+            raw_event.type = EVENT_TYPE_KEY;
             raw_event.key = key;
             raw_event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
             raw_event.shift = (mods & GLFW_MOD_SHIFT);
@@ -578,14 +581,14 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_2D)), delta_mouse_NDC);
     }
 
-    { // special draggin mouse_held RAW_EVENT_TYPE_MOUSE_PRESS
+    { // special draggin mouse_held EVENT_TYPE_MOUSE
         if (0
                 || (*mouse_left_drag_pane == PANE_2D)
                 || (*mouse_left_drag_pane == PANE_POPUP)
            ) {
-            RawUserEvent raw_event; {
+            RawEvent raw_event; {
                 raw_event = {};
-                raw_event.type = RAW_EVENT_TYPE_MOUSE_PRESS;
+                raw_event.type = EVENT_TYPE_MOUSE;
                 raw_event.mouse_Pixel = *mouse_Pixel;
                 raw_event.mouse_held = true;
                 raw_event.pane = *mouse_left_drag_pane;
@@ -631,9 +634,9 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
             *mouse_left_drag_pane = *hot_pane;
-            RawUserEvent raw_event; {
+            RawEvent raw_event; {
                 raw_event = {};
-                raw_event.type = RAW_EVENT_TYPE_MOUSE_PRESS;
+                raw_event.type = EVENT_TYPE_MOUSE;
                 raw_event.mouse_Pixel = *mouse_Pixel;
                 raw_event.pane = *hot_pane;
             }
@@ -713,18 +716,18 @@ uint32 classify_baked_subtype_of_raw_key_event(KeyEvent key_event) {
 //       pixel coords -> pre-snapped world coords -> snapped world-coords
 // NOTE: this function can "drop" raw_event's by returning the null event.
 //       this smells a bit (should probs fail earlier, but I like the previous layer not knowing this stuff)
-UserEvent bake_event(RawUserEvent raw_event) {
+Event bake_event(RawEvent raw_event) {
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(raw_event);
 
-    UserEvent event = {};
-    if (raw_event.type == RAW_EVENT_TYPE_KEY_PRESS) {
+    Event event = {};
+    if (raw_event.type == EVENT_TYPE_KEY) {
         event.type = EVENT_TYPE_KEY;
         KeyEvent *key_event = &event.key_event;
         key_event->key = raw_event.key;
         key_event->super = raw_event.super;
         key_event->shift = raw_event.shift;
         key_event->subtype = classify_baked_subtype_of_raw_key_event(*key_event); // NOTE: must come last
-    } else { ASSERT(raw_event.type == RAW_EVENT_TYPE_MOUSE_PRESS);
+    } else { ASSERT(raw_event.type == EVENT_TYPE_MOUSE);
         event.type = EVENT_TYPE_MOUSE;
         MouseEvent *mouse_event = &event.mouse_event;
         mouse_event->mouse_held = raw_event.mouse_held;
@@ -780,8 +783,8 @@ BEGIN_PRE_MAIN {
 // TODO: this API should match what is printed to the terminal in verbose output mode
 //       (so we can copy and paste a session for later use as an end to end test)
 
-UserEvent construct_mouse_event_2D(vec2 p) {
-    UserEvent event = {};
+Event construct_mouse_event_2D(vec2 p) {
+    Event event = {};
     event.type = EVENT_TYPE_MOUSE;
     MouseEvent *mouse_event = &event.mouse_event;
     mouse_event->subtype = MOUSE_EVENT_SUBTYPE_2D;
@@ -789,10 +792,10 @@ UserEvent construct_mouse_event_2D(vec2 p) {
     mouse_event_2D->mouse_position = p;
     return event;
 }
-UserEvent construct_mouse_event_2D(real32 p_x, real32 p_y) { return construct_mouse_event_2D({ p_x, p_y }); }
+Event construct_mouse_event_2D(real32 p_x, real32 p_y) { return construct_mouse_event_2D({ p_x, p_y }); }
 
-UserEvent construct_mouse_event_3D(vec3 o, vec3 dir) {
-    UserEvent event = {};
+Event construct_mouse_event_3D(vec3 o, vec3 dir) {
+    Event event = {};
     event.type = EVENT_TYPE_MOUSE;
     MouseEvent *mouse_event = &event.mouse_event;
     mouse_event->subtype = MOUSE_EVENT_SUBTYPE_3D;
@@ -820,7 +823,7 @@ struct StandardEventProcessResult {
 
 #if 0
 // TODO
-StandardEventProcessResult standard_event_process(UserEvent event) {
+StandardEventProcessResult standard_event_process(Event event) {
     bool32 global_world_state_changed;
     StandardEventProcessResult result = _standard_event_process_NOTE_RECURSIVE(event);
     if (global_world_state_changed) {
@@ -832,7 +835,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
 void history_printf_script(); // FORNOW forward declaration
 
-StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent event) {
+StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
 
     bool32 dxf_anything_selected; {
@@ -1030,7 +1033,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                     *click_mode = CLICK_MODE_Y_MIRROR;
                     *click_modifier = CLICK_MODIFIER_NONE;
                 } else if (key_lambda('Z')) {
-                    UserEvent equivalent = {};
+                    Event equivalent = {};
                     equivalent.type = EVENT_TYPE_MOUSE;
                     equivalent.mouse_event.subtype = MOUSE_EVENT_SUBTYPE_2D;
                     // .mouse_position = {};
@@ -1058,11 +1061,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                     result.record_me = false;
                     _global_screen_state.show_details = !_global_screen_state.show_details;
                 } else if (key_lambda(';')) {
-                    result.record_me = false;
-                    _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
-                } else if (key_lambda('\'')) {
                     result.checkpoint_me = true;
                     feature_plane->is_active = false;
+                } else if (key_lambda('\'')) {
+                    result.record_me = false;
+                    _global_screen_state.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - _global_screen_state.camera_3D.angle_of_view;
                 } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
                     for (int32 i = dxf->entities.length - 1; i >= 0; --i) {
                         if (dxf->entities.array[i].is_selected) {
@@ -1934,7 +1937,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
 
 #ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 //
-void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(UserEvent standard_event) { _standard_event_process_NOTE_RECURSIVE(standard_event); }
+void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(Event standard_event) { _standard_event_process_NOTE_RECURSIVE(standard_event); }
 void history_undo() { conversation_messagef("[DEBUG] history disabled"); }
 void history_redo() { conversation_messagef("[DEBUG] history disabled"); }
 void history_debug_draw() { gui_printf("[DEBUG] history disabled"); }
@@ -1942,12 +1945,12 @@ void history_debug_draw() { gui_printf("[DEBUG] history disabled"); }
 #else
 
 struct {
-    ElephantStack<UserEvent> recorded_user_events;
+    ElephantStack<Event> recorded_user_events;
     ElephantStack<WorldState> snapshotted_world_states;
 } history;
 
 struct StackPointers {
-    UserEvent *user_event;
+    Event *user_event;
     WorldState *world_state;
 };
 
@@ -1966,7 +1969,7 @@ StackPointers POP_REDO_ONTO_UNDO() {
 };
 
 StackPointers PEEK_UNDO() {
-    UserEvent *user_event = elephant_peek_undo(&history.recorded_user_events);
+    Event *user_event = elephant_peek_undo(&history.recorded_user_events);
     WorldState *world_state = elephant_is_empty_undo(&history.snapshotted_world_states) ? NULL : elephant_peek_undo(&history.snapshotted_world_states);
     return { user_event, world_state };
 }
@@ -1979,7 +1982,7 @@ bool32 EVENT_REDO_NONEMPTY() {
     return !elephant_is_empty_redo(&history.recorded_user_events);
 }
 
-void PUSH_UNDO_CLEAR_REDO(UserEvent standard_event) {
+void PUSH_UNDO_CLEAR_REDO(Event standard_event) {
     elephant_push_undo_clear_redo(&history.recorded_user_events, standard_event);
     { // clear the world_state redo stack
         for (////
@@ -1998,7 +2001,7 @@ void PUSH_UNDO_CLEAR_REDO(UserEvent standard_event) {
     }
 }
 
-void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(UserEvent standard_event) {
+void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(Event standard_event) {
     StandardEventProcessResult tmp = _standard_event_process_NOTE_RECURSIVE(standard_event);
     standard_event.record_me = tmp.record_me;
     standard_event.checkpoint_me = tmp.checkpoint_me;
@@ -2023,8 +2026,8 @@ void history_undo() {
             POP_UNDO_ONTO_REDO();
         }
     }
-    UserEvent *one_past_end = elephant_undo_ptr_one_past_end(&history.recorded_user_events);
-    UserEvent *begin;
+    Event *one_past_end = elephant_undo_ptr_one_past_end(&history.recorded_user_events);
+    Event *begin;
     { // // find beginning
       // 1) walk back to snapshot event (or end of stack)
       // TODO: this feels kind of sloppy still
@@ -2044,7 +2047,7 @@ void history_undo() {
         }
     }
     IGNORE_NEW_MESSAGEFS = true; // TODO: why does this seem unnecessary in practice??
-    for (UserEvent *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
+    for (Event *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
     IGNORE_NEW_MESSAGEFS = false;
     conversation_messagef("[undo] success");
 }
@@ -2058,7 +2061,7 @@ void history_redo() {
     IGNORE_NEW_MESSAGEFS = true;
     while (EVENT_REDO_NONEMPTY()) { // // manipulate stacks (undo <- redo)
         StackPointers popped = POP_REDO_ONTO_UNDO();
-        UserEvent *user_event = popped.user_event;
+        Event *user_event = popped.user_event;
         WorldState *world_state = popped.world_state;
 
         _standard_event_process_NOTE_RECURSIVE(*user_event);
@@ -2073,7 +2076,7 @@ void history_redo() {
     conversation_messagef("[redo] success");
 }
 
-void _history_user_event_draw_helper(UserEvent event) {
+void _history_user_event_draw_helper(Event event) {
     char message[256]; {
         // TODO: Left and right arrow
         // TODO: handle shift and super with the special characters
@@ -2139,7 +2142,7 @@ void history_debug_draw() {
 
     if (history.recorded_user_events._redo_stack.length) {
         for (////
-                UserEvent *event = history.recorded_user_events._redo_stack.array;
+                Event *event = history.recorded_user_events._redo_stack.array;
                 event < history.recorded_user_events._redo_stack.array + history.recorded_user_events._redo_stack.length;
                 ++event
             ) {//
@@ -2155,7 +2158,7 @@ void history_debug_draw() {
     if (history.recorded_user_events._undo_stack.length) {
         gui_printf("`v undo (%d)", elephant_length_undo(&history.recorded_user_events));
         for (////
-                UserEvent *event = history.recorded_user_events._undo_stack.array + (history.recorded_user_events._undo_stack.length - 1);
+                Event *event = history.recorded_user_events._undo_stack.array + (history.recorded_user_events._undo_stack.length - 1);
                 event >= history.recorded_user_events._undo_stack.array;
                 --event
             ) {//
@@ -2167,7 +2170,7 @@ void history_debug_draw() {
 void history_printf_script() {
     List<char> _script = {};
     for (////
-            UserEvent *event = history.recorded_user_events._undo_stack.array;
+            Event *event = history.recorded_user_events._undo_stack.array;
             event < history.recorded_user_events._undo_stack.array + history.recorded_user_events._undo_stack.length;
             ++event
         ) {//
@@ -2195,7 +2198,7 @@ void history_printf_script() {
 // PROCESS A FRESH (potentially special) EVENT ///
 //////////////////////////////////////////////////
 
-void freshly_baked_event_process(UserEvent freshly_baked_event) {
+void freshly_baked_event_process(Event freshly_baked_event) {
     bool32 undo;
     bool32 redo;
     {
@@ -2819,8 +2822,8 @@ void script_process(char *string) {
             super = true;
         } else if (c == '<') {
             bool32 is_instabaked = true;
-            UserEvent instabaked_event = {};
-            RawUserEvent _raw_event = {};
+            Event instabaked_event = {};
+            RawEvent _raw_event = {};
             {
                 uint32 next_i; {
                     next_i = i;
@@ -2845,7 +2848,7 @@ void script_process(char *string) {
                         instabaked_event = construct_mouse_event_3D(o, dir);
                     } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
                         is_instabaked = false;
-                        _raw_event.type = RAW_EVENT_TYPE_KEY_PRESS;
+                        _raw_event.type = EVENT_TYPE_KEY;
                         _raw_event.key = GLFW_KEY_ESCAPE;
                     }
                 }
@@ -2854,12 +2857,12 @@ void script_process(char *string) {
             if (is_instabaked) {
                 freshly_baked_event_process(instabaked_event);
             } else {
-                UserEvent freshly_baked_event = bake_event(_raw_event);
+                Event freshly_baked_event = bake_event(_raw_event);
                 freshly_baked_event_process(freshly_baked_event);
             }
         } else {
-            RawUserEvent raw_event = {};
-            raw_event.type = RAW_EVENT_TYPE_KEY_PRESS;
+            RawEvent raw_event = {};
+            raw_event.type = EVENT_TYPE_KEY;
             raw_event.super = super;
             {
                 if ('a' <= c && c <= 'z') {
@@ -2882,7 +2885,7 @@ void script_process(char *string) {
                 }
             }
             super = false;
-            UserEvent freshly_baked_event = bake_event(raw_event);
+            Event freshly_baked_event = bake_event(raw_event);
             freshly_baked_event_process(freshly_baked_event);
         }
     }
@@ -2926,7 +2929,7 @@ int main() {
              "cz8\n"
              "<m3d 1 100 -1 0 -1 0>"
              "sa{100\n"
-             "\'"
+             ";"
              "^odemo.dxf\n"
              ;
     #endif
@@ -2971,13 +2974,13 @@ int main() {
           // TODO: upgrade to handle multiple events per frame while only drawing gui once (simple simple with a boolean here -- reusing boolean is sus)
             if (raw_user_event_queue.length) {
                 while (raw_user_event_queue.length) {
-                    RawUserEvent raw_event = queue_dequeue(&raw_user_event_queue);
-                    UserEvent freshly_baked_event = bake_event(raw_event);
+                    RawEvent raw_event = queue_dequeue(&raw_user_event_queue);
+                    Event freshly_baked_event = bake_event(raw_event);
                     freshly_baked_event_process(freshly_baked_event);
                 }
             } else {
                 // NOTE: this is so we draw the popups
-                UserEvent null_event = {};
+                Event null_event = {};
                 null_event.type = EVENT_TYPE_NONE;
                 freshly_baked_event_process(null_event);
             }
