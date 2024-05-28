@@ -1,6 +1,6 @@
 // TODO: the flow here is a bit tortuous
 // on the previous frame we store information about the hover state (is the user hovering?--over which cell?--what new cursor position?)
-// then...when the user clicks (in the click callback) we can generate a USER_EVENT_TYPE_GUI_MOUSE_PRESS of the appropraite type, which gets processed by the next pass through the popup
+// then...when the user clicks (in the click callback) we can generate a EVENT_TYPE_GUI_MOUSE_PRESS of the appropraite type, which gets processed by the next pass through the popup
 // this seems generally fine, i guess what feels weird is that we need to retain some state / store some data (?? perhaps this is morally speaking ScreenState data) in order to classify the event--but i suppose this makes sense
 
 // there is a parallel with deciding what to do with key input

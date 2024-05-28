@@ -112,16 +112,22 @@ struct {
 #define PANE_DIVIDER 3
 #define PANE_POPUP   4
 
-#define USER_EVENT_TYPE_NONE            0
-#define USER_EVENT_TYPE_HOTKEY_PRESS    1
-#define USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD  2
-#define USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD  3
-#define USER_EVENT_TYPE_GUI_KEY_PRESS   4
-#define USER_EVENT_TYPE_GUI_MOUSE       5
+#define RAW_EVENT_TYPE_NONE        0
+#define RAW_EVENT_TYPE_KEY_PRESS   1
+#define RAW_EVENT_TYPE_MOUSE_PRESS 2
 
-#define RAW_USER_EVENT_TYPE_NONE        0
-#define RAW_USER_EVENT_TYPE_KEY_PRESS   1
-#define RAW_USER_EVENT_TYPE_MOUSE_PRESS 2
+#define EVENT_TYPE_NONE  0
+#define EVENT_TYPE_KEY   1
+#define EVENT_TYPE_MOUSE 2
+
+#define KEY_EVENT_SUBTYPE_NONE   0
+#define KEY_EVENT_SUBTYPE_HOTKEY 1
+#define KEY_EVENT_SUBTYPE_GUI    2
+
+#define MOUSE_EVENT_SUBTYPE_NONE 0
+#define MOUSE_EVENT_SUBTYPE_2D   1
+#define MOUSE_EVENT_SUBTYPE_3D   2
+#define MOUSE_EVENT_SUBTYPE_GUI  3
 
 #define POPUP_CELL_TYPE_NONE    0
 #define POPUP_CELL_TYPE_REAL32  1
@@ -196,36 +202,43 @@ struct RawUserEvent {
 
 // TODO: this is confusing;  TODO: fat struct it Key
 
-struct HotkeyUserEvent {
-    uint32 key;
-    bool32 super;
-    bool32 shift;
+// TODO: join all the mouse events up?
+
+
+
+struct MouseEvent2D {
+    vec2 mouse_position;
 };
-struct Mouse2DUserEvent {
-    vec2 mouse;
-    bool32 mouse_held;
-};
-struct Mouse3DUserEvent {
+
+struct MouseEvent3D {
     vec3 o;
     vec3 dir;
-    bool32 mouse_held;
 };
-struct GUIKeyUserEvent {
-    uint32 key;
-    bool32 super;
-    bool32 shift;
-};
-struct GUIMouseUserEvent {
+
+struct MouseEventGUI {
     uint32 cell_index;
     uint32 cursor;
     uint32 selection_cursor;
-    bool32 mouse_held;
 };
 
-#define USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD  2
-#define USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD  3
-#define USER_EVENT_TYPE_GUI_KEY_PRESS   4
-#define USER_EVENT_TYPE_GUI_MOUSE       5
+struct MouseEvent {
+    uint32 subtype;
+
+    bool32 mouse_held;
+
+    MouseEvent2D mouse_event_2D;
+    MouseEvent3D mouse_event_3D;
+    MouseEventGUI mouse_event_gui;
+};
+
+struct KeyEvent {
+    uint32 subtype;
+
+    uint32 key;
+    bool32 super;
+    bool32 shift;
+};
+
 struct UserEvent {
     uint32 type;
 
@@ -233,11 +246,8 @@ struct UserEvent {
     bool32 checkpoint_me;
     bool32 snapshot_me;
 
-    HotkeyUserEvent hotkey;
-    Mouse2DUserEvent mouse_2D;
-    Mouse3DUserEvent mouse_3D;
-    GUIMouseUserEvent gui_mouse;
-    GUIKeyUserEvent gui_key;
+    KeyEvent key_event;
+    MouseEvent mouse_event;
 };
 
 struct ScreenState {
@@ -1621,13 +1631,11 @@ void conversation_message_buffer_update_and_draw() {
 // key_lambda //////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool _key_lambda(UserEvent event, uint32 key, bool super = false, bool shift = false) {
-    ASSERT(event.type == USER_EVENT_TYPE_HOTKEY_PRESS);
-    HotkeyUserEvent *hotkey = &event.hotkey;
+bool _key_lambda(KeyEvent *key_event, uint32 key, bool super = false, bool shift = false) {
     ASSERT(!(('a' <= key) && (key <= 'z')));
-    bool key_match = (hotkey->key == key);
-    bool super_match = ((hotkey->super && super) || (!hotkey->super && !super)); // * bool32
-    bool shift_match = ((hotkey->shift && shift) || (!hotkey->shift && !shift)); // * bool32
+    bool key_match = (key_event->key == key);
+    bool super_match = ((key_event->super && super) || (!key_event->super && !super)); // * bool32
+    bool shift_match = ((key_event->shift && shift) || (!key_event->shift && !shift)); // * bool32
     return (key_match && super_match && shift_match);
 };
 
@@ -1788,34 +1796,11 @@ Mesh wrapper_manifold(
     return result;
 }
 
-
-// FORNOW: this kind of thing is the price of having HotkeyUserEvent and GUIKeyUserEvent separate even though they have the exact same fields
-void key_event_get_ptrs_super_shift_key(const UserEvent *event, const bool32 **super, const bool32 **shift, const uint32 **key) {
-    if (event->type == USER_EVENT_TYPE_HOTKEY_PRESS) {
-        const HotkeyUserEvent *hotkey = &event->hotkey;
-        *super = &hotkey->super;
-        *shift = &hotkey->shift;
-        *key = &hotkey->key;
-    } else { ASSERT(event->type == USER_EVENT_TYPE_GUI_KEY_PRESS);
-        const GUIKeyUserEvent *gui_key = &event->gui_key;
-        *super = &gui_key->super;
-        *shift = &gui_key->shift;
-        *key = &gui_key->key;
-    }
-}
-
-char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(const UserEvent *event) {
-    ASSERT((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS));
-
-    const bool32 *super;
-    const bool32 *shift;
-    const uint32 *key;
-    key_event_get_ptrs_super_shift_key(event, &super, &shift, &key);
-
+char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) {
     static char buffer[256];
 
     char *_ctrl_plus; {
-        if (!*super) {
+        if (!key_event->super) {
             _ctrl_plus = "";
         } else {
             _ctrl_plus = "CTRL+";
@@ -1823,7 +1808,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(const UserEvent *eve
     }
 
     char *_shift_plus; {
-        if (!*shift) {
+        if (!key_event->shift) {
             _shift_plus = "";
         } else {
             _shift_plus = "SHIFT+";
@@ -1833,16 +1818,16 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(const UserEvent *eve
     char _key_buffer[2];
     char *_key; {
         if (0) {
-        } else if (*key == GLFW_KEY_BACKSPACE) { _key = "BACKSPACE";
-        } else if (*key == GLFW_KEY_DELETE) { _key = "DELETE";
-        } else if (*key == GLFW_KEY_ENTER) { _key = "ENTER";
-        } else if (*key == GLFW_KEY_ESCAPE) { _key = "ESCAPE";
-        } else if (*key == GLFW_KEY_LEFT) { _key = "LEFT";
-        } else if (*key == GLFW_KEY_RIGHT) { _key = "RIGHT";
-        } else if (*key == GLFW_KEY_SPACE) { _key = "SPACE";
-        } else if (*key == GLFW_KEY_TAB) { _key = "TAB";
+        } else if (key_event->key == GLFW_KEY_BACKSPACE) { _key = "BACKSPACE";
+        } else if (key_event->key == GLFW_KEY_DELETE) { _key = "DELETE";
+        } else if (key_event->key == GLFW_KEY_ENTER) { _key = "ENTER";
+        } else if (key_event->key == GLFW_KEY_ESCAPE) { _key = "ESCAPE";
+        } else if (key_event->key == GLFW_KEY_LEFT) { _key = "LEFT";
+        } else if (key_event->key == GLFW_KEY_RIGHT) { _key = "RIGHT";
+        } else if (key_event->key == GLFW_KEY_SPACE) { _key = "SPACE";
+        } else if (key_event->key == GLFW_KEY_TAB) { _key = "TAB";
         } else {
-            _key_buffer[0] = (char) *key;
+            _key_buffer[0] = (char) key_event->key;
             _key_buffer[1] = '\0';
             _key = _key_buffer;
         }

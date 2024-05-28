@@ -200,8 +200,6 @@ real32 *preview_feature_plane_offset = &aesthetics.preview_feature_plane_offset;
 bbox2 *preview_feature_plane = &aesthetics.preview_feature_plane;
 real32 *preview_extrude_in_length = &aesthetics.preview_extrude_in_length;
 real32 *preview_extrude_out_length = &aesthetics.preview_extrude_out_length;
-vec2 *mouse_NDC = &_global_screen_state.mouse_NDC;
-vec2 *mouse_Pixel = &_global_screen_state.mouse_Pixel;
 
 //////////////////////////////////////////////////
 // NON-ZERO INITIALIZERS /////////////////////////
@@ -538,7 +536,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (key == GLFW_KEY_RIGHT_SUPER) return;
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
         RawUserEvent raw_event = {}; {
-            raw_event.type = RAW_EVENT_TYPE_KEY_PRESS;
+            raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
             raw_event.key = key;
             raw_event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
             raw_event.shift = (mods & GLFW_MOD_SHIFT);
@@ -552,7 +550,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     { // hot_pane
         real32 x_divider_Screen = get_x_divider_Screen();
         real32 eps = 8;
-        real32 x = mouse_Pixel->x;
+        real32 x = _global_screen_state.mouse_Pixel.x;
         if (popup->mouse_is_hovering) {
             *hot_pane = PANE_POPUP;
         } else if (x < x_divider_Screen - eps) {
@@ -572,21 +570,21 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     vec2 delta_mouse_World_2D;
     {
         vec2 prev_mouse_NDC = _global_screen_state.mouse_NDC;
-        *mouse_Pixel = { real32(xpos), real32(ypos) };
-        *mouse_NDC = transformPoint(globals.NDC_from_Screen, *mouse_Pixel);
+        _global_screen_state.mouse_Pixel = { real32(xpos), real32(ypos) };
+        _global_screen_state.mouse_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_Pixel);
         delta_mouse_NDC = _global_screen_state.mouse_NDC - prev_mouse_NDC;
         delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_2D)), delta_mouse_NDC);
     }
 
-    { // special draggin mouse_held RAW_EVENT_TYPE_MOUSE_PRESS
+    { // special draggin mouse_held RAW_USER_EVENT_TYPE_MOUSE_PRESS
         if (0
                 || (*mouse_left_drag_pane == PANE_2D)
                 || (*mouse_left_drag_pane == PANE_POPUP)
            ) {
             RawUserEvent raw_event; {
                 raw_event = {};
-                raw_event.type = RAW_EVENT_TYPE_MOUSE_PRESS;
-                raw_event.mouse_Pixel = *mouse_Pixel;
+                raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
+                raw_event.mouse_Pixel = _global_screen_state.mouse_Pixel;
                 raw_event.mouse_held = true;
                 raw_event.pane = *mouse_left_drag_pane;
             }
@@ -633,8 +631,8 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
             *mouse_left_drag_pane = *hot_pane;
             RawUserEvent raw_event; {
                 raw_event = {};
-                raw_event.type = RAW_EVENT_TYPE_MOUSE_PRESS;
-                raw_event.mouse_Pixel = *mouse_Pixel;
+                raw_event.type = RAW_USER_EVENT_TYPE_MOUSE_PRESS;
+                raw_event.mouse_Pixel = _global_screen_state.mouse_Pixel;
                 raw_event.pane = *hot_pane;
             }
             queue_enqueue(&raw_user_event_queue, raw_event);
@@ -676,10 +674,10 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
     }
 }
 
-uint32 classify_baked_subtype_of_raw_key_event(KeyEvent key_event) {
+uint32 classify_baked_subtype_of_raw_key_event(const KeyEvent *key_event) {
     if (!popup->_active_popup_unique_ID__FORNOW_name0) return KEY_EVENT_SUBTYPE_HOTKEY;
 
-    uint32 key = key_event.key;
+    uint32 key = key_event->key;
     // bool32 shift = event.shift;
     // bool32 super = event.super;
     bool32 key_is_digit = ('0' <= key) && (key <= '9');
@@ -717,54 +715,46 @@ UserEvent bake_event(RawUserEvent raw_event) {
     _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(raw_event);
 
     UserEvent event = {};
-    if (raw_event.type == RAW_EVENT_TYPE_KEY_PRESS) {
-        event.type = EVENT_TYPE_KEY;
+    if (raw_event.type == RAW_USER_EVENT_TYPE_KEY_PRESS) {
+        event.type = USER_EVENT_TYPE_KEY;
         KeyEvent *key_event = &event.key_event;
+        key_event->subtype = classify_baked_subtype_of_raw_key_event(key_event);
         key_event->key = raw_event.key;
         key_event->super = raw_event.super;
         key_event->shift = raw_event.shift;
-        key_event->subtype = classify_baked_subtype_of_raw_key_event(*key_event); // NOTE: must come last
-    } else { ASSERT(raw_event.type == RAW_EVENT_TYPE_MOUSE_PRESS);
-        event.type = EVENT_TYPE_MOUSE;
-        MouseEvent *mouse_event = &event.mouse_event;
-        mouse_event->mouse_held = raw_event.mouse_held;
-        {
-            if (raw_event.pane == PANE_2D) {
-                mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
-                vec2 mouse_World_2D = transformPoint(inv_PV_2D, *mouse_NDC);
-
-                mouse_event->subtype = MOUSE_EVENT_SUBTYPE_2D;
-
-                MouseEvent2D *mouse_event_2D = &mouse_event->mouse_event_2D;
-                mouse_event_2D->mouse_position = magic_snap(mouse_World_2D);
-            } else if (raw_event.pane == PANE_3D) {
-                mat4 inv_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
-                vec3 a = transformPoint(inv_PV_3D, V3(*mouse_NDC, -1.0f));
-                vec3 b = transformPoint(inv_PV_3D, V3(*mouse_NDC,  1.0f));
-
-                mouse_event->subtype = MOUSE_EVENT_SUBTYPE_3D;
-
-                MouseEvent3D *mouse_event_3D = &mouse_event->mouse_event_3D;
-                mouse_event_3D->o = a;
-                mouse_event_3D->dir = normalized(b - a);
-            } else if (raw_event.pane == PANE_POPUP) {
-                // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
-                // TODO: gross gross gross
-
-                mouse_event->subtype = MOUSE_EVENT_SUBTYPE_GUI;
-
-                MouseEventGUI *mouse_event_gui = &mouse_event->mouse_event_gui;
-                mouse_event_gui->cell_index = popup->hover_cell_index; 
-                if (!raw_event.mouse_held) {
-                    mouse_event_gui->cursor = popup->hover_cursor; 
-                } else {
-                    // preserve old value; NOTE: could also be achieved with event.set_cursor = false;
-                    mouse_event_gui->cursor = popup->cursor;
-                }
-                mouse_event_gui->selection_cursor = popup->hover_cursor; 
-            } else { ASSERT(raw_event.pane == PANE_DIVIDER);
-                event = {};
+    } else { ASSERT(raw_event.type == RAW_USER_EVENT_TYPE_MOUSE_PRESS);
+        // NOTE: changed _window_get_NDC_from_Screen() -> globals.NDC_from_Screen
+        vec2 mouse_NDC = transformPoint(globals.NDC_from_Screen, _global_screen_state.mouse_Pixel);
+        if (raw_event.pane == PANE_2D) {
+            mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
+            vec2 mouse_World_2D = transformPoint(inv_PV_2D, mouse_NDC);
+            event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
+            Mouse2DUserEvent *mouse_2D = &event.mouse_2D;
+            mouse_2D->mouse = magic_snap(mouse_World_2D);
+            mouse_2D->mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
+        } else if (raw_event.pane == PANE_POPUP) {
+            // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
+            // TODO: gross gross gross
+            event.type = USER_EVENT_TYPE_GUI_MOUSE;
+            GUIMouseUserEvent *gui_mouse = &event.gui_mouse;
+            gui_mouse->cell_index = popup->hover_cell_index; 
+            gui_mouse->mouse_held = raw_event.mouse_held;
+            if (!raw_event.mouse_held) {
+                gui_mouse->cursor = popup->hover_cursor; 
+            } else {
+                // preserve old value; NOTE: could also be achieved with event.set_cursor = false;
+                gui_mouse->cursor = popup->cursor;
             }
+            gui_mouse->selection_cursor = popup->hover_cursor; 
+        } else if (raw_event.pane == PANE_3D) {
+            mat4 inv_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
+            event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
+            Mouse3DUserEvent *mouse_3D = &event.mouse_3D;
+            mouse_3D->o = transformPoint(inv_PV_3D, V3(mouse_NDC, -1.0f));
+            mouse_3D->dir = normalized(transformPoint(inv_PV_3D, V3(mouse_NDC, 1.0f)) - mouse_3D->o);
+            mouse_3D->mouse_held = raw_event.mouse_held; // FORNOW: forwarding on to next layer
+        } else { ASSERT(raw_event.pane == PANE_DIVIDER);
+            event = {};
         }
     }
     return event;
@@ -780,25 +770,21 @@ BEGIN_PRE_MAIN {
 // TODO: this API should match what is printed to the terminal in verbose output mode
 //       (so we can copy and paste a session for later use as an end to end test)
 
-UserEvent construct_mouse_event_2D(vec2 p) {
+UserEvent MOUSE_2D_event(real32 mouse_x, real32 mouse_y) {
     UserEvent event = {};
-    event.type = EVENT_TYPE_MOUSE;
-    MouseEvent *mouse_event = &event.mouse_event;
-    mouse_event->subtype = MOUSE_EVENT_SUBTYPE_2D;
-    MouseEvent2D *mouse_event_2D = &mouse_event->mouse_event_2D;
-    mouse_event_2D->mouse_position = p;
+    event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
+    Mouse2DUserEvent *mouse_2D = &event.mouse_2D;
+    mouse_2D->mouse.x = mouse_x;
+    mouse_2D->mouse.y = mouse_y;
     return event;
 }
-UserEvent construct_mouse_event_2D(real32 p_x, real32 p_y) { return construct_mouse_event_2D({ p_x, p_y }); }
 
-UserEvent construct_mouse_event_3D(vec3 o, vec3 dir) {
+UserEvent MOUSE_3D_event(real32 o_x, real32 o_y, real32 o_z, real32 dir_x, real32 dir_y, real32 dir_z) {
     UserEvent event = {};
-    event.type = EVENT_TYPE_MOUSE;
-    MouseEvent *mouse_event = &event.mouse_event;
-    mouse_event->subtype = MOUSE_EVENT_SUBTYPE_3D;
-    MouseEvent3D *mouse_event_3D = &mouse_event->mouse_event_3D;
-    mouse_event_3D->o = o;
-    mouse_event_3D->dir = dir;
+    event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
+    Mouse3DUserEvent *mouse_3D = &event.mouse_3D;
+    mouse_3D->o = { o_x, o_y, o_z };
+    mouse_3D->dir = { dir_x, dir_y, dir_z };
     return event;
 }
 
@@ -820,7 +806,7 @@ struct StandardEventProcessResult {
 
 #if 0
 // TODO
-StandardEventProcessResult standard_event_process(UserEvent event) {
+StandardEventProcessResult standard_event_process(const UserEvent event) {
     bool32 global_world_state_changed;
     StandardEventProcessResult result = _standard_event_process_NOTE_RECURSIVE(event);
     if (global_world_state_changed) {
@@ -832,7 +818,7 @@ StandardEventProcessResult standard_event_process(UserEvent event) {
 
 void history_printf_script(); // FORNOW forward declaration
 
-StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent event) {
+StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(const UserEvent event) {
     bool32 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
 
     bool32 dxf_anything_selected; {
@@ -848,13 +834,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
 
     #include "cookbook.cpp"
 
-    if (event.type == EVENT_TYPE_KEY) {
-        KeyEvent *key_event = &event.key_event;
-        if (key_event->subtype == KEY_EVENT_SUBTYPE_HOTKEY) {
+    if (event.type == USER_EVENT_TYPE_KEY) {
+        const KeyEvent *key_event = &event->key_event;
+        if (eventl
+        {
+            const HotkeyUserEvent *hotkey = &event.hotkey;
+
             result.record_me = true;
 
-            auto key_lambda = [key_event](uint32 key, bool super = false, bool shift = false) -> bool {
-                return _key_lambda(key_event, key, super, shift);
+            auto key_lambda = [event](uint32 key, bool super = false, bool shift = false) -> bool {
+                if (event.type != USER_EVENT_TYPE_HOTKEY_PRESS) return false; // TODO: ASSERT
+                return _key_lambda(event, key, super, shift);
             };
 
             bool32 digit_lambda;
@@ -1031,9 +1021,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                     *click_modifier = CLICK_MODIFIER_NONE;
                 } else if (key_lambda('Z')) {
                     UserEvent equivalent = {};
-                    equivalent.type = EVENT_TYPE_MOUSE;
-                    equivalent.mouse_event.subtype = MOUSE_EVENT_SUBTYPE_2D;
-                    // .mouse_position = {};
+                    equivalent.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
+                    // .mouse = {};
                     return _standard_event_process_NOTE_RECURSIVE(equivalent);
                 } else if (key_lambda('Z', false, true)) {
                     *click_mode = CLICK_MODE_ORIGIN;
@@ -1075,7 +1064,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                 } else if (key_lambda(GLFW_KEY_ESCAPE)) {
                     global_world_state.modes = {};
                 } else {
-                    conversation_messagef("[hotkey] %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->super, key_event->shift, key_event->key);
+                    conversation_messagef("[hotkey] %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&event), hotkey->super, hotkey->shift, hotkey->key);
                     result.record_me = false;
                     ;
                 }
@@ -1084,610 +1073,609 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
             bool32 changed_enter_mode = (prev_modes.enter_mode != *enter_mode);
             if (changed_click_mode && click_mode_SPACE_BAR_REPEAT_ELIGIBLE()) *space_bar_event = event;
             if (changed_enter_mode && enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE()) *shift_space_bar_event = event;
-        } else { ASSERT(key_event->subtype == KEY_EVENT_SUBTYPE_GUI);
-            result.record_me = true;
-
-            time_since->cursor_start = 0.0; // FORNOW
-
-            uint32 key = key_event->key;
-            bool32 shift = key_event->shift;
-            bool32 super = key_event->super;
-
-            bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
-            if (key == GLFW_KEY_TAB) {
-                _tab_hack_so_aliases_not_introduced_too_far_up = true;
-                uint32 new_active_cell_index; {
-                    // FORNOW
-                    if (!shift) {
-                        new_active_cell_index = (popup->active_cell_index + 1) % popup->num_cells;
-                    } else {
-                        if (popup->active_cell_index != 0) {
-                            new_active_cell_index = popup->active_cell_index - 1;
-                        } else {
-                            new_active_cell_index = popup->num_cells - 1;
-                        }
-                    }
-                }
-                POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
-            }
-
-            char *active_cell = popup->active_cell_buffer;
-            uint32 len = (uint32) strlen(active_cell);
-            uint32 left_cursor = MIN(popup->cursor, popup->selection_cursor);
-            uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
-
-            if (_tab_hack_so_aliases_not_introduced_too_far_up) {
-            } else if (super && (key == 'A')) {
-                popup->cursor = len;
-                popup->selection_cursor = 0;
-            } else if (key == GLFW_KEY_LEFT) {
-                if (!shift && !super) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) {
-                        if (popup->cursor > 0) --popup->cursor;
-                    } else {
-                        popup->cursor = left_cursor;
-                    }
-                    popup->selection_cursor = popup->cursor;
-                } else if (shift && !super) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
-                    if (popup->cursor > 0) --popup->cursor;
-                } else if (super && !shift) {
-                    popup->selection_cursor = popup->cursor = 0;
-                } else { ASSERT(shift && super);
-                    popup->selection_cursor = 0;
-                }
-            } else if (key == GLFW_KEY_RIGHT) {
-                if (!shift && !super) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) {
-                        if (popup->cursor < len) ++popup->cursor;
-                    } else {
-                        popup->cursor = MAX(popup->cursor, popup->selection_cursor);
-                    }
-                    popup->selection_cursor = popup->cursor;
-                } else if (shift && !super) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
-                    if (popup->cursor < len) ++popup->cursor;
-                } else if (super && !shift) {
-                    popup->selection_cursor = popup->cursor = len;
-                } else { ASSERT(shift && super);
-                    popup->selection_cursor = len;
-                }
-            } else if (key == GLFW_KEY_BACKSPACE) {
-                // * * * *|* * * * 
-                if (POPUP_SELECTION_NOT_ACTIVE()) {
-                    if (popup->cursor > 0) {
-                        memmove(&active_cell[popup->cursor - 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
-                        active_cell[POPUP_CELL_LENGTH - 1] = '\0';
-                        --popup->cursor;
-                    }
-                } else {
-                    // * * * * * * * * * * * * * * * *
-                    // * * * * * * * - - - - - - - - -
-                    //    L                 R 
-
-                    // * * * * * * * * * * * * * * * *
-                    // * * * * * * * * * * * * - - - -
-                    //    L       R                   
-                    memmove(&active_cell[left_cursor], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - left_cursor)], 0, right_cursor - left_cursor);
-                    popup->cursor = left_cursor;
-                }
-                popup->selection_cursor = popup->cursor;
-            } else if (key == GLFW_KEY_ENTER) {
-                ;
-            } else {
-                // TODO: strip char_equivalent into function
-
-                bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
-
-                char char_equivalent; {
-                    char_equivalent = (char) key;
-                    if (!shift && key_is_alpha) {
-                        char_equivalent = 'a' + (char_equivalent - 'A');
-                    }
-                }
-                if (POPUP_SELECTION_NOT_ACTIVE()) {
-                    if (popup->cursor < POPUP_CELL_LENGTH) {
-                        memmove(&active_cell[popup->cursor + 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
-                        active_cell[popup->cursor++] = char_equivalent;
-                    }
-                } else {
-                    memmove(&active_cell[left_cursor + 1], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
-                    popup->cursor = left_cursor;
-                    active_cell[popup->cursor++] = char_equivalent;
-                }
-                popup->selection_cursor = popup->cursor;
-            }
         }
-    } else if (event.type == EVENT_TYPE_MOUSE) {
-        MouseEvent *mouse_event = &event.mouse_event;
-        if (mouse_event->subtype == MOUSE_EVENT_SUBTYPE_2D) {
-            MouseEvent2D *mouse_event_2D = &mouse_event->mouse_event_2D;
+    } else if (event.type == USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD) {
+        const Mouse2DUserEvent *mouse_2D = &event.mouse_2D;
 
-            result.record_me = true;
-            if (*click_mode == CLICK_MODE_MEASURE) result.record_me = false;
-            if (mouse_event->mouse_held) result.record_me = false;
+        result.record_me = true;
+        if (*click_mode == CLICK_MODE_MEASURE) result.record_me = false;
+        if (mouse_2D->mouse_held) result.record_me = false;
 
-            vec2 *mouse = &mouse_event_2D->mouse_position;
-            vec2 *second_click = &mouse_event_2D->mouse_position;
+        const vec2 *mouse = &mouse_2D->mouse;
+        const vec2 *second_click = &mouse_2D->mouse;
 
-            bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_WINDOW));
+        bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_WINDOW));
 
-            bool32 click_mode_TWO_CLICK_COMMAND = 0 ||
-                (*click_mode == CLICK_MODE_AXIS) ||
-                (*click_mode == CLICK_MODE_MEASURE) ||
-                (*click_mode == CLICK_MODE_LINE) ||
-                (*click_mode == CLICK_MODE_BOX) ||
-                (*click_mode == CLICK_MODE_CIRCLE) ||
-                (*click_mode == CLICK_MODE_FILLET) ||
-                (*click_mode == CLICK_MODE_MOVE) ||
-                click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT; // fornow wonky case
+        bool32 click_mode_TWO_CLICK_COMMAND = 0 ||
+            (*click_mode == CLICK_MODE_AXIS) ||
+            (*click_mode == CLICK_MODE_MEASURE) ||
+            (*click_mode == CLICK_MODE_LINE) ||
+            (*click_mode == CLICK_MODE_BOX) ||
+            (*click_mode == CLICK_MODE_CIRCLE) ||
+            (*click_mode == CLICK_MODE_FILLET) ||
+            (*click_mode == CLICK_MODE_MOVE) ||
+            click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT; // fornow wonky case
 
-            // fornow window wonky case
-            if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes scand qc
-                result.record_me = false;
-                int hot_entity_index = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_event_2D->mouse_position.x, mouse_event_2D->mouse_position.y);
-                if (hot_entity_index != -1) {
-                    if (*click_modifier != CLICK_MODIFIER_CONNECTED) {
-                        if (click_mode_SELECT_OR_DESELECT()) {
-                            DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
-                        } else {
-                            DXF_ENTITY_SET_COLOR(&dxf->entities.array[hot_entity_index], *click_color_code);
-                        }
+        // fornow window wonky case
+        if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes scand qc
+            result.record_me = false;
+            int hot_entity_index = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_2D->mouse.x, mouse_2D->mouse.y);
+            if (hot_entity_index != -1) {
+                if (*click_modifier != CLICK_MODIFIER_CONNECTED) {
+                    if (click_mode_SELECT_OR_DESELECT()) {
+                        DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
                     } else {
-                        #if 1 // TODO: consider just using the O(n*m) algorithm here instead
+                        DXF_ENTITY_SET_COLOR(&dxf->entities.array[hot_entity_index], *click_color_code);
+                    }
+                } else {
+                    #if 1 // TODO: consider just using the O(n*m) algorithm here instead
 
-                        #define GRID_CELL_WIDTH 0.001f
+                    #define GRID_CELL_WIDTH 0.001f
 
-                        auto scalar_bucket = [&](real32 a) -> real32 {
-                            return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
-                        };
+                    auto scalar_bucket = [&](real32 a) -> real32 {
+                        return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
+                    };
 
-                        auto make_key = [&](real32 x, real32 y) -> vec2 {
-                            return { scalar_bucket(x), scalar_bucket(y) };
+                    auto make_key = [&](real32 x, real32 y) -> vec2 {
+                        return { scalar_bucket(x), scalar_bucket(y) };
 
-                        };
+                    };
 
-                        auto nudge_key = [&](vec2 key, int dx, int dy) -> vec2 {
-                            return make_key(key.x + dx * GRID_CELL_WIDTH, key.y + dy * GRID_CELL_WIDTH);
-                        };
+                    auto nudge_key = [&](vec2 key, int dx, int dy) -> vec2 {
+                        return make_key(key.x + dx * GRID_CELL_WIDTH, key.y + dy * GRID_CELL_WIDTH);
+                    };
 
-                        struct GridPointSlot {
-                            bool32 populated;
-                            int32 entity_index;
-                            bool32 end_NOT_start;
-                        };
+                    struct GridPointSlot {
+                        bool32 populated;
+                        int32 entity_index;
+                        bool32 end_NOT_start;
+                    };
 
-                        struct GridCell {
-                            GridPointSlot slots[2];
-                        };
+                    struct GridCell {
+                        GridPointSlot slots[2];
+                    };
 
-                        Map<vec2, GridCell> grid; { // TODO: build grid
-                            grid = {};
+                    Map<vec2, GridCell> grid; { // TODO: build grid
+                        grid = {};
 
-                            auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](real32 x, real32 y, uint32 entity_index, bool32 end_NOT_start) {
-                                vec2 key = make_key(x, y);
-                                GridCell *cell = _map_get_pointer(&grid, key);
-                                if (cell == NULL) {
-                                    map_put(&grid, key, {});
-                                    cell = _map_get_pointer(&grid, key);
-                                }
-                                for (uint32 i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
-                                    GridPointSlot *slot = &cell->slots[i];
-                                    if (slot->populated) continue;
-                                    slot->populated = true;
-                                    slot->entity_index = entity_index;
-                                    slot->end_NOT_start = end_NOT_start;
-                                    // printf("%f %f [%d]\n", key.x, key.y, i);
-                                    break;
-                                }
-                            };
-
-                            for (uint32 entity_index = 0; entity_index < global_world_state.dxf.entities.length; ++entity_index) {
-                                DXFEntity *entity = &global_world_state.dxf.entities.array[entity_index];
-
-                                real32 start_x, start_y, end_x, end_y;
-                                entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(start_x, start_y, entity_index, false);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(end_x, end_y, entity_index, true);
-                            }
-                        }
-
-                        bool32 *edge_marked = (bool32 *) calloc(global_world_state.dxf.entities.length, sizeof(bool32));
-
-                        ////////////////////////////////////////////////////////////////////////////////
-                        // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
-                        //       We will use _map_get_pointer(...)
-                        ////////////////////////////////////////////////////////////////////////////////
-
-
-                        auto get_key = [&](GridPointSlot *point, bool32 other_endpoint) {
-                            bool32 end_NOT_start; {
-                                end_NOT_start = point->end_NOT_start;
-                                if (other_endpoint) end_NOT_start = !end_NOT_start;
-                            }
-                            real32 x, y; {
-                                DXFEntity *entity = &global_world_state.dxf.entities.array[point->entity_index];
-                                if (end_NOT_start) {
-                                    entity_get_end_point(entity, &x, &y);
-                                } else {
-                                    entity_get_start_point(entity, &x, &y);
-                                }
-                            }
-                            return make_key(x, y);
-                        };
-
-                        auto get_any_point_not_part_of_an_marked_entity = [&](vec2 key) -> GridPointSlot * {
+                        auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](real32 x, real32 y, uint32 entity_index, bool32 end_NOT_start) {
+                            vec2 key = make_key(x, y);
                             GridCell *cell = _map_get_pointer(&grid, key);
-                            if (!cell) return NULL;
-
+                            if (cell == NULL) {
+                                map_put(&grid, key, {});
+                                cell = _map_get_pointer(&grid, key);
+                            }
                             for (uint32 i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
                                 GridPointSlot *slot = &cell->slots[i];
-                                if (!slot->populated) continue;
-                                if (edge_marked[slot->entity_index]) continue;
-                                return slot;
+                                if (slot->populated) continue;
+                                slot->populated = true;
+                                slot->entity_index = entity_index;
+                                slot->end_NOT_start = end_NOT_start;
+                                // printf("%f %f [%d]\n", key.x, key.y, i);
+                                break;
                             }
-                            return NULL;
                         };
 
+                        for (uint32 entity_index = 0; entity_index < global_world_state.dxf.entities.length; ++entity_index) {
+                            DXFEntity *entity = &global_world_state.dxf.entities.array[entity_index];
+
+                            real32 start_x, start_y, end_x, end_y;
+                            entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
+                            push_into_grid_unless_cell_full__make_cell_if_none_exists(start_x, start_y, entity_index, false);
+                            push_into_grid_unless_cell_full__make_cell_if_none_exists(end_x, end_y, entity_index, true);
+                        }
+                    }
+
+                    bool32 *edge_marked = (bool32 *) calloc(global_world_state.dxf.entities.length, sizeof(bool32));
+
+                    ////////////////////////////////////////////////////////////////////////////////
+                    // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
+                    //       We will use _map_get_pointer(...)
+                    ////////////////////////////////////////////////////////////////////////////////
 
 
-                        // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
-                        edge_marked[hot_entity_index] = true;
-                        DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
-
-                        for (uint32 pass = 0; pass <= 1; ++pass) {
-
-                            vec2 seed; {
-                                real32 x, y;
-                                if (pass == 0) {
-                                    entity_get_start_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
-                                } else {
-                                    entity_get_end_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
-                                }
-                                seed = make_key(x, y);
+                    auto get_key = [&](GridPointSlot *point, bool32 other_endpoint) {
+                        bool32 end_NOT_start; {
+                            end_NOT_start = point->end_NOT_start;
+                            if (other_endpoint) end_NOT_start = !end_NOT_start;
+                        }
+                        real32 x, y; {
+                            DXFEntity *entity = &global_world_state.dxf.entities.array[point->entity_index];
+                            if (end_NOT_start) {
+                                entity_get_end_point(entity, &x, &y);
+                            } else {
+                                entity_get_start_point(entity, &x, &y);
                             }
+                        }
+                        return make_key(x, y);
+                    };
 
-                            GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
-                            while (true) {
-                                if (curr == NULL) break;
-                                DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[curr->entity_index], value_to_write_to_selection_mask);
-                                edge_marked[curr->entity_index] = true;
-                                curr = get_any_point_not_part_of_an_marked_entity(get_key(curr, true)); // get other end
-                                if (curr == NULL) break;
-                                { // curr <- next (9-cell)
-                                    vec2 key = get_key(curr, false);
-                                    {
-                                        curr = NULL;
-                                        for (int dx = -1; dx <= 1; ++dx) {
-                                            for (int dy = -1; dy <= 1; ++dy) {
-                                                GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(key, dx, dy));
-                                                if (tmp) curr = tmp;
-                                            }
+                    auto get_any_point_not_part_of_an_marked_entity = [&](vec2 key) -> GridPointSlot * {
+                        GridCell *cell = _map_get_pointer(&grid, key);
+                        if (!cell) return NULL;
+
+                        for (uint32 i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
+                            GridPointSlot *slot = &cell->slots[i];
+                            if (!slot->populated) continue;
+                            if (edge_marked[slot->entity_index]) continue;
+                            return slot;
+                        }
+                        return NULL;
+                    };
+
+
+
+                    // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
+                    edge_marked[hot_entity_index] = true;
+                    DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+
+                    for (uint32 pass = 0; pass <= 1; ++pass) {
+
+                        vec2 seed; {
+                            real32 x, y;
+                            if (pass == 0) {
+                                entity_get_start_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
+                            } else {
+                                entity_get_end_point(&global_world_state.dxf.entities.array[hot_entity_index], &x, &y);
+                            }
+                            seed = make_key(x, y);
+                        }
+
+                        GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
+                        while (true) {
+                            if (curr == NULL) break;
+                            DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[curr->entity_index], value_to_write_to_selection_mask);
+                            edge_marked[curr->entity_index] = true;
+                            curr = get_any_point_not_part_of_an_marked_entity(get_key(curr, true)); // get other end
+                            if (curr == NULL) break;
+                            { // curr <- next (9-cell)
+                                vec2 key = get_key(curr, false);
+                                {
+                                    curr = NULL;
+                                    for (int dx = -1; dx <= 1; ++dx) {
+                                        for (int dy = -1; dy <= 1; ++dy) {
+                                            GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(key, dx, dy));
+                                            if (tmp) curr = tmp;
                                         }
                                     }
                                 }
                             }
                         }
-
-
-
-
-                        map_free_and_zero(&grid);
-                        free(edge_marked);
-
-                        #else // old O(n^2) version
-                        uint32 loop_index = dxf_pick_loops.loop_index_from_entity_index[hot_entity_index];
-                        DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
-                        uint32 num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
-                        for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
-                            DXF_ENTITY_SET_IS_SELECTED(&dxf->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
-                        }
-                        #endif
                     }
+
+
+
+
+                    map_free_and_zero(&grid);
+                    free(edge_marked);
+
+                    #else // old O(n^2) version
+                    uint32 loop_index = dxf_pick_loops.loop_index_from_entity_index[hot_entity_index];
+                    DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
+                    uint32 num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
+                    for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
+                        DXF_ENTITY_SET_IS_SELECTED(&dxf->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
+                    }
+                    #endif
                 }
-            } else if (!mouse_event->mouse_held) {
-                if (click_mode_TWO_CLICK_COMMAND) {
-                    if (!*awaiting_second_click) {
-                        *awaiting_second_click = true;
-                        *first_click = mouse_event_2D->mouse_position;
-                        if (*click_modifier != CLICK_MODIFIER_WINDOW) *click_modifier = CLICK_MODIFIER_NONE;
-                    } else {
-                        if (*click_mode == CLICK_MODE_MEASURE) {
-                            *awaiting_second_click = false;
-                            *click_mode = CLICK_MODE_NONE;
-                            *click_modifier = CLICK_MODIFIER_NONE;
-                            real32 angle = DEG(atan2(*second_click - *first_click));
-                            if (angle < 0.0f) angle += 360.0f;
-                            conversation_messagef("[measure] %gmm %gdeg", norm(*second_click - *first_click), angle);
-                        } else if (*click_mode == CLICK_MODE_LINE) {
-                            *awaiting_second_click = false;
-                            result.checkpoint_me = true;
-                            *click_mode = CLICK_MODE_NONE;
-                            *click_modifier = CLICK_MODIFIER_NONE;
-                            DXF_ADD_LINE(*first_click, *second_click);
-                        } else if (*click_mode == CLICK_MODE_BOX) {
-                            if (IS_ZERO(ABS(first_click->x - second_click->x))) {
-                                conversation_messagef("[box] must have non-zero width ");
-                            } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
-                                conversation_messagef("[box] must have non-zero height");
-                            } else {
-                                *awaiting_second_click = false;
-                                result.checkpoint_me = true;
-                                *click_mode = CLICK_MODE_NONE;
-                                *click_modifier = CLICK_MODIFIER_NONE;
-                                vec2 other_corner_A = { first_click->x, second_click->y };
-                                vec2 other_corner_B = { second_click->x, first_click->y };
-                                DXF_ADD_LINE(*first_click,  other_corner_A);
-                                DXF_ADD_LINE(*first_click,  other_corner_B);
-                                DXF_ADD_LINE(*second_click, other_corner_A);
-                                DXF_ADD_LINE(*second_click, other_corner_B);
-                            }
-                        } else if (*click_mode == CLICK_MODE_MOVE) {
-                            *awaiting_second_click = false;
-                            result.checkpoint_me = true;
-                            *click_mode = CLICK_MODE_NONE;
-                            *click_modifier = CLICK_MODIFIER_NONE;
-                            vec2 ds = *second_click - *first_click;
-                            _for_each_selected_entity_ {
-                                if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                                    DXFLine *line = &entity->line;
-                                    line->start += ds;
-                                    line->end   += ds;
-                                } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                                    DXFArc *arc = &entity->arc;
-                                    arc->center += ds;
-                                }
-                            }
-                        } else if (*click_mode == CLICK_MODE_CIRCLE) {
-                            if (IS_ZERO(norm(*first_click - *second_click))) {
-                                conversation_messagef("[circle] must have non-zero diameter");
-                            } else {
-                                *awaiting_second_click = false;
-                                result.checkpoint_me = true;
-                                *click_mode = CLICK_MODE_NONE;
-                                *click_modifier = CLICK_MODIFIER_NONE;
-                                real32 theta_a_in_degrees = DEG(atan2(*second_click - *first_click));
-                                real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                                real32 r = norm(*second_click - *first_click);
-                                DXF_ADD_ARC(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
-                                DXF_ADD_ARC(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
-                            }
-                        } else if (*click_mode == CLICK_MODE_AXIS) {
-                            *awaiting_second_click = false;
-                            result.checkpoint_me = true;
-                            *click_mode = CLICK_MODE_NONE;
-                            *click_modifier = CLICK_MODIFIER_NONE;
-                            dxf->axis_base_point = *first_click;
-                            dxf->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
-                        } else if (*click_mode == CLICK_MODE_FILLET) {
-                            *awaiting_second_click = false;
-                            result.checkpoint_me = true;
-                            *click_modifier = CLICK_MODIFIER_NONE;
-                            int i = dxf_find_closest_entity(&dxf->entities, first_click->x, first_click->y);
-                            int j = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_event_2D->mouse_position.x, mouse_event_2D->mouse_position.y);
-                            if ((i != j) && (i != -1) && (j != -1)) {
-                                real32 radius = *fillet_radius;
-                                DXFEntity *E_i = &dxf->entities.array[i];
-                                DXFEntity *E_j = &dxf->entities.array[j];
-                                if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
-                                    vec2 a, b, c, d;
-                                    entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
-                                    entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
-
-                                    LineLineIntersectionResult _p = burkardt_line_line_intersection(a, b, c, d);
-                                    if (_p.is_valid) {
-                                        vec2 p = _p.position;
-
-                                        //  a -- b   p          s -- t-.  
-                                        //                              - 
-                                        //           d    =>             t
-                                        //     m     |             m     |
-                                        //           c                   s
-
-                                        //         d                              
-                                        //         |                              
-                                        //         |                              
-                                        //  a ---- p ---- b   =>   s - t.         
-                                        //         |                     -t       
-                                        //    m    |                 m    |       
-                                        //         c                      s       
-
-                                        vec2 m = AVG(*first_click, *second_click);
-
-                                        vec2 e_ab = normalized(b - a);
-                                        vec2 e_cd = normalized(d - c);
-
-                                        bool32 keep_a, keep_c; {
-                                            vec2 vector_p_m_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (m - p);
-                                            keep_a = (vector_p_m_in_edge_basis.x < 0.0f);
-                                            keep_c = (vector_p_m_in_edge_basis.y < 0.0f);
-                                        }
-
-                                        // TODO: in general, just use burkardt's angle stuff
-
-                                        vec2 s_ab = (keep_a) ? a : b;
-                                        vec2 s_cd = (keep_c) ? c : d;
-                                        real32 half_angle; {
-                                            real32 angle = burkardt_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
-                                            if (angle > PI) angle = TAU - angle;
-                                            half_angle = angle / 2;
-                                        }
-                                        real32 length = radius / tan(half_angle);
-                                        vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
-                                        vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
-
-                                        LineLineIntersectionResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
-                                        if (_center.is_valid) {
-                                            vec2 center = _center.position;
-
-                                            uint32 color_i = E_i->color_code;
-                                            uint32 color_j = E_j->color_code;
-                                            _DXF_REMOVE_ENTITY(MAX(i, j));
-                                            _DXF_REMOVE_ENTITY(MIN(i, j));
-
-                                            DXF_ADD_LINE(s_ab, t_ab, false, color_i);
-                                            DXF_ADD_LINE(s_cd, t_cd, false, color_j);
-
-                                            real32 theta_ab_in_degrees = DEG(atan2(t_ab - center));
-                                            real32 theta_cd_in_degrees = DEG(atan2(t_cd - center));
-
-                                            if (!IS_ZERO(radius)) {
-                                                if (burkardt_three_point_angle(t_ab, center, t_cd) < PI) {
-                                                    // FORNOW TODO consider swap
-                                                    real32 tmp = theta_ab_in_degrees;
-                                                    theta_ab_in_degrees = theta_cd_in_degrees;
-                                                    theta_cd_in_degrees = tmp;
-                                                }
-
-                                                // TODO: consider tabbing to create chamfer
-
-                                                DXF_ADD_ARC(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    conversation_messagef("TODO: line-arc fillet; arc-arc fillet");
-                                }
-                            }
-                        } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
-                            *awaiting_second_click = false;
-                            bbox2 window = {
-                                MIN(first_click->x, second_click->x),
-                                MIN(first_click->y, second_click->y),
-                                MAX(first_click->x, second_click->x),
-                                MAX(first_click->y, second_click->y)
-                            };
-                            _for_each_entity_ {
-                                if (bounding_box_contains(window, dxf_entity_get_bounding_box(entity))) {
-                                    DXF_ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
-                                }
-                            }
-                        }
-                    }
+            }
+        } else if (!mouse_2D->mouse_held) {
+            if (click_mode_TWO_CLICK_COMMAND) {
+                if (!*awaiting_second_click) {
+                    *awaiting_second_click = true;
+                    *first_click = mouse_2D->mouse;
+                    if (*click_modifier != CLICK_MODIFIER_WINDOW) *click_modifier = CLICK_MODIFIER_NONE;
                 } else {
-                    if (*click_mode == CLICK_MODE_ORIGIN) {
+                    if (*click_mode == CLICK_MODE_MEASURE) {
+                        *awaiting_second_click = false;
+                        *click_mode = CLICK_MODE_NONE;
+                        *click_modifier = CLICK_MODIFIER_NONE;
+                        real32 angle = DEG(atan2(*second_click - *first_click));
+                        if (angle < 0.0f) angle += 360.0f;
+                        conversation_messagef("[measure] %gmm %gdeg", norm(*second_click - *first_click), angle);
+                    } else if (*click_mode == CLICK_MODE_LINE) {
+                        *awaiting_second_click = false;
                         result.checkpoint_me = true;
                         *click_mode = CLICK_MODE_NONE;
                         *click_modifier = CLICK_MODIFIER_NONE;
-                        dxf->origin = *mouse;
-                    } else if (*click_mode == CLICK_MODE_X_MIRROR) {
+                        DXF_ADD_LINE(*first_click, *second_click);
+                    } else if (*click_mode == CLICK_MODE_BOX) {
+                        if (IS_ZERO(ABS(first_click->x - second_click->x))) {
+                            conversation_messagef("[box] must have non-zero width ");
+                        } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
+                            conversation_messagef("[box] must have non-zero height");
+                        } else {
+                            *awaiting_second_click = false;
+                            result.checkpoint_me = true;
+                            *click_mode = CLICK_MODE_NONE;
+                            *click_modifier = CLICK_MODIFIER_NONE;
+                            vec2 other_corner_A = { first_click->x, second_click->y };
+                            vec2 other_corner_B = { second_click->x, first_click->y };
+                            DXF_ADD_LINE(*first_click,  other_corner_A);
+                            DXF_ADD_LINE(*first_click,  other_corner_B);
+                            DXF_ADD_LINE(*second_click, other_corner_A);
+                            DXF_ADD_LINE(*second_click, other_corner_B);
+                        }
+                    } else if (*click_mode == CLICK_MODE_MOVE) {
+                        *awaiting_second_click = false;
                         result.checkpoint_me = true;
                         *click_mode = CLICK_MODE_NONE;
                         *click_modifier = CLICK_MODIFIER_NONE;
+                        vec2 ds = *second_click - *first_click;
                         _for_each_selected_entity_ {
                             if (entity->type == DXF_ENTITY_TYPE_LINE) {
                                 DXFLine *line = &entity->line;
-                                DXF_BUFFER_LINE(
-                                        V2(-(line->start.x - mouse->x) + mouse->x, line->start.y),
-                                        V2(-(line->end.x - mouse->x) + mouse->x, line->end.y),
-                                        true,
-                                        entity->color_code
-                                        );
+                                line->start += ds;
+                                line->end   += ds;
                             } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
                                 DXFArc *arc = &entity->arc;
-                                DXF_BUFFER_ARC(
-                                        V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
-                                        arc->radius,
-                                        arc->end_angle_in_degrees, // TODO
-                                        arc->start_angle_in_degrees, // TODO
-                                        true,
-                                        entity->color_code); // FORNOW + 180
+                                arc->center += ds;
                             }
-                            entity->is_selected = false;
                         }
-                        DXF_ADD_BUFFERED_ENTITIES();
-                    } else if (*click_mode == CLICK_MODE_Y_MIRROR) {
+                    } else if (*click_mode == CLICK_MODE_CIRCLE) {
+                        if (IS_ZERO(norm(*first_click - *second_click))) {
+                            conversation_messagef("[circle] must have non-zero diameter");
+                        } else {
+                            *awaiting_second_click = false;
+                            result.checkpoint_me = true;
+                            *click_mode = CLICK_MODE_NONE;
+                            *click_modifier = CLICK_MODIFIER_NONE;
+                            real32 theta_a_in_degrees = DEG(atan2(*second_click - *first_click));
+                            real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
+                            real32 r = norm(*second_click - *first_click);
+                            DXF_ADD_ARC(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
+                            DXF_ADD_ARC(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
+                        }
+                    } else if (*click_mode == CLICK_MODE_AXIS) {
+                        *awaiting_second_click = false;
                         result.checkpoint_me = true;
                         *click_mode = CLICK_MODE_NONE;
                         *click_modifier = CLICK_MODIFIER_NONE;
-                        _for_each_selected_entity_ {
-                            if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                                DXFLine *line = &entity->line;
-                                DXF_BUFFER_LINE(
-                                        V2(line->start.x, -(line->start.y - mouse->y) + mouse->y),
-                                        V2(line->end.x, -(line->end.y - mouse->y) + mouse->y),
-                                        true,
-                                        entity->color_code
-                                        );
-                            } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                                DXFArc *arc = &entity->arc;
-                                DXF_BUFFER_ARC(
-                                        V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
-                                        arc->radius,
-                                        arc->end_angle_in_degrees, // TODO
-                                        arc->start_angle_in_degrees, // TODO
-                                        true,
-                                        entity->color_code); // FORNOW + 180
+                        dxf->axis_base_point = *first_click;
+                        dxf->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
+                    } else if (*click_mode == CLICK_MODE_FILLET) {
+                        *awaiting_second_click = false;
+                        result.checkpoint_me = true;
+                        *click_modifier = CLICK_MODIFIER_NONE;
+                        int i = dxf_find_closest_entity(&dxf->entities, first_click->x, first_click->y);
+                        int j = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_2D->mouse.x, mouse_2D->mouse.y);
+                        if ((i != j) && (i != -1) && (j != -1)) {
+                            real32 radius = *fillet_radius;
+                            DXFEntity *E_i = &dxf->entities.array[i];
+                            DXFEntity *E_j = &dxf->entities.array[j];
+                            if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
+                                vec2 a, b, c, d;
+                                entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
+                                entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
+
+                                LineLineIntersectionResult _p = burkardt_line_line_intersection(a, b, c, d);
+                                if (_p.is_valid) {
+                                    vec2 p = _p.position;
+
+                                    //  a -- b   p          s -- t-.  
+                                    //                              - 
+                                    //           d    =>             t
+                                    //     m     |             m     |
+                                    //           c                   s
+
+                                    //         d                              
+                                    //         |                              
+                                    //         |                              
+                                    //  a ---- p ---- b   =>   s - t.         
+                                    //         |                     -t       
+                                    //    m    |                 m    |       
+                                    //         c                      s       
+
+                                    vec2 m = AVG(*first_click, *second_click);
+
+                                    vec2 e_ab = normalized(b - a);
+                                    vec2 e_cd = normalized(d - c);
+
+                                    bool32 keep_a, keep_c; {
+                                        vec2 vector_p_m_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (m - p);
+                                        keep_a = (vector_p_m_in_edge_basis.x < 0.0f);
+                                        keep_c = (vector_p_m_in_edge_basis.y < 0.0f);
+                                    }
+
+                                    // TODO: in general, just use burkardt's angle stuff
+
+                                    vec2 s_ab = (keep_a) ? a : b;
+                                    vec2 s_cd = (keep_c) ? c : d;
+                                    real32 half_angle; {
+                                        real32 angle = burkardt_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
+                                        if (angle > PI) angle = TAU - angle;
+                                        half_angle = angle / 2;
+                                    }
+                                    real32 length = radius / tan(half_angle);
+                                    vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
+                                    vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
+
+                                    LineLineIntersectionResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
+                                    if (_center.is_valid) {
+                                        vec2 center = _center.position;
+
+                                        uint32 color_i = E_i->color_code;
+                                        uint32 color_j = E_j->color_code;
+                                        _DXF_REMOVE_ENTITY(MAX(i, j));
+                                        _DXF_REMOVE_ENTITY(MIN(i, j));
+
+                                        DXF_ADD_LINE(s_ab, t_ab, false, color_i);
+                                        DXF_ADD_LINE(s_cd, t_cd, false, color_j);
+
+                                        real32 theta_ab_in_degrees = DEG(atan2(t_ab - center));
+                                        real32 theta_cd_in_degrees = DEG(atan2(t_cd - center));
+
+                                        if (!IS_ZERO(radius)) {
+                                            if (burkardt_three_point_angle(t_ab, center, t_cd) < PI) {
+                                                // FORNOW TODO consider swap
+                                                real32 tmp = theta_ab_in_degrees;
+                                                theta_ab_in_degrees = theta_cd_in_degrees;
+                                                theta_cd_in_degrees = tmp;
+                                            }
+
+                                            // TODO: consider tabbing to create chamfer
+
+                                            DXF_ADD_ARC(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
+                                        }
+                                    }
+                                }
+                            } else {
+                                conversation_messagef("TODO: line-arc fillet; arc-arc fillet");
                             }
-                            entity->is_selected = false;
                         }
-                        DXF_ADD_BUFFERED_ENTITIES();
-                    }
-                }
-            }
-        } else if (mouse_event->subtype == MOUSE_EVENT_SUBTYPE_3D) {
-            MouseEvent3D *mouse_event_3D = &mouse_event->mouse_event_3D;
-            result.record_me = false;
-            if (!mouse_event->mouse_held) {
-                int32 index_of_first_triangle_hit_by_ray = -1;
-                {
-                    real32 min_distance = HUGE_VAL;
-                    for (uint32 i = 0; i < global_world_state.mesh.num_triangles; ++i) {
-                        vec3 p[3]; {
-                            for (uint32 j = 0; j < 3; ++j) p[j] = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * i + j]);
-                        }
-                        RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_3D->o, mouse_event_3D->dir, p[0], p[1], p[2]);
-                        if (ray_triangle_intersection_result.hit) {
-                            if (ray_triangle_intersection_result.distance < min_distance) {
-                                min_distance = ray_triangle_intersection_result.distance;
-                                index_of_first_triangle_hit_by_ray = i; // FORNOW
+                    } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
+                        *awaiting_second_click = false;
+                        bbox2 window = {
+                            MIN(first_click->x, second_click->x),
+                            MIN(first_click->y, second_click->y),
+                            MAX(first_click->x, second_click->x),
+                            MAX(first_click->y, second_click->y)
+                        };
+                        _for_each_entity_ {
+                            if (bounding_box_contains(window, dxf_entity_get_bounding_box(entity))) {
+                                DXF_ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                             }
                         }
                     }
                 }
-
-                if (index_of_first_triangle_hit_by_ray != -1) { // something hit
-                    result.checkpoint_me = result.record_me = true;
-                    feature_plane->is_active = true;
-                    time_since->plane_selected = 0.0f;
-                    {
-                        feature_plane->normal = get(global_world_state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
-                        { // FORNOW (gross) calculateion of feature_plane->signed_distance_to_world_origin
-                            vec3 a_selected = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + 0]);
-                            feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, a_selected);
+            } else {
+                if (*click_mode == CLICK_MODE_ORIGIN) {
+                    result.checkpoint_me = true;
+                    *click_mode = CLICK_MODE_NONE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
+                    dxf->origin = *mouse;
+                } else if (*click_mode == CLICK_MODE_X_MIRROR) {
+                    result.checkpoint_me = true;
+                    *click_mode = CLICK_MODE_NONE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
+                    _for_each_selected_entity_ {
+                        if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                            DXFLine *line = &entity->line;
+                            DXF_BUFFER_LINE(
+                                    V2(-(line->start.x - mouse->x) + mouse->x, line->start.y),
+                                    V2(-(line->end.x - mouse->x) + mouse->x, line->end.y),
+                                    true,
+                                    entity->color_code
+                                    );
+                        } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                            DXFArc *arc = &entity->arc;
+                            DXF_BUFFER_ARC(
+                                    V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
+                                    arc->radius,
+                                    arc->end_angle_in_degrees, // TODO
+                                    arc->start_angle_in_degrees, // TODO
+                                    true,
+                                    entity->color_code); // FORNOW + 180
                         }
-
+                        entity->is_selected = false;
                     }
-                }
-            }
-        } else { ASSERT(mouse_event->subtype == MOUSE_EVENT_SUBTYPE_GUI);
-            MouseEventGUI *mouse_event_gui = &mouse_event->mouse_event_gui;
-
-            result.record_me = false;
-            time_since->cursor_start = 0.0f;
-
-            // TODO: probably also gross
-            if ((!mouse_event->mouse_held) && (popup->active_cell_index != mouse_event_gui->cell_index)) {
-                result.record_me = true;
-                POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_gui->cell_index);
-            }
-            // NOTE: this if is really gross and patches a problem where if you drag the mouse off the cell things break
-            // TODO: this should be fixed earlier in the chain; better guarantees about what the event is sending you
-            // (TODO: you should be able to leave the box)
-            if (popup->active_cell_index == mouse_event_gui->cell_index) {
-                if (popup->cursor != mouse_event_gui->cursor) {
-                    result.record_me = true;
-                    popup->cursor = mouse_event_gui->cursor;
-                }
-                if (popup->selection_cursor != mouse_event_gui->selection_cursor) {
-                    result.record_me = true;
-                    popup->selection_cursor = mouse_event_gui->selection_cursor;
+                    DXF_ADD_BUFFERED_ENTITIES();
+                } else if (*click_mode == CLICK_MODE_Y_MIRROR) {
+                    result.checkpoint_me = true;
+                    *click_mode = CLICK_MODE_NONE;
+                    *click_modifier = CLICK_MODIFIER_NONE;
+                    _for_each_selected_entity_ {
+                        if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                            DXFLine *line = &entity->line;
+                            DXF_BUFFER_LINE(
+                                    V2(line->start.x, -(line->start.y - mouse->y) + mouse->y),
+                                    V2(line->end.x, -(line->end.y - mouse->y) + mouse->y),
+                                    true,
+                                    entity->color_code
+                                    );
+                        } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
+                            DXFArc *arc = &entity->arc;
+                            DXF_BUFFER_ARC(
+                                    V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
+                                    arc->radius,
+                                    arc->end_angle_in_degrees, // TODO
+                                    arc->start_angle_in_degrees, // TODO
+                                    true,
+                                    entity->color_code); // FORNOW + 180
+                        }
+                        entity->is_selected = false;
+                    }
+                    DXF_ADD_BUFFERED_ENTITIES();
                 }
             }
         }
-    } else { ASSERT(event.type == EVENT_TYPE_NONE);
+    } else if (event.type == USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD) {
+        const Mouse3DUserEvent *mouse_3D = &event.mouse_3D;
+        result.record_me = false;
+        if (!mouse_3D->mouse_held) {
+            int32 index_of_first_triangle_hit_by_ray = -1;
+            {
+                real32 min_distance = HUGE_VAL;
+                for (uint32 i = 0; i < global_world_state.mesh.num_triangles; ++i) {
+                    vec3 p[3]; {
+                        for (uint32 j = 0; j < 3; ++j) p[j] = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * i + j]);
+                    }
+                    RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_3D->o, mouse_3D->dir, p[0], p[1], p[2]);
+                    if (ray_triangle_intersection_result.hit) {
+                        if (ray_triangle_intersection_result.distance < min_distance) {
+                            min_distance = ray_triangle_intersection_result.distance;
+                            index_of_first_triangle_hit_by_ray = i; // FORNOW
+                        }
+                    }
+                }
+            }
+
+            if (index_of_first_triangle_hit_by_ray != -1) { // something hit
+                result.checkpoint_me = result.record_me = true;
+                feature_plane->is_active = true;
+                time_since->plane_selected = 0.0f;
+                {
+                    feature_plane->normal = get(global_world_state.mesh.triangle_normals, index_of_first_triangle_hit_by_ray);
+                    { // FORNOW (gross) calculateion of feature_plane->signed_distance_to_world_origin
+                        vec3 a_selected = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * index_of_first_triangle_hit_by_ray + 0]);
+                        feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, a_selected);
+                    }
+
+                }
+            }
+        }
+    } else if (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) {
+        const GUIKeyUserEvent *gui_key = &event.gui_key;
+
+        result.record_me = true;
+
+        time_since->cursor_start = 0.0; // FORNOW
+
+        uint32 key = gui_key->key;
+        bool32 shift = gui_key->shift;
+        bool32 super = gui_key->super;
+
+        bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
+        if (key == GLFW_KEY_TAB) {
+            _tab_hack_so_aliases_not_introduced_too_far_up = true;
+            uint32 new_active_cell_index; {
+                // FORNOW
+                if (!shift) {
+                    new_active_cell_index = (popup->active_cell_index + 1) % popup->num_cells;
+                } else {
+                    if (popup->active_cell_index != 0) {
+                        new_active_cell_index = popup->active_cell_index - 1;
+                    } else {
+                        new_active_cell_index = popup->num_cells - 1;
+                    }
+                }
+            }
+            POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
+        }
+
+        char *active_cell = popup->active_cell_buffer;
+        uint32 len = (uint32) strlen(active_cell);
+        uint32 left_cursor = MIN(popup->cursor, popup->selection_cursor);
+        uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
+
+        if (_tab_hack_so_aliases_not_introduced_too_far_up) {
+        } else if (super && (key == 'A')) {
+            popup->cursor = len;
+            popup->selection_cursor = 0;
+        } else if (key == GLFW_KEY_LEFT) {
+            if (!shift && !super) {
+                if (POPUP_SELECTION_NOT_ACTIVE()) {
+                    if (popup->cursor > 0) --popup->cursor;
+                } else {
+                    popup->cursor = left_cursor;
+                }
+                popup->selection_cursor = popup->cursor;
+            } else if (shift && !super) {
+                if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
+                if (popup->cursor > 0) --popup->cursor;
+            } else if (super && !shift) {
+                popup->selection_cursor = popup->cursor = 0;
+            } else { ASSERT(shift && super);
+                popup->selection_cursor = 0;
+            }
+        } else if (key == GLFW_KEY_RIGHT) {
+            if (!shift && !super) {
+                if (POPUP_SELECTION_NOT_ACTIVE()) {
+                    if (popup->cursor < len) ++popup->cursor;
+                } else {
+                    popup->cursor = MAX(popup->cursor, popup->selection_cursor);
+                }
+                popup->selection_cursor = popup->cursor;
+            } else if (shift && !super) {
+                if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
+                if (popup->cursor < len) ++popup->cursor;
+            } else if (super && !shift) {
+                popup->selection_cursor = popup->cursor = len;
+            } else { ASSERT(shift && super);
+                popup->selection_cursor = len;
+            }
+        } else if (key == GLFW_KEY_BACKSPACE) {
+            // * * * *|* * * * 
+            if (POPUP_SELECTION_NOT_ACTIVE()) {
+                if (popup->cursor > 0) {
+                    memmove(&active_cell[popup->cursor - 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
+                    active_cell[POPUP_CELL_LENGTH - 1] = '\0';
+                    --popup->cursor;
+                }
+            } else {
+                // * * * * * * * * * * * * * * * *
+                // * * * * * * * - - - - - - - - -
+                //    L                 R 
+
+                // * * * * * * * * * * * * * * * *
+                // * * * * * * * * * * * * - - - -
+                //    L       R                   
+                memmove(&active_cell[left_cursor], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - left_cursor)], 0, right_cursor - left_cursor);
+                popup->cursor = left_cursor;
+            }
+            popup->selection_cursor = popup->cursor;
+        } else if (key == GLFW_KEY_ENTER) {
+            ;
+        } else {
+            // TODO: strip char_equivalent into function
+
+            bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
+
+            char char_equivalent; {
+                char_equivalent = (char) key;
+                if (!shift && key_is_alpha) {
+                    char_equivalent = 'a' + (char_equivalent - 'A');
+                }
+            }
+            if (POPUP_SELECTION_NOT_ACTIVE()) {
+                if (popup->cursor < POPUP_CELL_LENGTH) {
+                    memmove(&active_cell[popup->cursor + 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
+                    active_cell[popup->cursor++] = char_equivalent;
+                }
+            } else {
+                memmove(&active_cell[left_cursor + 1], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
+                popup->cursor = left_cursor;
+                active_cell[popup->cursor++] = char_equivalent;
+            }
+            popup->selection_cursor = popup->cursor;
+        }
+    } else if (event.type == USER_EVENT_TYPE_GUI_MOUSE) {
+        const GUIMouseUserEvent *gui_mouse = &event.gui_mouse;
+
+        result.record_me = false;
+        time_since->cursor_start = 0.0f;
+
+        // TODO: probably also gross
+        if ((!gui_mouse->mouse_held) && (popup->active_cell_index != gui_mouse->cell_index)) {
+            result.record_me = true;
+            POPUP_SET_ACTIVE_CELL_INDEX(gui_mouse->cell_index);
+        }
+        // NOTE: this if is really gross and patches a problem where if you drag the mouse off the cell things break
+        // TODO: this should be fixed earlier in the chain; better guarantees about what the event is sending you
+        // (TODO: you should be able to leave the box)
+        if (popup->active_cell_index == gui_mouse->cell_index) {
+            if (popup->cursor != gui_mouse->cursor) {
+                result.record_me = true;
+                popup->cursor = gui_mouse->cursor;
+            }
+            if (popup->selection_cursor != gui_mouse->selection_cursor) {
+                result.record_me = true;
+                popup->selection_cursor = gui_mouse->selection_cursor;
+            }
+        }
+    } else { ASSERT(event.type == USER_EVENT_TYPE_NONE);
         result.record_me = false;
     }
 
@@ -1708,11 +1696,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
 
             bool32 gui_key_enter; {
                 gui_key_enter = false;
-                if (event.type == EVENT_TYPE_KEY) {
-                    KeyEvent *key_event = &event.key_event;
-                    if (key_event->subtype == KEY_EVENT_SUBTYPE_GUI) {
-                        gui_key_enter = (key_event->key == GLFW_KEY_ENTER);
-                    }
+                if (event.type == USER_EVENT_TYPE_GUI_KEY_PRESS) {
+                    const GUIKeyUserEvent *gui_key = &event.gui_key;
+                    gui_key_enter = (gui_key->key == GLFW_KEY_ENTER);
                 }
             }
 
@@ -1824,7 +1810,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                 if (gui_key_enter) {
                     // popup->_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                     *click_modifier = CLICK_MODIFIER_NONE;
-                    return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(*x_coordinate, *y_coordinate));
+                    return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(*x_coordinate, *y_coordinate));
                 }
             } else if (*click_mode == CLICK_MODE_CIRCLE) {
                 if (*awaiting_second_click) {
@@ -1836,7 +1822,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                             POPUP_CELL_TYPE_REAL32, "circle_radius", circle_radius,
                             POPUP_CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *circle_radius, first_click->y));
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *circle_radius, first_click->y));
                     } else {
                         if (prev_circle_diameter != *circle_diameter) {
                             *circle_radius = *circle_diameter / 2;
@@ -1863,7 +1849,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                             POPUP_CELL_TYPE_REAL32, "line_rise", line_rise
                             );
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *line_run, first_click->y + *line_rise));
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *line_run, first_click->y + *line_rise));
                     } else {
                         if ((prev_line_length != *line_length) || (prev_line_angle != *line_angle)) {
                             *line_run = *line_length * COS(RAD(*line_angle));
@@ -1880,7 +1866,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                             POPUP_CELL_TYPE_REAL32, "box_width", box_width,
                             POPUP_CELL_TYPE_REAL32, "box_height", box_height);
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *box_width, first_click->y + *box_height));
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *box_width, first_click->y + *box_height));
                     }
                 }
             } else if (*click_mode == CLICK_MODE_MOVE) {
@@ -1897,7 +1883,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(UserEvent even
                             POPUP_CELL_TYPE_REAL32, "move_rise", move_rise
                             );
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *move_run, first_click->y + *move_rise));
+                        return _standard_event_process_NOTE_RECURSIVE(MOUSE_2D_event(first_click->x + *move_run, first_click->y + *move_rise));
                     } else {
                         if ((prev_move_length != *move_length) || (prev_move_angle != *move_angle)) {
                             *move_run = *move_length * COS(RAD(*move_angle));
@@ -2073,37 +2059,33 @@ void history_redo() {
     conversation_messagef("[redo] success");
 }
 
-void _history_user_event_draw_helper(UserEvent event) {
+void _history_user_event_draw_helper(UserEvent *event) {
     char message[256]; {
         // TODO: Left and right arrow
         // TODO: handle shift and super with the special characters
-        if (event.type == EVENT_TYPE_KEY) {
-            KeyEvent *key_event = &event.key_event;
+        if ((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS)) {
             char *boxed; {
-                if (key_event->subtype == KEY_EVENT_SUBTYPE_HOTKEY) {
+                if (event->type == USER_EVENT_TYPE_HOTKEY_PRESS) {
                     boxed = "[HOTKEY]";
-                } else { ASSERT(key_event->subtype == KEY_EVENT_SUBTYPE_GUI);
+                } else { ASSERT(event->type == USER_EVENT_TYPE_GUI_KEY_PRESS);
                     boxed = "[GUI_KEY]";
                 }
             }
-            sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
-        } else { ASSERT(event.type == EVENT_TYPE_MOUSE);
-            MouseEvent *mouse_event = &event.mouse_event;
-            if (mouse_event->subtype == MOUSE_EVENT_SUBTYPE_2D) {
-                MouseEvent2D *mouse_event_2D = &mouse_event->mouse_event_2D;
-                sprintf(message, "[MOUSE-2D] %g %g", mouse_event_2D->mouse_position.x, mouse_event_2D->mouse_position.y);
-            } else if (mouse_event->subtype == MOUSE_EVENT_SUBTYPE_3D) {
-                MouseEvent3D *mouse_event_3D = &mouse_event->mouse_event_3D;
-                sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_event_3D->o.x, mouse_event_3D->o.y, mouse_event_3D->o.z, mouse_event_3D->dir.x, mouse_event_3D->dir.y, mouse_event_3D->dir.z);
-            } else { ASSERT(mouse_event->subtype == MOUSE_EVENT_SUBTYPE_GUI);
-                MouseEventGUI *mouse_event_gui = &mouse_event->mouse_event_gui;
-                sprintf(message, "[GUI-MOUSE] %d %d %d", mouse_event_gui->cell_index, mouse_event_gui->cursor, mouse_event_gui->selection_cursor);
-            }
+            sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(event));
+        } else if (event->type == USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD) {
+            Mouse2DUserEvent *mouse_2D = &event->mouse_2D;
+            sprintf(message, "[MOUSE-2D] %g %g", mouse_2D->mouse.x, mouse_2D->mouse.y);
+        } else if (event->type == USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD) {
+            Mouse3DUserEvent *mouse_3D = &event->mouse_3D;
+            sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_3D->o.x, mouse_3D->o.y, mouse_3D->o.z, mouse_3D->dir.x, mouse_3D->dir.y, mouse_3D->dir.z);
+        } else { ASSERT(event->type == USER_EVENT_TYPE_GUI_MOUSE);
+            GUIMouseUserEvent *gui_mouse = &event->gui_mouse;
+            sprintf(message, "[GUI-MOUSE] %d %d %d", gui_mouse->cell_index, gui_mouse->cursor, gui_mouse->selection_cursor);
         }
     }
     gui_printf("%c%c %s",
-            (event.checkpoint_me)   ? 'C' : ' ',
-            (event.snapshot_me)     ? 'S' : ' ',
+            (event->checkpoint_me)   ? 'C' : ' ',
+            (event->snapshot_me)     ? 'S' : ' ',
             message);
 }
 
@@ -2143,12 +2125,12 @@ void history_debug_draw() {
                 event < history.recorded_user_events._redo_stack.array + history.recorded_user_events._redo_stack.length;
                 ++event
             ) {//
-            _history_user_event_draw_helper(*event);
+            _history_user_event_draw_helper(event);
         }
         gui_printf("`^ redo (%d)", elephant_length_redo(&history.recorded_user_events));
     }
     if ((history.recorded_user_events._redo_stack.length) || (history.recorded_user_events._undo_stack.length)) {
-        gui_printf("`  RECORDED_EVENTS");
+        gui_printf("`  RECORDED_USER_EVENTS");
     } else {
         gui_printf("`--- no history ---");
     }
@@ -2159,33 +2141,38 @@ void history_debug_draw() {
                 event >= history.recorded_user_events._undo_stack.array;
                 --event
             ) {//
-            _history_user_event_draw_helper(*event);
+            _history_user_event_draw_helper(event);
         }
     }
 }
 
 void history_printf_script() {
-    List<char> _script = {};
+    List<char> program = {};
     for (////
             UserEvent *event = history.recorded_user_events._undo_stack.array;
             event < history.recorded_user_events._undo_stack.array + history.recorded_user_events._undo_stack.length;
             ++event
         ) {//
-        if (event->type == EVENT_TYPE_KEY) {
-            KeyEvent key_event = event->key_event;
-            if (key_event.super) list_push_back(&_script, '^');
-            if (key_event.key == GLFW_KEY_ENTER) {
-                list_push_back(&_script, '\\');
-                list_push_back(&_script, 'n');
+        if ((event->type == USER_EVENT_TYPE_HOTKEY_PRESS) || (event->type == USER_EVENT_TYPE_GUI_KEY_PRESS)) {
+
+            const bool32 *super;
+            const bool32 *shift;
+            const uint32 *key;
+            key_event_get_ptrs_super_shift_key(event, &super, &shift, &key);
+
+            if (*super) list_push_back(&program, '^');
+            if (*key == GLFW_KEY_ENTER) {
+                list_push_back(&program, '\\');
+                list_push_back(&program, 'n');
             } else {
-                char char_equivalent = (char) key_event.key;
-                if ((('A' <= key_event.key) && (key_event.key <= 'Z')) && !key_event.shift) char_equivalent = 'a' + (char_equivalent - 'A');
-                list_push_back(&_script, (char) char_equivalent);
+                char char_equivalent = (char) *key;
+                if ((('A' <= *key) && (*key <= 'Z')) && !*shift) char_equivalent = 'a' + (char_equivalent - 'A');
+                list_push_back(&program, (char) char_equivalent);
             }
         }
     }
-    printf("%.*s\n", _script.length, _script.array);
-    list_free_AND_zero(&_script);
+    printf("%.*s\n", program.length, program.array);
+    list_free_AND_zero(&program);
 }
 
 #endif
@@ -2196,21 +2183,13 @@ void history_printf_script() {
 //////////////////////////////////////////////////
 
 void freshly_baked_event_process(UserEvent freshly_baked_event) {
-    bool32 undo;
-    bool32 redo;
-    {
-        undo = false;
-        redo = false;
-        if (freshly_baked_event.type == EVENT_TYPE_KEY) {
-            KeyEvent *key_event = &freshly_baked_event.key_event;
-            auto key_lambda = [key_event](uint32 key, bool super = false, bool shift = false) -> bool {
-                return _key_lambda(key_event, key, super, shift);
-            };
-            undo = (key_lambda('Z', true) || key_lambda('U'));
-            redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
-        }
-    }
+    auto key_lambda = [freshly_baked_event](uint32 key, bool super = false, bool shift = false) -> bool {
+        if (freshly_baked_event.type != USER_EVENT_TYPE_HOTKEY_PRESS) return false;
+        return _key_lambda(freshly_baked_event, key, super, shift);
+    };
 
+    bool32 undo = (key_lambda('Z', true) || key_lambda('U'));
+    bool32 redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
     if (undo) {
         _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
         history_undo();
@@ -2710,8 +2689,8 @@ void conversation_draw() {
                         (*click_mode == CLICK_MODE_X_MIRROR) ? "X_MIRROR" :
                         (*click_mode == CLICK_MODE_Y_MIRROR) ? "Y_MIRROR" :
                         "???MODE???"),
-                    mouse_Pixel->x + 12,
-                    mouse_Pixel->y + 14,
+                    _global_screen_state.mouse_Pixel.x + 12,
+                    _global_screen_state.mouse_Pixel.y + 14,
                     0.0,
 
                     r,
@@ -2737,8 +2716,8 @@ void conversation_draw() {
                         (*click_modifier == CLICK_MODIFIER_WINDOW)                ? "WINDOW" :
                         (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) ? _X_Y :
                         "???MODIFIER???"),
-                    mouse_Pixel->x + 12,
-                    mouse_Pixel->y + 24,
+                    _global_screen_state.mouse_Pixel.x + 12,
+                    _global_screen_state.mouse_Pixel.y + 24,
                     0.0,
 
                     1.0,
@@ -2830,22 +2809,22 @@ void script_process(char *string) {
                     char *tag = &string[i + 1];
                     if (strncmp(tag, "m2d", TAG_LENGTH) == 0) {
                         char *params = &string[i + 1 + TAG_LENGTH];
-                        vec2 p; {
-                            sscanf(params, "%f %f", &p.x, &p.y);
-                            // NOTE: user of this api specified click in pre-snapped world coordinates
-                            //       (as opposed to [pre-snapped] pixel coordinates, which is what bake_event takes)
-                            p = magic_snap(p);
-                        }
-                        instabaked_event = construct_mouse_event_2D(p);
+                        // // NOTE: this is very subtle
+                        // the reason we have to instabake here is that the user of the spoofing api
+                        // is specifying a click in pre-snapped world coordinates
+                        // (as opposed to (pre-snapped) pixel coordinates, which is what bake_event takes)
+                        instabaked_event.type = USER_EVENT_TYPE_MOUSE_2D_PRESS_OR_HOLD;
+                        Mouse2DUserEvent *mouse_2D = &instabaked_event.mouse_2D;
+                        sscanf(params, "%f %f", &mouse_2D->mouse.x, &mouse_2D->mouse.y);
+                        mouse_2D->mouse = magic_snap(mouse_2D->mouse);
                     } else if (strncmp(tag, "m3d", TAG_LENGTH) == 0) {
                         char *params = &string[i + 1 + TAG_LENGTH];
-                        vec3 o;
-                        vec3 dir;
-                        sscanf(params, "%f %f %f %f %f %f", &o.x, &o.y, &o.z, &dir.x, &dir.y, &dir.z);
-                        instabaked_event = construct_mouse_event_3D(o, dir);
+                        instabaked_event.type = USER_EVENT_TYPE_MOUSE_3D_PRESS_OR_HOLD;
+                        Mouse3DUserEvent *mouse_3D = &instabaked_event.mouse_3D;
+                        sscanf(params, "%f %f %f %f %f %f", &mouse_3D->o.x, &mouse_3D->o.y, &mouse_3D->o.z, &mouse_3D->dir.x, &mouse_3D->dir.y, &mouse_3D->dir.z);
                     } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
                         is_instabaked = false;
-                        _raw_event.type = RAW_EVENT_TYPE_KEY_PRESS;
+                        _raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
                         _raw_event.key = GLFW_KEY_ESCAPE;
                     }
                 }
@@ -2859,7 +2838,7 @@ void script_process(char *string) {
             }
         } else {
             RawUserEvent raw_event = {};
-            raw_event.type = RAW_EVENT_TYPE_KEY_PRESS;
+            raw_event.type = RAW_USER_EVENT_TYPE_KEY_PRESS;
             raw_event.super = super;
             {
                 if ('a' <= c && c <= 'z') {
@@ -2978,7 +2957,7 @@ int main() {
             } else {
                 // NOTE: this is so we draw the popups
                 UserEvent null_event = {};
-                null_event.type = EVENT_TYPE_NONE;
+                null_event.type = USER_EVENT_TYPE_NONE;
                 freshly_baked_event_process(null_event);
             }
         }
