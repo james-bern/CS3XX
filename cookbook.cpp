@@ -2,74 +2,74 @@
 // DXF //
 /////////
 
-auto _DXF_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = DXF_COLOR_CODE_TRAVERSE) {
-    DXFEntity result = {};
-    result.type = DXF_ENTITY_TYPE_LINE;
-    DXFLine *line = &result.line;
-    line->start = start;
-    line->end = end;
-    result.is_selected = is_selected;
-    result.color_code = color_code;
-    return result;
+auto _LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+    Entity entity = {};
+    entity.type = ENTITY_TYPE_LINE;
+    LineEntity *line_entity = &entity.line_entity;
+    line_entity->start = start;
+    line_entity->end = end;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
+    return entity;
 };
 
-auto _DXF_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = DXF_COLOR_CODE_TRAVERSE) {
-    DXFEntity result = {};
-    result.type = DXF_ENTITY_TYPE_ARC;
-    DXFArc *arc = &result.arc;
-    arc->center = center;
-    arc->radius = radius;
-    arc->start_angle_in_degrees = start_angle_in_degrees;
-    arc->end_angle_in_degrees = end_angle_in_degrees;
-    result.is_selected = is_selected;
-    result.color_code = color_code;
-    return result;
+auto _ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+    Entity entity = {};
+    entity.type = ENTITY_TYPE_ARC;
+    ArcEntity *arc_entity = &entity.arc_entity;
+    arc_entity->center = center;
+    arc_entity->radius = radius;
+    arc_entity->start_angle_in_degrees = start_angle_in_degrees;
+    arc_entity->end_angle_in_degrees = end_angle_in_degrees;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
+    return entity;
 };
-auto _DXF_ADD_ENTITY = [&](DXFEntity entity) {
+auto _ADD_ENTITY = [&](Entity entity) {
     list_push_back(&dxf->entities, entity);
 };
 
-auto DXF_ADD_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = DXF_COLOR_CODE_TRAVERSE) {
-    DXFEntity entity = _DXF_LINE(start, end, is_selected, color_code);
-    _DXF_ADD_ENTITY(entity);
+auto ADD_LINE_ENTITY = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+    Entity entity = _LINE(start, end, is_selected, color_code);
+    _ADD_ENTITY(entity);
 };
 
-auto DXF_ADD_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = DXF_COLOR_CODE_TRAVERSE) {
-    DXFEntity entity = _DXF_ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
-    _DXF_ADD_ENTITY(entity);
+auto ADD_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+    Entity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
+    _ADD_ENTITY(entity);
 };
 
-List<DXFEntity> _entity_buffer = {};
+List<Entity> _entity_buffer = {};
 defer { list_free_AND_zero(&_entity_buffer); };
 
-auto _DXF_BUFFER_ENTITY = [&](DXFEntity entity) {
+auto _BUFFER_ENTITY = [&](Entity entity) {
     list_push_back(&_entity_buffer, entity);
 };
 
-auto DXF_BUFFER_LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = DXF_COLOR_CODE_TRAVERSE) {
-    DXFEntity entity = _DXF_LINE(start, end, is_selected, color_code);
-    _DXF_BUFFER_ENTITY(entity);
+auto BUFFER_LINE_ENTITY = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+    Entity entity = _LINE(start, end, is_selected, color_code);
+    _BUFFER_ENTITY(entity);
 };
 
-auto DXF_BUFFER_ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = DXF_COLOR_CODE_TRAVERSE) {
-    DXFEntity entity = _DXF_ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
-    _DXF_BUFFER_ENTITY(entity);
+auto BUFFER_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+    Entity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
+    _BUFFER_ENTITY(entity);
 };
 
-auto DXF_ADD_BUFFERED_ENTITIES = [&]() {
-    for (uint32 i = 0; i < _entity_buffer.length; ++i)  _DXF_ADD_ENTITY(_entity_buffer.array[i]);
+auto ADD_BUFFERED_ENTITIES = [&]() {
+    for (uint32 i = 0; i < _entity_buffer.length; ++i)  _ADD_ENTITY(_entity_buffer.array[i]);
 };
 
 
-auto _DXF_REMOVE_ENTITY = [&](uint32 i) { list_delete_at(&dxf->entities, i); };
+auto _REMOVE_ENTITY = [&](uint32 i) { list_delete_at(&dxf->entities, i); };
 
 // TODO: sort
 // NOTE: arena could be cool here
 // List<uint32> _entity_buffer = {};
 // defer { list_free_AND_zero(&_entity_buffer); };
-// auto DXF_QUEUE_REMOVAL = [&](uint32 i) { list_delete_at(&dxf->entities, i); };
+// auto QUEUE_REMOVAL = [&](uint32 i) { list_delete_at(&dxf->entities, i); };
 
-auto DXF_ENTITY_SET_IS_SELECTED = [&](DXFEntity *entity, bool32 is_selected) {
+auto ENTITY_SET_IS_SELECTED = [&](Entity *entity, bool32 is_selected) {
     if (entity->is_selected != is_selected) {
         result.record_me = true;
         result.checkpoint_me = !((event.type == EVENT_TYPE_MOUSE) && (event.mouse_event.mouse_held)); // FORNOW
@@ -78,11 +78,11 @@ auto DXF_ENTITY_SET_IS_SELECTED = [&](DXFEntity *entity, bool32 is_selected) {
     }
 };
 
-auto DXF_CLEAR_SELECTION_MASK_TO = [&](bool32 is_selected) {
-    _for_each_entity_ DXF_ENTITY_SET_IS_SELECTED(entity, is_selected);
+auto CLEAR_SELECTION_MASK_TO = [&](bool32 is_selected) {
+    _for_each_entity_ ENTITY_SET_IS_SELECTED(entity, is_selected);
 };
 
-auto DXF_ENTITY_SET_COLOR = [&](DXFEntity *entity, uint32 color_code) {
+auto ENTITY_SET_COLOR = [&](Entity *entity, uint32 color_code) {
     if (entity->color_code != color_code) {
         result.record_me = true;
         result.checkpoint_me = true;
@@ -139,7 +139,7 @@ auto POPUP_SET_ACTIVE_CELL_INDEX = [&](uint new_active_cell_index) {
 ///////////
 
 auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
-    bool32 add = ((global_world_state.modes.enter_mode == ENTER_MODE_EXTRUDE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_ADD));
+    bool32 add = ((global_world_state.modes.enter_mode == EnterMode::ExtrudeAdd) || (global_world_state.modes.enter_mode == EnterMode::RevolveAdd));
     if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
         result.record_me = true;
         result.snapshot_me = true;
@@ -167,6 +167,6 @@ auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
     }
 
     // reset some stuff
-    global_world_state.modes.enter_mode = ENTER_MODE_NONE;
-    DXF_CLEAR_SELECTION_MASK_TO(false);
+    global_world_state.modes.enter_mode = EnterMode::None;
+    CLEAR_SELECTION_MASK_TO(false);
 };

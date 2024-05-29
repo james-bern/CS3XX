@@ -1,13 +1,15 @@
+// TODO: enums
+
 // TODO: select connected broken on 10mm filleted 50mm box
 // TODO: restore checkpoint one before on extrudes?
 
-// TODO: something is slow now
+// TODO: something is slow now (3d picking
 
 // TODO: overwrite the tween (bool?) when clicking the mouse
 
 // TODO: fix up the dragging of the mouse while grabbing the popup
 
-// TODO: color -> color_code
+// XXX: color -> color_code
 // TODO: programmatic toggle on Sleep
 
 
@@ -46,17 +48,20 @@
 
 // // things we are almost always unwilling to compromise on
 // zero is initialization
-// keep the tool (line, circle, box, move, ...) code simple, formulaic, and not-clever
+// keep the tool (line_entity, circle, box, move, ...) code simple, formulaic, and not-clever
 // - repetition is fine
 
 // // things i feel weird/uncomfy about
-// i have a type variable and substructs in DXFEntity and Event so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
+// i have a type variable and substructs in Entity and Event so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
 // i have some repetition (grug say hmmm...) HotkeyUserEvent and GUIKeyUserEvent are the same thing... popup MOVE and popup LINE are the same thing...
 
 // // thing we aspire for Conversation to be
 // "juicy"
 // - watch this: https://www.youtube.com/watch?v=Fy0aCDmgnxg
 // - watch this: https://www.youtube.com/watch?v=AJdEqssNZ-U
+
+// // vocab
+// an entity is a line_entity or arc_entity in a dxf
 
 
 // BUG: clicking with sc doesn't do anything sometimes
@@ -75,8 +80,8 @@
 // TODO#define DEBUG_HISTORY_RECORD_EVERYTHING
 // TODO#define DEBUG_HISTORY_CHECKPOINT_EVERYTHING
 // TODO: remove all usage of gui-printf (after folding in cow)
-// NOTE multiple popups is a really easy situation to find self in (start drawing a line then extrude; this seems like a job for much later
-// TODO: dragging hot pane divider
+// NOTE multiple popups is a really easy situation to find self in (start drawing a line_entity then extrude; this seems like a job for much later
+// XXX: dragging hot pane divider
 // TODO: bring cameras into app
 // TODO: possible bug: GUI_MOUSE getting triggered when it shouldn't
 // // TODO: consider recording an event based on whether anything in the state changed
@@ -97,6 +102,7 @@
 
 
 // // TODO: good undergrad tasks
+// TODO: fast picking (something like a BVH)--need arena (mesh should have its own arena)
 // TODO: popup_popup real32 fields automatically parse formulas
 // TODO: ROTATE
 // TODO: COPY
@@ -113,8 +119,8 @@
 // TODO: ERASE (including drawing the eraser circle in pixel coordinates
 // TODO: three click circle
 // TODO: elipse
-// TODO: fillet line-arc
-// TODO: fillet arc-arc
+// TODO: fillet line_entity-arc_entity
+// TODO: fillet arc_entity-arc_entity
 // TODO: power intersect
 // TODO: 1 click intersect
 // TODO: 2 click intersect
@@ -139,7 +145,7 @@
 //////////////////////////////////////////////////
 
 #define _for_each_entity_ for (\
-        DXFEntity *entity = global_world_state.dxf.entities.array;\
+        Entity *entity = global_world_state.dxf.entities.array;\
         entity < &global_world_state.dxf.entities.array[global_world_state.dxf.entities.length];\
         ++entity)
 
@@ -191,9 +197,9 @@ real32 *revolve_cut_dummy        = &popup->revolve_cut_dummy;
 real32 *x_coordinate             = &popup->x_coordinate;
 real32 *y_coordinate             = &popup->y_coordinate;
 uint32 *click_color_code    = &global_world_state.click_color_code;
-uint32 *click_mode     = &global_world_state.modes.click_mode;
+ClickMode *click_mode     = &global_world_state.modes.click_mode;
 uint32 *click_modifier = &global_world_state.modes.click_modifier;
-uint32 *enter_mode     = &global_world_state.modes.enter_mode;
+EnterMode *enter_mode     = &global_world_state.modes.enter_mode;
 vec2 *first_click = &global_world_state.two_click_command.first_click;
 Camera2D *camera_2D = &_global_screen_state.camera_2D;
 Camera3D *camera_3D = &_global_screen_state.camera_3D;
@@ -246,11 +252,11 @@ mat4 get_M_3D_from_2D() {
 // fornow
 
 bool32 click_mode_SELECT_OR_DESELECT() {
-    return ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT));
+    return ((*click_mode == ClickMode::Select) || (*click_mode == ClickMode::Deselect));
 }
 
 bool32 _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
-    return ((click_mode_SELECT_OR_DESELECT() && (*click_modifier != CLICK_MODIFIER_WINDOW)) || (*click_mode == CLICK_MODE_COLOR));
+    return ((click_mode_SELECT_OR_DESELECT() && (*click_modifier != CLICK_MODIFIER_WINDOW)) || (*click_mode == ClickMode::Color));
 }
 
 bool32 _SELECT_OR_DESELECT_COLOR() {
@@ -261,40 +267,40 @@ bool32 _SELECT_OR_DESELECT_COLOR() {
 
 bool32 click_mode_SNAP_ELIGIBLE() {
     return 0
-        || (*click_mode == CLICK_MODE_AXIS)
-        || (*click_mode == CLICK_MODE_BOX)
-        || (*click_mode == CLICK_MODE_CIRCLE)
-        || (*click_mode == CLICK_MODE_LINE)
-        || (*click_mode == CLICK_MODE_MEASURE)
-        || (*click_mode == CLICK_MODE_MOVE)
-        || (*click_mode == CLICK_MODE_ORIGIN)
-        || (*click_mode == CLICK_MODE_X_MIRROR)
-        || (*click_mode == CLICK_MODE_Y_MIRROR)
+        || (*click_mode == ClickMode::Axis)
+        || (*click_mode == ClickMode::Box)
+        || (*click_mode == ClickMode::Circle)
+        || (*click_mode == ClickMode::Line)
+        || (*click_mode == ClickMode::Measure)
+        || (*click_mode == ClickMode::Move)
+        || (*click_mode == ClickMode::Origin)
+        || (*click_mode == ClickMode::MirrorX)
+        || (*click_mode == ClickMode::MirrorY)
         ;
 }
 
 bool32 click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
-        || (*click_mode == CLICK_MODE_AXIS)
-        || (*click_mode == CLICK_MODE_BOX)
-        || (*click_mode == CLICK_MODE_CIRCLE)
-        || (*click_mode == CLICK_MODE_FILLET)
-        || (*click_mode == CLICK_MODE_LINE)
-        || (*click_mode == CLICK_MODE_MEASURE)
-        || (*click_mode == CLICK_MODE_MOVE)
-        || (*click_mode == CLICK_MODE_ORIGIN)
-        || (*click_mode == CLICK_MODE_X_MIRROR)
-        || (*click_mode == CLICK_MODE_Y_MIRROR)
+        || (*click_mode == ClickMode::Axis)
+        || (*click_mode == ClickMode::Box)
+        || (*click_mode == ClickMode::Circle)
+        || (*click_mode == ClickMode::Fillet)
+        || (*click_mode == ClickMode::Line)
+        || (*click_mode == ClickMode::Measure)
+        || (*click_mode == ClickMode::Move)
+        || (*click_mode == ClickMode::Origin)
+        || (*click_mode == ClickMode::MirrorX)
+        || (*click_mode == ClickMode::MirrorY)
         ;
 }
 
 bool32 enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
-        || (*enter_mode == ENTER_MODE_EXTRUDE_ADD)
-        || (*enter_mode == ENTER_MODE_EXTRUDE_CUT)
-        || (*enter_mode == ENTER_MODE_REVOLVE_ADD)
-        || (*enter_mode == ENTER_MODE_REVOLVE_CUT)
-        || (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE)
+        || (*enter_mode == EnterMode::ExtrudeAdd)
+        || (*enter_mode == EnterMode::ExtrudeCut)
+        || (*enter_mode == EnterMode::RevolveAdd)
+        || (*enter_mode == EnterMode::RevolveCut)
+        || (*enter_mode == EnterMode::NudgeFeaturePlane)
         ;
 }
 //////////////////////////////////////////////////
@@ -306,8 +312,8 @@ vec2 magic_snap(vec2 before, bool32 calling_this_function_for_drawing_preview = 
     {
         if (
                 ( 0 
-                  || (*click_mode == CLICK_MODE_LINE)
-                  || (*click_mode == CLICK_MODE_AXIS)
+                  || (*click_mode == ClickMode::Line)
+                  || (*click_mode == ClickMode::Axis)
                 )
                 && (*awaiting_second_click)
                 && (_global_screen_state.shift_held)) {
@@ -319,7 +325,7 @@ vec2 magic_snap(vec2 before, bool32 calling_this_function_for_drawing_preview = 
             real32 theta = roundf(atan2(r) * factor) / factor;
             result = a + norm_r * e_theta(theta);
         } else if (
-                (*click_mode == CLICK_MODE_BOX)
+                (*click_mode == ClickMode::Box)
                 && (*awaiting_second_click)
                 && (_global_screen_state.shift_held)) {
             // TODO (Felipe): snap square
@@ -328,14 +334,14 @@ vec2 magic_snap(vec2 before, bool32 calling_this_function_for_drawing_preview = 
             if (*click_modifier == CLICK_MODIFIER_SNAP_TO_CENTER_OF) {
                 real32 min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
-                    if (entity->type == DXF_ENTITY_TYPE_LINE) {
+                    if (entity->type == ENTITY_TYPE_LINE) {
                         continue;
-                    } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                        DXFArc *arc = &entity->arc;
-                        real32 squared_distance = squared_distance_point_dxf_arc(before.x, before.y, arc);
+                    } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                        ArcEntity *arc_entity = &entity->arc_entity;
+                        real32 squared_distance = squared_distance_point_dxf_arc(before.x, before.y, arc_entity);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
-                            result = arc->center;
+                            result = arc_entity->center;
                         }
                     }
                 }
@@ -845,7 +851,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             break;
         }
     }
-    bool32 value_to_write_to_selection_mask = (*click_mode == CLICK_MODE_SELECT);
+    bool32 value_to_write_to_selection_mask = (*click_mode == ClickMode::Select);
 
     StandardEventProcessResult result = {};
 
@@ -879,49 +885,49 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_COLOR)) { // [sd]q0
                         _for_each_entity_ {
                             if (entity->color_code != digit) continue;
-                            DXF_ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
+                            ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                         }
-                        *click_mode = CLICK_MODE_NONE;
+                        *click_mode = ClickMode::None;
                         *click_modifier = CLICK_MODIFIER_NONE;
-                    } else if ((*click_mode == CLICK_MODE_COLOR) && (*click_modifier == CLICK_MODIFIER_SELECTED)) { // qs0
-                        _for_each_selected_entity_ DXF_ENTITY_SET_COLOR(entity, digit);
-                        *click_mode = CLICK_MODE_NONE;
+                    } else if ((*click_mode == ClickMode::Color) && (*click_modifier == CLICK_MODIFIER_SELECTED)) { // qs0
+                        _for_each_selected_entity_ ENTITY_SET_COLOR(entity, digit);
+                        *click_mode = ClickMode::None;
                         *click_modifier = CLICK_MODIFIER_NONE;
                         _for_each_entity_ entity->is_selected = false;
                     } else { // 0
                         result.record_me = true;
-                        *click_mode = CLICK_MODE_COLOR;
+                        *click_mode = ClickMode::Color;
                         *click_color_code = digit;
                         *click_modifier = CLICK_MODIFIER_NONE;
                     }
                 } else if (key_lambda('A')) {
                     if (click_mode_SELECT_OR_DESELECT()) {
                         result.checkpoint_me = true;
-                        DXF_CLEAR_SELECTION_MASK_TO(*click_mode == CLICK_MODE_SELECT);
-                        *click_mode = CLICK_MODE_NONE;
+                        CLEAR_SELECTION_MASK_TO(*click_mode == ClickMode::Select);
+                        *click_mode = ClickMode::None;
                         *click_modifier = CLICK_MODIFIER_NONE;
                     }
                 } else if (key_lambda('A', false, true)) {
-                    *click_mode = CLICK_MODE_AXIS;
+                    *click_mode = ClickMode::Axis;
                     *click_modifier = CLICK_MODIFIER_NONE;
                     *awaiting_second_click = false;
                 } else if (key_lambda('B')) {
-                    *click_mode = CLICK_MODE_BOX;
+                    *click_mode = ClickMode::Box;
                     *click_modifier = CLICK_MODIFIER_NONE;
                     *awaiting_second_click = false;
                 } else if (key_lambda('C')) {
-                    if (((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) && (*click_modifier != CLICK_MODIFIER_CONNECTED)) {
+                    if (((*click_mode == ClickMode::Select) || (*click_mode == ClickMode::Deselect)) && (*click_modifier != CLICK_MODIFIER_CONNECTED)) {
                         *click_modifier = CLICK_MODIFIER_CONNECTED;
                     } else if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
                         *click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
                     } else {
-                        *click_mode = CLICK_MODE_CIRCLE;
+                        *click_mode = ClickMode::Circle;
                         *click_modifier = CLICK_MODIFIER_NONE;
                         *awaiting_second_click = false;
                     }
                 } else if (key_lambda('D')) {
-                    *click_mode = CLICK_MODE_DESELECT;
+                    *click_mode = ClickMode::Deselect;
                     *click_modifier = CLICK_MODIFIER_NONE;
                 } else if (key_lambda('E')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
@@ -929,9 +935,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         *click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
                     }
                 } else if (key_lambda('F')) {
-                    *click_mode = CLICK_MODE_FILLET;
+                    *click_mode = ClickMode::Fillet;
                     *click_modifier = CLICK_MODIFIER_NONE;
-                    *enter_mode = ENTER_MODE_NONE;
+                    *enter_mode = EnterMode::None;
                     *awaiting_second_click = false;
                 } else if (key_lambda('G')) {
                     result.record_me = false;
@@ -946,7 +952,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.record_me = false;
                     _global_screen_state.hide_gui = !_global_screen_state.hide_gui;
                 } else if (key_lambda('L')) {
-                    *click_mode = CLICK_MODE_LINE;
+                    *click_mode = ClickMode::Line;
                     *click_modifier = CLICK_MODIFIER_NONE;
                     *awaiting_second_click = false;
                 } else if (key_lambda('M')) {
@@ -954,18 +960,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.record_me = false;
                         *click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
                     } else {
-                        *click_mode = CLICK_MODE_MOVE;
+                        *click_mode = ClickMode::Move;
                         *click_modifier = CLICK_MODIFIER_NONE;
                         *awaiting_second_click = false;
                     }
                 } else if (key_lambda('M', false, true)) {
                     result.record_me = false;
-                    *click_mode = CLICK_MODE_MEASURE;
+                    *click_mode = ClickMode::Measure;
                     *click_modifier = CLICK_MODIFIER_NONE;
                     *awaiting_second_click = false;
                 } else if (key_lambda('N')) {
                     if (feature_plane->is_active) {
-                        *enter_mode = ENTER_MODE_NUDGE_FEATURE_PLANE;
+                        *enter_mode = EnterMode::NudgeFeaturePlane;
                         *preview_feature_plane_offset = 0.0f; // FORNOW
                     } else {
                         conversation_messagef("[n] no plane is_selected");
@@ -981,37 +987,37 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     mesh_free_AND_zero(mesh);
                     *feature_plane = {};
                 } else if (key_lambda('O', true)) {
-                    *enter_mode = ENTER_MODE_OPEN;
+                    *enter_mode = EnterMode::Open;
                 } else if (key_lambda('Q')) {
                     if (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_NONE)) {
                         *click_modifier = CLICK_MODIFIER_COLOR;
                     } else {
-                        *click_mode = CLICK_MODE_COLOR;
+                        *click_mode = ClickMode::Color;
                         *click_modifier = CLICK_MODIFIER_NONE;
                     }
                 } else if (key_lambda('Q', true)) {
                     exit(1);
                 } else if (key_lambda('S')) {
-                    if (*click_mode != CLICK_MODE_COLOR) {
-                        *click_mode = CLICK_MODE_SELECT;
+                    if (*click_mode != ClickMode::Color) {
+                        *click_mode = ClickMode::Select;
                         *click_modifier = CLICK_MODIFIER_NONE;
                     } else {
                         *click_modifier = CLICK_MODIFIER_SELECTED;
                     }
                 } else if (key_lambda('S', true)) {
                     result.record_me = false;
-                    *enter_mode = ENTER_MODE_SAVE;
+                    *enter_mode = EnterMode::Save;
                 } else if (key_lambda('W')) {
-                    if ((*click_mode == CLICK_MODE_SELECT) || (*click_mode == CLICK_MODE_DESELECT)) {
+                    if ((*click_mode == ClickMode::Select) || (*click_mode == ClickMode::Deselect)) {
                         *click_modifier = CLICK_MODIFIER_WINDOW;
                         *awaiting_second_click = false;
                     }
                 } else if (key_lambda('X')) {
-                    if (*click_mode != CLICK_MODE_NONE) {
+                    if (*click_mode != ClickMode::None) {
                         *click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
                     }
                 } else if (key_lambda('X', false, true)) {
-                    *click_mode = CLICK_MODE_X_MIRROR;
+                    *click_mode = ClickMode::MirrorX;
                     *click_modifier = CLICK_MODIFIER_NONE;
                 } else if (key_lambda('X', true, true)) {
                     result.record_me = false;
@@ -1030,7 +1036,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->normal = { 0.0f, 1.0f, 0.0f };
                     }
                 } else if (key_lambda('Y', false, true)) {
-                    *click_mode = CLICK_MODE_Y_MIRROR;
+                    *click_mode = ClickMode::MirrorY;
                     *click_modifier = CLICK_MODIFIER_NONE;
                 } else if (key_lambda('Z')) {
                     Event equivalent = {};
@@ -1039,24 +1045,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // .mouse_position = {};
                     return _standard_event_process_NOTE_RECURSIVE(equivalent);
                 } else if (key_lambda('Z', false, true)) {
-                    *click_mode = CLICK_MODE_ORIGIN;
+                    *click_mode = ClickMode::Origin;
                     *click_modifier = CLICK_MODIFIER_NONE;
                 } else if (key_lambda(' ')) {
+                    *click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
                     return _standard_event_process_NOTE_RECURSIVE(*space_bar_event);
                 } else if (key_lambda(' ', false, true)) {
                     return _standard_event_process_NOTE_RECURSIVE(*shift_space_bar_event);
                 } else if (key_lambda('[')) {
-                    *enter_mode = ENTER_MODE_EXTRUDE_ADD;
+                    *enter_mode = EnterMode::ExtrudeAdd;
                     *preview_extrude_in_length = 0; // FORNOW
                     *preview_extrude_out_length = 0; // FORNOW
                 } else if (key_lambda('[', false, true)) {
-                    *enter_mode = ENTER_MODE_EXTRUDE_CUT;
+                    *enter_mode = EnterMode::ExtrudeCut;
                     *preview_extrude_in_length = 0; // FORNOW
                     *preview_extrude_out_length = 0; // FORNOW
                 } else if (key_lambda(']')) {
-                    *enter_mode = ENTER_MODE_REVOLVE_ADD;
+                    *enter_mode = EnterMode::RevolveAdd;
                 } else if (key_lambda(']', false, true)) {
-                    *enter_mode = ENTER_MODE_REVOLVE_CUT;
+                    *enter_mode = EnterMode::RevolveCut;
                 } else if (key_lambda('.')) { 
                     result.record_me = false;
                     _global_screen_state.show_details = !_global_screen_state.show_details;
@@ -1069,7 +1076,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(COW_KEY_DELETE)) {
                     for (int32 i = dxf->entities.length - 1; i >= 0; --i) {
                         if (dxf->entities.array[i].is_selected) {
-                            _DXF_REMOVE_ENTITY(i);
+                            _REMOVE_ENTITY(i);
                         }
                     }
                 } else if (key_lambda('/', false, true)) {
@@ -1209,7 +1216,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             MouseEvent2D *mouse_event_2D = &mouse_event->mouse_event_2D;
 
             result.record_me = true;
-            if (*click_mode == CLICK_MODE_MEASURE) result.record_me = false;
+            if (*click_mode == ClickMode::Measure) result.record_me = false;
             if (mouse_event->mouse_held) result.record_me = false;
 
             vec2 *mouse = &mouse_event_2D->mouse_position;
@@ -1218,13 +1225,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_WINDOW));
 
             bool32 click_mode_TWO_CLICK_COMMAND = 0 ||
-                (*click_mode == CLICK_MODE_AXIS) ||
-                (*click_mode == CLICK_MODE_MEASURE) ||
-                (*click_mode == CLICK_MODE_LINE) ||
-                (*click_mode == CLICK_MODE_BOX) ||
-                (*click_mode == CLICK_MODE_CIRCLE) ||
-                (*click_mode == CLICK_MODE_FILLET) ||
-                (*click_mode == CLICK_MODE_MOVE) ||
+                (*click_mode == ClickMode::Axis) ||
+                (*click_mode == ClickMode::Measure) ||
+                (*click_mode == ClickMode::Line) ||
+                (*click_mode == ClickMode::Box) ||
+                (*click_mode == ClickMode::Circle) ||
+                (*click_mode == ClickMode::Fillet) ||
+                (*click_mode == ClickMode::Move) ||
                 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT; // fornow wonky case
 
             // fornow window wonky case
@@ -1234,9 +1241,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (hot_entity_index != -1) {
                     if (*click_modifier != CLICK_MODIFIER_CONNECTED) {
                         if (click_mode_SELECT_OR_DESELECT()) {
-                            DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+                            ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
                         } else {
-                            DXF_ENTITY_SET_COLOR(&dxf->entities.array[hot_entity_index], *click_color_code);
+                            ENTITY_SET_COLOR(&dxf->entities.array[hot_entity_index], *click_color_code);
                         }
                     } else {
                         #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -1288,7 +1295,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             };
 
                             for (uint32 entity_index = 0; entity_index < global_world_state.dxf.entities.length; ++entity_index) {
-                                DXFEntity *entity = &global_world_state.dxf.entities.array[entity_index];
+                                Entity *entity = &global_world_state.dxf.entities.array[entity_index];
 
                                 real32 start_x, start_y, end_x, end_y;
                                 entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
@@ -1311,7 +1318,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 if (other_endpoint) end_NOT_start = !end_NOT_start;
                             }
                             real32 x, y; {
-                                DXFEntity *entity = &global_world_state.dxf.entities.array[point->entity_index];
+                                Entity *entity = &global_world_state.dxf.entities.array[point->entity_index];
                                 if (end_NOT_start) {
                                     entity_get_end_point(entity, &x, &y);
                                 } else {
@@ -1338,7 +1345,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
                         edge_marked[hot_entity_index] = true;
-                        DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+                        ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
 
                         for (uint32 pass = 0; pass <= 1; ++pass) {
 
@@ -1355,7 +1362,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
                             while (true) {
                                 if (curr == NULL) break;
-                                DXF_ENTITY_SET_IS_SELECTED(&dxf->entities.array[curr->entity_index], value_to_write_to_selection_mask);
+                                ENTITY_SET_IS_SELECTED(&dxf->entities.array[curr->entity_index], value_to_write_to_selection_mask);
                                 edge_marked[curr->entity_index] = true;
                                 curr = get_any_point_not_part_of_an_marked_entity(get_key(curr, true)); // get other end
                                 if (curr == NULL) break;
@@ -1385,7 +1392,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
                         uint32 num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
                         for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
-                            DXF_ENTITY_SET_IS_SELECTED(&dxf->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
+                            ENTITY_SET_IS_SELECTED(&dxf->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
                         }
                         #endif
                     }
@@ -1397,20 +1404,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         *first_click = mouse_event_2D->mouse_position;
                         if (*click_modifier != CLICK_MODIFIER_WINDOW) *click_modifier = CLICK_MODIFIER_NONE;
                     } else {
-                        if (*click_mode == CLICK_MODE_MEASURE) {
+                        if (*click_mode == ClickMode::Measure) {
                             *awaiting_second_click = false;
-                            *click_mode = CLICK_MODE_NONE;
+                            *click_mode = ClickMode::None;
                             *click_modifier = CLICK_MODIFIER_NONE;
                             real32 angle = DEG(atan2(*second_click - *first_click));
                             if (angle < 0.0f) angle += 360.0f;
                             conversation_messagef("[measure] %gmm %gdeg", norm(*second_click - *first_click), angle);
-                        } else if (*click_mode == CLICK_MODE_LINE) {
+                        } else if (*click_mode == ClickMode::Line) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
-                            *click_mode = CLICK_MODE_NONE;
+                            *click_mode = ClickMode::None;
                             *click_modifier = CLICK_MODIFIER_NONE;
-                            DXF_ADD_LINE(*first_click, *second_click);
-                        } else if (*click_mode == CLICK_MODE_BOX) {
+                            ADD_LINE_ENTITY(*first_click, *second_click);
+                        } else if (*click_mode == ClickMode::Box) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
                                 conversation_messagef("[box] must have non-zero width ");
                             } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
@@ -1418,53 +1425,53 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             } else {
                                 *awaiting_second_click = false;
                                 result.checkpoint_me = true;
-                                *click_mode = CLICK_MODE_NONE;
+                                *click_mode = ClickMode::None;
                                 *click_modifier = CLICK_MODIFIER_NONE;
                                 vec2 other_corner_A = { first_click->x, second_click->y };
                                 vec2 other_corner_B = { second_click->x, first_click->y };
-                                DXF_ADD_LINE(*first_click,  other_corner_A);
-                                DXF_ADD_LINE(*first_click,  other_corner_B);
-                                DXF_ADD_LINE(*second_click, other_corner_A);
-                                DXF_ADD_LINE(*second_click, other_corner_B);
+                                ADD_LINE_ENTITY(*first_click,  other_corner_A);
+                                ADD_LINE_ENTITY(*first_click,  other_corner_B);
+                                ADD_LINE_ENTITY(*second_click, other_corner_A);
+                                ADD_LINE_ENTITY(*second_click, other_corner_B);
                             }
-                        } else if (*click_mode == CLICK_MODE_MOVE) {
+                        } else if (*click_mode == ClickMode::Move) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
-                            *click_mode = CLICK_MODE_NONE;
+                            *click_mode = ClickMode::None;
                             *click_modifier = CLICK_MODIFIER_NONE;
                             vec2 ds = *second_click - *first_click;
                             _for_each_selected_entity_ {
-                                if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                                    DXFLine *line = &entity->line;
-                                    line->start += ds;
-                                    line->end   += ds;
-                                } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                                    DXFArc *arc = &entity->arc;
-                                    arc->center += ds;
+                                if (entity->type == ENTITY_TYPE_LINE) {
+                                    LineEntity *line_entity = &entity->line_entity;
+                                    line_entity->start += ds;
+                                    line_entity->end   += ds;
+                                } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                                    ArcEntity *arc_entity = &entity->arc_entity;
+                                    arc_entity->center += ds;
                                 }
                             }
-                        } else if (*click_mode == CLICK_MODE_CIRCLE) {
+                        } else if (*click_mode == ClickMode::Circle) {
                             if (IS_ZERO(norm(*first_click - *second_click))) {
                                 conversation_messagef("[circle] must have non-zero diameter");
                             } else {
                                 *awaiting_second_click = false;
                                 result.checkpoint_me = true;
-                                *click_mode = CLICK_MODE_NONE;
+                                *click_mode = ClickMode::None;
                                 *click_modifier = CLICK_MODIFIER_NONE;
                                 real32 theta_a_in_degrees = DEG(atan2(*second_click - *first_click));
                                 real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real32 r = norm(*second_click - *first_click);
-                                DXF_ADD_ARC(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
-                                DXF_ADD_ARC(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
+                                ADD_ARC_ENTITY(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
+                                ADD_ARC_ENTITY(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
                             }
-                        } else if (*click_mode == CLICK_MODE_AXIS) {
+                        } else if (*click_mode == ClickMode::Axis) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
-                            *click_mode = CLICK_MODE_NONE;
+                            *click_mode = ClickMode::None;
                             *click_modifier = CLICK_MODIFIER_NONE;
                             dxf->axis_base_point = *first_click;
                             dxf->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
-                        } else if (*click_mode == CLICK_MODE_FILLET) {
+                        } else if (*click_mode == ClickMode::Fillet) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
                             *click_modifier = CLICK_MODIFIER_NONE;
@@ -1472,9 +1479,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             int j = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_event_2D->mouse_position.x, mouse_event_2D->mouse_position.y);
                             if ((i != j) && (i != -1) && (j != -1)) {
                                 real32 radius = *fillet_radius;
-                                DXFEntity *E_i = &dxf->entities.array[i];
-                                DXFEntity *E_j = &dxf->entities.array[j];
-                                if ((E_i->type == DXF_ENTITY_TYPE_LINE) && (E_j->type == DXF_ENTITY_TYPE_LINE)) {
+                                Entity *E_i = &dxf->entities.array[i];
+                                Entity *E_j = &dxf->entities.array[j];
+                                if ((E_i->type == ENTITY_TYPE_LINE) && (E_j->type == ENTITY_TYPE_LINE)) {
                                     vec2 a, b, c, d;
                                     entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
                                     entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
@@ -1527,11 +1534,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                             uint32 color_i = E_i->color_code;
                                             uint32 color_j = E_j->color_code;
-                                            _DXF_REMOVE_ENTITY(MAX(i, j));
-                                            _DXF_REMOVE_ENTITY(MIN(i, j));
+                                            _REMOVE_ENTITY(MAX(i, j));
+                                            _REMOVE_ENTITY(MIN(i, j));
 
-                                            DXF_ADD_LINE(s_ab, t_ab, false, color_i);
-                                            DXF_ADD_LINE(s_cd, t_cd, false, color_j);
+                                            ADD_LINE_ENTITY(s_ab, t_ab, false, color_i);
+                                            ADD_LINE_ENTITY(s_cd, t_cd, false, color_j);
 
                                             real32 theta_ab_in_degrees = DEG(atan2(t_ab - center));
                                             real32 theta_cd_in_degrees = DEG(atan2(t_cd - center));
@@ -1546,12 +1553,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                                 // TODO: consider tabbing to create chamfer
 
-                                                DXF_ADD_ARC(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
+                                                ADD_ARC_ENTITY(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
                                             }
                                         }
                                     }
                                 } else {
-                                    conversation_messagef("TODO: line-arc fillet; arc-arc fillet");
+                                    conversation_messagef("TODO: line_entity-arc_entity fillet; arc_entity-arc_entity fillet");
                                 }
                             }
                         } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
@@ -1564,69 +1571,69 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             };
                             _for_each_entity_ {
                                 if (bounding_box_contains(window, dxf_entity_get_bounding_box(entity))) {
-                                    DXF_ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
+                                    ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                                 }
                             }
                         }
                     }
                 } else {
-                    if (*click_mode == CLICK_MODE_ORIGIN) {
+                    if (*click_mode == ClickMode::Origin) {
                         result.checkpoint_me = true;
-                        *click_mode = CLICK_MODE_NONE;
+                        *click_mode = ClickMode::None;
                         *click_modifier = CLICK_MODIFIER_NONE;
                         dxf->origin = *mouse;
-                    } else if (*click_mode == CLICK_MODE_X_MIRROR) {
+                    } else if (*click_mode == ClickMode::MirrorX) {
                         result.checkpoint_me = true;
-                        *click_mode = CLICK_MODE_NONE;
+                        *click_mode = ClickMode::None;
                         *click_modifier = CLICK_MODIFIER_NONE;
                         _for_each_selected_entity_ {
-                            if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                                DXFLine *line = &entity->line;
-                                DXF_BUFFER_LINE(
-                                        V2(-(line->start.x - mouse->x) + mouse->x, line->start.y),
-                                        V2(-(line->end.x - mouse->x) + mouse->x, line->end.y),
+                            if (entity->type == ENTITY_TYPE_LINE) {
+                                LineEntity *line_entity = &entity->line_entity;
+                                BUFFER_LINE_ENTITY(
+                                        V2(-(line_entity->start.x - mouse->x) + mouse->x, line_entity->start.y),
+                                        V2(-(line_entity->end.x - mouse->x) + mouse->x, line_entity->end.y),
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                                DXFArc *arc = &entity->arc;
-                                DXF_BUFFER_ARC(
-                                        V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
-                                        arc->radius,
-                                        arc->end_angle_in_degrees, // TODO
-                                        arc->start_angle_in_degrees, // TODO
+                            } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                                ArcEntity *arc_entity = &entity->arc_entity;
+                                BUFFER_ARC_ENTITY(
+                                        V2(-(arc_entity->center.x - mouse->x) + mouse->x, arc_entity->center.y),
+                                        arc_entity->radius,
+                                        arc_entity->end_angle_in_degrees, // TODO
+                                        arc_entity->start_angle_in_degrees, // TODO
                                         true,
                                         entity->color_code); // FORNOW + 180
                             }
                             entity->is_selected = false;
                         }
-                        DXF_ADD_BUFFERED_ENTITIES();
-                    } else if (*click_mode == CLICK_MODE_Y_MIRROR) {
+                        ADD_BUFFERED_ENTITIES();
+                    } else if (*click_mode == ClickMode::MirrorY) {
                         result.checkpoint_me = true;
-                        *click_mode = CLICK_MODE_NONE;
+                        *click_mode = ClickMode::None;
                         *click_modifier = CLICK_MODIFIER_NONE;
                         _for_each_selected_entity_ {
-                            if (entity->type == DXF_ENTITY_TYPE_LINE) {
-                                DXFLine *line = &entity->line;
-                                DXF_BUFFER_LINE(
-                                        V2(line->start.x, -(line->start.y - mouse->y) + mouse->y),
-                                        V2(line->end.x, -(line->end.y - mouse->y) + mouse->y),
+                            if (entity->type == ENTITY_TYPE_LINE) {
+                                LineEntity *line_entity = &entity->line_entity;
+                                BUFFER_LINE_ENTITY(
+                                        V2(line_entity->start.x, -(line_entity->start.y - mouse->y) + mouse->y),
+                                        V2(line_entity->end.x, -(line_entity->end.y - mouse->y) + mouse->y),
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == DXF_ENTITY_TYPE_ARC);
-                                DXFArc *arc = &entity->arc;
-                                DXF_BUFFER_ARC(
-                                        V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
-                                        arc->radius,
-                                        arc->end_angle_in_degrees, // TODO
-                                        arc->start_angle_in_degrees, // TODO
+                            } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                                ArcEntity *arc_entity = &entity->arc_entity;
+                                BUFFER_ARC_ENTITY(
+                                        V2(arc_entity->center.x, -(arc_entity->center.y - mouse->y) + mouse->y),
+                                        arc_entity->radius,
+                                        arc_entity->end_angle_in_degrees, // TODO
+                                        arc_entity->start_angle_in_degrees, // TODO
                                         true,
                                         entity->color_code); // FORNOW + 180
                             }
                             entity->is_selected = false;
                         }
-                        DXF_ADD_BUFFERED_ENTITIES();
+                        ADD_BUFFERED_ENTITIES();
                     }
                 }
             }
@@ -1704,7 +1711,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     { // popup_popup
         static char full_filename_scratch_buffer[512];
 
-        uint32 _enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter = *enter_mode;
+        EnterMode _enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter = *enter_mode;
         bool32 popup_popup_actually_called_this_event = false;
         #include "popup_lambda.cpp"
         { // popup_popup
@@ -1719,7 +1726,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
 
-            if (*enter_mode == ENTER_MODE_OPEN) {
+            if (*enter_mode == EnterMode::Open) {
                 sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, open_filename);
                 popup_popup(false,
                         POPUP_CELL_TYPE_CSTRING, "open_filename", open_filename);
@@ -1730,27 +1737,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.snapshot_me = true;
                         conversation_dxf_load(full_filename_scratch_buffer,
                                 skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
-                        *enter_mode = ENTER_MODE_NONE;
+                        *enter_mode = EnterMode::None;
                     } else if (poe_suffix_match(full_filename_scratch_buffer, ".stl")) {
                         result.record_me = true;
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
                         conversation_stl_load(full_filename_scratch_buffer);
-                        *enter_mode = ENTER_MODE_NONE;
+                        *enter_mode = EnterMode::None;
                     } else {
                         conversation_messagef("[open] \"%s\" not found", full_filename_scratch_buffer);
                     }
                 }
-            } else if (*enter_mode == ENTER_MODE_SAVE) {
+            } else if (*enter_mode == EnterMode::Save) {
                 result.record_me = false;
                 sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, save_filename);
                 popup_popup(false,
                         POPUP_CELL_TYPE_CSTRING, "save_filename", save_filename);
                 if (gui_key_enter) {
                     conversation_save(full_filename_scratch_buffer);
-                    *enter_mode = ENTER_MODE_NONE;
+                    *enter_mode = EnterMode::None;
                 }
-            } else if (*enter_mode == ENTER_MODE_EXTRUDE_ADD) {
+            } else if (*enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
                         POPUP_CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
                         POPUP_CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
@@ -1766,7 +1773,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         conversation_messagef("[extrude-add] success");
                     }
                 }
-            } else if (*enter_mode == ENTER_MODE_EXTRUDE_CUT) {
+            } else if (*enter_mode == EnterMode::ExtrudeCut) {
                 popup_popup(true,
                         POPUP_CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
                         POPUP_CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
@@ -1784,7 +1791,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         conversation_messagef("[extrude-cut] success");
                     }
                 }
-            } else if (*enter_mode == ENTER_MODE_REVOLVE_ADD) {
+            } else if (*enter_mode == EnterMode::RevolveAdd) {
                 popup_popup(true, POPUP_CELL_TYPE_REAL32, "revolve_add_dummy", revolve_add_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
@@ -1796,7 +1803,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         conversation_messagef("[revolve-add] success");
                     }
                 }
-            } else if (*enter_mode == ENTER_MODE_REVOLVE_CUT) {
+            } else if (*enter_mode == EnterMode::RevolveCut) {
                 popup_popup(true, POPUP_CELL_TYPE_REAL32, "revolve_cut_dummy", revolve_cut_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
@@ -1810,14 +1817,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         conversation_messagef("[revolve-cut] success");
                     }
                 }
-            } else if (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) {
+            } else if (*enter_mode == EnterMode::NudgeFeaturePlane) {
                 popup_popup(true,
                         POPUP_CELL_TYPE_REAL32, "feature_plane_nudge", feature_plane_nudge);
                 if (gui_key_enter) {
                     result.record_me = true;
                     result.checkpoint_me = true;
                     feature_plane->signed_distance_to_world_origin += *feature_plane_nudge;
-                    *enter_mode = ENTER_MODE_NONE;
+                    *enter_mode = EnterMode::None;
                 }
             } else if (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
@@ -1829,7 +1836,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     *click_modifier = CLICK_MODIFIER_NONE;
                     return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(*x_coordinate, *y_coordinate));
                 }
-            } else if (*click_mode == CLICK_MODE_CIRCLE) {
+            } else if (*click_mode == ClickMode::Circle) {
                 if (*awaiting_second_click) {
                     real32 prev_circle_diameter = *circle_diameter;
                     real32 prev_circle_radius = *circle_radius;
@@ -1853,7 +1860,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-            } else if (*click_mode == CLICK_MODE_LINE) {
+            } else if (*click_mode == ClickMode::Line) {
                 if (*awaiting_second_click) {
                     real32 prev_line_length = *line_length;
                     real32 prev_line_angle = *line_angle;
@@ -1877,7 +1884,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-            } else if (*click_mode == CLICK_MODE_BOX) {
+            } else if (*click_mode == ClickMode::Box) {
                 if (*awaiting_second_click) {
                     popup_popup(true,
                             POPUP_CELL_TYPE_REAL32, "box_width", box_width,
@@ -1886,7 +1893,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *box_width, first_click->y + *box_height));
                     }
                 }
-            } else if (*click_mode == CLICK_MODE_MOVE) {
+            } else if (*click_mode == ClickMode::Move) {
                 // FORNOW: this is repeated from LINE
                 if (*awaiting_second_click) {
                     real32 prev_move_length = *move_length;
@@ -1911,14 +1918,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-            } else if (*click_mode == CLICK_MODE_FILLET) {
+            } else if (*click_mode == ClickMode::Fillet) {
                 popup_popup(false,
                         POPUP_CELL_TYPE_REAL32, "fillet_radius", fillet_radius);
             }
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
           // NOTE: we need to do this so that the next key event doesn't get eaten by a dead popup
-            bool32 enter_mode_transitioned_to_ENTER_MODE_NONE = ((_enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter != ENTER_MODE_NONE) && (*enter_mode == ENTER_MODE_NONE));
+            bool32 enter_mode_transitioned_to_ENTER_MODE_NONE = ((_enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter != EnterMode::None) && (*enter_mode == EnterMode::None));
             if (0
                     || (!popup_popup_actually_called_this_event)
                     || enter_mode_transitioned_to_ENTER_MODE_NONE
@@ -2237,10 +2244,10 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, _global_screen_state.mouse_NDC);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
-    bool32 extruding = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT));
-    bool32 revolving = ((*enter_mode == ENTER_MODE_REVOLVE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
-    bool32 adding     = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD));
-    bool32 cutting     = ((*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
+    bool32 extruding = ((*enter_mode == EnterMode::ExtrudeAdd) || (*enter_mode == EnterMode::ExtrudeCut));
+    bool32 revolving = ((*enter_mode == EnterMode::RevolveAdd) || (*enter_mode == EnterMode::RevolveCut));
+    bool32 adding     = ((*enter_mode == EnterMode::ExtrudeAdd) || (*enter_mode == EnterMode::RevolveAdd));
+    bool32 cutting     = ((*enter_mode == EnterMode::ExtrudeCut) || (*enter_mode == EnterMode::RevolveCut));
 
     // FORNOW: repeated computation; TODO function
     bool32 dxf_anything_selected;
@@ -2264,14 +2271,14 @@ void conversation_draw() {
     }
     // TODO
     { // preview_feature_plane_offset
-        real32 target = (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) ? *feature_plane_nudge : 0.0f;
+        real32 target = (*enter_mode == EnterMode::NudgeFeaturePlane) ? *feature_plane_nudge : 0.0f;
         JUICE_IT_EASY_TWEEN(preview_feature_plane_offset, target);
     }
 
     // preview
     vec2 preview_mouse = magic_snap(mouse_World_2D, true);
     vec2 preview_dxf_origin; {
-        if (*click_mode != CLICK_MODE_ORIGIN) {
+        if (*click_mode != ClickMode::Origin) {
             preview_dxf_origin = dxf->origin;
         } else {
             preview_dxf_origin = preview_mouse;
@@ -2280,7 +2287,7 @@ void conversation_draw() {
     vec2 preview_dxf_axis_base_point;
     real32 preview_dxf_axis_angle_from_y;
     {
-        if (*click_mode != CLICK_MODE_AXIS) {
+        if (*click_mode != ClickMode::Axis) {
             preview_dxf_axis_base_point = global_world_state.dxf.axis_base_point;
             preview_dxf_axis_angle_from_y = global_world_state.dxf.axis_angle_from_y;
         } else if (!*awaiting_second_click) {
@@ -2376,14 +2383,14 @@ void conversation_draw() {
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
-                    uint32 color_code = (!entity->is_selected) ? entity->color_code : DXF_COLOR_CODE_SELECTION;
+                    uint32 color_code = (!entity->is_selected) ? entity->color_code : COLOR_CODE_SELECTION;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
-                    if ((*click_mode == CLICK_MODE_MOVE) && (*awaiting_second_click)) {
+                    if ((*click_mode == ClickMode::Move) && (*awaiting_second_click)) {
                         if (entity->is_selected) {
                             dx = preview_mouse.x - first_click->x;
                             dy = preview_mouse.y - first_click->y;
-                            color_code = DXF_COLOR_CODE_WATER_ONLY;
+                            color_code = COLOR_CODE_WATER_ONLY;
                         }
                     }
                     eso_color(get_color(color_code));
@@ -2409,7 +2416,7 @@ void conversation_draw() {
                 if (
                         0
                         || (*click_modifier == CLICK_MODIFIER_WINDOW)
-                        ||(*click_mode == CLICK_MODE_BOX )
+                        ||(*click_mode == ClickMode::Box )
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
@@ -2419,21 +2426,21 @@ void conversation_draw() {
                     eso_vertex(first_click->x, preview_mouse.y);
                     eso_end();
                 }
-                if (*click_mode == CLICK_MODE_MEASURE) { // measure line
+                if (*click_mode == ClickMode::Measure) { // measure line_entity
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(*first_click);
                     eso_vertex(preview_mouse);
                     eso_end();
                 }
-                if (*click_mode == CLICK_MODE_LINE) { // measure line
+                if (*click_mode == ClickMode::Line) { // measure line_entity
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(*first_click);
                     eso_vertex(preview_mouse);
                     eso_end();
                 }
-                if (*click_mode == CLICK_MODE_CIRCLE) {
+                if (*click_mode == ClickMode::Circle) {
                     vec2 c = { global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y };
                     vec2 p = preview_mouse;
                     real32 r = norm(c - p);
@@ -2442,12 +2449,12 @@ void conversation_draw() {
                     for (uint32 i = 0; i < NUM_SEGMENTS_PER_CIRCLE; ++i) eso_vertex(c + r * e_theta(NUM_DEN(i, NUM_SEGMENTS_PER_CIRCLE) * TAU));
                     eso_end();
                 }
-                if (*click_mode == CLICK_MODE_FILLET) {
+                if (*click_mode == ClickMode::Fillet) {
                     // FORNOW
                     int i = dxf_find_closest_entity(&global_world_state.dxf.entities, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
                     if (i != -1) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(DXF_COLOR_CODE_WATER_ONLY));
+                        eso_color(get_color(COLOR_CODE_WATER_ONLY));
                         eso_dxf_entity__SOUP_LINES(&global_world_state.dxf.entities.array[i]);
                         eso_end();
                     }
@@ -2470,11 +2477,11 @@ void conversation_draw() {
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
             // FORNOW
-            bool32 moving_stuff = ((*click_mode == CLICK_MODE_ORIGIN) || (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE));
+            bool32 moving_stuff = ((*click_mode == ClickMode::Origin) || (*enter_mode == EnterMode::NudgeFeaturePlane));
             vec3 target_preview_tubes_color = (0) ? V3(0)
-                : (adding) ? get_color(DXF_COLOR_CODE_TRAVERSE)
-                : (cutting) ? get_color(DXF_COLOR_CODE_QUALITY_1)
-                : (moving_stuff) ? get_color(DXF_COLOR_CODE_WATER_ONLY)
+                : (adding) ? get_color(COLOR_CODE_TRAVERSE)
+                : (cutting) ? get_color(COLOR_CODE_QUALITY_1)
+                : (moving_stuff) ? get_color(COLOR_CODE_WATER_ONLY)
                 : monokai.yellow;
             JUICE_IT_EASY_TWEEN(preview_tubes_color, target_preview_tubes_color);
 
@@ -2501,11 +2508,11 @@ void conversation_draw() {
                         mat4 inv_T_a = inverse(T_a);
                         M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
                     }
-                } else if (*click_mode == CLICK_MODE_ORIGIN) {
+                } else if (*click_mode == ClickMode::Origin) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
-                } else if (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) {
+                } else if (*enter_mode == EnterMode::NudgeFeaturePlane) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, *preview_feature_plane_offset + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
@@ -2538,22 +2545,22 @@ void conversation_draw() {
 
         #if 0
         if (dxf_anything_selected) { // arrow
-            if ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == ENTER_MODE_REVOLVE_ADD) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) {
+            if ((*enter_mode == EnterMode::ExtrudeAdd) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT) || (*enter_mode == EnterMode::RevolveAdd) || (global_world_state.modes.enter_mode == ENTER_MODE_REVOLVE_CUT)) {
 
-                vec3 color = ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_ADD)) ? V3(83.0f / 255, 255.0f / 255, 83.0f / 255.0f) : V3(1.0f, 0.0f, 0.0f);
+                vec3 color = ((*enter_mode == EnterMode::ExtrudeAdd) || (*enter_mode == EnterMode::RevolveAdd)) ? V3(83.0f / 255, 255.0f / 255, 83.0f / 255.0f) : V3(1.0f, 0.0f, 0.0f);
 
                 real32 arrow_x = 0.0f;
                 real32 arrow_y = 0.0f;
                 real32 H[2] = { global_world_state.popup.param0, global_world_state.popup.param1 };
                 bool32 toggle[2] = { global_world_state.console.flip_flag, !global_world_state.console.flip_flag };
                 mat4 A = M_3D_from_2D;
-                if ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
+                if ((*enter_mode == EnterMode::ExtrudeAdd) || (*enter_mode == ENTER_MODE_EXTRUDE_CUT)) {
                     bounding_box_center(_selection_bounding_box, &arrow_x, &arrow_y);
                     if (dxf_anything_selected) {
                         arrow_x -= global_world_state.dxf.origin.x;
                         arrow_y -= global_world_state.dxf.origin.y;
                     }
-                } else { ASSERT((*enter_mode == ENTER_MODE_REVOLVE_ADD) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
+                } else { ASSERT((*enter_mode == EnterMode::RevolveAdd) || (*enter_mode == ENTER_MODE_REVOLVE_CUT));
                     H[0] = 10.0f + _selection_bounding_box.max[(!global_world_state.console.flip_flag) ? 1 : 0];
                     H[1] = 0.0f;
                     toggle[0] = false;
@@ -2637,12 +2644,12 @@ void conversation_draw() {
             vec3 target_feature_plane_color = monokai.yellow;
             real32 sign = -1.0f;
             {
-                if (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) {
+                if (*enter_mode == EnterMode::NudgeFeaturePlane) {
                     PVM *= M4_Translation(-global_world_state.dxf.origin.x, -global_world_state.dxf.origin.y, *preview_feature_plane_offset);
                     target_feature_plane_color = { 0.0f, 1.0f, 1.0f };
                     sign = 1.0f;
                     draw = true;
-                } else if (*click_mode == CLICK_MODE_ORIGIN) {
+                } else if (*click_mode == ClickMode::Origin) {
                     target_feature_plane_color = { 0.0f, 1.0f, 1.0f };
                     sign = 1.0f;
                     draw = true;
@@ -2679,7 +2686,7 @@ void conversation_draw() {
             real32 r, g, b;
             r = g = b = 1.0f;
             char _COLOR_X[64] = {};
-            if (*click_mode == CLICK_MODE_COLOR) {
+            if (*click_mode == ClickMode::Color) {
                 if (*click_modifier == CLICK_MODIFIER_SELECTED) {
                     sprintf(_COLOR_X, "COLOR");
                 } else {
@@ -2698,20 +2705,20 @@ void conversation_draw() {
             _text_draw(
                     (cow_real *) &globals.NDC_from_Screen,
                     (char *) (
-                        (*click_mode == CLICK_MODE_NONE)     ? "" :
-                        (*click_mode == CLICK_MODE_AXIS)     ? "AXIS" :
-                        (*click_mode == CLICK_MODE_BOX)      ? "BOX" :
-                        (*click_mode == CLICK_MODE_CIRCLE)   ? "CIRCLE" :
-                        (*click_mode == CLICK_MODE_COLOR)    ? _COLOR_X :
-                        (*click_mode == CLICK_MODE_DESELECT) ? "DESELECT" :
-                        (*click_mode == CLICK_MODE_FILLET)   ? "FILLET" :
-                        (*click_mode == CLICK_MODE_LINE)     ? "LINE" :
-                        (*click_mode == CLICK_MODE_MEASURE)  ? "MEASURE" :
-                        (*click_mode == CLICK_MODE_MOVE)     ? "MOVE" :
-                        (*click_mode == CLICK_MODE_ORIGIN)   ? "ORIGIN" :
-                        (*click_mode == CLICK_MODE_SELECT)   ? "SELECT" :
-                        (*click_mode == CLICK_MODE_X_MIRROR) ? "X_MIRROR" :
-                        (*click_mode == CLICK_MODE_Y_MIRROR) ? "Y_MIRROR" :
+                        (*click_mode == ClickMode::None) ? "" :
+                        (*click_mode == ClickMode::Axis)     ? "AXIS" :
+                        (*click_mode == ClickMode::Box)      ? "BOX" :
+                        (*click_mode == ClickMode::Circle)   ? "CIRCLE" :
+                        (*click_mode == ClickMode::Color)    ? _COLOR_X :
+                        (*click_mode == ClickMode::Deselect) ? "DESELECT" :
+                        (*click_mode == ClickMode::Fillet)   ? "FILLET" :
+                        (*click_mode == ClickMode::Line)     ? "LINE" :
+                        (*click_mode == ClickMode::Measure)  ? "MEASURE" :
+                        (*click_mode == ClickMode::Move)     ? "MOVE" :
+                        (*click_mode == ClickMode::Origin)   ? "ORIGIN" :
+                        (*click_mode == ClickMode::Select)   ? "SELECT" :
+                        (*click_mode == ClickMode::MirrorX) ? "X_MIRROR" :
+                        (*click_mode == ClickMode::MirrorY) ? "Y_MIRROR" :
                         "???MODE???"),
                     mouse_Pixel->x + 12,
                     mouse_Pixel->y + 14,
@@ -2756,15 +2763,15 @@ void conversation_draw() {
         }
 
         // gui_printf("[Enter] %s",
-        //         (*enter_mode == ENTER_MODE_EXTRUDE_ADD) ? "EXTRUDE_ADD" :
+        //         (*enter_mode == EnterMode::ExtrudeAdd) ? "EXTRUDE_ADD" :
         //         (*enter_mode == ENTER_MODE_EXTRUDE_CUT) ? "EXTRUDE_CUT" :
-        //         (*enter_mode == ENTER_MODE_REVOLVE_ADD) ? "REVOLVE_ADD" :
+        //         (*enter_mode == EnterMode::RevolveAdd) ? "REVOLVE_ADD" :
         //         (*enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
         //         (*enter_mode == ENTER_MODE_OPEN) ? "OPEN" :
         //         (*enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
         //         (*enter_mode == ENTER_MODE_ORIGIN) ? "SET_ORIGIN" :
-        //         (*enter_mode == ENTER_MODE_NUDGE_FEATURE_PLANE) ? "OFFSET_PLANE_TO" :
-        //         (*enter_mode == ENTER_MODE_NONE) ? "NONE" :
+        //         (*enter_mode == EnterMode::NudgeFeaturePlane) ? "OFFSET_PLANE_TO" :
+        //         (*enter_mode == EnterMode::None) ? "NONE" :
         //         "???ENTER???");
 
         conversation_message_buffer_update_and_draw();
@@ -2961,9 +2968,9 @@ int main() {
 
             time_since->going_inside += dt;
             bool32 _going_inside_next = 
-                ((*enter_mode == ENTER_MODE_EXTRUDE_ADD) && (*extrude_add_in_length > 0.0f))
+                ((*enter_mode == EnterMode::ExtrudeAdd) && (*extrude_add_in_length > 0.0f))
                 ||
-                (*enter_mode == ENTER_MODE_EXTRUDE_CUT);
+                (*enter_mode == EnterMode::ExtrudeCut);
             if (_going_inside_next && !time_since->_helper_going_inside) {
                 time_since->going_inside = 0.0f;
             }

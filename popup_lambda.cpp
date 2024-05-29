@@ -168,7 +168,7 @@ auto popup_popup = [&] (
             // eso_vertex(_global_screen_state.mouse_in_pixel_coordinates);
             // eso_end();
 
-            #if 1
+            #if 0
             {
                 eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
                 eso_color(0.0f, 0.4f, 0.4f);
