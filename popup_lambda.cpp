@@ -15,7 +15,7 @@
 // TODO: field type
 
 auto popup_popup = [&] (
-        bool32 zero_on_load_up,
+        bool zero_on_load_up,
         CellType _cell_type0,     char *_name0,        void *_value0,
         CellType _cell_type1 = CellType::None, char *_name1 = NULL, void *_value1 = NULL,
         CellType _cell_type2 = CellType::None, char *_name2 = NULL, void *_value2 = NULL,
@@ -38,7 +38,7 @@ auto popup_popup = [&] (
 
         { // popup->num_cells
             popup->num_cells = 0;
-            for (uint32 d = 0; d < POPUP_MAX_NUM_CELLS; ++d) if (popup->name[d]) ++popup->num_cells;
+            for (uint d = 0; d < POPUP_MAX_NUM_CELLS; ++d) if (popup->name[d]) ++popup->num_cells;
             ASSERT(popup->num_cells);
         }
     }
@@ -53,15 +53,15 @@ auto popup_popup = [&] (
         if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
         popup->active_cell_index = 0;
         POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
-        popup->cursor = (uint32) strlen(popup->active_cell_buffer);
+        popup->cursor = (uint) strlen(popup->active_cell_buffer);
         popup->selection_cursor = 0;
         popup->_type_of_active_cell = popup->cell_type[popup->active_cell_index];
     }
 
     POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
 
-    if (! _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME) {
-        _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
+    if (!SCREEN.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME) {
+        SCREEN.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
     } else {
         return;
     }
@@ -72,13 +72,13 @@ auto popup_popup = [&] (
     popup->hover_cell_index = -1;
     popup->hover_cursor = -1;
     {
-        for (uint32 d = 0; d < popup->num_cells; ++d) { // gui_printf
+        for (uint d = 0; d < popup->num_cells; ++d) { // gui_printf
             if (!popup->name[d]) continue;
 
-            uint32 _strlen_name;
-            uint32 _strlen_extra;
-            uint32 strlen_other;
-            uint32 strlen_cell;
+            uint _strlen_name;
+            uint _strlen_extra;
+            uint strlen_other;
+            uint strlen_cell;
             static char buffer[512];
             {
                 // FORNOW gross;
@@ -101,8 +101,8 @@ auto popup_popup = [&] (
 
             real32 X_MARGIN_OFFSET = COW1._gui_x_curr;
 
-            real32 x_mouse = _global_screen_state.mouse_Pixel.x;
-            // real32 y_mouse = _global_screen_state.mouse_Pixel.y;
+            real32 x_mouse = SCREEN.mouse_Pixel.x;
+            // real32 y_mouse = SCREEN.mouse_Pixel.y;
 
             real32 x_field_left;
             real32 x_field_right;
@@ -125,8 +125,8 @@ auto popup_popup = [&] (
                 y_bottom = y_top + 8;
             }
 
-            bbox2 field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            if (bounding_box_contains(field_box, _global_screen_state.mouse_Pixel)) {
+            box2 field_box = { x_field_left, y_top, x_field_right, y_bottom };
+            if (bounding_box_contains(field_box, SCREEN.mouse_Pixel)) {
                 popup->mouse_is_hovering = true;
                 popup->hover_cell_index = d;
                 popup->hover_cursor = 0; // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
@@ -135,7 +135,7 @@ auto popup_popup = [&] (
                     // conversation_messagef("---%f\n", x_mouse);
                     real32 x_char_middle = x_field_left - 1.25f;
                     real32 half_char_width_prev = 0;
-                    for (uint32 i = 0; i < strlen_cell; ++i) {
+                    for (uint i = 0; i < strlen_cell; ++i) {
                         x_char_middle += half_char_width_prev;
                         {
                             _2char[0] = buffer[strlen_other + i];
@@ -165,7 +165,7 @@ auto popup_popup = [&] (
             // eso_end();
             // eso_begin(globals.NDC_from_Screen, SOUP_POINTS, 10.0f);
             // eso_color(1.0f, 0.0f, 1.0f);
-            // eso_vertex(_global_screen_state.mouse_in_pixel_coordinates);
+            // eso_vertex(SCREEN.mouse_in_pixel_coordinates);
             // eso_end();
 
             #if 0

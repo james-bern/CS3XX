@@ -968,6 +968,12 @@ void _window_reset() {
     // glfwShowWindow(COW0._window_glfw_window); // only actually does anything on first reset
 }
 
+mat4 window_get_NDC_from_Screen() {
+    mat4 result;
+    _window_get_NDC_from_Screen(result.data);
+    return result;
+}
+
 
 #endif
 

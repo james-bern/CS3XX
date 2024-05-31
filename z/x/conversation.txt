@@ -1,0 +1,152 @@
+///////////////////////////////////////
+// Notes ///////////////////////////////
+////////////////////////////////////////
+
+// // Conversation
+// This is a little CAD program Jim is making :)
+// It takes in an OMAX List<DXFEntity> and let's you rapidly create a 3D-printable STL using Manifold.
+// Intuitiveness of Sketchup + Precision of SolidWorks
+
+// wonderful undo (including selections)
+// - TODO: remove history stack (old undo)
+// - TODO: remove dependence on stateful stuff in cow
+// - TODO: strip out draw (basically done)
+// - TODO: move pure functions and similar non-stateful stuff into conversation.h
+// - TODO: copy solidworks stl export params
+
+// typdef bool32 cow_bool;
+// TODO: write blow style ability for "game to play[/debug] itself"
+// revolves
+// - manifold bug(?) where you don't get any geometry if the loop is in left half plane
+// (m)iddle snap
+// stl layers--stuff only booleans with its own layer (why?)
+// IDEA: Translating and Rotating and scaling the (3D) workpiece (like in a mill)
+// figuring out how to actually deal with the memory allocation, etc. in the manifoldc bindings
+// TODO: color codes instead of ` in gui_printf
+// ? TODO: the Hard problem of avoiding the creation of ultra-thin features
+
+// TODO: incorporate console_params_preview_flip_flag fully into console_param_preview's (preview should have it all in there)
+
+
+
+
+// // cleanup pass
+// TODO: get remedy (or rad debugger) working in parallels
+// TODO try the naive fat struct
+// TODO reduce paths through the code
+
+// TODO open file inside conversation
+// TODO space_bar_event
+// TODO: cleanup pass (what is conversation_reset(); // FORNOW)))???
+// // make it clear that you push an empty struct to superstack to get things started (this is always on the stack so we can peek)
+
+// TODO: find a better way to do || (state.enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) || (state.enter_mode == ENTER_MODE_OFFSET_PLANE_BY)
+// -----------> what i mean by this is we need to have a better way of doing 'x' input in general (FORNOW: i'm going to rollback the text input on these features)
+// || (state.enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO)
+// || (state.enter_mode == ENTER_MODE_OFFSET_PLANE_BY)
+// || (state.enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO)
+// || (state.enter_mode == ENTER_MODE_OFFSET_PLANE_BY)
+// } else if (state.enter_mode == ENTER_MODE_MOVE_DXF_ORIGIN_TO) {
+//     state.dxf.origin.x = console_param_1;
+//     state.dxf.origin.y = console_param_2;
+// } else {
+//     ASSERT(state.enter_mode == ENTER_MODE_OFFSET_PLANE_BY);
+//     if (!IS_ZERO(console_param_1)) {
+//         state.feature_plane.signed_distance_to_world_origin += console_param_1;
+//         selected_index_of_first_triangle_hit_by_ray = -1; // FORNOW (TODO go looking again)
+//     }
+// }
+// NOTE: rolling back the checkpointing of prev on extrudes
+// ----> // if (history_B_redo != history_A_undo) (history_B_redo - 1)->checkpoint_type = CHECKPOINT_TYPE_CHECKPOINT;
+
+// NOTE: a super checkpoint pushes to the feature stack
+// TODO: super checkpoint (save state) redo stack
+// TODO: do a renaming pass (other, history, category, ...)
+
+
+// TODO: make an undo that stores a stack of the 3D stuff so you only undo from a 3D checkpoint
+
+// TODO: move holding shift pre-snaps the mouse to 
+
+// NOTE: backspace is used both for deleting sketch entities and changing console stuff (e.g., for an extrude) TODO give console priority
+
+// // /TODO misc
+// TODO get a mac debugger
+// TODO get THREE.js/p5.js back up and running for 136 "slides"
+
+// NOTE TODO take a step back and look at the code from a 100 mile view
+
+// TODO ability to hide the 2D stuff just to hide it (so you can be fully in a layout clone)
+
+// NOTE FORNOW the following operations are considered "fast"--we don't bother storing them
+// - computing a state.dxf.entities's bounding box
+
+// // TODO important
+// true undo stack for boolean operations (checkpoints)
+
+// // TODO easy (< 30 min)
+// XXXX two_click_commands
+// TODO support color schemes
+// XXXX 'z' snaps to origin (TODO what is the z-plane)
+// TODO 'r' conflicts with 'r'otate from layout
+// TODO 'e' conflicts with 'e'rase from layout
+// TODO layout has a command 'Z'
+
+// // TODO more snaps
+// TODO quad
+// TODO perpendicular
+// TODO limit
+// TODO
+
+// // TODO dxf editor
+// TODO create/extrude/whatever-we-call-it state wrapped up into a struct
+// XXXX drawing lines
+// XXXX drawing lines with snaps
+// XXXX undoing the drawing of a line
+// XXXX actually incorporating drawn lines into the state.dxf.entities
+// XXXX deleting lines
+// XXXX creating circle
+// XXXX creating fillet
+// XXXX creating fillet user specifies size
+// TODO (b)ox size
+// TODO (b)ox key in start position
+// TODO (l)ine key in start position
+// TODO remember fillet radius
+// TODO space bar to repeat command
+// TODO better create fillet
+// TODO join
+// TODO divide 2
+// TODO divide 1
+// TODO divide N
+// TODO typing in coordinates of points instead of clicking
+// TODO holding shift to snap to 15 degree increments
+// TODO c(o)py
+// TODO (m)ove
+// TODO (r)otate
+// TODO (R)otate
+// TODO mirror-(X)
+// TODO mirror-(Y)
+// TODO (e)rase
+
+// // TODO graphics
+// TODO custom shader for dotted lines
+// TODO custom shader with lighting
+// TODO custom shader with cosmetic edges (TODO read NIVIDIA whitepaper on mesh wireframe)
+// TODO custom cursors
+
+// // TODO small features / qol
+// TODO prompt for overwriting files
+// TODO you could redo the entire stack with finer circle discretization params
+// TODO should have a relative version of move (MOVE_DXF_ORIGIN_BY)
+
+// // TODO cow improvements?
+// TODO rename list.array -> list.internal_array; list.length -> list.num_full_slots
+// TODO soup/eso can take size per vertex
+// TODO soup/eso can have dotted lines
+// TODO mouse position first frame
+// TODO better Map (fornow SO BAD)
+// TODO better text fondxf_loop_analysis_create_FORNOW_QUADRATIC
+
+
+
+

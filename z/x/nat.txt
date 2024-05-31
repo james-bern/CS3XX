@@ -1,0 +1,7 @@
+current = 10
+
+
+
+while (true):
+ target = 20
+ current += 0.1f * (target - current)
