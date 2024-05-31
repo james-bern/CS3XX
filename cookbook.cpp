@@ -2,9 +2,9 @@
 // DXF //
 /////////
 
-auto _LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+auto _LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = {};
-    entity.type = ENTITY_TYPE_LINE;
+    entity.type = EntityType::Line;
     LineEntity *line_entity = &entity.line_entity;
     line_entity->start = start;
     line_entity->end = end;
@@ -13,9 +13,9 @@ auto _LINE = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_
     return entity;
 };
 
-auto _ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+auto _ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = {};
-    entity.type = ENTITY_TYPE_ARC;
+    entity.type = EntityType::Arc;
     ArcEntity *arc_entity = &entity.arc_entity;
     arc_entity->center = center;
     arc_entity->radius = radius;
@@ -29,12 +29,12 @@ auto _ADD_ENTITY = [&](Entity entity) {
     list_push_back(&dxf->entities, entity);
 };
 
-auto ADD_LINE_ENTITY = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+auto ADD_LINE_ENTITY = [&](vec2 start, vec2 end, bool32 is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = _LINE(start, end, is_selected, color_code);
     _ADD_ENTITY(entity);
 };
 
-auto ADD_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+auto ADD_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
     _ADD_ENTITY(entity);
 };
@@ -46,12 +46,12 @@ auto _BUFFER_ENTITY = [&](Entity entity) {
     list_push_back(&_entity_buffer, entity);
 };
 
-auto BUFFER_LINE_ENTITY = [&](vec2 start, vec2 end, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+auto BUFFER_LINE_ENTITY = [&](vec2 start, vec2 end, bool32 is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = _LINE(start, end, is_selected, color_code);
     _BUFFER_ENTITY(entity);
 };
 
-auto BUFFER_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, uint32 color_code = COLOR_CODE_TRAVERSE) {
+auto BUFFER_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool32 is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
     _BUFFER_ENTITY(entity);
 };
@@ -82,7 +82,7 @@ auto CLEAR_SELECTION_MASK_TO = [&](bool32 is_selected) {
     _for_each_entity_ ENTITY_SET_IS_SELECTED(entity, is_selected);
 };
 
-auto ENTITY_SET_COLOR = [&](Entity *entity, uint32 color_code) {
+auto ENTITY_SET_COLOR = [&](Entity *entity, ColorCode color_code) {
     if (entity->color_code != color_code) {
         result.record_me = true;
         result.checkpoint_me = true;
@@ -97,18 +97,18 @@ auto ENTITY_SET_COLOR = [&](Entity *entity, uint32 color_code) {
 auto POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER = [&]() {
     uint32 d = popup->active_cell_index;
     memset(popup->active_cell_buffer, 0, POPUP_CELL_LENGTH);
-    if (popup->cell_type[d] == POPUP_CELL_TYPE_REAL32) {
+    if (popup->cell_type[d] == CellType::Real32) {
         sprintf(popup->active_cell_buffer, "%g", *((real32 *) popup->value[d]));
-    } else { ASSERT(popup->cell_type[d] == POPUP_CELL_TYPE_CSTRING);
+    } else { ASSERT(popup->cell_type[d] == CellType::String);
         strcpy(popup->active_cell_buffer, (char *) popup->value[d]);
     }
 };
 
 auto POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE = [&]() {
     uint32 d = popup->active_cell_index;
-    if (popup->cell_type[d] == POPUP_CELL_TYPE_REAL32) {
+    if (popup->cell_type[d] == CellType::Real32) {
         *((real32 *) popup->value[d]) = strtof(popup->active_cell_buffer, NULL);
-    } else { ASSERT(popup->cell_type[d] == POPUP_CELL_TYPE_CSTRING);
+    } else { ASSERT(popup->cell_type[d] == CellType::String);
         strcpy((char *) popup->value[d], popup->active_cell_buffer);
     }
 };
@@ -116,9 +116,9 @@ auto POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE = [&]() {
 auto POPUP_CLEAR_ALL_VALUES_TO_ZERO = [&]() {
     for (uint32 d = 0; d < popup->num_cells; ++d) {
         if (!popup->name[d]) continue;
-        if (popup->cell_type[d] == POPUP_CELL_TYPE_REAL32) {
+        if (popup->cell_type[d] == CellType::Real32) {
             *((real32 *) popup->value[d]) = 0.0f;
-        } else { ASSERT(popup->cell_type[d] == POPUP_CELL_TYPE_CSTRING);
+        } else { ASSERT(popup->cell_type[d] == CellType::String);
             memset(popup->value[d], 0, POPUP_CELL_LENGTH);
         }
     }
@@ -139,7 +139,7 @@ auto POPUP_SET_ACTIVE_CELL_INDEX = [&](uint new_active_cell_index) {
 ///////////
 
 auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
-    bool32 add = ((global_world_state.modes.enter_mode == EnterMode::ExtrudeAdd) || (global_world_state.modes.enter_mode == EnterMode::RevolveAdd));
+    bool32 add = ((*enter_mode == EnterMode::ExtrudeAdd) || (*enter_mode == EnterMode::RevolveAdd));
     if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
         result.record_me = true;
         result.snapshot_me = true;
@@ -153,7 +153,7 @@ auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
                     cross_section.num_vertices_in_polygonal_loops,
                     cross_section.polygonal_loops,
                     get_M_3D_from_2D(),
-                    global_world_state.modes.enter_mode,
+                    *enter_mode,
                     (add) ? global_world_state.popup.extrude_add_out_length : global_world_state.popup.extrude_cut_out_length,
                     (add) ? global_world_state.popup.extrude_add_in_length : global_world_state.popup.extrude_cut_in_length,
                     global_world_state.dxf.origin,
@@ -167,6 +167,6 @@ auto GENERAL_PURPOSE_MANIFOLD_WRAPPER = [&]() {
     }
 
     // reset some stuff
-    global_world_state.modes.enter_mode = EnterMode::None;
+    *enter_mode = EnterMode::None;
     CLEAR_SELECTION_MASK_TO(false);
 };

@@ -16,10 +16,10 @@
 
 auto popup_popup = [&] (
         bool32 zero_on_load_up,
-        uint8 _cell_type0,     char *_name0,        void *_value0,
-        uint8 _cell_type1 = 0, char *_name1 = NULL, void *_value1 = NULL,
-        uint8 _cell_type2 = 0, char *_name2 = NULL, void *_value2 = NULL,
-        uint8 _cell_type3 = 0, char *_name3 = NULL, void *_value3 = NULL
+        CellType _cell_type0,     char *_name0,        void *_value0,
+        CellType _cell_type1 = CellType::None, char *_name1 = NULL, void *_value1 = NULL,
+        CellType _cell_type2 = CellType::None, char *_name2 = NULL, void *_value2 = NULL,
+        CellType _cell_type3 = CellType::None, char *_name3 = NULL, void *_value3 = NULL
         ) -> void {
 
     { // args info
@@ -85,9 +85,9 @@ auto popup_popup = [&] (
                 if (d == popup->active_cell_index) {
                     sprintf(buffer, "%s %s", popup->name[d], popup->active_cell_buffer);
                 } else {
-                    if (popup->cell_type[d] == POPUP_CELL_TYPE_REAL32) {
+                    if (popup->cell_type[d] == CellType::Real32) {
                         sprintf(buffer,  "%s %g", popup->name[d], *((real32 *) popup->value[d]));
-                    } else { ASSERT(popup->cell_type[d] == POPUP_CELL_TYPE_CSTRING); 
+                    } else { ASSERT(popup->cell_type[d] == CellType::String); 
                         sprintf(buffer,  "%s %s", popup->name[d], ((char *) popup->value[d]));
                     }
                 }

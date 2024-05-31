@@ -1,4 +1,9 @@
+// TODO: only use C++-style casts 
+
+// NDC_from_Screen -> NDC_from_Pixel
 // TODO: enums
+// TODO: color for messagef
+// TODO: simplify selected triangles color (just use JUICEIT_EASYTWEEN)
 
 // TODO: select connected broken on 10mm filleted 50mm box
 // TODO: restore checkpoint one before on extrudes?
@@ -50,6 +55,9 @@
 // zero is initialization
 // keep the tool (line_entity, circle, box, move, ...) code simple, formulaic, and not-clever
 // - repetition is fine
+// we write things ourselves
+// - the primary reason to do this is "we can do better"
+// - also it's the only way to really understand the system
 
 // // things i feel weird/uncomfy about
 // i have a type variable and substructs in Entity and Event so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
@@ -70,6 +78,8 @@
 
 // // TODO: jim tasks
 // cow
+// TODO: better text_draw
+// TODO: Consolas font
 // TODO: upgrade soup_draw and eso_*; redocument
 // TODO: upgrade basic_draw
 // TODO: gui printf that doesn't automatically add a newline
@@ -103,7 +113,7 @@
 
 // // TODO: good undergrad tasks
 // TODO: fast picking (something like a BVH)--need arena (mesh should have its own arena)
-// TODO: popup_popup real32 fields automatically parse formulas
+// TODO: popup_popup real32 popup automatically parse formulas
 // TODO: ROTATE
 // TODO: COPY
 // TODO: SCALE
@@ -167,9 +177,9 @@ PopupState *popup = &global_world_state.popup;
 TimeSince *time_since = &aesthetics.time_since;
 Event *space_bar_event = &global_world_state.space_bar_event;
 Event *shift_space_bar_event = &global_world_state.shift_space_bar_event;
-uint32 *hot_pane = &_global_screen_state.hot_pane;
-uint32 *mouse_left_drag_pane = &_global_screen_state.mouse_left_drag_pane;
-uint32 *mouse_right_drag_pane = &_global_screen_state.mouse_right_drag_pane;
+Pane *hot_pane = &_global_screen_state.hot_pane;
+Pane *mouse_left_drag_pane = &_global_screen_state.mouse_left_drag_pane;
+Pane *mouse_right_drag_pane = &_global_screen_state.mouse_right_drag_pane;
 bool32 *awaiting_second_click = &global_world_state.two_click_command.awaiting_second_click;
 char *open_filename = popup->open_filename;
 char *save_filename = popup->open_filename;
@@ -196,10 +206,10 @@ real32 *revolve_add_dummy        = &popup->revolve_add_dummy;
 real32 *revolve_cut_dummy        = &popup->revolve_cut_dummy;
 real32 *x_coordinate             = &popup->x_coordinate;
 real32 *y_coordinate             = &popup->y_coordinate;
-uint32 *click_color_code    = &global_world_state.click_color_code;
-ClickMode *click_mode     = &global_world_state.modes.click_mode;
-uint32 *click_modifier = &global_world_state.modes.click_modifier;
-EnterMode *enter_mode     = &global_world_state.modes.enter_mode;
+ColorCode *click_color_code    = &global_world_state.click_color_code;
+ClickMode *click_mode     = &global_world_state.click_mode;
+ClickModifier *click_modifier = &global_world_state.click_modifier;
+EnterMode *enter_mode     = &global_world_state.enter_mode;
 vec2 *first_click = &global_world_state.two_click_command.first_click;
 Camera2D *camera_2D = &_global_screen_state.camera_2D;
 Camera3D *camera_3D = &_global_screen_state.camera_3D;
@@ -230,7 +240,7 @@ void init_cameras() {
 //////////////////////////////////////////////////
 // getters
 
-real32 get_x_divider_Screen() {
+real32 get_x_divider_Pixel() {
     return LINEAR_REMAP(_global_screen_state.x_divider_NDC, -1.0f, 1.0f, 0.0f, window_get_width());
 }
 
@@ -256,12 +266,12 @@ bool32 click_mode_SELECT_OR_DESELECT() {
 }
 
 bool32 _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
-    return ((click_mode_SELECT_OR_DESELECT() && (*click_modifier != CLICK_MODIFIER_WINDOW)) || (*click_mode == ClickMode::Color));
+    return ((click_mode_SELECT_OR_DESELECT() && (*click_modifier != ClickModifier::Window)) || (*click_mode == ClickMode::Color));
 }
 
 bool32 _SELECT_OR_DESELECT_COLOR() {
     bool32 A = click_mode_SELECT_OR_DESELECT();
-    bool32 B = (*click_modifier == CLICK_MODIFIER_COLOR);
+    bool32 B = (*click_modifier == ClickModifier::Color);
     return A && B;
 }
 
@@ -331,12 +341,12 @@ vec2 magic_snap(vec2 before, bool32 calling_this_function_for_drawing_preview = 
             // TODO (Felipe): snap square
             result = before;
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
-            if (*click_modifier == CLICK_MODIFIER_SNAP_TO_CENTER_OF) {
+            if (*click_modifier == ClickModifier::Center) {
                 real32 min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
-                    if (entity->type == ENTITY_TYPE_LINE) {
+                    if (entity->type == EntityType::Line) {
                         continue;
-                    } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                    } else { ASSERT(entity->type == EntityType::Arc);
                         ArcEntity *arc_entity = &entity->arc_entity;
                         real32 squared_distance = squared_distance_point_dxf_arc(before.x, before.y, arc_entity);
                         if (squared_distance < min_squared_distance) {
@@ -345,7 +355,7 @@ vec2 magic_snap(vec2 before, bool32 calling_this_function_for_drawing_preview = 
                         }
                     }
                 }
-            } else if (*click_modifier == CLICK_MODIFIER_SNAP_TO_MIDDLE_OF) {
+            } else if (*click_modifier == ClickModifier::Middle) {
                 real32 min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
                     real32 squared_distance = squared_distance_point_dxf_entity(before.x, before.y, entity);
@@ -354,7 +364,7 @@ vec2 magic_snap(vec2 before, bool32 calling_this_function_for_drawing_preview = 
                         entity_get_middle(entity, &result.x, &result.y);
                     }
                 }
-            } else if (*click_modifier == CLICK_MODIFIER_SNAP_TO_END_OF) {
+            } else if (*click_modifier == ClickModifier::End) {
                 real32 min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
                     real32 x[2], y[2];
@@ -445,7 +455,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
 
 void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
     if (!poe_file_exists(filename)) {
-        conversation_messagef("[load] \"%s\" not found", filename);
+        conversation_messagef(omax.orange, "[load] \"%s\" not found", filename);
         return;
     }
 
@@ -460,18 +470,18 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
         global_world_state.dxf.origin.y = 0.0f;
     }
 
-    conversation_messagef("[load] loaded %s", filename);
+    conversation_messagef(omax.green, "[load] loaded %s", filename);
 }
 
 void conversation_stl_load(char *filename, bool preserve_cameras = false) {
     if (!poe_file_exists(filename)) {
-        conversation_messagef("[load] \"%s\" not found", filename);
+        conversation_messagef(omax.orange, "[load] \"%s\" not found", filename);
         return;
     }
     {
         stl_load(filename, &global_world_state.mesh);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(preserve_cameras);
-        conversation_messagef("[load] loaded %s", filename);
+        conversation_messagef(omax.green, "[load] loaded %s", filename);
     }
 }
 
@@ -481,16 +491,16 @@ void conversation_load(char *filename, bool preserve_cameras = false) {
     } else if (poe_suffix_match(filename, ".stl")) {
         conversation_stl_load(filename, preserve_cameras);
     } else {
-        conversation_messagef("[load] \"%s\" fileype not supported; must be *.dxf or *.stl", filename);
+        conversation_messagef(omax.orange, "[load] \"%s\" fileype not supported; must be *.dxf or *.stl", filename);
     }
 }
 
 void conversation_stl_save(char *filename) {
     // TODO: prompt for overwriting
     if (mesh_save_stl(&global_world_state.mesh, filename) ) {
-        conversation_messagef("[save] saved %s", filename);
+        conversation_messagef(omax.green, "[save] saved %s", filename);
     } else {
-        conversation_messagef("[save] could not save open %s for writing.", filename);
+        conversation_messagef(omax.orange, "[save] could not save open %s for writing.", filename);
     }
 }
 
@@ -498,7 +508,7 @@ void conversation_save(char *filename) {
     if (poe_suffix_match(filename, ".stl")) {
         conversation_stl_save(filename);
     } else {
-        conversation_messagef("[save] \"%s\" filetype not supported; must be *.stl", filename);
+        conversation_messagef(omax.orange, "[save] \"%s\" filetype not supported; must be *.stl", filename);
     }
 }
 
@@ -549,7 +559,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         RawEvent raw_event = {}; {
             raw_event.type = EVENT_TYPE_KEY;
             raw_event.key = key;
-            raw_event.super = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
+            raw_event.control = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
             raw_event.shift = (mods & GLFW_MOD_SHIFT);
         }
         queue_enqueue(&raw_user_event_queue, raw_event);
@@ -559,22 +569,22 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
 // FORNOW: gui stuff that we don't record is handled here
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     { // hot_pane
-        real32 x_divider_Screen = get_x_divider_Screen();
-        real32 eps = 8;
+        real32 x_divider_Pixel = get_x_divider_Pixel();
+        real32 eps = 6.0f;
         real32 x = mouse_Pixel->x;
         if (popup->mouse_is_hovering) {
-            *hot_pane = PANE_POPUP;
-        } else if (x < x_divider_Screen - eps) {
-            *hot_pane = PANE_2D;
-        } else if (x < x_divider_Screen + eps) {
-            *hot_pane = PANE_DIVIDER;
+            *hot_pane = Pane::Popup;
+        } else if (x < x_divider_Pixel - eps) {
+            *hot_pane = Pane::DXF;
+        } else if (x < x_divider_Pixel + eps) {
+            *hot_pane = Pane::Divider;
         } else {
-            *hot_pane = PANE_3D;
+            *hot_pane = Pane::STL;
         }
     }
 
 
-    // TODO: is a PANE_POPUP a bad idea?--maybe just try it??
+    // TODO: is a Pane::Popup a bad idea?--maybe just try it??
 
     // mouse_*
     vec2 delta_mouse_NDC;
@@ -589,8 +599,8 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 
     { // special draggin mouse_held EVENT_TYPE_MOUSE
         if (0
-                || (*mouse_left_drag_pane == PANE_2D)
-                || (*mouse_left_drag_pane == PANE_POPUP)
+                || (*mouse_left_drag_pane == Pane::DXF)
+                || (*mouse_left_drag_pane == Pane::Popup)
            ) {
             RawEvent raw_event; {
                 raw_event = {};
@@ -604,9 +614,9 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // dragging divider
-        if (*mouse_left_drag_pane == PANE_DIVIDER) {
+        if (*mouse_left_drag_pane == Pane::Divider) {
             real32 prev_x_divider_NDC = _global_screen_state.x_divider_NDC;
-            _global_screen_state.x_divider_NDC = CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_width(), -1.0f, 1.0f), -0.99f, 0.99f);
+            _global_screen_state.x_divider_NDC = MAG_CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_width(), -1.0f, 1.0f), 0.9975f);
             real32 delta_NDC = 0.5f * (_global_screen_state.x_divider_NDC - prev_x_divider_NDC);
             camera_2D->display_nudge_NDC.x += delta_NDC;
             camera_3D->display_nudge_NDC.x += delta_NDC;
@@ -617,14 +627,14 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         ;
         // NOTE: stolen from cow
         // NOTE: _not_ accumulating; just going for it on every event (shrug)
-        if (*mouse_right_drag_pane == PANE_2D) camera_2D->center_World -= delta_mouse_World_2D;
-        if (*mouse_right_drag_pane == PANE_3D) {
+        if (*mouse_right_drag_pane == Pane::DXF) camera_2D->center_World -= delta_mouse_World_2D;
+        if (*mouse_right_drag_pane == Pane::STL) {
             // FORNOW: bad, repetitive
             Camera2D tmp_2D = { camera_get_screen_height_World(camera_3D), camera_3D->_center_World.x, camera_3D->_center_World.y, camera_3D->display_nudge_NDC.x, camera_3D->display_nudge_NDC.y };
             tmp_2D.center_World -= transformVector(inverse(camera_get_PV(&tmp_2D)), delta_mouse_NDC);
             camera_3D->_center_World = tmp_2D.center_World;
         }
-        if (*mouse_left_drag_pane == PANE_3D) {
+        if (*mouse_left_drag_pane == Pane::STL) {
             cow_real fac = 2;
             camera_3D->theta -= fac * delta_mouse_NDC.x;
             camera_3D->phi += fac * delta_mouse_NDC.y;
@@ -648,13 +658,13 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
             }
             queue_enqueue(&raw_user_event_queue, raw_event);
         } else { ASSERT(action == GLFW_RELEASE);
-            *mouse_left_drag_pane = PANE_NONE;
+            *mouse_left_drag_pane = Pane::None;
         }
     } else { ASSERT(button == GLFW_MOUSE_BUTTON_RIGHT);
         if (action == GLFW_PRESS) {
             *mouse_right_drag_pane = *hot_pane;
         } else { ASSERT(action == GLFW_RELEASE);
-            *mouse_right_drag_pane = PANE_NONE;
+            *mouse_right_drag_pane = Pane::None;
         }
     }
 }
@@ -669,9 +679,9 @@ void _callback_scroll_helper(Camera2D *camera, double yoffset) {
 void callback_scroll(GLFWwindow *, double, double yoffset) {
     // NOTE: stolen from cow
     // NOTE: _not_ accumulating; just going for it on every event (shrug)
-    if (*hot_pane == PANE_2D) {
+    if (*hot_pane == Pane::DXF) {
         _callback_scroll_helper(camera_2D, yoffset);
-    } else if (*hot_pane == PANE_3D) {
+    } else if (*hot_pane == Pane::STL) {
         Camera2D tmp_2D = { camera_get_screen_height_World(camera_3D), camera_3D->_center_World.x, camera_3D->_center_World.y, camera_3D->display_nudge_NDC.x, camera_3D->display_nudge_NDC.y };
         _callback_scroll_helper(&tmp_2D, yoffset);
         if (IS_ZERO(camera_3D->angle_of_view)) {
@@ -690,7 +700,7 @@ uint32 classify_baked_subtype_of_raw_key_event(KeyEvent key_event) {
 
     uint32 key = key_event.key;
     // bool32 shift = event.shift;
-    // bool32 super = event.super;
+    // bool32 control = event.control;
     bool32 key_is_digit = ('0' <= key) && (key <= '9');
     bool32 key_is_punc  = (key == '.') || (key == '-');
     bool32 key_is_alpha = ('A' <= key) && (key <= 'Z');
@@ -705,9 +715,9 @@ uint32 classify_baked_subtype_of_raw_key_event(KeyEvent key_event) {
         is_consumable_by_popup |= key_is_delete;
         is_consumable_by_popup |= key_is_enter;
         is_consumable_by_popup |= key_is_nav;
-        if (popup->_type_of_active_cell == POPUP_CELL_TYPE_REAL32) {
+        if (popup->_type_of_active_cell == CellType::Real32) {
             ;
-        } else if (popup->_type_of_active_cell == POPUP_CELL_TYPE_CSTRING) {
+        } else if (popup->_type_of_active_cell == CellType::String) {
             is_consumable_by_popup |= key_is_alpha;
         } else {
             ASSERT(false);
@@ -730,7 +740,7 @@ Event bake_event(RawEvent raw_event) {
         event.type = EVENT_TYPE_KEY;
         KeyEvent *key_event = &event.key_event;
         key_event->key = raw_event.key;
-        key_event->super = raw_event.super;
+        key_event->control = raw_event.control;
         key_event->shift = raw_event.shift;
         key_event->subtype = classify_baked_subtype_of_raw_key_event(*key_event); // NOTE: must come last
     } else { ASSERT(raw_event.type == EVENT_TYPE_MOUSE);
@@ -738,7 +748,7 @@ Event bake_event(RawEvent raw_event) {
         MouseEvent *mouse_event = &event.mouse_event;
         mouse_event->mouse_held = raw_event.mouse_held;
         {
-            if (raw_event.pane == PANE_2D) {
+            if (raw_event.pane == Pane::DXF) {
                 mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
                 vec2 mouse_World_2D = transformPoint(inv_PV_2D, *mouse_NDC);
 
@@ -746,7 +756,7 @@ Event bake_event(RawEvent raw_event) {
 
                 MouseEvent2D *mouse_event_2D = &mouse_event->mouse_event_2D;
                 mouse_event_2D->mouse_position = magic_snap(mouse_World_2D);
-            } else if (raw_event.pane == PANE_3D) {
+            } else if (raw_event.pane == Pane::STL) {
                 mat4 inv_PV_3D = inverse(camera_get_PV(&_global_screen_state.camera_3D));
                 vec3 a = transformPoint(inv_PV_3D, V3(*mouse_NDC, -1.0f));
                 vec3 b = transformPoint(inv_PV_3D, V3(*mouse_NDC,  1.0f));
@@ -754,9 +764,9 @@ Event bake_event(RawEvent raw_event) {
                 mouse_event->subtype = MOUSE_EVENT_SUBTYPE_3D;
 
                 MouseEvent3D *mouse_event_3D = &mouse_event->mouse_event_3D;
-                mouse_event_3D->o = a;
-                mouse_event_3D->dir = normalized(b - a);
-            } else if (raw_event.pane == PANE_POPUP) {
+                mouse_event_3D->mouse_ray_origin = a;
+                mouse_event_3D->mouse_ray_direction = normalized(b - a);
+            } else if (raw_event.pane == Pane::Popup) {
                 // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
                 // TODO: gross gross gross
 
@@ -771,7 +781,7 @@ Event bake_event(RawEvent raw_event) {
                     mouse_event_gui->cursor = popup->cursor;
                 }
                 mouse_event_gui->selection_cursor = popup->hover_cursor; 
-            } else { ASSERT(raw_event.pane == PANE_DIVIDER);
+            } else { ASSERT(raw_event.pane == Pane::Divider);
                 event = {};
             }
         }
@@ -789,25 +799,25 @@ BEGIN_PRE_MAIN {
 // TODO: this API should match what is printed to the terminal in verbose output mode
 //       (so we can copy and paste a session for later use as an end to end test)
 
-Event construct_mouse_event_2D(vec2 p) {
+Event construct_mouse_event_2D(vec2 mouse_position) {
     Event event = {};
     event.type = EVENT_TYPE_MOUSE;
     MouseEvent *mouse_event = &event.mouse_event;
     mouse_event->subtype = MOUSE_EVENT_SUBTYPE_2D;
     MouseEvent2D *mouse_event_2D = &mouse_event->mouse_event_2D;
-    mouse_event_2D->mouse_position = p;
+    mouse_event_2D->mouse_position = mouse_position;
     return event;
 }
-Event construct_mouse_event_2D(real32 p_x, real32 p_y) { return construct_mouse_event_2D({ p_x, p_y }); }
+Event construct_mouse_event_2D(real32 mouse_position_x, real32 mouse_position_y) { return construct_mouse_event_2D({ mouse_position_x, mouse_position_y }); }
 
-Event construct_mouse_event_3D(vec3 o, vec3 dir) {
+Event construct_mouse_event_3D(vec3 mouse_ray_origin, vec3 mouse_ray_direction) {
     Event event = {};
     event.type = EVENT_TYPE_MOUSE;
     MouseEvent *mouse_event = &event.mouse_event;
     mouse_event->subtype = MOUSE_EVENT_SUBTYPE_3D;
     MouseEvent3D *mouse_event_3D = &mouse_event->mouse_event_3D;
-    mouse_event_3D->o = o;
-    mouse_event_3D->dir = dir;
+    mouse_event_3D->mouse_ray_origin = mouse_ray_origin;
+    mouse_event_3D->mouse_ray_direction = mouse_ray_direction;
     return event;
 }
 
@@ -862,8 +872,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         if (key_event->subtype == KEY_EVENT_SUBTYPE_HOTKEY) {
             result.record_me = true;
 
-            auto key_lambda = [key_event](uint32 key, bool super = false, bool shift = false) -> bool {
-                return _key_lambda(key_event, key, super, shift);
+            auto key_lambda = [key_event](uint32 key, bool control = false, bool shift = false) -> bool {
+                return _key_lambda(key_event, key, control, shift);
             };
 
             bool32 digit_lambda;
@@ -879,64 +889,66 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
 
-            ModesState prev_modes = global_world_state.modes;
+            ClickMode prev_click_mode = *click_mode;
+            EnterMode prev_enter_mode = *enter_mode;
             { // key_lambda
                 if (digit_lambda) {
-                    if (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_COLOR)) { // [sd]q0
+                    if (click_mode_SELECT_OR_DESELECT() && (*click_modifier == ClickModifier::Color)) { // [sd]q0
                         _for_each_entity_ {
-                            if (entity->color_code != digit) continue;
+                            uint32 i = uint32(entity->color_code);
+                            if (i != digit) continue;
                             ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                         }
                         *click_mode = ClickMode::None;
-                        *click_modifier = CLICK_MODIFIER_NONE;
-                    } else if ((*click_mode == ClickMode::Color) && (*click_modifier == CLICK_MODIFIER_SELECTED)) { // qs0
-                        _for_each_selected_entity_ ENTITY_SET_COLOR(entity, digit);
+                        *click_modifier = ClickModifier::None;
+                    } else if ((*click_mode == ClickMode::Color) && (*click_modifier == ClickModifier::Selected)) { // qs0
+                        _for_each_selected_entity_ ENTITY_SET_COLOR(entity, ColorCode(digit));
                         *click_mode = ClickMode::None;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                         _for_each_entity_ entity->is_selected = false;
                     } else { // 0
                         result.record_me = true;
                         *click_mode = ClickMode::Color;
-                        *click_color_code = digit;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
+                        *click_color_code = ColorCode(digit);
                     }
                 } else if (key_lambda('A')) {
                     if (click_mode_SELECT_OR_DESELECT()) {
                         result.checkpoint_me = true;
                         CLEAR_SELECTION_MASK_TO(*click_mode == ClickMode::Select);
                         *click_mode = ClickMode::None;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                     }
                 } else if (key_lambda('A', false, true)) {
                     *click_mode = ClickMode::Axis;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                     *awaiting_second_click = false;
                 } else if (key_lambda('B')) {
                     *click_mode = ClickMode::Box;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                     *awaiting_second_click = false;
                 } else if (key_lambda('C')) {
-                    if (((*click_mode == ClickMode::Select) || (*click_mode == ClickMode::Deselect)) && (*click_modifier != CLICK_MODIFIER_CONNECTED)) {
-                        *click_modifier = CLICK_MODIFIER_CONNECTED;
+                    if (((*click_mode == ClickMode::Select) || (*click_mode == ClickMode::Deselect)) && (*click_modifier != ClickModifier::Connected)) {
+                        *click_modifier = ClickModifier::Connected;
                     } else if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
-                        *click_modifier = CLICK_MODIFIER_SNAP_TO_CENTER_OF;
+                        *click_modifier = ClickModifier::Center;
                     } else {
                         *click_mode = ClickMode::Circle;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                         *awaiting_second_click = false;
                     }
                 } else if (key_lambda('D')) {
                     *click_mode = ClickMode::Deselect;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                 } else if (key_lambda('E')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
-                        *click_modifier = CLICK_MODIFIER_SNAP_TO_END_OF;
+                        *click_modifier = ClickModifier::End;
                     }
                 } else if (key_lambda('F')) {
                     *click_mode = ClickMode::Fillet;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                     *enter_mode = EnterMode::None;
                     *awaiting_second_click = false;
                 } else if (key_lambda('G')) {
@@ -953,28 +965,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     _global_screen_state.hide_gui = !_global_screen_state.hide_gui;
                 } else if (key_lambda('L')) {
                     *click_mode = ClickMode::Line;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                     *awaiting_second_click = false;
                 } else if (key_lambda('M')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
-                        *click_modifier = CLICK_MODIFIER_SNAP_TO_MIDDLE_OF;
+                        *click_modifier = ClickModifier::Middle;
                     } else {
                         *click_mode = ClickMode::Move;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                         *awaiting_second_click = false;
                     }
                 } else if (key_lambda('M', false, true)) {
                     result.record_me = false;
                     *click_mode = ClickMode::Measure;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                     *awaiting_second_click = false;
                 } else if (key_lambda('N')) {
                     if (feature_plane->is_active) {
                         *enter_mode = EnterMode::NudgeFeaturePlane;
                         *preview_feature_plane_offset = 0.0f; // FORNOW
                     } else {
-                        conversation_messagef("[n] no plane is_selected");
+                        conversation_messagef(omax.orange, "[n] no plane is_selected");
                     }
                 } else if (key_lambda('N', true, false)) {
                     result.checkpoint_me = true;
@@ -989,36 +1001,34 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda('O', true)) {
                     *enter_mode = EnterMode::Open;
                 } else if (key_lambda('Q')) {
-                    if (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_NONE)) {
-                        *click_modifier = CLICK_MODIFIER_COLOR;
+                    if (click_mode_SELECT_OR_DESELECT() && (*click_modifier == ClickModifier::None)) {
+                        *click_modifier = ClickModifier::Color;
                     } else {
                         *click_mode = ClickMode::Color;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                     }
-                } else if (key_lambda('Q', true)) {
-                    exit(1);
                 } else if (key_lambda('S')) {
                     if (*click_mode != ClickMode::Color) {
                         *click_mode = ClickMode::Select;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                     } else {
-                        *click_modifier = CLICK_MODIFIER_SELECTED;
+                        *click_modifier = ClickModifier::Selected;
                     }
                 } else if (key_lambda('S', true)) {
                     result.record_me = false;
                     *enter_mode = EnterMode::Save;
                 } else if (key_lambda('W')) {
                     if ((*click_mode == ClickMode::Select) || (*click_mode == ClickMode::Deselect)) {
-                        *click_modifier = CLICK_MODIFIER_WINDOW;
+                        *click_modifier = ClickModifier::Window;
                         *awaiting_second_click = false;
                     }
                 } else if (key_lambda('X')) {
                     if (*click_mode != ClickMode::None) {
-                        *click_modifier = CLICK_MODIFIER_EXACT_X_Y_COORDINATES;
+                        *click_modifier = ClickModifier::XYCoordinates;
                     }
                 } else if (key_lambda('X', false, true)) {
                     *click_mode = ClickMode::MirrorX;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                 } else if (key_lambda('X', true, true)) {
                     result.record_me = false;
                     camera2D_zoom_to_bounding_box(&_global_screen_state.camera_2D, dxf_entities_get_bounding_box(&dxf->entities));
@@ -1037,7 +1047,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (key_lambda('Y', false, true)) {
                     *click_mode = ClickMode::MirrorY;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                 } else if (key_lambda('Z')) {
                     Event equivalent = {};
                     equivalent.type = EVENT_TYPE_MOUSE;
@@ -1046,7 +1056,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     return _standard_event_process_NOTE_RECURSIVE(equivalent);
                 } else if (key_lambda('Z', false, true)) {
                     *click_mode = ClickMode::Origin;
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                 } else if (key_lambda(' ')) {
                     *click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
                     return _standard_event_process_NOTE_RECURSIVE(*space_bar_event);
@@ -1083,15 +1093,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.record_me = false;
                     _global_screen_state.show_help = !_global_screen_state.show_help;
                 } else if (key_lambda(GLFW_KEY_ESCAPE)) {
-                    global_world_state.modes = {};
+                    *enter_mode = EnterMode::None;
+                    *click_mode = ClickMode::None;
+                    *click_modifier = ClickModifier::None;
+                    *click_color_code = ColorCode::Traverse;
+                } else if (key_lambda(GLFW_KEY_ENTER)) { // FORNOW
+                    conversation_messagef(omax.orange, "EnterMode is None.");
                 } else {
-                    conversation_messagef("[hotkey] %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->super, key_event->shift, key_event->key);
+                    conversation_messagef(omax.orange, "Hotkey %s was not recognized.", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
                     result.record_me = false;
                     ;
                 }
             }
-            bool32 changed_click_mode = (prev_modes.click_mode != *click_mode);
-            bool32 changed_enter_mode = (prev_modes.enter_mode != *enter_mode);
+            bool32 changed_click_mode = (prev_click_mode != *click_mode);
+            bool32 changed_enter_mode = (prev_enter_mode != *enter_mode);
             if (changed_click_mode && click_mode_SPACE_BAR_REPEAT_ELIGIBLE()) *space_bar_event = event;
             if (changed_enter_mode && enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE()) *shift_space_bar_event = event;
         } else { ASSERT(key_event->subtype == KEY_EVENT_SUBTYPE_GUI);
@@ -1101,7 +1116,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             uint32 key = key_event->key;
             bool32 shift = key_event->shift;
-            bool32 super = key_event->super;
+            bool32 control = key_event->control;
 
             bool32 _tab_hack_so_aliases_not_introduced_too_far_up = false;
             if (key == GLFW_KEY_TAB) {
@@ -1127,39 +1142,39 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             uint32 right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
             if (_tab_hack_so_aliases_not_introduced_too_far_up) {
-            } else if (super && (key == 'A')) {
+            } else if (control && (key == 'A')) {
                 popup->cursor = len;
                 popup->selection_cursor = 0;
             } else if (key == GLFW_KEY_LEFT) {
-                if (!shift && !super) {
+                if (!shift && !control) {
                     if (POPUP_SELECTION_NOT_ACTIVE()) {
                         if (popup->cursor > 0) --popup->cursor;
                     } else {
                         popup->cursor = left_cursor;
                     }
                     popup->selection_cursor = popup->cursor;
-                } else if (shift && !super) {
+                } else if (shift && !control) {
                     if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
                     if (popup->cursor > 0) --popup->cursor;
-                } else if (super && !shift) {
+                } else if (control && !shift) {
                     popup->selection_cursor = popup->cursor = 0;
-                } else { ASSERT(shift && super);
+                } else { ASSERT(shift && control);
                     popup->selection_cursor = 0;
                 }
             } else if (key == GLFW_KEY_RIGHT) {
-                if (!shift && !super) {
+                if (!shift && !control) {
                     if (POPUP_SELECTION_NOT_ACTIVE()) {
                         if (popup->cursor < len) ++popup->cursor;
                     } else {
                         popup->cursor = MAX(popup->cursor, popup->selection_cursor);
                     }
                     popup->selection_cursor = popup->cursor;
-                } else if (shift && !super) {
+                } else if (shift && !control) {
                     if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
                     if (popup->cursor < len) ++popup->cursor;
-                } else if (super && !shift) {
+                } else if (control && !shift) {
                     popup->selection_cursor = popup->cursor = len;
-                } else { ASSERT(shift && super);
+                } else { ASSERT(shift && control);
                     popup->selection_cursor = len;
                 }
             } else if (key == GLFW_KEY_BACKSPACE) {
@@ -1222,7 +1237,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             vec2 *mouse = &mouse_event_2D->mouse_position;
             vec2 *second_click = &mouse_event_2D->mouse_position;
 
-            bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (*click_modifier == CLICK_MODIFIER_WINDOW));
+            bool32 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (*click_modifier == ClickModifier::Window));
 
             bool32 click_mode_TWO_CLICK_COMMAND = 0 ||
                 (*click_mode == ClickMode::Axis) ||
@@ -1239,7 +1254,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 result.record_me = false;
                 int hot_entity_index = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_event_2D->mouse_position.x, mouse_event_2D->mouse_position.y);
                 if (hot_entity_index != -1) {
-                    if (*click_modifier != CLICK_MODIFIER_CONNECTED) {
+                    if (*click_modifier != ClickModifier::Connected) {
                         if (click_mode_SELECT_OR_DESELECT()) {
                             ENTITY_SET_IS_SELECTED(&dxf->entities.array[hot_entity_index], value_to_write_to_selection_mask);
                         } else {
@@ -1402,31 +1417,31 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (!*awaiting_second_click) {
                         *awaiting_second_click = true;
                         *first_click = mouse_event_2D->mouse_position;
-                        if (*click_modifier != CLICK_MODIFIER_WINDOW) *click_modifier = CLICK_MODIFIER_NONE;
+                        if (*click_modifier != ClickModifier::Window) *click_modifier = ClickModifier::None;
                     } else {
                         if (*click_mode == ClickMode::Measure) {
                             *awaiting_second_click = false;
                             *click_mode = ClickMode::None;
-                            *click_modifier = CLICK_MODIFIER_NONE;
+                            *click_modifier = ClickModifier::None;
                             real32 angle = DEG(atan2(*second_click - *first_click));
                             if (angle < 0.0f) angle += 360.0f;
-                            conversation_messagef("[measure] %gmm %gdeg", norm(*second_click - *first_click), angle);
+                            conversation_messagef(monokai.purple, "[measure] %gmm %gdeg", norm(*second_click - *first_click), angle);
                         } else if (*click_mode == ClickMode::Line) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
                             *click_mode = ClickMode::None;
-                            *click_modifier = CLICK_MODIFIER_NONE;
+                            *click_modifier = ClickModifier::None;
                             ADD_LINE_ENTITY(*first_click, *second_click);
                         } else if (*click_mode == ClickMode::Box) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
-                                conversation_messagef("[box] must have non-zero width ");
+                                conversation_messagef(omax.orange, "[box] must have non-zero width ");
                             } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
-                                conversation_messagef("[box] must have non-zero height");
+                                conversation_messagef(omax.orange, "[box] must have non-zero height");
                             } else {
                                 *awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 *click_mode = ClickMode::None;
-                                *click_modifier = CLICK_MODIFIER_NONE;
+                                *click_modifier = ClickModifier::None;
                                 vec2 other_corner_A = { first_click->x, second_click->y };
                                 vec2 other_corner_B = { second_click->x, first_click->y };
                                 ADD_LINE_ENTITY(*first_click,  other_corner_A);
@@ -1438,26 +1453,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
                             *click_mode = ClickMode::None;
-                            *click_modifier = CLICK_MODIFIER_NONE;
+                            *click_modifier = ClickModifier::None;
                             vec2 ds = *second_click - *first_click;
                             _for_each_selected_entity_ {
-                                if (entity->type == ENTITY_TYPE_LINE) {
+                                if (entity->type == EntityType::Line) {
                                     LineEntity *line_entity = &entity->line_entity;
                                     line_entity->start += ds;
                                     line_entity->end   += ds;
-                                } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                                } else { ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc_entity = &entity->arc_entity;
                                     arc_entity->center += ds;
                                 }
                             }
                         } else if (*click_mode == ClickMode::Circle) {
                             if (IS_ZERO(norm(*first_click - *second_click))) {
-                                conversation_messagef("[circle] must have non-zero diameter");
+                                conversation_messagef(omax.orange, "[circle] must have non-zero diameter");
                             } else {
                                 *awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 *click_mode = ClickMode::None;
-                                *click_modifier = CLICK_MODIFIER_NONE;
+                                *click_modifier = ClickModifier::None;
                                 real32 theta_a_in_degrees = DEG(atan2(*second_click - *first_click));
                                 real32 theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real32 r = norm(*second_click - *first_click);
@@ -1468,20 +1483,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
                             *click_mode = ClickMode::None;
-                            *click_modifier = CLICK_MODIFIER_NONE;
+                            *click_modifier = ClickModifier::None;
                             dxf->axis_base_point = *first_click;
                             dxf->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
                         } else if (*click_mode == ClickMode::Fillet) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
-                            *click_modifier = CLICK_MODIFIER_NONE;
+                            *click_modifier = ClickModifier::None;
                             int i = dxf_find_closest_entity(&dxf->entities, first_click->x, first_click->y);
                             int j = dxf_find_closest_entity(&global_world_state.dxf.entities, mouse_event_2D->mouse_position.x, mouse_event_2D->mouse_position.y);
                             if ((i != j) && (i != -1) && (j != -1)) {
                                 real32 radius = *fillet_radius;
                                 Entity *E_i = &dxf->entities.array[i];
                                 Entity *E_j = &dxf->entities.array[j];
-                                if ((E_i->type == ENTITY_TYPE_LINE) && (E_j->type == ENTITY_TYPE_LINE)) {
+                                if ((E_i->type == EntityType::Line) && (E_j->type == EntityType::Line)) {
                                     vec2 a, b, c, d;
                                     entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
                                     entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
@@ -1532,8 +1547,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         if (_center.is_valid) {
                                             vec2 center = _center.position;
 
-                                            uint32 color_i = E_i->color_code;
-                                            uint32 color_j = E_j->color_code;
+                                            ColorCode color_i = E_i->color_code;
+                                            ColorCode color_j = E_j->color_code;
                                             _REMOVE_ENTITY(MAX(i, j));
                                             _REMOVE_ENTITY(MIN(i, j));
 
@@ -1558,7 +1573,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         }
                                     }
                                 } else {
-                                    conversation_messagef("TODO: line_entity-arc_entity fillet; arc_entity-arc_entity fillet");
+                                    conversation_messagef(monokai.red, "TODO: line_entity-arc_entity fillet; arc_entity-arc_entity fillet");
                                 }
                             }
                         } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
@@ -1580,14 +1595,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (*click_mode == ClickMode::Origin) {
                         result.checkpoint_me = true;
                         *click_mode = ClickMode::None;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                         dxf->origin = *mouse;
                     } else if (*click_mode == ClickMode::MirrorX) {
                         result.checkpoint_me = true;
                         *click_mode = ClickMode::None;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                         _for_each_selected_entity_ {
-                            if (entity->type == ENTITY_TYPE_LINE) {
+                            if (entity->type == EntityType::Line) {
                                 LineEntity *line_entity = &entity->line_entity;
                                 BUFFER_LINE_ENTITY(
                                         V2(-(line_entity->start.x - mouse->x) + mouse->x, line_entity->start.y),
@@ -1595,7 +1610,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                            } else { ASSERT(entity->type == EntityType::Arc);
                                 ArcEntity *arc_entity = &entity->arc_entity;
                                 BUFFER_ARC_ENTITY(
                                         V2(-(arc_entity->center.x - mouse->x) + mouse->x, arc_entity->center.y),
@@ -1611,9 +1626,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (*click_mode == ClickMode::MirrorY) {
                         result.checkpoint_me = true;
                         *click_mode = ClickMode::None;
-                        *click_modifier = CLICK_MODIFIER_NONE;
+                        *click_modifier = ClickModifier::None;
                         _for_each_selected_entity_ {
-                            if (entity->type == ENTITY_TYPE_LINE) {
+                            if (entity->type == EntityType::Line) {
                                 LineEntity *line_entity = &entity->line_entity;
                                 BUFFER_LINE_ENTITY(
                                         V2(line_entity->start.x, -(line_entity->start.y - mouse->y) + mouse->y),
@@ -1621,7 +1636,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == ENTITY_TYPE_ARC);
+                            } else { ASSERT(entity->type == EntityType::Arc);
                                 ArcEntity *arc_entity = &entity->arc_entity;
                                 BUFFER_ARC_ENTITY(
                                         V2(arc_entity->center.x, -(arc_entity->center.y - mouse->y) + mouse->y),
@@ -1648,7 +1663,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         vec3 p[3]; {
                             for (uint32 j = 0; j < 3; ++j) p[j] = get(global_world_state.mesh.vertex_positions, global_world_state.mesh.triangle_indices[3 * i + j]);
                         }
-                        RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_3D->o, mouse_event_3D->dir, p[0], p[1], p[2]);
+                        RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_3D->mouse_ray_origin, mouse_event_3D->mouse_ray_direction, p[0], p[1], p[2]);
                         if (ray_triangle_intersection_result.hit) {
                             if (ray_triangle_intersection_result.distance < min_distance) {
                                 min_distance = ray_triangle_intersection_result.distance;
@@ -1729,7 +1744,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (*enter_mode == EnterMode::Open) {
                 sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, open_filename);
                 popup_popup(false,
-                        POPUP_CELL_TYPE_CSTRING, "open_filename", open_filename);
+                        CellType::String, "open_filename", open_filename);
                 if (gui_key_enter) {
                     if (poe_suffix_match(full_filename_scratch_buffer, ".dxf")) {
                         result.record_me = true;
@@ -1745,95 +1760,95 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         conversation_stl_load(full_filename_scratch_buffer);
                         *enter_mode = EnterMode::None;
                     } else {
-                        conversation_messagef("[open] \"%s\" not found", full_filename_scratch_buffer);
+                        conversation_messagef(omax.orange, "[open] \"%s\" not found", full_filename_scratch_buffer);
                     }
                 }
             } else if (*enter_mode == EnterMode::Save) {
                 result.record_me = false;
                 sprintf(full_filename_scratch_buffer, "%s%s", _global_screen_state.drop_path, save_filename);
                 popup_popup(false,
-                        POPUP_CELL_TYPE_CSTRING, "save_filename", save_filename);
+                        CellType::String, "save_filename", save_filename);
                 if (gui_key_enter) {
                     conversation_save(full_filename_scratch_buffer);
                     *enter_mode = EnterMode::None;
                 }
             } else if (*enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
-                        POPUP_CELL_TYPE_REAL32, "extrude_add_out_length", extrude_add_out_length,
-                        POPUP_CELL_TYPE_REAL32, "extrude_add_in_length",  extrude_add_in_length);
+                        CellType::Real32, "extrude_add_out_length", extrude_add_out_length,
+                        CellType::Real32, "extrude_add_in_length",  extrude_add_in_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef("[extrude-add] no dxf elements selected");
+                        conversation_messagef(omax.orange, "DXF selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef("[extrude-add] no plane selected");
+                        conversation_messagef(omax.orange, "No feature plane is selected.");
                     } else if (IS_ZERO(*extrude_add_in_length) && IS_ZERO(*extrude_add_out_length)) {
-                        conversation_messagef("[extrude-add] must have non-zero total height");
+                        conversation_messagef(omax.orange, "Total extrusion length is zero.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[extrude-add] success");
+                        conversation_messagef(omax.green, "ExtrudeAdd was successful.");
                     }
                 }
             } else if (*enter_mode == EnterMode::ExtrudeCut) {
                 popup_popup(true,
-                        POPUP_CELL_TYPE_REAL32, "extrude_cut_in_length",  extrude_cut_in_length,
-                        POPUP_CELL_TYPE_REAL32, "extrude_cut_out_length", extrude_cut_out_length);
+                        CellType::Real32, "extrude_cut_in_length",  extrude_cut_in_length,
+                        CellType::Real32, "extrude_cut_out_length", extrude_cut_out_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef("[extrude-cut] no dxf elements selected");
+                        conversation_messagef(omax.orange, "DXF selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef("[extrude-cut] no plane selected");
+                        conversation_messagef(omax.orange, "No feature plane is selected.");
                     } else if (IS_ZERO(global_world_state.popup.extrude_cut_in_length) && IS_ZERO(global_world_state.popup.extrude_cut_out_length)) {
-                        conversation_messagef("[extrude-cut] must have non-zero total height");
+                        conversation_messagef(omax.orange, "Total extrusion length is zero.");
                     } else if (global_world_state.mesh.num_triangles == 0) {
-                        conversation_messagef("[extrude-cut] no mesh to cut from");
+                        conversation_messagef(omax.orange, "Current mesh is empty.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[extrude-cut] success");
+                        conversation_messagef(omax.green, "ExtrudeCut was successful.");
                     }
                 }
             } else if (*enter_mode == EnterMode::RevolveAdd) {
-                popup_popup(true, POPUP_CELL_TYPE_REAL32, "revolve_add_dummy", revolve_add_dummy);
+                popup_popup(true, CellType::Real32, "revolve_add_dummy", revolve_add_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef("[revolve-add] no dxf elements selected");
+                        conversation_messagef(omax.orange, "DXF selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef("[revolve-add] no plane selected");
+                        conversation_messagef(omax.orange, "No feature plane is selected.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[revolve-add] success");
+                        conversation_messagef(omax.green, "RevolveAdd was successful.");
                     }
                 }
             } else if (*enter_mode == EnterMode::RevolveCut) {
-                popup_popup(true, POPUP_CELL_TYPE_REAL32, "revolve_cut_dummy", revolve_cut_dummy);
+                popup_popup(true, CellType::Real32, "revolve_cut_dummy", revolve_cut_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef("[revolve-cut] no dxf elements selected");
+                        conversation_messagef(omax.orange, "DXF selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef("[revolve-cut] no plane selected");
+                        conversation_messagef(omax.orange, "No feature plane is selected.");
                     } else if (global_world_state.mesh.num_triangles == 0) {
-                        conversation_messagef("[revolve-cut] no mesh to cut from");
+                        conversation_messagef(omax.orange, "Current mesh is empty.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef("[revolve-cut] success");
+                        conversation_messagef(omax.green, "RevolveCut was successful.");
                     }
                 }
             } else if (*enter_mode == EnterMode::NudgeFeaturePlane) {
                 popup_popup(true,
-                        POPUP_CELL_TYPE_REAL32, "feature_plane_nudge", feature_plane_nudge);
+                        CellType::Real32, "feature_plane_nudge", feature_plane_nudge);
                 if (gui_key_enter) {
                     result.record_me = true;
                     result.checkpoint_me = true;
                     feature_plane->signed_distance_to_world_origin += *feature_plane_nudge;
                     *enter_mode = EnterMode::None;
                 }
-            } else if (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
+            } else if (*click_modifier == ClickModifier::XYCoordinates) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
                 popup_popup(true,
-                        POPUP_CELL_TYPE_REAL32, "x_coordinate", x_coordinate,
-                        POPUP_CELL_TYPE_REAL32, "y_coordinate", y_coordinate);
+                        CellType::Real32, "x_coordinate", x_coordinate,
+                        CellType::Real32, "y_coordinate", y_coordinate);
                 if (gui_key_enter) {
                     // popup->_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
-                    *click_modifier = CLICK_MODIFIER_NONE;
+                    *click_modifier = ClickModifier::None;
                     return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(*x_coordinate, *y_coordinate));
                 }
             } else if (*click_mode == ClickMode::Circle) {
@@ -1842,9 +1857,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real32 prev_circle_radius = *circle_radius;
                     real32 prev_circle_circumference = *circle_circumference;
                     popup_popup(false,
-                            POPUP_CELL_TYPE_REAL32, "circle_diameter", circle_diameter,
-                            POPUP_CELL_TYPE_REAL32, "circle_radius", circle_radius,
-                            POPUP_CELL_TYPE_REAL32, "circle_circumference", circle_circumference);
+                            CellType::Real32, "circle_diameter", circle_diameter,
+                            CellType::Real32, "circle_radius", circle_radius,
+                            CellType::Real32, "circle_circumference", circle_circumference);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *circle_radius, first_click->y));
                     } else {
@@ -1867,10 +1882,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real32 prev_line_run = *line_run;
                     real32 prev_line_rise = *line_rise;
                     popup_popup(true,
-                            POPUP_CELL_TYPE_REAL32, "line_length", line_length,
-                            POPUP_CELL_TYPE_REAL32, "line_angle", line_angle,
-                            POPUP_CELL_TYPE_REAL32, "line_run", line_run,
-                            POPUP_CELL_TYPE_REAL32, "line_rise", line_rise
+                            CellType::Real32, "line_length", line_length,
+                            CellType::Real32, "line_angle", line_angle,
+                            CellType::Real32, "line_run", line_run,
+                            CellType::Real32, "line_rise", line_rise
                             );
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *line_run, first_click->y + *line_rise));
@@ -1887,8 +1902,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (*click_mode == ClickMode::Box) {
                 if (*awaiting_second_click) {
                     popup_popup(true,
-                            POPUP_CELL_TYPE_REAL32, "box_width", box_width,
-                            POPUP_CELL_TYPE_REAL32, "box_height", box_height);
+                            CellType::Real32, "box_width", box_width,
+                            CellType::Real32, "box_height", box_height);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *box_width, first_click->y + *box_height));
                     }
@@ -1901,10 +1916,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real32 prev_move_run = *move_run;
                     real32 prev_move_rise = *move_rise;
                     popup_popup(true,
-                            POPUP_CELL_TYPE_REAL32, "move_length", move_length,
-                            POPUP_CELL_TYPE_REAL32, "move_angle", move_angle,
-                            POPUP_CELL_TYPE_REAL32, "move_run", move_run,
-                            POPUP_CELL_TYPE_REAL32, "move_rise", move_rise
+                            CellType::Real32, "move_length", move_length,
+                            CellType::Real32, "move_angle", move_angle,
+                            CellType::Real32, "move_run", move_run,
+                            CellType::Real32, "move_rise", move_rise
                             );
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + *move_run, first_click->y + *move_rise));
@@ -1920,7 +1935,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (*click_mode == ClickMode::Fillet) {
                 popup_popup(false,
-                        POPUP_CELL_TYPE_REAL32, "fillet_radius", fillet_radius);
+                        CellType::Real32, "fillet_radius", fillet_radius);
             }
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
@@ -2020,7 +2035,7 @@ void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_
 
 void history_undo() {
     if (elephant_is_empty_undo(&history.recorded_user_events)) {
-        conversation_messagef("[undo] nothing to undo");
+        conversation_messagef(omax.orange, "There is nothing to undo.");
         return;
     }
 
@@ -2056,12 +2071,12 @@ void history_undo() {
     IGNORE_NEW_MESSAGEFS = true; // TODO: why does this seem unnecessary in practice??
     for (Event *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
     IGNORE_NEW_MESSAGEFS = false;
-    conversation_messagef("[undo] success");
+    conversation_messagef(omax.green, "Undo was successful.");
 }
 
 void history_redo() {
     if (elephant_is_empty_redo(&history.recorded_user_events)) {
-        conversation_messagef("[redo] nothing to redo");
+        conversation_messagef(omax.orange, "There is nothing to redo.");
         return;
     }
 
@@ -2080,13 +2095,13 @@ void history_redo() {
         if (user_event->checkpoint_me) break;
     }
     IGNORE_NEW_MESSAGEFS = false;
-    conversation_messagef("[redo] success");
+    conversation_messagef(omax.green, "Redo was successful.");
 }
 
 void _history_user_event_draw_helper(Event event) {
     char message[256]; {
         // TODO: Left and right arrow
-        // TODO: handle shift and super with the special characters
+        // TODO: handle shift and control with the special characters
         if (event.type == EVENT_TYPE_KEY) {
             KeyEvent *key_event = &event.key_event;
             char *boxed; {
@@ -2104,7 +2119,7 @@ void _history_user_event_draw_helper(Event event) {
                 sprintf(message, "[MOUSE-2D] %g %g", mouse_event_2D->mouse_position.x, mouse_event_2D->mouse_position.y);
             } else if (mouse_event->subtype == MOUSE_EVENT_SUBTYPE_3D) {
                 MouseEvent3D *mouse_event_3D = &mouse_event->mouse_event_3D;
-                sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_event_3D->o.x, mouse_event_3D->o.y, mouse_event_3D->o.z, mouse_event_3D->dir.x, mouse_event_3D->dir.y, mouse_event_3D->dir.z);
+                sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_event_3D->mouse_ray_origin.x, mouse_event_3D->mouse_ray_origin.y, mouse_event_3D->mouse_ray_origin.z, mouse_event_3D->mouse_ray_direction.x, mouse_event_3D->mouse_ray_direction.y, mouse_event_3D->mouse_ray_direction.z);
             } else { ASSERT(mouse_event->subtype == MOUSE_EVENT_SUBTYPE_GUI);
                 MouseEventGUI *mouse_event_gui = &mouse_event->mouse_event_gui;
                 sprintf(message, "[GUI-MOUSE] %d %d %d", mouse_event_gui->cell_index, mouse_event_gui->cursor, mouse_event_gui->selection_cursor);
@@ -2183,7 +2198,7 @@ void history_printf_script() {
         ) {//
         if (event->type == EVENT_TYPE_KEY) {
             KeyEvent key_event = event->key_event;
-            if (key_event.super) list_push_back(&_script, '^');
+            if (key_event.control) list_push_back(&_script, '^');
             if (key_event.key == GLFW_KEY_ENTER) {
                 list_push_back(&_script, '\\');
                 list_push_back(&_script, 'n');
@@ -2206,22 +2221,27 @@ void history_printf_script() {
 //////////////////////////////////////////////////
 
 void freshly_baked_event_process(Event freshly_baked_event) {
+    bool32 quit;
     bool32 undo;
     bool32 redo;
     {
+        quit = false;
         undo = false;
         redo = false;
         if (freshly_baked_event.type == EVENT_TYPE_KEY) {
             KeyEvent *key_event = &freshly_baked_event.key_event;
-            auto key_lambda = [key_event](uint32 key, bool super = false, bool shift = false) -> bool {
-                return _key_lambda(key_event, key, super, shift);
+            auto key_lambda = [key_event](uint32 key, bool control = false, bool shift = false) -> bool {
+                return _key_lambda(key_event, key, control, shift);
             };
             undo = (key_lambda('Z', true) || key_lambda('U'));
             redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
+            quit = key_lambda('Q', true);
         }
     }
 
-    if (undo) {
+    if (quit) {
+        exit(1); 
+    } else if (undo) {
         _global_screen_state.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
         history_undo();
     } else if (redo) {
@@ -2263,16 +2283,16 @@ void conversation_draw() {
 
     { // preview_extrude_in_length
         real32 target = (adding) ? *extrude_add_in_length : *extrude_cut_in_length;
-        JUICE_IT_EASY_TWEEN(preview_extrude_in_length, target);
+        JUICEIT_EASYTWEEN(preview_extrude_in_length, target);
     }
     { // preview_extrude_out_length
         real32 target = (adding) ? *extrude_add_out_length : *extrude_cut_out_length;
-        JUICE_IT_EASY_TWEEN(preview_extrude_out_length, target);
+        JUICEIT_EASYTWEEN(preview_extrude_out_length, target);
     }
     // TODO
     { // preview_feature_plane_offset
         real32 target = (*enter_mode == EnterMode::NudgeFeaturePlane) ? *feature_plane_nudge : 0.0f;
-        JUICE_IT_EASY_TWEEN(preview_feature_plane_offset, target);
+        JUICEIT_EASYTWEEN(preview_feature_plane_offset, target);
     }
 
     // preview
@@ -2312,9 +2332,9 @@ void conversation_draw() {
     }
 
     { // panes
-        eso_begin(globals.Identity, SOUP_LINES, (*mouse_left_drag_pane == PANE_DIVIDER) ? 3.0f : (*hot_pane == PANE_DIVIDER) ? 6.0f : 5.0f, true);
-        eso_color((*mouse_left_drag_pane == PANE_DIVIDER) ? monokai.white : (*hot_pane == PANE_DIVIDER) ? monokai.white : monokai.gray);
-        // if (_global_screen_state.hot_pane == PANE_2D) {
+        eso_begin(globals.Identity, SOUP_LINES, (*mouse_left_drag_pane == Pane::Divider) ? 2.0f : (*hot_pane == Pane::Divider) ? 6.0f : 4.0f, true);
+        eso_color((*mouse_left_drag_pane == Pane::Divider) ? monokai.white : (*hot_pane == Pane::Divider) ? monokai.white : monokai.gray);
+        // if (_global_screen_state.hot_pane == Pane::DXF) {
         //     eso_color(monokai.yellow);
         // } else {
         //     eso_color(1.0f, 0.0f, 1.0f);
@@ -2324,12 +2344,12 @@ void conversation_draw() {
         eso_end();
     }
 
-    real32 x_divider_Screen = get_x_divider_Screen();
+    real32 x_divider_Pixel = get_x_divider_Pixel();
 
     { // draw 2D draw 2d draw
         {
             glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_Screen, window_height);
+            gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_Pixel, window_height);
         }
 
         {
@@ -2383,14 +2403,14 @@ void conversation_draw() {
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
-                    uint32 color_code = (!entity->is_selected) ? entity->color_code : COLOR_CODE_SELECTION;
+                    ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
                     real32 dx = 0.0f;
                     real32 dy = 0.0f;
                     if ((*click_mode == ClickMode::Move) && (*awaiting_second_click)) {
                         if (entity->is_selected) {
                             dx = preview_mouse.x - first_click->x;
                             dy = preview_mouse.y - first_click->y;
-                            color_code = COLOR_CODE_WATER_ONLY;
+                            color_code = ColorCode::WaterOnly;
                         }
                     }
                     eso_color(get_color(color_code));
@@ -2415,7 +2435,7 @@ void conversation_draw() {
             if (*awaiting_second_click) {
                 if (
                         0
-                        || (*click_modifier == CLICK_MODIFIER_WINDOW)
+                        || (*click_modifier == ClickModifier::Window)
                         ||(*click_mode == ClickMode::Box )
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
@@ -2454,7 +2474,7 @@ void conversation_draw() {
                     int i = dxf_find_closest_entity(&global_world_state.dxf.entities, global_world_state.two_click_command.first_click.x, global_world_state.two_click_command.first_click.y);
                     if (i != -1) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(COLOR_CODE_WATER_ONLY));
+                        eso_color(get_color(ColorCode::WaterOnly));
                         eso_dxf_entity__SOUP_LINES(&global_world_state.dxf.entities.array[i]);
                         eso_end();
                     }
@@ -2467,7 +2487,7 @@ void conversation_draw() {
     { // 3D draw 3D 3d draw 3d
         {
             glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(x_divider_Screen, 0, window_width - x_divider_Screen, window_height);
+            gl_scissor_TODO_CHECK_ARGS(x_divider_Pixel, 0, window_width - x_divider_Pixel, window_height);
         }
 
         if (!_global_screen_state.hide_grid) { // grid 3D grid 3d grid
@@ -2479,11 +2499,11 @@ void conversation_draw() {
             // FORNOW
             bool32 moving_stuff = ((*click_mode == ClickMode::Origin) || (*enter_mode == EnterMode::NudgeFeaturePlane));
             vec3 target_preview_tubes_color = (0) ? V3(0)
-                : (adding) ? get_color(COLOR_CODE_TRAVERSE)
-                : (cutting) ? get_color(COLOR_CODE_QUALITY_1)
-                : (moving_stuff) ? get_color(COLOR_CODE_WATER_ONLY)
+                : (adding) ? get_color(ColorCode::Traverse)
+                : (cutting) ? get_color(ColorCode::Quality1)
+                : (moving_stuff) ? get_color(ColorCode::WaterOnly)
                 : monokai.yellow;
-            JUICE_IT_EASY_TWEEN(preview_tubes_color, target_preview_tubes_color);
+            JUICEIT_EASYTWEEN(preview_tubes_color, target_preview_tubes_color);
 
             uint32 NUM_TUBE_STACKS_INCLUSIVE;
             mat4 M;
@@ -2631,8 +2651,8 @@ void conversation_draw() {
                     target_bounding_box.max[1] += eps;
                 }
             }
-            JUICE_IT_EASY_TWEEN(&preview_feature_plane->min, target_bounding_box.min);
-            JUICE_IT_EASY_TWEEN(&preview_feature_plane->max, target_bounding_box.max);
+            JUICEIT_EASYTWEEN(&preview_feature_plane->min, target_bounding_box.min);
+            JUICEIT_EASYTWEEN(&preview_feature_plane->max, target_bounding_box.max);
             if (time_since->plane_selected == 0.0f) { // FORNOW
                 *preview_feature_plane = target_bounding_box;
             }
@@ -2658,7 +2678,7 @@ void conversation_draw() {
                 }
             }
 
-            JUICE_IT_EASY_TWEEN(preview_feature_plane_color, target_feature_plane_color);
+            JUICEIT_EASYTWEEN(preview_feature_plane_color, target_feature_plane_color);
 
             if (draw) {
                 real32 f = CLAMPED_LERP(SQRT(3.0f * time_since->plane_selected), 0.0f, 1.0f);
@@ -2682,23 +2702,23 @@ void conversation_draw() {
 
 
         { // cursor decorations
-            real32 a = ((*hot_pane == PANE_2D) && ((*mouse_left_drag_pane == PANE_NONE) || (*mouse_left_drag_pane == PANE_2D))) ? 1.0f : 0.5f;
+            real32 a = ((*hot_pane == Pane::DXF) && ((*mouse_left_drag_pane == Pane::None) || (*mouse_left_drag_pane == Pane::DXF))) ? 1.0f : 0.5f;
             real32 r, g, b;
             r = g = b = 1.0f;
             char _COLOR_X[64] = {};
             if (*click_mode == ClickMode::Color) {
-                if (*click_modifier == CLICK_MODIFIER_SELECTED) {
+                if (*click_modifier == ClickModifier::Selected) {
                     sprintf(_COLOR_X, "COLOR");
                 } else {
                     sprintf(_COLOR_X, "COLOR %d", *click_color_code);
-                    vec3 rgb = omax_pallete[*click_color_code];
+                    vec3 rgb = get_color(*click_color_code);
                     r = rgb[0];
                     g = rgb[1];
                     b = rgb[2];
                 }
             }
             char _X_Y[256] = {};
-            if (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) {
+            if (*click_modifier == ClickModifier::XYCoordinates) {
                 sprintf(_X_Y, "(%g, %g)", *x_coordinate, *y_coordinate);
             }
 
@@ -2737,15 +2757,15 @@ void conversation_draw() {
             _text_draw(
                     (cow_real *) &globals.NDC_from_Screen,
                     (char *) (
-                        (*click_modifier == CLICK_MODIFIER_NONE)                  ? "" :
-                        (*click_modifier == CLICK_MODIFIER_SNAP_TO_CENTER_OF)     ? "CENTER" :
-                        (*click_modifier == CLICK_MODIFIER_CONNECTED)             ? "CONNECTED" :
-                        (*click_modifier == CLICK_MODIFIER_SNAP_TO_END_OF)        ? "END" :
-                        (*click_modifier == CLICK_MODIFIER_COLOR)                 ? "COLOR" :
-                        (*click_modifier == CLICK_MODIFIER_SNAP_TO_MIDDLE_OF)     ? "MIDDLE" :
-                        (*click_modifier == CLICK_MODIFIER_SELECTED)              ? "SELECTED" :
-                        (*click_modifier == CLICK_MODIFIER_WINDOW)                ? "WINDOW" :
-                        (*click_modifier == CLICK_MODIFIER_EXACT_X_Y_COORDINATES) ? _X_Y :
+                        (*click_modifier == ClickModifier::None)                  ? "" :
+                        (*click_modifier == ClickModifier::Center)     ? "CENTER" :
+                        (*click_modifier == ClickModifier::Connected)             ? "CONNECTED" :
+                        (*click_modifier == ClickModifier::End)        ? "END" :
+                        (*click_modifier == ClickModifier::Color)                 ? "COLOR" :
+                        (*click_modifier == ClickModifier::Middle)     ? "MIDDLE" :
+                        (*click_modifier == ClickModifier::Selected)              ? "SELECTED" :
+                        (*click_modifier == ClickModifier::Window)                ? "WINDOW" :
+                        (*click_modifier == ClickModifier::XYCoordinates) ? _X_Y :
                         "???MODIFIER???"),
                     mouse_Pixel->x + 12,
                     mouse_Pixel->y + 24,
@@ -2822,11 +2842,11 @@ void script_process(char *string) {
     // TODO: gui
     // TODOLATER (weird 'X' version): char *string = "^osplash.dxf\nyscx2020\ne\t50";
     #define TAG_LENGTH 3
-    bool32 super = false;
+    bool32 control = false;
     for (uint32 i = 0; string[i]; ++i) {
         char c = string[i];
         if (c == '^') {
-            super = true;
+            control = true;
         } else if (c == '<') {
             bool32 is_instabaked = true;
             Event instabaked_event = {};
@@ -2849,10 +2869,10 @@ void script_process(char *string) {
                         instabaked_event = construct_mouse_event_2D(p);
                     } else if (strncmp(tag, "m3d", TAG_LENGTH) == 0) {
                         char *params = &string[i + 1 + TAG_LENGTH];
-                        vec3 o;
-                        vec3 dir;
-                        sscanf(params, "%f %f %f %f %f %f", &o.x, &o.y, &o.z, &dir.x, &dir.y, &dir.z);
-                        instabaked_event = construct_mouse_event_3D(o, dir);
+                        vec3 mouse_ray_origin;
+                        vec3 mouse_ray_direction;
+                        sscanf(params, "%f %f %f %f %f %f", &mouse_ray_origin.x, &mouse_ray_origin.y, &mouse_ray_origin.z, &mouse_ray_direction.x, &mouse_ray_direction.y, &mouse_ray_direction.z);
+                        instabaked_event = construct_mouse_event_3D(mouse_ray_origin, mouse_ray_direction);
                     } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
                         is_instabaked = false;
                         _raw_event.type = EVENT_TYPE_KEY;
@@ -2870,7 +2890,7 @@ void script_process(char *string) {
         } else {
             RawEvent raw_event = {};
             raw_event.type = EVENT_TYPE_KEY;
-            raw_event.super = super;
+            raw_event.control = control;
             {
                 if ('a' <= c && c <= 'z') {
                     raw_event.key = 'A' + (c - 'a');
@@ -2891,7 +2911,7 @@ void script_process(char *string) {
                     raw_event.key = c;
                 }
             }
-            super = false;
+            control = false;
             Event freshly_baked_event = bake_event(raw_event);
             freshly_baked_event_process(freshly_baked_event);
         }

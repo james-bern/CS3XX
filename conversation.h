@@ -7,7 +7,8 @@
 // FORNOW: forward declarations ////////
 ////////////////////////////////////////
 
-void conversation_messagef(char *format, ...);
+void conversation_messagef(vec3 color, char *format, ...);
+real32 get_x_divider_Pixel();
 
 
 ////////////////////////////////////////
@@ -27,30 +28,54 @@ real32 CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
 
 #define RGB256(r, g, b) { (r) / 255.0f, (g) / 255.0f, (b) / 255.0f }
 
-vec3 omax_pallete[] = {
-    RGB256( 83, 255,  85),
-    RGB256(255,   0,   0),
-    RGB256(238,   0, 119),
-    RGB256(255,   0, 255),
-    RGB256(170,   1, 255),
-    RGB256(  0,  85, 255),
-    RGB256(136, 136, 136),
-    RGB256(205, 205, 205),
-    RGB256(  0, 255, 255),
-    RGB256(204, 136,   1),
-};
-
-
 struct {
     vec3 yellow = { 1.0f, 1.0f, 0.0f };
     vec3 cyan = { 0.0f, 1.0f, 1.0f };
 } basic;
 
+struct {
+    vec3 red = RGB256(255, 0, 0);
+    vec3 pink = RGB256(238, 0, 119);
+    vec3 yellow = RGB256(255, 255, 0);
+    vec3 orange = RGB256(204, 136, 1);
+    vec3 green = RGB256(83, 255,  85);
+    vec3 cyan = RGB256(0, 255, 255);
+    vec3 blue = RGB256(0, 85, 255);
+    vec3 purple = RGB256(170, 1, 255);
+    vec3 magenta = RGB256(255, 0, 255);
+    vec3 dark_gray = RGB256(136, 136, 136);
+    vec3 light_gray = RGB256(205, 205, 205);
+} omax;
+
+vec3 omax_pallete[] = {
+    omax.green,
+    omax.red,
+    omax.pink,
+    omax.magenta,
+    omax.purple,
+    omax.blue,
+    omax.dark_gray,
+    omax.light_gray,
+    omax.cyan,
+    omax.orange,
+};
+
 ////////////////////////////////////////
-// #defines ////////////////////////////
+// bbox (TODO: strip) //////////////////
 ////////////////////////////////////////
 
-// TODO: switch to enums
+template <uint32 D> struct BoundingBox {
+    SnailVector<D> min;
+    SnailVector<D> max;
+};
+
+typedef BoundingBox<2> bbox2;
+typedef BoundingBox<2> bbox3;
+
+
+////////////////////////////////////////
+// enums ///////////////////////////////
+////////////////////////////////////////
 
 enum class EnterMode {
     None,
@@ -80,29 +105,37 @@ enum class ClickMode {
     Select,
 };
 
-#define CLICK_MODIFIER_NONE                   0
-#define CLICK_MODIFIER_CONNECTED              1
-#define CLICK_MODIFIER_COLOR                  2
-#define CLICK_MODIFIER_WINDOW                 3
-#define CLICK_MODIFIER_SNAP_TO_CENTER_OF      4
-#define CLICK_MODIFIER_SNAP_TO_END_OF         5
-#define CLICK_MODIFIER_SNAP_TO_MIDDLE_OF      6
-#define CLICK_MODIFIER_SNAP_PERPENDICULAR_TO  7
-#define CLICK_MODIFIER_EXACT_X_Y_COORDINATES  8
-#define CLICK_MODIFIER_SELECTED               9
+enum class ClickModifier {
+    None,
+    Center,
+    Color,
+    Connected,
+    End,
+    Middle,
+    Perpendicular,
+    Selected,
+    Window,
+    XYCoordinates,
+};
 
-#define ENTITY_TYPE_LINE 0
-#define ENTITY_TYPE_ARC  1
+enum class EntityType {
+    Arc,
+    Line,
+};
 
-#define PANE_NONE    0
-#define PANE_2D      1
-#define PANE_3D      2
-#define PANE_DIVIDER 3
-#define PANE_POPUP   4
+enum class Pane {
+    None,
+    DXF,
+    STL,
+    Divider,
+    Popup,
+};
 
-#define POPUP_CELL_TYPE_NONE    0
-#define POPUP_CELL_TYPE_REAL32  1
-#define POPUP_CELL_TYPE_CSTRING 2
+enum class CellType {
+    None,
+    Real32,
+    String,
+};
 
 #define EVENT_TYPE_NONE  0
 #define EVENT_TYPE_KEY   1
@@ -117,25 +150,25 @@ enum class ClickMode {
 #define MOUSE_EVENT_SUBTYPE_3D   2
 #define MOUSE_EVENT_SUBTYPE_GUI  3
 
-/////////////////
+enum class ColorCode {
+    Traverse,
+    Quality1,
+    Quality2,
+    Quality3,
+    Quality4,
+    Quality5,
+    Etch,
+    WaterOnly,
+    LeadIO,
+    Selection,
+    QualitySlit1 = 21,
+    QualitySlit2,
+    QualitySlit3,
+    QualitySlit4,
+    QualitySlit5,
+};
 
-#define COLOR_CODE_TRAVERSE        0
-#define COLOR_CODE_QUALITY_1       1
-#define COLOR_CODE_QUALITY_2       2
-#define COLOR_CODE_QUALITY_3       3
-#define COLOR_CODE_QUALITY_4       4
-#define COLOR_CODE_QUALITY_5       5
-#define COLOR_CODE_QUALITY_5       5
-#define COLOR_CODE_ETCH            6
-#define COLOR_CODE_WATER_ONLY      8
-#define COLOR_CODE_LEAD_IO         9
-#define COLOR_CODE_SELECTION      10
-#define COLOR_CODE_QUALITY_SLIT_1 21
-#define COLOR_CODE_QUALITY_SLIT_2 22
-#define COLOR_CODE_QUALITY_SLIT_3 23
-#define COLOR_CODE_QUALITY_SLIT_4 24
-#define COLOR_CODE_QUALITY_SLIT_5 25
-#define COLOR_CODE_DONT_OVERRIDE 255
+/////////////////
 
 #define POPUP_CELL_LENGTH 256
 #define POPUP_MAX_NUM_CELLS 4
@@ -147,7 +180,6 @@ enum class ClickMode {
 struct LineEntity {
     vec2 start;
     vec2 end;
-    real32 _;
 };
 
 struct ArcEntity {
@@ -158,24 +190,15 @@ struct ArcEntity {
 };
 
 struct Entity {
-    uint32 type;
-    uint32 color_code;
-    // union {
-    LineEntity line_entity;
-    ArcEntity arc_entity;
-    // };
-    // FORNOW: this goes last
+    EntityType type;
+
+    ColorCode color_code;
     bool32 is_selected;
     real32 time_since_is_selected_changed;
-};
 
-template <uint32 D> struct BoundingBox {
-    SnailVector<D> min;
-    SnailVector<D> max;
+    LineEntity line_entity;
+    ArcEntity arc_entity;
 };
-
-typedef BoundingBox<2> bbox2;
-typedef BoundingBox<2> bbox3;
 
 struct Mesh {
     uint32 num_vertices;
@@ -191,32 +214,26 @@ struct Mesh {
     vec3 max;
 };
 
+// TODO: struct out RawEvent into RawMouseEvent and RawKeyEvent
 struct RawEvent {
     uint32 type;
+    Pane pane;
 
     uint32 key;
-    bool32 super;
+    bool32 control;
     bool32 shift;
 
     vec2 mouse_Pixel;
     bool32 mouse_held;
-
-    uint32 pane;
 };
-
-// TODO: this is confusing;  TODO: fat struct it Key
-
-// TODO: join all the mouse events up?
-
-
 
 struct MouseEvent2D {
     vec2 mouse_position;
 };
 
 struct MouseEvent3D {
-    vec3 o;
-    vec3 dir;
+    vec3 mouse_ray_origin;
+    vec3 mouse_ray_direction;
 };
 
 struct MouseEventGUI {
@@ -239,7 +256,7 @@ struct KeyEvent {
     uint32 subtype;
 
     uint32 key;
-    bool32 super;
+    bool32 control;
     bool32 shift;
 };
 
@@ -254,6 +271,85 @@ struct Event {
     MouseEvent mouse_event;
 };
 
+struct DXFState {
+    List<Entity> entities;
+    vec2            origin;
+    vec2            axis_base_point;
+    real32          axis_angle_from_y;
+};
+
+struct FeaturePlaneState {
+    bool32 is_active;
+    vec3 normal;
+    real32 signed_distance_to_world_origin;
+};
+
+struct PopupState {
+    CellType cell_type[POPUP_MAX_NUM_CELLS];
+    char *name[POPUP_MAX_NUM_CELLS];
+    void *value[POPUP_MAX_NUM_CELLS];
+    uint32 num_cells;
+
+    char active_cell_buffer[POPUP_CELL_LENGTH];
+    uint32 active_cell_index;
+    uint32 cursor;
+    uint32 selection_cursor;
+
+    CellType _type_of_active_cell;
+    void *_active_popup_unique_ID__FORNOW_name0;
+
+    bool32 mouse_is_hovering;
+    uint32 hover_cell_index;
+    uint32 hover_cursor;
+
+    real32 extrude_add_out_length;
+    real32 extrude_add_in_length;
+    real32 extrude_cut_in_length;
+    real32 extrude_cut_out_length;
+    real32 circle_diameter;
+    real32 circle_radius;
+    real32 circle_circumference;
+    real32 fillet_radius;
+    real32 box_width;
+    real32 box_height;
+    real32 x_coordinate;
+    real32 y_coordinate;
+    real32 feature_plane_nudge;
+    real32 line_length;
+    real32 line_angle;
+    real32 line_run;
+    real32 line_rise;
+    real32 move_length;
+    real32 move_angle;
+    real32 move_run;
+    real32 move_rise;
+    real32 revolve_add_dummy;
+    real32 revolve_cut_dummy;
+    char open_filename[POPUP_CELL_LENGTH];
+    char save_filename[POPUP_CELL_LENGTH];
+};
+
+struct WorldState {
+    Mesh mesh;
+    DXFState dxf;
+    FeaturePlaneState feature_plane;
+
+    ClickMode click_mode;
+    ClickModifier click_modifier;
+    ColorCode click_color_code;
+    EnterMode enter_mode;
+
+    struct {
+        bool32 awaiting_second_click;
+        vec2 first_click;
+    } two_click_command;
+
+    PopupState popup;
+
+    Event space_bar_event;
+    Event shift_space_bar_event;
+};
+
 struct ScreenState {
     Camera2D camera_2D;
     Camera3D camera_3D;
@@ -264,9 +360,9 @@ struct ScreenState {
     bool32   show_help;
     bool32   show_event_stack;
 
-    uint32 hot_pane;
-    uint32 mouse_left_drag_pane;
-    uint32 mouse_right_drag_pane;
+    Pane hot_pane;
+    Pane mouse_left_drag_pane;
+    Pane mouse_right_drag_pane;
 
     vec2 mouse_NDC;
     vec2 mouse_Pixel;
@@ -299,95 +395,6 @@ struct AestheticsState {
     real32 preview_feature_plane_offset;
 };
 
-struct PopupState {
-    uint8 cell_type[POPUP_MAX_NUM_CELLS];
-    char *name[POPUP_MAX_NUM_CELLS];
-    void *value[POPUP_MAX_NUM_CELLS];
-    uint32 num_cells;
-
-    char active_cell_buffer[POPUP_CELL_LENGTH];
-    uint32 active_cell_index;
-    uint32 cursor;
-    uint32 selection_cursor;
-
-    uint32 _type_of_active_cell;
-    void *_active_popup_unique_ID__FORNOW_name0;
-
-    bool32 mouse_is_hovering;
-    uint32 hover_cell_index;
-    uint32 hover_cursor;
-
-
-    real32 extrude_add_out_length;
-    real32 extrude_add_in_length;
-    real32 extrude_cut_in_length;
-    real32 extrude_cut_out_length;
-    real32 circle_diameter;
-    real32 circle_radius;
-    real32 circle_circumference;
-    real32 fillet_radius;
-    real32 box_width;
-    real32 box_height;
-    real32 x_coordinate;
-    real32 y_coordinate;
-    real32 feature_plane_nudge;
-    real32 line_length;
-    real32 line_angle;
-    real32 line_run;
-    real32 line_rise;
-    real32 move_length;
-    real32 move_angle;
-    real32 move_run;
-    real32 move_rise;
-    real32 revolve_add_dummy;
-    real32 revolve_cut_dummy;
-    char open_filename[POPUP_CELL_LENGTH];
-    char save_filename[POPUP_CELL_LENGTH];
-};
-
-
-struct DXFState {
-    List<Entity> entities;
-    vec2            origin;
-    vec2            axis_base_point;
-    real32          axis_angle_from_y;
-};
-
-struct FeaturePlaneState {
-    bool32 is_active;
-    vec3 normal;
-    real32 signed_distance_to_world_origin;
-};
-
-struct ModesState {
-    ClickMode click_mode;
-    uint32 click_modifier;
-    EnterMode enter_mode;
-};
-
-// NOTE: arrangement into structs is all about what memory is cleared to zero together
-struct WorldState {
-    Mesh mesh;
-
-    DXFState dxf;
-
-    FeaturePlaneState feature_plane;
-
-    ModesState modes;
-
-    uint32 click_color_code; // we don't actually want to clear this with global_world_state.modes = {}
-
-struct {
-    bool32 awaiting_second_click;
-    vec2 first_click;
-} two_click_command;
-
-PopupState popup;
-
-Event space_bar_event;
-Event shift_space_bar_event;
-};
-
 ////////////////////////////////////////
 // "constants" /////////////////////////
 ////////////////////////////////////////
@@ -400,6 +407,7 @@ template <uint32 D> BoundingBox<D> BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
     }
     return result;
 }
+
 
 ////////////////////////////////////////
 // Data-Oriented Snail /////////////////
@@ -444,8 +452,7 @@ bool32 ANGLE_IS_BETWEEN_CCW(real32 p, real32 a, real32 b) {
     return (cross(E_x, E_y, F_x, F_y) > 0.0f);
 }
 
-template <typename T> void JUICE_IT_EASY_TWEEN(T *a, T b) {
-    real32 f = 0.1f;
+template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real32 f = 0.1f) {
     #ifdef DEBUG_DISABLE_EASY_TWEEN
     f = 1.0f;
     #endif
@@ -556,11 +563,11 @@ void arc_process_angles_into_lerpable_radians_considering_flip_flag(ArcEntity *a
 }
 
 real32 entity_length(Entity *entity) {
-    if (entity->type == ENTITY_TYPE_LINE) {
+    if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         return SQRT(squared_distance_point_point(line_entity->start.x, line_entity->start.y, line_entity->end.x, line_entity->end.y));
     } else {
-        ASSERT(entity->type == ENTITY_TYPE_ARC);
+        ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
         real32 start_angle;
         real32 end_angle;
@@ -570,24 +577,24 @@ real32 entity_length(Entity *entity) {
 }
 
 void entity_get_start_point(Entity *entity, real32 *start_x, real32 *start_y) {
-    if (entity->type == ENTITY_TYPE_LINE) {
+    if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         *start_x = line_entity->start.x;
         *start_y = line_entity->start.y;
     } else {
-        ASSERT(entity->type == ENTITY_TYPE_ARC);
+        ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
         get_point_on_circle_NOTE_pass_angle_in_radians(start_x, start_y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, RAD(arc_entity->start_angle_in_degrees));
     }
 }
 
 void entity_get_end_point(Entity *entity, real32 *end_x, real32 *end_y) {
-    if (entity->type == ENTITY_TYPE_LINE) {
+    if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         *end_x = line_entity->end.x;
         *end_y = line_entity->end.y;
     } else {
-        ASSERT(entity->type == ENTITY_TYPE_ARC);
+        ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
         get_point_on_circle_NOTE_pass_angle_in_radians(  end_x,   end_y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius,   RAD(arc_entity->end_angle_in_degrees));
     }
@@ -600,13 +607,13 @@ void entity_get_start_and_end_points(Entity *entity, real32 *start_x, real32 *st
 
 void entity_lerp_considering_flip_flag(Entity *entity, real32 t, real32 *x, real32 *y, bool32 flip_flag) {
     ASSERT(IS_BETWEEN(t, 0.0f, 1.0f));
-    if (entity->type == ENTITY_TYPE_LINE) {
+    if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         if (flip_flag) t = 1.0f - t; // FORNOW
         *x = LERP(t, line_entity->start.x, line_entity->end.x);
         *y = LERP(t, line_entity->start.y, line_entity->end.y);
     } else {
-        ASSERT(entity->type == ENTITY_TYPE_ARC);
+        ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
         real32 angle; {
             real32 start_angle, end_angle;
@@ -635,14 +642,14 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
         List<Entity> result = {};
         result.num_entities = 8;
         result.entities = (Entity *) calloc(result.num_entities, sizeof(Entity));
-        result.entities[0] = { ENTITY_TYPE_LINE, 0, 0.0, 0.0, 1.0, 0.0 };
-        result.entities[1] = { ENTITY_TYPE_LINE, 1, 1.0, 0.0, 1.0, 1.0 };
-        result.entities[2] = { ENTITY_TYPE_LINE, 2, 0.0, 1.0, 0.0, 0.0 };
-        result.entities[3] = { ENTITY_TYPE_ARC,  3, 0.5, 1.0, 0.5,    0.0, 180.0 };
-        result.entities[4] = { ENTITY_TYPE_ARC,  4, 0.5, 1.0, 0.25,   0.0, 180.0 };
-        result.entities[5] = { ENTITY_TYPE_ARC,  5, 0.5, 1.0, 0.25, 180.0, 360.0 };
-        result.entities[6] = { ENTITY_TYPE_ARC,  6, 0.5, 1.0, 0.1,    0.0, 180.0 };
-        result.entities[7] = { ENTITY_TYPE_ARC,  7, 0.5, 1.0, 0.1,  180.0, 360.0 };
+        result.entities[0] = { EntityType::Line, 0, 0.0, 0.0, 1.0, 0.0 };
+        result.entities[1] = { EntityType::Line, 1, 1.0, 0.0, 1.0, 1.0 };
+        result.entities[2] = { EntityType::Line, 2, 0.0, 1.0, 0.0, 0.0 };
+        result.entities[3] = { EntityType::Arc,  3, 0.5, 1.0, 0.5,    0.0, 180.0 };
+        result.entities[4] = { EntityType::Arc,  4, 0.5, 1.0, 0.25,   0.0, 180.0 };
+        result.entities[5] = { EntityType::Arc,  5, 0.5, 1.0, 0.25, 180.0, 360.0 };
+        result.entities[6] = { EntityType::Arc,  6, 0.5, 1.0, 0.1,    0.0, 180.0 };
+        result.entities[7] = { EntityType::Arc,  7, 0.5, 1.0, 0.1,  180.0, 360.0 };
         return result;
     }
     #endif
@@ -666,12 +673,12 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
                     mode = OPEN_MODE_LINE;
                     code_is_hot = false;
                     entity = {};
-                    entity.type = ENTITY_TYPE_LINE;
+                    entity.type = EntityType::Line;
                 } else if (poe_prefix_match(buffer, "ARC")) {
                     mode = OPEN_MODE_ARC;
                     code_is_hot = false;
                     entity = {};
-                    entity.type = ENTITY_TYPE_ARC;
+                    entity.type = EntityType::Arc;
                 }
             } else {
                 if (!code_is_hot) {
@@ -687,7 +694,7 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
                     if (code == 62) {
                         int value;
                         sscanf(buffer, "%d", &value);
-                        entity.color_code = value; 
+                        entity.color_code = (ColorCode) value; 
                     } else {
                         float value;
                         sscanf(buffer, "%f", &value);
@@ -725,24 +732,28 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
     fclose(file);
 }
 
-vec3 get_color(uint32 color) {
-    if (color <= 9) {
-        return omax_pallete[color];
-    } else if (color == COLOR_CODE_SELECTION) {
-        return basic.yellow;
+vec3 get_color(ColorCode color_code) {
+    uint32 i = (uint32) color_code;
+    if (0 <= i && i <= 9) {
+        return omax_pallete[i];
+    } else if (20 <= i && i <= 29) {
+        do_once { conversation_messagef(monokai.orange, "WARNING: slits not implemented"); };
+        return omax_pallete[i - 20];
+    } else if (color_code == ColorCode::Selection) {
+        return omax.yellow;
     } else {
-        do_once { conversation_messagef("WARNING: slits not implemented"); };
-        return V3(0.3f);
+        ASSERT(false);
+        return {};
     }
 }
 
 void eso_dxf_entity__SOUP_LINES(Entity *entity, real32 dx = 0.0f, real32 dy = 0.0f) {
-    if (entity->type == ENTITY_TYPE_LINE) {
+    if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         eso_vertex(line_entity->start.x + dx, line_entity->start.y + dy);
         eso_vertex(line_entity->end.x + dx,   line_entity->end.y + dy);
     } else {
-        ASSERT(entity->type == ENTITY_TYPE_ARC);
+        ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
         real32 start_angle, end_angle;
         arc_process_angles_into_lerpable_radians_considering_flip_flag(arc_entity, &start_angle, &end_angle, false);
@@ -762,10 +773,10 @@ void eso_dxf_entity__SOUP_LINES(Entity *entity, real32 dx = 0.0f, real32 dy = 0.
 }
 
 
-void dxf_entities_debug_draw(Camera2D *camera_2D, List<Entity> *dxf_entities, int32 override_color = COLOR_CODE_DONT_OVERRIDE) {
+void dxf_entities_debug_draw(Camera2D *camera_2D, List<Entity> *dxf_entities) {
     eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
     for (Entity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
-        eso_dxf_entity__SOUP_LINES(entity, override_color);
+        eso_dxf_entity__SOUP_LINES(entity);
     }
     eso_end();
 }
@@ -781,7 +792,7 @@ bbox2 dxf_entity_get_bounding_box(Entity *entity) {
             result.max[d] = MAX(result.max[d], s[i][d]);
         }
     }
-    if (entity->type == ENTITY_TYPE_ARC) {
+    if (entity->type == EntityType::Arc) {
         ArcEntity *arc_entity = &entity->arc_entity;
         // NOTE: endpoints already taken are of; we just have to deal with the quads (if they exist)
         // TODO: angle_is_between_counter_clockwise (TODO TODO TODO)
@@ -854,11 +865,11 @@ real32 squared_distance_point_dxf_arc(real32 x, real32 y, ArcEntity *arc_entity)
 }
 
 real32 squared_distance_point_dxf_entity(real32 x, real32 y, Entity *entity) {
-    if (entity->type == ENTITY_TYPE_LINE) {
+    if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         return squared_distance_point_dxf_line(x, y, line_entity);
     } else {
-        ASSERT(entity->type == ENTITY_TYPE_ARC);
+        ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
         return squared_distance_point_dxf_arc(x, y, arc_entity);
     }
@@ -991,12 +1002,12 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
                                 uint32 entity_index = entity_index_and_flip_flag->entity_index;
                                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
                                 Entity *entity = &dxf_entities->array[entity_index];
-                                if (entity->type == ENTITY_TYPE_LINE) {
+                                if (entity->type == EntityType::Line) {
                                     LineEntity *line_entity = &entity->line_entity;
                                     // shoelace-type formula
                                     twice_the_signed_area += ((flip_flag) ? -1 : 1) * (line_entity->start.x * line_entity->end.y - line_entity->end.x * line_entity->start.y);
                                 } else {
-                                    ASSERT(entity->type == ENTITY_TYPE_ARC);
+                                    ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc_entity = &entity->arc_entity;
                                     // "Circular approximation using polygons"
                                     // - n = 2 (area-preserving approximation of arc_entity with two segments)
@@ -1127,7 +1138,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
                 uint32 entity_index = entity_index_and_flip_flag->entity_index;
                 bool32 flip_flag = entity_index_and_flip_flag->flip_flag;
                 Entity *entity = &dxf_entities->array[entity_index];
-                if (entity->type == ENTITY_TYPE_LINE) {
+                if (entity->type == EntityType::Line) {
                     LineEntity *line_entity = &entity->line_entity;
                     if (!flip_flag) {
                         list_push_back(&stretchy_list.array[stretchy_list.length - 1], { line_entity->start.x, line_entity->start.y });
@@ -1135,7 +1146,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
                         list_push_back(&stretchy_list.array[stretchy_list.length - 1], { line_entity->end.x, line_entity->end.y });
                     }
                 } else {
-                    ASSERT(entity->type == ENTITY_TYPE_ARC);
+                    ASSERT(entity->type == EntityType::Arc);
                     ArcEntity *arc_entity = &entity->arc_entity;
                     real32 start_angle, end_angle;
                     arc_process_angles_into_lerpable_radians_considering_flip_flag(arc_entity, &start_angle, &end_angle, flip_flag);
@@ -1547,10 +1558,11 @@ struct Message {
     char buffer[MESSAGE_MAX_LENGTH];
     real32 time_remaining;
     real32 y;
+    vec3 base_color;
 };
 uint32 message_index;
 Message conversation_messages[MESSAGE_MAX_NUM_MESSAGES];
-void conversation_messagef(char *format, ...) {
+void conversation_messagef(vec3 color, char *format, ...) {
     if (IGNORE_NEW_MESSAGEFS) return;
     va_list arg;
     va_start(arg, format);
@@ -1558,6 +1570,7 @@ void conversation_messagef(char *format, ...) {
     vsnprintf(message->buffer, MESSAGE_MAX_LENGTH, format, arg);
     va_end(arg);
 
+    message->base_color = color;
     message->time_remaining = MESSAGE_MAX_TIME;
     message_index = (message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
     message->y = 0.0f;
@@ -1567,7 +1580,8 @@ void conversation_messagef(char *format, ...) {
 void conversation_message_buffer_update_and_draw() {
     uint32 i_0 =  (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
 
-    uint32 num_drawn = 0;
+    real32 y_prev = 0.0f;
+    // uint32 num_drawn = 0;
     auto draw_lambda = [&](uint32 message_index) {
         Message *message = &conversation_messages[message_index];
 
@@ -1579,28 +1593,23 @@ void conversation_message_buffer_update_and_draw() {
                 - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_TIME, 0.0f, 0.0f, 1.0f);
         }
 
-        real32 r = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_TIME, MESSAGE_MAX_TIME - 4.0f * FADE_TIME, 1.0f, 0.0f);
-        real32 g = CLAMPED_LINEAR_REMAP(message->time_remaining, 3.0f * FADE_TIME, 2.0f * FADE_TIME, 1.0f, 0.5f);
-        real32 b = 1.0f;
-        // real32 t_stop = 0.6f;
-        // real32 t = 0 \
-        //            + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - 1.0f * FADE_TIME, 1.0f, t_stop)
-        //            - CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - 1.0f * FADE_TIME, 0.0f, 0.0f, t_stop);
-        // vec3 rgb = color_plasma(t);
-        // real32 r = rgb.x;
-        // real32 g = rgb.y;
-        // real32 b = rgb.z;
+        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_TIME, MESSAGE_MAX_TIME - 4.0f * FADE_TIME, monokai.yellow, message->base_color);
+        real32 r = color.x;
+        real32 g = color.y;
+        real32 b = color.z;
 
-        real32 y_target = 16.0f + num_drawn++ * 16.0f;
+        real32 y_target = y_prev + 16.0f;
+        y_prev = LERP(0.0f, y_target, message->y);
         if (message->time_remaining < 2.0f * FADE_TIME) y_target += 8.0f;
+        // y_prev = message->y;
 
-        JUICE_IT_EASY_TWEEN(&message->y, y_target);
+        JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
             message->time_remaining -= 0.0167f;;
             _text_draw(
                     (cow_real *) &globals.NDC_from_Screen,
                     message->buffer,
-                    window_get_width() / 2 + 16,
+                    get_x_divider_Pixel() + 16,
                     message->y,
                     0.0,
 
@@ -1635,10 +1644,10 @@ void conversation_message_buffer_update_and_draw() {
 // key_lambda //////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool _key_lambda(KeyEvent *key_event, uint32 key, bool super = false, bool shift = false) {
+bool _key_lambda(KeyEvent *key_event, uint32 key, bool control = false, bool shift = false) {
     ASSERT(!(('a' <= key) && (key <= 'z')));
     bool key_match = (key_event->key == key);
-    bool super_match = ((key_event->super && super) || (!key_event->super && !super)); // * bool32
+    bool super_match = ((key_event->control && control) || (!key_event->control && !control)); // * bool32
     bool shift_match = ((key_event->shift && shift) || (!key_event->shift && !shift)); // * bool32
     return (key_match && super_match && shift_match);
 };
@@ -1727,7 +1736,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == EnterMode::ExtrudeCut) {
-                do_once { conversation_messagef("[DEBUG] inflating EnterMode::ExtrudeCut\n"); };
+                do_once { conversation_messagef(omax.red, "[DEBUG] inflating EnterMode::ExtrudeCut\n"); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
             }
@@ -1804,7 +1813,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
     static char buffer[256];
 
     char *_ctrl_plus; {
-        if (!key_event->super) {
+        if (!key_event->control) {
             _ctrl_plus = "";
         } else {
             _ctrl_plus = "CTRL+";
