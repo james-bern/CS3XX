@@ -1500,23 +1500,24 @@ void conversation_message_buffer_draw() {
     auto draw_lambda = [&](uint message_index) {
         Message *message = &conversation_messages[message_index];
 
-        real FADE_TIME = 0.33f;
+        real FADE_IN_TIME = 0.33f;
+        real FADE_OUT_TIME = 2.0f;
 
         real a; { // ramp on ramp off
             a = 0
-                + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_TIME, 0.0f, 1.0f)
-                - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_TIME, 0.0f, 0.0f, 1.0f);
+                + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_IN_TIME, 0.0f, 1.0f)
+                - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
         }
 
-        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_TIME, MESSAGE_MAX_TIME - 2.0f * FADE_TIME, monokai.yellow, message->base_color);
-        color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - 8 * FADE_TIME, 0.0f, color, V3(0.5 * (color.x + color.y + color.z) / 3));
+        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, monokai.yellow, message->base_color);
+        color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
         real r = color.x;
         real g = color.y;
         real b = color.z;
 
         real32 x = get_x_divider_Pixel() + 16;
         real y_target = ++num_drawn * 16.0f;
-        if (message->time_remaining < 2.0f * FADE_TIME) y_target += 8.0f;
+        if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 16.0f);
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {

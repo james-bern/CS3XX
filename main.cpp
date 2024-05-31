@@ -1,5 +1,6 @@
 // BUG: SEGFAULT when messing around with pausing (TODO go back and check all the vec3 int3 stuff on mesh)
 
+// TODO: tab completion when inputing save/load filenames
 // TODO: saving dxf
 // TODO: confirm overwrite saving stl / dxf
 
@@ -1125,7 +1126,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda('.')) { 
                     result.record_me = false;
                     SCREEN.show_details = !SCREEN.show_details;
-                    if (SCREEN.show_details) conversation_messagef(omax.cyan,"%d dxf-elements  %d stl-triangles", WORLD.dxf.entities.length, mesh->num_triangles);
+                    if (SCREEN.show_details) {
+                        uint num_lines;
+                        uint num_arcs;
+                        {
+                            num_lines = 0;
+                            num_arcs = 0;
+                            _for_each_entity_ {
+                                if (entity->type == EntityType::Line) {
+                                    ++num_lines;
+                                } else { ASSERT(entity->type == EntityType::Arc);
+                                    ++num_arcs;
+                                }
+                            }
+                        }
+                        conversation_messagef(omax.cyan,"STL has %d triangles.", mesh->num_triangles);
+                        conversation_messagef(omax.cyan,"DXF has %d elements (%d lines + %d arcs).", WORLD.dxf.entities.length, num_lines, num_arcs);
+                    }
                 } else if (key_lambda(';')) {
                     result.checkpoint_me = true;
                     feature_plane->is_active = false;
@@ -1609,7 +1626,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             *click_modifier = ClickModifier::None;
                             real angle = DEG(atan2(*second_click - *first_click));
                             if (angle < 0.0f) angle += 360.0f;
-                            conversation_messagef(omax.cyan, "Measured %gmm at %gdeg.", norm(*second_click - *first_click), angle);
+                            real32 length = norm(*second_click - *first_click);
+                            conversation_messagef(omax.cyan, "Angle is %gdeg.", angle);
+                            conversation_messagef(omax.cyan, "Length is %gmm.", length);
                         } else if (*click_mode == ClickMode::Move) {
                             *awaiting_second_click = false;
                             result.checkpoint_me = true;
