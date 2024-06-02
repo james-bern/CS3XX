@@ -387,7 +387,6 @@ struct TimeSince {
     real successful_feature;
     real plane_selected;
     real going_inside;
-    bool _helper_going_inside;
 };
 
 struct AestheticsState {
@@ -404,18 +403,13 @@ struct AestheticsState {
 // Cow Additions ///////////////////////
 ////////////////////////////////////////
 
-bool ANGLE_IS_BETWEEN_CCW(real p, real a, real b) {
-    p -= a;
-    b -= a;
-    // vec2 A = { 1.0f, 0.0f };
-    // vec2 B = { COS(b), SIN(b) };
-    // vec2 P = { COS(p), SIN(p) };
-    // vec2 E = B - A;
-    // vec2 F = P - A;
-    // return (cross(E, F) > 0.0f);
-    vec2 E = { COS(b) - 1.0f, SIN(b) };
-    vec2 F = { COS(p) - 1.0f, SIN(p) };
-    return (cross(E, F) > 0.0f);
+real MAP_TO_0_TAU_INTERVAL(real theta) {
+    theta = fmod(theta, TAU);
+    if (theta < 0.0) theta += TAU;
+    return theta;
+}
+bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
+    return (MAP_TO_0_TAU_INTERVAL(t - a) < MAP_TO_0_TAU_INTERVAL(t - b));
 }
 
 ////////////////////////////////////////
@@ -455,6 +449,7 @@ void get_point_on_circle_NOTE_pass_angle_in_radians(real *x, real *y, real cente
     *y = center_y + radius * SIN(angle_in_radians);
 }
 
+// NOTE: this is real gross
 void arc_process_angles_into_lerpable_radians_considering_flip_flag(ArcEntity *arc_entity, real *start_angle, real *end_angle, bool flip_flag) {
     // The way the List<Entity> spec works is that start_angle and end_angle define points on the circle
     // which are connected counterclockwise from start to end with an arc_entity
@@ -672,7 +667,7 @@ void eso_dxf_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) 
         real start_angle, end_angle;
         arc_process_angles_into_lerpable_radians_considering_flip_flag(arc_entity, &start_angle, &end_angle, false);
         real delta_angle = end_angle - start_angle;
-        uint num_segments = uint(1 + (delta_angle / TAU) * NUM_SEGMENTS_PER_CIRCLE);
+        uint num_segments = uint(1 + (delta_angle / TAU) * 256); // FORNOW: TODO: make dependent on zoom
         real increment = delta_angle / num_segments;
         real current_angle = start_angle;
         for (uint i = 0; i < num_segments; ++i) {
@@ -710,10 +705,12 @@ box2 dxf_entity_get_bounding_box(Entity *entity) {
         ArcEntity *arc_entity = &entity->arc_entity;
         // NOTE: endpoints already taken are of; we just have to deal with the quads (if they exist)
         // TODO: angle_is_between_counter_clockwise (TODO TODO TODO)
-        if (ANGLE_IS_BETWEEN_CCW(  0.0f, arc_entity->start_angle_in_degrees, arc_entity->end_angle_in_degrees)) result.max[0] = MAX(result.max[0], arc_entity->center.x + arc_entity->radius);
-        if (ANGLE_IS_BETWEEN_CCW( 90.0f, arc_entity->start_angle_in_degrees, arc_entity->end_angle_in_degrees)) result.max[1] = MAX(result.max[1], arc_entity->center.y + arc_entity->radius);
-        if (ANGLE_IS_BETWEEN_CCW(180.0f, arc_entity->start_angle_in_degrees, arc_entity->end_angle_in_degrees)) result.min[0] = MIN(result.min[0], arc_entity->center.x - arc_entity->radius);
-        if (ANGLE_IS_BETWEEN_CCW(270.0f, arc_entity->start_angle_in_degrees, arc_entity->end_angle_in_degrees)) result.min[1] = MIN(result.min[1], arc_entity->center.y - arc_entity->radius);
+        real32 start_angle = RAD(arc_entity->start_angle_in_degrees);
+        real32 end_angle = RAD(arc_entity->end_angle_in_degrees);
+        if (ANGLE_IS_BETWEEN_CCW(RAD(  0.0f), start_angle, end_angle)) result.max[0] = MAX(result.max[0], arc_entity->center.x + arc_entity->radius);
+        if (ANGLE_IS_BETWEEN_CCW(RAD( 90.0f), start_angle, end_angle)) result.max[1] = MAX(result.max[1], arc_entity->center.y + arc_entity->radius);
+        if (ANGLE_IS_BETWEEN_CCW(RAD(180.0f), start_angle, end_angle)) result.min[0] = MIN(result.min[0], arc_entity->center.x - arc_entity->radius);
+        if (ANGLE_IS_BETWEEN_CCW(RAD(270.0f), start_angle, end_angle)) result.min[1] = MIN(result.min[1], arc_entity->center.y - arc_entity->radius);
     }
     return result;
 }

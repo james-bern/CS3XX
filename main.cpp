@@ -1,3 +1,5 @@
+// TODO: save green and red meshes to visualize the removal and addition (this is SCREEN crap)
+
 // BUG: SEGFAULT when messing around with pausing (TODO go back and check all the vec3 int3 stuff on mesh)
 
 // TODO: tab completion when inputing save/load filenames
@@ -15,7 +17,7 @@
 
 // XXX: enums
 // XXX: color for messagef
-// TODO: simplify selected triangles color (just use JUICEIT_EASYTWEEN)
+// XXX: simplify selected triangles color (just use JUICEIT_EASYTWEEN)
 
 // TODO: select connected broken on 10mm filleted 50mm box
 // TODO: restore checkpoint one before on extrudes?
@@ -77,6 +79,11 @@
 
 // // misc
 // if order doesn't matter, go with alphabetical
+// one reason to use consistent variable names is for searchability (a for alpha and for first point in a line is suboptimal)
+//                                                                  instead, use alpha and point_one point_two or something
+//                                                                  (r for red and radius is suboptimal)
+// we're often willing to trade speed and our love of pure-C for readability
+// for example, using vec2 and overloading the + operator makes code way easier to read
 
 // // thing we aspire for Conversation to be
 // "juicy"
@@ -449,11 +456,13 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 vec3 color_n = V3(0.5f + 0.5f * n_Camera.x, 0.5f + 0.5f * n_Camera.y, 1.0f);
                 if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
-                    color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(time_since->plane_selected), color_n, 0.9f * omax.yellow);// CLAMPED_LERP(2.0f * time_since->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
-                                                                                                                      // if (2.0f * time_since->plane_selected < 0.3f) color = monokai.white;
-                    alpha = CLAMPED_LERP(2.0f * time_since->plane_selected, 1.0f, time_since->_helper_going_inside ? 
-                            CLAMPED_LERP(time_since->going_inside, 1.0f, 0.7f)
-                            : 1.0f);// ? 0.7f : 1.0f;
+
+                    // TODO:
+                    color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(time_since->plane_selected), monokai.white, V3(0.85f, 0.87f, 0.30f));// CLAMPED_LERP(2.0f * time_since->plane_selected - 0.5f, monokai.yellow, V3(0.85f, 0.87f, 0.30f));
+
+                    // if (2.0f * time_since->plane_selected < 0.3f) color = monokai.white; // FORNOW
+
+                    alpha = CLAMPED_LERP(_JUICEIT_EASYTWEEN(time_since->going_inside), 1.0f, 0.7f);
 
 
                     bounding_box_add_point(&face_selection_bounding_box, _V2(transformPoint(inv_M_3D_from_2D, p[0])));
@@ -502,7 +511,7 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
         WORLD.dxf.origin.y = 0.0f;
     }
 
-    conversation_messagef(omax.green, "Loaded file \"%s.\"", filename);
+    conversation_messagef(omax.green, "Loaded file \"%s\"", filename);
 }
 
 void conversation_stl_load(char *filename, bool preserve_cameras = false) {
@@ -513,7 +522,7 @@ void conversation_stl_load(char *filename, bool preserve_cameras = false) {
     {
         stl_load(filename, &WORLD.mesh);
         _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(preserve_cameras);
-        conversation_messagef(omax.green, "Loaded file \"%s.\"", filename);
+        conversation_messagef(omax.green, "Loaded file \"%s\"", filename);
     }
 }
 
@@ -530,7 +539,7 @@ void conversation_load(char *filename, bool preserve_cameras = false) {
 void conversation_stl_save(char *filename) {
     // TODO: prompt for overwriting
     if (mesh_save_stl(&WORLD.mesh, filename) ) {
-        conversation_messagef(omax.green, "Saved file \"%s.\"", filename);
+        conversation_messagef(omax.green, "Saved file \"%s\"", filename);
     } else {
         conversation_messagef(omax.orange, "Failed to open file \"%s\" for writing.", filename);
     }
@@ -592,7 +601,12 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (key == GLFW_KEY_RIGHT_SUPER) return;
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
         // FORNOW: i guess okay to handle these here?
-        bool toggle_pause = ((key == 'P') && (!control) && (!shift));
+        bool toggle_pause; {
+            toggle_pause = false;
+            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
+                toggle_pause = ((key == 'P') && (!control) && (!shift));
+            }
+        }
         bool step = (SCREEN.paused) && ((key == '.') && (!control) && (!shift));
         bool quit = ((key == 'Q') && (control) && (!shift));
         if (toggle_pause) {
@@ -2401,7 +2415,7 @@ void conversation_draw() {
 
     { // panes
         eso_begin(M4_Identity(), SOUP_LINES, (*mouse_left_drag_pane == Pane::Divider) ? 2.0f : (*hot_pane == Pane::Divider) ? 6.0f : 4.0f, true);
-        eso_color((*mouse_left_drag_pane == Pane::Divider) ? monokai.white : (*hot_pane == Pane::Divider) ? monokai.white : monokai.gray);
+        eso_color((*mouse_left_drag_pane == Pane::Divider) ? omax.light_gray : (*hot_pane == Pane::Divider) ? omax.white : omax.dark_gray);
         // if (SCREEN.hot_pane == Pane::DXF) {
         //     eso_color(monokai.yellow);
         // } else {
@@ -3022,6 +3036,7 @@ int main() {
              "^odemo.dxf\n"
              "^sz.stl\n"
              "^oz.stl\n"
+             "^N^obug.dxf\nysa"
              ;
     #endif
     script_process(script);
@@ -3054,15 +3069,14 @@ int main() {
                 time_since->plane_selected += dt;
                 // time_since->successful_feature = 1.0f;
 
-                time_since->going_inside += dt;
-                bool _going_inside_next = 
-                    ((*enter_mode == EnterMode::ExtrudeAdd) && (*extrude_add_in_length > 0.0f))
-                    ||
-                    (*enter_mode == EnterMode::ExtrudeCut);
-                if (_going_inside_next && !time_since->_helper_going_inside) {
+                bool going_inside = 0
+                    || ((*enter_mode == EnterMode::ExtrudeAdd) && (*extrude_add_in_length > 0.0f))
+                    || (*enter_mode == EnterMode::ExtrudeCut);
+                if (!going_inside) {
                     time_since->going_inside = 0.0f;
+                } else {
+                    time_since->going_inside += dt;
                 }
-                time_since->_helper_going_inside = _going_inside_next;
             }
 
             { // events
