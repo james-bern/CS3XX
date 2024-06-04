@@ -129,16 +129,21 @@ else
         -Wall -Wextra \
         -Wshadow \
         -Werror=vla \
-        -Wno-deprecated-declarations -Wno-missing-braces -Wno-missing-field-initializers -Wno-char-subscripts -Wno-write-strings -Wno-c++11-narrowing \
+        -Wno-deprecated-declarations \
+        -Wno-missing-braces \
+        -Wno-missing-field-initializers \
+        -Wno-char-subscripts \
+        -Wno-write-strings \
         -I./codebase/ext \
         -L./codebase/ext \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
-        -framework AudioUnit -framework CoreAudio -framework AudioToolbox \
         -arch arm64 \
         -mmacosx-version-min=13.5 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
         # -arch x86_64 \
         # -mmacosx-version-min=11.0 \
+        # -Wno-c++11-narrowing \
+        # -ftime-report \
 
     if [ -f "executable" ]; then
         if [ "$2" = "--debug" ]; then

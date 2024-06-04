@@ -76,7 +76,7 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             // color = CLAMPED_LINEAR_REMAP(time_since_successful_feature, -0.5f, 0.5f, omax.white, color);
             eso_color(color, alpha);
             for (uint d = 0; d < 3; ++d ) {
-                eso_color(CLAMPED_LERP(mask + sin(CLAMPED_INVERSE_LERP(p[d].y, mesh->bounding_box.max.y, mesh->bounding_box.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
+                eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bounding_box.max.y, mesh->bounding_box.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
                 eso_vertex(p[d]);
             }
         }
@@ -310,8 +310,9 @@ void conversation_draw() {
                 }
                 if (state.click_mode == ClickMode::Fillet) {
                     // FORNOW
-                    int i = dxf_find_closest_entity(&drawing->entities, two_click_command->first_click.x, two_click_command->first_click.y);
-                    if (i != -1) {
+                    DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, two_click_command->first_click.x, two_click_command->first_click.y);
+                    if (dxf_find_closest_entity_result.success) {
+                        uint i = dxf_find_closest_entity_result.index;
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::WaterOnly));
                         eso_dxf_entity__SOUP_LINES(&drawing->entities.array[i]);
@@ -353,7 +354,7 @@ void conversation_draw() {
                 if (extruding) {
                     real a = -preview->extrude_in_length;
                     real L = preview->extrude_out_length + preview->extrude_in_length;
-                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64, uint(roundf(L / 2.5f)) + 2);
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(roundf(L / 2.5f)) + 2);
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                     M_incr = M4_Translation(0.0f, 0.0f, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                 } else if (revolving) {

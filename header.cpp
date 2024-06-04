@@ -205,11 +205,11 @@ struct Mesh {
     uint num_vertices;
     uint num_triangles;
     vec3 *vertex_positions;
-    int3 *triangle_indices;
+    uint3 *triangle_indices;
     vec3 *triangle_normals;
 
     uint num_cosmetic_edges;
-    int2 *cosmetic_edges;
+    uint2 *cosmetic_edges;
 
     box3 bounding_box;
 };
@@ -368,8 +368,8 @@ struct PreviewState {
 };
 
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded {
-    mat4 transform_NDC_from_Pixel;
-    mat4 transform_Identity = M4_Identity();
+    Matrix<4> transform_NDC_from_Pixel;
+    Matrix<4> transform_Identity = M4_Identity();
 
     Camera2D camera_2D;
     Camera3D camera_3D;
@@ -553,7 +553,7 @@ void entity_get_middle(Entity *entity, real *middle_x, real *middle_y) {
 void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
     #if 0
     {
-        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(filename);
+        FORNOW_UNUSED(filename);
         return {};
         #elif 0
         List<Entity> result = {};
@@ -742,7 +742,7 @@ real squared_distance_point_line_segment(real x, real y, real start_x, real star
     real l2 = squared_distance_point_point(start_x, start_y, end_x, end_y);
     if (l2 < TINY_VAL) return squared_distance_point_point(x, y, start_x, start_y);
     real num = (x - start_x) * (end_x - start_x) + (y - start_y) * (end_y - start_y);
-    real t = MIN(MAX(num / l2, 0), 1);
+    real t = MIN(MAX(num / l2, 0.0f), 1.0f);
     real P_x = start_x + t * (end_x - start_x);
     real P_y = start_y + t * (end_y - start_y);
     return (P_x - x) * (P_x - x) + (P_y - y) * (P_y - y);
@@ -802,15 +802,20 @@ real squared_distance_point_dxf(real x, real y, List<Entity> *dxf_entities) {
     return result;
 }
 
-int dxf_find_closest_entity(List<Entity> *dxf_entities, real x, real y) {
-    int result = -1;
+struct DXFFindClosestEntityResult {
+    bool success;
+    uint index;
+};
+DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *dxf_entities, real x, real y) {
+    DXFFindClosestEntityResult result = {};
     double hot_squared_distance = HUGE_VAL;
     for (uint i = 0; i < dxf_entities->length; ++i) {
         Entity *entity = &dxf_entities->array[i];
         double squared_distance = squared_distance_point_dxf_entity(x, y, entity);
         if (squared_distance < hot_squared_distance) {
             hot_squared_distance = squared_distance;
-            result = i;
+            result.success = true;
+            result.index = i;
         }
     }
     return result;
@@ -1023,8 +1028,8 @@ struct CrossSectionEvenOdd {
 CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_entities, bool only_consider_selected_entities) {
     #if 0
     {
-        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(dxf_entities);
-        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(include);
+        FORNOW_UNUSED(dxf_entities);
+        FORNOW_UNUSED(include);
         CrossSectionEvenOdd result = {};
         result.num_polygonal_loops = 2;
         result.num_vertices_in_polygonal_loops = (uint *) calloc(result.num_polygonal_loops, sizeof(uint));
@@ -1159,8 +1164,8 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
     //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
     //           then go back and if passes some heuristic add that index to a stretchy buffer
-    List<int2> list = {}; {
-        Map<int2, vec3> map = {}; {
+    List<uint2> list = {}; {
+        Map<uint2, vec3> map = {}; {
             for (uint i = 0; i < mesh->num_triangles; ++i) {
                 vec3 n = mesh->triangle_normals[i];
                 for (uint jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
@@ -1171,14 +1176,14 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
                         j0 = j1;
                         j1 = tmp;
                     }
-                    int2 key = { j0, j1 };
+                    uint2 key = { j0, j1 };
                     map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
                 }
             }
         }
         {
-            for (List<Pair<int2, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
-                for (Pair<int2, vec3> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
+            for (List<Pair<uint2, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
+                for (Pair<uint2, vec3> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
                     vec3 n2 = pair->value;
                     // pprint(n2);
                     real angle = DEG(acos(n2.x + n2.y + n2.z)); // [0.0f, 180.0f]
@@ -1192,8 +1197,8 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     }
     {
         mesh->num_cosmetic_edges = list.length;
-        mesh->cosmetic_edges = (int2 *) calloc(mesh->num_cosmetic_edges, sizeof(int2));
-        memcpy(mesh->cosmetic_edges, list.array, mesh->num_cosmetic_edges * sizeof(int2)); 
+        mesh->cosmetic_edges = (uint2 *) calloc(mesh->num_cosmetic_edges, sizeof(uint2));
+        memcpy(mesh->cosmetic_edges, list.array, mesh->num_cosmetic_edges * sizeof(uint2)); 
     }
     list_free_AND_zero(&list);
 }
@@ -1258,8 +1263,8 @@ void mesh_deep_copy(Mesh *dst, Mesh *src) {
         memcpy(dst->vertex_positions, src->vertex_positions, size);
     }
     if (src->triangle_indices) {
-        uint size = src->num_triangles * sizeof(int3);
-        dst->triangle_indices = (int3 *) malloc(size);
+        uint size = src->num_triangles * sizeof(uint3);
+        dst->triangle_indices = (uint3 *) malloc(size);
         memcpy(dst->triangle_indices, src->triangle_indices, size);
     }
     if (src->triangle_normals) {
@@ -1268,8 +1273,8 @@ void mesh_deep_copy(Mesh *dst, Mesh *src) {
         memcpy(dst->triangle_normals, src->triangle_normals, size);
     }
     if (src->cosmetic_edges) {
-        uint size = src->num_cosmetic_edges * sizeof(int2);
-        dst->cosmetic_edges = (int2 *) malloc(size);
+        uint size = src->num_cosmetic_edges * sizeof(uint2);
+        dst->cosmetic_edges = (uint2 *) malloc(size);
         memcpy(dst->cosmetic_edges, src->cosmetic_edges, size);
     }
 }
@@ -1345,7 +1350,7 @@ void stl_load(char *filename, Mesh *mesh) {
 
         uint num_vertices;
         vec3 *vertex_positions;
-        int3 *triangle_indices;
+        uint3 *triangle_indices;
         { // merge vertices (NOTE: only merges vertices that overlap exactly)
             num_vertices = 0;
             Map<vec3, uint> map = {};
@@ -1368,7 +1373,7 @@ void stl_load(char *filename, Mesh *mesh) {
                 }
                 list_free_AND_zero(&list);
             }
-            triangle_indices = (int3 *) malloc(num_triangles * sizeof(int3));
+            triangle_indices = (uint3 *) malloc(num_triangles * sizeof(uint3));
             for (uint k = 0; k < _3__times__num_triangles; ++k) triangle_indices[k / 3][k % 3] = map_get(&map, soup[k]);
             map_free_and_zero(&map);
         }
@@ -1389,12 +1394,12 @@ void stl_load(char *filename, Mesh *mesh) {
 // freaky local_persist stuff //////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
+void conversation_draw_3D_grid_box(Matrix<4> P_3D, Matrix<4> V_3D) {
     static IndexedTriangleMesh3D grid_box;
     if (grid_box.num_vertices == 0) {
         static int _grid_box_num_vertices = 24;
         static int _grid_box_num_triangles = 12;
-        static int3 _grid_box_triangle_indices[] = {
+        static uint3 _grid_box_triangle_indices[] = {
             { 1, 0, 2},{ 2, 0, 3},
             { 4, 5, 6},{ 4, 6, 7},
             { 8, 9,10},{ 8,10,11},
@@ -1527,7 +1532,7 @@ void conversation_message_buffer_draw() {
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
             _text_draw(
-                    (cow_real *) &globals.NDC_from_Screen,
+                    (real *) &globals.NDC_from_Screen,
                     message->buffer,
                     x,
                     message->y,
@@ -1597,7 +1602,7 @@ Mesh wrapper_manifold(
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
-        mat4 M_3D_from_2D,
+        Matrix<4> M_3D_from_2D,
         EnterMode enter_mode,
         real extrude_out_length,
         real extrude_in_length,
@@ -1715,7 +1720,7 @@ Mesh wrapper_manifold(
             result.num_vertices = manifold_meshgl_num_vert(meshgl);
             result.num_triangles = manifold_meshgl_num_tri(meshgl);
             result.vertex_positions = (vec3 *) manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-            result.triangle_indices = (int3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
+            result.triangle_indices = (uint3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
             mesh_triangle_normals_calculate(&result);
             mesh_cosmetic_edges_calculate(&result);
             mesh_bounding_box_calculate(&result);

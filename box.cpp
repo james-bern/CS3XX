@@ -1,12 +1,12 @@
-template <int D> struct BoundingBox {
-    SnailVector<D> min;
-    SnailVector<D> max;
+template <uint D> struct BoundingBox {
+    Vector<D> min;
+    Vector<D> max;
 };
 
 typedef BoundingBox<2> box2;
 typedef BoundingBox<3> box3;
 
-template <int D> BoundingBox<D> BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
+template <uint D> BoundingBox<D> BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
     BoundingBox<D> result;
     for (uint32 d = 0; d < D; ++d) {
         result.min[d] = HUGE_VAL;
@@ -15,7 +15,7 @@ template <int D> BoundingBox<D> BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
     return result;
 }
 
-template <int D> void bounding_box_add_point(BoundingBox<D> *bounding_box, SnailVector<D> p) {
+template <uint D> void bounding_box_add_point(BoundingBox<D> *bounding_box, Vector<D> p) {
     for (uint32 d = 0; d < D; ++d) {
         bounding_box->min[d] = MIN(bounding_box->min[d], p[d]);
         bounding_box->max[d] = MAX(bounding_box->max[d], p[d]);

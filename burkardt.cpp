@@ -44,7 +44,7 @@ LineLineIntersectionResult burkardt_line_line_intersection(vec2 a, vec2 b, vec2 
     lines_exp_int_2d(p1, p2, p3, p4, &ival, p);
     LineLineIntersectionResult result;
     result.is_valid = (ival == 1);
-    for (uint32 k = 0; k < 2; ++k) result.position[k] = (cow_real) p[k];
+    for (uint32 k = 0; k < 2; ++k) result.position[k] = (real) p[k];
     { // we are less stringent than burkardt
         if (squaredNorm(a - result.position) > HUGE_VAL) result.is_valid = false;
     }

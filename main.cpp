@@ -218,7 +218,7 @@ void conversation_stl_load(char *filename, bool preserve_cameras = false) {
     }
     {
         stl_load(filename, mesh);
-        _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(preserve_cameras);
+        FORNOW_UNUSED(preserve_cameras);
         conversation_messagef(omax.green, "LoadSTL \"%s\"", filename);
     }
 }
@@ -395,7 +395,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             camera_3D->_center_World = tmp_2D.center_World;
         }
         if (other.mouse_left_drag_pane == Pane::Mesh) {
-            cow_real fac = 2;
+            real fac = 2;
             camera_3D->theta -= fac * delta_mouse_NDC.x;
             camera_3D->phi += fac * delta_mouse_NDC.y;
             camera_3D->phi = CLAMP(camera_3D->phi, -RAD(90), RAD(90));
@@ -493,7 +493,7 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
 // NOTE: this function can "drop" raw_event's by returning the null event.
 //       this smells a bit (should probs fail earlier, but I like the previous layer not knowing this stuff)
 Event bake_event(RawEvent raw_event) {
-    _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE(raw_event);
+    FORNOW_UNUSED(raw_event);
 
     Event event = {};
     if (raw_event.type == EventType::Key) {
@@ -1035,8 +1035,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             // fornow window wonky case
             if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes scand qc
                 result.record_me = false;
-                int hot_entity_index = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
-                if (hot_entity_index != -1) {
+                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
+                if (dxf_find_closest_entity_result.success) {
+                    uint hot_entity_index = dxf_find_closest_entity_result.index;
                     if (state.click_modifier != ClickModifier::Connected) {
                         if (click_mode_SELECT_OR_DESELECT()) {
                             ENTITY_SET_IS_SELECTED(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
@@ -1233,9 +1234,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_modifier = ClickModifier::None;
-                            int i = dxf_find_closest_entity(&drawing->entities, first_click->x, first_click->y);
-                            int j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
-                            if ((i != j) && (i != -1) && (j != -1)) {
+                            DXFFindClosestEntityResult result_i = dxf_find_closest_entity(&drawing->entities, first_click->x, first_click->y);
+                            DXFFindClosestEntityResult result_j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
+                            if ((result_i.success) && (result_j.success) && (result_i.index != result_j.index)) {
+                                uint i = result_i.index;
+                                uint j = result_j.index;
                                 real radius = popup->fillet_radius;
                                 Entity *E_i = &drawing->entities.array[i];
                                 Entity *E_j = &drawing->entities.array[j];

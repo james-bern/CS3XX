@@ -153,7 +153,7 @@ void popup_popup(
             if (bounding_box_contains(field_box, other.mouse_Pixel)) {
                 popup->mouse_is_hovering = true;
                 popup->hover_cell_index = d;
-                popup->hover_cursor = 0; // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
+                popup->hover_cursor = 0; // FORNOW_UNUSED
                 { // popup->hover_cursor
                     char _2char[2] = {};
                     // conversation_messagef("---%f\n", x_mouse);
@@ -236,8 +236,8 @@ void popup_popup(
                             x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                             x -= 1.25f;
                             // FORNOW: silly way of getting longer |
-                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y - 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
-                            _text_draw((cow_real *) &globals.NDC_from_Screen, "|", x, y + 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
+                            _text_draw((real *) &globals.NDC_from_Screen, "|", x, y - 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
+                            _text_draw((real *) &globals.NDC_from_Screen, "|", x, y + 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
                         }
                     }
                 }

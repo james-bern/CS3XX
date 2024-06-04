@@ -1,6 +1,5 @@
-#define COW_USE_REAL_32
+#define APP_USE_32_BIT_FLOATING_POINT
 
-#include "linalg.cpp"
 #include "app.cpp"
 #include "jim.cpp"
 #include "containers.cpp"

@@ -1,6 +1,6 @@
 template <typename T> struct List {
-    cow_uint32 length;
-    cow_uint32 _capacity;
+    uint length;
+    uint _capacity;
     T *array;
     // T &operator [](int index) { return data[index]; }
 };
@@ -49,14 +49,14 @@ template <typename T> void list_clone(List<T> *destination, List<T> *source) {
 }
 
 
-template <typename T> void list_insert(List<T> *list, cow_uint32 i, T element) {
+template <typename T> void list_insert(List<T> *list, uint i, T element) {
     ASSERT(i <= list->length);
     list_push_back(list, {});
     memmove(&list->array[i + 1], &list->array[i], (list->length - i - 1) * sizeof(T));
     list->array[i] = element;
 }
 
-template <typename T> T list_delete_at(List<T> *list, cow_uint32 i) {
+template <typename T> T list_delete_at(List<T> *list, uint i) {
     ASSERT(i >= 0);
     ASSERT(i < list->length);
     T result = list->array[i];
@@ -105,7 +105,7 @@ template <typename Key, typename Value> struct Pair {
 };
 
 template <typename Key, typename Value> struct Map {
-    cow_uint32 num_buckets;
+    uint num_buckets;
     List<Pair<Key, Value>> *buckets;
     // T &operator [](int index) { return data[index]; }
 };

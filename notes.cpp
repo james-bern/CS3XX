@@ -2,7 +2,7 @@
 // TODO: use STATE, OTHER, POPUP, TWO_CLICK_COMMAND, FEATURE_PLANE (don't go all the way down to bare pointers)
 // TODO: save green and red meshes to visualize the removal and addition (this is OTHER crap)
 
-// BUG: SEGFAULT when messing around with pausing (TODO go back and check all the vec3 int3 stuff on mesh)
+// BUG: SEGFAULT when messing around with pausing (TODO go back and check all the vec3 uint3 stuff on mesh)
 
 // TODO: tab completion when inputing save/load filenames
 // TODO: saving dxf

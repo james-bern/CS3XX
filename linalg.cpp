@@ -1,481 +1,328 @@
-// TODO: int2,3,4 should have functions SnailIVec
-
-// { snail.h }                           .----.   @   @                         
-//                                      / .-"-.`.  \v/                          
-//                                      | | '\ \ \_/ )                          
-//  a smol and slow linalg library    ,-\ `-.' /.'  /                           
-//  ---------------------------------'---`----'----'            james-bern 2022 
-//                                                                              
-// WARNING_____________________________________________________________________ 
-//                                                                              
-// i expect strict-aliasing optimizations will break this                       
-//                                                                              
-// OVERVIEW____________________________________________________________________ 
-//                                                                              
-// vec2, vec3, and vec4 are   2-,   3-, and   4-vectors  respectively           
-// mat2, mat3, and mat4 are 2x2-, 3x3-, and 4x4-matrices respectively           
-//                                                                              
-// "CONSTRUCTORS"______________________________________________________________ 
-//                                                                              
-// vectors and matrices are plain old data                                      
-//                                                                              
-// this code is valid C/C++                                                     
-// vec3 v = { 1.0, 2.0, 3.0 };                                                  
-// unforunately, this code is NOT                                               
-// vec3 v = 2.0 * { 1.0, 2.0, 3.0 }; // will NOT compile                        
-//                                                                              
-// the typical "constructors" are                                               
-// V2(cow_real x, cow_real y);                                                          
-// V3(cow_real x, cow_real y, cow_real z);                                                  
-// V4(cow_real x, cow_real y, cow_real z, cow_real w);                                          
-//                                                                              
-// they enable code like this                                                   
-// vec3 v = 2.0 * V3(1.0, 2.0, 3.0);                                            
-//                                                                              
-// reasonable rule of thumb: just use V2, V3, V4 every time you make a vector   
-// (i.e. never use the curly brace plain old data "constructor" syntax)         
-// vec3 v = V3(1.0, 2.0, 3.0);                                                  
-// vec3 v = 2.0 * V3(1.0, 2.0, 3.0);                                            
-//                                                                              
-// there are also less commonly used constructors!                              
-//                                                                              
-// V4(vec2 xy, cow_real z); // loft a point from 2D -> 3D                           
-// V4(vec3 xyz, cow_real w); // loft a color from RGB -> RGBA                       
-//                                                                              
-// these are nice when porting from GLSL                                        
-// V2(cow_real x); // V2(x, x)                                                      
-// V3(cow_real x); // V3(x, x, x)                                                   
-// V4(cow_real x); // V4(x, x, x, x)                                                
-//                                                                              
-// these are nice is you're using V2 and friends everywhere                     
-// M2(cow_real xx, cow_real xy, cow_real yx, cow_real yy);                                      
-// M3(...);                                                                     
-// M4(...);                                                                     
-//                                                                              
-// ACCESSORS___________________________________________________________________ 
-//                                                                              
-// the data of vector v can be accessed in multiple ways                        
-// (but it is still the same plain old data)                                    
-// -   v.x,  v.y,  v.y,  v.w                                                    
-// -  v[0], v[1], v[2], v[3]                                                    
-//                                                                              
-// the data of TxT matrix M can be accessed with convenience function M(row, col)   
-// - or, if you prefer, M.data[T * row + col]                                       
-//                                                                              
-// with cheat codes enabled (#define SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD) 
-// you can also access vectors like this                                        
-// -   v.row,  v.g,  v.b,  v.a                                                    
-// -  v.xy                                                                      
-// - v.xyz                                                                      
-// - v.data[0], v.data[1], ...                                                  
-//                                                                              
-// FUNCTIONS___________________________________________________________________ 
-//                                                                              
-// inverse(M) returns the inverse of M, determinant(M) returns determinant...   
-// e.g., solving a linear system A x = b                                        
-//       mat3 A = M3(1.0, 1.0, -1.0, 2.0, 1.0, 3.0, 4.0, -1.0, 2.0);            
-//       vec3 b = V3(5.0, 2.0, -1.0);                                           
-//       vec3 x = inverse(A) * b;                                               
-//       pprint(x);                                                             
-//                                                                              
-// ARITHMETIC OPERATOR OVERLOADING_____________________________________________ 
-//                                                                              
-// the typical arithmetic operators are overloaded                              
-//                                                                              
-// e.g., some random math                                                       
-//       mat3 A = M3(1.0, 1.0, -1.0, 2.0, 1.0, 3.0, 4.0, -1.0, 2.0);            
-//       vec3 b = V3(5.0, 2.0, -1.0);                                           
-//       b += -(A * b) / 2;                                                     
-//                                                                              
-// NOTE! snail.cpp has no explicit notion of column vectors vs. row vectors     
-//       the distinction is made only when necessary (and according to context) 
-//                                                                              
-// if M is a matrix and v is a vector then                                      
-// - M * v --> $  M v$ (matrix times a column vector)                           
-// - v * M --> $v^T M$ (row vector time a matrix)                               
-//                                                                              
-// NOTE! the * operator is NOT overloaded for vector-vector multpilication      
-//       instead explicitly ask for the type of product you want                
-// -          dot(a, b) --> $a^T b$ (inner product)                             
-// -        outer(a, b) --> $a b^T$ (outer product)                             
-// - cwiseProduct(a, b) -->         (cwise product)                             
-
-#ifndef SNAIL_CPP
-#define SNAIL_CPP
-
-#ifdef COW_USE_REAL_32
-typedef float cow_real;
-#else
-typedef double cow_real;
-#endif
-
-// fornow: these here too  ////////////////////////////////////////////////////
-
-union int2 {
-    struct { int i, j; };
-    #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    int data[2];
-    #endif
-    int &operator [](int index) { return ((int *)(this))[index]; }
-};
-
-bool operator == (const int2 &a, const int2 &b) {
-    return ((a.i == b.i) && (a.j == b.j));
-}
-
-union int3 {
-    struct { int i, j, k; };
-    #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    int data[3];
-    #endif
-    int &operator [](int index) { return ((int *)(this))[index]; }
-};
-
-bool operator == (const int3 &a, const int3 &b) {
-    return ((a.i == b.i) && (a.j == b.j) && (a.k == b.k));
-}
-
-union int4 {
-    struct { int i, j, k, l; };
-    #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    int data[4];
-    #endif
-    int &operator [](int index) { return ((int *)(this))[index]; }
-};
-
-// dependencies ////////////////////////////////////////////////////////////////
-
 #define _CRT_SECURE_NO_WARNINGS
-#include <cstdio>
-#include <cmath>
-#include <cstring>
-
-// internal macros /////////////////////////////////////////////////////////////
-
-#define SNAIL_ASSERT(b) do { if (!(b)) { \
-    printf("ASSERT Line %d in %s\n", __LINE__, __FILE__); \
-    printf("press Enter to crash"); getchar(); \
-    *((volatile int *) 0) = 0; \
-} } while (0)
-
-#define SNAIL_ABS(a) ((a) < 0 ? -(a) : (a))
-#define SNAIL_MIN(a, b) ((a) < (b) ? (a) : (b))
-#define SNAIL_MAX(a, b) ((a) > (b) ? (a) : (b))
-#define SNAIL_CLAMP(t, a, b) SNAIL_MIN(SNAIL_MAX(t, a), b)
-
-#define SNAIL_FOR_(i, N) for (int i = 0; i < N; ++i)
 
 // vectors and matrices ////////////////////////////////////////////////////////
 
-template <int T> union SnailVector {
-    cow_real data[T];
-    cow_real &operator [](int index) { return ((cow_real *)(this))[index]; }
+template <uint D> union Vector {
+    real data[D];
+    real &operator [](uint index) { return data[index]; }
 };
 
-template <int T> union SnailMatrix {
-    cow_real data[T * T];
-    cow_real &operator ()(int row, int col) { return data[T * row + col]; }
-    const cow_real &operator ()(int row, int col) const { return data[T * row + col]; }
+template <> union Vector<2> {
+    real data[2];
+    struct { real x, y; };
+    real &operator [](uint index) { return data[index]; }
 };
 
-// sugary accessors ////////////////////////////////////////////////////////////
+template <> union Vector<3> {
+    real data[3];
+    struct { real x, y, z; };
+    real &operator [](uint index) { return data[index]; }
+};
 
-template <> union SnailVector<2> {
-    struct { cow_real x, y; };
-    #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    cow_real data[2];
-    #endif
-    cow_real &operator [](int index) { return ((cow_real *)(this))[index]; }
+template <> union Vector<4> {
+    real data[4];
+    struct { real x, y, z, w; };
+    real &operator [](uint index) { return data[index]; }
 };
-template <> union SnailVector<3> {
-    struct { cow_real x, y, z; };
-    #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    struct { cow_real row, g, b; };
-    struct { SnailVector<2> xy; cow_real _; };
-    #endif
-    cow_real data[3]; // FORNOW outside the guards
-    cow_real &operator [](int index) { return ((cow_real *)(this))[index]; }
+
+typedef Vector<2> vec2;
+typedef Vector<3> vec3;
+typedef Vector<4> vec4;
+#define vecD Vector<D>
+#define tuDv template <uint D> vecD
+
+template <uint D> union Matrix {
+    real data[D * D];
+    real &operator ()(uint row, uint col) { return data[D * row + col]; }
+    const real &operator ()(uint row, uint col) const { return data[D * row + col]; }
 };
-template <> union SnailVector<4> {
-    struct { cow_real x, y, z, w; };
-    #ifdef SNAIL_I_SOLEMNLY_SWEAR_I_AM_UP_TO_NO_GOOD
-    struct { cow_real row, g, b, a; };
-    struct { SnailVector<3> xyz; cow_real _; };
-    cow_real data[4];
-    #endif
-    cow_real &operator [](int index) { return ((cow_real *)(this))[index]; }
+
+typedef Matrix<2> mat2;
+typedef Matrix<3> mat3;
+typedef Matrix<4> mat4;
+#define matD Matrix<D>
+#define tuDm template <uint D> matD
+
+
+template <uint D> union SnailTupleOfUnsignedInts {
+    uint data[D];
+    uint &operator [](uint index) { return data[index]; }
 };
+
+template <> union SnailTupleOfUnsignedInts<2> {
+    uint data[2];
+    struct { uint i, j; };
+    uint &operator [](uint index) { return data[index]; }
+};
+
+template <> union SnailTupleOfUnsignedInts<3> {
+    uint data[3];
+    struct { uint i, j, k; };
+    uint &operator [](uint index) { return data[index]; }
+};
+
+typedef SnailTupleOfUnsignedInts<2> uint2;
+typedef SnailTupleOfUnsignedInts<3> uint3;
+typedef SnailTupleOfUnsignedInts<4> uint4;
 
 // "constructors" //////////////////////////////////////////////////////////////
 
-SnailVector<2> V2(cow_real x, cow_real y) { return { x, y }; }
-SnailVector<3> V3(cow_real x, cow_real y, cow_real z) { return { x, y, z }; }
-SnailVector<4> V4(cow_real x, cow_real y, cow_real z, cow_real w) { return { x, y, z, w }; }
-SnailVector<3> V3(SnailVector<2> xy, cow_real z) { return { xy.x, xy.y, z }; }
-SnailVector<4> V4(SnailVector<3> xyz, cow_real w) { return { xyz.x, xyz.y, xyz.z, w }; }
-SnailVector<2> V2(cow_real x) { return { x, x }; }
-SnailVector<3> V3(cow_real x) { return { x, x, x }; }
-SnailVector<4> V4(cow_real x) { return { x, x, x, x }; }
-SnailVector<2> _V2(SnailVector<3> xyz) { return { xyz.x, xyz.y }; }
-SnailVector<3> _V3(SnailVector<4> xyzw) { return { xyzw.x, xyzw.y, xyzw.z }; }
+vec2 V2(real x, real y) { return { x, y }; }
+vec3 V3(real x, real y, real z) { return { x, y, z }; }
+vec4 V4(real x, real y, real z, real w) { return { x, y, z, w }; }
+vec3 V3(vec2 xy, real z) { return { xy.x, xy.y, z }; }
+vec4 V4(vec3 xyz, real w) { return { xyz.x, xyz.y, xyz.z, w }; }
+vec2 V2(real x) { return { x, x }; }
+vec3 V3(real x) { return { x, x, x }; }
+vec4 V4(real x) { return { x, x, x, x }; }
+vec2 _V2(vec3 xyz) { return { xyz.x, xyz.y }; }
+vec3 _V3(vec4 xyzw) { return { xyzw.x, xyzw.y, xyzw.z }; }
 
-SnailMatrix<2> M2(cow_real a0, cow_real a1, cow_real a2, cow_real a3) { SnailMatrix<2> ret = { a0, a1, a2, a3 }; return ret; }
-SnailMatrix<3> M3(cow_real a0, cow_real a1, cow_real a2, cow_real a3, cow_real a4, cow_real a5, cow_real a6, cow_real a7, cow_real a8) { SnailMatrix<3> ret = { a0, a1, a2, a3, a4, a5, a6, a7, a8 }; return ret; }
-SnailMatrix<4> M4(cow_real a0, cow_real a1, cow_real a2, cow_real a3, cow_real a4, cow_real a5, cow_real a6, cow_real a7, cow_real a8, cow_real a9, cow_real a10, cow_real a11, cow_real a12, cow_real a13, cow_real a14, cow_real a15) { SnailMatrix<4> ret = { a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 }; return ret; }
+mat2 M2(real a0, real a1, real a2, real a3) {
+    return { a0, a1, a2, a3 };
+}
+mat3 M3(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8) {
+    return { a0, a1, a2, a3, a4, a5, a6, a7, a8 };
+}
+mat4 M4(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8, real a9, real a10, real a11, real a12, real a13, real a14, real a15) {
+    return { a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 };
+}
 
-SnailMatrix<2> hstack(SnailVector<2> col0, SnailVector<2> col1) { return { col0.x, col1.x, col0.y, col1.y }; }
-SnailMatrix<3> hstack(SnailVector<3> col0, SnailVector<3> col1, SnailVector<3> col2) { return { col0.x, col1.x, col2.x, col0.y, col1.y, col2.y, col0.z, col1.z, col2.z }; }
-SnailMatrix<4> hstack(SnailVector<4> col0, SnailVector<4> col1, SnailVector<4> col2, SnailVector<4> col3) { return { col0.x, col1.x, col2.x, col3.x, col0.y, col1.y, col2.y, col3.y, col0.z, col1.z, col2.z, col3.z, col0.w, col1.w, col2.w, col3.w }; }
-
-// short names /////////////////////////////////////////////////////////////////
-
-// typedef SnailVector<2> vec2;
-// typedef SnailVector<3> vec3;
-// typedef SnailVector<4> vec4;
-// typedef SnailMatrix<2> mat2;
-// typedef SnailMatrix<3> mat3;
-// typedef SnailMatrix<4> mat4;
-typedef SnailVector<2> vec2;
-typedef SnailVector<3> vec3;
-typedef SnailVector<4> vec4;
-typedef SnailMatrix<2> mat2;
-typedef SnailMatrix<3> mat3;
-typedef SnailMatrix<4> mat4;
+mat2 hstack(vec2 col0, vec2 col1) { return { col0.x, col1.x, col0.y, col1.y }; }
+mat3 hstack(vec3 col0, vec3 col1, vec3 col2) { return { col0.x, col1.x, col2.x, col0.y, col1.y, col2.y, col0.z, col1.z, col2.z }; }
+mat4 hstack(vec4 col0, vec4 col1, vec4 col2, vec4 col3) { return { col0.x, col1.x, col2.x, col3.x, col0.y, col1.y, col2.y, col3.y, col0.z, col1.z, col2.z, col3.z, col0.w, col1.w, col2.w, col3.w }; }
 
 // arithmetic operators ////////////////////////////////////////////////////////
 
 // vectors
-template <int T> SnailVector<T>  operator +  (SnailVector<T> A, SnailVector<T> B) {
-    SnailVector<T> result;
-    SNAIL_FOR_(i, T) {
-        result[i] = A[i] + B[i];
+tuDv  operator +  (vecD A, vecD B) {
+    vecD result;
+    _FOR_(i, D) {
+        result[i] = A.data[i] + B.data[i];
     }
     return result;
 }
-template <int T> SnailVector<T> &operator += (SnailVector<T> &A, SnailVector<T> B) {
+tuDv &operator += (vecD &A, vecD B) {
     A = A + B;
     return A;
 }
 
-template <int T> SnailVector<T>  operator -  (SnailVector<T> A, SnailVector<T> B) {
-    SnailVector<T> result;
-    SNAIL_FOR_(i, T) {
-        result[i] = A[i] - B[i];
+tuDv  operator -  (vecD A, vecD B) {
+    vecD result;
+    _FOR_(i, D) {
+        result[i] = A.data[i] - B.data[i];
     }
     return result;
 }
-template <int T> SnailVector<T> &operator -= (SnailVector<T> &A, SnailVector<T> B) {
+tuDv &operator -= (vecD &A, vecD B) {
     A = A - B;
     return A;
 }
 
-template <int T> SnailVector<T>  operator *  (cow_real scalar, SnailVector<T> v) {
-    SnailVector<T> result;
-    SNAIL_FOR_(i, T) {
-        result[i]  = scalar * v[i];
+tuDv  operator *  (real scalar, vecD A) {
+    vecD result;
+    _FOR_(i, D) {
+        result[i]  = scalar * A.data[i];
     }
     return result;
 }
-template <int T> SnailVector<T>  operator *  (SnailVector<T> v, cow_real scalar) {
-    SnailVector<T> result = scalar * v;
+tuDv  operator *  (vecD A, real scalar) {
+    vecD result = scalar * A;
     return result;
 }
-template <int T> SnailVector<T> &operator *= (SnailVector<T> &v, cow_real scalar) {
-    v = scalar * v;
-    return v;
+tuDv &operator *= (vecD &A, real scalar) {
+    A = scalar * A;
+    return A;
 }
-template <int T> SnailVector<T>  operator -  (SnailVector<T> v) {
-    return -1 * v;
+tuDv  operator -  (vecD A) {
+    return -1 * A;
 }
 
-template <int T> SnailVector<T>  operator /  (SnailVector<T> v, cow_real scalar) {
-    SnailVector<T> result;
-    SNAIL_FOR_(i, T) {
-        result[i]  = v[i] / scalar;
+tuDv  operator /  (vecD A, real scalar) {
+    vecD result;
+    _FOR_(i, D) {
+        result[i]  = A[i] / scalar;
     }
     return result;
 }
-template <int T> SnailVector<T> &operator /= (SnailVector<T> &v, cow_real scalar) {
+tuDv &operator /= (vecD &v, real scalar) {
     v = v / scalar;
     return v;
 }
 
 // matrices
-template <int T> SnailMatrix<T>  operator +  (SnailMatrix<T> A, SnailMatrix<T> B) {
-    SnailMatrix<T> ret = {};
-    SNAIL_FOR_(k, T * T) {
+tuDm  operator +  (matD A, matD B) {
+    matD ret = {};
+    _FOR_(k, D * D) {
         ret.data[k] = A.data[k] + B.data[k];
     }
     return ret;
 }
-template <int T> SnailMatrix<T> &operator += (SnailMatrix<T> &A, SnailMatrix<T> B) {
+tuDm &operator += (matD &A, matD B) {
     A = A + B;
     return A;
 }
 
-template <int T> SnailMatrix<T>  operator -  (SnailMatrix<T> A, SnailMatrix<T> B) {
-    SnailMatrix<T> ret = {};
-    SNAIL_FOR_(i, T * T) {
+tuDm  operator -  (matD A, matD B) {
+    matD ret = {};
+    _FOR_(i, D * D) {
         ret.data[i] = A.data[i] - B.data[i];
     }
     return ret;
 }
-template <int T> SnailMatrix<T> &operator -= (SnailMatrix<T> &A, SnailMatrix<T> B) {
+tuDm &operator -= (matD &A, matD B) {
     A = A + B;
     return A;
 }
 
-template <int T> SnailMatrix<T>  operator *  (SnailMatrix<T> A, SnailMatrix<T> B) {
-    SnailMatrix<T> ret = {};
-    SNAIL_FOR_(row, T) {
-        SNAIL_FOR_(col, T) {
-            SNAIL_FOR_(i, T) {
+tuDm  operator *  (matD A, matD B) {
+    matD ret = {};
+    _FOR_(row, D) {
+        _FOR_(col, D) {
+            _FOR_(i, D) {
                 ret(row, col) += A(row, i) * B(i, col);
             }
         }
     }
     return ret;
 }
-template <int T> SnailMatrix<T> &operator *= (SnailMatrix<T> &A, SnailMatrix<T> B) {
+tuDm &operator *= (matD &A, matD B) {
     A = A * B;
     return A;
 }
-template <int T> SnailVector<T>  operator *  (SnailMatrix<T> A, SnailVector<T> b) { // A b
-    SnailVector<T> ret = {};
-    SNAIL_FOR_(row, T) {
-        SNAIL_FOR_(col, T) {
+tuDv  operator *  (matD A, vecD b) { // A b
+    vecD ret = {};
+    _FOR_(row, D) {
+        _FOR_(col, D) {
             ret[row] += A(row, col) * b[col];
         }
     }
     return ret;
 }
-template <int T> SnailVector<T>  operator *  (SnailVector<T> b, SnailMatrix<T> A) { // b^T A
-    SnailVector<T> ret = {};
-    SNAIL_FOR_(row, T) {
-        SNAIL_FOR_(col, T) {
+tuDv  operator *  (vecD b, matD A) { // b^D A
+    vecD ret = {};
+    _FOR_(row, D) {
+        _FOR_(col, D) {
             ret[row] += A(col, row) * b[col];
         }
     }
     return ret;
 }
-template <int T> SnailMatrix<T>  operator *  (cow_real scalar, SnailMatrix<T> M) {
-    SnailMatrix<T> result = {};
-    SNAIL_FOR_(k, T * T) {
+tuDm  operator *  (real scalar, matD M) {
+    matD result = {};
+    _FOR_(k, D * D) {
         result.data[k] = scalar * M.data[k];
     }
     return result;
 }
-template <int T> SnailMatrix<T>  operator *  (SnailMatrix<T> M, cow_real scalar) {
+tuDm  operator *  (matD M, real scalar) {
     return scalar * M;
 }
-template <int T> SnailMatrix<T> &operator *= (SnailMatrix<T> &M, cow_real scalar) {
+tuDm &operator *= (matD &M, real scalar) {
     M = scalar * M;
     return M;
 }
-template <int T> SnailMatrix<T>  operator -  (SnailMatrix<T> M) {
+tuDm  operator -  (matD M) {
     return -1 * M;
 }
 
-template <int T> SnailMatrix<T>  operator /  (SnailMatrix<T> M, cow_real scalar) {
+tuDm  operator /  (matD M, real scalar) {
     return (1 / scalar) * M;
 }
-template <int T> SnailMatrix<T> &operator /= (SnailMatrix<T> &M, cow_real scalar) {
+tuDm &operator /= (matD &M, real scalar) {
     M = M / scalar;
     return M;
 }
 
 // important vector functions //////////////////////////////////////////////////
 
-/**
- * u dot v TODO latex 
- */
-template <int T> cow_real dot(SnailVector<T> A, SnailVector<T> B) {
-    cow_real result = 0;
-    for (int i = 0; i < T; ++i) {
-        result += A[i] * B[i];
+template <uint D> real dot(vecD A, vecD B) {
+    real result = 0.0f;
+    _FOR_(i, D) {
+        result += A.data[i] * B.data[i];
     }
     return result;
 }
-template <int T> SnailMatrix<T> outer(SnailVector<T> u, SnailVector<T> v) {
-    SnailMatrix<T> ret = {};
-    SNAIL_FOR_(row, T) {
-        SNAIL_FOR_(col, T) {
-            ret(row, col) = u[row] * v[col];
+tuDm outer(vecD A, vecD B) {
+    matD ret = {};
+    _FOR_(row, D) {
+        _FOR_(col, D) {
+            ret(row, col) = A[row] * B[col];
         }
     }
     return ret;
 }
 
-cow_real cross(SnailVector<2> A, SnailVector<2> B) {
+real cross(vec2 A, vec2 B) {
     return A.x * B.y - A.y * B.x;
 }
-SnailVector<3> cross(SnailVector<3> A, SnailVector<3> B) {
+vec3 cross(vec3 A, vec3 B) {
     return { A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x };
 }
 
-template <int T> cow_real squaredNorm(SnailVector<T> v) {
-    return dot(v, v);
+template <uint D> real squaredNorm(vecD A) {
+    return dot(A, A);
 }
-template <int T> cow_real norm(SnailVector<T> v) {
-    return sqrt(squaredNorm(v));
+template <uint D> real norm(vecD A) {
+    return sqrt(squaredNorm(A));
 }
-template <int T> cow_real sum(SnailVector<T> v) {
-    cow_real result = 0.0;
-    SNAIL_FOR_(i, T) result += v[i];
+template <uint D> real sum(vecD A) {
+    real result = 0.0;
+    _FOR_(i, D) result += A[i];
     return result;
 }
-template <int T> SnailVector<T> normalized(SnailVector<T> v) {
-    cow_real norm_v = norm(v);
-    // SNAIL_ASSERT(fabs(norm_v) > 1e-7);
-    return (1 / norm_v) * v;
+tuDv normalized(vecD A) {
+    real norm_A = norm(A);
+    // ASSERT(fabs(norm_v) > 1e-7);
+    return (1 / norm_A) * A;
 }
 
 // ALIASES
-// template <int T> cow_real length(SnailVector<T> v) { return norm(v); }
-// template <int T> cow_real squared_length(SnailVector<T> v) { return squaredNorm(v); }
+// template <uint D> real length(vecD v) { return norm(v); }
+// template <uint D> real squared_length(vecD v) { return squaredNorm(v); }
 
 // important matrix functions //////////////////////////////////////////////////
 
-template <int T> SnailMatrix<T> transpose(SnailMatrix<T> M) {
-    SnailMatrix<T> ret = {};
-    SNAIL_FOR_(row, T) {
-        SNAIL_FOR_(col, T) {
+tuDm transpose(matD M) {
+    matD ret = {};
+    _FOR_(row, D) {
+        _FOR_(col, D) {
             ret(row, col) = M(col, row);
         }
     }
     return ret;
 }
 
-cow_real determinant(SnailMatrix<2> M) {
+real determinant(mat2 M) {
     return M(0, 0) * M(1, 1) - M(0, 1) * M(1, 0);
 }
-cow_real determinant(SnailMatrix<3> M) {
+real determinant(mat3 M) {
     return M(0, 0) * (M(1, 1) * M(2, 2) - M(2, 1) * M(1, 2))
         - M(0, 1) * (M(1, 0) * M(2, 2) - M(1, 2) * M(2, 0))
         + M(0, 2) * (M(1, 0) * M(2, 1) - M(1, 1) * M(2, 0));
 }
-cow_real determinant(SnailMatrix<4> M) {
-    cow_real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2);
-    cow_real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1);
-    cow_real A1223 = M(2, 1) * M(3, 2) - M(2, 2) * M(3, 1);
-    cow_real A0323 = M(2, 0) * M(3, 3) - M(2, 3) * M(3, 0);
-    cow_real A0223 = M(2, 0) * M(3, 2) - M(2, 2) * M(3, 0);
-    cow_real A0123 = M(2, 0) * M(3, 1) - M(2, 1) * M(3, 0);
+real determinant(mat4 M) {
+    real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2);
+    real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1);
+    real A1223 = M(2, 1) * M(3, 2) - M(2, 2) * M(3, 1);
+    real A0323 = M(2, 0) * M(3, 3) - M(2, 3) * M(3, 0);
+    real A0223 = M(2, 0) * M(3, 2) - M(2, 2) * M(3, 0);
+    real A0123 = M(2, 0) * M(3, 1) - M(2, 1) * M(3, 0);
     return M(0, 0) * ( M(1, 1) * A2323 - M(1, 2) * A1323 + M(1, 3) * A1223 ) 
         - M(0, 1) * ( M(1, 0) * A2323 - M(1, 2) * A0323 + M(1, 3) * A0223 ) 
         + M(0, 2) * ( M(1, 0) * A1323 - M(1, 1) * A0323 + M(1, 3) * A0123 ) 
         - M(0, 3) * ( M(1, 0) * A1223 - M(1, 1) * A0223 + M(1, 2) * A0123 ) ;
 }
 
-SnailMatrix<2> inverse(SnailMatrix<2> M) {
-    cow_real invdet = 1 / determinant(M);
+mat2 inverse(mat2 M) {
+    real invdet = 1 / determinant(M);
     return { invdet * M(1, 1), 
         invdet * -M(0, 1), 
         invdet * -M(1, 0), 
         invdet * M(0, 0) };
 }
-SnailMatrix<3> inverse(SnailMatrix<3> M) {
-    cow_real invdet = 1 / determinant(M);
+mat3 inverse(mat3 M) {
+    real invdet = 1 / determinant(M);
     return { invdet * (M(1, 1) * M(2, 2) - M(2, 1) * M(1, 2)),
         invdet * (M(0, 2) * M(2, 1) - M(0, 1) * M(2, 2)),
         invdet * (M(0, 1) * M(1, 2) - M(0, 2) * M(1, 1)),
@@ -486,26 +333,26 @@ SnailMatrix<3> inverse(SnailMatrix<3> M) {
         invdet * (M(2, 0) * M(0, 1) - M(0, 0) * M(2, 1)),
         invdet * (M(0, 0) * M(1, 1) - M(1, 0) * M(0, 1)) };
 }
-SnailMatrix<4> inverse(SnailMatrix<4> M) {
-    cow_real invdet = 1 / determinant(M);
-    cow_real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2) ;
-    cow_real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1) ;
-    cow_real A1223 = M(2, 1) * M(3, 2) - M(2, 2) * M(3, 1) ;
-    cow_real A0323 = M(2, 0) * M(3, 3) - M(2, 3) * M(3, 0) ;
-    cow_real A0223 = M(2, 0) * M(3, 2) - M(2, 2) * M(3, 0) ;
-    cow_real A0123 = M(2, 0) * M(3, 1) - M(2, 1) * M(3, 0) ;
-    cow_real A2313 = M(1, 2) * M(3, 3) - M(1, 3) * M(3, 2) ;
-    cow_real A1313 = M(1, 1) * M(3, 3) - M(1, 3) * M(3, 1) ;
-    cow_real A1213 = M(1, 1) * M(3, 2) - M(1, 2) * M(3, 1) ;
-    cow_real A2312 = M(1, 2) * M(2, 3) - M(1, 3) * M(2, 2) ;
-    cow_real A1312 = M(1, 1) * M(2, 3) - M(1, 3) * M(2, 1) ;
-    cow_real A1212 = M(1, 1) * M(2, 2) - M(1, 2) * M(2, 1) ;
-    cow_real A0313 = M(1, 0) * M(3, 3) - M(1, 3) * M(3, 0) ;
-    cow_real A0213 = M(1, 0) * M(3, 2) - M(1, 2) * M(3, 0) ;
-    cow_real A0312 = M(1, 0) * M(2, 3) - M(1, 3) * M(2, 0) ;
-    cow_real A0212 = M(1, 0) * M(2, 2) - M(1, 2) * M(2, 0) ;
-    cow_real A0113 = M(1, 0) * M(3, 1) - M(1, 1) * M(3, 0) ;
-    cow_real A0112 = M(1, 0) * M(2, 1) - M(1, 1) * M(2, 0) ;
+mat4 inverse(mat4 M) {
+    real invdet = 1 / determinant(M);
+    real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2) ;
+    real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1) ;
+    real A1223 = M(2, 1) * M(3, 2) - M(2, 2) * M(3, 1) ;
+    real A0323 = M(2, 0) * M(3, 3) - M(2, 3) * M(3, 0) ;
+    real A0223 = M(2, 0) * M(3, 2) - M(2, 2) * M(3, 0) ;
+    real A0123 = M(2, 0) * M(3, 1) - M(2, 1) * M(3, 0) ;
+    real A2313 = M(1, 2) * M(3, 3) - M(1, 3) * M(3, 2) ;
+    real A1313 = M(1, 1) * M(3, 3) - M(1, 3) * M(3, 1) ;
+    real A1213 = M(1, 1) * M(3, 2) - M(1, 2) * M(3, 1) ;
+    real A2312 = M(1, 2) * M(2, 3) - M(1, 3) * M(2, 2) ;
+    real A1312 = M(1, 1) * M(2, 3) - M(1, 3) * M(2, 1) ;
+    real A1212 = M(1, 1) * M(2, 2) - M(1, 2) * M(2, 1) ;
+    real A0313 = M(1, 0) * M(3, 3) - M(1, 3) * M(3, 0) ;
+    real A0213 = M(1, 0) * M(3, 2) - M(1, 2) * M(3, 0) ;
+    real A0312 = M(1, 0) * M(2, 3) - M(1, 3) * M(2, 0) ;
+    real A0212 = M(1, 0) * M(2, 2) - M(1, 2) * M(2, 0) ;
+    real A0113 = M(1, 0) * M(3, 1) - M(1, 1) * M(3, 0) ;
+    real A0112 = M(1, 0) * M(2, 1) - M(1, 1) * M(2, 0) ;
     return { invdet * ( M(1, 1) * A2323 - M(1, 2) * A1323 + M(1, 3) * A1223 ),
         invdet * - ( M(0, 1) * A2323 - M(0, 2) * A1323 + M(0, 3) * A1223 ),
         invdet *   ( M(0, 1) * A2313 - M(0, 2) * A1313 + M(0, 3) * A1213 ),
@@ -526,108 +373,108 @@ SnailMatrix<4> inverse(SnailMatrix<4> M) {
 
 // using 4x4 transforms ////////////////////////////////////////////////////////
 
-template <int T> SnailVector<T> transformPoint(const SnailMatrix<4> &M, SnailVector<T> p) {
-    SnailVector<4> p_hom = {};
-    memcpy(&p_hom, &p, T * sizeof(cow_real));
+tuDv transformPoint(const mat4 &M, vecD p) {
+    vec4 p_hom = {};
+    memcpy(&p_hom, &p, D * sizeof(real));
     p_hom.w = 1;
-    SnailVector<4> ret_hom = M * p_hom;
+    vec4 ret_hom = M * p_hom;
     ret_hom /= ret_hom.w;
-    SnailVector<T> ret = {};
-    memcpy(&ret, &ret_hom, T * sizeof(cow_real));
+    vecD ret = {};
+    memcpy(&ret, &ret_hom, D * sizeof(real));
     return ret;
 }
-template <int T> SnailVector<T> transformVector(const SnailMatrix<4> &M, SnailVector<T> v) {
-    SnailVector<3> v_3D = {};
-    memcpy(&v_3D, &v, T * sizeof(cow_real));
-    SnailVector<3> ret_hom = M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)) * v_3D;
-    SnailVector<T> ret = {};
-    memcpy(&ret, &ret_hom, T * sizeof(cow_real));
+tuDv transformVector(const mat4 &M, vecD v) {
+    vec3 v_3D = {};
+    memcpy(&v_3D, &v, D * sizeof(real));
+    vec3 ret_hom = M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)) * v_3D;
+    vecD ret = {};
+    memcpy(&ret, &ret_hom, D * sizeof(real));
     return ret;
 }
-template <int T> SnailVector<T> transformNormal(const SnailMatrix<4> &M, SnailVector<T> n) {
-    SnailVector<3> ret_hom = inverse(transpose(M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)))) * n;
-    SnailVector<T> ret = {};
-    memcpy(&ret, &ret_hom, T * sizeof(cow_real));
+tuDv transformNormal(const mat4 &M, vecD n) {
+    vec3 ret_hom = inverse(transpose(M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)))) * n;
+    vecD ret = {};
+    memcpy(&ret, &ret_hom, D * sizeof(real));
     return ret;
 }
 
 // 4x4 transform cookbook //////////////////////////////////////////////////////
 
-template <int T> SnailMatrix<T> identityMatrix() {
-    SnailMatrix<T> ret = {};
-    for (int i = 0; i < T; ++i) {
+tuDm identityMatrix() {
+    matD ret = {};
+    for (uint i = 0; i < D; ++i) {
         ret(i, i) = 1;
     }
     return ret;
 }
-const SnailMatrix<4> _Identity4x4 = identityMatrix<4>();
+const mat4 _Identity4x4 = identityMatrix<4>();
 
-SnailMatrix<4> M4_Identity() {
+mat4 M4_Identity() {
     return _Identity4x4;
 }
 
-SnailMatrix<4> M4_Translation(cow_real x, cow_real y, cow_real z = 0) {
-    SnailMatrix<4> ret = _Identity4x4;
+mat4 M4_Translation(real x, real y, real z = 0) {
+    mat4 ret = _Identity4x4;
     ret(0, 3) = x;
     ret(1, 3) = y;
     ret(2, 3) = z;
     return ret;
 }
-SnailMatrix<4> M4_Translation(SnailVector<2> xy) {
+mat4 M4_Translation(vec2 xy) {
     return M4_Translation(xy.x, xy.y);
 }
-SnailMatrix<4> M4_Translation(SnailVector<3> xyz) {
+mat4 M4_Translation(vec3 xyz) {
     return M4_Translation(xyz.x, xyz.y, xyz.z);
 }
-SnailMatrix<4> M4_Scaling(cow_real x, cow_real y, cow_real z = 1) {
-    SnailMatrix<4> ret = {};
+mat4 M4_Scaling(real x, real y, real z = 1) {
+    mat4 ret = {};
     ret(0, 0) = x;
     ret(1, 1) = y;
     ret(2, 2) = z;
     ret(3, 3) = 1;
     return ret;
 }
-SnailMatrix<4> M4_Scaling(cow_real s) {
+mat4 M4_Scaling(real s) {
     return M4_Scaling(s, s, s);
 }
-SnailMatrix<4> M4_Scaling(SnailVector<2> xy) {
+mat4 M4_Scaling(vec2 xy) {
     return M4_Scaling(xy.x, xy.y);
 }
-SnailMatrix<4> M4_Scaling(SnailVector<3> xyz) {
+mat4 M4_Scaling(vec3 xyz) {
     return M4_Scaling(xyz.x, xyz.y, xyz.z);
 }
-SnailMatrix<4> M4_RotationAboutXAxis(cow_real t) {
-    SnailMatrix<4> ret = _Identity4x4;
-    ret(1, 1) = cos(t); ret(1, 2) = -sin(t);
-    ret(2, 1) = sin(t); ret(2, 2) =  cos(t);
+mat4 M4_RotationAboutXAxis(real t) {
+    mat4 ret = _Identity4x4;
+    ret(1, 1) = COS(t); ret(1, 2) = -SIN(t);
+    ret(2, 1) = SIN(t); ret(2, 2) =  COS(t);
     return ret;
 }
-SnailMatrix<4> M4_RotationAboutYAxis(cow_real t) {
-    SnailMatrix<4> ret = _Identity4x4;
-    ret(0, 0) =  cos(t); ret(0, 2) = sin(t);
-    ret(2, 0) = -sin(t); ret(2, 2) = cos(t);
+mat4 M4_RotationAboutYAxis(real t) {
+    mat4 ret = _Identity4x4;
+    ret(0, 0) =  COS(t); ret(0, 2) = SIN(t);
+    ret(2, 0) = -SIN(t); ret(2, 2) = COS(t);
     return ret;
 }
-SnailMatrix<4> M4_RotationAboutZAxis(cow_real t) {
-    SnailMatrix<4> ret = _Identity4x4;
-    ret(0, 0) = cos(t); ret(0, 1) = -sin(t);
-    ret(1, 0) = sin(t); ret(1, 1) =  cos(t);
+mat4 M4_RotationAboutZAxis(real t) {
+    mat4 ret = _Identity4x4;
+    ret(0, 0) = COS(t); ret(0, 1) = -SIN(t);
+    ret(1, 0) = SIN(t); ret(1, 1) =  COS(t);
     return ret;
 }
 
-SnailMatrix<4> M4_RotationAbout(SnailVector<3> axis, cow_real angle) {
-    cow_real x = axis.x;
-    cow_real y = axis.y;
-    cow_real z = axis.z;
-    cow_real x2 = x * x;
-    cow_real y2 = y * y;
-    cow_real z2 = z * z;
-    cow_real xy = x * y;
-    cow_real xz = x * z;
-    cow_real yz = y * z;
-    cow_real col = cos(angle);
-    cow_real s = sin(angle);
-    cow_real d = 1-col;
+mat4 M4_RotationAbout(vec3 axis, real angle) {
+    real x = axis.x;
+    real y = axis.y;
+    real z = axis.z;
+    real x2 = x * x;
+    real y2 = y * y;
+    real z2 = z * z;
+    real xy = x * y;
+    real xz = x * z;
+    real yz = y * z;
+    real col = COS(angle);
+    real s = SIN(angle);
+    real d = 1-col;
     return { col+x2*d, xy*d-z*s, xz*d+y*s, 0,
         xy*d+z*s, col+y2*d, yz*d-x*s, 0,
         xz*d-y*s, yz*d+x*s, col+z2*d, 0,
@@ -644,8 +491,8 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
     b = normalized(b);
 
     vec3 v = cross(a, b);
-    cow_real col = dot(a, b);
-    if (SNAIL_ABS(col + 1.0) < 1e-5) return identityMatrix<4>();
+    real col = dot(a, b);
+    if (ABS(col + 1.0f) < 1e-5f) return identityMatrix<4>();
     mat3 v_x = { 0.0, -v.z, v.y, v.z, 0.0, -v.x, -v.y, v.x, 0.0 };
     mat3 R = identityMatrix<3>() + v_x + v_x * v_x / (1 + col);
     return {
@@ -657,16 +504,16 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
 
 // optimization stuff //////////////////////////////////////////////////////////
 
-template <int T> SnailMatrix<T> firstDerivativeofUnitVector(SnailVector<T> v) {
-    SnailVector<T> tmp = normalized(v);
-    return (1 / norm(v)) * (identityMatrix<T>() - outer(tmp, tmp));
+tuDm firstDerivativeofUnitVector(vecD v) {
+    vecD tmp = normalized(v);
+    return (1 / norm(v)) * (identityMatrix<D>() - outer(tmp, tmp));
 }
 #define firstDerivativeOfNorm normalized
 #define secondDerivativeOfNorm firstDerivativeofUnitVector
 
-template <int T> cow_real squaredNorm(SnailMatrix<T> M) {
-    cow_real ret = 0;
-    for (int i = 0; i < T * T; ++i) {
+template <uint D> real squaredNorm(matD M) {
+    real ret = 0;
+    for(uint i = 0; i < D * D; ++i) {
         ret += M.data[i] * M.data[i];
     }
     return ret;
@@ -674,53 +521,53 @@ template <int T> cow_real squaredNorm(SnailMatrix<T> M) {
 
 // misc functions //////////////////////////////////////////////////////////////
 
-template <int T> cow_real minComponent(SnailVector<T> A) {
-    cow_real result = HUGE_VAL;
-    for (int i = 0; i < T; ++i) result = SNAIL_MIN(result, A[i]);
+template <uint D> real minComponent(vecD A) {
+    real result = HUGE_VAL;
+    for(uint i = 0; i < D; ++i) result = MIN(result, A.data[i]);
     return result;
 }
 
-template <int T> cow_real maxComponent(SnailVector<T> A) {
-    cow_real result = -HUGE_VAL;
-    for (int i = 0; i < T; ++i) result = SNAIL_MAX(result, A[i]);
+template <uint D> real maxComponent(vecD A) {
+    real result = -HUGE_VAL;
+    for(uint i = 0; i < D; ++i) result = MAX(result, A.data[i]);
     return result;
 }
 
-template <int T> SnailVector<T> cwiseAbs(SnailVector<T> A) {
-    for (int i = 0; i < T; ++i) A[i] = abs(A[i]);
+tuDv cwiseAbs(vecD A) {
+    for(uint i = 0; i < D; ++i) A.data[i] = abs(A.data[i]);
     return A;
 }
-template <int T> SnailVector<T> cwiseMin(SnailVector<T> A, SnailVector<T> B) {
-    SnailVector<T> ret = {};
-    for (int i = 0; i < T; ++i) ret[i] = (A[i] < B[i]) ? A[i] : B[i];
+tuDv cwiseMin(vecD A, vecD B) {
+    vecD ret = {};
+    for(uint i = 0; i < D; ++i) ret[i] = (A.data[i] < B.data[i]) ? A.data[i] : B.data[i];
     return ret;
 }
-template <int T> SnailVector<T> cwiseMax(SnailVector<T> A, SnailVector<T> B) {
-    SnailVector<T> ret = {};
-    for (int i = 0; i < T; ++i) ret[i] = (A[i] > B[i]) ? A[i] : B[i];
+tuDv cwiseMax(vecD A, vecD B) {
+    vecD ret = {};
+    for(uint i = 0; i < D; ++i) ret[i] = (A.data[i] > B.data[i]) ? A.data[i] : B.data[i];
     return ret;
 }
-template <int T> SnailVector<T> cwiseProduct(SnailVector<T> a, SnailVector<T> b) {
-    SnailVector<T> ret = {};
-    for (int i = 0; i < T; ++i) ret[i] = a[i] * b[i];
+tuDv cwiseProduct(vecD a, vecD b) {
+    vecD ret = {};
+    for(uint i = 0; i < D; ++i) ret[i] = a[i] * b[i];
     return ret;
 }
-SnailVector<2> e_theta(cow_real theta) {
-    return { cos(theta), sin(theta) };
+vec2 e_theta(real theta) {
+    return { COS(theta), SIN(theta) };
 }
-cow_real atan2(SnailVector<2> a) {
+real atan2(vec2 a) {
     return atan2f(a.y, a.x);
 }
-SnailVector<2> rotated(SnailVector<2> a, cow_real theta) {
-    return { cos(theta) * a.x - sin(theta) * a.y, sin(theta) * a.x + cos(theta) * a.y };
+vec2 rotated(vec2 a, real theta) {
+    return { COS(theta) * a.x - SIN(theta) * a.y, SIN(theta) * a.x + COS(theta) * a.y };
 }
-SnailMatrix<2> R_theta_2x2(cow_real theta) {
-    return { cos(theta), -sin(theta), sin(theta), cos(theta) };
+mat2 R_theta_2x2(real theta) {
+    return { COS(theta), -SIN(theta), SIN(theta), COS(theta) };
 }
-SnailVector<2> perpendicularTo(SnailVector<2> v) {
+vec2 perpendicularTo(vec2 v) {
     return { v.y, -v.x };
 }
-SnailMatrix<4> xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
+mat4 xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
     return {
         x[0], y[0], z[0], o[0],
         x[1], y[1], z[1], o[1],
@@ -729,28 +576,28 @@ SnailMatrix<4> xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
     };
 }
 #define M4_xyzo xyzo2mat4
-template <int T> SnailVector<T> magClamped(SnailVector<T> a, cow_real col) {
-    cow_real norm_a = norm(a);
-    if (SNAIL_ABS(norm_a) < col) { return a; }
-    return a / norm_a * SNAIL_CLAMP(norm_a, -col, col);
+tuDv magClamped(vecD a, real col) {
+    real norm_a = norm(a);
+    if (ABS(norm_a) < col) { return a; }
+    return a / norm_a * MAG_CLAMP(norm_a, col);
 }
 
 // utility /////////////////////////////////////////////////////////////////////
 
-template <int T> void pprint(SnailVector<T> v) {
-    printf("V%d(", T);
-    SNAIL_FOR_(i, T) {
-        printf("%lf", v[i]);
-        if (i != T - 1) printf(", ");
+template <uint D> void pprint(vecD A) {
+    printf("V%d(", D);
+    _FOR_(i, D) {
+        printf("%lf", A[i]);
+        if (i != D - 1) printf(", ");
     }
     printf(")\n");
 }
-template <int T> void pprint(SnailMatrix<T> M) {
-    SNAIL_FOR_(row, T) {
+template <uint D> void pprint(matD M) {
+    _FOR_(row, D) {
         printf("| ");
-        SNAIL_FOR_(col, T) {
+        _FOR_(col, D) {
             printf("%lf", M(row, col));
-            if (col != T - 1) printf(", ");
+            if (col != D - 1) printf(", ");
         }
         printf(" |\n");
     }
@@ -760,7 +607,7 @@ template <int T> void pprint(SnailMatrix<T> M) {
 
 struct RayTriangleIntersectionResult {
     bool hit;
-    cow_real distance;
+    real distance;
 };
 RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a, vec3 b, vec3 c) {
     RayTriangleIntersectionResult result = {};
@@ -775,12 +622,6 @@ RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a
     return result;
 }
 
-#undef SNAIL_ASSERT
-#undef SNAIL_ABS
-#undef SNAIL_MIN
-#undef SNAIL_MAX
-#undef SNAIL_CLAMP
-#undef SNAIL_FOR_
-#endif
+#undef _FOR_
 
 
