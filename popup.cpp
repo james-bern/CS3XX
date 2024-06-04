@@ -1,26 +1,50 @@
-// TODO: the flow here is a bit tortuous
-// on the previous frame we store information about the hover state (is the user hovering?--over which cell?--what new cursor position?)
-// then...when the user clicks (in the click callback) we can generate a EVENT_TYPE_GUI_MOUSE_PRESS of the appropraite type, which gets processed by the next pass through the popup
-// this seems generally fine, i guess what feels weird is that we need to retain some state / store some data (?? perhaps this is morally speaking ScreenState data) in order to classify the event--but i suppose this makes sense
+void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
+    uint d = popup->active_cell_index;
+    memset(popup->active_cell_buffer, 0, POPUP_CELL_LENGTH);
+    if (popup->cell_type[d] == CellType::Real32) {
+        sprintf(popup->active_cell_buffer, "%g", *((real32 *) popup->value[d]));
+    } else { ASSERT(popup->cell_type[d] == CellType::String);
+        strcpy(popup->active_cell_buffer, (char *) popup->value[d]);
+    }
+};
 
-// there is a parallel with deciding what to do with key input
-// NOTE: this could be split into two event types
+void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
+    uint d = popup->active_cell_index;
+    if (popup->cell_type[d] == CellType::Real32) {
+        *((real32 *) popup->value[d]) = strtof(popup->active_cell_buffer, NULL);
+    } else { ASSERT(popup->cell_type[d] == CellType::String);
+        strcpy((char *) popup->value[d], popup->active_cell_buffer);
+    }
+};
 
-// cool text animations when tabbing
-// TODO: 'X'
-// TODO: mouse click
-// TODO: mouse drag
-// TODO: paste from os clipboard
-// TODO: parsing math formulas
-// TODO: field type
+void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
+    for (uint d = 0; d < popup->num_cells; ++d) {
+        if (!popup->name[d]) continue;
+        if (popup->cell_type[d] == CellType::Real32) {
+            *((real32 *) popup->value[d]) = 0.0f;
+        } else { ASSERT(popup->cell_type[d] == CellType::String);
+            memset(popup->value[d], 0, POPUP_CELL_LENGTH);
+        }
+    }
+};
 
-auto popup_popup = [&] (
+bool POPUP_SELECTION_NOT_ACTIVE() { return (popup->selection_cursor == popup->cursor); };
+
+void POPUP_SET_ACTIVE_CELL_INDEX(uint new_active_cell_index) {
+    popup->active_cell_index = new_active_cell_index;
+    POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+    popup->cursor = (uint) strlen(popup->active_cell_buffer);
+    popup->selection_cursor = 0; // select whole cell
+    popup->_type_of_active_cell = popup->cell_type[popup->active_cell_index];
+};
+
+void popup_popup(
         bool zero_on_load_up,
         CellType _cell_type0,     char *_name0,        void *_value0,
         CellType _cell_type1 = CellType::None, char *_name1 = NULL, void *_value1 = NULL,
         CellType _cell_type2 = CellType::None, char *_name2 = NULL, void *_value2 = NULL,
         CellType _cell_type3 = CellType::None, char *_name3 = NULL, void *_value3 = NULL
-        ) -> void {
+        ) {
 
     { // args info
         popup->cell_type[0] = _cell_type0;
@@ -44,7 +68,7 @@ auto popup_popup = [&] (
     }
 
 
-    popup_popup_actually_called_this_event = true;
+    popup->_popup_actually_called_this_event = true;
 
     // LOADING UP ///////////////////////////////////////////////////
 
@@ -60,8 +84,8 @@ auto popup_popup = [&] (
 
     POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
 
-    if (!SCREEN.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME) {
-        SCREEN.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
+    if (!other.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME) {
+        other.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
     } else {
         return;
     }
@@ -101,8 +125,8 @@ auto popup_popup = [&] (
 
             real32 X_MARGIN_OFFSET = COW1._gui_x_curr;
 
-            real32 x_mouse = SCREEN.mouse_Pixel.x;
-            // real32 y_mouse = SCREEN.mouse_Pixel.y;
+            real32 x_mouse = other.mouse_Pixel.x;
+            // real32 y_mouse = other.mouse_Pixel.y;
 
             real32 x_field_left;
             real32 x_field_right;
@@ -126,7 +150,7 @@ auto popup_popup = [&] (
             }
 
             box2 field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            if (bounding_box_contains(field_box, SCREEN.mouse_Pixel)) {
+            if (bounding_box_contains(field_box, other.mouse_Pixel)) {
                 popup->mouse_is_hovering = true;
                 popup->hover_cell_index = d;
                 popup->hover_cursor = 0; // _SUPPRESS_COMPILER_WARNING_UNUSED_VARIABLE
@@ -165,7 +189,7 @@ auto popup_popup = [&] (
             // eso_end();
             // eso_begin(globals.NDC_from_Screen, SOUP_POINTS, 10.0f);
             // eso_color(1.0f, 0.0f, 1.0f);
-            // eso_vertex(SCREEN.mouse_in_pixel_coordinates);
+            // eso_vertex(other.mouse_in_pixel_coordinates);
             // eso_end();
 
             #if 0
@@ -202,10 +226,10 @@ auto popup_popup = [&] (
                     gui_printf(buffer);
                     FORNOW_gui_printf_red_component = 1.0f;
                     if (POPUP_SELECTION_NOT_ACTIVE()) { // cursor
-                        // if (((int) (time_since->cursor_start * 5)) % 10 < 5)
+                        // if (((int) (other.time_since_cursor_start * 5)) % 10 < 5)
                         {
-                            real32 a = 0.5f + 0.5f * SIN(time_since->cursor_start * 7);
-                            real32 b = CLAMPED_LINEAR_REMAP(time_since->cursor_start, 0.0f, 1.0f, 1.0f, 0.0f);
+                            real32 a = 0.5f + 0.5f * SIN(other.time_since_cursor_start * 7);
+                            real32 b = CLAMPED_LINEAR_REMAP(other.time_since_cursor_start, 0.0f, 1.0f, 1.0f, 0.0f);
                             char tmp[4096]; // FORNOW
                             strcpy(tmp, popup->active_cell_buffer);
                             tmp[popup->cursor] = '\0';

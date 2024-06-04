@@ -13,11 +13,11 @@ template <typename T> uint32 elephant_length_redo(ElephantStack<T> *elephant) {
     return elephant->_redo_stack.length;
 }
 
-template <typename T> bool32 elephant_is_empty_undo(ElephantStack<T> *elephant) {
+template <typename T> bool elephant_is_empty_undo(ElephantStack<T> *elephant) {
     return (elephant_length_undo(elephant) == 0);
 }
 
-template <typename T> bool32 elephant_is_empty_redo(ElephantStack<T> *elephant) {
+template <typename T> bool elephant_is_empty_redo(ElephantStack<T> *elephant) {
     return (elephant_length_redo(elephant) == 0);
 }
 

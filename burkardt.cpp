@@ -24,7 +24,7 @@
 // - radians everywhere
 
 struct LineLineIntersectionResult {
-    bool32 is_valid;
+    bool is_valid;
     vec2 position;
 };
 

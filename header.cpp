@@ -40,7 +40,6 @@ struct {
 
 struct {
     vec3 red = RGB256(255, 0, 0);
-    vec3 pink = RGB256(238, 0, 119);
     vec3 yellow = RGB256(255, 255, 0);
     vec3 orange = RGB256(204, 136, 1);
     vec3 green = RGB256(83, 255,  85);
@@ -48,6 +47,8 @@ struct {
     vec3 blue = RGB256(0, 85, 255);
     vec3 purple = RGB256(170, 1, 255);
     vec3 magenta = RGB256(255, 0, 255);
+    vec3 pink = RGB256(238, 0, 119);
+    vec3 black = RGB256(0, 0, 0);
     vec3 dark_gray = RGB256(136, 136, 136);
     vec3 light_gray = RGB256(205, 205, 205);
     vec3 white = RGB256(255, 255, 255);
@@ -118,10 +119,10 @@ enum class EntityType {
 
 enum class Pane {
     None,
-    DXF,
-    STL,
-    Divider,
+    Drawing,
+    Mesh,
     Popup,
+    Separator,
 };
 
 enum class CellType {
@@ -144,8 +145,8 @@ enum class KeyEventSubtype {
 
 enum class MouseEventSubtype {
     None,
-    DXF,
-    STL,
+    Drawing,
+    Mesh,
     Popup,
 };
 
@@ -214,23 +215,30 @@ struct Mesh {
 };
 
 // TODO: struct out RawEvent into RawMouseEvent and RawKeyEvent
-struct RawEvent {
-    EventType type;
-    Pane pane;
-
+struct RawKeyEvent {
     uint key;
     bool control;
     bool shift;
+};
 
+struct RawMouseEvent {
+    Pane pane;
     vec2 mouse_Pixel;
     bool mouse_held;
 };
 
-struct MouseEvent2D {
+struct RawEvent {
+    EventType type;
+
+    RawKeyEvent raw_key_event;
+    RawMouseEvent raw_mouse_event;
+};
+
+struct MouseEventDrawing {
     vec2 mouse_position;
 };
 
-struct MouseEvent3D {
+struct MouseEventMesh {
     vec3 mouse_ray_origin;
     vec3 mouse_ray_direction;
 };
@@ -246,8 +254,8 @@ struct MouseEvent {
 
     bool mouse_held;
 
-    MouseEvent2D mouse_event_2D;
-    MouseEvent3D mouse_event_3D;
+    MouseEventDrawing mouse_event_drawing;
+    MouseEventMesh mouse_event_mesh;
     MouseEventGUI mouse_event_gui;
 };
 
@@ -270,17 +278,22 @@ struct Event {
     MouseEvent mouse_event;
 };
 
-struct DXFState {
+struct Drawing {
     List<Entity> entities;
-    vec2            origin;
-    vec2            axis_base_point;
-    real          axis_angle_from_y;
+    vec2 origin;
+    vec2 axis_base_point;
+    real axis_angle_from_y;
 };
 
 struct FeaturePlaneState {
     bool is_active;
     vec3 normal;
     real signed_distance_to_world_origin;
+};
+
+struct TwoClickCommandState {
+    bool awaiting_second_click;
+    vec2 first_click;
 };
 
 struct PopupState {
@@ -296,6 +309,7 @@ struct PopupState {
 
     CellType _type_of_active_cell;
     void *_active_popup_unique_ID__FORNOW_name0;
+    bool _popup_actually_called_this_event; // FORNOW
 
     bool mouse_is_hovering;
     uint hover_cell_index;
@@ -328,28 +342,32 @@ struct PopupState {
     char save_filename[POPUP_CELL_LENGTH];
 };
 
-struct WorldState {
+struct WorldState_ChangesToThisMustBeRecorded {
     Mesh mesh;
-    DXFState dxf;
+    Drawing drawing;
     FeaturePlaneState feature_plane;
+    TwoClickCommandState two_click_command;
+    PopupState popup;
 
     ClickMode click_mode;
     ClickModifier click_modifier;
     ColorCode click_color_code;
     EnterMode enter_mode;
 
-    struct {
-        bool awaiting_second_click;
-        vec2 first_click;
-    } two_click_command;
-
-    PopupState popup;
-
     Event space_bar_event;
     Event shift_space_bar_event;
 };
 
-struct ScreenState {
+struct PreviewState {
+    box2 feature_plane;
+    real extrude_in_length;
+    real extrude_out_length;
+    vec3 tubes_color;
+    vec3 feature_plane_color;
+    real feature_plane_offset;
+};
+
+struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded {
     mat4 transform_NDC_from_Pixel;
     mat4 transform_Identity = M4_Identity();
 
@@ -362,54 +380,44 @@ struct ScreenState {
     bool show_help;
     bool show_event_stack;
 
+
     Pane hot_pane;
+    real x_divider_NDC;
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
+    bool shift_held;
     vec2 mouse_NDC;
     vec2 mouse_Pixel;
-    bool shift_held;
-    bool mouse_left_held;
-    bool mouse_right_held;
 
-    real x_divider_NDC;
 
     char drop_path[256];
+
     bool DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
 
     bool paused;
     bool stepping_one_frame_while_paused;
 
-};
+    real time_since_cursor_start;
+    real time_since_successful_feature;
+    real time_since_plane_selected;
+    real time_since_going_inside;
 
-struct TimeSince {
-    real cursor_start;
-    real successful_feature;
-    real plane_selected;
-    real going_inside;
-};
-
-struct AestheticsState {
-    TimeSince time_since;
-    box2 preview_feature_plane;
-    real preview_extrude_in_length;
-    real preview_extrude_out_length;
-    vec3 preview_tubes_color;
-    vec3 preview_feature_plane_color;
-    real preview_feature_plane_offset;
+    PreviewState preview;
 };
 
 ////////////////////////////////////////
 // Cow Additions ///////////////////////
 ////////////////////////////////////////
 
-real MAP_TO_0_TAU_INTERVAL(real theta) {
+real WRAP_TO_0_TAU_INTERVAL(real theta) {
     theta = fmod(theta, TAU);
     if (theta < 0.0) theta += TAU;
     return theta;
 }
+
 bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
-    return (MAP_TO_0_TAU_INTERVAL(t - a) < MAP_TO_0_TAU_INTERVAL(t - b));
+    return (WRAP_TO_0_TAU_INTERVAL(t - a) < WRAP_TO_0_TAU_INTERVAL(t - b));
 }
 
 ////////////////////////////////////////
@@ -430,7 +438,7 @@ real squared_distance_point_point(real x_A, real y_A, real x_B, real y_B) {
 void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, box2 bounding_box) {
     real new_o_x = AVG(bounding_box.min[0], bounding_box.max[0]);
     real new_o_y = AVG(bounding_box.min[1], bounding_box.max[1]);
-    real new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / _window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
+    real new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
     camera_2D->height_World = new_height;
     camera_2D->center_World.x = new_o_x;
@@ -571,7 +579,7 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
         #define OPEN_MODE_NONE 0
         #define OPEN_MODE_LINE 1
         #define OPEN_MODE_ARC  2
-        u8 mode = 0;
+        uint mode = 0;
         int code = 0;
         bool code_is_hot = false;
         Entity entity = {};
@@ -646,7 +654,7 @@ vec3 get_color(ColorCode color_code) {
     if (0 <= i && i <= 9) {
         return omax_pallete[i];
     } else if (20 <= i && i <= 29) {
-        do_once { conversation_messagef(monokai.orange, "WARNING: slits not implemented"); };
+        do_once { conversation_messagef(omax.orange, "WARNING: slits not implemented"); };
         return omax_pallete[i - 20];
     } else if (color_code == ColorCode::Selection) {
         return omax.yellow;
@@ -1097,7 +1105,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
 
 void cross_section_debug_draw(Camera2D *camera_2D, CrossSectionEvenOdd *cross_section) {
     eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
-    eso_color(monokai.white);
+    eso_color(omax.white);
     for (uint loop_index = 0; loop_index < cross_section->num_polygonal_loops; ++loop_index) {
         vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
@@ -1133,7 +1141,7 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 }
 
 ////////////////////////////////////////
-// Mesh, STL //////////////////////
+// Mesh, Mesh //////////////////////
 ////////////////////////////////////////
 
 
@@ -1287,7 +1295,7 @@ void stl_load(char *filename, Mesh *mesh) {
             }
 
             if (filetype == STL_FILETYPE_ASCII) {
-                u8 ascii_scan_dummy[64];
+                char ascii_scan_dummy[64];
                 real ascii_scan_p[3];
                 List<real> ascii_data = {};
 
@@ -1422,7 +1430,7 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
 
         uint texture_side_length = 1024;
         uint number_of_channels = 4;
-        u8 *array = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
+        unsigned char *array = (unsigned char *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(unsigned char));
         uint o = 9;
         for (uint j = 0; j < texture_side_length; ++j) {
             for (uint i = 0; i < texture_side_length; ++i) {
@@ -1430,8 +1438,8 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
                 uint n = uint(texture_side_length / GRID_SIDE_LENGTH * 10);
                 uint t = 2;
                 bool stripe = (((i + o) % n < t) || ((j + o) % n < t));
-                u8 a = 160;
-                u8 value = (u8)((255.0f/166.0f) * 0.07f * 255);
+                unsigned char a = 160;
+                unsigned char value = (unsigned char)((255.0f/166.0f) * 0.07f * 255);
                 if (stripe) value = 80;
                 if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
                 for (uint d = 0; d < 3; ++d) array[k + d] = value;
@@ -1506,7 +1514,7 @@ void conversation_message_buffer_draw() {
                 - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
         }
 
-        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, monokai.yellow, message->base_color);
+        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, omax.yellow, message->base_color);
         color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
         real r = color.x;
         real g = color.y;
@@ -1566,16 +1574,16 @@ bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift
 // world_state /////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void world_state_deep_copy(WorldState *dst, WorldState *src) {
+void world_state_deep_copy(WorldState_ChangesToThisMustBeRecorded *dst, WorldState_ChangesToThisMustBeRecorded *src) {
     *dst = *src;
-    dst->dxf.entities = {};
-    list_clone(&dst->dxf.entities,    &src->dxf.entities   );
+    dst->drawing.entities = {};
+    list_clone(&dst->drawing.entities,    &src->drawing.entities   );
     mesh_deep_copy(&dst->mesh, &src->mesh);
 }
 
-void world_state_free_AND_zero(WorldState *world_state) {
+void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded *world_state) {
     mesh_free_AND_zero(&world_state->mesh);
-    list_free_AND_zero(&world_state->dxf.entities);
+    list_free_AND_zero(&world_state->drawing.entities);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

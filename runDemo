@@ -1,1 +1,0 @@
-source ./cs345venv/bin/activate && python3 demo.py

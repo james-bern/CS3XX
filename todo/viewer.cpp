@@ -1,5 +1,5 @@
-#include "cs345.cpp"
-#include "poe.cpp"
+#include "header.cpp"
+#include "jim.cpp"
 
 
 char viewer_message_buffer[512];
@@ -106,9 +106,9 @@ struct DXF {
     DXFEntity *entities;
 };
 
-void dxf_free(DXF *dxf) {
-    ASSERT(dxf->entities);
-    free(dxf->entities);
+void dxf_free(DXF *drawing) {
+    ASSERT(drawing->entities);
+    free(drawing->entities);
 }
 
 DXF dxf_load(char *filename) {
@@ -263,9 +263,9 @@ void eso_dxf_entity__SOUP_LINES(DXFEntity *entity, int32 override_color = DXF_CO
     }
 }
 
-void dxf_draw(mat4 PV, DXF *dxf, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
+void dxf_draw(mat4 PV, DXF *drawing, int32 override_color = DXF_COLOR_DONT_OVERRIDE) {
     eso_begin(PV, SOUP_LINES);
-    for (DXFEntity *entity = dxf->entities; entity < &dxf->entities[dxf->num_entities]; ++entity) {
+    for (DXFEntity *entity = drawing->entities; entity < &drawing->entities[drawing->num_entities]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity, override_color);
     }
     eso_end();
@@ -365,7 +365,7 @@ STL stl_load(char *filename) {
 }
 
 
-DXF dxf;
+DXF drawing;
 STL stl;
 
 #define VIEWER_MODE_NONE 0
@@ -378,10 +378,10 @@ bool part_is_in_inches_not_mm;
 void drop_callback(GLFWwindow *, int count, const char** paths) {
     if (count > 0) {
         char *filename = (char *) paths[0]; 
-        if (poe_suffix_match(filename, ".dxf")) {
+        if (poe_suffix_match(filename, ".drawing")) {
             part_is_in_inches_not_mm = true;
             viewer_mode = VIEWER_MODE_DXF;
-            dxf = dxf_load(filename);
+            drawing = dxf_load(filename);
             viewer_messagef("loaded %s\n", filename);
         } else if (poe_suffix_match(filename, ".stl")) {
             part_is_in_inches_not_mm = false;
@@ -396,7 +396,7 @@ void drop_callback(GLFWwindow *, int count, const char** paths) {
 
 
 int main() {
-    viewer_messagef("drag and drop *.dxf or *.stl...");
+    viewer_messagef("drag and drop *.drawing or *.stl...");
     Camera2D camera2D = { 400.0f, 150.0f, 150.0f };
     Camera3D camera3D = { 256.0f };
     bool show_grid = true;
@@ -442,13 +442,13 @@ int main() {
         }
 
         if (viewer_mode == VIEWER_MODE_DXF) {
-            gui_printf("num_entities %d", dxf.num_entities);
+            gui_printf("num_entities %d", drawing.num_entities);
         } else if (viewer_mode == VIEWER_MODE_STL) {
             gui_printf("num_triangles %d", stl.num_triangles);
         }
 
         if (viewer_mode == VIEWER_MODE_DXF) {
-            dxf_draw(camera_get_PV(&camera2D) * M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &dxf);
+            dxf_draw(camera_get_PV(&camera2D) * M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &drawing);
         } else if (viewer_mode == VIEWER_MODE_STL) {
             stl_draw(camera_get_P(&camera3D), camera_get_V(&camera3D), M4_Scaling((!part_is_in_inches_not_mm) ? 1.0f : 25.4f), &stl);
         }
