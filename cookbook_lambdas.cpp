@@ -13,7 +13,7 @@ auto _LINE = [&](vec2 start, vec2 end, bool is_selected = false, ColorCode color
     return entity;
 };
 
-auto _ARC = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+auto _ARC = [&](vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = {};
     entity.type = EntityType::Arc;
     ArcEntity *arc_entity = &entity.arc_entity;
@@ -34,7 +34,7 @@ auto ADD_LINE_ENTITY = [&](vec2 start, vec2 end, bool is_selected = false, Color
     _ADD_ENTITY(entity);
 };
 
-auto ADD_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+auto ADD_ARC_ENTITY = [&](vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
     _ADD_ENTITY(entity);
 };
@@ -51,7 +51,7 @@ auto BUFFER_LINE_ENTITY = [&](vec2 start, vec2 end, bool is_selected = false, Co
     _BUFFER_ENTITY(entity);
 };
 
-auto BUFFER_ARC_ENTITY = [&](vec2 center, real32 radius, real32 start_angle_in_degrees, real32 end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+auto BUFFER_ARC_ENTITY = [&](vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = _ARC(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
     _BUFFER_ENTITY(entity);
 };

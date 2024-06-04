@@ -1,65 +1,50 @@
-template <uint D> struct BoundingBox {
-    Vector<D> min;
-    Vector<D> max;
+template <uint D> struct Box {
+    vecD min;
+    vecD max;
 };
 
-typedef BoundingBox<2> box2;
-typedef BoundingBox<3> box3;
+typedef Box<2> box2;
+typedef Box<3> box3;
+#define boxD Box<D>
+#define tuD template <uint D>
+#define tuDb tuD boxD
 
-template <uint D> BoundingBox<D> BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
-    BoundingBox<D> result;
-    for (uint32 d = 0; d < D; ++d) {
+tuDb BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
+    Box<D> result;
+    _FOR_(d, D) {
         result.min[d] = HUGE_VAL;
         result.max[d] = -HUGE_VAL;
     }
     return result;
 }
 
-template <uint D> void bounding_box_add_point(BoundingBox<D> *bounding_box, Vector<D> p) {
-    for (uint32 d = 0; d < D; ++d) {
-        bounding_box->min[d] = MIN(bounding_box->min[d], p[d]);
-        bounding_box->max[d] = MAX(bounding_box->max[d], p[d]);
-    }
-}
-
-
-// TODO: extend to BoundingBox<D>
-
-void pprint(box2 bounding_box) {
-    printf("(%f, %f) <-> (%f, %f)\n", bounding_box.min[0], bounding_box.min[1], bounding_box.max[0], bounding_box.max[1]);
-}
-
-void bounding_box_center(box2 bounding_box, real32 *x, real32 *y) {
-    *x = (bounding_box.min[0] + bounding_box.max[0]) / 2;
-    *y = (bounding_box.min[1] + bounding_box.max[1]) / 2;
-}
-
-bool bounding_box_contains(box2 outer, box2 inner) {
-    for (uint32 d = 0; d < 2; ++d) {
-        if (outer.min[d] > inner.min[d]) return false;
-        if (outer.max[d] < inner.max[d]) return false;
+tuD bool box_contains(boxD box, vecD point) {
+    _FOR_(d, D) {
+        if (!IS_BETWEEN(point[d], box.min[d], box.max[d])) return false;
     }
     return true;
 }
 
-bool bounding_box_contains(box2 bounding_box, vec2 point) {
-    for (uint32 d = 0; d < 2; ++d) {
-        if (!IS_BETWEEN(point[d], bounding_box.min[d], bounding_box.max[d])) return false;
+tuD bool box_contains(boxD box, boxD other) {
+    _FOR_(d, D) {
+        if (box.min[d] > other.min[d]) return false;
+        if (box.max[d] < other.max[d]) return false;
     }
     return true;
 }
 
-vec2 bounding_box_clamp(vec2 p, box2 bounding_box) {
-    for (uint32 d = 0; d < 2; ++d) {
-        p[d] = CLAMP(p[d], bounding_box.min[d], bounding_box.max[d]);
+tuD void bounding_box_add_point(boxD *box, vecD p) {
+    _FOR_(d, D) {
+        box->min[d] = MIN(box->min[d], p[d]);
+        box->max[d] = MAX(box->max[d], p[d]);
     }
-    return p;
 }
 
-box2 bounding_box_union(box2 a, box2 b) {
-    for (uint32 d = 0; d < 2; ++d) {
-        a.min[d] = MIN(a.min[d], b.min[d]);
-        a.max[d] = MAX(a.max[d], b.max[d]);
+tuDb bounding_box_union(boxD box, boxD other) {
+    _FOR_(d, D) {
+        box.min[d] = MIN(box.min[d], other.min[d]);
+        box.max[d] = MAX(box.max[d], other.max[d]);
     }
-    return a;
+    return box;
 }
+

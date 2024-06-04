@@ -5,11 +5,11 @@ template <typename T> struct ElephantStack {
     Stack<T> _redo_stack;
 };
 
-template <typename T> uint32 elephant_length_undo(ElephantStack<T> *elephant) {
+template <typename T> uint elephant_length_undo(ElephantStack<T> *elephant) {
     return elephant->_undo_stack.length;
 }
 
-template <typename T> uint32 elephant_length_redo(ElephantStack<T> *elephant) {
+template <typename T> uint elephant_length_redo(ElephantStack<T> *elephant) {
     return elephant->_redo_stack.length;
 }
 

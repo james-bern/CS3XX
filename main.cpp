@@ -28,7 +28,7 @@ PreviewState *preview = &other.preview;
 
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
-    real32 f = 0.1f;
+    real f = 0.1f;
     if (!other.paused) *a += f * (b - *a);
 }
 
@@ -513,23 +513,23 @@ Event bake_event(RawEvent raw_event) {
         mouse_event->mouse_held = raw_mouse_event->mouse_held;
         {
             if (raw_mouse_event->pane == Pane::Drawing) {
-                mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
-                vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_NDC);
+                mat4 World_2D_from_NDC = inverse(camera_get_PV(camera_2D));
+                vec2 mouse_World_2D = transformPoint(World_2D_from_NDC, other.mouse_NDC);
 
                 mouse_event->subtype = MouseEventSubtype::Drawing;
 
                 MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
                 mouse_event_drawing->mouse_position = magic_snap(mouse_World_2D);
             } else if (raw_mouse_event->pane == Pane::Mesh) {
-                mat4 inv_PV_3D = inverse(camera_get_PV(&other.camera_3D));
-                vec3 a = transformPoint(inv_PV_3D, V3(other.mouse_NDC, -1.0f));
-                vec3 b = transformPoint(inv_PV_3D, V3(other.mouse_NDC,  1.0f));
+                mat4 World_3D_from_NDC = inverse(camera_get_PV(&other.camera_3D));
+                vec3 point_a = transformPoint(World_3D_from_NDC, V3(other.mouse_NDC, -1.0f));
+                vec3 point_b = transformPoint(World_3D_from_NDC, V3(other.mouse_NDC,  1.0f));
 
                 mouse_event->subtype = MouseEventSubtype::Mesh;
 
                 MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
-                mouse_event_mesh->mouse_ray_origin = a;
-                mouse_event_mesh->mouse_ray_direction = normalized(b - a);
+                mouse_event_mesh->mouse_ray_origin = point_a;
+                mouse_event_mesh->mouse_ray_direction = normalized(point_b - point_a);
             } else if (raw_mouse_event->pane == Pane::Popup) {
                 // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
                 // TODO: gross gross gross
@@ -881,6 +881,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.click_color_code = ColorCode::Traverse;
                 } else if (key_lambda(GLFW_KEY_ENTER)) { // FORNOW
+                    result.record_me = false;
                     conversation_messagef(omax.orange, "EnterMode is None.");
                 } else {
                     conversation_messagef(omax.orange, "Hotkey %s was not recognized.", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
@@ -1348,7 +1349,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_modifier = ClickModifier::None;
                             real angle = DEG(atan2(*second_click - *first_click));
                             if (angle < 0.0f) angle += 360.0f;
-                            real32 length = norm(*second_click - *first_click);
+                            real length = norm(*second_click - *first_click);
                             conversation_messagef(omax.cyan, "Angle is %gdeg.", angle);
                             conversation_messagef(omax.cyan, "Length is %gmm.", length);
                         } else if (state.click_mode == ClickMode::Move) {
@@ -1376,7 +1377,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 MAX(first_click->y, second_click->y)
                             };
                             _for_each_entity_ {
-                                if (bounding_box_contains(window, dxf_entity_get_bounding_box(entity))) {
+                                if (box_contains(window, dxf_entity_get_bounding_box(entity))) {
                                     ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                                 }
                             }
@@ -2145,9 +2146,15 @@ void script_process(char *string) {
 //////////////////////////////////////////////////
 
 int main() {
-    // _window_set_size(1.5 * 640.0, 1.5 * 360.0); // TODO the first frame crap gets buggered
+    { // init
+        setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
+        srand((unsigned int) time(NULL)); srand(0);
+        _eso_init();
+        _window_init();
+        _soup_init();
+        _mesh_init();
+    }
 
-    glfwHideWindow(COW0._window_glfw_window);
 
     char *script;
     // script = "cz0123456789";
@@ -2197,6 +2204,7 @@ int main() {
         callback_cursor_position(NULL, xpos, ypos);
     }
 
+    glfwHideWindow(COW0._window_glfw_window);
     uint frame = 0;
     while (cow_begin_frame()) {
         other.transform_NDC_from_Pixel = window_get_NDC_from_Screen();

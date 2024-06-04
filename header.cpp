@@ -11,11 +11,6 @@ void conversation_messagef(vec3 color, char *format, ...);
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
 
 
-// FORNOW: easy read for students
-#define uint uint32
-#define real real32
-
-
 ////////////////////////////////////////
 // Config-Tweaks ///////////////////////
 ////////////////////////////////////////
@@ -713,8 +708,8 @@ box2 dxf_entity_get_bounding_box(Entity *entity) {
         ArcEntity *arc_entity = &entity->arc_entity;
         // NOTE: endpoints already taken are of; we just have to deal with the quads (if they exist)
         // TODO: angle_is_between_counter_clockwise (TODO TODO TODO)
-        real32 start_angle = RAD(arc_entity->start_angle_in_degrees);
-        real32 end_angle = RAD(arc_entity->end_angle_in_degrees);
+        real start_angle = RAD(arc_entity->start_angle_in_degrees);
+        real end_angle = RAD(arc_entity->end_angle_in_degrees);
         if (ANGLE_IS_BETWEEN_CCW(RAD(  0.0f), start_angle, end_angle)) result.max[0] = MAX(result.max[0], arc_entity->center.x + arc_entity->radius);
         if (ANGLE_IS_BETWEEN_CCW(RAD( 90.0f), start_angle, end_angle)) result.max[1] = MAX(result.max[1], arc_entity->center.y + arc_entity->radius);
         if (ANGLE_IS_BETWEEN_CCW(RAD(180.0f), start_angle, end_angle)) result.min[0] = MIN(result.min[0], arc_entity->center.x - arc_entity->radius);
@@ -1504,7 +1499,7 @@ void conversation_message_buffer_update() {
     }
 }
 void conversation_message_buffer_draw() {
-    uint i_0 =  (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
+    uint i_0 = (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
 
     uint num_drawn = 0;
     auto draw_lambda = [&](uint message_index) {
@@ -1525,9 +1520,9 @@ void conversation_message_buffer_draw() {
         real g = color.y;
         real b = color.z;
 
-        real32 x = get_x_divider_Pixel() + 16;
-        real y_target = ++num_drawn * 16.0f;
-        if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 16.0f);
+        real x = get_x_divider_Pixel() + 12;
+        real y_target = ++num_drawn * 12.0f;
+        if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 12.0f);
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {

@@ -4,37 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef COW_CPP
-// #define ASSERT(b) do { if (!(b)) { \
-//     *((volatile int *) 0) = 0; \
-// } } while (0)
-// #define ARRAY_SIZE(fixed_size_array) ((sizeof(fixed_size_array)/sizeof(0[fixed_size_array])) / ((size_t)(!(sizeof(fixed_size_array) % sizeof(0[fixed_size_array])))))
-#endif
-
-// msvc details switches /Bt /d2cgsummary 
-
-#define for_(i, N) for (int i = 0; i < N; ++i)
-#define for____(N) for (int _ = 0; _ < N; ++_)
-#define for_line_loop_(i, j, N) for (int i = N - 1, j = 0; j < N; i = j++)
-#define for_line_strip_(i, j, N) for (int i = 0, j = 1; j < N; i = j++)
-#define for_sign(sign) for (int sign = -1; sign <= 1; sign += 2)
-
-#define NUM_DENm1(f, F) (real(f) / ((F) - 1))
-#define NUM_DEN(f, F) (real(f) / (F))
-#define for_line_loop_(i, j, N) for (int i = N - 1, j = 0; j < N; i = j++)
-#define for_line_strip_(i, j, N) for (int i = 0, j = 1; j < N; i = j++)
-#define for_sign(sign) for (int sign = -1; sign <= 1; sign += 2)
-
-#define NUM_DENm1(f, F) (real(f) / ((F) - 1))
-#define NUM_DEN(f, F) (real(f) / (F))
-
-#define SWAP(a, b) do {                   \
-    ASSERT(sizeof(a) == sizeof(b));       \
-    void *__SWAP_tmp = malloc(sizeof(a)); \
-    memcpy(__SWAP_tmp, &a, sizeof(a));    \
-    memcpy(&a, &b, sizeof(b));            \
-    memcpy(&b, __SWAP_tmp, sizeof(b));    \
-} while (0)
 
 // https://handmade.network/forums/t/1273-post_your_c_c++_macro_tricks/3
 #define __defer(line) defer_ ## line
@@ -43,13 +12,13 @@
 template <typename F> struct Defer { Defer(F f) : f(f) {} ~Defer() { f(); } F f; }; template <typename F> Defer<F> makeDefer( F f ) { return Defer<F>( f ); }; struct defer_dummy {}; template<typename F> Defer<F> operator+( defer_dummy, F&& f ) { return makeDefer<F>( std::forward<F>(f) ); }
 
 // https://en.cppreference.com/w/c/algorithm/qsort
-void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_sort_against, bool sort_both_arrays = false) {
+void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to_sort_against, bool sort_both_arrays = false) {
     struct qsortHelperStruct {
-        int index;
+        uint index;
         real value;
     };
     qsortHelperStruct *helperArray = (qsortHelperStruct *) calloc(sizeof(qsortHelperStruct), nitems); {
-        for_(i, nitems) helperArray[i] = { i, corresp_values_to_sort_against[i] };
+        _FOR_(i, nitems) helperArray[i] = { i, corresp_values_to_sort_against[i] };
     }
 
     int(* comp)(qsortHelperStruct *, qsortHelperStruct *) \
@@ -59,7 +28,7 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
 
     {
         void *tmp_buffer = malloc(nitems * size); { // fornow
-            for_(i, nitems) memcpy(\
+            _FOR_(i, nitems) memcpy(\
                     ((char *) tmp_buffer) + (i * size), \
                     ((char *) base) + (helperArray[i].index * size), \
                     size);
@@ -69,7 +38,7 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
 
     if (sort_both_arrays) {
         real *tmp_buffer = (real *) malloc(nitems * sizeof(real)); {
-            for_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
+            _FOR_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
             memcpy(corresp_values_to_sort_against, tmp_buffer, nitems * sizeof(real));
         } free(tmp_buffer);
     }
@@ -77,7 +46,7 @@ void jim_sort_against(void *base, int nitems, int size, real *corresp_values_to_
 
 
 // if file has been modified (more than a second since the last modification)
-// returns the report of fopen(filename, mode)
+// returns the result of fopen(filename, mode)
 // otherwise returns NULL
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -138,12 +107,6 @@ void eg_hot_fopen() {
 }
 
 
-#ifdef COW_OS_WINDOWS
-#include <windows.h>
-#else
-#include <unistd.h>
-#define Sleep(x) usleep((x)*1000)
-#endif
 
 
 // ohno

@@ -2,7 +2,7 @@ void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
     uint d = popup->active_cell_index;
     memset(popup->active_cell_buffer, 0, POPUP_CELL_LENGTH);
     if (popup->cell_type[d] == CellType::Real32) {
-        sprintf(popup->active_cell_buffer, "%g", *((real32 *) popup->value[d]));
+        sprintf(popup->active_cell_buffer, "%g", *((real *) popup->value[d]));
     } else { ASSERT(popup->cell_type[d] == CellType::String);
         strcpy(popup->active_cell_buffer, (char *) popup->value[d]);
     }
@@ -11,7 +11,7 @@ void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
 void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
     uint d = popup->active_cell_index;
     if (popup->cell_type[d] == CellType::Real32) {
-        *((real32 *) popup->value[d]) = strtof(popup->active_cell_buffer, NULL);
+        *((real *) popup->value[d]) = strtof(popup->active_cell_buffer, NULL);
     } else { ASSERT(popup->cell_type[d] == CellType::String);
         strcpy((char *) popup->value[d], popup->active_cell_buffer);
     }
@@ -21,7 +21,7 @@ void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
     for (uint d = 0; d < popup->num_cells; ++d) {
         if (!popup->name[d]) continue;
         if (popup->cell_type[d] == CellType::Real32) {
-            *((real32 *) popup->value[d]) = 0.0f;
+            *((real *) popup->value[d]) = 0.0f;
         } else { ASSERT(popup->cell_type[d] == CellType::String);
             memset(popup->value[d], 0, POPUP_CELL_LENGTH);
         }
@@ -110,7 +110,7 @@ void popup_popup(
                     sprintf(buffer, "%s %s", popup->name[d], popup->active_cell_buffer);
                 } else {
                     if (popup->cell_type[d] == CellType::Real32) {
-                        sprintf(buffer,  "%s %g", popup->name[d], *((real32 *) popup->value[d]));
+                        sprintf(buffer,  "%s %g", popup->name[d], *((real *) popup->value[d]));
                     } else { ASSERT(popup->cell_type[d] == CellType::String); 
                         sprintf(buffer,  "%s %s", popup->name[d], ((char *) popup->value[d]));
                     }
@@ -123,17 +123,17 @@ void popup_popup(
             }
 
 
-            real32 X_MARGIN_OFFSET = COW1._gui_x_curr;
+            real X_MARGIN_OFFSET = COW1._gui_x_curr;
 
-            real32 x_mouse = other.mouse_Pixel.x;
-            // real32 y_mouse = other.mouse_Pixel.y;
+            real x_mouse = other.mouse_Pixel.x;
+            // real y_mouse = other.mouse_Pixel.y;
 
-            real32 x_field_left;
-            real32 x_field_right;
-            real32 x_selection_left;
-            real32 x_selection_right;
-            real32 y_top;
-            real32 y_bottom;
+            real x_field_left;
+            real x_field_right;
+            real x_selection_left;
+            real x_selection_right;
+            real y_top;
+            real y_bottom;
             {
                 static char tmp[4096]; // FORNOW
                 strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
@@ -150,15 +150,15 @@ void popup_popup(
             }
 
             box2 field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            if (bounding_box_contains(field_box, other.mouse_Pixel)) {
+            if (box_contains(field_box, other.mouse_Pixel)) {
                 popup->mouse_is_hovering = true;
                 popup->hover_cell_index = d;
                 popup->hover_cursor = 0; // FORNOW_UNUSED
                 { // popup->hover_cursor
                     char _2char[2] = {};
                     // conversation_messagef("---%f\n", x_mouse);
-                    real32 x_char_middle = x_field_left - 1.25f;
-                    real32 half_char_width_prev = 0;
+                    real x_char_middle = x_field_left - 1.25f;
+                    real half_char_width_prev = 0;
                     for (uint i = 0; i < strlen_cell; ++i) {
                         x_char_middle += half_char_width_prev;
                         {
@@ -220,16 +220,16 @@ void popup_popup(
                         eso_end();
                     }
 
-                    real32 x = COW1._gui_x_curr;
-                    real32 y = COW1._gui_y_curr;
+                    real x = COW1._gui_x_curr;
+                    real y = COW1._gui_y_curr;
                     FORNOW_gui_printf_red_component = 0.0f;
                     gui_printf(buffer);
                     FORNOW_gui_printf_red_component = 1.0f;
                     if (POPUP_SELECTION_NOT_ACTIVE()) { // cursor
                         // if (((int) (other.time_since_cursor_start * 5)) % 10 < 5)
                         {
-                            real32 a = 0.5f + 0.5f * SIN(other.time_since_cursor_start * 7);
-                            real32 b = CLAMPED_LINEAR_REMAP(other.time_since_cursor_start, 0.0f, 1.0f, 1.0f, 0.0f);
+                            real a = 0.5f + 0.5f * SIN(other.time_since_cursor_start * 7);
+                            real b = CLAMPED_LINEAR_REMAP(other.time_since_cursor_start, 0.0f, 1.0f, 1.0f, 0.0f);
                             char tmp[4096]; // FORNOW
                             strcpy(tmp, popup->active_cell_buffer);
                             tmp[popup->cursor] = '\0';

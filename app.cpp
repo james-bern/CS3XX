@@ -1,10 +1,6 @@
 // types used: bool, uint, int, real, vecD (vec2, vec3, vec4), matD
 // only template dimension, not type
 
-#include <cmath>
-#include <cstdio>
-#include <cstdint>
-
 // // macros (spooky spooky)
 #define STR(foo) #foo
 #define XSTR(foo) STR(foo)
@@ -27,36 +23,21 @@ if (!CONCAT(_prev_do_once_, __LINE__) && CONCAT(_do_once_, __LINE__))
     *((volatile int *) 0) = 0; \
 } } while (0)
 //
-#define _FOR_(i, N) for(uint i = 0; i < N; ++i)
-
-typedef uint32_t uint;
-typedef unsigned char u8;
-
-#ifdef APP_USE_32_BIT_FLOATING_POINT
-typedef float real;
-#define GL_REAL GL_FLOAT
-#else
-typedef double real;
-#define GL_REAL GL_DOUBLE
-#endif
 
 #define TINY_VAL real(1e-6)
 #undef HUGE_VAL
 #define HUGE_VAL real(1e6)
 
-#ifdef APP_USE_32_BIT_FLOATING_POINT
 #define ATAN2 atan2f
 #define COS cosf
 #define POW powf
 #define SIN sinf
 #define SQRT sqrtf
-#else
-#define ATAN2 atan2
-#define COS cos
-#define POW pow
-#define SIN sin
-#define SQRT sqrt
-#endif
+// #define ATAN2 atan2
+// #define COS cos
+// #define POW pow
+// #define SIN sin
+// #define SQRT sqrt
 
 int  ABS( int a) { return (a < 0) ? -a : a; }
 real ABS(real a) { return (a < 0) ? -a : a; }
@@ -101,7 +82,6 @@ bool IS_BETWEEN(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (
 #define CLAMPED_LINEAR_REMAP(p, a, b, c, d) CLAMPED_LERP(INVERSE_LERP(p, a, b), c, d)
 #define WRAP(t, a, b) ((a) + fmod((t) - (a), (b) - (a)))
 
-
 ////////////////////////////////////////////////////////////////////////////////
 // #include "cow.h"/////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -110,9 +90,13 @@ bool IS_BETWEEN(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (
 #define COW_OS_UBUNTU
 #elif defined(__APPLE__) || defined(__MACH__)
 #define COW_OS_APPLE
+#include <unistd.h>
+#define Sleep(x) usleep((x)*1000)
 #elif defined(WIN32) || defined(_WIN32) || defined(_WIN64)
 #define COW_OS_WINDOWS
 #define isnan _isnan
+#include <windows.h>
+#define SLEEP Sleep
 #else
 #pragma message("[cow] operating system not recognized")
 #endif
@@ -141,8 +125,6 @@ bool IS_BETWEEN(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (
 #define ITRI_MAX_NUM_TEXTURES 32
 #define ITRI_MAX_FILENAME_LENGTH 64
 
-
-
 typedef vec2 _vec2;
 typedef vec3 _vec3;
 typedef vec4 _vec4;
@@ -156,12 +138,6 @@ struct CW_USER_FACING_CONFIG {
 };
 
 struct C2_READONLY_USER_FACING_DATA {
-
-    int _input_owner;
-    int _frames_since_mouse_left_pressed;
-    // TODO: _mouse_left_click_consumed
-
-    _mat4 Identity = { 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0 };
     _mat4 NDC_from_Screen;
 };
 
@@ -482,37 +458,14 @@ real MM(real inches) { return ((inches) * real(25.4)); }
 
 
 
+// TODO: remove this next
 ////////////////////////////////////////////////////////////////////////////////
 // #include "_linalg.cpp"///////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 #define _LINALG_4X4(A, i, j) A[4 * (i) + (j)]
 
-void _linalg_vec3_cross(real *c, real *a, real *b) { // c = a x b
-    real tmp[3] = {
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    };
-    memcpy(c, tmp, sizeof(tmp));
-}
 
-real _linalg_vecX_squared_length(int D, real *a) {
-    real ret = 0;
-    for (int d = 0; d < D; ++d) ret += POW(a[d], 2);
-    return ret;
-}
-
-real _linalg_vecX_squared_distance(int D, real *a, real *b) {
-    real ret = 0;
-    for (int d = 0; d < D; ++d) ret += POW(a[d] - b[d], 2);
-    return ret;
-}
-
-void _linalg_vecX_normalize(int D, real *a_hat, real *a) { // a_hat = a / |a|
-    real L = sqrt(_linalg_vecX_squared_length(D, a));
-    for (int d = 0; d < D; ++d) a_hat[d] = a[d] / L;
-}
 
 void _linalg_mat4_times_mat4(real *C, real *A, real *B) { // C = A B
     ASSERT(C);

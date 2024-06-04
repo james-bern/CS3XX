@@ -305,7 +305,7 @@ void conversation_draw() {
                     real r = norm(c - p);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
-                    for (uint i = 0; i < NUM_SEGMENTS_PER_CIRCLE; ++i) eso_vertex(c + r * e_theta(NUM_DEN(i, NUM_SEGMENTS_PER_CIRCLE) * TAU));
+                    for (uint i = 0; i < NUM_SEGMENTS_PER_CIRCLE; ++i) eso_vertex(c + r * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Fillet) {

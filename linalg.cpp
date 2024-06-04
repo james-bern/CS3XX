@@ -1,4 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
 
 // vectors and matrices ////////////////////////////////////////////////////////
 
@@ -621,7 +620,5 @@ RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a
     result.distance = w_t.w;
     return result;
 }
-
-#undef _FOR_
 
 
