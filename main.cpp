@@ -270,7 +270,6 @@ void drop_callback(GLFWwindow *, int count, const char **paths) {
         }
     }
 }
-BEGIN_PRE_MAIN { glfwSetDropCallback(COW0._window_glfw_window, drop_callback); } END_PRE_MAIN;
 
 
 //////////////////////////////////////////////////
@@ -553,12 +552,6 @@ Event bake_event(RawEvent raw_event) {
     return event;
 }
 
-BEGIN_PRE_MAIN {
-    glfwSetKeyCallback(        COW0._window_glfw_window, callback_key);
-    glfwSetCursorPosCallback(  COW0._window_glfw_window, callback_cursor_position);
-    glfwSetMouseButtonCallback(COW0._window_glfw_window, callback_mouse_button);
-    glfwSetScrollCallback(     COW0._window_glfw_window, callback_scroll);
-} END_PRE_MAIN;
 
 // TODO: this API should match what is printed to the terminal in verbose output mode
 //       (so we can copy and paste a session for later use as an end to end test)
@@ -2154,6 +2147,13 @@ int main() {
         _soup_init();
         _mesh_init();
     }
+    { // callbacks
+        glfwSetKeyCallback(COW0._window_glfw_window, callback_key);
+        glfwSetCursorPosCallback(COW0._window_glfw_window, callback_cursor_position);
+        glfwSetMouseButtonCallback(COW0._window_glfw_window, callback_mouse_button);
+        glfwSetScrollCallback(COW0._window_glfw_window, callback_scroll);
+        glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
+    }
 
 
     char *script;
@@ -2206,7 +2206,7 @@ int main() {
 
     glfwHideWindow(COW0._window_glfw_window);
     uint frame = 0;
-    while (cow_begin_frame()) {
+    while (app_begin_frame()) {
         other.transform_NDC_from_Pixel = window_get_NDC_from_Screen();
 
         other.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;

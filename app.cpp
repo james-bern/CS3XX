@@ -2287,7 +2287,7 @@ void IndexedTriangleMesh3D::draw(
 ////////////////////////////////////////////////////////////////////////////////
 
 
-bool cow_begin_frame() {
+bool app_begin_frame() {
     _window_get_NDC_from_Screen((real *) &globals.NDC_from_Screen);
     COW1._gui_x_curr = 16;
     COW1._gui_y_curr = 16;
