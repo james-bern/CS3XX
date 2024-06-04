@@ -1527,34 +1527,6 @@ void _text_draw(
     }
 }
 
-template<int D_pos = 3, int D_color = 3> void text_draw(
-        mat4 PV,
-        char *text,
-        Vector<D_pos> s_World,
-        Vector<D_color> color = { 1.0, 1.0, 1.0 },
-        real font_size_in_pixels = 0,
-        vec2 nudge_in_pixels = { 0.0, 0.0 },
-        bool force_draw_on_top = false
-        ) {
-    STATIC_ASSERT(D_pos == 2 || D_pos == 3 || D_pos == 4);
-    STATIC_ASSERT(D_color == 3 || D_color == 4);
-    _text_draw(
-            PV.data,
-            text,
-            s_World[0],
-            s_World[1],
-            (D_pos == 3) ? s_World[2] : 0.0f,
-            color[0],
-            color[1],
-            color[2],
-            (D_color == 4) ? color[3] : 1.0f,
-            font_size_in_pixels,
-            nudge_in_pixels[0],
-            nudge_in_pixels[1],
-            force_draw_on_top
-            );
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // #include "gui.cpp"///////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
