@@ -409,7 +409,7 @@ tuDm identityMatrix() {
 const mat4 _Identity4x4 = identityMatrix<4>();
 
 mat4 M4_Identity() {
-    return _Identity4x4;
+    return _Identity4x4; // FORNOW
 }
 
 mat4 M4_Translation(real x, real y, real z = 0) {
@@ -491,7 +491,7 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
 
     vec3 v = cross(a, b);
     real col = dot(a, b);
-    if (ABS(col + 1.0f) < 1e-5f) return identityMatrix<4>();
+    if (ABS(col + 1.0f) < 1e-5f) return M4_Identity();
     mat3 v_x = { 0.0, -v.z, v.y, v.z, 0.0, -v.x, -v.y, v.x, 0.0 };
     mat3 R = identityMatrix<3>() + v_x + v_x * v_x / (1 + col);
     return {

@@ -238,7 +238,7 @@ struct MouseEventMesh {
     vec3 mouse_ray_direction;
 };
 
-struct MouseEventGUI {
+struct MouseEventPopup {
     uint cell_index;
     uint cursor;
     uint selection_cursor;
@@ -251,7 +251,7 @@ struct MouseEvent {
 
     MouseEventDrawing mouse_event_drawing;
     MouseEventMesh mouse_event_mesh;
-    MouseEventGUI mouse_event_gui;
+    MouseEventPopup mouse_event_popup;
 };
 
 struct KeyEvent {
@@ -291,24 +291,15 @@ struct TwoClickCommandState {
     vec2 first_click;
 };
 
-struct PopupState {
-    CellType cell_type[POPUP_MAX_NUM_CELLS];
-    char *name[POPUP_MAX_NUM_CELLS];
-    void *value[POPUP_MAX_NUM_CELLS];
-    uint num_cells;
 
+struct PopupState {
     char active_cell_buffer[POPUP_CELL_LENGTH];
-    uint active_cell_index;
+
+    uint cell_index;
     uint cursor;
     uint selection_cursor;
 
-    CellType _type_of_active_cell;
-    void *_active_popup_unique_ID__FORNOW_name0;
-    bool _popup_actually_called_this_event; // FORNOW
-
     bool mouse_is_hovering;
-    uint hover_cell_index;
-    uint hover_cursor;
 
     real extrude_add_out_length;
     real extrude_add_in_length;
@@ -335,9 +326,26 @@ struct PopupState {
     real revolve_cut_dummy;
     char open_filename[POPUP_CELL_LENGTH];
     char save_filename[POPUP_CELL_LENGTH];
+
+    // ???
+
+    CellType cell_type[POPUP_MAX_NUM_CELLS];
+    char *name[POPUP_MAX_NUM_CELLS];
+    void *value[POPUP_MAX_NUM_CELLS];
+    uint num_cells;
+
+    CellType _type_of_active_cell;
+    void *_active_popup_unique_ID__FORNOW_name0;
+    bool _popup_actually_called_this_event; // FORNOW
+
+    // TODO: hover_* -> ???_*
+    uint hover_cell_index;
+    uint hover_cursor;
+    uint hover_selection_cursor;
+
 };
 
-struct WorldState_ChangesToThisMustBeRecorded {
+struct WorldState_ChangesToThisMustBeRecorded_state {
     Mesh mesh;
     Drawing drawing;
     FeaturePlaneState feature_plane;
@@ -362,9 +370,9 @@ struct PreviewState {
     real feature_plane_offset;
 };
 
-struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded {
-    Matrix<4> transform_NDC_from_Pixel;
-    Matrix<4> transform_Identity = M4_Identity();
+struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
+    mat4 transform_NDC_from_Pixel;
+    mat4 transform_Identity = M4_Identity();
 
     Camera2D camera_2D;
     Camera3D camera_3D;
@@ -388,7 +396,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded {
 
     char drop_path[256];
 
-    bool DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME;
+    bool please_suppress_drawing_popup_popup;
+    bool please_suppress_messagef;
 
     bool paused;
     bool stepping_one_frame_while_paused;
@@ -1385,178 +1394,7 @@ void stl_load(char *filename, Mesh *mesh) {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// freaky local_persist stuff //////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
-void conversation_draw_3D_grid_box(Matrix<4> P_3D, Matrix<4> V_3D) {
-    static IndexedTriangleMesh3D grid_box;
-    if (grid_box.num_vertices == 0) {
-        static int _grid_box_num_vertices = 24;
-        static int _grid_box_num_triangles = 12;
-        static uint3 _grid_box_triangle_indices[] = {
-            { 1, 0, 2},{ 2, 0, 3},
-            { 4, 5, 6},{ 4, 6, 7},
-            { 8, 9,10},{ 8,10,11},
-            {13,12,14},{14,12,15},
-            {17,16,18},{18,16,19},
-            {20,21,22},{20,22,23},
-        };
-        static vec3 _grid_box_vertex_positions[] = {
-            { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
-            {-1, 1, 1},{-1, 1,-1},{-1,-1,-1},{-1,-1, 1},
-            { 1, 1, 1},{ 1, 1,-1},{-1, 1,-1},{-1, 1, 1},
-            { 1,-1, 1},{ 1,-1,-1},{-1,-1,-1},{-1,-1, 1},
-            { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
-            { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
-        };
-        static vec2 _grid_box_vertex_texCoords[] = {
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-        };
-        grid_box = {
-            _grid_box_num_vertices,
-            _grid_box_num_triangles,
-            _grid_box_vertex_positions,
-            NULL,
-            NULL,
-            _grid_box_triangle_indices,
-            _grid_box_vertex_texCoords
-        };
-
-        uint texture_side_length = 1024;
-        uint number_of_channels = 4;
-        unsigned char *array = (unsigned char *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(unsigned char));
-        uint o = 9;
-        for (uint j = 0; j < texture_side_length; ++j) {
-            for (uint i = 0; i < texture_side_length; ++i) {
-                uint k = number_of_channels * (j * texture_side_length + i);
-                uint n = uint(texture_side_length / GRID_SIDE_LENGTH * 10);
-                uint t = 2;
-                bool stripe = (((i + o) % n < t) || ((j + o) % n < t));
-                unsigned char a = 160;
-                unsigned char value = (unsigned char)((255.0f/166.0f) * 0.07f * 255);
-                if (stripe) value = 80;
-                if (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1) value = 160;
-                for (uint d = 0; d < 3; ++d) array[k + d] = value;
-                array[k + 3] = a;
-            }
-        }
-        _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, array);
-    }
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_FRONT);
-    real L = GRID_SIDE_LENGTH;
-    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
-    glDisable(GL_CULL_FACE);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// messagef API ////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-bool IGNORE_NEW_MESSAGEFS;
-
-#define MESSAGE_MAX_LENGTH 256
-#define MESSAGE_MAX_NUM_MESSAGES 64
-#define MESSAGE_MAX_TIME 6.0f
-struct Message {
-    char buffer[MESSAGE_MAX_LENGTH];
-    real time_remaining;
-    real y;
-    vec3 base_color;
-};
-uint message_index;
-Message conversation_messages[MESSAGE_MAX_NUM_MESSAGES];
-void conversation_messagef(vec3 color, char *format, ...) {
-    if (IGNORE_NEW_MESSAGEFS) return;
-    va_list arg;
-    va_start(arg, format);
-    Message *message = &conversation_messages[message_index];
-    vsnprintf(message->buffer, MESSAGE_MAX_LENGTH, format, arg);
-    va_end(arg);
-
-    message->base_color = color;
-    message->time_remaining = MESSAGE_MAX_TIME;
-    message_index = (message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
-    message->y = 0.0f;
-
-    // printf("%s\n", message->buffer); // FORNOW print to terminal as well
-}
-real get_x_divider_Pixel();
-void conversation_message_buffer_update() {
-    for (uint i = 0; i < MESSAGE_MAX_NUM_MESSAGES; ++i) {
-        Message *message = &conversation_messages[i];
-        if (message->time_remaining > 0) {
-            message->time_remaining -= 0.0167f;;
-        } else {
-            message->time_remaining = 0.0f;
-        }
-    }
-}
-void conversation_message_buffer_draw() {
-    uint i_0 = (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
-
-    uint num_drawn = 0;
-    auto draw_lambda = [&](uint message_index) {
-        Message *message = &conversation_messages[message_index];
-
-        real FADE_IN_TIME = 0.33f;
-        real FADE_OUT_TIME = 2.0f;
-
-        real a; { // ramp on ramp off
-            a = 0
-                + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_IN_TIME, 0.0f, 1.0f)
-                - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
-        }
-
-        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, omax.yellow, message->base_color);
-        color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
-        real r = color.x;
-        real g = color.y;
-        real b = color.z;
-
-        real x = get_x_divider_Pixel() + 12;
-        real y_target = ++num_drawn * 12.0f;
-        if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 12.0f);
-
-        JUICEIT_EASYTWEEN(&message->y, y_target);
-        if (message->time_remaining > 0) {
-            _text_draw(
-                    (real *) &globals.NDC_from_Screen,
-                    message->buffer,
-                    x,
-                    message->y,
-                    0.0,
-
-                    r,
-                    g,
-                    b,
-                    a,
-
-                    0,
-                    0.0,
-                    0.0,
-                    true);
-        }
-    };
-
-    { // this is pretty gross
-        uint i = i_0;
-        while (true) {
-            draw_lambda(i);
-
-            if (i > 0) --i;
-            else if (i == 0) i = MESSAGE_MAX_NUM_MESSAGES - 1;
-
-            if (i == i_0) break;
-        }
-    }
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // key_lambda //////////////////////////////////////////////////////////////////
@@ -1574,14 +1412,14 @@ bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift
 // world_state /////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void world_state_deep_copy(WorldState_ChangesToThisMustBeRecorded *dst, WorldState_ChangesToThisMustBeRecorded *src) {
+void world_state_deep_copy(WorldState_ChangesToThisMustBeRecorded_state *dst, WorldState_ChangesToThisMustBeRecorded_state *src) {
     *dst = *src;
     dst->drawing.entities = {};
     list_clone(&dst->drawing.entities,    &src->drawing.entities   );
     mesh_deep_copy(&dst->mesh, &src->mesh);
 }
 
-void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded *world_state) {
+void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *world_state) {
     mesh_free_AND_zero(&world_state->mesh);
     list_free_AND_zero(&world_state->drawing.entities);
 }
@@ -1597,7 +1435,7 @@ Mesh wrapper_manifold(
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
-        Matrix<4> M_3D_from_2D,
+        mat4 M_3D_from_2D,
         EnterMode enter_mode,
         real extrude_out_length,
         real extrude_in_length,

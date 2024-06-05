@@ -877,10 +877,6 @@ mat4 _window_get_NDC_from_Screen() {
 // #include "input_and_callback.cpp"////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void _input_begin_frame() {
-}
-
-
 
 void _callback_framebuffer_size(GLFWwindow *, int width, int height) {
     glViewport(0, 0, width, height);
@@ -2252,23 +2248,4 @@ void IndexedTriangleMesh3D::draw(
             );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-// top-level functions /////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
-
-bool app_begin_frame() {
-    _window_get_NDC_from_Screen((real *) &globals.NDC_from_Screen);
-    COW1._gui_x_curr = 16;
-    COW1._gui_y_curr = 16;
-
-    glfwPollEvents();
-
-    glfwSwapBuffers(COW0._window_glfw_window);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-    return !(glfwWindowShouldClose(COW0._window_glfw_window));
-}

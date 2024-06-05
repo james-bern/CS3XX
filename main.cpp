@@ -1,3 +1,5 @@
+// TODO: memcmp to see if should record
+// TODO: timer to see if should snapshot
 // TODO: copy over cow and snail into the working directory and delete the parts you don't need
 // TODO: strip out all the uneeded functions
 // TODO: replace all cow macros with teplated functions
@@ -5,8 +7,8 @@
 #include "include.cpp" // (state-independent)
 
 // (global) state
-WorldState_ChangesToThisMustBeRecorded state;
-ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded other;
+WorldState_ChangesToThisMustBeRecorded_state state;
+ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other other;
 
 // pointers to shorten xxx.foo.bar into foo->bar
 Drawing *drawing = &state.drawing;
@@ -299,7 +301,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         // FORNOW: i guess okay to handle these here?
         bool toggle_pause; {
             toggle_pause = false;
-            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
+            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->cell_index] == CellType::String))) { // FORNOW
                 toggle_pause = ((key == 'P') && (!control) && (!shift));
             }
         }
@@ -404,7 +406,6 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 
 // NOTE: mouse does not have GLFW_REPEAT
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
-
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
         if (action == GLFW_PRESS) {
             other.mouse_left_drag_pane = other.hot_pane;
@@ -530,20 +531,12 @@ Event bake_event(RawEvent raw_event) {
                 mouse_event_mesh->mouse_ray_origin = point_a;
                 mouse_event_mesh->mouse_ray_direction = normalized(point_b - point_a);
             } else if (raw_mouse_event->pane == Pane::Popup) {
-                // TODO: clean up (some state baad in certain cases -- dragging but leave cell)
-                // TODO: gross gross gross
-
                 mouse_event->subtype = MouseEventSubtype::Popup;
 
-                MouseEventGUI *mouse_event_gui = &mouse_event->mouse_event_gui;
-                mouse_event_gui->cell_index = popup->hover_cell_index; 
-                if (!raw_mouse_event->mouse_held) {
-                    mouse_event_gui->cursor = popup->hover_cursor; 
-                } else {
-                    // preserve old value; NOTE: could also be achieved with event.set_cursor = false;
-                    mouse_event_gui->cursor = popup->cursor;
-                }
-                mouse_event_gui->selection_cursor = popup->hover_cursor; 
+                MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
+                mouse_event_popup->cell_index = popup->hover_cell_index; 
+                mouse_event_popup->cursor = popup->hover_cursor; 
+                mouse_event_popup->selection_cursor = popup->hover_selection_cursor; 
             } else { ASSERT(raw_mouse_event->pane == Pane::Separator);
                 event = {};
             }
@@ -873,6 +866,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
                     state.click_color_code = ColorCode::Traverse;
+                } else if (key_lambda(GLFW_KEY_TAB)) { // FORNOW
+                    result.record_me = false;
+                    {
+                        vec3 tmp = omax.light_gray;
+                        omax.light_gray = omax.dark_gray;
+                        omax.dark_gray = tmp;
+                    }
+                    {
+                        vec3 tmp = omax.white;
+                        omax.white = omax.black;
+                        omax.black = tmp;
+                    }
                 } else if (key_lambda(GLFW_KEY_ENTER)) { // FORNOW
                     result.record_me = false;
                     conversation_messagef(omax.orange, "EnterMode is None.");
@@ -898,19 +903,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
             if (key == GLFW_KEY_TAB) {
                 _tab_hack_so_aliases_not_introduced_too_far_up = true;
-                uint new_active_cell_index; {
+                uint new_cell_index; {
                     // FORNOW
                     if (!shift) {
-                        new_active_cell_index = (popup->active_cell_index + 1) % popup->num_cells;
+                        new_cell_index = (popup->cell_index + 1) % popup->num_cells;
                     } else {
-                        if (popup->active_cell_index != 0) {
-                            new_active_cell_index = popup->active_cell_index - 1;
+                        if (popup->cell_index != 0) {
+                            new_cell_index = popup->cell_index - 1;
                         } else {
-                            new_active_cell_index = popup->num_cells - 1;
+                            new_cell_index = popup->num_cells - 1;
                         }
                     }
                 }
-                POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
+                POPUP_SET_ACTIVE_CELL_INDEX(new_cell_index);
             }
 
             char *active_cell = popup->active_cell_buffer;
@@ -1466,7 +1471,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     other.time_since_plane_selected = 0.0f;
                     {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];
-                        { // FORNOW (gross) calculateion of feature_plane->signed_distance_to_world_origin
+                        { // feature_plane->signed_distance_to_world_origin
                             vec3 a_selected = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
                             feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, a_selected);
                         }
@@ -1475,28 +1480,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
         } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
-            MouseEventGUI *mouse_event_gui = &mouse_event->mouse_event_gui;
+            MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
 
-            result.record_me = false;
             other.time_since_cursor_start = 0.0f;
+            result.record_me = false;
 
-            // TODO: probably also gross
-            if ((!mouse_event->mouse_held) && (popup->active_cell_index != mouse_event_gui->cell_index)) {
+            if (popup->cell_index != mouse_event_popup->cell_index) {
+                POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_popup->cell_index);
                 result.record_me = true;
-                POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_gui->cell_index);
             }
-            // NOTE: this if is really gross and patches a problem where if you drag the mouse off the cell things break
-            // TODO: this should be fixed earlier in the chain; better guarantees about what the event is sending you
-            // (TODO: you should be able to leave the box)
-            if (popup->active_cell_index == mouse_event_gui->cell_index) {
-                if (popup->cursor != mouse_event_gui->cursor) {
-                    result.record_me = true;
-                    popup->cursor = mouse_event_gui->cursor;
-                }
-                if (popup->selection_cursor != mouse_event_gui->selection_cursor) {
-                    result.record_me = true;
-                    popup->selection_cursor = mouse_event_gui->selection_cursor;
-                }
+            if (popup->cursor != mouse_event_popup->cursor) {
+                popup->cursor = mouse_event_popup->cursor;
+                result.record_me = true;
+            }
+            if (popup->selection_cursor != mouse_event_popup->selection_cursor) {
+                popup->selection_cursor = mouse_event_popup->selection_cursor;
+                result.record_me = true;
             }
         }
     } else { ASSERT(event.type == EventType::None);
@@ -1505,7 +1504,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
     { // sanity checks
-        ASSERT(popup->active_cell_index <= popup->num_cells);
+        ASSERT(popup->cell_index <= popup->num_cells);
         ASSERT(popup->cursor <= POPUP_CELL_LENGTH);
         ASSERT(popup->selection_cursor <= POPUP_CELL_LENGTH);
     }
@@ -1764,12 +1763,12 @@ void history_debug_draw() { gui_printf("[DEBUG] history disabled"); }
 
 struct {
     ElephantStack<Event> recorded_user_events;
-    ElephantStack<WorldState_ChangesToThisMustBeRecorded> snapshotted_world_states;
+    ElephantStack<WorldState_ChangesToThisMustBeRecorded_state> snapshotted_world_states;
 } history;
 
 struct StackPointers {
     Event *user_event;
-    WorldState_ChangesToThisMustBeRecorded *world_state;
+    WorldState_ChangesToThisMustBeRecorded_state *world_state;
 };
 
 StackPointers POP_UNDO_ONTO_REDO() {
@@ -1788,7 +1787,7 @@ StackPointers POP_REDO_ONTO_UNDO() {
 
 StackPointers PEEK_UNDO() {
     Event *user_event = elephant_peek_undo(&history.recorded_user_events);
-    WorldState_ChangesToThisMustBeRecorded *world_state = elephant_is_empty_undo(&history.snapshotted_world_states) ? NULL : elephant_peek_undo(&history.snapshotted_world_states);
+    WorldState_ChangesToThisMustBeRecorded_state *world_state = elephant_is_empty_undo(&history.snapshotted_world_states) ? NULL : elephant_peek_undo(&history.snapshotted_world_states);
     return { user_event, world_state };
 }
 
@@ -1804,7 +1803,7 @@ void PUSH_UNDO_CLEAR_REDO(Event standard_event) {
     elephant_push_undo_clear_redo(&history.recorded_user_events, standard_event);
     { // clear the world_state redo stack
         for (////
-                WorldState_ChangesToThisMustBeRecorded *world_state = history.snapshotted_world_states._redo_stack.array;
+                WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._redo_stack.array;
                 world_state < history.snapshotted_world_states._redo_stack.array + history.snapshotted_world_states._redo_stack.length;
                 ++world_state
             ) {//
@@ -1813,7 +1812,7 @@ void PUSH_UNDO_CLEAR_REDO(Event standard_event) {
         elephant_clear_redo(&history.snapshotted_world_states); // TODO ?
     }
     if (standard_event.snapshot_me) {
-        WorldState_ChangesToThisMustBeRecorded snapshot;
+        WorldState_ChangesToThisMustBeRecorded_state snapshot;
         world_state_deep_copy(&snapshot, &state);
         elephant_push_undo_clear_redo(&history.snapshotted_world_states, snapshot); // TODO: clear is unnecessary here
     }
@@ -1864,9 +1863,10 @@ void history_undo() {
             --begin;
         }
     }
-    IGNORE_NEW_MESSAGEFS = true; // TODO: why does this seem unnecessary in practice??
-    for (Event *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
-    IGNORE_NEW_MESSAGEFS = false;
+    other.please_suppress_messagef = true; {
+        for (Event *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
+    } other.please_suppress_messagef = false;
+
     conversation_messagef(omax.green, "Undo");
 }
 
@@ -1876,21 +1876,22 @@ void history_redo() {
         return;
     }
 
-    IGNORE_NEW_MESSAGEFS = true;
-    while (EVENT_REDO_NONEMPTY()) { // // manipulate stacks (undo <- redo)
-        StackPointers popped = POP_REDO_ONTO_UNDO();
-        Event *user_event = popped.user_event;
-        WorldState_ChangesToThisMustBeRecorded *world_state = popped.world_state;
+    other.please_suppress_messagef = true; {
+        while (EVENT_REDO_NONEMPTY()) { // // manipulate stacks (undo <- redo)
+            StackPointers popped = POP_REDO_ONTO_UNDO();
+            Event *user_event = popped.user_event;
+            WorldState_ChangesToThisMustBeRecorded_state *world_state = popped.world_state;
 
-        _standard_event_process_NOTE_RECURSIVE(*user_event);
-        if (world_state) {
-            world_state_free_AND_zero(&state);
-            world_state_deep_copy(&state, world_state);
+            _standard_event_process_NOTE_RECURSIVE(*user_event);
+            if (world_state) {
+                world_state_free_AND_zero(&state);
+                world_state_deep_copy(&state, world_state);
+            }
+
+            if (user_event->checkpoint_me) break;
         }
+    } other.please_suppress_messagef = false;
 
-        if (user_event->checkpoint_me) break;
-    }
-    IGNORE_NEW_MESSAGEFS = false;
     conversation_messagef(omax.green, "Redo");
 }
 
@@ -1916,8 +1917,8 @@ void _history_user_event_draw_helper(Event event) {
                 MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
                 sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);
             } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
-                MouseEventGUI *mouse_event_gui = &mouse_event->mouse_event_gui;
-                sprintf(message, "[GUI-MOUSE] %d %d %d", mouse_event_gui->cell_index, mouse_event_gui->cursor, mouse_event_gui->selection_cursor);
+                MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
+                sprintf(message, "[GUI-MOUSE] %d %d %d", mouse_event_popup->cell_index, mouse_event_popup->cursor, mouse_event_popup->selection_cursor);
             }
         }
     }
@@ -1927,7 +1928,7 @@ void _history_user_event_draw_helper(Event event) {
             message);
 }
 
-void _history_world_state_draw_helper(WorldState_ChangesToThisMustBeRecorded *world_state) {
+void _history_world_state_draw_helper(WorldState_ChangesToThisMustBeRecorded_state *world_state) {
     gui_printf("%d drawing elements   %d stl triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
 }
 
@@ -1935,7 +1936,7 @@ void history_debug_draw() {
     gui_printf("");
     if (history.snapshotted_world_states._redo_stack.length) {
         for (////
-                WorldState_ChangesToThisMustBeRecorded *world_state = history.snapshotted_world_states._redo_stack.array;
+                WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._redo_stack.array;
                 world_state < history.snapshotted_world_states._redo_stack.array + history.snapshotted_world_states._redo_stack.length;
                 ++world_state
             ) {//
@@ -1947,7 +1948,7 @@ void history_debug_draw() {
     if (history.snapshotted_world_states._undo_stack.length) {
         gui_printf("`v undo (%d)", elephant_length_undo(&history.snapshotted_world_states));
         for (////
-                WorldState_ChangesToThisMustBeRecorded *world_state = history.snapshotted_world_states._undo_stack.array + (history.snapshotted_world_states._undo_stack.length - 1);
+                WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._undo_stack.array + (history.snapshotted_world_states._undo_stack.length - 1);
                 world_state >= history.snapshotted_world_states._undo_stack.array;
                 --world_state
             ) {//
@@ -2026,7 +2027,7 @@ void freshly_baked_event_process(Event freshly_baked_event) {
             auto key_lambda = [key_event](uint key, bool control = false, bool shift = false) -> bool {
                 return _key_lambda(key_event, key, control, shift);
             };
-            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
+            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->cell_index] == CellType::String))) { // FORNOW
                 undo = (key_lambda('Z', true) || key_lambda('U'));
                 redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
             }
@@ -2034,10 +2035,10 @@ void freshly_baked_event_process(Event freshly_baked_event) {
     }
 
     if (undo) {
-        other.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
+        other.please_suppress_drawing_popup_popup = true;
         history_undo();
     } else if (redo) {
-        other.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = true;
+        other.please_suppress_drawing_popup_popup = true;
         history_redo();
     } else {
         history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(freshly_baked_event);
@@ -2190,6 +2191,7 @@ int main() {
              "^sz.stl\n"
              "^oz.stl\n"
              ".."
+             "cz"
              // "^N^obug.drawing\nysa"
              ;
     #endif
@@ -2206,10 +2208,23 @@ int main() {
 
     glfwHideWindow(COW0._window_glfw_window);
     uint frame = 0;
-    while (app_begin_frame()) {
+    while (!glfwWindowShouldClose(COW0._window_glfw_window)) {
+        {
+            _window_get_NDC_from_Screen((real *) &globals.NDC_from_Screen);
+            COW1._gui_x_curr = 16;
+            COW1._gui_y_curr = 16;
+
+            glfwPollEvents();
+
+            glfwSwapBuffers(COW0._window_glfw_window);
+            glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        }
+
+
         other.transform_NDC_from_Pixel = window_get_NDC_from_Screen();
 
-        other.DONT_DRAW_ANY_MORE_POPUPS_THIS_FRAME = false;
+        other.please_suppress_drawing_popup_popup = false;
 
         if (other.stepping_one_frame_while_paused) {
             other.paused = false;
