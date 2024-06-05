@@ -1,7 +1,7 @@
 // TODO ??? the stuff that is determined while drawing should really be stored in other, not state
 
 void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
-    uint d = popup->cell_index;
+    uint d = popup->active_cell_index;
     memset(popup->active_cell_buffer, 0, POPUP_CELL_LENGTH);
     if (popup->cell_type[d] == CellType::Real32) {
         sprintf(popup->active_cell_buffer, "%g", *((real *) popup->value[d]));
@@ -11,7 +11,7 @@ void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
 };
 
 void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
-    uint d = popup->cell_index;
+    uint d = popup->active_cell_index;
     if (popup->cell_type[d] == CellType::Real32) {
         *((real *) popup->value[d]) = strtof(popup->active_cell_buffer, NULL);
     } else { ASSERT(popup->cell_type[d] == CellType::String);
@@ -32,12 +32,12 @@ void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
 
 bool POPUP_SELECTION_NOT_ACTIVE() { return (popup->selection_cursor == popup->cursor); };
 
-void POPUP_SET_ACTIVE_CELL_INDEX(uint new_cell_index) {
-    popup->cell_index = new_cell_index;
+void POPUP_SET_ACTIVE_CELL_INDEX(uint new_active_cell_index) {
+    popup->active_cell_index = new_active_cell_index;
     POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
     popup->cursor = (uint) strlen(popup->active_cell_buffer);
     popup->selection_cursor = 0; // select whole cell
-    popup->_type_of_active_cell = popup->cell_type[popup->cell_index];
+    popup->_type_of_active_cell = popup->cell_type[popup->active_cell_index];
 };
 
 void popup_popup(
@@ -77,11 +77,11 @@ void popup_popup(
     if (popup->_active_popup_unique_ID__FORNOW_name0 != _name0) {
         popup->_active_popup_unique_ID__FORNOW_name0 = _name0;
         if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
-        popup->cell_index = 0;
+        popup->active_cell_index = 0;
         POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
         popup->cursor = strlen(popup->active_cell_buffer);
         popup->selection_cursor = 0;
-        popup->_type_of_active_cell = popup->cell_type[popup->cell_index];
+        popup->_type_of_active_cell = popup->cell_type[popup->active_cell_index];
     }
 
     POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
@@ -90,16 +90,14 @@ void popup_popup(
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
 
-
-    bool FORNOW_mouse_left_held = (other.mouse_left_drag_pane == Pane::Popup);
-    popup->mouse_is_hovering = false;
-    popup->hover_cell_index = 0;
-    popup->hover_cell_index = 0;
-    popup->hover_cursor = 0;
+    popup->FORNOW_info_mouse_is_hovering = false;
+    popup->info_hover_cell_index = 0;
+    popup->info_hover_cell_cursor = 0;
+    popup->info_active_cell_cursor = 0; // TODO: find this
+                                        // IDEA: find cursor position for all cells uint current_cell_cursor
+                                        //       then assign based on d
     {
         _FOR_(d, popup->num_cells) {
-            if (!popup->name[d]) continue;
-
             uint _strlen_name;
             uint _strlen_extra;
             uint strlen_other;
@@ -107,7 +105,7 @@ void popup_popup(
             static char buffer[512];
             {
                 // FORNOW gross;
-                if (d == popup->cell_index) {
+                if (d == popup->active_cell_index) {
                     sprintf(buffer, "%s %s", popup->name[d], popup->active_cell_buffer);
                 } else {
                     if (popup->cell_type[d] == CellType::Real32) {
@@ -123,7 +121,8 @@ void popup_popup(
                 strlen_cell = strlen(buffer) - strlen_other;
             }
 
-            real X_MARGIN_OFFSET = COW1._gui_x_curr;
+            real x_mouse = other.mouse_Pixel.x;
+            real y_mouse = other.mouse_Pixel.y;
 
             real x_field_left;
             real x_field_right;
@@ -135,6 +134,7 @@ void popup_popup(
                 static char tmp[4096]; // FORNOW
                 strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
 
+                real X_MARGIN_OFFSET = COW1._gui_x_curr;
                 x_field_left = X_MARGIN_OFFSET + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
                 x_field_right = x_field_left + stb_easy_font_width(tmp);
 
@@ -145,42 +145,52 @@ void popup_popup(
                 y_top = COW1._gui_y_curr;
                 y_bottom = y_top + 8;
             }
-
             box2 field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            if (box_contains(field_box, other.mouse_Pixel)) {
-                popup->mouse_is_hovering = true;
-                popup->hover_cell_index = d;
-                popup->hover_cursor = 0; // FORNOW_UNUSED
-                { // popup->hover_cursor
-                    char _2char[2] = {};
-                    real x_char_middle = x_field_left;
-                    real half_char_width_prev = 0.0f;
-                    for (uint i = 0; i < strlen_cell; ++i) {
-                        x_char_middle += half_char_width_prev;
-                        {
-                            _2char[0] = buffer[strlen_other + i];
-                            half_char_width_prev = stb_easy_font_width(_2char) / 2.0f;
-                        }
-                        x_char_middle += half_char_width_prev;
+            // TODO: eso_box_SOUP_QUADS
 
-                        real x_mouse = other.mouse_Pixel.x;
-                        if (x_mouse > x_char_middle) popup->hover_cursor = i + 1;
-
-                        #if 1
-                        eso_begin(globals.NDC_from_Screen, SOUP_LINES, 2.0f, true);
-                        eso_color(omax.magenta);
-                        eso_vertex(x_char_middle, y_top - 10);
-                        eso_vertex(x_char_middle, y_bottom + 10);
-                        eso_end();
-                        #endif
+            uint d_cell_cursor; { 
+                d_cell_cursor = 0;
+                char _2char[2] = {};
+                real x_char_middle = x_field_left;
+                real half_char_width_prev = 0.0f;
+                for (uint i = 0; i < strlen_cell; ++i) {
+                    x_char_middle += half_char_width_prev;
+                    {
+                        _2char[0] = buffer[strlen_other + i];
+                        half_char_width_prev = stb_easy_font_width(_2char) / 2.0f;
                     }
+                    x_char_middle += half_char_width_prev;
+
+                    if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
+
+                    #if 0
+                    eso_begin(globals.NDC_from_Screen, SOUP_LINES, 2.0f, true);
+                    eso_color(omax.magenta);
+                    eso_vertex(x_char_middle, y_top - 10);
+                    eso_vertex(x_char_middle, y_bottom + 10);
+                    eso_end();
+                    #endif
+                }
+            }
+
+            { // popup->info_hover_cell_*
+                if (box_contains(field_box, other.mouse_Pixel)) {
+                    popup->FORNOW_info_mouse_is_hovering = true; // FORNOW
+                    popup->info_hover_cell_index = d;
+                    popup->info_hover_cell_cursor = d_cell_cursor;
+                }
+            }
+
+            { // popup->info_active_cell_cursor
+                if (d == popup->active_cell_index) {
+                    popup->info_active_cell_cursor = d_cell_cursor;
                 }
             }
 
             if (!other.please_suppress_drawing_popup_popup) {
                 { // debug draw
                     eso_begin(globals.NDC_from_Screen, SOUP_LINE_LOOP, 1.0f);
-                    eso_color(FORNOW_mouse_left_held ? omax.blue : omax.orange);
+                    eso_color(omax.orange);
                     eso_vertex(x_field_left, y_top);
                     eso_vertex(x_field_left, y_bottom);
                     eso_vertex(x_field_right, y_bottom);
@@ -193,11 +203,12 @@ void popup_popup(
                 }
 
                 if (popup->name[d]) {
-                    if (popup->cell_index != d) {
+                    if (popup->active_cell_index != d) {
                         // TODO: don't use gui_printf here
                         gui_printf(buffer);
                     } else {
-                        if (!POPUP_SELECTION_NOT_ACTIVE()) {
+                        bool popup_selection_is_active = (!POPUP_SELECTION_NOT_ACTIVE());
+                        if (popup_selection_is_active) {
                             eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
                             eso_color(0.4f, 0.4f, 0.0f);
                             eso_vertex(x_selection_left, y_top);

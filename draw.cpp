@@ -700,7 +700,7 @@ struct Message {
 };
 uint message_index;
 Message conversation_messages[MESSAGE_MAX_NUM_MESSAGES];
-void conversation_messagef(vec3 color, char *format, ...) {
+void messagef(vec3 color, char *format, ...) {
     if (other.please_suppress_messagef) return;
     va_list arg;
     va_start(arg, format);
@@ -715,6 +715,15 @@ void conversation_messagef(vec3 color, char *format, ...) {
 
     // printf("%s\n", message->buffer); // FORNOW print to terminal as well
 }
+void messagef(char *format, ...) {
+    static char string[1024];
+    va_list args;
+    va_start(args, format);
+    vsprintf(string, format, args);
+    messagef(omax.light_gray, "%s", string);
+    va_end(args);
+}
+
 real get_x_divider_Pixel();
 void conversation_message_buffer_update() {
     for (uint i = 0; i < MESSAGE_MAX_NUM_MESSAGES; ++i) {

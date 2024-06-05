@@ -196,7 +196,7 @@ real get_x_divider_Pixel() {
 
 void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
     if (!poe_file_exists(filename)) {
-        conversation_messagef(omax.orange, "File \"%s\" was not found.", filename);
+        messagef(omax.orange, "File \"%s\" was not found.", filename);
         return;
     }
 
@@ -210,18 +210,18 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
         drawing->origin = {};
     }
 
-    conversation_messagef(omax.green, "LoadDXF \"%s\"", filename);
+    messagef(omax.green, "LoadDXF \"%s\"", filename);
 }
 
 void conversation_stl_load(char *filename, bool preserve_cameras = false) {
     if (!poe_file_exists(filename)) {
-        conversation_messagef(omax.orange, "File \"%s\" was not found.", filename);
+        messagef(omax.orange, "File \"%s\" was not found.", filename);
         return;
     }
     {
         stl_load(filename, mesh);
         FORNOW_UNUSED(preserve_cameras);
-        conversation_messagef(omax.green, "LoadSTL \"%s\"", filename);
+        messagef(omax.green, "LoadSTL \"%s\"", filename);
     }
 }
 
@@ -231,16 +231,16 @@ void conversation_load(char *filename, bool preserve_cameras = false) {
     } else if (poe_suffix_match(filename, ".stl")) {
         conversation_stl_load(filename, preserve_cameras);
     } else {
-        conversation_messagef(omax.orange, "File \"%s\" is not supported: must be *.drawing or *.stl. ", filename);
+        messagef(omax.orange, "File \"%s\" is not supported: must be *.drawing or *.stl. ", filename);
     }
 }
 
 void conversation_stl_save(char *filename) {
     // TODO: prompt for overwriting
     if (mesh_save_stl(mesh, filename) ) {
-        conversation_messagef(omax.green, "SaveSTL \"%s\"", filename);
+        messagef(omax.green, "SaveSTL \"%s\"", filename);
     } else {
-        conversation_messagef(omax.orange, "Failed to open file \"%s\" for writing.", filename);
+        messagef(omax.orange, "Failed to open file \"%s\" for writing.", filename);
     }
 }
 
@@ -248,7 +248,7 @@ void conversation_save(char *filename) {
     if (poe_suffix_match(filename, ".stl")) {
         conversation_stl_save(filename);
     } else {
-        conversation_messagef(omax.orange, "File \"%s\" is not supported: must be *.drawing or *.stl. ", filename);
+        messagef(omax.orange, "File \"%s\" is not supported: must be *.drawing or *.stl. ", filename);
     }
 }
 
@@ -301,7 +301,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         // FORNOW: i guess okay to handle these here?
         bool toggle_pause; {
             toggle_pause = false;
-            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->cell_index] == CellType::String))) { // FORNOW
+            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
                 toggle_pause = ((key == 'P') && (!control) && (!shift));
             }
         }
@@ -332,7 +332,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         real x_divider_Pixel = get_x_divider_Pixel();
         real eps = 6.0f;
         real x = other.mouse_Pixel.x;
-        if (popup->mouse_is_hovering) {
+        if (popup->FORNOW_info_mouse_is_hovering) {
             other.hot_pane = Pane::Popup;
         } else if (x < x_divider_Pixel - eps) {
             other.hot_pane = Pane::Drawing;
@@ -459,14 +459,17 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
     if (!popup->_active_popup_unique_ID__FORNOW_name0) return KeyEventSubtype::Hotkey;
 
     uint key = raw_key_event->key;
-    // bool shift = ...;
-    // bool control = ...;
+    bool control = raw_key_event->control;
+    // bool shift = raw_key_event->shift;
+
+    // TODO: these need to take control into account
     bool key_is_digit = ('0' <= key) && (key <= '9');
     bool key_is_punc  = (key == '.') || (key == '-');
     bool key_is_alpha = ('A' <= key) && (key <= 'Z');
     bool key_is_delete = (key == GLFW_KEY_BACKSPACE) || (key == GLFW_KEY_DELETE);
     bool key_is_enter = (key == GLFW_KEY_ENTER);
     bool key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
+    bool key_is_ctrl_a = (key == 'A') && (control);
 
     bool is_consumable_by_popup; {
         is_consumable_by_popup = false;
@@ -475,6 +478,7 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
         is_consumable_by_popup |= key_is_delete;
         is_consumable_by_popup |= key_is_enter;
         is_consumable_by_popup |= key_is_nav;
+        is_consumable_by_popup |= key_is_ctrl_a;
         if (popup->_type_of_active_cell == CellType::Real32) {
             ;
         } else if (popup->_type_of_active_cell == CellType::String) {
@@ -493,8 +497,6 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
 // NOTE: this function can "drop" raw_event's by returning the null event.
 //       this smells a bit (should probs fail earlier, but I like the previous layer not knowing this stuff)
 Event bake_event(RawEvent raw_event) {
-    FORNOW_UNUSED(raw_event);
-
     Event event = {};
     if (raw_event.type == EventType::Key) {
         RawKeyEvent *raw_key_event = &raw_event.raw_key_event;
@@ -534,9 +536,14 @@ Event bake_event(RawEvent raw_event) {
                 mouse_event->subtype = MouseEventSubtype::Popup;
 
                 MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-                mouse_event_popup->cell_index = popup->hover_cell_index; 
-                mouse_event_popup->cursor = popup->hover_cursor; 
-                mouse_event_popup->selection_cursor = popup->hover_selection_cursor; 
+                bool mouse_event_is_press = (!mouse_event->mouse_held);
+                if (mouse_event_is_press) {
+                    mouse_event_popup->cell_index = popup->info_hover_cell_index; 
+                    mouse_event_popup->cursor = popup->info_hover_cell_cursor;
+                } else {
+                    mouse_event_popup->cell_index = popup->active_cell_index; // hmm...
+                    mouse_event_popup->cursor = popup->info_active_cell_cursor;
+                }
             } else { ASSERT(raw_mouse_event->pane == Pane::Separator);
                 event = {};
             }
@@ -736,20 +743,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.enter_mode = EnterMode::NudgeFeaturePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
-                        conversation_messagef(omax.orange, "[n] no plane is_selected");
+                        messagef(omax.orange, "[n] no plane is_selected");
                     }
                 } else if (key_lambda('N', true, false)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     list_free_AND_zero(&drawing->entities);
                     *drawing = {};
-                    conversation_messagef(omax.green, "ResetDXF");
+                    messagef(omax.green, "ResetDXF");
                 } else if (key_lambda('N', true, true)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     mesh_free_AND_zero(mesh);
                     *feature_plane = {};
-                    conversation_messagef(omax.green, "ResetSTL");
+                    messagef(omax.green, "ResetSTL");
                 } else if (key_lambda('O', true)) {
                     state.enter_mode = EnterMode::Open;
                 } else if (key_lambda('Q')) {
@@ -829,7 +836,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda('.')) { 
                     result.record_me = false;
                     other.show_details = !other.show_details;
-                    { // conversation_messagef
+                    { // messagef
                         uint num_lines;
                         uint num_arcs;
                         {
@@ -843,8 +850,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         }
-                        conversation_messagef(omax.cyan,"Mesh has %d triangles", mesh->num_triangles);
-                        conversation_messagef(omax.cyan,"Drawing has %d elements = %d lines + %d arcs", drawing->entities.length, num_lines, num_arcs);
+                        messagef(omax.cyan,"Mesh has %d triangles", mesh->num_triangles);
+                        messagef(omax.cyan,"Drawing has %d elements = %d lines + %d arcs", drawing->entities.length, num_lines, num_arcs);
                     }
                 } else if (key_lambda(';')) {
                     result.checkpoint_me = true;
@@ -880,9 +887,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (key_lambda(GLFW_KEY_ENTER)) { // FORNOW
                     result.record_me = false;
-                    conversation_messagef(omax.orange, "EnterMode is None.");
+                    messagef(omax.orange, "EnterMode is None.");
                 } else {
-                    conversation_messagef(omax.orange, "Hotkey %s was not recognized.", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
+                    messagef(omax.orange, "Hotkey %s was not recognized.", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
                     result.record_me = false;
                     ;
                 }
@@ -903,23 +910,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
             if (key == GLFW_KEY_TAB) {
                 _tab_hack_so_aliases_not_introduced_too_far_up = true;
-                uint new_cell_index; {
+                uint new_active_cell_index; {
                     // FORNOW
                     if (!shift) {
-                        new_cell_index = (popup->cell_index + 1) % popup->num_cells;
+                        new_active_cell_index = (popup->active_cell_index + 1) % popup->num_cells;
                     } else {
-                        if (popup->cell_index != 0) {
-                            new_cell_index = popup->cell_index - 1;
+                        if (popup->active_cell_index != 0) {
+                            new_active_cell_index = popup->active_cell_index - 1;
                         } else {
-                            new_cell_index = popup->num_cells - 1;
+                            new_active_cell_index = popup->num_cells - 1;
                         }
                     }
                 }
-                POPUP_SET_ACTIVE_CELL_INDEX(new_cell_index);
+                POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
             }
 
-            char *active_cell = popup->active_cell_buffer;
-            uint len = uint(strlen(active_cell));
+            uint len = strlen(popup->active_cell_buffer);
             uint left_cursor = MIN(popup->cursor, popup->selection_cursor);
             uint right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
@@ -963,8 +969,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 // * * * *|* * * * 
                 if (POPUP_SELECTION_NOT_ACTIVE()) {
                     if (popup->cursor > 0) {
-                        memmove(&active_cell[popup->cursor - 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
-                        active_cell[POPUP_CELL_LENGTH - 1] = '\0';
+                        memmove(&popup->active_cell_buffer[popup->cursor - 1], &popup->active_cell_buffer[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
+                        popup->active_cell_buffer[POPUP_CELL_LENGTH - 1] = '\0';
                         --popup->cursor;
                     }
                 } else {
@@ -975,8 +981,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // * * * * * * * * * * * * * * * *
                     // * * * * * * * * * * * * - - - -
                     //    L       R                   
-                    memmove(&active_cell[left_cursor], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - left_cursor)], 0, right_cursor - left_cursor);
+                    memmove(&popup->active_cell_buffer[left_cursor], &popup->active_cell_buffer[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                    memset(&popup->active_cell_buffer[POPUP_CELL_LENGTH - (right_cursor - left_cursor)], 0, right_cursor - left_cursor);
                     popup->cursor = left_cursor;
                 }
                 popup->selection_cursor = popup->cursor;
@@ -995,14 +1001,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
                 if (POPUP_SELECTION_NOT_ACTIVE()) {
                     if (popup->cursor < POPUP_CELL_LENGTH) {
-                        memmove(&active_cell[popup->cursor + 1], &active_cell[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
-                        active_cell[popup->cursor++] = char_equivalent;
+                        memmove(&popup->active_cell_buffer[popup->cursor + 1], &popup->active_cell_buffer[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
+                        popup->active_cell_buffer[popup->cursor++] = char_equivalent;
                     }
                 } else {
-                    memmove(&active_cell[left_cursor + 1], &active_cell[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    memset(&active_cell[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
+                    memmove(&popup->active_cell_buffer[left_cursor + 1], &popup->active_cell_buffer[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                    memset(&popup->active_cell_buffer[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
                     popup->cursor = left_cursor;
-                    active_cell[popup->cursor++] = char_equivalent;
+                    popup->active_cell_buffer[popup->cursor++] = char_equivalent;
                 }
                 popup->selection_cursor = popup->cursor;
             }
@@ -1214,9 +1220,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             drawing->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
                         } else if (state.click_mode == ClickMode::Box) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
-                                conversation_messagef(omax.orange, "[box] must have non-zero width ");
+                                messagef(omax.orange, "[box] must have non-zero width ");
                             } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
-                                conversation_messagef(omax.orange, "[box] must have non-zero height");
+                                messagef(omax.orange, "[box] must have non-zero height");
                             } else {
                                 two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
@@ -1318,12 +1324,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         }
                                     }
                                 } else {
-                                    conversation_messagef(omax.red, "TODO: line_entity-arc_entity fillet; arc_entity-arc_entity fillet");
+                                    messagef(omax.red, "TODO: line_entity-arc_entity fillet; arc_entity-arc_entity fillet");
                                 }
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
                             if (IS_ZERO(norm(*first_click - *second_click))) {
-                                conversation_messagef(omax.orange, "[circle] must have non-zero diameter");
+                                messagef(omax.orange, "[circle] must have non-zero diameter");
                             } else {
                                 two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
@@ -1348,8 +1354,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real angle = DEG(atan2(*second_click - *first_click));
                             if (angle < 0.0f) angle += 360.0f;
                             real length = norm(*second_click - *first_click);
-                            conversation_messagef(omax.cyan, "Angle is %gdeg.", angle);
-                            conversation_messagef(omax.cyan, "Length is %gmm.", length);
+                            messagef(omax.cyan, "Angle is %gdeg.", angle);
+                            messagef(omax.cyan, "Length is %gmm.", length);
                         } else if (state.click_mode == ClickMode::Move) {
                             two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
@@ -1483,19 +1489,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
 
             other.time_since_cursor_start = 0.0f;
-            result.record_me = false;
+            result.record_me = true; // FORNOW
 
-            if (popup->cell_index != mouse_event_popup->cell_index) {
-                POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_popup->cell_index);
-                result.record_me = true;
-            }
-            if (popup->cursor != mouse_event_popup->cursor) {
-                popup->cursor = mouse_event_popup->cursor;
-                result.record_me = true;
-            }
-            if (popup->selection_cursor != mouse_event_popup->selection_cursor) {
-                popup->selection_cursor = mouse_event_popup->selection_cursor;
-                result.record_me = true;
+            if (!mouse_event->mouse_held) { // press
+                if (popup->active_cell_index != mouse_event_popup->cell_index) { // switch cell
+                    POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_popup->cell_index);
+                    popup->cursor = mouse_event_popup->cursor;
+                    popup->selection_cursor = popup->cursor;
+                } else {
+                    bool double_click = (POPUP_SELECTION_NOT_ACTIVE()) && (popup->cursor == mouse_event_popup->cursor);
+                    if (double_click) {
+                        uint len = strlen(popup->active_cell_buffer); // FORNOW
+                        popup->cursor = len;
+                        popup->selection_cursor = 0;
+                    } else { // move
+                        popup->cursor = mouse_event_popup->cursor;
+                        popup->selection_cursor = popup->cursor;
+                    }
+                }
+            } else { // drag
+                popup->selection_cursor = mouse_event_popup->cursor;
             }
         }
     } else { ASSERT(event.type == EventType::None);
@@ -1504,7 +1517,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
     { // sanity checks
-        ASSERT(popup->cell_index <= popup->num_cells);
+        ASSERT(popup->active_cell_index <= popup->num_cells);
         ASSERT(popup->cursor <= POPUP_CELL_LENGTH);
         ASSERT(popup->selection_cursor <= POPUP_CELL_LENGTH);
     }
@@ -1547,7 +1560,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         conversation_stl_load(full_filename_scratch_buffer);
                         state.enter_mode = EnterMode::None;
                     } else {
-                        conversation_messagef(omax.orange, "[open] \"%s\" not found", full_filename_scratch_buffer);
+                        messagef(omax.orange, "[open] \"%s\" not found", full_filename_scratch_buffer);
                     }
                 }
             } else if (state.enter_mode == EnterMode::Save) {
@@ -1565,17 +1578,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         CellType::Real32, "extrude_add_in_length",  &popup->extrude_add_in_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "Drawing selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "No feature plane is selected.");
                     } else if (IS_ZERO(popup->extrude_add_in_length) && IS_ZERO(popup->extrude_add_out_length)) {
-                        conversation_messagef(omax.orange, "Total extrusion length is zero.");
+                        messagef(omax.orange, "Total extrusion length is zero.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
                         if (IS_ZERO(popup->extrude_add_in_length)) {
-                            conversation_messagef(omax.green, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
+                            messagef(omax.green, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
                         } else {
-                            conversation_messagef(omax.green, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
+                            messagef(omax.green, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
                         }
                     }
                 }
@@ -1585,19 +1598,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         CellType::Real32, "extrude_cut_out_length", &popup->extrude_cut_out_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "Drawing selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "No feature plane is selected.");
                     } else if (IS_ZERO(popup->extrude_cut_in_length) && IS_ZERO(popup->extrude_cut_out_length)) {
-                        conversation_messagef(omax.orange, "Total extrusion length is zero.");
+                        messagef(omax.orange, "Total extrusion length is zero.");
                     } else if (mesh->num_triangles == 0) {
-                        conversation_messagef(omax.orange, "Current mesh is empty.");
+                        messagef(omax.orange, "Current mesh is empty.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
                         if (IS_ZERO(popup->extrude_cut_out_length)) {
-                            conversation_messagef(omax.green, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
+                            messagef(omax.green, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
                         } else {
-                            conversation_messagef(omax.green, "ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
+                            messagef(omax.green, "ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
                         }
                     }
                 }
@@ -1605,26 +1618,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 popup_popup(true, CellType::Real32, "revolve_add_dummy", &popup->revolve_add_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "Drawing selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "No feature plane is selected.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef(omax.green, "RevolveAdd");
+                        messagef(omax.green, "RevolveAdd");
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveCut) {
                 popup_popup(true, CellType::Real32, "revolve_cut_dummy", &popup->revolve_cut_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        conversation_messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "Drawing selection is empty.");
                     } else if (!feature_plane->is_active) {
-                        conversation_messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "No feature plane is selected.");
                     } else if (mesh->num_triangles == 0) {
-                        conversation_messagef(omax.orange, "Current mesh is empty.");
+                        messagef(omax.orange, "Current mesh is empty.");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
-                        conversation_messagef(omax.green, "RevolveCut");
+                        messagef(omax.green, "RevolveCut");
                     }
                 }
             } else if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
@@ -1755,8 +1768,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 #ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 //
 void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(Event standard_event) { _standard_event_process_NOTE_RECURSIVE(standard_event); }
-void history_undo() { conversation_messagef("[DEBUG] history disabled"); }
-void history_redo() { conversation_messagef("[DEBUG] history disabled"); }
+void history_undo() { messagef("[DEBUG] history disabled"); }
+void history_redo() { messagef("[DEBUG] history disabled"); }
 void history_debug_draw() { gui_printf("[DEBUG] history disabled"); }
 //
 #else
@@ -1830,7 +1843,7 @@ void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_
 
 void history_undo() {
     if (elephant_is_empty_undo(&history.recorded_user_events)) {
-        conversation_messagef(omax.orange, "There is nothing to undo.");
+        messagef(omax.orange, "There is nothing to undo.");
         return;
     }
 
@@ -1867,12 +1880,12 @@ void history_undo() {
         for (Event *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
     } other.please_suppress_messagef = false;
 
-    conversation_messagef(omax.green, "Undo");
+    messagef(omax.green, "Undo");
 }
 
 void history_redo() {
     if (elephant_is_empty_redo(&history.recorded_user_events)) {
-        conversation_messagef(omax.orange, "There is nothing to redo.");
+        messagef(omax.orange, "There is nothing to redo.");
         return;
     }
 
@@ -1892,7 +1905,7 @@ void history_redo() {
         }
     } other.please_suppress_messagef = false;
 
-    conversation_messagef(omax.green, "Redo");
+    messagef(omax.green, "Redo");
 }
 
 void _history_user_event_draw_helper(Event event) {
@@ -1918,7 +1931,7 @@ void _history_user_event_draw_helper(Event event) {
                 sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);
             } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
                 MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-                sprintf(message, "[GUI-MOUSE] %d %d %d", mouse_event_popup->cell_index, mouse_event_popup->cursor, mouse_event_popup->selection_cursor);
+                sprintf(message, "[GUI-MOUSE] %d %d", mouse_event_popup->cell_index, mouse_event_popup->cursor);
             }
         }
     }
@@ -2027,7 +2040,7 @@ void freshly_baked_event_process(Event freshly_baked_event) {
             auto key_lambda = [key_event](uint key, bool control = false, bool shift = false) -> bool {
                 return _key_lambda(key_event, key, control, shift);
             };
-            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->cell_index] == CellType::String))) { // FORNOW
+            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
                 undo = (key_lambda('Z', true) || key_lambda('U'));
                 redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
             }

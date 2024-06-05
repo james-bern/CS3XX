@@ -7,7 +7,8 @@
 // FORNOW: forward declarations ////////
 ////////////////////////////////////////
 
-void conversation_messagef(vec3 color, char *format, ...);
+void messagef(vec3 color, char *format, ...);
+void messagef(char *format, ...);
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
 
 
@@ -241,7 +242,6 @@ struct MouseEventMesh {
 struct MouseEventPopup {
     uint cell_index;
     uint cursor;
-    uint selection_cursor;
 };
 
 struct MouseEvent {
@@ -295,11 +295,14 @@ struct TwoClickCommandState {
 struct PopupState {
     char active_cell_buffer[POPUP_CELL_LENGTH];
 
-    uint cell_index;
+    uint active_cell_index;
     uint cursor;
     uint selection_cursor;
 
-    bool mouse_is_hovering;
+    bool FORNOW_info_mouse_is_hovering;
+    uint info_hover_cell_index;
+    uint info_hover_cell_cursor;
+    uint info_active_cell_cursor;
 
     real extrude_add_out_length;
     real extrude_add_in_length;
@@ -338,10 +341,6 @@ struct PopupState {
     void *_active_popup_unique_ID__FORNOW_name0;
     bool _popup_actually_called_this_event; // FORNOW
 
-    // TODO: hover_* -> ???_*
-    uint hover_cell_index;
-    uint hover_cursor;
-    uint hover_selection_cursor;
 
 };
 
@@ -658,7 +657,7 @@ vec3 get_color(ColorCode color_code) {
     if (0 <= i && i <= 9) {
         return omax_pallete[i];
     } else if (20 <= i && i <= 29) {
-        do_once { conversation_messagef(omax.orange, "WARNING: slits not implemented"); };
+        do_once { messagef(omax.orange, "WARNING: slits not implemented"); };
         return omax_pallete[i - 20];
     } else if (color_code == ColorCode::Selection) {
         return omax.yellow;
@@ -1492,7 +1491,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == EnterMode::ExtrudeCut) {
-                do_once { conversation_messagef(omax.magenta, "Inflating ExtrudeCut.\n"); };
+                do_once { messagef(omax.magenta, "Inflating ExtrudeCut.\n"); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
             }
