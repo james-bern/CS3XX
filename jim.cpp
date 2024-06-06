@@ -4,12 +4,39 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+// FORNOW: cstring stuff
+bool poe_prefix_match(char *string, char *prefix) {
+    while (*string == ' ') ++string; // ?
+    while (*prefix == ' ') ++prefix; // ?
+    size_t strlen_string = strlen(string);
+    size_t strlen_prefix = strlen(prefix);
+    if (strlen_string < strlen_prefix) return false;
+    for (unsigned int i = 0; i < strlen_prefix; ++i) {
+        if (string[i] != prefix[i]) return false;
+    }
+    return true;
+}
 
-// https://handmade.network/forums/t/1273-post_your_c_c++_macro_tricks/3
-#define __defer(line) defer_ ## line
-#define _defer(line) __defer(line)
-#define defer auto _defer(__LINE__) = defer_dummy() + [&]( )
-template <typename F> struct Defer { Defer(F f) : f(f) {} ~Defer() { f(); } F f; }; template <typename F> Defer<F> makeDefer( F f ) { return Defer<F>( f ); }; struct defer_dummy {}; template<typename F> Defer<F> operator+( defer_dummy, F&& f ) { return makeDefer<F>( std::forward<F>(f) ); }
+bool poe_suffix_match(char *string, char *suffix) {
+    size_t strlen_string = strlen(string);
+    size_t strlen_suffix = strlen(suffix);
+    if (strlen_string < strlen_suffix) return false;
+    for (unsigned int i = 0; i < strlen_suffix; ++i) {
+        if (string[strlen_string - 1 - i] != suffix[strlen_suffix - 1 - i]) return false;
+    }
+    return true;
+}
+
+bool poe_file_exists(char *filename) {
+    FILE *file = (FILE *) fopen(filename, "r");
+    if (!file) {
+        return false;
+    }
+    fclose(file);
+    return true;
+}
+
+
 
 // https://en.cppreference.com/w/c/algorithm/qsort
 void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to_sort_against, bool sort_both_arrays = false) {
@@ -18,7 +45,7 @@ void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to
         real value;
     };
     qsortHelperStruct *helperArray = (qsortHelperStruct *) calloc(sizeof(qsortHelperStruct), nitems); {
-        _FOR_(i, nitems) helperArray[i] = { i, corresp_values_to_sort_against[i] };
+        _for_(i, nitems) helperArray[i] = { i, corresp_values_to_sort_against[i] };
     }
 
     int(* comp)(qsortHelperStruct *, qsortHelperStruct *) \
@@ -28,7 +55,7 @@ void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to
 
     {
         void *tmp_buffer = malloc(nitems * size); { // fornow
-            _FOR_(i, nitems) memcpy(\
+            _for_(i, nitems) memcpy(\
                     ((char *) tmp_buffer) + (i * size), \
                     ((char *) base) + (helperArray[i].index * size), \
                     size);
@@ -38,7 +65,7 @@ void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to
 
     if (sort_both_arrays) {
         real *tmp_buffer = (real *) malloc(nitems * sizeof(real)); {
-            _FOR_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
+            _for_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
             memcpy(corresp_values_to_sort_against, tmp_buffer, nitems * sizeof(real));
         } free(tmp_buffer);
     }
@@ -50,7 +77,7 @@ void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to
 // otherwise returns NULL
 #include <sys/types.h>
 #include <sys/stat.h>
-#ifdef COW_OS_WINDOWS
+#ifdef OPERATING_SYSTEM_WINDOWS
 #define stat _stat
 #else
 #include <unistd.h>
@@ -110,8 +137,8 @@ void eg_hot_fopen() {
 
 
 // ohno
-#define _UNIQUE_ISH_VARIABLE_NAME CONCAT(_VAR_, __COUNTER__)
-#define BEGIN_PRE_MAIN static int _UNIQUE_ISH_VARIABLE_NAME = []() {
-#define END_PRE_MAIN return 0; }();
-#endif
+// #define _UNIQUE_ISH_VARIABLE_NAME CONCAT(_VAR_, __COUNTER__)
+// #define BEGIN_PRE_MAIN static int _UNIQUE_ISH_VARIABLE_NAME = []() {
+// #define END_PRE_MAIN return 0; }();
 
+#endif

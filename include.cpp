@@ -1,23 +1,21 @@
 #define _CRT_SECURE_NO_WARNINGS
+
 #include <cmath>
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 
-typedef unsigned char u8;
-typedef uint32_t uint;
-typedef float real;
-#define GL_REAL GL_FLOAT
+#include "basics.cpp"
+#include "jim.cpp"
+#include "linalg.cpp"
+#include "box.cpp"
 
-#define _FOR_(i, N) for (uint i = 0; i < N; ++i)
+#include "containers.cpp" // TODO: implement better Map
+#include "elephant.cpp"
 
 #include "app.cpp"
-#include "jim.cpp"
-#include "containers.cpp"
-#include "manifoldc.h"
 
-#include "jim2.cpp"
-#include "box.cpp"
 #include "burkardt.cpp"
+#include "manifoldc.h"
 #include "header.cpp"
-#include "elephant.cpp"
 

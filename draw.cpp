@@ -24,25 +24,25 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, omax.white, omax.black));
         eso_color(0.0f, 0.0f, 0.0f);
         // 3 * num_triangles * 2 / 2
-        for (uint i = 0; i < mesh->num_cosmetic_edges; ++i) {
-            for (uint d = 0; d < 2; ++d ) {
+        _for_(i, mesh->num_cosmetic_edges) {
+            _for_(d, 2) {
                 eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
             }
         }
         eso_end();
     }
-    for (uint pass = 0; pass < 2; ++pass) {
+    _for_(pass, 2) {
         eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
 
         mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
 
 
-        for (uint i = 0; i < mesh->num_triangles; ++i) {
+        _for_(i, mesh->num_triangles) {
             vec3 n = mesh->triangle_normals[i];
             vec3 p[3];
             real x_n;
             {
-                for (uint j = 0; j < 3; ++j) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                _for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
                 x_n = dot(n, p[0]);
             }
             vec3 color; 
@@ -75,7 +75,7 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             real mask = CLAMP(1.2f * other.time_since_successful_feature, 0.0f, 2.0f);
             // color = CLAMPED_LINEAR_REMAP(time_since_successful_feature, -0.5f, 0.5f, omax.white, color);
             eso_color(color, alpha);
-            for (uint d = 0; d < 3; ++d ) {
+            _for_(d, 3) {
                 eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bounding_box.max.y, mesh->bounding_box.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
                 eso_vertex(p[d]);
             }
@@ -128,20 +128,20 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
 
         uint texture_side_length = 1024;
         uint number_of_channels = 4;
-        unsigned char *array = (unsigned char *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(unsigned char));
+        u8 *array = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
         uint o = 9;
-        for (uint j = 0; j < texture_side_length; ++j) {
-            for (uint i = 0; i < texture_side_length; ++i) {
+        _for_(j, texture_side_length) {
+            _for_(i, texture_side_length) {
                 uint k = number_of_channels * (j * texture_side_length + i);
                 uint n = uint(texture_side_length / GRID_SIDE_LENGTH * 10);
                 uint t = 2;
                 bool stripe = (((i + o) % n < t) || ((j + o) % n < t));
                 bool super_stripe = (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1);
-                unsigned char a = 122;
-                unsigned char value = (unsigned char) (255 * omax.black.x);
-                if (stripe) value = (unsigned char) (255 * omax.dark_gray.x);
-                if (super_stripe) value = (unsigned char) (255 * omax.light_gray.x);
-                for (uint d = 0; d < 3; ++d) array[k + d] = value;
+                u8 a = 122;
+                u8 value = u8(255 * omax.black.x);
+                if (stripe) value = u8(255 * omax.dark_gray.x);
+                if (super_stripe) value = u8(255 * omax.light_gray.x);
+                _for_(d, 3) array[k + d] = value;
                 array[k + 3] = a;
             }
         }
@@ -368,7 +368,7 @@ void conversation_draw() {
                     real r = norm(c - p);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
-                    for (uint i = 0; i < NUM_SEGMENTS_PER_CIRCLE; ++i) eso_vertex(c + r * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
+                    _for_(i, NUM_SEGMENTS_PER_CIRCLE) eso_vertex(c + r * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Fillet) {
@@ -445,7 +445,7 @@ void conversation_draw() {
                     M_incr = M4_Identity();
                 }
 
-                for (uint tube_stack_index = 0; tube_stack_index < NUM_TUBE_STACKS_INCLUSIVE; ++tube_stack_index) {
+                _for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
                     eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
                         _for_each_selected_entity_ {
                             real alpha;
@@ -492,7 +492,7 @@ void conversation_draw() {
             box2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&drawing->entities, true);
             box2 target_bounding_box; {
                 target_bounding_box = bounding_box_union(face_selection_bounding_box, dxf_selection_bounding_box);
-                for (uint d = 0; d < 2; ++d) {
+                _for_(d, 2) {
                     if (target_bounding_box.min[d] > target_bounding_box.max[d]) {
                         target_bounding_box.min[d] = 0.0f;
                         target_bounding_box.max[d] = 0.0f;
@@ -537,14 +537,11 @@ void conversation_draw() {
 
             if (draw) {
                 real f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), 0.0f, 1.0f);
-                eso_begin(PVM, SOUP_QUADS);
-                eso_color(preview->feature_plane_color, f * 0.35f);
                 vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
-                vec2 radius = LERP(f, 0.5f, 1.0f) * (preview->feature_plane.max - preview->feature_plane.min) / 2.0f;
-                eso_vertex(center.x + radius.x, center.y + radius.y, sign * Z_FIGHT_EPS);
-                eso_vertex(center.x + radius.x, center.y - radius.y, sign * Z_FIGHT_EPS);
-                eso_vertex(center.x - radius.x, center.y - radius.y, sign * Z_FIGHT_EPS);
-                eso_vertex(center.x - radius.x, center.y + radius.y, sign * Z_FIGHT_EPS);
+                mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
+                eso_begin(PVM * M4_Translation(0.0f, 0.0f, sign * Z_FIGHT_EPS) * scaling_about_center, SOUP_QUADS);
+                eso_color(preview->feature_plane_color, f * 0.35f);
+                eso_box__SOUP_QUADS(preview->feature_plane);
                 eso_end();
             }
         }
@@ -726,7 +723,7 @@ void messagef(char *format, ...) {
 
 real get_x_divider_Pixel();
 void conversation_message_buffer_update() {
-    for (uint i = 0; i < MESSAGE_MAX_NUM_MESSAGES; ++i) {
+    _for_(i, MESSAGE_MAX_NUM_MESSAGES) {
         Message *message = &conversation_messages[i];
         if (message->time_remaining > 0) {
             message->time_remaining -= 0.0167f;;
@@ -764,7 +761,7 @@ void conversation_message_buffer_draw() {
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
             _text_draw(
-                    (real *) &globals.NDC_from_Screen,
+                    other.transform_NDC_from_Pixel.data,
                     message->buffer,
                     x,
                     message->y,

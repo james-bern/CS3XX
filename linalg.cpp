@@ -1,5 +1,6 @@
-
+////////////////////////////////////////////////////////////////////////////////
 // vectors and matrices ////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 template <uint D> union Vector {
     real data[D];
@@ -24,11 +25,6 @@ template <> union Vector<4> {
     real &operator [](uint index) { return data[index]; }
 };
 
-typedef Vector<2> vec2;
-typedef Vector<3> vec3;
-typedef Vector<4> vec4;
-#define vecD Vector<D>
-#define tuDv template <uint D> vecD
 
 template <uint D> union Matrix {
     real data[D * D];
@@ -36,11 +32,6 @@ template <uint D> union Matrix {
     const real &operator ()(uint row, uint col) const { return data[D * row + col]; }
 };
 
-typedef Matrix<2> mat2;
-typedef Matrix<3> mat3;
-typedef Matrix<4> mat4;
-#define matD Matrix<D>
-#define tuDm template <uint D> matD
 
 
 template <uint D> union SnailTupleOfUnsignedInts {
@@ -96,7 +87,7 @@ mat4 hstack(vec4 col0, vec4 col1, vec4 col2, vec4 col3) { return { col0.x, col1.
 // vectors
 tuDv  operator +  (vecD A, vecD B) {
     vecD result;
-    _FOR_(i, D) {
+    _for_(i, D) {
         result[i] = A.data[i] + B.data[i];
     }
     return result;
@@ -108,7 +99,7 @@ tuDv &operator += (vecD &A, vecD B) {
 
 tuDv  operator -  (vecD A, vecD B) {
     vecD result;
-    _FOR_(i, D) {
+    _for_(i, D) {
         result[i] = A.data[i] - B.data[i];
     }
     return result;
@@ -120,7 +111,7 @@ tuDv &operator -= (vecD &A, vecD B) {
 
 tuDv  operator *  (real scalar, vecD A) {
     vecD result;
-    _FOR_(i, D) {
+    _for_(i, D) {
         result[i]  = scalar * A.data[i];
     }
     return result;
@@ -139,7 +130,7 @@ tuDv  operator -  (vecD A) {
 
 tuDv  operator /  (vecD A, real scalar) {
     vecD result;
-    _FOR_(i, D) {
+    _for_(i, D) {
         result[i]  = A[i] / scalar;
     }
     return result;
@@ -152,7 +143,7 @@ tuDv &operator /= (vecD &v, real scalar) {
 // matrices
 tuDm  operator +  (matD A, matD B) {
     matD ret = {};
-    _FOR_(k, D * D) {
+    _for_(k, D * D) {
         ret.data[k] = A.data[k] + B.data[k];
     }
     return ret;
@@ -164,7 +155,7 @@ tuDm &operator += (matD &A, matD B) {
 
 tuDm  operator -  (matD A, matD B) {
     matD ret = {};
-    _FOR_(i, D * D) {
+    _for_(i, D * D) {
         ret.data[i] = A.data[i] - B.data[i];
     }
     return ret;
@@ -176,9 +167,9 @@ tuDm &operator -= (matD &A, matD B) {
 
 tuDm  operator *  (matD A, matD B) {
     matD ret = {};
-    _FOR_(row, D) {
-        _FOR_(col, D) {
-            _FOR_(i, D) {
+    _for_(row, D) {
+        _for_(col, D) {
+            _for_(i, D) {
                 ret(row, col) += A(row, i) * B(i, col);
             }
         }
@@ -191,8 +182,8 @@ tuDm &operator *= (matD &A, matD B) {
 }
 tuDv  operator *  (matD A, vecD b) { // A b
     vecD ret = {};
-    _FOR_(row, D) {
-        _FOR_(col, D) {
+    _for_(row, D) {
+        _for_(col, D) {
             ret[row] += A(row, col) * b[col];
         }
     }
@@ -200,8 +191,8 @@ tuDv  operator *  (matD A, vecD b) { // A b
 }
 tuDv  operator *  (vecD b, matD A) { // b^D A
     vecD ret = {};
-    _FOR_(row, D) {
-        _FOR_(col, D) {
+    _for_(row, D) {
+        _for_(col, D) {
             ret[row] += A(col, row) * b[col];
         }
     }
@@ -209,7 +200,7 @@ tuDv  operator *  (vecD b, matD A) { // b^D A
 }
 tuDm  operator *  (real scalar, matD M) {
     matD result = {};
-    _FOR_(k, D * D) {
+    _for_(k, D * D) {
         result.data[k] = scalar * M.data[k];
     }
     return result;
@@ -237,15 +228,15 @@ tuDm &operator /= (matD &M, real scalar) {
 
 template <uint D> real dot(vecD A, vecD B) {
     real result = 0.0f;
-    _FOR_(i, D) {
+    _for_(i, D) {
         result += A.data[i] * B.data[i];
     }
     return result;
 }
 tuDm outer(vecD A, vecD B) {
     matD ret = {};
-    _FOR_(row, D) {
-        _FOR_(col, D) {
+    _for_(row, D) {
+        _for_(col, D) {
             ret(row, col) = A[row] * B[col];
         }
     }
@@ -267,7 +258,7 @@ template <uint D> real norm(vecD A) {
 }
 template <uint D> real sum(vecD A) {
     real result = 0.0;
-    _FOR_(i, D) result += A[i];
+    _for_(i, D) result += A[i];
     return result;
 }
 tuDv normalized(vecD A) {
@@ -284,8 +275,8 @@ tuDv normalized(vecD A) {
 
 tuDm transpose(matD M) {
     matD ret = {};
-    _FOR_(row, D) {
-        _FOR_(col, D) {
+    _for_(row, D) {
+        _for_(col, D) {
             ret(row, col) = M(col, row);
         }
     }
@@ -401,7 +392,7 @@ tuDv transformNormal(const mat4 &M, vecD n) {
 
 tuDm identityMatrix() {
     matD ret = {};
-    for (uint i = 0; i < D; ++i) {
+    _for_(i, D) {
         ret(i, i) = 1;
     }
     return ret;
@@ -585,16 +576,16 @@ tuDv magClamped(vecD a, real col) {
 
 template <uint D> void pprint(vecD A) {
     printf("V%d(", D);
-    _FOR_(i, D) {
+    _for_(i, D) {
         printf("%lf", A[i]);
         if (i != D - 1) printf(", ");
     }
     printf(")\n");
 }
 template <uint D> void pprint(matD M) {
-    _FOR_(row, D) {
+    _for_(row, D) {
         printf("| ");
-        _FOR_(col, D) {
+        _for_(col, D) {
             printf("%lf", M(row, col));
             if (col != D - 1) printf(", ");
         }

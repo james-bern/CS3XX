@@ -167,7 +167,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                 _for_each_entity_ {
                     real x[2], y[2];
                     entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
-                    for (uint d = 0; d < 2; ++d) {
+                    _for_(d, 2) {
                         real squared_distance = squared_distance_point_point(before.x, before.y, x[d], y[d]);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
@@ -312,7 +312,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         } else if (step) {
             other.stepping_one_frame_while_paused = true;
         } else if (quit) {
-            exit(1);
+            glfwSetWindowShouldClose(COW0._window_glfw_window, true);
         } else {
             RawEvent raw_event = {}; {
                 raw_event.type = EventType::Key;
@@ -637,7 +637,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             uint digit;
             {
                 digit_lambda = false;
-                for (uint color = 0; color <= 9; ++color) {
+                _for_(color, 10) {
                     if (key_lambda('0' + color)) {
                         digit_lambda = true;
                         digit = color;
@@ -1087,7 +1087,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     map_put(&grid, key, {});
                                     cell = _map_get_pointer(&grid, key);
                                 }
-                                for (uint i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
+                                _for_(i, ARRAY_LENGTH(cell->slots)) {
                                     GridPointSlot *slot = &cell->slots[i];
                                     if (slot->populated) continue;
                                     slot->populated = true;
@@ -1098,7 +1098,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             };
 
-                            for (uint entity_index = 0; entity_index < drawing->entities.length; ++entity_index) {
+                            _for_(entity_index, drawing->entities.length) {
                                 Entity *entity = &drawing->entities.array[entity_index];
 
                                 real start_x, start_y, end_x, end_y;
@@ -1136,7 +1136,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             GridCell *cell = _map_get_pointer(&grid, key);
                             if (!cell) return NULL;
 
-                            for (uint i = 0; i < ARRAY_LENGTH(cell->slots); ++i) {
+                            _for_(i, ARRAY_LENGTH(cell->slots)) {
                                 GridPointSlot *slot = &cell->slots[i];
                                 if (!slot->populated) continue;
                                 if (edge_marked[slot->entity_index]) continue;
@@ -1151,7 +1151,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         edge_marked[hot_entity_index] = true;
                         ENTITY_SET_IS_SELECTED(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
 
-                        for (uint pass = 0; pass <= 1; ++pass) {
+                        _for_(pass, 2) {
 
                             vec2 seed; {
                                 real x, y;
@@ -1457,9 +1457,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 int index_of_first_triangle_hit_by_ray = -1;
                 {
                     real min_distance = HUGE_VAL;
-                    for (uint i = 0; i < mesh->num_triangles; ++i) {
+                    _for_(i, mesh->num_triangles) {
                         vec3 p[3]; {
-                            for (uint j = 0; j < 3; ++j) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                            _for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
                         }
                         RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction, p[0], p[1], p[2]);
                         if (ray_triangle_intersection_result.hit) {
@@ -1489,7 +1489,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
 
             other.time_since_cursor_start = 0.0f;
-            result.record_me = true; // FORNOW
+            result.record_me = true; // FORNOW (don't bother implementing the old manual tagging method; we're going to upgrade to the memcmp approach soon)
 
             if (!mouse_event->mouse_held) { // press
                 if (popup->active_cell_index != mouse_event_popup->cell_index) { // switch cell
@@ -2152,7 +2152,14 @@ void script_process(char *string) {
 // MAIN() ////////////////////////////////////////
 //////////////////////////////////////////////////
 
+run_before_main {
+    printf("1\n");
+};
 int main() {
+    defer {
+        printf("3\n");
+    };
+    printf("2\n");
     { // init
         setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
         srand((unsigned int) time(NULL)); srand(0);
@@ -2292,7 +2299,7 @@ int main() {
                 real y = 16;
                 real w = 16;
                 real h = 2.5f * w;
-                for (uint d = 0; d < 2; ++d) {
+                _for_(d, 2) {
                     real o = d * (1.7f * w);
                     eso_vertex(o + x,     y    );
                     eso_vertex(o + x,     y + h);

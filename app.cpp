@@ -1,105 +1,8 @@
-// types used: bool, uint, int, real, vecD (vec2, vec3, vec4), matD
-// only template dimension, not type
-
-// // macros (spooky spooky)
-#define STR(foo) #foo
-#define XSTR(foo) STR(foo)
-#define CONCAT_(a, b) a ## b
-#define CONCAT(a, b) CONCAT_(a, b)
-//
-#define FORNOW_UNUSED(expr) do { (void)(expr); } while (0)
-//
-#define do_once \
-    static bool CONCAT(_do_once_, __LINE__) = false; \
-bool CONCAT(_prev_do_once_, __LINE__) = CONCAT(_do_once_, __LINE__); \
-CONCAT(_do_once_, __LINE__) = true; \
-if (!CONCAT(_prev_do_once_, __LINE__) && CONCAT(_do_once_, __LINE__))
-//
-#define ASSERT(b) do { if (!(b)) { \
-    printf("ASSERT("); \
-    printf(STR(b)); \
-    printf("); <- "); \
-    printf("Line %d in %s\n", __LINE__, __FILE__); \
-    *((volatile int *) 0) = 0; \
-} } while (0)
-//
-
-#define TINY_VAL real(1e-6)
-#undef HUGE_VAL
-#define HUGE_VAL real(1e6)
-
-#define ATAN2 atan2f
-#define COS cosf
-#define POW powf
-#define SIN sinf
-#define SQRT sqrtf
-// #define ATAN2 atan2
-// #define COS cos
-// #define POW pow
-// #define SIN sin
-// #define SQRT sqrt
-
-int  ABS( int a) { return (a < 0) ? -a : a; }
-real ABS(real a) { return (a < 0) ? -a : a; }
-
-int  MIN( int a,  int b) { return (a < b) ? a : b; }
-uint MIN(uint a, uint b) { return (a < b) ? a : b; }
-real MIN(real a, real b) { return (a < b) ? a : b; }
-
-int  MAX( int a,  int b) { return (a > b) ? a : b; }
-uint MAX(uint a, uint b) { return (a > b) ? a : b; }
-real MAX(real a, real b) { return (a > b) ? a : b; }
-
-real CLAMP(real t, real a, real b) { return MIN(MAX(t, a), b); }
-real MAG_CLAMP(real t, real a) {
-    ASSERT(a > 0.0f);
-    return CLAMP(t, -ABS(a), ABS(a));
-}
-
-#include "linalg.cpp"
-
-real LERP(real t, real a, real b) { return ((1.0f - t) * a) + (t * b); }
-tuDv LERP(real t, vecD a, vecD b) { return ((1.0f - t) * a) + (t * b); }
-
-real AVG(real a, real b) { return LERP(0.5f, a, b); }
-tuDv AVG(vecD a, vecD b) { return LERP(0.5f, a, b); }
-
-int SGN(  int a) { return (a < 0) ? -1 : 1; }
-int SGN(float a) { return (a < 0) ? -1 : 1; }
-
-bool IS_ZERO(real a) { return (ABS(a) < TINY_VAL); }
-
-bool ARE_EQUAL(real a, real b) { return IS_ZERO(ABS(a - b)); }
-
-bool IS_BETWEEN(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
-
-
-// TODO: rewrite as functions
-#define INVERSE_LERP(p, a, b) (((p) - (a)) / real((b) - (a)))
-#define LINEAR_REMAP(p, a, b, c, d) LERP(INVERSE_LERP(p, a, b), c, d)
-#define CLAMPED_LERP(t, a, b) LERP(CLAMP(t, 0.0, 1.0), a, b)
-#define CLAMPED_INVERSE_LERP(p, a, b) CLAMP(INVERSE_LERP(p, a, b), 0.0, 1.0)
-#define CLAMPED_LINEAR_REMAP(p, a, b, c, d) CLAMPED_LERP(INVERSE_LERP(p, a, b), c, d)
-#define WRAP(t, a, b) ((a) + fmod((t) - (a), (b) - (a)))
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "cow.h"/////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#if defined(unix) || defined(__unix__) || defined(__unix)
-#define COW_OS_UBUNTU
-#elif defined(__APPLE__) || defined(__MACH__)
-#define COW_OS_APPLE
-#include <unistd.h>
-#define Sleep(x) usleep((x)*1000)
-#elif defined(WIN32) || defined(_WIN32) || defined(_WIN64)
-#define COW_OS_WINDOWS
-#define isnan _isnan
-#include <windows.h>
-#define SLEEP Sleep
-#else
-#pragma message("[cow] operating system not recognized")
-#endif
 
 #include "codebase/ext/stb_easy_font.h"
 #define STB_IMAGE_IMPLEMENTATION
@@ -108,7 +11,7 @@ bool IS_BETWEEN(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (
 #ifdef COW_OS_UBUNTU
 #define GL_GLEXT_PROTOTYPES
 #include "codebase/ext/glfw3.h"
-#elif defined(COW_OS_APPLE)
+#elif defined(OPERATING_SYSTEM_APPLE)
 #define GL_SILENCE_DEPRECATION
 #define GLFW_INCLUDE_GL_COREARB
 #include <OpenGL/gl3.h>
@@ -439,22 +342,6 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-#define STATIC_ASSERT(cond) static_assert(cond, "STATIC_ASSERT");
-
-// // working with real's
-#define PI real(3.14159265359)
-#define TAU (2 * PI)
-real RAD(real degrees) { return (PI / 180 * (degrees)); }
-real DEG(real radians) { return (180 / PI * (radians)); }
-real INCHES(real mm) { return ((mm) / real(25.4)); }
-real MM(real inches) { return ((inches) * real(25.4)); }
-
-
-// // working with int's
-#define MODULO(x, N) (((x) % (N) + (N)) % (N)) // works on negative numbers
-#define IS_INDEXABLE(arg) (sizeof(arg[0]))
-#define IS_ARRAY(arg) (IS_INDEXABLE(arg) && (((void *) &arg) == ((void *) arg)))
-#define ARRAY_LENGTH(arr) (IS_ARRAY(arr) ? (sizeof(arr) / sizeof(arr[0])) : 0)
 
 
 
@@ -599,7 +486,7 @@ void _window_init() {
 
     glfwMakeContextCurrent(COW0._window_glfw_window);
 
-    #ifdef COW_OS_WINDOWS
+    #ifdef OPERATING_SYSTEM_WINDOWS
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     #endif
 
@@ -618,7 +505,7 @@ void _window_init() {
 
     _callback_set_callbacks();
 
-    #ifdef COW_OS_WINDOWS
+    #ifdef OPERATING_SYSTEM_WINDOWS
     COW0._window_hwnd__note_this_is_NULL_if_not_on_Windows = glfwGetWin32Window(COW0._window_glfw_window);
     #endif
 
@@ -1406,7 +1293,7 @@ void eso_end() {
             );
 }
 
-void eso_vertex(real x, real y, real z = 0.0) {
+void eso_vertex(real x, real y, real z) {
     ASSERT(COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end);
     ASSERT(COW1._eso_num_vertices < ESO_MAX_VERTICES);
     real p[3] = { x, y, z };
@@ -1414,6 +1301,8 @@ void eso_vertex(real x, real y, real z = 0.0) {
     memcpy(COW0._eso_vertex_colors + 4 * COW1._eso_num_vertices, COW1._eso_current_color, 4 * sizeof(real));
     ++COW1._eso_num_vertices;
 }
+
+void eso_vertex(real x, real y) { eso_vertex(x, y, 0.0f); }
 
 void eso_color(real r, real g, real b, real a = 1.0) {
     COW1._eso_current_color[0] = r;

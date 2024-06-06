@@ -20,7 +20,7 @@ void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
 };
 
 void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
-    for (uint d = 0; d < popup->num_cells; ++d) {
+    _for_(d, popup->num_cells) {
         if (!popup->name[d]) continue;
         if (popup->cell_type[d] == CellType::Real32) {
             *((real *) popup->value[d]) = 0.0f;
@@ -64,7 +64,7 @@ void popup_popup(
 
         { // popup->num_cells
             popup->num_cells = 0;
-            for (uint d = 0; d < POPUP_MAX_NUM_CELLS; ++d) if (popup->name[d]) ++popup->num_cells;
+            _for_(d, POPUP_MAX_NUM_CELLS) if (popup->name[d]) ++popup->num_cells;
             ASSERT(popup->num_cells);
         }
     }
@@ -91,13 +91,13 @@ void popup_popup(
     /////////////////////////////////////////////
 
     popup->FORNOW_info_mouse_is_hovering = false;
-    popup->info_hover_cell_index = 0;
-    popup->info_hover_cell_cursor = 0;
-    popup->info_active_cell_cursor = 0; // TODO: find this
-                                        // IDEA: find cursor position for all cells uint current_cell_cursor
-                                        //       then assign based on d
+    popup->info_hover_cell_index = -1;
+    popup->info_hover_cell_cursor = -1;
+    popup->info_active_cell_cursor = -1; // TODO: find this
+                                         // IDEA: find cursor position for all cells uint current_cell_cursor
+                                         //       then assign based on d
     {
-        _FOR_(d, popup->num_cells) {
+        _for_(d, popup->num_cells) {
             uint _strlen_name;
             uint _strlen_extra;
             uint strlen_other;
@@ -121,39 +121,48 @@ void popup_popup(
                 strlen_cell = strlen(buffer) - strlen_other;
             }
 
-            real x_mouse = other.mouse_Pixel.x;
-            real y_mouse = other.mouse_Pixel.y;
 
+            box2 field_inflated_box;
+            box2 field_uninflated_box;
+            box2 selection_inflated_box;
             real x_field_left;
-            real x_field_right;
-            real x_selection_left;
-            real x_selection_right;
-            real y_top;
-            real y_bottom;
             {
-                static char tmp[4096]; // FORNOW
-                strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
 
-                real X_MARGIN_OFFSET = COW1._gui_x_curr;
-                x_field_left = X_MARGIN_OFFSET + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
-                x_field_right = x_field_left + stb_easy_font_width(tmp);
+                real x_field_right;
+                real x_selection_left;
+                real x_selection_right;
+                {
+                    static char tmp[4096]; // FORNOW
+                    strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
 
-                tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
-                x_selection_right = x_field_left + stb_easy_font_width(tmp);
-                tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
-                x_selection_left = x_field_left + stb_easy_font_width(tmp);
-                y_top = COW1._gui_y_curr;
-                y_bottom = y_top + 8;
+                    real X_MARGIN_OFFSET = COW1._gui_x_curr;
+                    x_field_left = X_MARGIN_OFFSET + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
+                    x_field_right = x_field_left + stb_easy_font_width(tmp);
+
+                    tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
+                    x_selection_right = x_field_left + stb_easy_font_width(tmp);
+                    tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
+                    x_selection_left = x_field_left + stb_easy_font_width(tmp);
+                }
+
+                real y_top;
+                real y_bottom;
+                {
+                    y_top = COW1._gui_y_curr;
+                    y_bottom = y_top + 8;
+                }
+
+                field_inflated_box = { x_field_left - 3, y_top - 3, x_field_right + 3, y_bottom + 3 };
+                field_uninflated_box = { x_field_left, y_top, x_field_right, y_bottom };
+                selection_inflated_box = { x_selection_left - 0, y_top - 1, x_selection_right + 0, y_bottom + 0 };
             }
-            box2 field_box = { x_field_left, y_top, x_field_right, y_bottom };
-            // TODO: eso_box_SOUP_QUADS
 
             uint d_cell_cursor; { 
                 d_cell_cursor = 0;
                 char _2char[2] = {};
                 real x_char_middle = x_field_left;
                 real half_char_width_prev = 0.0f;
-                for (uint i = 0; i < strlen_cell; ++i) {
+                _for_(i, strlen_cell) {
                     x_char_middle += half_char_width_prev;
                     {
                         _2char[0] = buffer[strlen_other + i];
@@ -161,10 +170,11 @@ void popup_popup(
                     }
                     x_char_middle += half_char_width_prev;
 
+                    real x_mouse = other.mouse_Pixel.x;
                     if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
 
                     #if 0
-                    eso_begin(globals.NDC_from_Screen, SOUP_LINES, 2.0f, true);
+                    eso_begin(transform_NDC_from_Pixel.data, SOUP_LINES, 2.0f, true);
                     eso_color(omax.magenta);
                     eso_vertex(x_char_middle, y_top - 10);
                     eso_vertex(x_char_middle, y_bottom + 10);
@@ -174,7 +184,7 @@ void popup_popup(
             }
 
             { // popup->info_hover_cell_*
-                if (box_contains(field_box, other.mouse_Pixel)) {
+                if (box_contains(field_inflated_box, other.mouse_Pixel)) {
                     popup->FORNOW_info_mouse_is_hovering = true; // FORNOW
                     popup->info_hover_cell_index = d;
                     popup->info_hover_cell_cursor = d_cell_cursor;
@@ -188,17 +198,17 @@ void popup_popup(
             }
 
             if (!other.please_suppress_drawing_popup_popup) {
-                { // debug draw
-                    eso_begin(globals.NDC_from_Screen, SOUP_LINE_LOOP, 1.0f);
-                    eso_color(omax.orange);
-                    eso_vertex(x_field_left, y_top);
-                    eso_vertex(x_field_left, y_bottom);
-                    eso_vertex(x_field_right, y_bottom);
-                    eso_vertex(x_field_right, y_top);
-                    eso_end();
-                    eso_begin(globals.NDC_from_Screen, SOUP_POINTS, 10.0f);
-                    eso_color(1.0f, 0.0f, 1.0f);
-                    eso_vertex(other.mouse_Pixel);
+                bool hovering_over_not_active_cell; {
+                    hovering_over_not_active_cell = 1
+                        && (d == popup->info_hover_cell_index)
+                        && (d != popup->active_cell_index)
+                        && (other.mouse_left_drag_pane == Pane::None) // FORNOW
+                        ;
+                }
+                if (hovering_over_not_active_cell) { // debug draw
+                    eso_begin(other.transform_NDC_from_Pixel, SOUP_QUADS, 1.0f);
+                    eso_color(omax.cyan, 0.4f);
+                    eso_box__SOUP_QUADS(field_uninflated_box);
                     eso_end();
                 }
 
@@ -209,12 +219,9 @@ void popup_popup(
                     } else {
                         bool popup_selection_is_active = (!POPUP_SELECTION_NOT_ACTIVE());
                         if (popup_selection_is_active) {
-                            eso_begin(globals.NDC_from_Screen, SOUP_QUADS);
-                            eso_color(0.4f, 0.4f, 0.0f);
-                            eso_vertex(x_selection_left, y_top);
-                            eso_vertex(x_selection_right, y_top);
-                            eso_vertex(x_selection_right, y_bottom);
-                            eso_vertex(x_selection_left, y_bottom);
+                            eso_begin(other.transform_NDC_from_Pixel, SOUP_QUADS);
+                            eso_color(omax.yellow, 0.4f);
+                            eso_box__SOUP_QUADS(selection_inflated_box);
                             eso_end();
                         }
 
@@ -234,8 +241,8 @@ void popup_popup(
                                 x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                                 x -= 1.25f;
                                 // FORNOW: silly way of getting longer |
-                                _text_draw((real *) &globals.NDC_from_Screen, "|", x, y - 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
-                                _text_draw((real *) &globals.NDC_from_Screen, "|", x, y + 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
+                                _text_draw(other.transform_NDC_from_Pixel.data, "|", x, y - 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
+                                _text_draw(other.transform_NDC_from_Pixel.data, "|", x, y + 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
                             }
                         }
                     }
@@ -244,6 +251,12 @@ void popup_popup(
         }
     }
 
+    if (0) {
+        eso_begin(other.transform_NDC_from_Pixel, SOUP_POINTS, 10.0f);
+        eso_color(omax.magenta);
+        eso_vertex(other.mouse_Pixel);
+        eso_end();
+    }
     // FORNOW
     other.please_suppress_drawing_popup_popup = true;
 };
