@@ -20,7 +20,7 @@ void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
 };
 
 void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
-    _for_(d, popup->num_cells) {
+    for_(d, popup->num_cells) {
         if (!popup->name[d]) continue;
         if (popup->cell_type[d] == CellType::Real32) {
             *((real *) popup->value[d]) = 0.0f;
@@ -64,7 +64,7 @@ void popup_popup(
 
         { // popup->num_cells
             popup->num_cells = 0;
-            _for_(d, POPUP_MAX_NUM_CELLS) if (popup->name[d]) ++popup->num_cells;
+            for_(d, POPUP_MAX_NUM_CELLS) if (popup->name[d]) ++popup->num_cells;
             ASSERT(popup->num_cells);
         }
     }
@@ -97,7 +97,7 @@ void popup_popup(
                                          // IDEA: find cursor position for all cells uint current_cell_cursor
                                          //       then assign based on d
     {
-        _for_(d, popup->num_cells) {
+        for_(d, popup->num_cells) {
             uint _strlen_name;
             uint _strlen_extra;
             uint strlen_other;
@@ -162,7 +162,7 @@ void popup_popup(
                 char _2char[2] = {};
                 real x_char_middle = x_field_left;
                 real half_char_width_prev = 0.0f;
-                _for_(i, strlen_cell) {
+                for_(i, strlen_cell) {
                     x_char_middle += half_char_width_prev;
                     {
                         _2char[0] = buffer[strlen_other + i];

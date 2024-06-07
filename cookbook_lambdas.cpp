@@ -57,7 +57,7 @@ auto BUFFER_ARC_ENTITY = [&](vec2 center, real radius, real start_angle_in_degre
 };
 
 auto ADD_BUFFERED_ENTITIES = [&]() {
-    _for_(i, _entity_buffer.length)  _ADD_ENTITY(_entity_buffer.array[i]);
+    for_(i, _entity_buffer.length)  _ADD_ENTITY(_entity_buffer.array[i]);
 };
 
 

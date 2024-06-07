@@ -87,7 +87,7 @@ mat4 hstack(vec4 col0, vec4 col1, vec4 col2, vec4 col3) { return { col0.x, col1.
 // vectors
 tuDv  operator +  (vecD A, vecD B) {
     vecD result;
-    _for_(i, D) {
+    for_(i, D) {
         result[i] = A.data[i] + B.data[i];
     }
     return result;
@@ -99,7 +99,7 @@ tuDv &operator += (vecD &A, vecD B) {
 
 tuDv  operator -  (vecD A, vecD B) {
     vecD result;
-    _for_(i, D) {
+    for_(i, D) {
         result[i] = A.data[i] - B.data[i];
     }
     return result;
@@ -111,7 +111,7 @@ tuDv &operator -= (vecD &A, vecD B) {
 
 tuDv  operator *  (real scalar, vecD A) {
     vecD result;
-    _for_(i, D) {
+    for_(i, D) {
         result[i]  = scalar * A.data[i];
     }
     return result;
@@ -130,7 +130,7 @@ tuDv  operator -  (vecD A) {
 
 tuDv  operator /  (vecD A, real scalar) {
     vecD result;
-    _for_(i, D) {
+    for_(i, D) {
         result[i]  = A[i] / scalar;
     }
     return result;
@@ -142,11 +142,11 @@ tuDv &operator /= (vecD &v, real scalar) {
 
 // matrices
 tuDm  operator +  (matD A, matD B) {
-    matD ret = {};
-    _for_(k, D * D) {
-        ret.data[k] = A.data[k] + B.data[k];
+    matD result = {};
+    for_(k, D * D) {
+        result.data[k] = A.data[k] + B.data[k];
     }
-    return ret;
+    return result;
 }
 tuDm &operator += (matD &A, matD B) {
     A = A + B;
@@ -154,11 +154,11 @@ tuDm &operator += (matD &A, matD B) {
 }
 
 tuDm  operator -  (matD A, matD B) {
-    matD ret = {};
-    _for_(i, D * D) {
-        ret.data[i] = A.data[i] - B.data[i];
+    matD result = {};
+    for_(i, D * D) {
+        result.data[i] = A.data[i] - B.data[i];
     }
-    return ret;
+    return result;
 }
 tuDm &operator -= (matD &A, matD B) {
     A = A + B;
@@ -166,41 +166,41 @@ tuDm &operator -= (matD &A, matD B) {
 }
 
 tuDm  operator *  (matD A, matD B) {
-    matD ret = {};
-    _for_(row, D) {
-        _for_(col, D) {
-            _for_(i, D) {
-                ret(row, col) += A(row, i) * B(i, col);
+    matD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            for_(i, D) {
+                result(row, col) += A(row, i) * B(i, col);
             }
         }
     }
-    return ret;
+    return result;
 }
 tuDm &operator *= (matD &A, matD B) {
     A = A * B;
     return A;
 }
 tuDv  operator *  (matD A, vecD b) { // A b
-    vecD ret = {};
-    _for_(row, D) {
-        _for_(col, D) {
-            ret[row] += A(row, col) * b[col];
+    vecD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result[row] += A(row, col) * b[col];
         }
     }
-    return ret;
+    return result;
 }
 tuDv  operator *  (vecD b, matD A) { // b^D A
-    vecD ret = {};
-    _for_(row, D) {
-        _for_(col, D) {
-            ret[row] += A(col, row) * b[col];
+    vecD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result[row] += A(col, row) * b[col];
         }
     }
-    return ret;
+    return result;
 }
 tuDm  operator *  (real scalar, matD M) {
     matD result = {};
-    _for_(k, D * D) {
+    for_(k, D * D) {
         result.data[k] = scalar * M.data[k];
     }
     return result;
@@ -228,19 +228,19 @@ tuDm &operator /= (matD &M, real scalar) {
 
 template <uint D> real dot(vecD A, vecD B) {
     real result = 0.0f;
-    _for_(i, D) {
+    for_(i, D) {
         result += A.data[i] * B.data[i];
     }
     return result;
 }
 tuDm outer(vecD A, vecD B) {
-    matD ret = {};
-    _for_(row, D) {
-        _for_(col, D) {
-            ret(row, col) = A[row] * B[col];
+    matD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result(row, col) = A[row] * B[col];
         }
     }
-    return ret;
+    return result;
 }
 
 real cross(vec2 A, vec2 B) {
@@ -258,7 +258,7 @@ template <uint D> real norm(vecD A) {
 }
 template <uint D> real sum(vecD A) {
     real result = 0.0;
-    _for_(i, D) result += A[i];
+    for_(i, D) result += A[i];
     return result;
 }
 tuDv normalized(vecD A) {
@@ -274,13 +274,13 @@ tuDv normalized(vecD A) {
 // important matrix functions //////////////////////////////////////////////////
 
 tuDm transpose(matD M) {
-    matD ret = {};
-    _for_(row, D) {
-        _for_(col, D) {
-            ret(row, col) = M(col, row);
+    matD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result(row, col) = M(col, row);
         }
     }
-    return ret;
+    return result;
 }
 
 real determinant(mat2 M) {
@@ -369,33 +369,33 @@ tuDv transformPoint(const mat4 &M, vecD p) {
     p_hom.w = 1;
     vec4 ret_hom = M * p_hom;
     ret_hom /= ret_hom.w;
-    vecD ret = {};
-    memcpy(&ret, &ret_hom, D * sizeof(real));
-    return ret;
+    vecD result = {};
+    memcpy(&result, &ret_hom, D * sizeof(real));
+    return result;
 }
 tuDv transformVector(const mat4 &M, vecD v) {
     vec3 v_3D = {};
     memcpy(&v_3D, &v, D * sizeof(real));
     vec3 ret_hom = M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)) * v_3D;
-    vecD ret = {};
-    memcpy(&ret, &ret_hom, D * sizeof(real));
-    return ret;
+    vecD result = {};
+    memcpy(&result, &ret_hom, D * sizeof(real));
+    return result;
 }
 tuDv transformNormal(const mat4 &M, vecD n) {
     vec3 ret_hom = inverse(transpose(M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)))) * n;
-    vecD ret = {};
-    memcpy(&ret, &ret_hom, D * sizeof(real));
-    return ret;
+    vecD result = {};
+    memcpy(&result, &ret_hom, D * sizeof(real));
+    return result;
 }
 
 // 4x4 transform cookbook //////////////////////////////////////////////////////
 
 tuDm identityMatrix() {
-    matD ret = {};
-    _for_(i, D) {
-        ret(i, i) = 1;
+    matD result = {};
+    for_(i, D) {
+        result(i, i) = 1;
     }
-    return ret;
+    return result;
 }
 const mat4 _Identity4x4 = identityMatrix<4>();
 
@@ -404,11 +404,11 @@ mat4 M4_Identity() {
 }
 
 mat4 M4_Translation(real x, real y, real z = 0) {
-    mat4 ret = _Identity4x4;
-    ret(0, 3) = x;
-    ret(1, 3) = y;
-    ret(2, 3) = z;
-    return ret;
+    mat4 result = _Identity4x4;
+    result(0, 3) = x;
+    result(1, 3) = y;
+    result(2, 3) = z;
+    return result;
 }
 mat4 M4_Translation(vec2 xy) {
     return M4_Translation(xy.x, xy.y);
@@ -417,12 +417,12 @@ mat4 M4_Translation(vec3 xyz) {
     return M4_Translation(xyz.x, xyz.y, xyz.z);
 }
 mat4 M4_Scaling(real x, real y, real z = 1) {
-    mat4 ret = {};
-    ret(0, 0) = x;
-    ret(1, 1) = y;
-    ret(2, 2) = z;
-    ret(3, 3) = 1;
-    return ret;
+    mat4 result = {};
+    result(0, 0) = x;
+    result(1, 1) = y;
+    result(2, 2) = z;
+    result(3, 3) = 1;
+    return result;
 }
 mat4 M4_Scaling(real s) {
     return M4_Scaling(s, s, s);
@@ -434,22 +434,22 @@ mat4 M4_Scaling(vec3 xyz) {
     return M4_Scaling(xyz.x, xyz.y, xyz.z);
 }
 mat4 M4_RotationAboutXAxis(real t) {
-    mat4 ret = _Identity4x4;
-    ret(1, 1) = COS(t); ret(1, 2) = -SIN(t);
-    ret(2, 1) = SIN(t); ret(2, 2) =  COS(t);
-    return ret;
+    mat4 result = _Identity4x4;
+    result(1, 1) = COS(t); result(1, 2) = -SIN(t);
+    result(2, 1) = SIN(t); result(2, 2) =  COS(t);
+    return result;
 }
 mat4 M4_RotationAboutYAxis(real t) {
-    mat4 ret = _Identity4x4;
-    ret(0, 0) =  COS(t); ret(0, 2) = SIN(t);
-    ret(2, 0) = -SIN(t); ret(2, 2) = COS(t);
-    return ret;
+    mat4 result = _Identity4x4;
+    result(0, 0) =  COS(t); result(0, 2) = SIN(t);
+    result(2, 0) = -SIN(t); result(2, 2) = COS(t);
+    return result;
 }
 mat4 M4_RotationAboutZAxis(real t) {
-    mat4 ret = _Identity4x4;
-    ret(0, 0) = COS(t); ret(0, 1) = -SIN(t);
-    ret(1, 0) = SIN(t); ret(1, 1) =  COS(t);
-    return ret;
+    mat4 result = _Identity4x4;
+    result(0, 0) = COS(t); result(0, 1) = -SIN(t);
+    result(1, 0) = SIN(t); result(1, 1) =  COS(t);
+    return result;
 }
 
 mat4 M4_RotationAbout(vec3 axis, real angle) {
@@ -502,11 +502,11 @@ tuDm firstDerivativeofUnitVector(vecD v) {
 #define secondDerivativeOfNorm firstDerivativeofUnitVector
 
 template <uint D> real squaredNorm(matD M) {
-    real ret = 0;
+    real result = 0;
     for(uint i = 0; i < D * D; ++i) {
-        ret += M.data[i] * M.data[i];
+        result += M.data[i] * M.data[i];
     }
-    return ret;
+    return result;
 }
 
 // misc functions //////////////////////////////////////////////////////////////
@@ -528,19 +528,19 @@ tuDv cwiseAbs(vecD A) {
     return A;
 }
 tuDv cwiseMin(vecD A, vecD B) {
-    vecD ret = {};
-    for(uint i = 0; i < D; ++i) ret[i] = (A.data[i] < B.data[i]) ? A.data[i] : B.data[i];
-    return ret;
+    vecD result = {};
+    for(uint i = 0; i < D; ++i) result[i] = (A.data[i] < B.data[i]) ? A.data[i] : B.data[i];
+    return result;
 }
 tuDv cwiseMax(vecD A, vecD B) {
-    vecD ret = {};
-    for(uint i = 0; i < D; ++i) ret[i] = (A.data[i] > B.data[i]) ? A.data[i] : B.data[i];
-    return ret;
+    vecD result = {};
+    for(uint i = 0; i < D; ++i) result[i] = (A.data[i] > B.data[i]) ? A.data[i] : B.data[i];
+    return result;
 }
 tuDv cwiseProduct(vecD a, vecD b) {
-    vecD ret = {};
-    for(uint i = 0; i < D; ++i) ret[i] = a[i] * b[i];
-    return ret;
+    vecD result = {};
+    for(uint i = 0; i < D; ++i) result[i] = a[i] * b[i];
+    return result;
 }
 vec2 e_theta(real theta) {
     return { COS(theta), SIN(theta) };
@@ -576,16 +576,16 @@ tuDv magClamped(vecD a, real col) {
 
 template <uint D> void pprint(vecD A) {
     printf("V%d(", D);
-    _for_(i, D) {
+    for_(i, D) {
         printf("%lf", A[i]);
         if (i != D - 1) printf(", ");
     }
     printf(")\n");
 }
 template <uint D> void pprint(matD M) {
-    _for_(row, D) {
+    for_(row, D) {
         printf("| ");
-        _for_(col, D) {
+        for_(col, D) {
             printf("%lf", M(row, col));
             if (col != D - 1) printf(", ");
         }

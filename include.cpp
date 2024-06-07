@@ -6,10 +6,8 @@
 #include <cstring>
 
 #include "basics.cpp"
-#include "jim.cpp"
 #include "linalg.cpp"
 #include "box.cpp"
-
 #include "containers.cpp" // TODO: implement better Map
 #include "elephant.cpp"
 
@@ -17,5 +15,6 @@
 
 #include "burkardt.cpp"
 #include "manifoldc.h"
+#include "jim.cpp"
 #include "header.cpp"
 

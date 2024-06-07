@@ -1,13 +1,4 @@
-
-////////////////////////////////////////////////////////////////////////////////
-// #include "cow.h"/////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-
-#include "codebase/ext/stb_easy_font.h"
-#define STB_IMAGE_IMPLEMENTATION
-#include "codebase/ext/stb_image.h"
-
+// // GLFW
 #ifdef COW_OS_UBUNTU
 #define GL_GLEXT_PROTOTYPES
 #include "codebase/ext/glfw3.h"
@@ -25,14 +16,20 @@
 #include "codebase/ext/glfw3native.h"
 #endif
 
+#define GL_REAL GL_FLOAT
+
+// // stb
+// easy_font
+#include "codebase/ext/stb_easy_font.h"
+// image
+#define STB_IMAGE_IMPLEMENTATION
+#include "codebase/ext/stb_image.h"
+
+
+
+
 #define ITRI_MAX_NUM_TEXTURES 32
 #define ITRI_MAX_FILENAME_LENGTH 64
-
-typedef vec2 _vec2;
-typedef vec3 _vec3;
-typedef vec4 _vec4;
-typedef mat4 _mat4;
-
 
 struct CW_USER_FACING_CONFIG {
     bool tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = true;
@@ -41,7 +38,7 @@ struct CW_USER_FACING_CONFIG {
 };
 
 struct C2_READONLY_USER_FACING_DATA {
-    _mat4 NDC_from_Screen;
+    mat4 NDC_from_Screen;
 };
 
 // constants
@@ -611,7 +608,7 @@ void _window_get_P_perspective(real *P, real angle_of_view, real t_x_NDC = 0, re
     // [ 1] = [  0   0 -1  0] [1] = [      -z] ~> [             1]
 
     real angle_y = angle_of_view / 2;
-    real Q_y = 1 / tan(angle_y);
+    real Q_y = 1 / TAN(angle_y);
     real Q_x = Q_y / aspect;
 
     memset(P, 0, 16 * sizeof(real));
@@ -716,25 +713,6 @@ void _window_get_P_ortho(real *P, real height_World, real t_x_NDC = 0, real t_y_
     _LINALG_4X4(P, 1, 3) = t_y_NDC;
 }
 
-void _window_get_V_ortho_2D(real *V, real o_x, real o_y) {
-    memset(V, 0, 16 * sizeof(real));
-    _LINALG_4X4(V, 0, 0) = 1.0;
-    _LINALG_4X4(V, 1, 1) = 1.0;
-    _LINALG_4X4(V, 2, 2) = 1.0;
-    _LINALG_4X4(V, 3, 3) = 1.0;
-    _LINALG_4X4(V, 0, 3) = -o_x;
-    _LINALG_4X4(V, 1, 3) = -o_y;
-}
-
-void _window_get_PV_ortho_2D(real *PV, real height_World, real o_x, real o_y, real t_x_NDC, real t_y_NDC) {
-    ASSERT(PV);
-    // fornow slow
-    real P[16], V[16];
-    _window_get_P_ortho(P, height_World, t_x_NDC, t_y_NDC);
-    _window_get_V_ortho_2D(V, o_x, o_y);
-    _linalg_mat4_times_mat4(PV, P, V);
-}
-
 void _window_get_NDC_from_Screen(real *NDC_from_Screen) {
     _window_get_P_ortho(NDC_from_Screen, window_get_size_Pixel().y);
     _LINALG_4X4(NDC_from_Screen, 1, 1) *= -1;
@@ -743,35 +721,101 @@ void _window_get_NDC_from_Screen(real *NDC_from_Screen) {
 }
 
 mat4 _window_get_P_perspective(real angle_of_view, real n = 0, real f = 0, real aspect = 0) {
-    mat4 ret;
-    _window_get_P_perspective(ret.data, angle_of_view, n, f, aspect);
-    return ret;
+    mat4 result;
+    _window_get_P_perspective(result.data, angle_of_view, n, f, aspect);
+    return result;
 }
 
 mat4 _window_get_P_ortho(real height_World, real n = 0, real f = 0, real aspect = 0) {
-    mat4 ret;
-    _window_get_P_ortho(ret.data, height_World, n, f, aspect);
-    return ret;
+    mat4 result;
+    _window_get_P_ortho(result.data, height_World, n, f, aspect);
+    return result;
 }
 
 mat4 _window_get_NDC_from_Screen() {
-    mat4 ret;
-    _window_get_NDC_from_Screen(ret.data);
-    return ret;
+    mat4 result;
+    _window_get_NDC_from_Screen(result.data);
+    return result;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// #include "camera.cpp"////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+// NOTE: this can be a 3D orbit camera (persp or ortho) or a 2D camera
+struct Camera {
+    real angle_of_view; // NOTE: 0.0f <=> ortho camera
+                        // NOTE: this is the full (double) angle of view, NOT half
+    union {
+        real persp_distance_to_origin_World;
+        real ortho_screen_height_World;
+    };
+    vec3 euler_angles;
+    vec2 pre_nudge_World;
+    vec2 post_nudge_NDC;
+};
+
+Camera make_Camera2D(real screen_height_World, vec2 center_World, vec2 post_nudge_NDC) {
+    Camera result = {};
+    result.ortho_screen_height_World = screen_height_World;
+    result.pre_nudge_World = center_World;
+    result.post_nudge_NDC = post_nudge_NDC;
+    return result;
+}
+
+Camera make_OrbitCamera3D(real angle_of_view, real distance_to_origin_World, vec3 euler_angles, vec2 pre_nudge_World, vec2 post_nudge_NDC) {
+    Camera result = {};
+    result.angle_of_view = angle_of_view;
+    result.persp_distance_to_origin_World = distance_to_origin_World;
+    result.euler_angles = euler_angles;
+    result.pre_nudge_World = pre_nudge_World;
+    result.post_nudge_NDC = post_nudge_NDC;
+    return result;
+}
+
+Camera make_EquivalentCamera2D(Camera *camera_3D) {
+    bool is_perspective_camera = (!IS_ZERO(camera_3D->angle_of_view));
+    Camera result; {
+        result = *camera_3D;
+        result.angle_of_view = 0.0f;
+        result.euler_angles = {};
+        if (is_perspective_camera) result.ortho_screen_height_World = 2.0f * (camera_3D->persp_distance_to_origin_World * TAN(0.5f * camera_3D->angle_of_view));
+    }
+    return result;
+}
+
+mat4 camera_get_P(Camera *camera) {
+    mat4 result;
+    if (IS_ZERO(camera->angle_of_view)) {
+        _window_get_P_ortho(result.data, camera->ortho_screen_height_World, camera->post_nudge_NDC.x, camera->post_nudge_NDC.y);
+    } else {
+        _window_get_P_perspective(result.data, camera->angle_of_view, camera->post_nudge_NDC.x, camera->post_nudge_NDC.y);
+    }
+    return result;
+}
+
+mat4 camera_get_V(Camera *camera) {
+    mat4 C; {
+        mat4 T = M4_Translation(camera->pre_nudge_World.x, camera->pre_nudge_World.y, camera->persp_distance_to_origin_World);
+        mat4 R_x = M4_RotationAboutXAxis(camera->euler_angles.x);
+        mat4 R_y = M4_RotationAboutYAxis(camera->euler_angles.y);
+        mat4 R_z = M4_RotationAboutZAxis(camera->euler_angles.z);
+        C = R_y * R_x * R_z * T;
+    }
+    return inverse(C);
+}
+
+mat4 camera_get_PV(Camera *camera) { return camera_get_P(camera) * camera_get_V(camera); }
+
+
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "input_and_callback.cpp"////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
-void _callback_framebuffer_size(GLFWwindow *, int width, int height) {
-    glViewport(0, 0, width, height);
-}
-
-void _callback_set_callbacks() {
-    glfwSetFramebufferSizeCallback(COW0._window_glfw_window, _callback_framebuffer_size);
-}
+void _callback_framebuffer_size(GLFWwindow *, int width, int height) { glViewport(0, 0, width, height); }
+void _callback_set_callbacks() { glfwSetFramebufferSizeCallback(COW0._window_glfw_window, _callback_framebuffer_size); }
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "shader.cpp"////////////////////////////////////////////////////////
@@ -1753,179 +1797,6 @@ void mesh_draw(
             );
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// #include "camera.cpp"////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-// this is an "ortho camera"
-struct Camera2D {
-    real height_World;
-    vec2 center_World;
-    vec2 display_nudge_NDC;
-};
-
-// this is an "orbit camera" that points at the origin*  
-//                               *unless o_x, o_y nonzero
-//                                                       
-// it is stuck to the surface of a sphere at (theta, phi)
-// these angles can also be interpreted as (yaw, pitch)  
-//                                                       
-// the sphere radius (camera distance) is given by*      
-//     (height_World / 2) / tan(angle_of_view / 2)
-// *we define it this way for compatability with Camera2D
-struct Camera3D {
-    union {
-        real persp_distance_to_origin;
-        real ortho_screen_height_World;
-    };
-    real angle_of_view; // set to 0 to use an ortho camera
-    real theta; // yaw
-    real phi; // pitch
-    vec2 _center_World;
-    vec2 display_nudge_NDC;
-};
-
-void _camera_get_P(Camera2D *camera, real *P) {
-    _window_get_P_ortho(P, camera->height_World, camera->display_nudge_NDC.x, camera->display_nudge_NDC.y);
-}
-
-void _camera_get_V(Camera2D *camera, real *V) {
-    _window_get_V_ortho_2D(V, camera->center_World.x, camera->center_World.y);
-}
-
-void _camera_get_PV(Camera2D *camera, real *PV) {
-    _window_get_PV_ortho_2D(PV, camera->height_World, camera->center_World.x, camera->center_World.y, camera->display_nudge_NDC.x, camera->display_nudge_NDC.y);
-}
-
-real camera_get_screen_height_World(Camera3D *camera) {
-    if (IS_ZERO(camera->angle_of_view)) { // ortho
-        return camera->ortho_screen_height_World;
-    } else { // persp
-        real theta = camera->angle_of_view / 2;
-        return 2 * tan(theta) * camera->persp_distance_to_origin;
-    }
-}
-
-void _camera_get_coordinate_system(Camera3D *camera, real *C_out, real *x_out = NULL, real *y_out = NULL, real *z_out = NULL, real *o_out = NULL, real *R_out = NULL) {
-    real camera_o_z = camera->persp_distance_to_origin;
-
-    real C[16]; {
-        real T[16] = {
-            1, 0, 0, camera->_center_World.x,
-            0, 1, 0, camera->_center_World.y, // fornow
-            0, 0, 1, camera_o_z,
-            0, 0, 0, 1,
-        };
-        real c_x = COS(camera->phi);
-        real s_x = SIN(camera->phi);
-        real c_y = COS(camera->theta);
-        real s_y = SIN(camera->theta);
-        real R_y[16] = {
-            c_y , 0, s_y, 0,
-            0   , 1, 0  , 0,
-            -s_y, 0, c_y, 0,
-            0   , 0, 0  , 1,
-        };
-        real R_x[16] = {
-            1,   0,    0, 0, 
-            0, c_x, -s_x, 0,
-            0, s_x,  c_x, 0,
-            0  , 0   , 0, 1,
-        };
-        _linalg_mat4_times_mat4(C,      R_x, T);
-        _linalg_mat4_times_mat4(C, R_y, C     );
-    }
-
-    real xyzo[4][3] = {}; {
-        for (int c = 0; c < 4; ++c) for (int r = 0; r < 3; ++r) xyzo[c][r] = _LINALG_4X4(C, r, c);
-    }
-    if (C_out) memcpy(C_out, C, sizeof(C));
-    {
-        if (x_out) memcpy(x_out, xyzo[0], 3 * sizeof(real));
-        if (y_out) memcpy(y_out, xyzo[1], 3 * sizeof(real));
-        if (z_out) memcpy(z_out, xyzo[2], 3 * sizeof(real));
-        if (o_out) memcpy(o_out, xyzo[3], 3 * sizeof(real));
-    }
-    if (R_out) {
-        real tmp[] = {
-            C[0], C[1], C[ 2], 0,
-            C[4], C[5], C[ 6], 0,
-            C[8], C[9], C[10], 0,
-            0   , 0   , 0    , 1,
-        };
-        memcpy(R_out, tmp, sizeof(tmp));
-    }
-}
-
-void _camera_get_P(Camera3D *camera, real *P) {
-    if (IS_ZERO(camera->angle_of_view)) {
-        _window_get_P_ortho(P, camera->ortho_screen_height_World, camera->display_nudge_NDC.x, camera->display_nudge_NDC.y);
-    } else {
-        _window_get_P_perspective(P, camera->angle_of_view, camera->display_nudge_NDC.x, camera->display_nudge_NDC.y);
-    }
-}
-
-void _camera_get_V(Camera3D *camera, real *V) {
-    _camera_get_coordinate_system(camera, V);
-    _linalg_mat4_inverse(V, V);
-}
-
-void _camera_get_PV(Camera3D *camera, real *PV) {
-    ASSERT(PV);
-    real P[16], V[16];
-    _camera_get_P(camera, P);
-    _camera_get_V(camera, V);
-    _linalg_mat4_times_mat4(PV, P, V);
-}
-
-mat4 camera_get_PV(Camera2D *camera) {
-    mat4 ret;
-    _camera_get_PV(camera, ret.data);
-    return ret;
-}
-
-mat4 camera_get_P(Camera2D *camera) {
-    mat4 ret;
-    _camera_get_P(camera, ret.data);
-    return ret;
-}
-
-mat4 camera_get_V(Camera2D *camera) {
-    mat4 ret;
-    _camera_get_V(camera, ret.data);
-    return ret;
-}
-
-
-vec3 camera_get_position(Camera3D *camera) {
-    vec3 o;
-    _camera_get_coordinate_system(camera, NULL, NULL, NULL, NULL, (real *) &o, NULL);
-    return o;
-}
-
-mat4 camera_get_P(Camera3D *camera) {
-    mat4 ret;
-    _camera_get_P(camera, ret.data);
-    return ret;
-}
-
-mat4 camera_get_V(Camera3D *camera) {
-    mat4 ret;
-    _camera_get_V(camera, ret.data);
-    return ret;
-}
-
-mat4 camera_get_C(Camera3D *camera) {
-    mat4 ret;
-    _camera_get_coordinate_system(camera, ret.data);
-    return ret;
-}
-
-mat4 camera_get_PV(Camera3D *camera) {
-    mat4 ret;
-    _camera_get_PV(camera, ret.data);
-    return ret;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////

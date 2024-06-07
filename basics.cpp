@@ -1,24 +1,23 @@
 // // types
-// core types
+// basic types
 typedef uint32_t uint;
 typedef float real;
-typedef unsigned char u8;
-// GL_*
-#define GL_REAL GL_FLOAT
+typedef uint8_t u8;
 // vecD
 template <uint D> union Vector;
 typedef Vector<2> vec2;
 typedef Vector<3> vec3;
 typedef Vector<4> vec4;
 #define vecD Vector<D>
-#define tuDv template <uint D> vecD
+#define tuD  template <uint D>
+#define tuDv tuD vecD
 // matD
 template <uint D> union Matrix;
 typedef Matrix<2> mat2;
 typedef Matrix<3> mat3;
 typedef Matrix<4> mat4;
 #define matD Matrix<D>
-#define tuDm template <uint D> matD
+#define tuDm tuD matD
 
 // // standard macros
 // ASSERT
@@ -39,9 +38,9 @@ typedef Matrix<4> mat4;
 #define ARRAY_LENGTH(arr) (_IS_ARRAY(arr) ? (sizeof(arr) / sizeof(arr[0])) : 0)
 
 // // unorthodox macros
-// _for_
+// for_
 // - makes general-purpose for loops more readable (to me)
-#define _for_(i, N) for (uint i = 0; i < N; ++i)
+#define for_(i, N) for (uint i = 0; i < N; ++i)
 // do_once
 // - code inside do_once { ... } will run the first time it's hit, then never again
 #define STR(foo) #foo
@@ -82,6 +81,7 @@ real MM(real inches) { return ((inches) * real(25.4)); }
 // trig
 #define SIN sinf
 #define COS cosf
+#define TAN tanf
 #define ATAN2 atan2f
 // POW, SQRT
 #define POW powf
@@ -102,6 +102,7 @@ uint MAX(uint a, uint b) { return (a > b) ? a : b; }
 real MAX(real a, real b) { return (a > b) ? a : b; }
 // floating-poiut comparisons
 bool IS_ZERO(real a) { return (ABS(a) < TINY_VAL); }
+tuD bool IS_ZERO(vecD a) { for_(d, D) if (!IS_ZERO(a[d])) return false; return true; }
 bool ARE_EQUAL(real a, real b) { return IS_ZERO(ABS(a - b)); }
 bool IS_BETWEEN(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
 // CLAMP
@@ -127,8 +128,7 @@ tuDv CLAMPED_LINEAR_REMAP(real p, real a, real b, vecD c, vecD d) { return LERP(
 // - works for negative N
 int MODULO(int x, int N) { return ((x % N) + N) % N; }
 
-
-// // OS-specific stuff
+// // OS-specific
 // detect operating system
 #if defined(__APPLE__) || defined(__MACH__)
 #define OPERATING_SYSTEM_APPLE

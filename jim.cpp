@@ -45,7 +45,7 @@ void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to
         real value;
     };
     qsortHelperStruct *helperArray = (qsortHelperStruct *) calloc(sizeof(qsortHelperStruct), nitems); {
-        _for_(i, nitems) helperArray[i] = { i, corresp_values_to_sort_against[i] };
+        for_(i, nitems) helperArray[i] = { i, corresp_values_to_sort_against[i] };
     }
 
     int(* comp)(qsortHelperStruct *, qsortHelperStruct *) \
@@ -55,7 +55,7 @@ void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to
 
     {
         void *tmp_buffer = malloc(nitems * size); { // fornow
-            _for_(i, nitems) memcpy(\
+            for_(i, nitems) memcpy(\
                     ((char *) tmp_buffer) + (i * size), \
                     ((char *) base) + (helperArray[i].index * size), \
                     size);
@@ -65,7 +65,7 @@ void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to
 
     if (sort_both_arrays) {
         real *tmp_buffer = (real *) malloc(nitems * sizeof(real)); {
-            _for_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
+            for_(i, nitems) tmp_buffer[i] = corresp_values_to_sort_against[helperArray[i].index];
             memcpy(corresp_values_to_sort_against, tmp_buffer, nitems * sizeof(real));
         } free(tmp_buffer);
     }

@@ -16,25 +16,26 @@ FeaturePlaneState *feature_plane = &state.feature_plane;
 Mesh *mesh = &state.mesh;
 PopupState *popup = &state.popup;
 TwoClickCommandState *two_click_command = &state.two_click_command;
-Camera2D *camera_2D = &other.camera_2D;
-Camera3D *camera_3D = &other.camera_3D;
+Camera *camera_drawing = &other.camera_drawing;
+Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
 
-// scary macros
+// // macros
+// entity
 #define _for_each_entity_ for (\
         Entity *entity = drawing->entities.array;\
         entity < &drawing->entities.array[drawing->entities.length];\
         ++entity)
-
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected)
 
 
+// // tween
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
     real f = 0.1f;
     if (!other.paused) *a += f * (b - *a);
 }
-
 real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
+
 
 #include "popup.cpp"
 
@@ -43,11 +44,16 @@ real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
 //////////////////////////////////////////////////
 
 void init_cameras() {
-    other.camera_2D = { 100.0f, 0.0, 0.0f, -0.5f, -0.125f };
-    // FORNOW
-    if (drawing->entities.length) camera2D_zoom_to_bounding_box(&other.camera_2D, dxf_entities_get_bounding_box(&drawing->entities));
-    if ((!other.camera_3D.persp_distance_to_origin) || (!mesh->num_vertices)) {
-        other.camera_3D = { 2.0f * MIN(150.0f, other.camera_2D.height_World), CAMERA_3D_DEFAULT_ANGLE_OF_VIEW, RAD(33.0f), RAD(-44.0f), 0.0f, 0.0f, 0.5f, -0.125f };
+    *camera_drawing = make_Camera2D(100.0f, {}, { -0.5f, -0.125f });
+    if (drawing->entities.length) camera2D_zoom_to_bounding_box(&other.camera_drawing, dxf_entities_get_bounding_box(&drawing->entities));
+    if ((!other.camera_mesh.persp_distance_to_origin_World) || (!mesh->num_vertices)) {
+        *camera_mesh = make_OrbitCamera3D(
+                CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
+                2.0f * MIN(150.0f, other.camera_drawing.ortho_screen_height_World),
+                { RAD(-44.0f), RAD(33.0f) },
+                {},
+                { 0.5f, -0.125f }
+                );
     }
 }
 
@@ -167,7 +173,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                 _for_each_entity_ {
                     real x[2], y[2];
                     entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
-                    _for_(d, 2) {
+                    for_(d, 2) {
                         real squared_distance = squared_distance_point_point(before.x, before.y, x[d], y[d]);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
@@ -205,7 +211,7 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
     dxf_entities_load(filename, &drawing->entities);
 
     if (!preserve_cameras_and_dxf_origin) {
-        // camera2D_zoom_to_bounding_box(&other.camera_2D, dxf_entities_get_bounding_box(&drawing->entities));
+        // camera2D_zoom_to_bounding_box(&other.camera_drawing, dxf_entities_get_bounding_box(&drawing->entities));
         init_cameras();
         drawing->origin = {};
     }
@@ -354,7 +360,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         other.mouse_Pixel = { real(xpos), real(ypos) };
         other.mouse_NDC = transformPoint(other.transform_NDC_from_Pixel, other.mouse_Pixel);
         delta_mouse_NDC = other.mouse_NDC - prev_mouse_NDC;
-        delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_2D)), delta_mouse_NDC);
+        delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_drawing)), delta_mouse_NDC);
     }
 
     { // special draggin mouse_held EventType::Mouse
@@ -379,27 +385,27 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             real prev_x_divider_NDC = other.x_divider_NDC;
             other.x_divider_NDC = MAG_CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_size_Pixel().x, -1.0f, 1.0f), 0.9975f);
             real delta_NDC = 0.5f * (other.x_divider_NDC - prev_x_divider_NDC);
-            camera_2D->display_nudge_NDC.x += delta_NDC;
-            camera_3D->display_nudge_NDC.x += delta_NDC;
+            camera_drawing->post_nudge_NDC.x += delta_NDC;
+            camera_mesh->post_nudge_NDC.x += delta_NDC;
         }
     }
 
     { // moving cameras
-        ;
-        // NOTE: stolen from cow
-        // NOTE: _not_ accumulating; just going for it on every event (shrug)
-        if (other.mouse_right_drag_pane == Pane::Drawing) camera_2D->center_World -= delta_mouse_World_2D;
-        if (other.mouse_right_drag_pane == Pane::Mesh) {
-            // FORNOW: bad, repetitive
-            Camera2D tmp_2D = { camera_get_screen_height_World(camera_3D), camera_3D->_center_World.x, camera_3D->_center_World.y, camera_3D->display_nudge_NDC.x, camera_3D->display_nudge_NDC.y };
-            tmp_2D.center_World -= transformVector(inverse(camera_get_PV(&tmp_2D)), delta_mouse_NDC);
-            camera_3D->_center_World = tmp_2D.center_World;
-        }
+        // mouse_left_drag_pane
         if (other.mouse_left_drag_pane == Pane::Mesh) {
-            real fac = 2;
-            camera_3D->theta -= fac * delta_mouse_NDC.x;
-            camera_3D->phi += fac * delta_mouse_NDC.y;
-            camera_3D->phi = CLAMP(camera_3D->phi, -RAD(90), RAD(90));
+            real fac = 2.0f;
+            camera_mesh->euler_angles.y -= fac * delta_mouse_NDC.x;
+            camera_mesh->euler_angles.x += fac * delta_mouse_NDC.y;
+            camera_mesh->euler_angles.x = CLAMP(camera_mesh->euler_angles.x, -RAD(90), RAD(90));
+        }
+
+        // mouse_right_drag_pane
+        if (other.mouse_right_drag_pane == Pane::Drawing) {
+            camera_drawing->pre_nudge_World -= delta_mouse_World_2D;
+        } else if (other.mouse_right_drag_pane == Pane::Mesh) {
+            Camera tmp_2D = make_EquivalentCamera2D(camera_mesh);
+            tmp_2D.pre_nudge_World -= transformVector(inverse(camera_get_PV(&tmp_2D)), delta_mouse_NDC);
+            camera_mesh->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
     }
 }
@@ -429,29 +435,29 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     }
 }
 
-void _callback_scroll_helper(Camera2D *camera, double yoffset) {
-    // GOAL: mouse_World_2D_III equal-to mouse_World_2D_I
-    vec2 mouse_World_2D_I  = transformPoint(inverse(camera_get_PV(camera)), other.mouse_NDC);
-    camera->height_World *= (1.0f - 0.1f * yoffset);
-    vec2 mouse_World_2D_II = transformPoint(inverse(camera_get_PV(camera)), other.mouse_NDC);
-    camera->center_World -= (mouse_World_2D_II - mouse_World_2D_I);
+void _callback_scroll_helper(Camera *camera_2D, double yoffset) {
+    // IDEA: preserve mouse position
+    ASSERT(IS_ZERO(camera_2D->angle_of_view));
+    ASSERT(IS_ZERO(camera_2D->euler_angles));
+    vec2 mouse_position_before  = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_NDC);
+    camera_2D->ortho_screen_height_World *= (1.0f - 0.1f * yoffset);
+    vec2 mouse_position_after = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_NDC);
+    camera_2D->pre_nudge_World -= (mouse_position_after - mouse_position_before);
 }
 void callback_scroll(GLFWwindow *, double, double yoffset) {
-    // NOTE: stolen from cow
-    // NOTE: _not_ accumulating; just going for it on every event (shrug)
     if (other.hot_pane == Pane::Drawing) {
-        _callback_scroll_helper(camera_2D, yoffset);
+        _callback_scroll_helper(camera_drawing, yoffset);
     } else if (other.hot_pane == Pane::Mesh) {
-        Camera2D tmp_2D = { camera_get_screen_height_World(camera_3D), camera_3D->_center_World.x, camera_3D->_center_World.y, camera_3D->display_nudge_NDC.x, camera_3D->display_nudge_NDC.y };
+        // IDEA: preserve mouse position in the rasterized image
+        bool is_perspective_camera = (!IS_ZERO(camera_mesh->angle_of_view));
+        Camera tmp_2D = make_EquivalentCamera2D(camera_mesh);
         _callback_scroll_helper(&tmp_2D, yoffset);
-        if (IS_ZERO(camera_3D->angle_of_view)) {
-            camera_3D->ortho_screen_height_World = tmp_2D.height_World;
+        if (is_perspective_camera) {
+            camera_mesh->persp_distance_to_origin_World = 0.5f * (tmp_2D.ortho_screen_height_World / TAN(camera_mesh->angle_of_view / 2));
         } else {
-            real r_y = tmp_2D.height_World / 2;
-            real theta = camera_3D->angle_of_view / 2;
-            camera_3D->persp_distance_to_origin = r_y / tan(theta);
+            camera_mesh->ortho_screen_height_World = tmp_2D.ortho_screen_height_World;
         }
-        camera_3D->_center_World = tmp_2D.center_World;
+        camera_mesh->pre_nudge_World = tmp_2D.pre_nudge_World;
     }
 }
 
@@ -515,7 +521,7 @@ Event bake_event(RawEvent raw_event) {
         mouse_event->mouse_held = raw_mouse_event->mouse_held;
         {
             if (raw_mouse_event->pane == Pane::Drawing) {
-                mat4 World_2D_from_NDC = inverse(camera_get_PV(camera_2D));
+                mat4 World_2D_from_NDC = inverse(camera_get_PV(camera_drawing));
                 vec2 mouse_World_2D = transformPoint(World_2D_from_NDC, other.mouse_NDC);
 
                 mouse_event->subtype = MouseEventSubtype::Drawing;
@@ -523,7 +529,7 @@ Event bake_event(RawEvent raw_event) {
                 MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
                 mouse_event_drawing->mouse_position = magic_snap(mouse_World_2D);
             } else if (raw_mouse_event->pane == Pane::Mesh) {
-                mat4 World_3D_from_NDC = inverse(camera_get_PV(&other.camera_3D));
+                mat4 World_3D_from_NDC = inverse(camera_get_PV(&other.camera_mesh));
                 vec3 point_a = transformPoint(World_3D_from_NDC, V3(other.mouse_NDC, -1.0f));
                 vec3 point_b = transformPoint(World_3D_from_NDC, V3(other.mouse_NDC,  1.0f));
 
@@ -556,7 +562,7 @@ Event bake_event(RawEvent raw_event) {
 // TODO: this API should match what is printed to the terminal in verbose output mode
 //       (so we can copy and paste a session for later use as an end to end test)
 
-Event construct_mouse_event_2D(vec2 mouse_position) {
+Event make_mouse_event_2D(vec2 mouse_position) {
     Event event = {};
     event.type = EventType::Mouse;
     MouseEvent *mouse_event = &event.mouse_event;
@@ -565,9 +571,9 @@ Event construct_mouse_event_2D(vec2 mouse_position) {
     mouse_event_drawing->mouse_position = mouse_position;
     return event;
 }
-Event construct_mouse_event_2D(real mouse_position_x, real mouse_position_y) { return construct_mouse_event_2D({ mouse_position_x, mouse_position_y }); }
+Event make_mouse_event_2D(real mouse_position_x, real mouse_position_y) { return make_mouse_event_2D({ mouse_position_x, mouse_position_y }); }
 
-Event construct_mouse_event_3D(vec3 mouse_ray_origin, vec3 mouse_ray_direction) {
+Event make_mouse_event_3D(vec3 mouse_ray_origin, vec3 mouse_ray_direction) {
     Event event = {};
     event.type = EventType::Mouse;
     MouseEvent *mouse_event = &event.mouse_event;
@@ -586,7 +592,7 @@ Event construct_mouse_event_3D(vec3 mouse_ray_origin, vec3 mouse_ray_direction) 
 // NOTE: this sometimes modifies state.mesh
 // NOTE (May 5, 2024): 
 // - returns flags for how the fresh event processor should deal with this event
-// - is the event is marked as a snapshotted event (by construction, only possible for non-fresh events), then skips the expensive stuff
+// - is the event is marked as a snapshotted event (by makeion, only possible for non-fresh events), then skips the expensive stuff
 
 struct StandardEventProcessResult {
     bool record_me;
@@ -637,7 +643,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             uint digit;
             {
                 digit_lambda = false;
-                _for_(color, 10) {
+                for_(color, 10) {
                     if (key_lambda('0' + color)) {
                         digit_lambda = true;
                         digit = color;
@@ -743,7 +749,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.enter_mode = EnterMode::NudgeFeaturePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
-                        messagef(omax.orange, "[n] no plane is_selected");
+                        messagef(omax.orange, "NudgeFeaturePlane: no feature plane is selected");
                     }
                 } else if (key_lambda('N', true, false)) {
                     result.checkpoint_me = true;
@@ -790,7 +796,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                 } else if (key_lambda('X', true, true)) {
                     result.record_me = false;
-                    camera2D_zoom_to_bounding_box(&other.camera_2D, dxf_entities_get_bounding_box(&drawing->entities));
+                    camera2D_zoom_to_bounding_box(&other.camera_drawing, dxf_entities_get_bounding_box(&drawing->entities));
                 } else if (key_lambda('Y')) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
                     result.checkpoint_me = true;
@@ -858,7 +864,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     feature_plane->is_active = false;
                 } else if (key_lambda('\'')) {
                     result.record_me = false;
-                    other.camera_3D.angle_of_view = CAMERA_3D_DEFAULT_ANGLE_OF_VIEW - other.camera_3D.angle_of_view;
+                    other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                 } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(GLFW_KEY_DELETE)) {
                     for (int i = drawing->entities.length - 1; i >= 0; --i) {
                         if (drawing->entities.array[i].is_selected) {
@@ -886,8 +892,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         omax.black = tmp;
                     }
                 } else if (key_lambda(GLFW_KEY_ENTER)) { // FORNOW
+                                                         // messagef(omax.orange, "EnterMode is None.");
                     result.record_me = false;
-                    messagef(omax.orange, "EnterMode is None.");
                 } else {
                     messagef(omax.orange, "Hotkey %s was not recognized.", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
                     result.record_me = false;
@@ -1087,7 +1093,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     map_put(&grid, key, {});
                                     cell = _map_get_pointer(&grid, key);
                                 }
-                                _for_(i, ARRAY_LENGTH(cell->slots)) {
+                                for_(i, ARRAY_LENGTH(cell->slots)) {
                                     GridPointSlot *slot = &cell->slots[i];
                                     if (slot->populated) continue;
                                     slot->populated = true;
@@ -1098,7 +1104,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             };
 
-                            _for_(entity_index, drawing->entities.length) {
+                            for_(entity_index, drawing->entities.length) {
                                 Entity *entity = &drawing->entities.array[entity_index];
 
                                 real start_x, start_y, end_x, end_y;
@@ -1136,7 +1142,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             GridCell *cell = _map_get_pointer(&grid, key);
                             if (!cell) return NULL;
 
-                            _for_(i, ARRAY_LENGTH(cell->slots)) {
+                            for_(i, ARRAY_LENGTH(cell->slots)) {
                                 GridPointSlot *slot = &cell->slots[i];
                                 if (!slot->populated) continue;
                                 if (edge_marked[slot->entity_index]) continue;
@@ -1151,7 +1157,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         edge_marked[hot_entity_index] = true;
                         ENTITY_SET_IS_SELECTED(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
 
-                        _for_(pass, 2) {
+                        for_(pass, 2) {
 
                             vec2 seed; {
                                 real x, y;
@@ -1290,7 +1296,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             if (angle > PI) angle = TAU - angle;
                                             half_angle = angle / 2;
                                         }
-                                        real length = radius / tan(half_angle);
+                                        real length = radius / TAN(half_angle);
                                         vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
                                         vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
@@ -1457,9 +1463,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 int index_of_first_triangle_hit_by_ray = -1;
                 {
                     real min_distance = HUGE_VAL;
-                    _for_(i, mesh->num_triangles) {
+                    for_(i, mesh->num_triangles) {
                         vec3 p[3]; {
-                            _for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                            for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
                         }
                         RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction, p[0], p[1], p[2]);
                         if (ray_triangle_intersection_result.hit) {
@@ -1648,6 +1654,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.checkpoint_me = true;
                     feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
                     state.enter_mode = EnterMode::None;
+                    messagef(omax.green, "NudgeFeaturePlane %gmm", popup->feature_plane_nudge);
                 }
             } else if (state.click_modifier == ClickModifier::XYCoordinates) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
@@ -1657,7 +1664,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (gui_key_enter) {
                     // popup->_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                     state.click_modifier = ClickModifier::None;
-                    return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
+                    return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
                 }
             } else if (state.click_mode == ClickMode::Circle) {
                 if (two_click_command->awaiting_second_click) {
@@ -1669,7 +1676,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real32, "circle_radius", &popup->circle_radius,
                             CellType::Real32, "circle_circumference", &popup->circle_circumference);
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
                     } else {
                         if (prev_circle_diameter != popup->circle_diameter) {
                             popup->circle_radius = popup->circle_diameter / 2;
@@ -1696,7 +1703,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real32, "line_rise",   &popup->line_rise
                             );
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
                     } else {
                         if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
                             popup->line_run  = popup->line_length * COS(RAD(popup->line_angle));
@@ -1713,7 +1720,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real32, "box_width", &popup->box_width,
                             CellType::Real32, "box_height", &popup->box_height);
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
                     }
                 }
             } else if (state.click_mode == ClickMode::Move) {
@@ -1730,7 +1737,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real32, "move_rise", &popup->move_rise
                             );
                     if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(construct_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
                     } else {
                         if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
                             popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
@@ -1843,7 +1850,7 @@ void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_
 
 void history_undo() {
     if (elephant_is_empty_undo(&history.recorded_user_events)) {
-        messagef(omax.orange, "There is nothing to undo.");
+        messagef(omax.orange, "Undo: nothing to undo");
         return;
     }
 
@@ -1885,7 +1892,7 @@ void history_undo() {
 
 void history_redo() {
     if (elephant_is_empty_redo(&history.recorded_user_events)) {
-        messagef(omax.orange, "There is nothing to redo.");
+        messagef(omax.orange, "Redo: nothing to redo");
         return;
     }
 
@@ -2094,13 +2101,13 @@ void script_process(char *string) {
                             //       (as opposed to [pre-snapped] pixel coordinates, which is what bake_event takes)
                             p = magic_snap(p);
                         }
-                        instabaked_event = construct_mouse_event_2D(p);
+                        instabaked_event = make_mouse_event_2D(p);
                     } else if (strncmp(tag, "m3d", TAG_LENGTH) == 0) {
                         char *params = &string[i + 1 + TAG_LENGTH];
                         vec3 mouse_ray_origin;
                         vec3 mouse_ray_direction;
                         sscanf(params, "%f %f %f %f %f %f", &mouse_ray_origin.x, &mouse_ray_origin.y, &mouse_ray_origin.z, &mouse_ray_direction.x, &mouse_ray_direction.y, &mouse_ray_direction.z);
-                        instabaked_event = construct_mouse_event_3D(mouse_ray_origin, mouse_ray_direction);
+                        instabaked_event = make_mouse_event_3D(mouse_ray_origin, mouse_ray_direction);
                     } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
                         is_instabaked = false;
                         _raw_event.type = EventType::Key;
@@ -2152,14 +2159,7 @@ void script_process(char *string) {
 // MAIN() ////////////////////////////////////////
 //////////////////////////////////////////////////
 
-run_before_main {
-    printf("1\n");
-};
 int main() {
-    defer {
-        printf("3\n");
-    };
-    printf("2\n");
     { // init
         setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
         srand((unsigned int) time(NULL)); srand(0);
@@ -2299,7 +2299,7 @@ int main() {
                 real y = 16;
                 real w = 16;
                 real h = 2.5f * w;
-                _for_(d, 2) {
+                for_(d, 2) {
                     real o = d * (1.7f * w);
                     eso_vertex(o + x,     y    );
                     eso_vertex(o + x,     y + h);

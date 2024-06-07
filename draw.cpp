@@ -24,25 +24,25 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, omax.white, omax.black));
         eso_color(0.0f, 0.0f, 0.0f);
         // 3 * num_triangles * 2 / 2
-        _for_(i, mesh->num_cosmetic_edges) {
-            _for_(d, 2) {
+        for_(i, mesh->num_cosmetic_edges) {
+            for_(d, 2) {
                 eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
             }
         }
         eso_end();
     }
-    _for_(pass, 2) {
+    for_(pass, 2) {
         eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
 
         mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
 
 
-        _for_(i, mesh->num_triangles) {
+        for_(i, mesh->num_triangles) {
             vec3 n = mesh->triangle_normals[i];
             vec3 p[3];
             real x_n;
             {
-                _for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
                 x_n = dot(n, p[0]);
             }
             vec3 color; 
@@ -75,7 +75,7 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             real mask = CLAMP(1.2f * other.time_since_successful_feature, 0.0f, 2.0f);
             // color = CLAMPED_LINEAR_REMAP(time_since_successful_feature, -0.5f, 0.5f, omax.white, color);
             eso_color(color, alpha);
-            _for_(d, 3) {
+            for_(d, 3) {
                 eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bounding_box.max.y, mesh->bounding_box.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
                 eso_vertex(p[d]);
             }
@@ -130,8 +130,8 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
         uint number_of_channels = 4;
         u8 *array = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
         uint o = 9;
-        _for_(j, texture_side_length) {
-            _for_(i, texture_side_length) {
+        for_(j, texture_side_length) {
+            for_(i, texture_side_length) {
                 uint k = number_of_channels * (j * texture_side_length + i);
                 uint n = uint(texture_side_length / GRID_SIDE_LENGTH * 10);
                 uint t = 2;
@@ -141,7 +141,7 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
                 u8 value = u8(255 * omax.black.x);
                 if (stripe) value = u8(255 * omax.dark_gray.x);
                 if (super_stripe) value = u8(255 * omax.light_gray.x);
-                _for_(d, 3) array[k + d] = value;
+                for_(d, 3) array[k + d] = value;
                 array[k + 3] = a;
             }
         }
@@ -155,10 +155,10 @@ void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
 }
 
 void conversation_draw() {
-    mat4 P_2D = camera_get_P(&other.camera_2D);
-    mat4 V_2D = camera_get_V(&other.camera_2D);
+    mat4 P_2D = camera_get_P(&other.camera_drawing);
+    mat4 V_2D = camera_get_V(&other.camera_drawing);
     mat4 PV_2D = P_2D * V_2D;
-    mat4 inv_PV_2D = inverse(camera_get_PV(camera_2D));
+    mat4 inv_PV_2D = inverse(camera_get_PV(camera_drawing));
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_NDC);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
@@ -218,8 +218,8 @@ void conversation_draw() {
     }
 
 
-    mat4 P_3D = camera_get_P(&other.camera_3D);
-    mat4 V_3D = camera_get_V(&other.camera_3D);
+    mat4 P_3D = camera_get_P(&other.camera_mesh);
+    mat4 V_3D = camera_get_V(&other.camera_mesh);
     mat4 PV_3D = P_3D * V_3D;
 
     uint window_width, window_height; {
@@ -281,7 +281,7 @@ void conversation_draw() {
                 eso_end();
             }
             if (1) { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
-                real funky_NDC_factor = other.camera_2D.height_World / 120.0f;
+                real funky_NDC_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
                 real LL = 1000 * funky_NDC_factor;
 
                 eso_color(omax.white);
@@ -322,7 +322,7 @@ void conversation_draw() {
             }
             { // dots
                 if (other.show_details) {
-                    eso_begin(camera_get_PV(&other.camera_2D), SOUP_POINTS, 4.0f);
+                    eso_begin(camera_get_PV(&other.camera_drawing), SOUP_POINTS, 4.0f);
                     eso_color(omax.white);
                     _for_each_entity_ {
                         real start_x, start_y, end_x, end_y;
@@ -368,7 +368,7 @@ void conversation_draw() {
                     real r = norm(c - p);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
-                    _for_(i, NUM_SEGMENTS_PER_CIRCLE) eso_vertex(c + r * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
+                    for_(i, NUM_SEGMENTS_PER_CIRCLE) eso_vertex(c + r * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Fillet) {
@@ -445,7 +445,7 @@ void conversation_draw() {
                     M_incr = M4_Identity();
                 }
 
-                _for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
+                for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
                     eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
                         _for_each_selected_entity_ {
                             real alpha;
@@ -467,7 +467,7 @@ void conversation_draw() {
         }
 
         if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
-            real r = other.camera_3D.ortho_screen_height_World / 120.0f;
+            real r = other.camera_mesh.ortho_screen_height_World / 120.0f;
             eso_color(omax.white);
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES, 2.0f);
             eso_vertex(-r, 0.0f);
@@ -492,7 +492,7 @@ void conversation_draw() {
             box2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&drawing->entities, true);
             box2 target_bounding_box; {
                 target_bounding_box = bounding_box_union(face_selection_bounding_box, dxf_selection_bounding_box);
-                _for_(d, 2) {
+                for_(d, 2) {
                     if (target_bounding_box.min[d] > target_bounding_box.max[d]) {
                         target_bounding_box.min[d] = 0.0f;
                         target_bounding_box.max[d] = 0.0f;
@@ -723,7 +723,7 @@ void messagef(char *format, ...) {
 
 real get_x_divider_Pixel();
 void conversation_message_buffer_update() {
-    _for_(i, MESSAGE_MAX_NUM_MESSAGES) {
+    for_(i, MESSAGE_MAX_NUM_MESSAGES) {
         Message *message = &conversation_messages[i];
         if (message->time_remaining > 0) {
             message->time_remaining -= 0.0167f;;

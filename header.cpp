@@ -21,7 +21,7 @@ real TOLERANCE_DEFAULT = 5e-4f;
 uint NUM_SEGMENTS_PER_CIRCLE = 64;
 real GRID_SIDE_LENGTH = 256.0f;
 real GRID_SPACING = 10.0f;
-real CAMERA_3D_DEFAULT_ANGLE_OF_VIEW = RAD(60.0f);
+real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(60.0f);
 
 ////////////////////////////////////////
 // colors //////////////////////////////
@@ -373,8 +373,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     mat4 transform_NDC_from_Pixel;
     mat4 transform_Identity = M4_Identity();
 
-    Camera2D camera_2D;
-    Camera3D camera_3D;
+    Camera camera_drawing;
+    Camera camera_mesh;
 
     bool hide_grid;
     bool hide_gui;
@@ -438,14 +438,14 @@ real squared_distance_point_point(real x_A, real y_A, real x_B, real y_B) {
 ////////////////////////////////////////
 
 
-void camera2D_zoom_to_bounding_box(Camera2D *camera_2D, box2 bounding_box) {
+void camera2D_zoom_to_bounding_box(Camera *camera_drawing, box2 bounding_box) {
     real new_o_x = AVG(bounding_box.min[0], bounding_box.max[0]);
     real new_o_y = AVG(bounding_box.min[1], bounding_box.max[1]);
     real new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
-    camera_2D->height_World = new_height;
-    camera_2D->center_World.x = new_o_x;
-    camera_2D->center_World.y = new_o_y;
+    camera_drawing->ortho_screen_height_World = new_height;
+    camera_drawing->pre_nudge_World.x = new_o_x;
+    camera_drawing->pre_nudge_World.y = new_o_y;
 }
 
 ////////////////////////////////////////
@@ -681,7 +681,7 @@ void eso_dxf_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) 
         uint num_segments = uint(1 + (delta_angle / TAU) * 256); // FORNOW: TODO: make dependent on zoom
         real increment = delta_angle / num_segments;
         real current_angle = start_angle;
-        _for_(i, num_segments) {
+        for_(i, num_segments) {
             real x, y;
             get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, current_angle);
             eso_vertex(x + dx, y + dy);
@@ -693,8 +693,8 @@ void eso_dxf_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) 
 }
 
 
-void dxf_entities_debug_draw(Camera2D *camera_2D, List<Entity> *dxf_entities) {
-    eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
+void dxf_entities_debug_draw(Camera *camera_drawing, List<Entity> *dxf_entities) {
+    eso_begin(camera_get_PV(camera_drawing), SOUP_LINES);
     for (Entity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
         eso_dxf_entity__SOUP_LINES(entity);
     }
@@ -706,8 +706,8 @@ box2 dxf_entity_get_bounding_box(Entity *entity) {
     real s[2][2];
     uint n = 2;
     entity_get_start_and_end_points(entity, &s[0][0], &s[0][1], &s[1][0], &s[1][1]);
-    _for_(i, n) {
-        _for_(d, 2) {
+    for_(i, n) {
+        for_(d, 2) {
             result.min[d] = MIN(result.min[d], s[i][d]);
             result.max[d] = MAX(result.max[d], s[i][d]);
         }
@@ -728,7 +728,7 @@ box2 dxf_entity_get_bounding_box(Entity *entity) {
 
 box2 dxf_entities_get_bounding_box(List<Entity> *dxf_entities, bool only_consider_selected_entities = false) {
     box2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
-    _for_(i, dxf_entities->length) {
+    for_(i, dxf_entities->length) {
         if ((only_consider_selected_entities) && (!dxf_entities->array[i].is_selected)) continue;
         box2 bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
         result = bounding_box_union(result, bounding_box);
@@ -812,7 +812,7 @@ struct DXFFindClosestEntityResult {
 DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *dxf_entities, real x, real y) {
     DXFFindClosestEntityResult result = {};
     double hot_squared_distance = HUGE_VAL;
-    _for_(i, dxf_entities->length) {
+    for_(i, dxf_entities->length) {
         Entity *entity = &dxf_entities->array[i];
         double squared_distance = squared_distance_point_dxf_entity(x, y, entity);
         if (squared_distance < hot_squared_distance) {
@@ -860,7 +860,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
                 #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!only_consider_selected_entities || dxf_entities->array[i].is_selected))
                 { // seed loop
                     bool added_and_seeded_new_loop = false;
-                    _for_(entity_index, dxf_entities->length) {
+                    for_(entity_index, dxf_entities->length) {
                         if (MACRO_CANDIDATE_VALID(entity_index)) {
                             added_and_seeded_new_loop = true;
                             entity_already_added[entity_index] = true;
@@ -875,7 +875,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
                     real tolerance = TOLERANCE_DEFAULT;
                     while (true) {
                         bool added_new_entity_to_loop = false;
-                        _for_(entity_index, dxf_entities->length) {
+                        for_(entity_index, dxf_entities->length) {
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
                             real start_x_prev, start_y_prev, end_x_prev, end_y_prev;
                             real start_x_i, start_y_i, end_x_i, end_y_i;
@@ -963,7 +963,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
                             loop[i] = loop[j];
                             loop[j] = tmp;
                         }
-                        _for_(i, num_entities_in_loop) {
+                        for_(i, num_entities_in_loop) {
                             loop[i].flip_flag = !loop[i].flip_flag;
                         }
                     }
@@ -977,21 +977,21 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
         result.num_loops = stretchy_list.length;
         result.num_entities_in_loops = (uint *) calloc(result.num_loops, sizeof(uint));
         result.loops = (DXFEntityIndexAndFlipFlag **) calloc(result.num_loops, sizeof(DXFEntityIndexAndFlipFlag *));
-        _for_(i, result.num_loops) {
+        for_(i, result.num_loops) {
             result.num_entities_in_loops[i] = stretchy_list.array[i].length;
             result.loops[i] = (DXFEntityIndexAndFlipFlag *) calloc(result.num_entities_in_loops[i], sizeof(DXFEntityIndexAndFlipFlag));
             memcpy(result.loops[i], stretchy_list.array[i].array, result.num_entities_in_loops[i] * sizeof(DXFEntityIndexAndFlipFlag));
         }
 
         // free List's
-        _for_(i, stretchy_list.length) list_free_AND_zero(&stretchy_list.array[i]);
+        for_(i, stretchy_list.length) list_free_AND_zero(&stretchy_list.array[i]);
         list_free_AND_zero(&stretchy_list);
     }
     // loop_index_from_entity_index (brute force)
     result.loop_index_from_entity_index = (uint *) calloc(dxf_entities->length, sizeof(uint));
-    _for_(i, dxf_entities->length) {
-        _for_(j, result.num_loops) {
-            _for_(k, result.num_entities_in_loops[j]) {
+    for_(i, dxf_entities->length) {
+        for_(j, result.num_loops) {
+            for_(k, result.num_entities_in_loops[j]) {
                 if (i == result.loops[j][k].entity_index) {
                     result.loop_index_from_entity_index[i] = j;
                     break;
@@ -1007,7 +1007,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
         free(analysis->num_entities_in_loops);
     }
     if (analysis->loops) {
-        _for_(i, analysis->num_loops) {
+        for_(i, analysis->num_loops) {
             free(analysis->loops[i]);
         }
         free(analysis->loops);
@@ -1057,7 +1057,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
     // populate List's
     List<List<vec2>> stretchy_list = {}; {
         DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf_entities, only_consider_selected_entities);
-        _for_(loop_index, analysis.num_loops) {
+        for_(loop_index, analysis.num_loops) {
             uint num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
             list_push_back(&stretchy_list, {});
@@ -1082,7 +1082,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
                     real increment = delta_angle / num_segments;
                     real current_angle = start_angle;
                     real x, y;
-                    _for_(i, num_segments) {
+                    for_(i, num_segments) {
                         get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, current_angle);
                         list_push_back(&stretchy_list.array[stretchy_list.length - 1], { x, y });
                         current_angle += increment;
@@ -1098,23 +1098,23 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
     result.num_polygonal_loops = stretchy_list.length;
     result.num_vertices_in_polygonal_loops = (uint *) calloc(result.num_polygonal_loops, sizeof(uint));
     result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
-    _for_(i, result.num_polygonal_loops) {
+    for_(i, result.num_polygonal_loops) {
         result.num_vertices_in_polygonal_loops[i] = stretchy_list.array[i].length;
         result.polygonal_loops[i] = (vec2 *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(vec2));
         memcpy(result.polygonal_loops[i], stretchy_list.array[i].array, result.num_vertices_in_polygonal_loops[i] * sizeof(vec2));
     }
 
     // free List's
-    _for_(i, stretchy_list.length) list_free_AND_zero(&stretchy_list.array[i]);
+    for_(i, stretchy_list.length) list_free_AND_zero(&stretchy_list.array[i]);
     list_free_AND_zero(&stretchy_list);
 
     return result;
 }
 
-void cross_section_debug_draw(Camera2D *camera_2D, CrossSectionEvenOdd *cross_section) {
-    eso_begin(camera_get_PV(camera_2D), SOUP_LINES);
+void cross_section_debug_draw(Camera *camera_drawing, CrossSectionEvenOdd *cross_section) {
+    eso_begin(camera_get_PV(camera_drawing), SOUP_LINES);
     eso_color(omax.white);
-    _for_(loop_index, cross_section->num_polygonal_loops) {
+    for_(loop_index, cross_section->num_polygonal_loops) {
         vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
         for (int j = 0, i = n - 1; j < n; i = j++) {
@@ -1144,7 +1144,7 @@ void cross_section_debug_draw(Camera2D *camera_2D, CrossSectionEvenOdd *cross_se
 
 void cross_section_free(CrossSectionEvenOdd *cross_section) {
     free(cross_section->num_vertices_in_polygonal_loops);
-    _for_(i, cross_section->num_polygonal_loops) free(cross_section->polygonal_loops[i]);
+    for_(i, cross_section->num_polygonal_loops) free(cross_section->polygonal_loops[i]);
     free(cross_section->polygonal_loops);
 }
 
@@ -1156,8 +1156,8 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 void mesh_triangle_normals_calculate(Mesh *mesh) {
     mesh->triangle_normals = (vec3 *) malloc(mesh->num_triangles * sizeof(vec3));
     vec3 p[3];
-    _for_(i, mesh->num_triangles) {
-        _for_(d, 3) p[d] = mesh->vertex_positions[mesh->triangle_indices[i][d]];
+    for_(i, mesh->num_triangles) {
+        for_(d, 3) p[d] = mesh->vertex_positions[mesh->triangle_indices[i][d]];
         vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
         mesh->triangle_normals[i] = n;
     }
@@ -1169,7 +1169,7 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     //           then go back and if passes some heuristic add that index to a stretchy buffer
     List<uint2> list = {}; {
         Map<uint2, vec3> map = {}; {
-            _for_(i, mesh->num_triangles) {
+            for_(i, mesh->num_triangles) {
                 vec3 n = mesh->triangle_normals[i];
                 for (uint jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
                     uint j0 = mesh->triangle_indices[i][jj0];
@@ -1208,7 +1208,7 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
 
 void mesh_bounding_box_calculate(Mesh *mesh) {
     mesh->bounding_box = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
-    _for_(i, mesh->num_vertices) {
+    for_(i, mesh->num_vertices) {
         bounding_box_add_point(&mesh->bounding_box, mesh->vertex_positions[i]);
     }
 }
@@ -1224,7 +1224,7 @@ bool mesh_save_stl(Mesh *mesh, char *filename) {
         int offset = 80;
         memcpy(buffer + offset, &mesh->num_triangles, 4);
         offset += 4;
-        _for_(i, mesh->num_triangles) {
+        for_(i, mesh->num_triangles) {
             vec3 triangle_normal; {
                 triangle_normal = mesh->triangle_normals[i];
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
@@ -1233,7 +1233,7 @@ bool mesh_save_stl(Mesh *mesh, char *filename) {
             memcpy(buffer + offset, &triangle_normal, 12);
             offset += 12;
             vec3 triangle_vertex_positions[3];
-            _for_(j, 3) {
+            for_(j, 3) {
                 triangle_vertex_positions[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
                 triangle_vertex_positions[j] = { triangle_vertex_positions[j].x, -triangle_vertex_positions[j].z, triangle_vertex_positions[j].y };
@@ -1311,7 +1311,7 @@ void stl_load(char *filename, Mesh *mesh) {
                 while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
                     if (poe_prefix_match(line_of_file, "vertex")) {
                         sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
-                        _for_(d, 3) list_push_back(&ascii_data, ascii_scan_p[d]);
+                        for_(d, 3) list_push_back(&ascii_data, ascii_scan_p[d]);
                     }
                 }
                 fclose(file);
@@ -1337,7 +1337,7 @@ void stl_load(char *filename, Mesh *mesh) {
                 offset += 4;
                 uint size = num_triangles * 36;
                 soup = (vec3 *) calloc(1, size);
-                _for_(i, num_triangles) {
+                for_(i, num_triangles) {
                     offset += 12;
                     memcpy(&soup[3 * i], entire_file + offset, 36);
                     offset += 38;
@@ -1345,7 +1345,7 @@ void stl_load(char *filename, Mesh *mesh) {
             }
             { // -90 degree rotation about x: (x, y, z) <- (x, z, -y)
                 uint num_vertices = 3 * num_triangles;
-                _for_(i, num_vertices) {
+                for_(i, num_vertices) {
                     soup[i] = { soup[i].x, soup[i].z, -soup[i].y };
                 }
             }
@@ -1361,7 +1361,7 @@ void stl_load(char *filename, Mesh *mesh) {
             uint default_value = _3__times__num_triangles + 1;
             {
                 List<vec3> list = {};
-                _for_(i, _3__times__num_triangles) {
+                for_(i, _3__times__num_triangles) {
                     vec3 p = soup[i];
                     uint j = map_get(&map, p, default_value);
                     if (j == default_value) {
@@ -1377,7 +1377,7 @@ void stl_load(char *filename, Mesh *mesh) {
                 list_free_AND_zero(&list);
             }
             triangle_indices = (uint3 *) malloc(num_triangles * sizeof(uint3));
-            _for_(k, _3__times__num_triangles) triangle_indices[k / 3][k % 3] = map_get(&map, soup[k]);
+            for_(k, _3__times__num_triangles) triangle_indices[k / 3][k % 3] = map_get(&map, soup[k]);
             map_free_and_zero(&map);
         }
 
@@ -1472,7 +1472,7 @@ Mesh wrapper_manifold(
     ManifoldManifold *manifold_B; {
         ManifoldSimplePolygon **simple_polygon_array; {
             simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
-            _for_(i, num_polygonal_loops) {
+            for_(i, num_polygonal_loops) {
                 simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
             }
         } 
@@ -1491,7 +1491,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == EnterMode::ExtrudeCut) {
-                do_once { messagef(omax.magenta, "Inflating ExtrudeCut.\n"); };
+                do_once { messagef(omax.magenta, "ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
             }
@@ -1518,7 +1518,7 @@ Mesh wrapper_manifold(
         }
 
         { // free(simple_polygon_array)
-            _for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
+            for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
             free(simple_polygon_array);
         }
         manifold_delete_polygons(polygons);
