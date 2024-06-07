@@ -461,7 +461,6 @@ void gl_scissor_TODO_CHECK_ARGS(real x, real y, real dx, real dy) {
 
 void _callback_set_callbacks();
 void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos);
-void _window_get_NDC_from_Screen(real *NDC_from_Screen);
 void _window_init() {
     ASSERT(glfwInit());
 
@@ -520,6 +519,13 @@ void _window_init() {
 
 }
 
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 vec2 window_get_size_Pixel() {
     ASSERT(COW0._window_glfw_window);
     int _width, _height;
@@ -535,22 +541,27 @@ real window_get_aspect() {
 }
 
 mat4 window_get_NDC_from_Screen() {
-    mat4 result;
-    _window_get_NDC_from_Screen(result.data);
+    // NDC                         Screen
+    // [x'] = [1/r_x      0   0 -1] [x] = [x/r_x - 1]
+    // [y'] = [    0 -1/r_y   0  1] [y] = [1 - y/r_y]
+    // [z'] = [    0      0   0  0] [z] = [        0]
+    // [1 ] = [    0      0   0  1] [1] = [        1]
+    vec2 r = window_get_size_Pixel() / 2;
+    mat4 result = {};
+    result(0, 0) = 1.0f / r.x;
+    result(1, 1) = -1.0f / r.y;
+    result(0, 3) = -1.0f;
+    result(1, 3) = 1.0f;
+    result(3, 3) = 1.0f;
     return result;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// #include "window_tform.cpp"//////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-void _window_get_P_perspective(real *P, real angle_of_view, real t_x_NDC = 0, real t_y_NDC = 0, real n = 0, real f = 0, real aspect = 0) {
-    if (IS_ZERO(n)) { n = -10.f; }
-    if (IS_ZERO(f)) { f = -10000.f; }
+mat4 get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
+    if (IS_ZERO(near_z_Camera)) { near_z_Camera = -10.0f; }
+    if (IS_ZERO(far_z_Camera)) { far_z_Camera = -10000.0f; }
     if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }
-    ASSERT(P);
-    ASSERT(n < 0);
-    ASSERT(f < 0);
+    ASSERT(near_z_Camera < 0.0f);
+    ASSERT(far_z_Camera < 0.0f);
 
     // consider a point with coordinates (x, y, -z) in the camera's coordinate system
     //                                                                   where z < 0*
@@ -602,20 +613,20 @@ void _window_get_P_perspective(real *P, real angle_of_view, real t_x_NDC = 0, re
     // encode Equation 1 (and the variant for x) into a homogeneous matrix equation
     // the third row is a   typical clip plane mapping                             
 
-    // [x'] = [Q_x   0  0  0] [x] = [ Q_x * x] ~> [-Q_x * (x / z)]
-    // [y'] = [  0 Q_y  0  0] [y] = [ Q_y * y] ~> [-Q_y * (y / z)]
-    // [z'] = [  0   0  a  b] [z] = [  az + b] ~> [      -a - b/z]
-    // [ 1] = [  0   0 -1  0] [1] = [      -z] ~> [             1]
+    //  NDC                    Camera
+    //  [x'] = [Q_x   0  0  0] [x] = [ Q_x * x] ~> [-Q_x * (x / z)]
+    //  [y'] = [  0 Q_y  0  0] [y] = [ Q_y * y] ~> [-Q_y * (y / z)]
+    //  [z'] = [  0   0  a  b] [z] = [  az + b] ~> [      -a - b/z]
+    //  [ 1] = [  0   0 -1  0] [1] = [      -z] ~> [             1]
 
     real angle_y = angle_of_view / 2;
     real Q_y = 1 / TAN(angle_y);
     real Q_x = Q_y / aspect;
 
-    memset(P, 0, 16 * sizeof(real));
-    _LINALG_4X4(P, 0, 0) = Q_x;
-    _LINALG_4X4(P, 0, 1) = 0; // TERRIBLE PATCH
-    _LINALG_4X4(P, 1, 1) = Q_y;
-    _LINALG_4X4(P, 3, 2) = -1;
+    mat4 result = {};
+    result(0, 0) = Q_x;
+    result(1, 1) = Q_y;
+    result(3, 2) = -1;
 
     // z'(z) = [-a - b/z]              
     // we want to map [n, f] -> [-1, 1]
@@ -632,23 +643,24 @@ void _window_get_P_perspective(real *P, real angle_of_view, real t_x_NDC = 0, re
     // => a + (2 * f) / (f - n) = 1    
     // => a = -(n + f) / (f - n)       
     //       = (n + f) / (n - f)       
-    _LINALG_4X4(P, 2, 2) = (n + f) / (n - f);
-    _LINALG_4X4(P, 2, 3) = (2 * n * f) / (f - n);
+    result(2, 2) = (near_z_Camera + far_z_Camera) / (near_z_Camera - far_z_Camera);
+    result(2, 3) = (2 * near_z_Camera * far_z_Camera) / (far_z_Camera - near_z_Camera);
 
     // [1 0 0  t_x_NDC] [Q_x   0  0  0]
     // [0 1 0  t_y_NDC] [  0 Q_y  0  0]
     // [0 0 1        0] [  0   0  a  b]
     // [0 0 0        1] [  0   0 -1  0]
-    _LINALG_4X4(P, 0, 2) = -t_x_NDC;
-    _LINALG_4X4(P, 1, 2) = -t_y_NDC;
+    result(0, 2) = -post_nudge_NDC.x;
+    result(1, 2) = -post_nudge_NDC.y;
+
+    return result;
 }
 
-void _window_get_P_ortho(real *P, real height_World, real t_x_NDC = 0, real t_y_NDC = 0, real n = 0, real f = 0, real aspect = 0) {
-    ASSERT(P);
+mat4 get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
     // ASSERT(!IS_ZERO(height_World));
-    if (ARE_EQUAL(n, f)) {
-        n = 10000.0f;
-        f = -n;
+    if (ARE_EQUAL(near_z_Camera, far_z_Camera)) {
+        near_z_Camera = 10000.0f;
+        far_z_Camera = -near_z_Camera;
     }
     if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }
 
@@ -676,17 +688,11 @@ void _window_get_P_ortho(real *P, real height_World, real t_x_NDC = 0, real t_y_
 
     // => y' = y / r_y
 
-    real r_y = height_World / 2;
-    real r_x = window_get_aspect() * r_y;
-
+    // NDC                        Camera
     // [x'] = [1/r_x      0   0  0] [x] = [ x/r_x]
     // [y'] = [    0  1/r_y   0  0] [y] = [ y/r_y]
     // [z'] = [    0      0   a  b] [z] = [az + b]
     // [1 ] = [    0      0   0  1] [1] = [     1]
-
-    memset(P, 0, 16 * sizeof(real));
-    _LINALG_4X4(P, 0, 0) = 1 / r_x;
-    _LINALG_4X4(P, 1, 1) = 1 / r_y;
 
     // z'(z) = [az + b]                
     // we want to map [n, f] -> [-1, 1]
@@ -698,45 +704,30 @@ void _window_get_P_ortho(real *P, real height_World, real t_x_NDC = 0, real t_y_
     //                                 
     // (2 * f) / (f - n) + b = 1       
     // => b = (n + f) / (n - f)        
-    real a = 2 / (f - n);
-    real b = (n + f) / (n - f);
-    _LINALG_4X4(P, 2, 2) = a;
-    _LINALG_4X4(P, 2, 3) = b;
 
-    _LINALG_4X4(P, 3, 3) = 1;
+    real r_y = height_World / 2;
+    real r_x = window_get_aspect() * r_y;
+    real a = 2.0f / (far_z_Camera - near_z_Camera);
+    real b = (near_z_Camera + far_z_Camera) / (near_z_Camera - far_z_Camera);
 
-    // [1 0 0  t_x_NDC] [1/r_x      0   0  0]
-    // [0 1 0  t_y_NDC] [    0  1/r_y   0  0]
-    // [0 0 1        0] [    0      0   a  b]
-    // [0 0 0        1] [    0      0   0  1]
-    _LINALG_4X4(P, 0, 3) = t_x_NDC;
-    _LINALG_4X4(P, 1, 3) = t_y_NDC;
-}
+    mat4 result = {};
+    result(0, 0) = 1.0f / r_x;
+    result(1, 1) = 1.0f / r_y;
+    result(2, 2) = a;
+    result(2, 3) = b;
+    result(3, 3) = 1.0f;
 
-void _window_get_NDC_from_Screen(real *NDC_from_Screen) {
-    _window_get_P_ortho(NDC_from_Screen, window_get_size_Pixel().y);
-    _LINALG_4X4(NDC_from_Screen, 1, 1) *= -1;
-    _LINALG_4X4(NDC_from_Screen, 0, 3) -= 1;
-    _LINALG_4X4(NDC_from_Screen, 1, 3) += 1;
-}
+    // [1 0 0  t_x] [1/r_x      0   0  0]
+    // [0 1 0  t_y] [    0  1/r_y   0  0]
+    // [0 0 1    0] [    0      0   a  b]
+    // [0 0 0    1] [    0      0   0  1]
 
-mat4 _window_get_P_perspective(real angle_of_view, real n = 0, real f = 0, real aspect = 0) {
-    mat4 result;
-    _window_get_P_perspective(result.data, angle_of_view, n, f, aspect);
+    result(0, 3) = post_nudge_NDC.x;
+    result(1, 3) = post_nudge_NDC.y;
+
     return result;
 }
 
-mat4 _window_get_P_ortho(real height_World, real n = 0, real f = 0, real aspect = 0) {
-    mat4 result;
-    _window_get_P_ortho(result.data, height_World, n, f, aspect);
-    return result;
-}
-
-mat4 _window_get_NDC_from_Screen() {
-    mat4 result;
-    _window_get_NDC_from_Screen(result.data);
-    return result;
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "camera.cpp"////////////////////////////////////////////////////////
@@ -785,13 +776,11 @@ Camera make_EquivalentCamera2D(Camera *camera_3D) {
 }
 
 mat4 camera_get_P(Camera *camera) {
-    mat4 result;
     if (IS_ZERO(camera->angle_of_view)) {
-        _window_get_P_ortho(result.data, camera->ortho_screen_height_World, camera->post_nudge_NDC.x, camera->post_nudge_NDC.y);
+        return get_P_ortho(camera->ortho_screen_height_World, camera->post_nudge_NDC);
     } else {
-        _window_get_P_perspective(result.data, camera->angle_of_view, camera->post_nudge_NDC.x, camera->post_nudge_NDC.y);
+        return get_P_persp(camera->angle_of_view, camera->post_nudge_NDC);
     }
-    return result;
 }
 
 mat4 camera_get_V(Camera *camera) {

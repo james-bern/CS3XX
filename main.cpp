@@ -2230,7 +2230,7 @@ int main() {
     uint frame = 0;
     while (!glfwWindowShouldClose(COW0._window_glfw_window)) {
         {
-            _window_get_NDC_from_Screen((real *) &globals.NDC_from_Screen);
+            globals.NDC_from_Screen = window_get_NDC_from_Screen();
             COW1._gui_x_curr = 16;
             COW1._gui_y_curr = 16;
 
