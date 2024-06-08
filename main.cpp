@@ -81,7 +81,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             } else if (state.click_modifier == ClickModifier::Middle) {
                 real min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
-                    real squared_distance = squared_distance_point_dxf_entity(before.x, before.y, entity);
+                    real squared_distance = squared_distance_point_entity(before.x, before.y, entity);
                     if (squared_distance < min_squared_distance) {
                         min_squared_distance = squared_distance;
                         entity_get_middle(entity, &result.x, &result.y);
@@ -118,7 +118,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
 
 void init_cameras() {
     *camera_drawing = make_Camera2D(100.0f, {}, { -0.5f, -0.125f });
-    if (drawing->entities.length) camera2D_zoom_to_bounding_box(&other.camera_drawing, dxf_entities_get_bounding_box(&drawing->entities));
+    if (drawing->entities.length) camera2D_zoom_to_bounding_box(&other.camera_drawing, entities_get_bounding_box(&drawing->entities));
     if ((!other.camera_mesh.persp_distance_to_origin_World) || (!mesh->num_vertices)) {
         *camera_mesh = make_OrbitCamera3D(
                 CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
@@ -190,98 +190,36 @@ bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (state.enter_mode == EnterMode::NudgeFeaturePlane)
         ;
 }
-//////////////////////////////////////////////////
-// state-DEPENDENT UTILITY FUNCTIONS /////////////
-//////////////////////////////////////////////////
-
-
-
-///
-
 
 //////////////////////////////////////////////////
 // LOADING AND SAVING state TO/FROM DISK /////////
 //////////////////////////////////////////////////
 
+
 void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
-    if (!poe_file_exists(filename)) {
-        messagef(omax.orange, "File \"%s\" was not found.", filename);
-        return;
-    }
+    ASSERT(FILE_EXISTS(filename));
 
     list_free_AND_zero(&drawing->entities);
 
-    dxf_entities_load(filename, &drawing->entities);
+    entities_load(filename, &drawing->entities);
 
     if (!preserve_cameras_and_dxf_origin) {
-        // camera2D_zoom_to_bounding_box(&other.camera_drawing, dxf_entities_get_bounding_box(&drawing->entities));
+        // camera2D_zoom_to_bounding_box(&other.camera_drawing, entities_get_bounding_box(&drawing->entities));
         init_cameras();
         drawing->origin = {};
     }
-
-    messagef(omax.green, "LoadDXF \"%s\"", filename);
 }
 
-void conversation_stl_load(char *filename, bool preserve_cameras = false) {
-    if (!poe_file_exists(filename)) {
-        messagef(omax.orange, "File \"%s\" was not found.", filename);
-        return;
-    }
-    {
-        stl_load(filename, mesh);
-        FORNOW_UNUSED(preserve_cameras);
-        messagef(omax.green, "LoadSTL \"%s\"", filename);
-    }
+void conversation_stl_load(char *filename) {
+    ASSERT(FILE_EXISTS(filename));
+    // ?
+    stl_load(filename, mesh);
 }
 
-void conversation_load(char *filename, bool preserve_cameras = false) {
-    if (poe_suffix_match(filename, ".dxf")) {
-        conversation_dxf_load(filename, preserve_cameras);
-    } else if (poe_suffix_match(filename, ".stl")) {
-        conversation_stl_load(filename, preserve_cameras);
-    } else {
-        messagef(omax.orange, "File \"%s\" is not supported: must be *.drawing or *.stl. ", filename);
-    }
-}
 
 void conversation_stl_save(char *filename) {
-    // TODO: prompt for overwriting
-    if (mesh_save_stl(mesh, filename) ) {
-        messagef(omax.green, "SaveSTL \"%s\"", filename);
-    } else {
-        messagef(omax.orange, "Failed to open file \"%s\" for writing.", filename);
-    }
+    ASSERT(mesh_save_stl(mesh, filename));
 }
-
-void conversation_save(char *filename) {
-    if (poe_suffix_match(filename, ".stl")) {
-        conversation_stl_save(filename);
-    } else {
-        messagef(omax.orange, "File \"%s\" is not supported: must be *.drawing or *.stl. ", filename);
-    }
-}
-
-void callback_drop(GLFWwindow *, int count, const char **paths) {
-    if (count > 0) {
-        char *filename = (char *)(paths[0]);
-        conversation_load(filename);
-        { // conversation_set_drop_path(filename)
-            for (uint i = 0; filename[i]; ++i) {
-                other.drop_path[i] = filename[i];
-                if (filename[i] == '.') {
-                    while (
-                            (i != 0) &&
-                            (other.drop_path[i - 1] != '\\') &&
-                            (other.drop_path[i - 1] != '/')
-                          ) --i;
-                    other.drop_path[i] = '\0';
-                    break;
-                }
-            }
-        }
-    }
-}
-
 
 //////////////////////////////////////////////////
 // GATHERING NEW EVENTS FROM USER ////////////////
@@ -769,7 +707,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     *feature_plane = {};
                     messagef(omax.green, "ResetSTL");
                 } else if (key_lambda('O', true)) {
-                    state.enter_mode = EnterMode::Open;
+                    state.enter_mode = EnterMode::Load;
                 } else if (key_lambda('Q')) {
                     if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::None)) {
                         state.click_modifier = ClickModifier::Color;
@@ -801,7 +739,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                 } else if (key_lambda('X', true, true)) {
                     result.record_me = false;
-                    camera2D_zoom_to_bounding_box(&other.camera_drawing, dxf_entities_get_bounding_box(&drawing->entities));
+                    camera2D_zoom_to_bounding_box(&other.camera_drawing, entities_get_bounding_box(&drawing->entities));
                 } else if (key_lambda('Y')) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
                     result.checkpoint_me = true;
@@ -1392,7 +1330,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 MAX(first_click->y, second_click->y)
                             };
                             _for_each_entity_ {
-                                if (bbox_contains(window, dxf_entity_get_bounding_box(entity))) {
+                                if (bbox_contains(window, entity_get_bounding_box(entity))) {
                                     ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                                 }
                             }
@@ -1534,8 +1472,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     }
 
     { // popup_popup
-        static char full_filename_scratch_buffer[512];
-
         EnterMode _enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter = state.enter_mode;
         popup->_popup_actually_called_this_event = false;
 
@@ -1552,36 +1488,51 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
 
-            if (state.enter_mode == EnterMode::Open) {
-                sprintf(full_filename_scratch_buffer, "%s%s", other.drop_path, popup->open_filename);
+            if (state.enter_mode == EnterMode::Load) {
                 popup_popup(false,
-                        CellType::String, "open_filename", popup->open_filename);
+                        CellType::String, "load_filename", popup->load_filename);
                 if (gui_key_enter) {
-                    if (poe_suffix_match(full_filename_scratch_buffer, ".dxf")) {
-                        result.record_me = true;
-                        result.checkpoint_me = true;
-                        result.snapshot_me = true;
-                        conversation_dxf_load(full_filename_scratch_buffer,
-                                skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
-                        state.enter_mode = EnterMode::None;
-                    } else if (poe_suffix_match(full_filename_scratch_buffer, ".stl")) {
-                        result.record_me = true;
-                        result.checkpoint_me = true;
-                        result.snapshot_me = true;
-                        conversation_stl_load(full_filename_scratch_buffer);
-                        state.enter_mode = EnterMode::None;
+                    if (FILE_EXISTS(popup->load_filename)) {
+                        if (MATCHES_SUFFIX(popup->load_filename, ".dxf")) {
+                            result.record_me = true;
+                            result.checkpoint_me = true;
+                            result.snapshot_me = true;
+                            conversation_dxf_load(popup->load_filename,
+                                    skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
+                            state.enter_mode = EnterMode::None;
+                            messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename);
+                        } else if (MATCHES_SUFFIX(popup->load_filename, ".stl")) {
+                            result.record_me = true;
+                            result.checkpoint_me = true;
+                            result.snapshot_me = true;
+                            conversation_stl_load(popup->load_filename);
+                            state.enter_mode = EnterMode::None;
+                            messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename);
+                        } else {
+                            messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->load_filename);
+                        }
                     } else {
-                        messagef(omax.orange, "[open] \"%s\" not found", full_filename_scratch_buffer);
+                        messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename);
                     }
                 }
             } else if (state.enter_mode == EnterMode::Save) {
                 result.record_me = false;
-                sprintf(full_filename_scratch_buffer, "%s%s", other.drop_path, popup->save_filename);
                 popup_popup(false,
                         CellType::String, "save_filename", popup->save_filename);
                 if (gui_key_enter) {
-                    conversation_save(full_filename_scratch_buffer);
-                    state.enter_mode = EnterMode::None;
+                    if (FILE_EXISTS(popup->save_filename)) {
+                        messagef(omax.pink, "(FORNOW) Save: overwriting \"%s\" without asking, popup->save_filename");
+                    }
+
+                    if (MATCHES_SUFFIX(popup->save_filename, ".stl")) {
+                        conversation_stl_save(popup->save_filename);
+                        state.enter_mode = EnterMode::None;
+                        messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename);
+                    } else if (MATCHES_SUFFIX(popup->save_filename, ".dxf")) {
+                        messagef(omax.pink, "TODO: SaveDXF");
+                    } else {
+                        messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename);
+                    }
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
@@ -2210,7 +2161,6 @@ int main() {
         glfwSetCursorPosCallback(glfw_window, callback_cursor_position);
         glfwSetMouseButtonCallback(glfw_window, callback_mouse_button);
         glfwSetScrollCallback(glfw_window, callback_scroll);
-        glfwSetDropCallback(glfw_window, callback_drop);
         glfwSetFramebufferSizeCallback(glfw_window, callback_framebuffer_size);
     }
 

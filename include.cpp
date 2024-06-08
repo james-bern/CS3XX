@@ -16,6 +16,5 @@
 
 #include "burkardt.cpp"
 #include "manifoldc.h"
-#include "jim.cpp"
 #include "header.cpp"
 

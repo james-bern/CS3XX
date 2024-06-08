@@ -248,7 +248,7 @@ void conversation_draw() {
                         }
                     }
                     eso_color(get_color(color_code));
-                    eso_dxf_entity__SOUP_LINES(entity, dx, dy);
+                    eso_entity__SOUP_LINES(entity, dx, dy);
                 }
                 eso_end();
             }
@@ -310,7 +310,7 @@ void conversation_draw() {
                         uint i = dxf_find_closest_entity_result.index;
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::WaterOnly));
-                        eso_dxf_entity__SOUP_LINES(&drawing->entities.array[i]);
+                        eso_entity__SOUP_LINES(&drawing->entities.array[i]);
                         eso_end();
                     }
                 }
@@ -387,7 +387,7 @@ void conversation_draw() {
                             //     color = get_color(color);
                             // }
                             eso_color(color, alpha);
-                            eso_dxf_entity__SOUP_LINES(entity);
+                            eso_entity__SOUP_LINES(entity);
                         }
                     } eso_end();
                     M *= M_incr;
@@ -418,7 +418,7 @@ void conversation_draw() {
 
         { // feature plane feature-plane feature_plane
             bbox2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
-            bbox2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&drawing->entities, true);
+            bbox2 dxf_selection_bounding_box = entities_get_bounding_box(&drawing->entities, true);
             bbox2 target_bounding_box; {
                 target_bounding_box = face_selection_bounding_box + dxf_selection_bounding_box;
                 for_(d, 2) {

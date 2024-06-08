@@ -4,40 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-// FORNOW: cstring stuff
-bool poe_prefix_match(char *string, char *prefix) {
-    while (*string == ' ') ++string; // ?
-    while (*prefix == ' ') ++prefix; // ?
-    size_t strlen_string = strlen(string);
-    size_t strlen_prefix = strlen(prefix);
-    if (strlen_string < strlen_prefix) return false;
-    for (unsigned int i = 0; i < strlen_prefix; ++i) {
-        if (string[i] != prefix[i]) return false;
-    }
-    return true;
-}
-
-bool poe_suffix_match(char *string, char *suffix) {
-    size_t strlen_string = strlen(string);
-    size_t strlen_suffix = strlen(suffix);
-    if (strlen_string < strlen_suffix) return false;
-    for (unsigned int i = 0; i < strlen_suffix; ++i) {
-        if (string[strlen_string - 1 - i] != suffix[strlen_suffix - 1 - i]) return false;
-    }
-    return true;
-}
-
-bool poe_file_exists(char *filename) {
-    FILE *file = (FILE *) fopen(filename, "r");
-    if (!file) {
-        return false;
-    }
-    fclose(file);
-    return true;
-}
-
-
-
 // https://en.cppreference.com/w/c/algorithm/qsort
 void jim_sort_against(void *base, uint nitems, int size, real *corresp_values_to_sort_against, bool sort_both_arrays = false) {
     struct qsortHelperStruct {
@@ -132,13 +98,5 @@ void eg_hot_fopen() {
         }
     }
 }
-
-
-
-
-// ohno
-// #define _UNIQUE_ISH_VARIABLE_NAME CONCAT(_VAR_, __COUNTER__)
-// #define BEGIN_PRE_MAIN static int _UNIQUE_ISH_VARIABLE_NAME = []() {
-// #define END_PRE_MAIN return 0; }();
 
 #endif

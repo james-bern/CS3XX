@@ -21,7 +21,7 @@ real TOLERANCE_DEFAULT = 5e-4f;
 uint NUM_SEGMENTS_PER_CIRCLE = 64;
 real GRID_SIDE_LENGTH = 256.0f;
 real GRID_SPACING = 10.0f;
-real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(60.0f);
+real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(45.0f);
 
 ////////////////////////////////////////
 // colors //////////////////////////////
@@ -72,7 +72,7 @@ enum class EnterMode {
     ExtrudeAdd,
     ExtrudeCut,
     NudgeFeaturePlane,
-    Open,
+    Load,
     RevolveAdd,
     RevolveCut,
     Save,
@@ -327,7 +327,7 @@ struct PopupState {
     real move_rise;
     real revolve_add_dummy;
     real revolve_cut_dummy;
-    char open_filename[POPUP_CELL_LENGTH];
+    char load_filename[POPUP_CELL_LENGTH];
     char save_filename[POPUP_CELL_LENGTH];
 
     // ???
@@ -391,9 +391,6 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     vec2 mouse_NDC;
     vec2 mouse_Pixel;
 
-
-    char drop_path[256];
-
     bool please_suppress_drawing_popup_popup;
     bool please_suppress_messagef;
 
@@ -423,7 +420,7 @@ bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
 }
 
 ////////////////////////////////////////
-// Squared-Distance (TODO: move non-dxf_entities parts all up here);
+// Squared-Distance (TODO: move non-entities parts all up here);
 ////////////////////////////////////////
 
 real squared_distance_point_point(real x_A, real y_A, real x_B, real y_B) {
@@ -552,7 +549,7 @@ void entity_get_middle(Entity *entity, real *middle_x, real *middle_y) {
 //     Entity *entities;
 // };
 
-void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
+void entities_load(char *filename, List<Entity> *entities) {
     #if 0
     {
         FORNOW_UNUSED(filename);
@@ -572,29 +569,29 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
         return result;
     }
     #endif
-    list_free_AND_zero(dxf_entities);
+    list_free_AND_zero(entities);
 
     FILE *file = (FILE *) fopen(filename, "r");
     ASSERT(file);
 
-    *dxf_entities = {}; {
-        #define OPEN_MODE_NONE 0
-        #define OPEN_MODE_LINE 1
-        #define OPEN_MODE_ARC  2
+    *entities = {}; {
+        #define PARSE_NONE 0
+        #define PARSE_LINE 1
+        #define PARSE_ARC  2
         uint mode = 0;
         int code = 0;
         bool code_is_hot = false;
         Entity entity = {};
         static char buffer[512];
         while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
-            if (mode == OPEN_MODE_NONE) {
-                if (poe_prefix_match(buffer, "LINE")) {
-                    mode = OPEN_MODE_LINE;
+            if (mode == PARSE_NONE) {
+                if (MATCHES_PREFIX(buffer, "LINE")) {
+                    mode = PARSE_LINE;
                     code_is_hot = false;
                     entity = {};
                     entity.type = EntityType::Line;
-                } else if (poe_prefix_match(buffer, "ARC")) {
-                    mode = OPEN_MODE_ARC;
+                } else if (MATCHES_PREFIX(buffer, "ARC")) {
+                    mode = PARSE_ARC;
                     code_is_hot = false;
                     entity = {};
                     entity.type = EntityType::Arc;
@@ -605,8 +602,8 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
                     // NOTE this initialization is sketchy but works
                     // probably don't make a habit of it
                     if (code == 0) {
-                        list_push_back(dxf_entities, entity);
-                        mode = OPEN_MODE_NONE;
+                        list_push_back(entities, entity);
+                        mode = PARSE_NONE;
                         code_is_hot = false;
                     }
                 } else {
@@ -617,7 +614,7 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
                     } else {
                         float value;
                         sscanf(buffer, "%f", &value);
-                        if (mode == OPEN_MODE_LINE) {
+                        if (mode == PARSE_LINE) {
                             if (code == 10) {
                                 entity.line_entity.start.x = MM(value);
                             } else if (code == 20) {
@@ -628,7 +625,7 @@ void dxf_entities_load(char *filename, List<Entity> *dxf_entities) {
                                 entity.line_entity.end.y = MM(value);
                             }
                         } else {
-                            ASSERT(mode == OPEN_MODE_ARC);
+                            ASSERT(mode == PARSE_ARC);
                             if (code == 10) {
                                 entity.arc_entity.center.x = MM(value);
                             } else if (code == 20) {
@@ -666,7 +663,7 @@ vec3 get_color(ColorCode color_code) {
     }
 }
 
-void eso_dxf_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) {
+void eso_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         eso_vertex(line_entity->start.x + dx, line_entity->start.y + dy);
@@ -692,15 +689,15 @@ void eso_dxf_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) 
 }
 
 
-void dxf_entities_debug_draw(Camera *camera_drawing, List<Entity> *dxf_entities) {
+void entities_debug_draw(Camera *camera_drawing, List<Entity> *entities) {
     eso_begin(camera_get_PV(camera_drawing), SOUP_LINES);
-    for (Entity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
-        eso_dxf_entity__SOUP_LINES(entity);
+    for (Entity *entity = entities->array; entity < &entities->array[entities->length]; ++entity) {
+        eso_entity__SOUP_LINES(entity);
     }
     eso_end();
 }
 
-bbox2 dxf_entity_get_bounding_box(Entity *entity) {
+bbox2 entity_get_bounding_box(Entity *entity) {
     bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     real s[2][2];
     uint n = 2;
@@ -725,11 +722,11 @@ bbox2 dxf_entity_get_bounding_box(Entity *entity) {
     return result;
 }
 
-bbox2 dxf_entities_get_bounding_box(List<Entity> *dxf_entities, bool only_consider_selected_entities = false) {
+bbox2 entities_get_bounding_box(List<Entity> *entities, bool only_consider_selected_entities = false) {
     bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
-    for_(i, dxf_entities->length) {
-        if ((only_consider_selected_entities) && (!dxf_entities->array[i].is_selected)) continue;
-        bbox2 bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
+    for_(i, entities->length) {
+        if ((only_consider_selected_entities) && (!entities->array[i].is_selected)) continue;
+        bbox2 bounding_box = entity_get_bounding_box(&entities->array[i]);
         result += bounding_box;
     }
     return result;
@@ -785,7 +782,7 @@ real squared_distance_point_dxf_arc(real x, real y, ArcEntity *arc_entity) {
     return squared_distance_point_arc_NOTE_pass_angles_in_radians(x, y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, RAD(arc_entity->start_angle_in_degrees), RAD(arc_entity->end_angle_in_degrees));
 }
 
-real squared_distance_point_dxf_entity(real x, real y, Entity *entity) {
+real squared_distance_point_entity(real x, real y, Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         return squared_distance_point_dxf_line(x, y, line_entity);
@@ -796,10 +793,10 @@ real squared_distance_point_dxf_entity(real x, real y, Entity *entity) {
     }
 }
 
-real squared_distance_point_dxf(real x, real y, List<Entity> *dxf_entities) {
+real squared_distance_point_dxf(real x, real y, List<Entity> *entities) {
     real result = HUGE_VAL;
-    for (Entity *entity = dxf_entities->array; entity < &dxf_entities->array[dxf_entities->length]; ++entity) {
-        result = MIN(result, squared_distance_point_dxf_entity(x, y, entity));
+    for (Entity *entity = entities->array; entity < &entities->array[entities->length]; ++entity) {
+        result = MIN(result, squared_distance_point_entity(x, y, entity));
     }
     return result;
 }
@@ -808,12 +805,12 @@ struct DXFFindClosestEntityResult {
     bool success;
     uint index;
 };
-DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *dxf_entities, real x, real y) {
+DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, real x, real y) {
     DXFFindClosestEntityResult result = {};
     double hot_squared_distance = HUGE_VAL;
-    for_(i, dxf_entities->length) {
-        Entity *entity = &dxf_entities->array[i];
-        double squared_distance = squared_distance_point_dxf_entity(x, y, entity);
+    for_(i, entities->length) {
+        Entity *entity = &entities->array[i];
+        double squared_distance = squared_distance_point_entity(x, y, entity);
         if (squared_distance < hot_squared_distance) {
             hot_squared_distance = squared_distance;
             result.success = true;
@@ -840,13 +837,13 @@ struct DXFLoopAnalysisResult {
     uint *loop_index_from_entity_index;
 };
 
-DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dxf_entities, bool only_consider_selected_entities) {
-    if (dxf_entities->length == 0) {
+DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *entities, bool only_consider_selected_entities) {
+    if (entities->length == 0) {
         DXFLoopAnalysisResult result = {};
         result.num_loops = 0;
         result.num_entities_in_loops = (uint *) calloc(result.num_loops, sizeof(uint));
         result.loops = (DXFEntityIndexAndFlipFlag **) calloc(result.num_loops, sizeof(DXFEntityIndexAndFlipFlag *));
-        result.loop_index_from_entity_index = (uint *) calloc(dxf_entities->length, sizeof(uint));
+        result.loop_index_from_entity_index = (uint *) calloc(entities->length, sizeof(uint));
         return result;
     }
 
@@ -854,12 +851,12 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
     { // num_entities_in_loops, loops
       // populate List's
         List<List<DXFEntityIndexAndFlipFlag>> stretchy_list = {}; {
-            bool *entity_already_added = (bool *) calloc(dxf_entities->length, sizeof(bool));
+            bool *entity_already_added = (bool *) calloc(entities->length, sizeof(bool));
             while (true) {
-                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!only_consider_selected_entities || dxf_entities->array[i].is_selected))
+                #define MACRO_CANDIDATE_VALID(i) (!entity_already_added[i] && (!only_consider_selected_entities || entities->array[i].is_selected))
                 { // seed loop
                     bool added_and_seeded_new_loop = false;
-                    for_(entity_index, dxf_entities->length) {
+                    for_(entity_index, entities->length) {
                         if (MACRO_CANDIDATE_VALID(entity_index)) {
                             added_and_seeded_new_loop = true;
                             entity_already_added[entity_index] = true;
@@ -874,16 +871,16 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
                     real tolerance = TOLERANCE_DEFAULT;
                     while (true) {
                         bool added_new_entity_to_loop = false;
-                        for_(entity_index, dxf_entities->length) {
+                        for_(entity_index, entities->length) {
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
                             real start_x_prev, start_y_prev, end_x_prev, end_y_prev;
                             real start_x_i, start_y_i, end_x_i, end_y_i;
                             DXFEntityIndexAndFlipFlag *prev_entity_index_and_flip_flag = &(stretchy_list.array[stretchy_list.length - 1].array[stretchy_list.array[stretchy_list.length - 1].length - 1]);
                             {
                                 entity_get_start_and_end_points(
-                                        &dxf_entities->array[prev_entity_index_and_flip_flag->entity_index],
+                                        &entities->array[prev_entity_index_and_flip_flag->entity_index],
                                         &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
-                                entity_get_start_and_end_points(&dxf_entities->array[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
+                                entity_get_start_and_end_points(&entities->array[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
                             }
                             bool is_next_entity = false;
                             bool flip_flag = false;
@@ -927,7 +924,7 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
                             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
                                 uint entity_index = entity_index_and_flip_flag->entity_index;
                                 bool flip_flag = entity_index_and_flip_flag->flip_flag;
-                                Entity *entity = &dxf_entities->array[entity_index];
+                                Entity *entity = &entities->array[entity_index];
                                 if (entity->type == EntityType::Line) {
                                     LineEntity *line_entity = &entity->line_entity;
                                     // shoelace-type formula
@@ -987,8 +984,8 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *dx
         list_free_AND_zero(&stretchy_list);
     }
     // loop_index_from_entity_index (brute force)
-    result.loop_index_from_entity_index = (uint *) calloc(dxf_entities->length, sizeof(uint));
-    for_(i, dxf_entities->length) {
+    result.loop_index_from_entity_index = (uint *) calloc(entities->length, sizeof(uint));
+    for_(i, entities->length) {
         for_(j, result.num_loops) {
             for_(k, result.num_entities_in_loops[j]) {
                 if (i == result.loops[j][k].entity_index) {
@@ -1027,10 +1024,10 @@ struct CrossSectionEvenOdd {
     vec2 **polygonal_loops;
 };
 
-CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_entities, bool only_consider_selected_entities) {
+CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities, bool only_consider_selected_entities) {
     #if 0
     {
-        FORNOW_UNUSED(dxf_entities);
+        FORNOW_UNUSED(entities);
         FORNOW_UNUSED(include);
         CrossSectionEvenOdd result = {};
         result.num_polygonal_loops = 2;
@@ -1055,7 +1052,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
     #endif
     // populate List's
     List<List<vec2>> stretchy_list = {}; {
-        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(dxf_entities, only_consider_selected_entities);
+        DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(entities, only_consider_selected_entities);
         for_(loop_index, analysis.num_loops) {
             uint num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
             DXFEntityIndexAndFlipFlag *loop = analysis.loops[loop_index];
@@ -1063,7 +1060,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *dxf_enti
             for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
                 uint entity_index = entity_index_and_flip_flag->entity_index;
                 bool flip_flag = entity_index_and_flip_flag->flip_flag;
-                Entity *entity = &dxf_entities->array[entity_index];
+                Entity *entity = &entities->array[entity_index];
                 if (entity->type == EntityType::Line) {
                     LineEntity *line_entity = &entity->line_entity;
                     if (!flip_flag) {
@@ -1297,7 +1294,7 @@ void stl_load(char *filename, Mesh *mesh) {
             uint filetype; {
                 FILE *file = (FILE *) fopen(filename, "r");
                 fgets(line_of_file, 80, file);
-                filetype = (poe_prefix_match(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
+                filetype = (MATCHES_PREFIX(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
                 fclose(file);
             }
 
@@ -1308,7 +1305,7 @@ void stl_load(char *filename, Mesh *mesh) {
 
                 FILE *file = (FILE *) fopen(filename, "r");
                 while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
-                    if (poe_prefix_match(line_of_file, "vertex")) {
+                    if (MATCHES_PREFIX(line_of_file, "vertex")) {
                         sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
                         for_(d, 3) list_push_back(&ascii_data, ascii_scan_p[d]);
                     }
@@ -1490,7 +1487,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == EnterMode::ExtrudeCut) {
-                do_once { messagef(omax.magenta, "ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
+                do_once { messagef(omax.pink, "(FORNOW) ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
             }
