@@ -194,7 +194,7 @@ void conversation_draw() {
         }
 
         {
-            if (!other.hide_grid) { // grid 2D grid 2d grid
+            if (other.show_grid) { // grid 2D grid 2d grid
                 eso_begin(PV_2D, SOUP_LINES, 2.0f);
                 eso_color(omax.dark_gray);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
@@ -475,128 +475,112 @@ void conversation_draw() {
             }
         }
 
-        if (!other.hide_grid) { // grid 3D grid 3d grid
-            // conversation_draw_3D_grid_box(P_3D, V_3D);
+        if (other.show_grid) { // grid 3D grid 3d grid
+                               // conversation_draw_3D_grid_box(P_3D, V_3D);
         }
 
         glDisable(GL_SCISSOR_TEST);
     }
 
-    if (!other.hide_gui) { // gui
 
-
-        { // cursor decorations
-            real alpha = ((other.hot_pane == Pane::Drawing) && ((other.mouse_left_drag_pane == Pane::None) || (other.mouse_left_drag_pane == Pane::Drawing))) ? 1.0f : 0.5f;
-            vec3 color = omax.white;
-            char _color_x[64] = {};
-            if (state.click_mode == ClickMode::Color) {
-                if (state.click_modifier == ClickModifier::Selected) {
-                    sprintf(_color_x, "color");
-                } else {
-                    sprintf(_color_x, "color %d", state.click_color_code);
-                    color = get_color(state.click_color_code);
-                }
+    { // cursor decorations
+        real alpha = ((other.hot_pane == Pane::Drawing) && ((other.mouse_left_drag_pane == Pane::None) || (other.mouse_left_drag_pane == Pane::Drawing))) ? 1.0f : 0.5f;
+        vec3 color = omax.white;
+        char _color_x[64] = {};
+        if (state.click_mode == ClickMode::Color) {
+            if (state.click_modifier == ClickModifier::Selected) {
+                sprintf(_color_x, "color");
+            } else {
+                sprintf(_color_x, "color %d", state.click_color_code);
+                color = get_color(state.click_color_code);
             }
-            char _X_Y[256] = {};
-            if (state.click_modifier == ClickModifier::XYCoordinates) {
-                sprintf(_X_Y, "(%g, %g)", popup->x_coordinate, popup->y_coordinate);
-            }
-
-            text_draw(
-                    other.transform_NDC_from_Pixel,
-                    (char *) (
-                        (state.click_mode == ClickMode::None) ? "" :
-                        (state.click_mode == ClickMode::Axis)    ? "axis" :
-                        (state.click_mode == ClickMode::Box)     ? "box" :
-                        (state.click_mode == ClickMode::Circle)  ? "circle" :
-                        (state.click_mode == ClickMode::Color)   ? _color_x :
-                        (state.click_mode == ClickMode::Deselect)? "deselect" :
-                        (state.click_mode == ClickMode::Fillet)  ? "fillet" :
-                        (state.click_mode == ClickMode::Line)    ? "line" :
-                        (state.click_mode == ClickMode::Measure) ? "measure" :
-                        (state.click_mode == ClickMode::Move)    ? "move" :
-                        (state.click_mode == ClickMode::Origin)  ? "origin" :
-                        (state.click_mode == ClickMode::Select)  ? "select" :
-                        (state.click_mode == ClickMode::MirrorX) ? "x_mirror" :
-                        (state.click_mode == ClickMode::MirrorY) ? "y_mirror" :
-                        "???MODE???"),
-                    V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 14),
-                    V4(color, alpha));
-
-            text_draw(
-                    other.transform_NDC_from_Pixel,
-                    (char *) (
-                        (state.click_modifier == ClickModifier::None)       ? "" :
-                        (state.click_modifier == ClickModifier::Center)     ? "center" :
-                        (state.click_modifier == ClickModifier::Connected)  ? "connected" :
-                        (state.click_modifier == ClickModifier::End)        ? "end" :
-                        (state.click_modifier == ClickModifier::Color)      ? "color" :
-                        (state.click_modifier == ClickModifier::Middle)     ? "middle" :
-                        (state.click_modifier == ClickModifier::Selected)   ? "selected" :
-                        (state.click_modifier == ClickModifier::Window)     ? "window" :
-                        (state.click_modifier == ClickModifier::XYCoordinates) ? _X_Y :
-                        "???MODIFIER???"),
-                    V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 24),
-                    V4(color, alpha));
+        }
+        char _X_Y[256] = {};
+        if (state.click_modifier == ClickModifier::XYCoordinates) {
+            sprintf(_X_Y, "(%g, %g)", popup->x_coordinate, popup->y_coordinate);
         }
 
-        // gui_printf("[Enter] %s",
-        //         (state.enter_mode == EnterMode::ExtrudeAdd) ? "EXTRUDE_ADD" :
-        //         (state.enter_mode == ENTER_MODE_EXTRUDE_CUT) ? "EXTRUDE_CUT" :
-        //         (state.enter_mode == EnterMode::RevolveAdd) ? "REVOLVE_ADD" :
-        //         (state.enter_mode == ENTER_MODE_REVOLVE_CUT) ? "REVOLVE_CUT" :
-        //         (state.enter_mode == ENTER_MODE_OPEN) ? "OPEN" :
-        //         (state.enter_mode == ENTER_MODE_SAVE) ? "SAVE" :
-        //         (state.enter_mode == ENTER_MODE_ORIGIN) ? "SET_ORIGIN" :
-        //         (state.enter_mode == EnterMode::NudgeFeaturePlane) ? "OFFSET_PLANE_TO" :
-        //         (state.enter_mode == EnterMode::None) ? "NONE" :
-        //         "???ENTER???");
+        text_draw(
+                other.transform_NDC_from_Pixel,
+                (char *) (
+                    (state.click_mode == ClickMode::None) ? "" :
+                    (state.click_mode == ClickMode::Axis)    ? "axis" :
+                    (state.click_mode == ClickMode::Box)     ? "box" :
+                    (state.click_mode == ClickMode::Circle)  ? "circle" :
+                    (state.click_mode == ClickMode::Color)   ? _color_x :
+                    (state.click_mode == ClickMode::Deselect)? "deselect" :
+                    (state.click_mode == ClickMode::Fillet)  ? "fillet" :
+                    (state.click_mode == ClickMode::Line)    ? "line" :
+                    (state.click_mode == ClickMode::Measure) ? "measure" :
+                    (state.click_mode == ClickMode::Move)    ? "move" :
+                    (state.click_mode == ClickMode::Origin)  ? "origin" :
+                    (state.click_mode == ClickMode::Select)  ? "select" :
+                    (state.click_mode == ClickMode::MirrorX) ? "x_mirror" :
+                    (state.click_mode == ClickMode::MirrorY) ? "y_mirror" :
+                    "???MODE???"),
+                V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 14),
+                V4(color, alpha));
 
-        if (other.show_help) {
-            { // overlay
-                eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
-                eso_color(0.0f, 0.0f, 0.0f, 0.7f);
-                eso_vertex(-1.0f, -1.0f);
-                eso_vertex(-1.0f,  1.0f);
-                eso_vertex( 1.0f,  1.0f);
-                eso_vertex( 1.0f, -1.0f);
-                eso_end();
-            }
-            gui_printf("TODO: update help popup");
-            #if 0
-            gui_printf("show/hide-(h)elp");
-            gui_printf("(Escape)-from-current-enter_and_modes.click_modes");
-            gui_printf("(s)elect (d)eselect + (c)onected (a)ll [Click] / (q)uality + (012345)");
-            gui_printf("(y)-cycle-through-top-front-right-planes");
-            gui_printf("(e)trude-add (E)xtrude-cut + (0123456789.,) (Tab)-flip-direction [Enter]");
-            gui_printf("(Ctrl + z)-undo (Ctrl+Z)-redo (Ctrl+y)-redo");
-            gui_printf("(Ctrl + o)pen (Ctrl+s)ave + ... + [Enter]");
-            gui_printf("(Ctrl + r)eload-drawing-if-edited-elsewhere (Ctrl + R)-clear-stl");
-            gui_printf("show-(g)rid (.)-show-details show-event-stac(k)-for-debugging");
-            gui_printf("zoom-to-e(X)tents");
-            gui_printf("(0)-toggle-camera-perspective-orthographic");
-            gui_printf("(Z)-move-origin + (c)enter-of (e)nd-of (m)iddle-of [Click] / (-0123456789.,) (f)lip-direction [Enter]");
-            gui_printf("(M)easure + (c)enter-of (e)nd-of (m)iddle-of (z)-origin [Click]");
-            gui_printf("");
-            gui_printf("EXPERIMENTAL: (r)evolve-add (R)evolve-cut");
-            gui_printf("EXPERIMENTAL: (Ctrl + n)ew-session");
-            gui_printf("");
-            gui_printf("you can drag and drop *.drawing and *.stl into Conversation");
-            #endif
+        text_draw(
+                other.transform_NDC_from_Pixel,
+                (char *) (
+                    (state.click_modifier == ClickModifier::None)       ? "" :
+                    (state.click_modifier == ClickModifier::Center)     ? "center" :
+                    (state.click_modifier == ClickModifier::Connected)  ? "connected" :
+                    (state.click_modifier == ClickModifier::End)        ? "end" :
+                    (state.click_modifier == ClickModifier::Color)      ? "color" :
+                    (state.click_modifier == ClickModifier::Middle)     ? "middle" :
+                    (state.click_modifier == ClickModifier::Selected)   ? "selected" :
+                    (state.click_modifier == ClickModifier::Window)     ? "window" :
+                    (state.click_modifier == ClickModifier::XYCoordinates) ? _X_Y :
+                    "???MODIFIER???"),
+                V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 24),
+                V4(color, alpha));
+    }
+
+    if (other.show_help) {
+        messagef("TODO: update help popup");
+        other.show_help = false;
+        #if 0
+        { // overlay
+            eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
+            eso_color(0.0f, 0.0f, 0.0f, 0.7f);
+            eso_vertex(-1.0f, -1.0f);
+            eso_vertex(-1.0f,  1.0f);
+            eso_vertex( 1.0f,  1.0f);
+            eso_vertex( 1.0f, -1.0f);
+            eso_end();
         }
+        gui_printf("show/hide-(h)elp");
+        gui_printf("(Escape)-from-current-enter_and_modes.click_modes");
+        gui_printf("(s)elect (d)eselect + (c)onected (a)ll [Click] / (q)uality + (012345)");
+        gui_printf("(y)-cycle-through-top-front-right-planes");
+        gui_printf("(e)trude-add (E)xtrude-cut + (0123456789.,) (Tab)-flip-direction [Enter]");
+        gui_printf("(Ctrl + z)-undo (Ctrl+Z)-redo (Ctrl+y)-redo");
+        gui_printf("(Ctrl + o)pen (Ctrl+s)ave + ... + [Enter]");
+        gui_printf("(Ctrl + r)eload-drawing-if-edited-elsewhere (Ctrl + R)-clear-stl");
+        gui_printf("show-(g)rid (.)-show-details show-event-stac(k)-for-debugging");
+        gui_printf("zoom-to-e(X)tents");
+        gui_printf("(0)-toggle-camera-perspective-orthographic");
+        gui_printf("(Z)-move-origin + (c)enter-of (e)nd-of (m)iddle-of [Click] / (-0123456789.,) (f)lip-direction [Enter]");
+        gui_printf("(M)easure + (c)enter-of (e)nd-of (m)iddle-of (z)-origin [Click]");
+        gui_printf("");
+        gui_printf("EXPERIMENTAL: (r)evolve-add (R)evolve-cut");
+        gui_printf("EXPERIMENTAL: (Ctrl + n)ew-session");
+        gui_printf("");
+        gui_printf("you can drag and drop *.drawing and *.stl into Conversation");
+        #endif
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
 // messagef API ////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
 
 
 #define MESSAGE_MAX_LENGTH 256
 #define MESSAGE_MAX_NUM_MESSAGES 64
 #define MESSAGE_MAX_TIME 6.0f
 struct Message {
-    char buffer[MESSAGE_MAX_LENGTH];
+    char buffer[MESSAGE_MAX_LENGTH + 1];
     real time_remaining;
     real y;
     vec3 base_color;
@@ -619,7 +603,7 @@ void messagef(vec3 color, char *format, ...) {
     // printf("%s\n", message->buffer); // FORNOW print to terminal as well
 }
 void messagef(char *format, ...) {
-    static char string[1024];
+    static char string[4096];
     va_list args;
     va_start(args, format);
     vsprintf(string, format, args);
@@ -679,3 +663,36 @@ void conversation_message_buffer_draw() {
         }
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct EasyTextState {
+    vec2 origin;
+    vec3 color;
+    bool automatically_append_newline;
+    vec2 offset;
+
+    vec2 get_position() { return this->origin + this->offset; }
+};
+
+#define EASY_TEXT_MAX_LENGTH 4096
+void easy_text(EasyTextState *easy, const char *format, ...) {
+    static char cstring[EASY_TEXT_MAX_LENGTH + 1]; {
+        va_list arg;
+        va_start(arg, format);
+        vsnprintf(cstring, EASY_TEXT_MAX_LENGTH, format, arg);
+        va_end(arg);
+    }
+
+    vec2 size = text_draw(window_get_NDC_from_Pixel(), cstring, easy->get_position(), easy->color);
+
+    bool no_newline = ARE_EQUAL(size.y, 12);
+
+    if (no_newline && (!easy->automatically_append_newline)) {
+        easy->offset.x += size.x;
+    } else {
+        easy->offset.x = 0;
+        easy->offset.y += size.y;
+    }
+}
+

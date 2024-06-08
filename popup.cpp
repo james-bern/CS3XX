@@ -90,6 +90,8 @@ void popup_popup(
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
 
+    EasyTextState easy = { 12, 12, omax.white, true };
+
     popup->FORNOW_info_mouse_is_hovering = false;
     popup->info_hover_cell_index = -1;
     popup->info_hover_cell_cursor = -1;
@@ -135,8 +137,7 @@ void popup_popup(
                     static char tmp[4096]; // FORNOW
                     strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
 
-                    real X_MARGIN_OFFSET = COW1._gui_x_curr;
-                    x_field_left = X_MARGIN_OFFSET + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
+                    x_field_left = easy.origin.x + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
                     x_field_right = x_field_left + stb_easy_font_width(tmp);
 
                     tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
@@ -148,7 +149,7 @@ void popup_popup(
                 real y_top;
                 real y_bottom;
                 {
-                    y_top = COW1._gui_y_curr;
+                    y_top = easy.get_position().y;
                     y_bottom = y_top + 8;
                 }
 
@@ -215,7 +216,7 @@ void popup_popup(
                 if (popup->name[d]) {
                     if (popup->active_cell_index != d) {
                         // TODO: don't use gui_printf here
-                        gui_printf(buffer);
+                        easy_text(&easy, buffer);
                     } else {
                         bool popup_selection_is_active = (!POPUP_SELECTION_NOT_ACTIVE());
                         if (popup_selection_is_active) {
@@ -225,11 +226,11 @@ void popup_popup(
                             eso_end();
                         }
 
-                        real x = COW1._gui_x_curr;
-                        real y = COW1._gui_y_curr;
-                        FORNOW_gui_printf_red_component = 0.0f;
-                        gui_printf(buffer);
-                        FORNOW_gui_printf_red_component = 1.0f;
+                        real x = easy.get_position().x;
+                        real y = easy.get_position().y;
+                        easy.color = omax.cyan; {
+                            easy_text(&easy, buffer);
+                        } easy.color = omax.white;
                         if (POPUP_SELECTION_NOT_ACTIVE()) { // cursor
                                                             // if (((int) (other.time_since_cursor_start * 5)) % 10 < 5)
                             {

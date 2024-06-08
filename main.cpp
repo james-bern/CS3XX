@@ -36,6 +36,79 @@ template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
 }
 real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
 
+// // misc
+//
+real get_x_divider_Pixel() { return LINEAR_REMAP(other.x_divider_NDC, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x); }
+//
+vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
+    vec2 result = before;
+    {
+        if (
+                ( 0 
+                  || (state.click_mode == ClickMode::Line)
+                  || (state.click_mode == ClickMode::Axis)
+                )
+                && (two_click_command->awaiting_second_click)
+                && (other.shift_held)) {
+            vec2 a = two_click_command->first_click;
+            vec2 b = before;
+            vec2 r = b - a; 
+            real norm_r = norm(r);
+            real factor = 360 / 15 / TAU;
+            real theta = roundf(atan2(r) * factor) / factor;
+            result = a + norm_r * e_theta(theta);
+        } else if (
+                (state.click_mode == ClickMode::Box)
+                && (two_click_command->awaiting_second_click)
+                && (other.shift_held)) {
+            // TODO (Felipe): snap square
+            result = before;
+        } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
+            if (state.click_modifier == ClickModifier::Center) {
+                real min_squared_distance = HUGE_VAL;
+                _for_each_entity_ {
+                    if (entity->type == EntityType::Line) {
+                        continue;
+                    } else { ASSERT(entity->type == EntityType::Arc);
+                        ArcEntity *arc_entity = &entity->arc_entity;
+                        real squared_distance = squared_distance_point_dxf_arc(before.x, before.y, arc_entity);
+                        if (squared_distance < min_squared_distance) {
+                            min_squared_distance = squared_distance;
+                            result = arc_entity->center;
+                        }
+                    }
+                }
+            } else if (state.click_modifier == ClickModifier::Middle) {
+                real min_squared_distance = HUGE_VAL;
+                _for_each_entity_ {
+                    real squared_distance = squared_distance_point_dxf_entity(before.x, before.y, entity);
+                    if (squared_distance < min_squared_distance) {
+                        min_squared_distance = squared_distance;
+                        entity_get_middle(entity, &result.x, &result.y);
+                    }
+                }
+            } else if (state.click_modifier == ClickModifier::End) {
+                real min_squared_distance = HUGE_VAL;
+                _for_each_entity_ {
+                    real x[2], y[2];
+                    entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
+                    for_(d, 2) {
+                        real squared_distance = squared_distance_point_point(before.x, before.y, x[d], y[d]);
+                        if (squared_distance < min_squared_distance) {
+                            min_squared_distance = squared_distance;
+                            result.x = x[d];
+                            result.y = y[d];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return result;
+}
+
+
+#include "draw.cpp"
 
 #include "popup.cpp"
 
@@ -121,80 +194,10 @@ bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
 // state-DEPENDENT UTILITY FUNCTIONS /////////////
 //////////////////////////////////////////////////
 
-vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
-    vec2 result = before;
-    {
-        if (
-                ( 0 
-                  || (state.click_mode == ClickMode::Line)
-                  || (state.click_mode == ClickMode::Axis)
-                )
-                && (two_click_command->awaiting_second_click)
-                && (other.shift_held)) {
-            vec2 a = two_click_command->first_click;
-            vec2 b = before;
-            vec2 r = b - a; 
-            real norm_r = norm(r);
-            real factor = 360 / 15 / TAU;
-            real theta = roundf(atan2(r) * factor) / factor;
-            result = a + norm_r * e_theta(theta);
-        } else if (
-                (state.click_mode == ClickMode::Box)
-                && (two_click_command->awaiting_second_click)
-                && (other.shift_held)) {
-            // TODO (Felipe): snap square
-            result = before;
-        } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
-            if (state.click_modifier == ClickModifier::Center) {
-                real min_squared_distance = HUGE_VAL;
-                _for_each_entity_ {
-                    if (entity->type == EntityType::Line) {
-                        continue;
-                    } else { ASSERT(entity->type == EntityType::Arc);
-                        ArcEntity *arc_entity = &entity->arc_entity;
-                        real squared_distance = squared_distance_point_dxf_arc(before.x, before.y, arc_entity);
-                        if (squared_distance < min_squared_distance) {
-                            min_squared_distance = squared_distance;
-                            result = arc_entity->center;
-                        }
-                    }
-                }
-            } else if (state.click_modifier == ClickModifier::Middle) {
-                real min_squared_distance = HUGE_VAL;
-                _for_each_entity_ {
-                    real squared_distance = squared_distance_point_dxf_entity(before.x, before.y, entity);
-                    if (squared_distance < min_squared_distance) {
-                        min_squared_distance = squared_distance;
-                        entity_get_middle(entity, &result.x, &result.y);
-                    }
-                }
-            } else if (state.click_modifier == ClickModifier::End) {
-                real min_squared_distance = HUGE_VAL;
-                _for_each_entity_ {
-                    real x[2], y[2];
-                    entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
-                    for_(d, 2) {
-                        real squared_distance = squared_distance_point_point(before.x, before.y, x[d], y[d]);
-                        if (squared_distance < min_squared_distance) {
-                            min_squared_distance = squared_distance;
-                            result.x = x[d];
-                            result.y = y[d];
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return result;
-}
 
-real get_x_divider_Pixel() {
-    return LINEAR_REMAP(other.x_divider_NDC, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
-}
 
 ///
 
-#include "draw.cpp"
 
 //////////////////////////////////////////////////
 // LOADING AND SAVING state TO/FROM DISK /////////
@@ -391,7 +394,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // moving cameras
-        // mouse_left_drag_pane
+      // mouse_left_drag_pane
         if (other.mouse_left_drag_pane == Pane::Mesh) {
             real fac = 2.0f;
             camera_mesh->euler_angles.y -= fac * delta_mouse_NDC.x;
@@ -720,16 +723,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('G')) {
                     result.record_me = false;
-                    other.hide_grid = !other.hide_grid;
+                    other.show_grid = !other.show_grid;
                 } else if (key_lambda('H')) {
                     result.record_me = false;
                     history_printf_script();
                 } else if (key_lambda('K')) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
-                } else if (key_lambda('K', false, true)) {
                     result.record_me = false;
-                    other.hide_gui = !other.hide_gui;
                 } else if (key_lambda('L')) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
@@ -1919,95 +1920,7 @@ void history_redo() {
     messagef(omax.green, "Redo");
 }
 
-void _history_user_event_draw_helper(Event event) {
-    char message[256]; {
-        // TODO: handle shift and control with the special characters
-        if (event.type == EventType::Key) {
-            KeyEvent *key_event = &event.key_event;
-            char *boxed; {
-                if (key_event->subtype == KeyEventSubtype::Hotkey) {
-                    boxed = "[HOTKEY]";
-                } else { ASSERT(key_event->subtype == KeyEventSubtype::Popup);
-                    boxed = "[GUI_KEY]";
-                }
-            }
-            sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
-        } else { ASSERT(event.type == EventType::Mouse);
-            MouseEvent *mouse_event = &event.mouse_event;
-            if (mouse_event->subtype == MouseEventSubtype::Drawing) {
-                MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
-                sprintf(message, "[MOUSE-2D] %g %g", mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
-            } else if (mouse_event->subtype == MouseEventSubtype::Mesh) {
-                MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
-                sprintf(message, "[MOUSE-3D] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);
-            } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
-                MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-                sprintf(message, "[GUI-MOUSE] %d %d", mouse_event_popup->cell_index, mouse_event_popup->cursor);
-            }
-        }
-    }
-    gui_printf("%c%c %s",
-            (event.checkpoint_me)   ? 'C' : ' ',
-            (event.snapshot_me)     ? 'S' : ' ',
-            message);
-}
 
-void _history_world_state_draw_helper(WorldState_ChangesToThisMustBeRecorded_state *world_state) {
-    gui_printf("%d drawing elements   %d stl triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
-}
-
-void history_debug_draw() {
-    gui_printf("");
-    if (history.snapshotted_world_states._redo_stack.length) {
-        for (////
-                WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._redo_stack.array;
-                world_state < history.snapshotted_world_states._redo_stack.array + history.snapshotted_world_states._redo_stack.length;
-                ++world_state
-            ) {//
-            _history_world_state_draw_helper(world_state);
-        }
-        gui_printf("`^ redo (%d)", elephant_length_redo(&history.snapshotted_world_states));
-    }
-    if ((history.snapshotted_world_states._redo_stack.length) || (history.snapshotted_world_states._undo_stack.length)) gui_printf("`  SNAPSHOTTED_WORLD_STATES");
-    if (history.snapshotted_world_states._undo_stack.length) {
-        gui_printf("`v undo (%d)", elephant_length_undo(&history.snapshotted_world_states));
-        for (////
-                WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._undo_stack.array + (history.snapshotted_world_states._undo_stack.length - 1);
-                world_state >= history.snapshotted_world_states._undo_stack.array;
-                --world_state
-            ) {//
-            _history_world_state_draw_helper(world_state);
-        }
-    }
-
-    gui_printf("");
-
-    if (history.recorded_user_events._redo_stack.length) {
-        for (////
-                Event *event = history.recorded_user_events._redo_stack.array;
-                event < history.recorded_user_events._redo_stack.array + history.recorded_user_events._redo_stack.length;
-                ++event
-            ) {//
-            _history_user_event_draw_helper(*event);
-        }
-        gui_printf("`^ redo (%d)", elephant_length_redo(&history.recorded_user_events));
-    }
-    if ((history.recorded_user_events._redo_stack.length) || (history.recorded_user_events._undo_stack.length)) {
-        gui_printf("`  RECORDED_EVENTS");
-    } else {
-        gui_printf("`--- no history ---");
-    }
-    if (history.recorded_user_events._undo_stack.length) {
-        gui_printf("`v undo (%d)", elephant_length_undo(&history.recorded_user_events));
-        for (////
-                Event *event = history.recorded_user_events._undo_stack.array + (history.recorded_user_events._undo_stack.length - 1);
-                event >= history.recorded_user_events._undo_stack.array;
-                --event
-            ) {//
-            _history_user_event_draw_helper(*event);
-        }
-    }
-}
 
 void history_printf_script() {
     List<char> _script = {};
@@ -2033,6 +1946,120 @@ void history_printf_script() {
     list_free_AND_zero(&_script);
 }
 
+void history_debug_draw() {
+    EasyTextState easy;
+
+    auto _history_user_event_draw_helper = [&](Event event) {
+        char message[256]; {
+            // TODO: handle shift and control with the special characters
+            if (event.type == EventType::Key) {
+                KeyEvent *key_event = &event.key_event;
+                char *boxed; {
+                    if (key_event->subtype == KeyEventSubtype::Hotkey) {
+                        boxed = "[KEY_HOTKEY]";
+                    } else { ASSERT(key_event->subtype == KeyEventSubtype::Popup);
+                        boxed = "[KEY_POPUP]";
+                    }
+                }
+                sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
+            } else { ASSERT(event.type == EventType::Mouse);
+                MouseEvent *mouse_event = &event.mouse_event;
+                if (mouse_event->subtype == MouseEventSubtype::Drawing) {
+                    MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
+                    sprintf(message, "[MOUSE_DRAWING] %g %g", mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
+                } else if (mouse_event->subtype == MouseEventSubtype::Mesh) {
+                    MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
+                    sprintf(message, "[MOUSE_MESH] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);
+                } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
+                    MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
+                    sprintf(message, "[MOUSE_POPUP] %d %d", mouse_event_popup->cell_index, mouse_event_popup->cursor);
+                }
+            }
+        }
+        easy_text(&easy, "%c%c %s",
+                (event.checkpoint_me)   ? 'C' : ' ',
+                (event.snapshot_me)     ? 'S' : ' ',
+                message);
+    };
+
+    auto _history_world_state_draw_helper = [&](WorldState_ChangesToThisMustBeRecorded_state *world_state) {
+        easy_text(&easy, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
+    };
+
+    easy = { 12, 72, omax.white, true };
+
+    { // recorded_user_events
+        if (history.recorded_user_events._redo_stack.length) {
+            for (////
+                    Event *event = history.recorded_user_events._redo_stack.array;
+                    event < history.recorded_user_events._redo_stack.array + history.recorded_user_events._redo_stack.length;
+                    ++event
+                ) {//
+                _history_user_event_draw_helper(*event);
+            }
+            easy.color = omax.cyan; {
+                easy_text(&easy, "^ redo (%d)", elephant_length_redo(&history.recorded_user_events));
+            } easy.color = omax.white;
+        }
+        if ((history.recorded_user_events._redo_stack.length) || (history.recorded_user_events._undo_stack.length)) {
+            easy.color = omax.cyan; {
+                easy_text(&easy, "  RECORDED_EVENTS");
+            } easy.color = omax.white;
+        } else {
+            easy.color = omax.cyan; {
+                easy_text(&easy, "--- no history ---");
+            } easy.color = omax.white;
+        }
+        if (history.recorded_user_events._undo_stack.length) {
+            easy.color = omax.cyan; {
+                easy_text(&easy, "v undo (%d)", elephant_length_undo(&history.recorded_user_events));
+            } easy.color = omax.white;
+            for (////
+                    Event *event = history.recorded_user_events._undo_stack.array + (history.recorded_user_events._undo_stack.length - 1);
+                    event >= history.recorded_user_events._undo_stack.array;
+                    --event
+                ) {//
+                _history_user_event_draw_helper(*event);
+            }
+        }
+    }
+
+    easy.origin.x += 188;
+    easy.offset = {};
+
+    { // snapshotted_world_states
+        if (history.snapshotted_world_states._redo_stack.length) {
+            for (////
+                    WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._redo_stack.array;
+                    world_state < history.snapshotted_world_states._redo_stack.array + history.snapshotted_world_states._redo_stack.length;
+                    ++world_state
+                ) {//
+                _history_world_state_draw_helper(world_state);
+            }
+            easy.color = omax.cyan; {
+                easy_text(&easy, "^ redo (%d)", elephant_length_redo(&history.snapshotted_world_states));
+            } easy.color = omax.white;
+        }
+        if ((history.snapshotted_world_states._redo_stack.length) || (history.snapshotted_world_states._undo_stack.length)) {
+            easy.color = omax.cyan; {
+                easy_text(&easy, "  SNAPSHOTTED_WORLD_STATES");
+            } easy.color = omax.white;
+        }
+        if (history.snapshotted_world_states._undo_stack.length) {
+            easy.color = omax.cyan; {
+                easy_text(&easy, "v undo (%d)", elephant_length_undo(&history.snapshotted_world_states));
+            } easy.color = omax.white;
+            for (////
+                    WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._undo_stack.array + (history.snapshotted_world_states._undo_stack.length - 1);
+                    world_state >= history.snapshotted_world_states._undo_stack.array;
+                    --world_state
+                ) {//
+                _history_world_state_draw_helper(world_state);
+            }
+        }
+    }
+}
+//
 #endif
 
 
@@ -2234,11 +2261,7 @@ int main() {
     uint frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
         {
-            COW1._gui_x_curr = 16;
-            COW1._gui_y_curr = 16;
-
             glfwPollEvents();
-
             glfwSwapBuffers(glfw_window);
             glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);

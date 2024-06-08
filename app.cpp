@@ -193,9 +193,6 @@ struct COW1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_rese
     int _eso_num_vertices;
     real _eso_size_in_pixels;
     bool _eso_overlay;
-
-    real _gui_x_curr;
-    real _gui_y_curr;
 };
 
 
@@ -1104,7 +1101,7 @@ void eso_color(vec3 rgb, real a = 1.0) {
 // #include "text.cpp"//////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-template <uint D_position, uint D_color> void text_draw(
+template <uint D_position, uint D_color> vec2 text_draw(
         mat4 PV,
         char *cstring,
         Vector<D_position> _position_World,
@@ -1136,7 +1133,7 @@ template <uint D_position, uint D_color> void text_draw(
     vec3 position_World = { _position_World.x, _position_World.y };
     vec3 position_NDC = transformPoint(PV, position_World);
 
-    if (!IS_BETWEEN(position_NDC.z, -1.0f, 1.0f)) return;
+    if (!IS_BETWEEN(position_NDC.z, -1.0f, 1.0f)) return {};
 
     vec2 position_Pixel = transformPoint(inverse(window_get_NDC_from_Pixel()), _V2(position_NDC));
 
@@ -1144,25 +1141,6 @@ template <uint D_position, uint D_color> void text_draw(
         * M4_Translation(position_Pixel + nudge_Pixel)
         * M4_Scaling(font_size_Pixel / 12.0f);
     soup_draw(transform, SOUP_QUADS, num_vertices, vertex_positions, NULL, color, 0, force_draw_on_top);
+
+    return V2(stb_easy_font_width(cstring), stb_easy_font_height(cstring));
 }
-
-////////////////////////////////////////////////////////////////////////////////
-// #include "gui.cpp"///////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-// TODO: color and no color version (see how is done with message)
-real FORNOW_gui_printf_red_component = 1.0f;
-void gui_printf(const char *format, ...) {
-    static char text[256] = {};
-    {
-        va_list arg;
-        va_start(arg, format);
-        vsnprintf(text, sizeof(text), format, arg);
-        va_end(arg);
-    }
-
-    text_draw(window_get_NDC_from_Pixel(), text, V2(COW1._gui_x_curr, COW1._gui_y_curr), V3(FORNOW_gui_printf_red_component, 1.0f, 1.0f));
-
-    COW1._gui_y_curr += 12;
-}
-

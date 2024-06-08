@@ -376,8 +376,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     Camera camera_drawing;
     Camera camera_mesh;
 
-    bool hide_grid;
-    bool hide_gui;
+    bool show_grid;
     bool show_details;
     bool show_help;
     bool show_event_stack;

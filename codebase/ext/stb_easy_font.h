@@ -191,15 +191,12 @@ static int stb_easy_font_draw_segs(float x, float y, unsigned char *segs, int nu
 }
 
 static float stb_easy_font_spacing_val = 0;
-/*
-static void stb_easy_font_spacing(float spacing)
-{
-   stb_easy_font_spacing_val = spacing;
-}
-*/
 
-static int stb_easy_font_print(float x, float y, char *text, unsigned char color[4], void *vertex_buffer, int vbuf_size)
-{
+// static void stb_easy_font_spacing(float spacing) {
+//    stb_easy_font_spacing_val = spacing;
+// }
+
+static int stb_easy_font_print(float x, float y, char *text, unsigned char color[4], void *vertex_buffer, int vbuf_size) {
     char *vbuf = (char *) vertex_buffer;
     float start_x = x;
     int offset = 0;
@@ -247,7 +244,6 @@ static int stb_easy_font_width(char *text)
     return (int) ceil(max_len);
 }
 
-/*
 static int stb_easy_font_height(char *text)
 {
     float y = 0;
@@ -263,7 +259,6 @@ static int stb_easy_font_height(char *text)
     }
     return (int) ceil(y + (nonempty_line ? 12 : 0));
 }
-*/
 #endif
 
 /*
