@@ -86,74 +86,6 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     return face_selection_bounding_box;
 }
 
-// NOTE: has some freaky static (local_persist stuff in there);
-void conversation_draw_3D_grid_box(mat4 P_3D, mat4 V_3D) {
-    static IndexedTriangleMesh3D grid_box;
-    if (grid_box.num_vertices == 0) {
-        static int _grid_box_num_vertices = 24;
-        static int _grid_box_num_triangles = 12;
-        static uint3 _grid_box_triangle_indices[] = {
-            { 1, 0, 2},{ 2, 0, 3},
-            { 4, 5, 6},{ 4, 6, 7},
-            { 8, 9,10},{ 8,10,11},
-            {13,12,14},{14,12,15},
-            {17,16,18},{18,16,19},
-            {20,21,22},{20,22,23},
-        };
-        static vec3 _grid_box_vertex_positions[] = {
-            { 1, 1, 1},{ 1, 1,-1},{ 1,-1,-1},{ 1,-1, 1},
-            {-1, 1, 1},{-1, 1,-1},{-1,-1,-1},{-1,-1, 1},
-            { 1, 1, 1},{ 1, 1,-1},{-1, 1,-1},{-1, 1, 1},
-            { 1,-1, 1},{ 1,-1,-1},{-1,-1,-1},{-1,-1, 1},
-            { 1, 1, 1},{ 1,-1, 1},{-1,-1, 1},{-1, 1, 1},
-            { 1, 1,-1},{ 1,-1,-1},{-1,-1,-1},{-1, 1,-1},
-        };
-        static vec2 _grid_box_vertex_texCoords[] = {
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-            {0.00,0.00},{0.00,1.00},{1.00,1.00},{1.00,0.00},
-        };
-        grid_box = {
-            _grid_box_num_vertices,
-            _grid_box_num_triangles,
-            _grid_box_vertex_positions,
-            NULL,
-            NULL,
-            _grid_box_triangle_indices,
-            _grid_box_vertex_texCoords
-        };
-
-        uint texture_side_length = 1024;
-        uint number_of_channels = 4;
-        u8 *array = (u8 *) malloc(texture_side_length * texture_side_length * number_of_channels * sizeof(u8));
-        uint o = 9;
-        for_(j, texture_side_length) {
-            for_(i, texture_side_length) {
-                uint k = number_of_channels * (j * texture_side_length + i);
-                uint n = uint(texture_side_length / GRID_SIDE_LENGTH * 10);
-                uint t = 2;
-                bool stripe = (((i + o) % n < t) || ((j + o) % n < t));
-                bool super_stripe = (i < t || j < t || i > texture_side_length - t - 1 || j > texture_side_length - t - 1);
-                u8 a = 122;
-                u8 value = u8(255 * omax.black.x);
-                if (stripe) value = u8(255 * omax.dark_gray.x);
-                if (super_stripe) value = u8(255 * omax.light_gray.x);
-                for_(d, 3) array[k + d] = value;
-                array[k + 3] = a;
-            }
-        }
-        _mesh_texture_create("procedural grid", texture_side_length, texture_side_length, number_of_channels, array);
-    }
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_FRONT);
-    real L = GRID_SIDE_LENGTH;
-    grid_box.draw(P_3D, V_3D, M4_Translation(0.0f, - 2 * Z_FIGHT_EPS, 0.0f) * M4_Scaling(L / 2), {}, "procedural grid");
-    glDisable(GL_CULL_FACE);
-}
-
 void conversation_draw() {
     mat4 P_2D = camera_get_P(&other.camera_drawing);
     mat4 V_2D = camera_get_V(&other.camera_drawing);
@@ -544,7 +476,7 @@ void conversation_draw() {
         }
 
         if (!other.hide_grid) { // grid 3D grid 3d grid
-            conversation_draw_3D_grid_box(P_3D, V_3D);
+            // conversation_draw_3D_grid_box(P_3D, V_3D);
         }
 
         glDisable(GL_SCISSOR_TEST);

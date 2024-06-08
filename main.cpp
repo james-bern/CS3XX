@@ -2170,7 +2170,6 @@ int main() {
         _eso_init();
         _window_init();
         _soup_init();
-        _mesh_init();
     }
     { // callbacks
         glfwSetKeyCallback(glfw_window, callback_key);
