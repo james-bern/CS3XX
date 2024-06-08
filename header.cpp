@@ -1,7 +1,7 @@
 // TODO: make Mesh vec3's and ivec3's
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
-// TODO: void eso_bounding_box__SOUP_QUADS(box2 bounding_box)
+// TODO: void eso_bounding_box__SOUP_QUADS(bbox2 bounding_box)
 
 ////////////////////////////////////////
 // FORNOW: forward declarations ////////
@@ -81,7 +81,7 @@ enum class EnterMode {
 enum class ClickMode {
     None,
     Axis,
-    Box,
+    BoundingBox,
     Circle,
     Color,
     Deselect,
@@ -207,7 +207,7 @@ struct Mesh {
     uint num_cosmetic_edges;
     uint2 *cosmetic_edges;
 
-    box3 bounding_box;
+    bbox3 bounding_box;
 };
 
 // TODO: struct out RawEvent into RawMouseEvent and RawKeyEvent
@@ -361,7 +361,7 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
 };
 
 struct PreviewState {
-    box2 feature_plane;
+    bbox2 feature_plane;
     real extrude_in_length;
     real extrude_out_length;
     vec3 tubes_color;
@@ -433,11 +433,11 @@ real squared_distance_point_point(real x_A, real y_A, real x_B, real y_B) {
 };
 
 ////////////////////////////////////////
-// box2 /////////////////////////
+// bbox2 /////////////////////////
 ////////////////////////////////////////
 
 
-void camera2D_zoom_to_bounding_box(Camera *camera_drawing, box2 bounding_box) {
+void camera2D_zoom_to_bounding_box(Camera *camera_drawing, bbox2 bounding_box) {
     real new_o_x = AVG(bounding_box.min[0], bounding_box.max[0]);
     real new_o_y = AVG(bounding_box.min[1], bounding_box.max[1]);
     real new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
@@ -700,8 +700,8 @@ void dxf_entities_debug_draw(Camera *camera_drawing, List<Entity> *dxf_entities)
     eso_end();
 }
 
-box2 dxf_entity_get_bounding_box(Entity *entity) {
-    box2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+bbox2 dxf_entity_get_bounding_box(Entity *entity) {
+    bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     real s[2][2];
     uint n = 2;
     entity_get_start_and_end_points(entity, &s[0][0], &s[0][1], &s[1][0], &s[1][1]);
@@ -725,12 +725,12 @@ box2 dxf_entity_get_bounding_box(Entity *entity) {
     return result;
 }
 
-box2 dxf_entities_get_bounding_box(List<Entity> *dxf_entities, bool only_consider_selected_entities = false) {
-    box2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+bbox2 dxf_entities_get_bounding_box(List<Entity> *dxf_entities, bool only_consider_selected_entities = false) {
+    bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     for_(i, dxf_entities->length) {
         if ((only_consider_selected_entities) && (!dxf_entities->array[i].is_selected)) continue;
-        box2 bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
-        result = bounding_box_union(result, bounding_box);
+        bbox2 bounding_box = dxf_entity_get_bounding_box(&dxf_entities->array[i]);
+        result += bounding_box;
     }
     return result;
 }
@@ -1208,7 +1208,7 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
 void mesh_bounding_box_calculate(Mesh *mesh) {
     mesh->bounding_box = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
     for_(i, mesh->num_vertices) {
-        bounding_box_add_point(&mesh->bounding_box, mesh->vertex_positions[i]);
+        mesh->bounding_box += mesh->vertex_positions[i];
     }
 }
 

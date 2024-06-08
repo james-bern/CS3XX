@@ -58,7 +58,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             real theta = roundf(atan2(r) * factor) / factor;
             result = a + norm_r * e_theta(theta);
         } else if (
-                (state.click_mode == ClickMode::Box)
+                (state.click_mode == ClickMode::BoundingBox)
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             // TODO (Felipe): snap square
@@ -155,7 +155,7 @@ bool _SELECT_OR_DESELECT_COLOR() {
 bool click_mode_SNAP_ELIGIBLE() {
     return 0
         || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::Box)
+        || (state.click_mode == ClickMode::BoundingBox)
         || (state.click_mode == ClickMode::Circle)
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::Measure)
@@ -169,7 +169,7 @@ bool click_mode_SNAP_ELIGIBLE() {
 bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
         || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::Box)
+        || (state.click_mode == ClickMode::BoundingBox)
         || (state.click_mode == ClickMode::Circle)
         || (state.click_mode == ClickMode::Fillet)
         || (state.click_mode == ClickMode::Line)
@@ -694,7 +694,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('B')) {
-                    state.click_mode = ClickMode::Box;
+                    state.click_mode = ClickMode::BoundingBox;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('C')) {
@@ -1042,7 +1042,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 (state.click_mode == ClickMode::Axis) ||
                 (state.click_mode == ClickMode::Measure) ||
                 (state.click_mode == ClickMode::Line) ||
-                (state.click_mode == ClickMode::Box) ||
+                (state.click_mode == ClickMode::BoundingBox) ||
                 (state.click_mode == ClickMode::Circle) ||
                 (state.click_mode == ClickMode::Fillet) ||
                 (state.click_mode == ClickMode::Move) ||
@@ -1229,7 +1229,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_modifier = ClickModifier::None;
                             drawing->axis_base_point = *first_click;
                             drawing->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
-                        } else if (state.click_mode == ClickMode::Box) {
+                        } else if (state.click_mode == ClickMode::BoundingBox) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
                                 messagef(omax.orange, "[box] must have non-zero width ");
                             } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
@@ -1385,14 +1385,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
                             two_click_command->awaiting_second_click = false;
-                            box2 window = {
+                            bbox2 window = {
                                 MIN(first_click->x, second_click->x),
                                 MIN(first_click->y, second_click->y),
                                 MAX(first_click->x, second_click->x),
                                 MAX(first_click->y, second_click->y)
                             };
                             _for_each_entity_ {
-                                if (box_contains(window, dxf_entity_get_bounding_box(entity))) {
+                                if (bbox_contains(window, dxf_entity_get_bounding_box(entity))) {
                                     ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
                                 }
                             }
@@ -1719,7 +1719,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-            } else if (state.click_mode == ClickMode::Box) {
+            } else if (state.click_mode == ClickMode::BoundingBox) {
                 if (two_click_command->awaiting_second_click) {
                     popup_popup(true,
                             CellType::Real32, "box_width", &popup->box_width,
@@ -1950,8 +1950,8 @@ void history_debug_draw() {
     { // FORNOW
         eso_begin(M4_Identity(), SOUP_QUADS);
         eso_color(omax.black, 0.4f);
-        Box<2> box = { -1.0f, -1.0f, other.x_divider_NDC, 1.0f };
-        eso_box__SOUP_QUADS(box);
+        BoundingBox<2> bbox = { -1.0f, -1.0f, other.x_divider_NDC, 1.0f };
+        eso_bbox_SOUP_QUADS(bbox);
         eso_end();
     }
     EasyTextState easy;
@@ -1993,7 +1993,7 @@ void history_debug_draw() {
         easy_text(&easy, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
     };
 
-    easy = { 144, 12, omax.white, true };
+    easy = { V2(144.0f, 12.0f), 12.0f, omax.white, true };
 
     { // recorded_user_events
         if (history.recorded_user_events._redo_stack.length) {

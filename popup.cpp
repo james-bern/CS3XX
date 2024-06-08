@@ -90,7 +90,9 @@ void popup_popup(
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
 
-    EasyTextState easy = { 12, 12, omax.white, true };
+    // TODO: print as you go (don't call stb_easy_font_width/height)
+
+    EasyTextState easy = { V2(12.0f), 12.0f, omax.white, true };
 
     popup->FORNOW_info_mouse_is_hovering = false;
     popup->info_hover_cell_index = -1;
@@ -124,9 +126,9 @@ void popup_popup(
             }
 
 
-            box2 field_inflated_box;
-            box2 field_uninflated_box;
-            box2 selection_inflated_box;
+            bbox2 field_inflated_box;
+            bbox2 field_uninflated_box;
+            bbox2 selection_inflated_box;
             real x_field_left;
             {
 
@@ -150,7 +152,7 @@ void popup_popup(
                 real y_bottom;
                 {
                     y_top = easy.get_position().y;
-                    y_bottom = y_top + 8;
+                    y_bottom = y_top + easy.font_size_Pixel;
                 }
 
                 field_inflated_box = { x_field_left - 3, y_top - 3, x_field_right + 3, y_bottom + 3 };
@@ -185,7 +187,7 @@ void popup_popup(
             }
 
             { // popup->info_hover_cell_*
-                if (box_contains(field_inflated_box, other.mouse_Pixel)) {
+                if (bbox_contains(field_inflated_box, other.mouse_Pixel)) {
                     popup->FORNOW_info_mouse_is_hovering = true; // FORNOW
                     popup->info_hover_cell_index = d;
                     popup->info_hover_cell_cursor = d_cell_cursor;
@@ -209,7 +211,7 @@ void popup_popup(
                 if (hovering_over_not_active_cell) { // debug draw
                     eso_begin(other.transform_NDC_from_Pixel, SOUP_QUADS, 1.0f);
                     eso_color(omax.cyan, 0.4f);
-                    eso_box__SOUP_QUADS(field_uninflated_box);
+                    eso_bbox_SOUP_QUADS(field_uninflated_box);
                     eso_end();
                 }
 
@@ -222,7 +224,7 @@ void popup_popup(
                         if (popup_selection_is_active) {
                             eso_begin(other.transform_NDC_from_Pixel, SOUP_QUADS);
                             eso_color(omax.yellow, 0.4f);
-                            eso_box__SOUP_QUADS(selection_inflated_box);
+                            eso_bbox_SOUP_QUADS(selection_inflated_box);
                             eso_end();
                         }
 

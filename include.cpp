@@ -7,7 +7,7 @@
 
 #include "basics.cpp"
 #include "linalg.cpp"
-#include "box.cpp"
+#include "bbox.cpp"
 #include "containers.cpp" // TODO: implement better Map
 #include "elephant.cpp"
 

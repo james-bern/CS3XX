@@ -13,8 +13,8 @@ mat4 get_M_3D_from_2D() {
     return M4_xyzo(x, y, z, (feature_plane->signed_distance_to_world_origin) * feature_plane->normal);
 }
 
-box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
-    box2 face_selection_bounding_box = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
+    bbox2 face_selection_bounding_box = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
 
     mat4 PVM_3D = P_3D * V_3D * M_3D;
@@ -61,9 +61,9 @@ box2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                     alpha = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_going_inside), 1.0f, 0.7f);
 
 
-                    bounding_box_add_point(&face_selection_bounding_box, _V2(transformPoint(inv_M_3D_from_2D, p[0])));
-                    bounding_box_add_point(&face_selection_bounding_box, _V2(transformPoint(inv_M_3D_from_2D, p[1])));
-                    bounding_box_add_point(&face_selection_bounding_box, _V2(transformPoint(inv_M_3D_from_2D, p[2])));
+                    face_selection_bounding_box += _V2(transformPoint(inv_M_3D_from_2D, p[0]));
+                    face_selection_bounding_box += _V2(transformPoint(inv_M_3D_from_2D, p[1]));
+                    face_selection_bounding_box += _V2(transformPoint(inv_M_3D_from_2D, p[2]));
 
 
                 } else {
@@ -270,7 +270,7 @@ void conversation_draw() {
                 if (
                         0
                         || (state.click_modifier == ClickModifier::Window)
-                        ||(state.click_mode == ClickMode::Box )
+                        ||(state.click_mode == ClickMode::BoundingBox )
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
@@ -417,10 +417,10 @@ void conversation_draw() {
 
 
         { // feature plane feature-plane feature_plane
-            box2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
-            box2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&drawing->entities, true);
-            box2 target_bounding_box; {
-                target_bounding_box = bounding_box_union(face_selection_bounding_box, dxf_selection_bounding_box);
+            bbox2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
+            bbox2 dxf_selection_bounding_box = dxf_entities_get_bounding_box(&drawing->entities, true);
+            bbox2 target_bounding_box; {
+                target_bounding_box = face_selection_bounding_box + dxf_selection_bounding_box;
                 for_(d, 2) {
                     if (target_bounding_box.min[d] > target_bounding_box.max[d]) {
                         target_bounding_box.min[d] = 0.0f;
@@ -470,7 +470,7 @@ void conversation_draw() {
                 mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
                 eso_begin(PVM * M4_Translation(0.0f, 0.0f, sign * Z_FIGHT_EPS) * scaling_about_center, SOUP_QUADS);
                 eso_color(preview->feature_plane_color, f * 0.35f);
-                eso_box__SOUP_QUADS(preview->feature_plane);
+                eso_bbox_SOUP_QUADS(preview->feature_plane);
                 eso_end();
             }
         }
@@ -505,7 +505,7 @@ void conversation_draw() {
                 (char *) (
                     (state.click_mode == ClickMode::None) ? "" :
                     (state.click_mode == ClickMode::Axis)    ? "axis" :
-                    (state.click_mode == ClickMode::Box)     ? "box" :
+                    (state.click_mode == ClickMode::BoundingBox)     ? "box" :
                     (state.click_mode == ClickMode::Circle)  ? "circle" :
                     (state.click_mode == ClickMode::Color)   ? _color_x :
                     (state.click_mode == ClickMode::Deselect)? "deselect" :
@@ -668,6 +668,7 @@ void conversation_message_buffer_draw() {
 
 struct EasyTextState {
     vec2 origin;
+    real font_size_Pixel;
     vec3 color;
     bool automatically_append_newline;
     vec2 offset;
@@ -684,15 +685,15 @@ void easy_text(EasyTextState *easy, const char *format, ...) {
         va_end(arg);
     }
 
-    vec2 size = text_draw(window_get_NDC_from_Pixel(), cstring, easy->get_position(), easy->color);
+    vec2 text_box_size = text_draw(window_get_NDC_from_Pixel(), cstring, easy->get_position(), easy->color, easy->font_size_Pixel);
 
-    bool no_newline = ARE_EQUAL(size.y, 12);
+    bool no_newline = ARE_EQUAL(text_box_size.y, easy->font_size_Pixel);
 
     if (no_newline && (!easy->automatically_append_newline)) {
-        easy->offset.x += size.x;
+        easy->offset.x += text_box_size.x;
     } else {
         easy->offset.x = 0;
-        easy->offset.y += size.y;
+        easy->offset.y += text_box_size.y;
     }
 }
 

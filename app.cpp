@@ -1142,5 +1142,5 @@ template <uint D_position, uint D_color> vec2 text_draw(
         * M4_Scaling(font_size_Pixel / 12.0f);
     soup_draw(transform, SOUP_QUADS, num_vertices, vertex_positions, NULL, color, 0, force_draw_on_top);
 
-    return V2(stb_easy_font_width(cstring), stb_easy_font_height(cstring));
+    return (font_size_Pixel / 12.0f) * V2(stb_easy_font_width(cstring), stb_easy_font_height(cstring));
 }
