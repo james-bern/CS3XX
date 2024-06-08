@@ -1947,6 +1947,13 @@ void history_printf_script() {
 }
 
 void history_debug_draw() {
+    { // FORNOW
+        eso_begin(M4_Identity(), SOUP_QUADS);
+        eso_color(omax.black, 0.4f);
+        Box<2> box = { -1.0f, -1.0f, other.x_divider_NDC, 1.0f };
+        eso_box__SOUP_QUADS(box);
+        eso_end();
+    }
     EasyTextState easy;
 
     auto _history_user_event_draw_helper = [&](Event event) {
@@ -1986,7 +1993,7 @@ void history_debug_draw() {
         easy_text(&easy, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
     };
 
-    easy = { 12, 72, omax.white, true };
+    easy = { 144, 12, omax.white, true };
 
     { // recorded_user_events
         if (history.recorded_user_events._redo_stack.length) {
@@ -2024,7 +2031,7 @@ void history_debug_draw() {
         }
     }
 
-    easy.origin.x += 188;
+    easy.origin.x += 144;
     easy.offset = {};
 
     { // snapshotted_world_states
