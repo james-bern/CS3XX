@@ -258,7 +258,7 @@ void conversation_save(char *filename) {
     }
 }
 
-void drop_callback(GLFWwindow *, int count, const char **paths) {
+void callback_drop(GLFWwindow *, int count, const char **paths) {
     if (count > 0) {
         char *filename = (char *)(paths[0]);
         conversation_load(filename);
@@ -318,7 +318,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         } else if (step) {
             other.stepping_one_frame_while_paused = true;
         } else if (quit) {
-            glfwSetWindowShouldClose(COW0._window_glfw_window, true);
+            glfwSetWindowShouldClose(glfw_window, true);
         } else {
             RawEvent raw_event = {}; {
                 raw_event.type = EventType::Key;
@@ -459,6 +459,10 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
         }
         camera_mesh->pre_nudge_World = tmp_2D.pre_nudge_World;
     }
+}
+
+void callback_framebuffer_size(GLFWwindow *, int width, int height) {
+    glViewport(0, 0, width, height);
 }
 
 KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_event) {
@@ -2169,11 +2173,12 @@ int main() {
         _mesh_init();
     }
     { // callbacks
-        glfwSetKeyCallback(COW0._window_glfw_window, callback_key);
-        glfwSetCursorPosCallback(COW0._window_glfw_window, callback_cursor_position);
-        glfwSetMouseButtonCallback(COW0._window_glfw_window, callback_mouse_button);
-        glfwSetScrollCallback(COW0._window_glfw_window, callback_scroll);
-        glfwSetDropCallback(COW0._window_glfw_window, drop_callback);
+        glfwSetKeyCallback(glfw_window, callback_key);
+        glfwSetCursorPosCallback(glfw_window, callback_cursor_position);
+        glfwSetMouseButtonCallback(glfw_window, callback_mouse_button);
+        glfwSetScrollCallback(glfw_window, callback_scroll);
+        glfwSetDropCallback(glfw_window, callback_drop);
+        glfwSetFramebufferSizeCallback(glfw_window, callback_framebuffer_size);
     }
 
 
@@ -2222,27 +2227,26 @@ int main() {
     {
         // FORNOW: first frame position
         double xpos, ypos;
-        glfwGetCursorPos(COW0._window_glfw_window, &xpos, &ypos);
+        glfwGetCursorPos(glfw_window, &xpos, &ypos);
         callback_cursor_position(NULL, xpos, ypos);
     }
 
-    glfwHideWindow(COW0._window_glfw_window);
+    glfwHideWindow(glfw_window);
     uint frame = 0;
-    while (!glfwWindowShouldClose(COW0._window_glfw_window)) {
+    while (!glfwWindowShouldClose(glfw_window)) {
         {
-            globals.NDC_from_Screen = window_get_NDC_from_Screen();
             COW1._gui_x_curr = 16;
             COW1._gui_y_curr = 16;
 
             glfwPollEvents();
 
-            glfwSwapBuffers(COW0._window_glfw_window);
+            glfwSwapBuffers(glfw_window);
             glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         }
 
 
-        other.transform_NDC_from_Pixel = window_get_NDC_from_Screen();
+        other.transform_NDC_from_Pixel = window_get_NDC_from_Pixel();
 
         other.please_suppress_drawing_popup_popup = false;
 
@@ -2310,7 +2314,7 @@ int main() {
             }
         }
 
-        if (frame++ == 1) glfwShowWindow(COW0._window_glfw_window);
+        if (frame++ == 1) glfwShowWindow(glfw_window);
 
         if (other.stepping_one_frame_while_paused) {
             other.stepping_one_frame_while_paused = false;

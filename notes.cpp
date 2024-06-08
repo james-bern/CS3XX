@@ -11,7 +11,6 @@
 // TODO: formalize timestep (support variable display refresh rate)
 // XXX: 'P' to pause
 // XXX: rename STATE, OTHER
-// XXX: rename NDC_from_Screen -> NDC_from_Pixel
 // XXX: rename Identity
 // XXX: only use C++-style casts 
 // XXX: switch to regular old bool

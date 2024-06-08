@@ -241,8 +241,8 @@ void popup_popup(
                                 x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                                 x -= 1.25f;
                                 // FORNOW: silly way of getting longer |
-                                _text_draw(other.transform_NDC_from_Pixel.data, "|", x, y - 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
-                                _text_draw(other.transform_NDC_from_Pixel.data, "|", x, y + 3.0, 0.0, 1.0, 1.0, b, a, 0, 0.0, 0.0, true);
+                                text_draw(other.transform_NDC_from_Pixel, "|", V2(x, y - 3.0), V4(1.0, 1.0, b, a));
+                                text_draw(other.transform_NDC_from_Pixel, "|", V2(x, y + 3.0), V4(1.0, 1.0, b, a));
                             }
                         }
                     }

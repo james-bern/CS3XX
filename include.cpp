@@ -12,6 +12,7 @@
 #include "elephant.cpp"
 
 #include "app.cpp"
+#include "extras.cpp"
 
 #include "burkardt.cpp"
 #include "manifoldc.h"

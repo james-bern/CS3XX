@@ -10,26 +10,43 @@ template <uint D> union Vector {
 template <> union Vector<2> {
     real data[2];
     struct { real x, y; };
-    real &operator [](uint index) { return data[index]; }
+    real &operator [](uint index) {
+        ASSERT(index < 2);
+        return data[index];
+    }
 };
 
 template <> union Vector<3> {
     real data[3];
     struct { real x, y, z; };
-    real &operator [](uint index) { return data[index]; }
+    real &operator [](uint index) {
+        ASSERT(index < 3);
+        return data[index];
+    }
 };
 
 template <> union Vector<4> {
     real data[4];
     struct { real x, y, z, w; };
-    real &operator [](uint index) { return data[index]; }
+    real &operator [](uint index) {
+        ASSERT(index < 4);
+        return data[index];
+    }
 };
 
 
 template <uint D> union Matrix {
     real data[D * D];
-    real &operator ()(uint row, uint col) { return data[D * row + col]; }
-    const real &operator ()(uint row, uint col) const { return data[D * row + col]; }
+    real &operator ()(uint row, uint col) {
+        ASSERT(row < D);
+        ASSERT(col < D);
+        return data[D * row + col];
+    }
+    const real &operator ()(uint row, uint col) const {
+        ASSERT(row < D);
+        ASSERT(col < D);
+        return data[D * row + col];
+    }
 };
 
 

@@ -393,9 +393,6 @@ void conversation_draw() {
             gl_scissor_TODO_CHECK_ARGS(x_divider_Pixel, 0, window_width - x_divider_Pixel, window_height);
         }
 
-        if (!other.hide_grid) { // grid 3D grid 3d grid
-            conversation_draw_3D_grid_box(P_3D, V_3D);
-        }
 
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
@@ -546,6 +543,9 @@ void conversation_draw() {
             }
         }
 
+        if (!other.hide_grid) { // grid 3D grid 3d grid
+            conversation_draw_3D_grid_box(P_3D, V_3D);
+        }
 
         glDisable(GL_SCISSOR_TEST);
     }
@@ -554,19 +554,15 @@ void conversation_draw() {
 
 
         { // cursor decorations
-            real a = ((other.hot_pane == Pane::Drawing) && ((other.mouse_left_drag_pane == Pane::None) || (other.mouse_left_drag_pane == Pane::Drawing))) ? 1.0f : 0.5f;
-            real r, g, b;
-            r = g = b = 1.0f;
+            real alpha = ((other.hot_pane == Pane::Drawing) && ((other.mouse_left_drag_pane == Pane::None) || (other.mouse_left_drag_pane == Pane::Drawing))) ? 1.0f : 0.5f;
+            vec3 color = omax.white;
             char _color_x[64] = {};
             if (state.click_mode == ClickMode::Color) {
                 if (state.click_modifier == ClickModifier::Selected) {
                     sprintf(_color_x, "color");
                 } else {
                     sprintf(_color_x, "color %d", state.click_color_code);
-                    vec3 rgb = get_color(state.click_color_code);
-                    r = rgb[0];
-                    g = rgb[1];
-                    b = rgb[2];
+                    color = get_color(state.click_color_code);
                 }
             }
             char _X_Y[256] = {};
@@ -574,8 +570,8 @@ void conversation_draw() {
                 sprintf(_X_Y, "(%g, %g)", popup->x_coordinate, popup->y_coordinate);
             }
 
-            _text_draw(
-                    other.transform_NDC_from_Pixel.data,
+            text_draw(
+                    other.transform_NDC_from_Pixel,
                     (char *) (
                         (state.click_mode == ClickMode::None) ? "" :
                         (state.click_mode == ClickMode::Axis)    ? "axis" :
@@ -592,22 +588,11 @@ void conversation_draw() {
                         (state.click_mode == ClickMode::MirrorX) ? "x_mirror" :
                         (state.click_mode == ClickMode::MirrorY) ? "y_mirror" :
                         "???MODE???"),
-                    other.mouse_Pixel.x + 12,
-                    other.mouse_Pixel.y + 14,
-                    0.0,
+                    V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 14),
+                    V4(color, alpha));
 
-                    r,
-                    g,
-                    b,
-                    a,
-
-                    12,
-                    0.0,
-                    0.0,
-                    true);
-
-            _text_draw(
-                    other.transform_NDC_from_Pixel.data,
+            text_draw(
+                    other.transform_NDC_from_Pixel,
                     (char *) (
                         (state.click_modifier == ClickModifier::None)       ? "" :
                         (state.click_modifier == ClickModifier::Center)     ? "center" :
@@ -619,19 +604,8 @@ void conversation_draw() {
                         (state.click_modifier == ClickModifier::Window)     ? "window" :
                         (state.click_modifier == ClickModifier::XYCoordinates) ? _X_Y :
                         "???MODIFIER???"),
-                    other.mouse_Pixel.x + 12,
-                    other.mouse_Pixel.y + 24,
-                    0.0,
-
-                    1.0,
-                    1.0,
-                    1.0,
-                    a,
-
-                    12,
-                    0.0,
-                    0.0,
-                    true);
+                    V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 24),
+                    V4(color, alpha));
         }
 
         // gui_printf("[Enter] %s",
@@ -742,17 +716,14 @@ void conversation_message_buffer_draw() {
         real FADE_IN_TIME = 0.33f;
         real FADE_OUT_TIME = 2.0f;
 
-        real a; { // ramp on ramp off
-            a = 0
+        real alpha; { // ramp on ramp off
+            alpha = 0
                 + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_IN_TIME, 0.0f, 1.0f)
                 - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
         }
 
         vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, omax.yellow, message->base_color);
         color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
-        real r = color.x;
-        real g = color.y;
-        real b = color.z;
 
         real x = get_x_divider_Pixel() + 12;
         real y_target = ++num_drawn * 12.0f;
@@ -760,22 +731,7 @@ void conversation_message_buffer_draw() {
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
-            _text_draw(
-                    other.transform_NDC_from_Pixel.data,
-                    message->buffer,
-                    x,
-                    message->y,
-                    0.0,
-
-                    r,
-                    g,
-                    b,
-                    a,
-
-                    0,
-                    0.0,
-                    0.0,
-                    true);
+            text_draw(other.transform_NDC_from_Pixel, message->buffer, V2(x, message->y), V4(color, alpha));
         }
     };
 

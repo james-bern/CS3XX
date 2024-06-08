@@ -1,3 +1,4 @@
+
 // // GLFW
 #ifdef COW_OS_UBUNTU
 #define GL_GLEXT_PROTOTYPES
@@ -16,6 +17,8 @@
 #include "codebase/ext/glfw3native.h"
 #endif
 
+// // external defines
+GLFWwindow *glfw_window;
 #define GL_REAL GL_FLOAT
 
 // // stb
@@ -31,19 +34,9 @@
 #define ITRI_MAX_NUM_TEXTURES 32
 #define ITRI_MAX_FILENAME_LENGTH 64
 
-struct CW_USER_FACING_CONFIG {
-    bool tweaks_soup_draw_with_rounded_corners_for_all_line_primitives = true;
-    bool tweaks_record_raw_then_encode_everything_WARNING_USES_A_LOT_OF_DISK_SPACE = false;
-    real tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels = 2.0;
-};
-
-struct C2_READONLY_USER_FACING_DATA {
-    mat4 NDC_from_Screen;
-};
-
 // constants
 // shaders
-struct CX_INTERNAL_CONSTANTS {
+struct {
     char *_soup_vert = R""(
         #version 330 core
         layout (location = 0) in vec3 vertex;
@@ -285,9 +278,9 @@ struct CX_INTERNAL_CONSTANTS {
             frag_color = vec4(rgb, a);
         }
     )"";
-};
+} app_shaders;
 
-struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
+struct COW0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
     real *_eso_vertex_positions;
     real *_eso_vertex_colors;
 
@@ -303,12 +296,10 @@ struct C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
     uint _soup_VBO[2];
     uint _soup_EBO[3];
 
-    GLFWwindow *_window_glfw_window;
-    void *_window_hwnd__note_this_is_NULL_if_not_on_Windows;
     real _window_macbook_retina_fixer__VERY_MYSTERIOUS;
 };
 
-struct C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset {
+struct COW1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset {
     bool _eso_called_eso_begin_before_calling_eso_vertex_or_eso_end;
     real _eso_current_color[4];
     real _eso_PVM[16];
@@ -326,11 +317,8 @@ struct C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset 
 };
 
 
-CW_USER_FACING_CONFIG config;
-C2_READONLY_USER_FACING_DATA globals; // COW2
-CX_INTERNAL_CONSTANTS COWX;
-C0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself COW0;
-C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
+COW0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself COW0;
+COW1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -339,111 +327,6 @@ C1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_reset COW1;
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-// TODO: remove this next
-////////////////////////////////////////////////////////////////////////////////
-// #include "_linalg.cpp"///////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-#define _LINALG_4X4(A, i, j) A[4 * (i) + (j)]
-
-
-
-void _linalg_mat4_times_mat4(real *C, real *A, real *B) { // C = A B
-    ASSERT(C);
-    ASSERT(A);
-    ASSERT(B);
-
-    real tmp[16] = {}; { // allows for e.g. A <- A B;
-        for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) for (int k = 0; k < 4; ++k) _LINALG_4X4(tmp, i, j) += _LINALG_4X4(A, i, k) * _LINALG_4X4(B, k, j);
-    }
-    memcpy(C, tmp, sizeof(tmp));
-}
-
-void _linalg_mat4_times_vec4_persp_divide(real *b, real *A, real *x) { // b = A x
-    ASSERT(b);
-    ASSERT(A);
-    ASSERT(x);
-
-    real tmp[4] = {}; { // allows for x <- A x
-        for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) tmp[i] += _LINALG_4X4(A, i, j) * x[j];
-        if (!IS_ZERO(tmp[3])) {
-            // ASSERT(!IS_ZERO(x[3]));
-            for (int i = 0; i < 4; ++i) tmp[i] /= tmp[3]; 
-        }
-    }
-    memcpy(b, tmp, sizeof(tmp));
-}
-
-real _linalg_mat4_determinant(real *A) {
-    ASSERT(A);
-    real A2323 = _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 2);
-    real A1323 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 1);
-    real A1223 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 1);
-    real A0323 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 0);
-    real A0223 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 0);
-    real A0123 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 0);
-    return _LINALG_4X4(A, 0, 0) * (_LINALG_4X4(A, 1, 1) * A2323 - _LINALG_4X4(A, 1, 2) * A1323 + _LINALG_4X4(A, 1, 3) * A1223) 
-        -  _LINALG_4X4(A, 0, 1) * (_LINALG_4X4(A, 1, 0) * A2323 - _LINALG_4X4(A, 1, 2) * A0323 + _LINALG_4X4(A, 1, 3) * A0223) 
-        +  _LINALG_4X4(A, 0, 2) * (_LINALG_4X4(A, 1, 0) * A1323 - _LINALG_4X4(A, 1, 1) * A0323 + _LINALG_4X4(A, 1, 3) * A0123) 
-        -  _LINALG_4X4(A, 0, 3) * (_LINALG_4X4(A, 1, 0) * A1223 - _LINALG_4X4(A, 1, 1) * A0223 + _LINALG_4X4(A, 1, 2) * A0123);
-}
-
-void _linalg_mat4_inverse(real *invA, real *A) {
-    ASSERT(invA);
-    ASSERT(A);
-    real one_over_det = 1 / _linalg_mat4_determinant(A);
-    real tmp[16] = {}; { // allows for A <- inv(A)
-        real A2323 = _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 2);
-        real A1323 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 1);
-        real A1223 = _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 1);
-        real A0323 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 2, 3) * _LINALG_4X4(A, 3, 0);
-        real A0223 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 2, 2) * _LINALG_4X4(A, 3, 0);
-        real A0123 = _LINALG_4X4(A, 2, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 2, 1) * _LINALG_4X4(A, 3, 0);
-        real A2313 = _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 2);
-        real A1313 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 1);
-        real A1213 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 1);
-        real A2312 = _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 2);
-        real A1312 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 1);
-        real A1212 = _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 1);
-        real A0313 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 3, 0);
-        real A0213 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 3, 0);
-        real A0312 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 3) - _LINALG_4X4(A, 1, 3) * _LINALG_4X4(A, 2, 0);
-        real A0212 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 2) - _LINALG_4X4(A, 1, 2) * _LINALG_4X4(A, 2, 0);
-        real A0113 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 3, 1) - _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 3, 0);
-        real A0112 = _LINALG_4X4(A, 1, 0) * _LINALG_4X4(A, 2, 1) - _LINALG_4X4(A, 1, 1) * _LINALG_4X4(A, 2, 0);
-
-        int i = 0;
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 1, 1) * A2323 - _LINALG_4X4(A, 1, 2) * A1323 + _LINALG_4X4(A, 1, 3) * A1223);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 0, 1) * A2323 - _LINALG_4X4(A, 0, 2) * A1323 + _LINALG_4X4(A, 0, 3) * A1223);
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 0, 1) * A2313 - _LINALG_4X4(A, 0, 2) * A1313 + _LINALG_4X4(A, 0, 3) * A1213);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 0, 1) * A2312 - _LINALG_4X4(A, 0, 2) * A1312 + _LINALG_4X4(A, 0, 3) * A1212);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 1, 0) * A2323 - _LINALG_4X4(A, 1, 2) * A0323 + _LINALG_4X4(A, 1, 3) * A0223);
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 0, 0) * A2323 - _LINALG_4X4(A, 0, 2) * A0323 + _LINALG_4X4(A, 0, 3) * A0223);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 0, 0) * A2313 - _LINALG_4X4(A, 0, 2) * A0313 + _LINALG_4X4(A, 0, 3) * A0213);
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 0, 0) * A2312 - _LINALG_4X4(A, 0, 2) * A0312 + _LINALG_4X4(A, 0, 3) * A0212);
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 1, 0) * A1323 - _LINALG_4X4(A, 1, 1) * A0323 + _LINALG_4X4(A, 1, 3) * A0123);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 0, 0) * A1323 - _LINALG_4X4(A, 0, 1) * A0323 + _LINALG_4X4(A, 0, 3) * A0123);
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 0, 0) * A1313 - _LINALG_4X4(A, 0, 1) * A0313 + _LINALG_4X4(A, 0, 3) * A0113);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 0, 0) * A1312 - _LINALG_4X4(A, 0, 1) * A0312 + _LINALG_4X4(A, 0, 3) * A0112);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 1, 0) * A1223 - _LINALG_4X4(A, 1, 1) * A0223 + _LINALG_4X4(A, 1, 2) * A0123);
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 0, 0) * A1223 - _LINALG_4X4(A, 0, 1) * A0223 + _LINALG_4X4(A, 0, 2) * A0123);
-        tmp[i++] = -one_over_det * (_LINALG_4X4(A, 0, 0) * A1213 - _LINALG_4X4(A, 0, 1) * A0213 + _LINALG_4X4(A, 0, 2) * A0113);
-        tmp[i++] =  one_over_det * (_LINALG_4X4(A, 0, 0) * A1212 - _LINALG_4X4(A, 0, 1) * A0212 + _LINALG_4X4(A, 0, 2) * A0112);
-    }
-    memcpy(invA, tmp, sizeof(tmp));
-}
-
-void _linalg_mat4_transpose(real *AT, real *A) { // AT = A^T
-    ASSERT(AT);
-    ASSERT(A);
-    real tmp[16] = {}; { // allows for A <- transpose(A)
-        for (int i = 0; i < 4; ++i) for (int j = 0; j < 4; ++j) _LINALG_4X4(tmp, i, j) = _LINALG_4X4(A, j, i);
-    }
-    memcpy(AT, tmp, 16 * sizeof(real));
-}
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "window.cpp"////////////////////////////////////////////////////////
@@ -460,7 +343,6 @@ void gl_scissor_TODO_CHECK_ARGS(real x, real y, real dx, real dy) {
 #define glScissor RETINA_BREAKS_THIS_FUNCTION_USE_gl_scissor_WRAPPER
 
 void _callback_set_callbacks();
-void _callback_cursor_position(GLFWwindow *, double _xpos, double _ypos);
 void _window_init() {
     ASSERT(glfwInit());
 
@@ -473,14 +355,14 @@ void _window_init() {
 
     // glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
-    COW0._window_glfw_window = glfwCreateWindow(1000, 1000, "conversation -- " __DATE__ " " __TIME__, NULL, NULL);
-    if (!COW0._window_glfw_window) {
+    glfw_window = glfwCreateWindow(1000, 1000, "conversation -- " __DATE__ " " __TIME__, NULL, NULL);
+    if (!glfw_window) {
         printf("[cow] something's gone wonky; if you weren't just messing with init(...) or something, please try restarting your computer and try again.\n");
         ASSERT(0);
     }
 
 
-    glfwMakeContextCurrent(COW0._window_glfw_window);
+    glfwMakeContextCurrent(glfw_window);
 
     #ifdef OPERATING_SYSTEM_WINDOWS
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
@@ -493,43 +375,31 @@ void _window_init() {
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    glDisable(GL_CULL_FACE);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glfwSwapInterval(1);
 
-    _callback_set_callbacks();
 
-    #ifdef OPERATING_SYSTEM_WINDOWS
-    COW0._window_hwnd__note_this_is_NULL_if_not_on_Windows = glfwGetWin32Window(COW0._window_glfw_window);
-    #endif
+    glfwSetWindowPos(glfw_window, 0.0f, 0.0f);
+    glfwSetWindowSize(glfw_window, 960.0f, 540.0f);
+    glfwSetWindowAttrib(glfw_window, GLFW_FLOATING, false);
+    glfwSetWindowAttrib(glfw_window, GLFW_DECORATED, true);
 
     { // _macbook_retina_scale
         int num, den, _;
-        glfwGetFramebufferSize(COW0._window_glfw_window, &num, &_);
-        glfwGetWindowSize(COW0._window_glfw_window, &den, &_);
+        glfwGetFramebufferSize(glfw_window, &num, &_);
+        glfwGetWindowSize(glfw_window, &den, &_);
         COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS = real(num / den);
     }
-
-    glfwSetWindowPos(COW0._window_glfw_window, 0.0f, 0.0f);
-    glfwSetWindowSize(COW0._window_glfw_window, 960.0f, 540.0f);
-    glfwSetWindowAttrib(COW0._window_glfw_window, GLFW_FLOATING, false);
-    glfwSetWindowAttrib(COW0._window_glfw_window, GLFW_DECORATED, true);
-
 }
 
-
-
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
+// // window transforms and camera
 
 vec2 window_get_size_Pixel() {
-    ASSERT(COW0._window_glfw_window);
+    ASSERT(glfw_window);
     int _width, _height;
-    glfwGetFramebufferSize(COW0._window_glfw_window, &_width, &_height);
+    glfwGetFramebufferSize(glfw_window, &_width, &_height);
     real width = real(_width) / COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
     real height = real(_height) / COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
     return { width, height };
@@ -540,23 +410,24 @@ real window_get_aspect() {
     return size.x / size.y;
 }
 
-mat4 window_get_NDC_from_Screen() {
-    // NDC                         Screen
+mat4 window_get_NDC_from_Pixel() {
+    // NDC                         Pixel 
     // [x'] = [1/r_x      0   0 -1] [x] = [x/r_x - 1]
     // [y'] = [    0 -1/r_y   0  1] [y] = [1 - y/r_y]
-    // [z'] = [    0      0   0  0] [z] = [        0]
+    // [z'] = [    0      0   1  0] [z] = [        z] // so invertible (otherwise, would just have row [ 0 0 0 0 ]
     // [1 ] = [    0      0   0  1] [1] = [        1]
     vec2 r = window_get_size_Pixel() / 2;
     mat4 result = {};
     result(0, 0) = 1.0f / r.x;
     result(1, 1) = -1.0f / r.y;
+    result(2, 2) = 1.0f;
     result(0, 3) = -1.0f;
     result(1, 3) = 1.0f;
     result(3, 3) = 1.0f;
     return result;
 }
 
-mat4 get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
+mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
     if (IS_ZERO(near_z_Camera)) { near_z_Camera = -10.0f; }
     if (IS_ZERO(far_z_Camera)) { far_z_Camera = -10000.0f; }
     if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }
@@ -656,7 +527,7 @@ mat4 get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real near_z_Camer
     return result;
 }
 
-mat4 get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
+mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
     // ASSERT(!IS_ZERO(height_World));
     if (ARE_EQUAL(near_z_Camera, far_z_Camera)) {
         near_z_Camera = 10000.0f;
@@ -729,10 +600,6 @@ mat4 get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real near_z_Camera
 }
 
 
-////////////////////////////////////////////////////////////////////////////////
-// #include "camera.cpp"////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
 // NOTE: this can be a 3D orbit camera (persp or ortho) or a 2D camera
 struct Camera {
     real angle_of_view; // NOTE: 0.0f <=> ortho camera
@@ -777,9 +644,9 @@ Camera make_EquivalentCamera2D(Camera *camera_3D) {
 
 mat4 camera_get_P(Camera *camera) {
     if (IS_ZERO(camera->angle_of_view)) {
-        return get_P_ortho(camera->ortho_screen_height_World, camera->post_nudge_NDC);
+        return transform_get_P_ortho(camera->ortho_screen_height_World, camera->post_nudge_NDC);
     } else {
-        return get_P_persp(camera->angle_of_view, camera->post_nudge_NDC);
+        return transform_get_P_persp(camera->angle_of_view, camera->post_nudge_NDC);
     }
 }
 
@@ -796,15 +663,10 @@ mat4 camera_get_V(Camera *camera) {
 
 mat4 camera_get_PV(Camera *camera) { return camera_get_P(camera) * camera_get_V(camera); }
 
-
-
-
 ////////////////////////////////////////////////////////////////////////////////
 // #include "input_and_callback.cpp"////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-void _callback_framebuffer_size(GLFWwindow *, int width, int height) { glViewport(0, 0, width, height); }
-void _callback_set_callbacks() { glfwSetFramebufferSizeCallback(COW0._window_glfw_window, _callback_framebuffer_size); }
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "shader.cpp"////////////////////////////////////////////////////////
@@ -1017,9 +879,9 @@ void shader_draw(Shader *shader, int num_triangles, uint3 *triangle_indices) {
 #define _SOUP_RGBA 4
 
 void _soup_init() {
-    COW0._soup_shader_program_POINTS = _shader_compile_and_build_program(COWX._soup_vert, COWX._soup_frag_POINTS, COWX._soup_geom_POINTS);
-    COW0._soup_shader_program_LINES = _shader_compile_and_build_program(COWX._soup_vert, COWX._soup_frag, COWX._soup_geom_LINES);
-    COW0._soup_shader_program_TRIANGLES = _shader_compile_and_build_program(COWX._soup_vert, COWX._soup_frag);
+    COW0._soup_shader_program_POINTS = _shader_compile_and_build_program(app_shaders._soup_vert, app_shaders._soup_frag_POINTS, app_shaders._soup_geom_POINTS);
+    COW0._soup_shader_program_LINES = _shader_compile_and_build_program(app_shaders._soup_vert, app_shaders._soup_frag, app_shaders._soup_geom_LINES);
+    COW0._soup_shader_program_TRIANGLES = _shader_compile_and_build_program(app_shaders._soup_vert, app_shaders._soup_frag);
     glGenVertexArrays(ARRAY_LENGTH(COW0._soup_VAO), COW0._soup_VAO);
     glGenBuffers(ARRAY_LENGTH(COW0._soup_VBO), COW0._soup_VBO);
     glGenBuffers(ARRAY_LENGTH(COW0._soup_EBO), COW0._soup_EBO);
@@ -1027,10 +889,10 @@ void _soup_init() {
 
 void _soup_draw(
         real *PVM,
-        int primitive,
-        int dimension_of_positions,
-        int dimension_of_colors,
-        int num_vertices,
+        uint primitive,
+        uint dimension_of_positions,
+        uint dimension_of_colors,
+        uint num_vertices,
         real *vertex_positions,
         real *vertex_colors,
         real r_if_vertex_colors_is_NULL,
@@ -1048,7 +910,7 @@ void _soup_draw(
     ASSERT(dimension_of_colors >= 0);
     ASSERT(vertex_positions);
 
-
+    if (IS_ZERO(size_in_pixels)) { size_in_pixels = 2.0f; }
 
     int mesh_special_case = 0;
     { // recursive calls
@@ -1085,7 +947,7 @@ void _soup_draw(
             }
         }
 
-        if (config.tweaks_soup_draw_with_rounded_corners_for_all_line_primitives && (primitive == SOUP_LINES || primitive == SOUP_LINE_STRIP || primitive == SOUP_LINE_LOOP)) {
+        if (true && (primitive == SOUP_LINES || primitive == SOUP_LINE_STRIP || primitive == SOUP_LINE_LOOP)) {
             _soup_draw(
                     PVM,
                     SOUP_POINTS,
@@ -1102,10 +964,6 @@ void _soup_draw(
                     force_draw_on_top);
         }
     }
-
-
-    if (IS_ZERO(size_in_pixels)) { size_in_pixels = config.tweaks_size_in_pixels_soup_draw_defaults_to_if_you_pass_0_for_size_in_pixels; }
-
 
     real color_if_vertex_colors_is_NULL[4] = { r_if_vertex_colors_is_NULL, g_if_vertex_colors_is_NULL, b_if_vertex_colors_is_NULL, a_if_vertex_colors_is_NULL };
 
@@ -1218,22 +1076,22 @@ void _soup_draw(
 
 }
 
-template <uint D_pos, uint D_color = 3> void soup_draw(
+template <uint D_position, uint D_color = 3> void soup_draw(
         mat4 PVM,
-        int primitive,
-        int num_vertices,
-        Vector<D_pos> *vertex_positions,
+        uint primitive,
+        uint num_vertices,
+        Vector<D_position> *vertex_positions,
         Vector<D_color> *vertex_colors,
         Vector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
         bool force_draw_on_top = false) {
-    STATIC_ASSERT(D_pos == 2 || D_pos == 3 || D_pos == 4);
+    STATIC_ASSERT(D_position == 2 || D_position == 3 || D_position == 4);
     STATIC_ASSERT(D_color == 3 || D_color == 4);
 
     _soup_draw(
             PVM.data,
             primitive,
-            D_pos,
+            D_position,
             D_color,
             num_vertices,
             (real *) vertex_positions,
@@ -1247,11 +1105,11 @@ template <uint D_pos, uint D_color = 3> void soup_draw(
             );
 }
 
-template <uint D_pos, uint D_color = 3> void soup_draw(
+template <uint D_position, uint D_color = 3> void soup_draw(
         mat4 PVM,
-        int primitive,
-        int num_vertices,
-        Vector<D_pos> *vertex_positions,
+        uint primitive,
+        uint num_vertices,
+        Vector<D_position> *vertex_positions,
         void *vertex_colors = NULL,
         Vector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
         real size_in_pixels = 0,
@@ -1262,7 +1120,7 @@ template <uint D_pos, uint D_color = 3> void soup_draw(
     _soup_draw(
             PVM.data,
             primitive,
-            D_pos,
+            D_position,
             D_color,
             num_vertices,
             (real *) vertex_positions,
@@ -1295,7 +1153,7 @@ void _eso_init() {
     _eso_reset();
 }
 
-void _eso_begin(real *PVM, int primitive, real size_in_pixels, bool force_draw_on_top) {
+void _eso_begin(real *PVM, uint primitive, real size_in_pixels, bool force_draw_on_top) {
     ASSERT(!COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end);
     COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
     COW1._eso_primitive = primitive;
@@ -1344,7 +1202,7 @@ void eso_color(real r, real g, real b, real a = 1.0) {
     COW1._eso_current_color[3] = a;
 }
 
-void eso_begin(mat4 PVM, int primitive, real size_in_pixels = 0, bool force_draw_on_top = false) {
+void eso_begin(mat4 PVM, uint primitive, real size_in_pixels = 0, bool force_draw_on_top = false) {
     _eso_begin(PVM.data, primitive, size_in_pixels, force_draw_on_top);
 }
 
@@ -1364,123 +1222,64 @@ void eso_color(vec3 rgb, real a = 1.0) {
 // #include "text.cpp"//////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO no_billboard
-
-void _text_draw(
-        real *PV,
-        char *text,
-        real x_world,
-        real y_world,
-        real z_world,
-        real r,
-        real g,
-        real b,
-        real a,
-        real font_size_in_pixels,
-        real dx_in_pixels,
-        real dy_in_pixels,
-        bool force_draw_on_top
+template <uint D_position, uint D_color> void text_draw(
+        mat4 PV,
+        char *cstring,
+        Vector<D_position> _position_World,
+        Vector<D_color> color,
+        real font_size_Pixel = 12.0f,
+        vec2 nudge_Pixel = {},
+        bool force_draw_on_top = true
         ) {
-    ASSERT(PV);
-    ASSERT(text);
+    ASSERT(cstring);
 
-    real window_width_in_pixels, window_height_in_pixels;
+    vec2 *vertex_positions;
+    uint num_vertices;
     {
-        vec2 size = window_get_size_Pixel();
-        window_width_in_pixels = size.x;
-        window_height_in_pixels = size.y;
-    }
+        uint size = 99999 * sizeof(float);
+        static void *_vertex_positions = malloc(size);
+        vertex_positions = (vec2 *) _vertex_positions;
 
-    if (IS_ZERO(font_size_in_pixels)) { font_size_in_pixels = 12; }
-    // font_size_in_pixels *= config.tweaks_scale_factor_for_everything_involving_pixels_ie_gui_text_soup_NOTE_this_will_init_to_2_on_macbook_retina;
-
-    static char buffer[99999]; // ~500 chars
-    int num_quads = stb_easy_font_print(0, 0, text, NULL, buffer, sizeof(buffer));
-    int num_vertices = 4 * num_quads;
-    static real vertex_positions[99999];
-
-    char *read_head = buffer;
-    for (int k = 0; k < num_vertices; ++k) {
-        for (int d = 0; d < 2; ++d) {
-            vertex_positions[2 * k + d] = ((float *) read_head)[d];
+        num_vertices = 4 * stb_easy_font_print(0, 0, cstring, NULL, _vertex_positions, size);
+        { // NOTE: stb stores like this [x:float y:float z:float color:uint8[4]]
+            for_(i, num_vertices) {
+                ((vec2 *) vertex_positions)[i] = {
+                    ((float *) vertex_positions)[4 * i + 0],
+                    ((float *) vertex_positions)[4 * i + 1],
+                };
+            }
         }
-        read_head += (3 * sizeof(float) + 4);
     }
 
-    real s_NDC[4] = {}; {
-        real s_World[4] = { x_world, y_world, z_world, 1 };
-        _linalg_mat4_times_vec4_persp_divide(s_NDC, PV, s_World);
-    }
+    vec3 position_World = { _position_World.x, _position_World.y };
+    vec3 position_NDC = transformPoint(PV, position_World);
 
-    if (IS_BETWEEN(s_NDC[2], -1, 1)) {
-        real transform[16] = {}; {
-            // M4_Translation(s_NDC) * app_NDC_from_Screen() * M4_Translation(ds_Screen + dims / 2) * M4_Scaling(size, size);
+    if (!IS_BETWEEN(position_NDC.z, -1.0f, 1.0f)) return;
 
-            real TS[16] = {
-                font_size_in_pixels / 12, 0, 0, dx_in_pixels + window_width_in_pixels / 2,
-                0, font_size_in_pixels / 12, 0, dy_in_pixels + window_height_in_pixels / 2,
-                0, 0, 1, 0,
-                0, 0, 0, 1,
-            };
+    vec2 position_Pixel = transformPoint(inverse(window_get_NDC_from_Pixel()), _V2(position_NDC));
 
-            _linalg_mat4_times_mat4(transform, (real *) &globals.NDC_from_Screen, TS);
-            for (int d = 0; d < 3; ++d) transform[4 * d + 3] += s_NDC[d];
-        }
-
-        _soup_draw(
-                transform,
-                SOUP_QUADS,
-                _SOUP_XY,
-                _SOUP_RGBA,
-                num_vertices,
-                vertex_positions,
-                NULL,
-                r,
-                g,
-                b,
-                a,
-                0,
-                force_draw_on_top
-                );
-    }
+    mat4 transform = window_get_NDC_from_Pixel()
+        * M4_Translation(position_Pixel + nudge_Pixel)
+        * M4_Scaling(font_size_Pixel / 12.0f);
+    soup_draw(transform, SOUP_QUADS, num_vertices, vertex_positions, NULL, color, 0, force_draw_on_top);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "gui.cpp"///////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-
+// TODO: color and no color version (see how is done with message)
 real FORNOW_gui_printf_red_component = 1.0f;
 void gui_printf(const char *format, ...) {
-    static char _text[256] = {};
+    static char text[256] = {};
     {
         va_list arg;
         va_start(arg, format);
-        vsnprintf(_text, sizeof(_text), format, arg);
+        vsnprintf(text, sizeof(text), format, arg);
         va_end(arg);
     }
 
-    char *text = _text;
-    char *sep = strchr(text, '`'); // fornow hacking in two color text
-    if (!sep) {
-        _text_draw((real *) &globals.NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
-                FORNOW_gui_printf_red_component,
-                1.0,
-                1.0,
-                1.0, 0, 0.0, 0.0, true);
-    } else {
-        real tmp = COW1._gui_x_curr; {
-            *sep = 0;
-            _text_draw((real *) &globals.NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0,
-                    1.0,
-                    1.0,
-                    1.0,
-                    1.0, 0, 0.0, 0.0, true);
-            COW1._gui_x_curr += 2 * stb_easy_font_width(text);
-            text = sep + 1;
-            _text_draw((real *) &globals.NDC_from_Screen, text, COW1._gui_x_curr, COW1._gui_y_curr, 0.0, 0.0, 1.0, 1.0, 1.0, 0, 0.0, 0.0, true);
-        } COW1._gui_x_curr = tmp;
-    }
+    text_draw(window_get_NDC_from_Pixel(), text, V2(COW1._gui_x_curr, COW1._gui_y_curr), V3(FORNOW_gui_printf_red_component, 1.0f, 1.0f));
 
     COW1._gui_y_curr += 12;
 }
@@ -1490,7 +1289,7 @@ void gui_printf(const char *format, ...) {
 ////////////////////////////////////////////////////////////////////////////////
 
 void _mesh_init() {
-    COW0._mesh_shader_program = _shader_compile_and_build_program(COWX._mesh_vert, COWX._mesh_frag);
+    COW0._mesh_shader_program = _shader_compile_and_build_program(app_shaders._mesh_vert, app_shaders._mesh_frag);
     glGenVertexArrays(1, &COW0._mesh_VAO);
     glGenBuffers(ARRAY_LENGTH(COW0._mesh_VBO), COW0._mesh_VBO);
     glGenBuffers(1, &COW0._mesh_EBO);
@@ -1582,7 +1381,7 @@ struct Texture {
 Texture texture_create(char *texture_name, int width = 0, int height = 0, int number_of_channels = 3) {
     ASSERT(texture_name);
     if (width == 0 || height == 0) { // FORNOW
-        glfwGetFramebufferSize(COW0._window_glfw_window, &width, &height);
+        glfwGetFramebufferSize(glfw_window, &width, &height);
     }
     ASSERT(number_of_channels == 1 || number_of_channels == 3 || number_of_channels == 4);
     Texture texture = {};
@@ -1726,9 +1525,11 @@ void _mesh_draw(
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "V", V);
     _shader_set_uniform_mat4(COW0._mesh_shader_program, "M", M);
     { // fornow scavenge the camera position from V
-        real C[16];
-        _linalg_mat4_inverse(C, V);
-        real eye_World[4] = { C[3], C[7], C[11], 1 };
+        mat4 C; { // FORNOW
+            memcpy(C.data, V, 16 * sizeof(real));
+            C = inverse(C);
+        }
+        real eye_World[4] = { C.data[3], C.data[7], C.data[11], 1 };
         _shader_set_uniform_vec4(COW0._mesh_shader_program, "eye_World", eye_World);
     }
     _shader_set_uniform_bool(COW0._mesh_shader_program, "has_vertex_colors", vertex_colors != NULL);
@@ -1788,42 +1589,12 @@ void mesh_draw(
 
 
 ////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-// extras //////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-
-vec3 color_kelly(int i) {
-    static vec3 _kelly_colors[]={{255.f/255,179.f/255,0.f/255},{128.f/255,62.f/255,117.f/255},{255.f/255,104.f/255,0.f/255},{166.f/255,189.f/255,215.f/255},{193.f/255,0.f/255,32.f/255},{206.f/255,162.f/255,98.f/255},{129.f/255,112.f/255,102.f/255},{0.f/255,125.f/255,52.f/255},{246.f/255,118.f/255,142.f/255},{0.f/255,83.f/255,138.f/255},{255.f/255,122.f/255,92.f/255},{83.f/255,55.f/255,122.f/255},{255.f/255,142.f/255,0.f/255},{179.f/255,40.f/255,81.f/255},{244.f/255,200.f/255,0.f/255},{127.f/255,24.f/255,13.f/255},{147.f/255,170.f/255,0.f/255},{89.f/255,51.f/255,21.f/255},{241.f/255,58.f/255,19.f/255},{35.f/255,44.f/255,22.f/255}};
-    return _kelly_colors[MODULO(i, ARRAY_LENGTH(_kelly_colors))];
-}
-
-vec3 color_plasma(real t) {
-    t = CLAMP(t, 0.0f, 1.0f);
-    const vec3 c0 = { 0.058732343923997f, 0.023336708925656f, 0.543340182674875f };
-    const vec3 c1 = { 2.176514634195958f, 0.238383417126018f, 0.753960459978403f };
-    const vec3 c2 = { -2.68946047645803f, -7.45585113573890f, 3.110799939717086f };
-    const vec3 c3 = { 6.130348345893603f, 42.34618814772270f, -28.5188546533215f };
-    const vec3 c4 = { -11.1074361906227f, -82.6663110942804f, 60.13984767418263f };
-    const vec3 c5 = { 10.02306557647065f, 71.41361770095349f, -54.0721865556006f };
-    const vec3 c6 = { -3.65871384277778f, -22.9315346546114f, 18.19190778539828f };
-    return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));
-}
-
-vec3 color_rainbow_swirl(real t) {
-    #define Q(o) (.5f + .5f * COS(6.28f * ((o) - t)))
-    return V3(Q(0.0f), Q(.33f), Q(-.33f));
-    #undef Q
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // #include "mesh.cpp"//////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 struct Soup3D {
-    int primitive;
-    int num_vertices;
+    uint primitive;
+    uint num_vertices;
     vec3 *vertex_positions;
     vec3 *vertex_colors;
 
@@ -1939,37 +1710,6 @@ struct IndexedTriangleMesh3D {
 
 };
 
-void Soup3D::draw(
-        mat4 PVM,
-        vec3 color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-        real size_in_pixels = 0,
-        bool force_draw_on_top = false) {
-    soup_draw(
-            PVM,
-            primitive,
-            num_vertices,
-            vertex_positions,
-            vertex_colors,
-            color_if_vertex_colors_is_NULL,
-            size_in_pixels,
-            force_draw_on_top);
-}
-
-void Soup3D::draw(
-        mat4 PVM,
-        vec4 color_if_vertex_colors_is_NULL,
-        real size_in_pixels = 0,
-        bool force_draw_on_top = false) {
-    soup_draw(
-            PVM,
-            primitive,
-            num_vertices,
-            vertex_positions,
-            vertex_colors,
-            color_if_vertex_colors_is_NULL,
-            size_in_pixels,
-            force_draw_on_top);
-}
 
 void IndexedTriangleMesh3D::draw(
         mat4 P,
