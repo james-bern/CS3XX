@@ -15,7 +15,6 @@ String _string_from_cstring(char *cstring) {
     return { (char *)(cstring), uint(strlen(cstring)) };
 }
 
-
 bool string_matches_prefix(String string, String prefix) {
     if (string.length < prefix.length) return false;
     return (memcmp(string.data, prefix.data, prefix.length) == 0);

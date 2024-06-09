@@ -99,7 +99,7 @@ void popup_popup(
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
 
-    EasyTextPen pen = { V2(12.0f), 12.0f, omax.white };
+    EasyTextPen pen = { V2(12.0f), 18.0f, omax.white };
 
     popup->_FORNOW_info_mouse_is_hovering = false;
     popup->info_hover_cell_index = -1;
@@ -119,14 +119,14 @@ void popup_popup(
             bbox2 field_bbox;
             {
                 y_top = pen.get_y_Pixel();
-                y_bottom = y_top + pen.font_height_Pixel;
+                y_bottom = y_top + (0.8f * pen.font_height_Pixel);
 
                 if (!other._please_suppress_drawing_popup_popup) {
                     easy_text_draw(&pen, popup->name[d]);
-                    easy_text_draw(&pen, STRING(" "));
+                    easy_text_drawf(&pen, " ");
                 }
 
-                x_field_left = pen.get_x_Pixel();
+                x_field_left = pen.get_x_Pixel() - (pen.font_height_Pixel / 12.0f);
 
                 { // field 
                     if (d == popup->active_cell_index) {
@@ -195,8 +195,11 @@ void popup_popup(
                             x_cursor = x_field_left + _easy_text_dx(&pen, slice);
                         }
                         real alpha = 0.5f + 0.5f * SIN(other.time_since_cursor_start * 7);
-                        text_draw(other.OpenGL_from_Pixel, STRING("|"), V2(x_cursor, y_top - 3.0), V4(omax.yellow, alpha));
-                        text_draw(other.OpenGL_from_Pixel, STRING("|"), V2(x_cursor, y_top + 3.0), V4(omax.yellow, alpha));
+                        eso_begin(other.OpenGL_from_Pixel, SOUP_LINES);
+                        eso_color(omax.yellow, alpha);
+                        eso_vertex(x_cursor, y_top);
+                        eso_vertex(x_cursor, y_bottom);
+                        eso_end();
                     } else { // draw selection_bbox
                         real x_selection_left;
                         real x_selection_right;
@@ -228,7 +231,7 @@ void popup_popup(
                     }
                 }
 
-                if (!other._please_suppress_drawing_popup_popup) easy_text_draw(&pen, "\n");
+                if (!other._please_suppress_drawing_popup_popup) easy_text_drawf(&pen, "\n");
             }
         }
     }

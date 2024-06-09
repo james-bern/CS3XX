@@ -28,6 +28,7 @@ void messagef(vec3 color, char *format, ...) {
 
     // printf("%s\n", message->buffer); // FORNOW print to terminal as well
 }
+
 void _messages_update() {
     for_(i, MESSAGE_MAX_NUM_MESSAGES) {
         Message *message = &messages[i];

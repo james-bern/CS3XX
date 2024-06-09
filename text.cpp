@@ -139,6 +139,7 @@ vec2 text_travel(String string, real font_height_Pixel) {
     return (font_height_Pixel / 12.0f) * stb_easy_font_travel(string);
 }
 
+// TODO: consider text_drawf
 template <uint D_position, uint D_color> vec2 text_draw(
         mat4 PV,
         String string,
@@ -217,11 +218,7 @@ void easy_text_draw(EasyTextPen *pen, String string) {
     }
 }
 
-real _easy_text_dx(EasyTextPen *pen, String string) {
-    return text_travel(string, pen->font_height_Pixel).x;
-}
-
-void easy_text_draw(EasyTextPen *pen, const char *format, ...) {
+void easy_text_drawf(EasyTextPen *pen, const char *format, ...) {
     #define EASY_TEXT_MAX_LENGTH 4096
     static _STRING_CALLOC(string, EASY_TEXT_MAX_LENGTH); {
         va_list arg;
@@ -232,3 +229,6 @@ void easy_text_draw(EasyTextPen *pen, const char *format, ...) {
     easy_text_draw(pen, string);
 }
 
+real _easy_text_dx(EasyTextPen *pen, String string) {
+    return text_travel(string, pen->font_height_Pixel).x;
+}
