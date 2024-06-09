@@ -370,7 +370,7 @@ struct PreviewState {
 };
 
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
-    mat4 transform_NDC_from_Pixel;
+    mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
 
     Camera camera_drawing;
@@ -383,12 +383,12 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
 
     Pane hot_pane;
-    real x_divider_NDC;
+    real x_divider_OpenGL;
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
     bool shift_held;
-    vec2 mouse_NDC;
+    vec2 mouse_OpenGL;
     vec2 mouse_Pixel;
 
     bool please_suppress_drawing_popup_popup;

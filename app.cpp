@@ -1,16 +1,13 @@
 
 // // GLFW
-#ifdef COW_OS_UBUNTU
-#define GL_GLEXT_PROTOTYPES
-#include "codebase/ext/glfw3.h"
-#elif defined(OPERATING_SYSTEM_APPLE)
+#ifdef OPERATING_SYSTEM_APPLE
 #define GL_SILENCE_DEPRECATION
 #define GLFW_INCLUDE_GL_COREARB
 #include <OpenGL/gl3.h>
-#include "codebase/ext/glfw3.h"
-#else
-#include "codebase/ext/glad.c"
-#include "codebase/ext/glfw3.h"
+#include "glfw3.h"
+#elif defined(OPERATING_SYSTEM_WINDOWS)
+#include "glad.c"
+#include "glfw3.h"
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
 #define GLFW_NATIVE_INCLUDE_NONE
@@ -20,16 +17,6 @@
 // // external defines
 GLFWwindow *glfw_window;
 #define GL_REAL GL_FLOAT
-
-// // stb
-// easy_font
-#include "codebase/ext/stb_easy_font.h"
-// image
-#define STB_IMAGE_IMPLEMENTATION
-#include "codebase/ext/stb_image.h"
-
-
-
 
 // constants
 // shaders
@@ -67,7 +54,7 @@ struct {
         layout (points) in;
         layout (triangle_strip, max_vertices = 4) out;
         uniform float aspect;
-        uniform float primitive_radius_NDC;
+        uniform float primitive_radius_OpenGL;
 
         in BLOCK {
             vec4 color;
@@ -82,7 +69,7 @@ struct {
 
         void emit(float x, float y) {
             gs_out.xy = vec2(x, y);
-            gl_Position = (_position + primitive_radius_NDC * vec4(x / aspect, y, 0, 0)) * gl_in[0].gl_Position.w;
+            gl_Position = (_position + primitive_radius_OpenGL * vec4(x / aspect, y, 0, 0)) * gl_in[0].gl_Position.w;
             gs_out.color = gs_in[0].color;                                     
             EmitVertex();                                               
         }
@@ -118,7 +105,7 @@ struct {
         layout (lines) in;
         layout (triangle_strip, max_vertices = 4) out;
         uniform float aspect;
-        uniform float primitive_radius_NDC;
+        uniform float primitive_radius_OpenGL;
 
         in BLOCK {
             vec4 color;
@@ -134,7 +121,7 @@ struct {
             vec4 color_s = gs_in[0].color;
             vec4 color_t = gs_in[1].color;
 
-            vec4 perp = vec4(primitive_radius_NDC * vec2(1 / aspect, 1) * normalize(vec2(-1 / aspect, 1) * (t - s).yx), 0, 0);
+            vec4 perp = vec4(primitive_radius_OpenGL * vec2(1 / aspect, 1) * normalize(vec2(-1 / aspect, 1) * (t - s).yx), 0, 0);
 
             gl_Position = (s - perp) * gl_in[0].gl_Position.w;
             gs_out.color = color_s;
@@ -289,8 +276,8 @@ real window_get_aspect() {
     return size.x / size.y;
 }
 
-mat4 window_get_NDC_from_Pixel() {
-    // NDC                         Pixel 
+mat4 window_get_OpenGL_from_Pixel() {
+    // OpenGL                         Pixel 
     // [x'] = [1/r_x      0   0 -1] [x] = [x/r_x - 1]
     // [y'] = [    0 -1/r_y   0  1] [y] = [1 - y/r_y]
     // [z'] = [    0      0   1  0] [z] = [        z] // so invertible (otherwise, would just have row [ 0 0 0 0 ]
@@ -306,7 +293,7 @@ mat4 window_get_NDC_from_Pixel() {
     return result;
 }
 
-mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
+mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_OpenGL = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
     if (IS_ZERO(near_z_Camera)) { near_z_Camera = -10.0f; }
     if (IS_ZERO(far_z_Camera)) { far_z_Camera = -10000.0f; }
     if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }
@@ -330,10 +317,10 @@ mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real ne
     //        0-------+-----------+----->               
     //                D          -z                     
 
-    // 2) scale film plane by 1 / r_y to yield NDC film plane (with height 1) and distance Q_y
-    // y' is the projected position of vertex y in NDC; i.e., if we can get y', we're done :) 
+    // 2) scale film plane by 1 / r_y to yield OpenGL film plane (with height 1) and distance Q_y
+    // y' is the projected position of vertex y in OpenGL; i.e., if we can get y', we're done :) 
 
-    //                1 <~ edge of NDC film plane
+    //                1 <~ edge of OpenGL film plane
     //               -|                          
     //              - |                          
     //  angle_y    -  |           y              
@@ -363,7 +350,7 @@ mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real ne
     // encode Equation 1 (and the variant for x) into a homogeneous matrix equation
     // the third row is a   typical clip plane mapping                             
 
-    //  NDC                    Camera
+    //  OpenGL                    Camera
     //  [x'] = [Q_x   0  0  0] [x] = [ Q_x * x] ~> [-Q_x * (x / z)]
     //  [y'] = [  0 Q_y  0  0] [y] = [ Q_y * y] ~> [-Q_y * (y / z)]
     //  [z'] = [  0   0  a  b] [z] = [  az + b] ~> [      -a - b/z]
@@ -396,17 +383,17 @@ mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_NDC = {}, real ne
     result(2, 2) = (near_z_Camera + far_z_Camera) / (near_z_Camera - far_z_Camera);
     result(2, 3) = (2 * near_z_Camera * far_z_Camera) / (far_z_Camera - near_z_Camera);
 
-    // [1 0 0  t_x_NDC] [Q_x   0  0  0]
-    // [0 1 0  t_y_NDC] [  0 Q_y  0  0]
+    // [1 0 0  t_x_OpenGL] [Q_x   0  0  0]
+    // [0 1 0  t_y_OpenGL] [  0 Q_y  0  0]
     // [0 0 1        0] [  0   0  a  b]
     // [0 0 0        1] [  0   0 -1  0]
-    result(0, 2) = -post_nudge_NDC.x;
-    result(1, 2) = -post_nudge_NDC.y;
+    result(0, 2) = -post_nudge_OpenGL.x;
+    result(1, 2) = -post_nudge_OpenGL.y;
 
     return result;
 }
 
-mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
+mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_OpenGL = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
     // ASSERT(!IS_ZERO(height_World));
     if (ARE_EQUAL(near_z_Camera, far_z_Camera)) {
         near_z_Camera = 10000.0f;
@@ -426,7 +413,7 @@ mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real nea
     // |           |                        
     // +-----------------> minus_z direction
 
-    // 2) scale everything by 1 / r_y to yield NDC film plane (with height 1)
+    // 2) scale everything by 1 / r_y to yield OpenGL film plane (with height 1)
 
     // 1                                     
     // |                                     
@@ -438,7 +425,7 @@ mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real nea
 
     // => y' = y / r_y
 
-    // NDC                        Camera
+    // OpenGL                        Camera
     // [x'] = [1/r_x      0   0  0] [x] = [ x/r_x]
     // [y'] = [    0  1/r_y   0  0] [y] = [ y/r_y]
     // [z'] = [    0      0   a  b] [z] = [az + b]
@@ -472,8 +459,8 @@ mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_NDC = {}, real nea
     // [0 0 1    0] [    0      0   a  b]
     // [0 0 0    1] [    0      0   0  1]
 
-    result(0, 3) = post_nudge_NDC.x;
-    result(1, 3) = post_nudge_NDC.y;
+    result(0, 3) = post_nudge_OpenGL.x;
+    result(1, 3) = post_nudge_OpenGL.y;
 
     return result;
 }
@@ -489,24 +476,24 @@ struct Camera {
     };
     vec3 euler_angles;
     vec2 pre_nudge_World;
-    vec2 post_nudge_NDC;
+    vec2 post_nudge_OpenGL;
 };
 
-Camera make_Camera2D(real screen_height_World, vec2 center_World, vec2 post_nudge_NDC) {
+Camera make_Camera2D(real screen_height_World, vec2 center_World, vec2 post_nudge_OpenGL) {
     Camera result = {};
     result.ortho_screen_height_World = screen_height_World;
     result.pre_nudge_World = center_World;
-    result.post_nudge_NDC = post_nudge_NDC;
+    result.post_nudge_OpenGL = post_nudge_OpenGL;
     return result;
 }
 
-Camera make_OrbitCamera3D(real angle_of_view, real distance_to_origin_World, vec3 euler_angles, vec2 pre_nudge_World, vec2 post_nudge_NDC) {
+Camera make_OrbitCamera3D(real angle_of_view, real distance_to_origin_World, vec3 euler_angles, vec2 pre_nudge_World, vec2 post_nudge_OpenGL) {
     Camera result = {};
     result.angle_of_view = angle_of_view;
     result.persp_distance_to_origin_World = distance_to_origin_World;
     result.euler_angles = euler_angles;
     result.pre_nudge_World = pre_nudge_World;
-    result.post_nudge_NDC = post_nudge_NDC;
+    result.post_nudge_OpenGL = post_nudge_OpenGL;
     return result;
 }
 
@@ -523,9 +510,9 @@ Camera make_EquivalentCamera2D(Camera *camera_3D) {
 
 mat4 camera_get_P(Camera *camera) {
     if (IS_ZERO(camera->angle_of_view)) {
-        return transform_get_P_ortho(camera->ortho_screen_height_World, camera->post_nudge_NDC);
+        return transform_get_P_ortho(camera->ortho_screen_height_World, camera->post_nudge_OpenGL);
     } else {
-        return transform_get_P_persp(camera->angle_of_view, camera->post_nudge_NDC);
+        return transform_get_P_persp(camera->angle_of_view, camera->post_nudge_OpenGL);
     }
 }
 
@@ -876,7 +863,7 @@ void _soup_draw(
     glUseProgram(shader_program_ID);
 
     _shader_set_uniform_real(shader_program_ID, "aspect", window_get_aspect());
-    _shader_set_uniform_real(shader_program_ID, "primitive_radius_NDC", 0.5f * size_in_pixels / window_get_size_Pixel().y);
+    _shader_set_uniform_real(shader_program_ID, "primitive_radius_OpenGL", 0.5f * size_in_pixels / window_get_size_Pixel().y);
     _shader_set_uniform_bool(shader_program_ID, "has_vertex_colors", vertex_colors != NULL);
     _shader_set_uniform_bool(shader_program_ID, "force_draw_on_top", force_draw_on_top);
     _shader_set_uniform_mat4(shader_program_ID, "PVM", PVM);
@@ -1097,50 +1084,3 @@ void eso_color(vec3 rgb, real a = 1.0) {
     eso_color(rgb[0], rgb[1], rgb[2], a);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// #include "text.cpp"//////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
-template <uint D_position, uint D_color> vec2 text_draw(
-        mat4 PV,
-        char *cstring,
-        Vector<D_position> _position_World,
-        Vector<D_color> color,
-        real font_size_Pixel = 12.0f,
-        vec2 nudge_Pixel = {},
-        bool force_draw_on_top = true
-        ) {
-    ASSERT(cstring);
-
-    vec2 *vertex_positions;
-    uint num_vertices;
-    {
-        uint size = 99999 * sizeof(float);
-        static void *_vertex_positions = malloc(size);
-        vertex_positions = (vec2 *) _vertex_positions;
-
-        num_vertices = 4 * stb_easy_font_print(0, 0, cstring, NULL, _vertex_positions, size);
-        { // NOTE: stb stores like this [x:float y:float z:float color:uint8[4]]
-            for_(i, num_vertices) {
-                ((vec2 *) vertex_positions)[i] = {
-                    ((float *) vertex_positions)[4 * i + 0],
-                    ((float *) vertex_positions)[4 * i + 1],
-                };
-            }
-        }
-    }
-
-    vec3 position_World = { _position_World.x, _position_World.y };
-    vec3 position_NDC = transformPoint(PV, position_World);
-
-    if (!IS_BETWEEN(position_NDC.z, -1.0f, 1.0f)) return {};
-
-    vec2 position_Pixel = transformPoint(inverse(window_get_NDC_from_Pixel()), _V2(position_NDC));
-
-    mat4 transform = window_get_NDC_from_Pixel()
-        * M4_Translation(position_Pixel + nudge_Pixel)
-        * M4_Scaling(font_size_Pixel / 12.0f);
-    soup_draw(transform, SOUP_QUADS, num_vertices, vertex_positions, NULL, color, 0, force_draw_on_top);
-
-    return (font_size_Pixel / 12.0f) * V2(stb_easy_font_width(cstring), stb_easy_font_height(cstring));
-}

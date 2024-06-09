@@ -134,8 +134,9 @@ else
         -Wno-missing-field-initializers \
         -Wno-char-subscripts \
         -Wno-write-strings \
-        -I./codebase/ext \
-        -L./codebase/ext \
+        -L./manifold -I./manifold \
+        -L./opengl   -I./opengl   \
+        -L./burkardt -I./burkardt \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
         -arch arm64 \

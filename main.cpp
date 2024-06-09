@@ -38,7 +38,7 @@ real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
 
 // // misc
 //
-real get_x_divider_Pixel() { return LINEAR_REMAP(other.x_divider_NDC, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x); }
+real get_x_divider_Pixel() { return LINEAR_REMAP(other.x_divider_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x); }
 //
 vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
     vec2 result = before;
@@ -204,7 +204,6 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
     entities_load(filename, &drawing->entities);
 
     if (!preserve_cameras_and_dxf_origin) {
-        // camera2D_zoom_to_bounding_box(&other.camera_drawing, entities_get_bounding_box(&drawing->entities));
         init_cameras();
         drawing->origin = {};
     }
@@ -215,7 +214,6 @@ void conversation_stl_load(char *filename) {
     // ?
     stl_load(filename, mesh);
 }
-
 
 void conversation_stl_save(char *filename) {
     ASSERT(mesh_save_stl(mesh, filename));
@@ -294,14 +292,14 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     // TODO: is a Pane::Popup a bad idea?--maybe just try it??
 
     // mouse_*
-    vec2 delta_mouse_NDC;
+    vec2 delta_mouse_OpenGL;
     vec2 delta_mouse_World_2D;
     {
-        vec2 prev_mouse_NDC = other.mouse_NDC;
+        vec2 prev_mouse_OpenGL = other.mouse_OpenGL;
         other.mouse_Pixel = { real(xpos), real(ypos) };
-        other.mouse_NDC = transformPoint(other.transform_NDC_from_Pixel, other.mouse_Pixel);
-        delta_mouse_NDC = other.mouse_NDC - prev_mouse_NDC;
-        delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_drawing)), delta_mouse_NDC);
+        other.mouse_OpenGL = transformPoint(other.OpenGL_from_Pixel, other.mouse_Pixel);
+        delta_mouse_OpenGL = other.mouse_OpenGL - prev_mouse_OpenGL;
+        delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_drawing)), delta_mouse_OpenGL);
     }
 
     { // special draggin mouse_held EventType::Mouse
@@ -323,11 +321,11 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 
     { // dragging divider
         if (other.mouse_left_drag_pane == Pane::Separator) {
-            real prev_x_divider_NDC = other.x_divider_NDC;
-            other.x_divider_NDC = MAG_CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_size_Pixel().x, -1.0f, 1.0f), 0.9975f);
-            real delta_NDC = 0.5f * (other.x_divider_NDC - prev_x_divider_NDC);
-            camera_drawing->post_nudge_NDC.x += delta_NDC;
-            camera_mesh->post_nudge_NDC.x += delta_NDC;
+            real prev_x_divider_OpenGL = other.x_divider_OpenGL;
+            other.x_divider_OpenGL = MAG_CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_size_Pixel().x, -1.0f, 1.0f), 0.9975f);
+            real delta_OpenGL = 0.5f * (other.x_divider_OpenGL - prev_x_divider_OpenGL);
+            camera_drawing->post_nudge_OpenGL.x += delta_OpenGL;
+            camera_mesh->post_nudge_OpenGL.x += delta_OpenGL;
         }
     }
 
@@ -335,8 +333,8 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
       // mouse_left_drag_pane
         if (other.mouse_left_drag_pane == Pane::Mesh) {
             real fac = 2.0f;
-            camera_mesh->euler_angles.y -= fac * delta_mouse_NDC.x;
-            camera_mesh->euler_angles.x += fac * delta_mouse_NDC.y;
+            camera_mesh->euler_angles.y -= fac * delta_mouse_OpenGL.x;
+            camera_mesh->euler_angles.x += fac * delta_mouse_OpenGL.y;
             camera_mesh->euler_angles.x = CLAMP(camera_mesh->euler_angles.x, -RAD(90), RAD(90));
         }
 
@@ -345,7 +343,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             camera_drawing->pre_nudge_World -= delta_mouse_World_2D;
         } else if (other.mouse_right_drag_pane == Pane::Mesh) {
             Camera tmp_2D = make_EquivalentCamera2D(camera_mesh);
-            tmp_2D.pre_nudge_World -= transformVector(inverse(camera_get_PV(&tmp_2D)), delta_mouse_NDC);
+            tmp_2D.pre_nudge_World -= transformVector(inverse(camera_get_PV(&tmp_2D)), delta_mouse_OpenGL);
             camera_mesh->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
     }
@@ -380,9 +378,9 @@ void _callback_scroll_helper(Camera *camera_2D, double yoffset) {
     // IDEA: preserve mouse position
     ASSERT(IS_ZERO(camera_2D->angle_of_view));
     ASSERT(IS_ZERO(camera_2D->euler_angles));
-    vec2 mouse_position_before  = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_NDC);
+    vec2 mouse_position_before  = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_OpenGL);
     camera_2D->ortho_screen_height_World *= (1.0f - 0.1f * yoffset);
-    vec2 mouse_position_after = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_NDC);
+    vec2 mouse_position_after = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_OpenGL);
     camera_2D->pre_nudge_World -= (mouse_position_after - mouse_position_before);
 }
 void callback_scroll(GLFWwindow *, double, double yoffset) {
@@ -466,17 +464,17 @@ Event bake_event(RawEvent raw_event) {
         mouse_event->mouse_held = raw_mouse_event->mouse_held;
         {
             if (raw_mouse_event->pane == Pane::Drawing) {
-                mat4 World_2D_from_NDC = inverse(camera_get_PV(camera_drawing));
-                vec2 mouse_World_2D = transformPoint(World_2D_from_NDC, other.mouse_NDC);
+                mat4 World_2D_from_OpenGL = inverse(camera_get_PV(camera_drawing));
+                vec2 mouse_World_2D = transformPoint(World_2D_from_OpenGL, other.mouse_OpenGL);
 
                 mouse_event->subtype = MouseEventSubtype::Drawing;
 
                 MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
                 mouse_event_drawing->mouse_position = magic_snap(mouse_World_2D);
             } else if (raw_mouse_event->pane == Pane::Mesh) {
-                mat4 World_3D_from_NDC = inverse(camera_get_PV(&other.camera_mesh));
-                vec3 point_a = transformPoint(World_3D_from_NDC, V3(other.mouse_NDC, -1.0f));
-                vec3 point_b = transformPoint(World_3D_from_NDC, V3(other.mouse_NDC,  1.0f));
+                mat4 World_3D_from_OpenGL = inverse(camera_get_PV(&other.camera_mesh));
+                vec3 point_a = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL, -1.0f));
+                vec3 point_b = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL,  1.0f));
 
                 mouse_event->subtype = MouseEventSubtype::Mesh;
 
@@ -503,9 +501,7 @@ Event bake_event(RawEvent raw_event) {
     return event;
 }
 
-
-// TODO: this API should match what is printed to the terminal in verbose output mode
-//       (so we can copy and paste a session for later use as an end to end test)
+////////////////////////////////////////////////////////////////////////////////
 
 Event make_mouse_event_2D(vec2 mouse_position) {
     Event event = {};
@@ -1901,7 +1897,7 @@ void history_debug_draw() {
     { // FORNOW
         eso_begin(M4_Identity(), SOUP_QUADS);
         eso_color(omax.black, 0.4f);
-        BoundingBox<2> bbox = { -1.0f, -1.0f, other.x_divider_NDC, 1.0f };
+        BoundingBox<2> bbox = { -1.0f, -1.0f, other.x_divider_OpenGL, 1.0f };
         eso_bbox_SOUP_QUADS(bbox);
         eso_end();
     }
@@ -1982,8 +1978,8 @@ void history_debug_draw() {
         }
     }
 
-    easy.origin.x += 144;
-    easy.offset = {};
+    easy.origin_Pixel.x += 144;
+    easy.offset_Pixel = {};
 
     { // snapshotted_world_states
         if (history.snapshotted_world_states._redo_stack.length) {
@@ -2055,13 +2051,9 @@ void freshly_baked_event_process(Event freshly_baked_event) {
 }
 
 //////////////////////////////////////////////////
-// DRAW() ////////////////////////////////////////
+// script_process ////////////////////////////////
 //////////////////////////////////////////////////
 
-
-//////////////////////////////////////////////////
-// TODO: SPOOF ///////////////////////////////////
-//////////////////////////////////////////////////
 void script_process(char *string) {
     // TODO: gui
     // TODOLATER (weird 'X' version): char *string = "^osplash.drawing\nyscx2020\ne\t50";
@@ -2225,7 +2217,7 @@ int main() {
         }
 
 
-        other.transform_NDC_from_Pixel = window_get_NDC_from_Pixel();
+        other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
         other.please_suppress_drawing_popup_popup = false;
 
@@ -2276,7 +2268,7 @@ int main() {
             conversation_message_buffer_draw();
 
             if (other.paused) {
-                eso_begin(other.transform_NDC_from_Pixel, SOUP_QUADS);
+                eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
                 eso_color(omax.white, 0.5f);
                 real x = 16;
                 real y = 16;

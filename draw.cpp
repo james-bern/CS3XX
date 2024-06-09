@@ -91,7 +91,7 @@ void conversation_draw() {
     mat4 V_2D = camera_get_V(&other.camera_drawing);
     mat4 PV_2D = P_2D * V_2D;
     mat4 inv_PV_2D = inverse(camera_get_PV(camera_drawing));
-    vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_NDC);
+    vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
     bool extruding = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::ExtrudeCut));
@@ -171,8 +171,8 @@ void conversation_draw() {
                 dragging ? omax.light_gray
                 : hovering ? omax.white
                 : omax.dark_gray);
-        eso_vertex(other.x_divider_NDC,  1.0f);
-        eso_vertex(other.x_divider_NDC, -1.0f);
+        eso_vertex(other.x_divider_OpenGL,  1.0f);
+        eso_vertex(other.x_divider_OpenGL, -1.0f);
         eso_end();
     }
 
@@ -213,8 +213,8 @@ void conversation_draw() {
                 eso_end();
             }
             if (1) { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
-                real funky_NDC_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
-                real LL = 1000 * funky_NDC_factor;
+                real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+                real LL = 1000 * funky_OpenGL_factor;
 
                 eso_color(omax.white);
                 if (0) {
@@ -227,7 +227,7 @@ void conversation_draw() {
                 }
                 eso_begin(PV_2D, SOUP_LINES, 3.0f); {
                     // origin
-                    real r = funky_NDC_factor;
+                    real r = funky_OpenGL_factor;
                     eso_vertex(preview_dxf_origin - V2(r, 0));
                     eso_vertex(preview_dxf_origin + V2(r, 0));
                     eso_vertex(preview_dxf_origin - V2(0, r));
@@ -501,7 +501,7 @@ void conversation_draw() {
         }
 
         text_draw(
-                other.transform_NDC_from_Pixel,
+                other.OpenGL_from_Pixel,
                 (char *) (
                     (state.click_mode == ClickMode::None) ? "" :
                     (state.click_mode == ClickMode::Axis)    ? "axis" :
@@ -522,7 +522,7 @@ void conversation_draw() {
                 V4(color, alpha));
 
         text_draw(
-                other.transform_NDC_from_Pixel,
+                other.OpenGL_from_Pixel,
                 (char *) (
                     (state.click_modifier == ClickModifier::None)       ? "" :
                     (state.click_modifier == ClickModifier::Center)     ? "center" :
@@ -647,7 +647,7 @@ void conversation_message_buffer_draw() {
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
-            text_draw(other.transform_NDC_from_Pixel, message->buffer, V2(x, message->y), V4(color, alpha));
+            text_draw(other.OpenGL_from_Pixel, message->buffer, V2(x, message->y), V4(color, alpha));
         }
     };
 
@@ -667,13 +667,13 @@ void conversation_message_buffer_draw() {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct EasyTextState {
-    vec2 origin;
-    real font_size_Pixel;
+    vec2 origin_Pixel;
+    real font_height_Pixel;
     vec3 color;
     bool automatically_append_newline;
-    vec2 offset;
+    vec2 offset_Pixel;
 
-    vec2 get_position() { return this->origin + this->offset; }
+    vec2 get_position() { return this->origin_Pixel + this->offset_Pixel; }
 };
 
 #define EASY_TEXT_MAX_LENGTH 4096
@@ -685,15 +685,15 @@ void easy_text(EasyTextState *easy, const char *format, ...) {
         va_end(arg);
     }
 
-    vec2 text_box_size = text_draw(window_get_NDC_from_Pixel(), cstring, easy->get_position(), easy->color, easy->font_size_Pixel);
+    vec2 text_box_size_Pixel = text_draw(window_get_OpenGL_from_Pixel(), cstring, easy->get_position(), easy->color, easy->font_height_Pixel);
 
-    bool no_newline = ARE_EQUAL(text_box_size.y, easy->font_size_Pixel);
+    bool no_newline = ARE_EQUAL(text_box_size_Pixel.y, easy->font_height_Pixel);
 
     if (no_newline && (!easy->automatically_append_newline)) {
-        easy->offset.x += text_box_size.x;
+        easy->offset_Pixel.x += text_box_size_Pixel.x;
     } else {
-        easy->offset.x = 0;
-        easy->offset.y += text_box_size.y;
+        easy->offset_Pixel.x = 0;
+        easy->offset_Pixel.y += text_box_size_Pixel.y;
     }
 }
 

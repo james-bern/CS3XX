@@ -1,0 +1,6 @@
+regress to v141 in VS2017
+RelWithDebugInfo
+set to /MDd
+ https://stackoverflow.com/questions/7668200/error-lnk2038-mismatch-detected-for-iterator-debug-level-value-0-doesnt
+include algorithm in public.h
+copy tbb.lib into a duplicate called tbb_debug.lib (wtf)

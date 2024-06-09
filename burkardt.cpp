@@ -10,8 +10,8 @@
 #pragma clang diagnostic ignored "-Wsometimes-uninitialized"
 #pragma clang diagnostic ignored "-Warray-parameter"
 #endif
-#include "codebase/ext/geometry.h"
-#include "codebase/ext/geometry.c"
+#include "geometry.h"
+#include "geometry.c"
 #ifdef OPERATING_SYSTEM_WINDOWS
 #pragma warning(pop)
 #endif

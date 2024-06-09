@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <stdarg.h>
 
 #include "basics.cpp"
 #include "linalg.cpp"
@@ -12,6 +13,7 @@
 #include "elephant.cpp"
 
 #include "app.cpp"
+#include "easy_font.cpp"
 #include "extras.cpp"
 
 #include "burkardt.cpp"

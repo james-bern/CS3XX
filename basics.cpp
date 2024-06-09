@@ -176,6 +176,12 @@ bool MATCHES_SUFFIX(char *cstring, char *suffix) {
     return true;
 }
 
+// String
+struct String {
+    char *data;
+    uint length;
+};
+
 // // file-handling
 bool FILE_EXISTS(char *filename) {
     FILE *file = (FILE *) fopen(filename, "r");

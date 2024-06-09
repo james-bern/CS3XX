@@ -97,9 +97,7 @@ void popup_popup(
     popup->FORNOW_info_mouse_is_hovering = false;
     popup->info_hover_cell_index = -1;
     popup->info_hover_cell_cursor = -1;
-    popup->info_active_cell_cursor = -1; // TODO: find this
-                                         // IDEA: find cursor position for all cells uint current_cell_cursor
-                                         //       then assign based on d
+    popup->info_active_cell_cursor = -1;
     {
         for_(d, popup->num_cells) {
             uint _strlen_name;
@@ -139,7 +137,7 @@ void popup_popup(
                     static char tmp[4096]; // FORNOW
                     strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
 
-                    x_field_left = easy.origin.x + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
+                    x_field_left = easy.origin_Pixel.x + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
                     x_field_right = x_field_left + stb_easy_font_width(tmp);
 
                     tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
@@ -152,7 +150,7 @@ void popup_popup(
                 real y_bottom;
                 {
                     y_top = easy.get_position().y;
-                    y_bottom = y_top + easy.font_size_Pixel;
+                    y_bottom = y_top + easy.font_height_Pixel;
                 }
 
                 field_inflated_box = { x_field_left - 3, y_top - 3, x_field_right + 3, y_bottom + 3 };
@@ -177,7 +175,7 @@ void popup_popup(
                     if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
 
                     #if 0
-                    eso_begin(transform_NDC_from_Pixel.data, SOUP_LINES, 2.0f, true);
+                    eso_begin(OpenGL_from_Pixel.data, SOUP_LINES, 2.0f, true);
                     eso_color(omax.magenta);
                     eso_vertex(x_char_middle, y_top - 10);
                     eso_vertex(x_char_middle, y_bottom + 10);
@@ -209,7 +207,7 @@ void popup_popup(
                         ;
                 }
                 if (hovering_over_not_active_cell) { // debug draw
-                    eso_begin(other.transform_NDC_from_Pixel, SOUP_QUADS, 1.0f);
+                    eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS, 1.0f);
                     eso_color(omax.cyan, 0.4f);
                     eso_bbox_SOUP_QUADS(field_uninflated_box);
                     eso_end();
@@ -222,7 +220,7 @@ void popup_popup(
                     } else {
                         bool popup_selection_is_active = (!POPUP_SELECTION_NOT_ACTIVE());
                         if (popup_selection_is_active) {
-                            eso_begin(other.transform_NDC_from_Pixel, SOUP_QUADS);
+                            eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
                             eso_color(omax.yellow, 0.4f);
                             eso_bbox_SOUP_QUADS(selection_inflated_box);
                             eso_end();
@@ -244,8 +242,8 @@ void popup_popup(
                                 x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                                 x -= 1.25f;
                                 // FORNOW: silly way of getting longer |
-                                text_draw(other.transform_NDC_from_Pixel, "|", V2(x, y - 3.0), V4(1.0, 1.0, b, a));
-                                text_draw(other.transform_NDC_from_Pixel, "|", V2(x, y + 3.0), V4(1.0, 1.0, b, a));
+                                text_draw(other.OpenGL_from_Pixel, "|", V2(x, y - 3.0), V4(1.0, 1.0, b, a));
+                                text_draw(other.OpenGL_from_Pixel, "|", V2(x, y + 3.0), V4(1.0, 1.0, b, a));
                             }
                         }
                     }
@@ -255,7 +253,7 @@ void popup_popup(
     }
 
     if (0) {
-        eso_begin(other.transform_NDC_from_Pixel, SOUP_POINTS, 10.0f);
+        eso_begin(other.OpenGL_from_Pixel, SOUP_POINTS, 10.0f);
         eso_color(omax.magenta);
         eso_vertex(other.mouse_Pixel);
         eso_end();
