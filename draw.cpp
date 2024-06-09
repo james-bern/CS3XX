@@ -525,40 +525,10 @@ void conversation_draw() {
     }
 
     if (other.show_help) {
-        messagef(omax.pink, "TODO: update help popup");
-        other.show_help = false;
-        #if 0
-        { // overlay
-            eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
-            eso_color(0.0f, 0.0f, 0.0f, 0.7f);
-            eso_vertex(-1.0f, -1.0f);
-            eso_vertex(-1.0f,  1.0f);
-            eso_vertex( 1.0f,  1.0f);
-            eso_vertex( 1.0f, -1.0f);
-            eso_end();
+        { // FORNOW TODO: actually implement help
+            messagef(omax.pink, "TODO: update help popup");
+            other.show_help = false;
         }
-        gui_printf("show/hide-(h)elp");
-        gui_printf("(Escape)-from-current-enter_and_modes.click_modes");
-        gui_printf("(s)elect (d)eselect + (c)onected (a)ll [Click] / (q)uality + (012345)");
-        gui_printf("(y)-cycle-through-top-front-right-planes");
-        gui_printf("(e)trude-add (E)xtrude-cut + (0123456789.,) (Tab)-flip-direction [Enter]");
-        gui_printf("(Ctrl + z)-undo (Ctrl+Z)-redo (Ctrl+y)-redo");
-        gui_printf("(Ctrl + o)pen (Ctrl+s)ave + ... + [Enter]");
-        gui_printf("(Ctrl + r)eload-drawing-if-edited-elsewhere (Ctrl + R)-clear-stl");
-        gui_printf("show-(g)rid (.)-show-details show-event-stac(k)-for-debugging");
-        gui_printf("zoom-to-e(X)tents");
-        gui_printf("(0)-toggle-camera-perspective-orthographic");
-        gui_printf("(Z)-move-origin + (c)enter-of (e)nd-of (m)iddle-of [Click] / (-0123456789.,) (f)lip-direction [Enter]");
-        gui_printf("(M)easure + (c)enter-of (e)nd-of (m)iddle-of (z)-origin [Click]");
-        gui_printf("");
-        gui_printf("EXPERIMENTAL: (r)evolve-add (R)evolve-cut");
-        gui_printf("EXPERIMENTAL: (Ctrl + n)ew-session");
-        gui_printf("");
-        gui_printf("you can drag and drop *.drawing and *.stl into Conversation");
-        #endif
     }
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
 

@@ -152,27 +152,3 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 #include <windows.h>
 #define IS_NAN(x) 
 #endif
-
-// // cstring
-bool MATCHES_PREFIX(char *cstring, char *prefix) {
-    while (*cstring == ' ') ++cstring; // ?
-    while (*prefix == ' ') ++prefix; // ?
-    size_t strlen_string = strlen(cstring);
-    size_t strlen_prefix = strlen(prefix);
-    if (strlen_string < strlen_prefix) return false;
-    for (unsigned int i = 0; i < strlen_prefix; ++i) {
-        if (cstring[i] != prefix[i]) return false;
-    }
-    return true;
-}
-//
-bool MATCHES_SUFFIX(char *cstring, char *suffix) {
-    size_t strlen_string = strlen(cstring);
-    size_t strlen_suffix = strlen(suffix);
-    if (strlen_string < strlen_suffix) return false;
-    for (unsigned int i = 0; i < strlen_suffix; ++i) {
-        if (cstring[strlen_string - 1 - i] != suffix[strlen_suffix - 1 - i]) return false;
-    }
-    return true;
-}
-

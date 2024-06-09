@@ -232,25 +232,3 @@ void easy_text_draw(EasyTextPen *pen, const char *format, ...) {
     easy_text_draw(pen, string);
 }
 
-#if 0
-// FORNOW SHIM
-// FORNOW SHIM
-// FORNOW SHIM
-// FORNOW SHIM
-
-static int stb_easy_font_travel_x(char *cstring) {
-    return stb_easy_font_travel_x(_string_from_cstring(cstring));
-}
-
-template <uint D_position, uint D_color> vec2 text_draw(
-        mat4 PV,
-        char *cstring,
-        Vector<D_position> _position_World,
-        Vector<D_color> color,
-        real font_height_Pixel = 12.0f,
-        vec2 nudge_Pixel = {},
-        bool force_draw_on_top = true
-        ) {
-    return text_draw(PV, _string_from_cstring(cstring), _position_World, color, font_height_Pixel, nudge_Pixel, force_draw_on_top);
-}
-#endif

@@ -577,15 +577,16 @@ void entities_load(String filename, List<Entity> *entities) {
         int code = 0;
         bool code_is_hot = false;
         Entity entity = {};
-        static char buffer[512];
-        while (fgets(buffer, ARRAY_LENGTH(buffer), file)) {
+        #define MAX_LINE_LENGTH 1024
+        static _STRING_CALLOC(line_from_file, MAX_LINE_LENGTH);
+        while (string_read_line_from_file(&line_from_file, MAX_LINE_LENGTH, file)) {
             if (mode == PARSE_NONE) {
-                if (MATCHES_PREFIX(buffer, "LINE")) {
+                if (string_matches_prefix(line_from_file, STRING("LINE"))) {
                     mode = PARSE_LINE;
                     code_is_hot = false;
                     entity = {};
                     entity.type = EntityType::Line;
-                } else if (MATCHES_PREFIX(buffer, "ARC")) {
+                } else if (string_matches_prefix(line_from_file, STRING("ARC"))) {
                     mode = PARSE_ARC;
                     code_is_hot = false;
                     entity = {};
@@ -593,7 +594,7 @@ void entities_load(String filename, List<Entity> *entities) {
                 }
             } else {
                 if (!code_is_hot) {
-                    sscanf(buffer, "%d", &code);
+                    sscanf(line_from_file.data, "%d", &code);
                     // NOTE this initialization is sketchy but works
                     // probably don't make a habit of it
                     if (code == 0) {
@@ -604,11 +605,11 @@ void entities_load(String filename, List<Entity> *entities) {
                 } else {
                     if (code == 62) {
                         int value;
-                        sscanf(buffer, "%d", &value);
+                        sscanf(line_from_file.data, "%d", &value);
                         entity.color_code = (ColorCode) value; 
                     } else {
                         float value;
-                        sscanf(buffer, "%f", &value);
+                        sscanf(line_from_file.data, "%f", &value);
                         if (mode == PARSE_LINE) {
                             if (code == 10) {
                                 entity.line_entity.start.x = MM(value);
@@ -1281,15 +1282,16 @@ void stl_load(String filename, Mesh *mesh) {
         vec3 *soup;
         {
 
-            static char line_of_file[512];
+            #define MAX_LINE_LENGTH 1024
+            static _STRING_CALLOC(line_of_file, MAX_LINE_LENGTH);
 
             #define STL_FILETYPE_UNKNOWN 0
             #define STL_FILETYPE_ASCII   1
             #define STL_FILETYPE_BINARY  2
             uint filetype; {
                 FILE *file = FILE_OPEN(filename, "r");
-                fgets(line_of_file, 80, file);
-                filetype = (MATCHES_PREFIX(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
+                string_read_line_from_file(&line_of_file, 80, file);
+                filetype = (string_matches_prefix(line_of_file, STRING("solid"))) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
                 fclose(file);
             }
 
@@ -1299,9 +1301,9 @@ void stl_load(String filename, Mesh *mesh) {
                 List<real> ascii_data = {};
 
                 FILE *file = FILE_OPEN(filename, "r");
-                while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
-                    if (MATCHES_PREFIX(line_of_file, "vertex")) {
-                        sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
+                while (string_read_line_from_file(&line_of_file, MAX_LINE_LENGTH, file)) {
+                    if (string_matches_prefix(line_of_file, STRING("vertex"))) {
+                        sscanf(line_of_file.data, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
                         for_(d, 3) list_push_back(&ascii_data, ascii_scan_p[d]);
                     }
                 }

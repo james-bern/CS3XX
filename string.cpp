@@ -34,6 +34,12 @@ real strtof(String string) { // FORNOW
     return strtof(cstring, NULL);
 }
 
+bool string_read_line_from_file(String *string, uint max_line_length, FILE *file) {
+    bool result = fgets(string->data, max_line_length, file);
+    if (result) string->length = strlen(string->data);
+    return result;
+}
+
 FILE *FILE_OPEN(String filename, char *code, bool skip_assert = false) { // FORNOW
     static char cstring[4096];
     memset(cstring, 0, sizeof(cstring));
