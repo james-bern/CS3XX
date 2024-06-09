@@ -5,9 +5,9 @@ void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
         popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%g", *value_d_as_real_ptr);
     } else { ASSERT(popup->cell_type[d] == CellType::String);
         String *value_d_as_String_ptr = (String *)(popup->value[d]);
-        memset(popup->active_cell_buffer.data, 0, POPUP_CELL_LENGTH); // FORNOW: ease of reading in debugger
         memcpy(popup->active_cell_buffer.data, value_d_as_String_ptr->data, value_d_as_String_ptr->length);
         popup->active_cell_buffer.length = value_d_as_String_ptr->length;
+        popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0'; // FORNOW: ease of reading in debugger
     }
 };
 
@@ -34,8 +34,8 @@ void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
             *value_d_as_real_ptr = 0.0f;
         } else { ASSERT(popup->cell_type[d] == CellType::String);
             String *value_d_as_String_ptr = (String *)(popup->value[d]);
-            memset(value_d_as_String_ptr->data, 0, POPUP_CELL_LENGTH); // FORNOW: ease of reading in debugger
             value_d_as_String_ptr->length = 0;
+            value_d_as_String_ptr->data[value_d_as_String_ptr->length] = '\0'; // FORNOW: ease of reading in debugger
         }
     }
 };

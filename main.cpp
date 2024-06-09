@@ -1525,7 +1525,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         CellType::String, STRING("save_filename"), &popup->save_filename);
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->save_filename)) {
-                        messagef(omax.pink, "(FORNOW) Save: overwriting \"%s\" without asking, popup->save_filename");
+                        messagef(omax.pink, "(FORNOW) Save: overwriting \"%s\" without asking", popup->save_filename.data);
                     }
 
                     if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
