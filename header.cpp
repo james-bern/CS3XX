@@ -1,7 +1,7 @@
 // TODO: make Mesh vec3's and ivec3's
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
-// TODO: void eso_bounding_box__SOUP_QUADS(bbox2 bounding_box)
+// TODO: void eso_bbox__SOUP_QUADS(bbox2 bbox)
 
 ////////////////////////////////////////
 // FORNOW: forward declarations ////////
@@ -206,7 +206,7 @@ struct Mesh {
     uint num_cosmetic_edges;
     uint2 *cosmetic_edges;
 
-    bbox3 bounding_box;
+    bbox3 bbox;
 };
 
 // TODO: struct out RawEvent into RawMouseEvent and RawKeyEvent
@@ -292,7 +292,7 @@ struct TwoClickCommandState {
 
 
 struct PopupState {
-    STRING_STRUCT_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
     uint active_cell_index;
     uint cursor;
@@ -335,8 +335,8 @@ struct PopupState {
     real move_rise;
     real revolve_add_dummy;
     real revolve_cut_dummy;
-    STRING_STRUCT_CALLOC(load_filename, POPUP_CELL_LENGTH);
-    STRING_STRUCT_CALLOC(save_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
@@ -429,10 +429,10 @@ real squared_distance_point_point(real x_A, real y_A, real x_B, real y_B) {
 ////////////////////////////////////////
 
 
-void camera2D_zoom_to_bounding_box(Camera *camera_drawing, bbox2 bounding_box) {
-    real new_o_x = AVG(bounding_box.min[0], bounding_box.max[0]);
-    real new_o_y = AVG(bounding_box.min[1], bounding_box.max[1]);
-    real new_height = MAX((bounding_box.max[0] - bounding_box.min[0]) * 2 / window_get_aspect(), (bounding_box.max[1] - bounding_box.min[1])); // factor of 2 since splitscreen
+void camera2D_zoom_to_bbox(Camera *camera_drawing, bbox2 bbox) {
+    real new_o_x = AVG(bbox.min[0], bbox.max[0]);
+    real new_o_y = AVG(bbox.min[1], bbox.max[1]);
+    real new_height = MAX((bbox.max[0] - bbox.min[0]) * 2 / window_get_aspect(), (bbox.max[1] - bbox.min[1])); // factor of 2 since splitscreen
     new_height *= 1.3f; // FORNOW: border
     camera_drawing->ortho_screen_height_World = new_height;
     camera_drawing->pre_nudge_World.x = new_o_x;
@@ -692,7 +692,7 @@ void entities_debug_draw(Camera *camera_drawing, List<Entity> *entities) {
     eso_end();
 }
 
-bbox2 entity_get_bounding_box(Entity *entity) {
+bbox2 entity_get_bbox(Entity *entity) {
     bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     real s[2][2];
     uint n = 2;
@@ -717,12 +717,12 @@ bbox2 entity_get_bounding_box(Entity *entity) {
     return result;
 }
 
-bbox2 entities_get_bounding_box(List<Entity> *entities, bool only_consider_selected_entities = false) {
+bbox2 entities_get_bbox(List<Entity> *entities, bool only_consider_selected_entities = false) {
     bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     for_(i, entities->length) {
         if ((only_consider_selected_entities) && (!entities->array[i].is_selected)) continue;
-        bbox2 bounding_box = entity_get_bounding_box(&entities->array[i]);
-        result += bounding_box;
+        bbox2 bbox = entity_get_bbox(&entities->array[i]);
+        result += bbox;
     }
     return result;
 }
@@ -1197,10 +1197,10 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     list_free_AND_zero(&list);
 }
 
-void mesh_bounding_box_calculate(Mesh *mesh) {
-    mesh->bounding_box = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
+void mesh_bbox_calculate(Mesh *mesh) {
+    mesh->bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
     for_(i, mesh->num_vertices) {
-        mesh->bounding_box += mesh->vertex_positions[i];
+        mesh->bbox += mesh->vertex_positions[i];
     }
 }
 
@@ -1380,7 +1380,7 @@ void stl_load(String filename, Mesh *mesh) {
         mesh->triangle_indices = triangle_indices;
         mesh_triangle_normals_calculate(mesh);
         mesh_cosmetic_edges_calculate(mesh);
-        mesh_bounding_box_calculate(mesh);
+        mesh_bbox_calculate(mesh);
     }
 }
 
@@ -1546,7 +1546,7 @@ Mesh wrapper_manifold(
             result.triangle_indices = (uint3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
             mesh_triangle_normals_calculate(&result);
             mesh_cosmetic_edges_calculate(&result);
-            mesh_bounding_box_calculate(&result);
+            mesh_bbox_calculate(&result);
         }
 
         manifold_delete_meshgl(meshgl);

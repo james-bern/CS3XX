@@ -113,7 +113,7 @@
 // TODO#define DEBUG_HISTORY_RECORD_EVERYTHING
 // TODO#define DEBUG_HISTORY_CHECKPOINT_EVERYTHING
 // TODO: remove all usage of gui-printf (after folding in cow)
-// NOTE multiple popups is a really easy situation to find self in (start drawing a line_entity then extrude; this seems like a job for much later
+// NOTE multiple popups is a really pen situation to find self in (start drawing a line_entity then extrude; this seems like a job for much later
 // XXX: dragging hot pane divider
 // TODO: bring cameras into app
 // TODO: possible bug: GUI_MOUSE getting triggered when it shouldn't

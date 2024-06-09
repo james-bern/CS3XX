@@ -99,7 +99,7 @@ static int stb_easy_font_print(float x, float y, String string, unsigned char co
     return (unsigned) offset/64;
 }
 
-static int stb_easy_font_width(String string) {
+static int stb_easy_font_travel_x(String string) {
     float len = 0;
     float max_len = 0;
     char *text = string.data;
@@ -117,25 +117,27 @@ static int stb_easy_font_width(String string) {
     return (int) ceil(max_len);
 }
 
-static int stb_easy_font_height(String string) {
-    float y = 0;
-    int nonempty_line=0;
+static int stb_easy_font_travel_y(String string) {
+    int count = 0;
     char *text = string.data;
     while (string_pointer_is_valid(string, text)) {
-        if (*text == '\n') {
-            y += 12;
-            nonempty_line = 0;
-        } else {
-            nonempty_line = 1;
-        }
+        if (*text == '\n') ++count;
         ++text;
     }
-    return (int) ceil(y + (nonempty_line ? 12 : 0));
+    return count * 12;
+}
+
+static vec2 stb_easy_font_travel(String string) {
+    return V2(stb_easy_font_travel_x(string), stb_easy_font_travel_y(string));
 }
 
 ////////////////////////////////////////
 // text_draw ///////////////////////////
 ////////////////////////////////////////
+
+vec2 text_travel(String string, real font_height_Pixel) {
+    return (font_height_Pixel / 12.0f) * stb_easy_font_travel(string);
+}
 
 template <uint D_position, uint D_color> vec2 text_draw(
         mat4 PV,
@@ -182,55 +184,61 @@ template <uint D_position, uint D_color> vec2 text_draw(
         * M4_Scaling(font_height_Pixel / 12.0f);
     soup_draw(transform, SOUP_QUADS, num_vertices, vertex_positions, NULL, color, 0, force_draw_on_top);
 
-    return (font_height_Pixel / 12.0f) * V2(stb_easy_font_width(string), stb_easy_font_height(string));
+    return text_travel(string, font_height_Pixel);
 }
 
 ////////////////////////////////////////
-// easy_text ///////////////////////////
+// easy_text_draw ///////////////////////////
 ////////////////////////////////////////
 
-struct EasyTextState {
+struct EasyTextPen {
     vec2 origin_Pixel;
     real font_height_Pixel;
     vec3 color;
     bool automatically_append_newline;
     vec2 offset_Pixel;
 
-    vec2 get_position() {
+    vec2 get_position_Pixel() {
         return this->origin_Pixel + this->offset_Pixel;
     }
+    real get_x_Pixel() { return this->origin_Pixel.x + this->offset_Pixel.x; }
+    real get_y_Pixel() { return this->origin_Pixel.y + this->offset_Pixel.y; }
 };
 
-#define EASY_TEXT_MAX_LENGTH 4096
-void easy_text(EasyTextState *easy, const char *format, ...) {
-    static String string; {
-        if (!string.data) string.data = (char *) malloc(EASY_TEXT_MAX_LENGTH);
+void easy_text_draw(EasyTextPen *pen, String string) {
+    vec2 travel = text_draw(window_get_OpenGL_from_Pixel(), string, pen->get_position_Pixel(), pen->color, pen->font_height_Pixel);
 
+    if (IS_ZERO(travel.y) && (!pen->automatically_append_newline)) {
+        pen->offset_Pixel.x += travel.x;
+    } else {
+        pen->offset_Pixel.x = 0.0f;
+        pen->offset_Pixel.y += travel.y;
+    }
+}
+
+real _easy_text_dx(EasyTextPen *pen, String string) {
+    return text_travel(string, pen->font_height_Pixel).x;
+}
+
+void easy_text_draw(EasyTextPen *pen, const char *format, ...) {
+    #define EASY_TEXT_MAX_LENGTH 4096
+    static _STRING_CALLOC(string, EASY_TEXT_MAX_LENGTH); {
         va_list arg;
         va_start(arg, format);
         string.length = vsnprintf(string.data, EASY_TEXT_MAX_LENGTH, format, arg);
         va_end(arg);
     }
-
-    vec2 text_box_size_Pixel = text_draw(window_get_OpenGL_from_Pixel(), string, easy->get_position(), easy->color, easy->font_height_Pixel);
-
-    bool no_newline = ARE_EQUAL(text_box_size_Pixel.y, easy->font_height_Pixel);
-
-    if (no_newline && (!easy->automatically_append_newline)) {
-        easy->offset_Pixel.x += text_box_size_Pixel.x;
-    } else {
-        easy->offset_Pixel.x = 0;
-        easy->offset_Pixel.y += text_box_size_Pixel.y;
-    }
+    easy_text_draw(pen, string);
 }
 
+#if 0
 // FORNOW SHIM
 // FORNOW SHIM
 // FORNOW SHIM
 // FORNOW SHIM
 
-static int stb_easy_font_width(char *cstring) {
-    return stb_easy_font_width(_string_from_cstring(cstring));
+static int stb_easy_font_travel_x(char *cstring) {
+    return stb_easy_font_travel_x(_string_from_cstring(cstring));
 }
 
 template <uint D_position, uint D_color> vec2 text_draw(
@@ -244,3 +252,4 @@ template <uint D_position, uint D_color> vec2 text_draw(
         ) {
     return text_draw(PV, _string_from_cstring(cstring), _position_World, color, font_height_Pixel, nudge_Pixel, force_draw_on_top);
 }
+#endif

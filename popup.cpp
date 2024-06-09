@@ -101,7 +101,7 @@ void popup_popup(
 
     // TODO: print as you go (don't call stb_easy_font_width/height)
 
-    EasyTextState easy = { V2(12.0f), 12.0f, omax.white, true };
+    EasyTextPen pen = { V2(12.0f), 12.0f, omax.white };
 
     popup->FORNOW_info_mouse_is_hovering = false;
     popup->info_hover_cell_index = -1;
@@ -109,101 +109,192 @@ void popup_popup(
     popup->info_active_cell_cursor = -1;
     {
         for_(d, popup->num_cells) {
-            uint _strlen_name;
-            uint _strlen_extra;
-            uint strlen_other;
-            uint strlen_cell;
-            static char buffer[512];
+            bool d_is_active_cell_index = (popup->active_cell_index == d);
+
+            pen.color = (d_is_active_cell_index) ? omax.cyan : omax.white;
+
+            real y_top;
+            real y_bottom;
+            real x_field_left;
+            real x_field_right;
+            bbox2 field_bbox;
             {
-                // FORNOW gross;
+                y_top = pen.get_y_Pixel();
+                y_bottom = y_top + pen.font_height_Pixel;
+
+                {
+                    easy_text_draw(&pen, popup->name[d]);
+                    easy_text_draw(&pen, STRING(" "));
+                }
+
+                x_field_left = pen.get_x_Pixel();
+
+
+                x_field_right = pen.get_x_Pixel();
+                field_bbox = { x_field_left, y_top, x_field_right, y_bottom };
+            }
+
+            String field; {
                 if (d == popup->active_cell_index) {
-                    sprintf(buffer, "%s %s", popup->name[d].data, popup->active_cell_buffer.data);
+                    field = popup->active_cell_buffer;
                 } else {
                     if (popup->cell_type[d] == CellType::Real32) {
-                        sprintf(buffer,  "%s %g", popup->name[d].data, *((real *) popup->value[d]));
+                        real *value_d_as_real_ptr = (real *)(popup->value[d]);
+                        static _STRING_CALLOC(scratch, POPUP_CELL_LENGTH);
+                        scratch.length = snprintf(scratch.data, POPUP_CELL_LENGTH, "%g", *value_d_as_real_ptr);
+                        field = scratch;
                     } else { ASSERT(popup->cell_type[d] == CellType::String); 
-                        sprintf(buffer,  "%s %s", popup->name[d].data, ((char *) popup->value[d]));
+                        String *value_d_as_String_ptr = (String *)(popup->value[d]);
+                        field = *value_d_as_String_ptr;
+                    }
+                }
+                easy_text_draw(&pen, field);
+            }
+
+            { // *_cell_cursor (where the cursor is / _will be_)
+                uint d_cell_cursor; { 
+                    d_cell_cursor = 0;
+                    String slice = field;
+                    slice.length = 0;
+                    real x_char_middle = x_field_left;
+                    real half_char_width_prev = 0.0f;
+                    for_(i, field.length) {
+                        x_char_middle += half_char_width_prev;
+                        {
+                            half_char_width_prev = 0.5f * _easy_text_dx(&pen, slice);
+                            ++slice.data;
+                        }
+                        x_char_middle += half_char_width_prev;
+
+                        real x_mouse = other.mouse_Pixel.x;
+                        if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
                     }
                 }
 
-                _strlen_name = popup->name[d].length;
-                _strlen_extra = 1;
-                strlen_other = _strlen_name + _strlen_extra;
-                strlen_cell = strlen(buffer) - strlen_other;
+                { // popup->info_hover_cell_*
+                    if (bbox_contains(field_bbox, other.mouse_Pixel)) {
+                        popup->FORNOW_info_mouse_is_hovering = true;
+                        popup->info_hover_cell_index = d;
+                        popup->info_hover_cell_cursor = d_cell_cursor;
+                    }
+                }
+
+                { // popup->info_active_cell_cursor
+                    if (d == popup->active_cell_index) {
+                        popup->info_active_cell_cursor = d_cell_cursor;
+                    }
+                }
             }
 
+            if (d_is_active_cell_index) {
+                if (POPUP_SELECTION_NOT_ACTIVE()) { // draw cursor
+                    real x_cursor; {
+                        String slice = field;
+                        slice.length = popup->cursor;
+                        x_cursor = x_field_left + _easy_text_dx(&pen, slice);
+                    }
+                    real alpha = 0.5f + 0.5f * SIN(other.time_since_cursor_start * 7);
+                    text_draw(other.OpenGL_from_Pixel, STRING("|"), V2(x_cursor, y_top - 3.0), V4(omax.yellow, alpha));
+                    text_draw(other.OpenGL_from_Pixel, STRING("|"), V2(x_cursor, y_top + 3.0), V4(omax.yellow, alpha));
+                } else { // draw selection
+                    real x_selection_left;
+                    real x_selection_right;
+                    {
+                        uint left_cursor = MIN(popup->cursor, popup->selection_cursor);
+                        uint right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
+                        String slice = field;
+                        slice.length = left_cursor;
+                        x_selection_left = (x_field_left + _easy_text_dx(&pen, slice));
+                        slice.data += left_cursor;
+                        slice.length = (right_cursor - left_cursor);
+                        x_selection_right = (x_selection_left + _easy_text_dx(&pen, slice));
+                    }
+                    bbox2 selection_bbox = { x_selection_left, y_top, x_selection_right, y_bottom };
+                    eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
+                    eso_color(omax.yellow, 0.4f);
+                    eso_bbox_SOUP_QUADS(selection_bbox);
+                    eso_end();
+                }
+            } else {
+                bool draw_hover_bbox = ((d == popup->info_hover_cell_index) && (other.mouse_left_drag_pane == Pane::None));
+                if (draw_hover_bbox) {
+                    eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS, 1.0f);
+                    eso_color(omax.cyan, 0.4f);
+                    eso_bbox_SOUP_QUADS(field_bbox);
+                    eso_end();
+                }
+            }
+
+            // TODO: hover box
+
+            #if 0
             bbox2 field_inflated_box;
             bbox2 field_uninflated_box;
-            bbox2 selection_inflated_box;
-            real x_field_left;
+            bbox2 selection_inflated_box = {};
             {
+                // real x_selection_left;
+                // real x_selection_right;
+                // {
+                //     static char tmp[4096]; // FORNOW
+                //     strcpy(tmp, &buffer[_strlen_name + 1]); // + 1 for ' '
 
-                real x_field_right;
-                real x_selection_left;
-                real x_selection_right;
-                {
-                    static char tmp[4096]; // FORNOW
-                    strcpy(tmp, &buffer[_strlen_name + 1]); // + 1 for ' '
+                //     x_field_left = pen.origin_Pixel.x + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
+                //     x_field_right = x_field_left + stb_easy_font_width(tmp);
 
-                    x_field_left = easy.origin_Pixel.x + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
-                    x_field_right = x_field_left + stb_easy_font_width(tmp);
+                //     tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
+                //     x_selection_right = x_field_left + stb_easy_font_width(tmp);
+                //     tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
+                //     x_selection_left = x_field_left + stb_easy_font_width(tmp);
+                // }
 
-                    tmp[MAX(popup->cursor, popup->selection_cursor)] = '\0';
-                    x_selection_right = x_field_left + stb_easy_font_width(tmp);
-                    tmp[MIN(popup->cursor, popup->selection_cursor)] = '\0';
-                    x_selection_left = x_field_left + stb_easy_font_width(tmp);
-                }
-
-                real y_top;
-                real y_bottom;
-                {
-                    y_top = easy.get_position().y;
-                    y_bottom = y_top + easy.font_height_Pixel;
-                }
+                real y_top = pen.get_y_Pixel();
+                real y_bottom = y_top + pen.font_height_Pixel;
 
                 field_inflated_box = { x_field_left - 3, y_top - 3, x_field_right + 3, y_bottom + 3 };
                 field_uninflated_box = { x_field_left, y_top, x_field_right, y_bottom };
-                selection_inflated_box = { x_selection_left - 0, y_top - 1, x_selection_right + 0, y_bottom + 0 };
+                // selection_inflated_box = { x_selection_left - 0, y_top - 1, x_selection_right + 0, y_bottom + 0 };
             }
 
-            uint d_cell_cursor; { 
-                d_cell_cursor = 0;
-                char _2char[2] = {};
-                real x_char_middle = x_field_left;
-                real half_char_width_prev = 0.0f;
-                for_(i, strlen_cell) {
-                    x_char_middle += half_char_width_prev;
-                    {
-                        _2char[0] = buffer[strlen_other + i];
-                        half_char_width_prev = stb_easy_font_width(_2char) / 2.0f;
+            { // *_cell_cursor
+                uint d_cell_cursor; { 
+                    d_cell_cursor = 0;
+                    char _2char[2] = {};
+                    real x_char_middle = x_field_left;
+                    real half_char_width_prev = 0.0f;
+                    for_(i, popup->active_cell_buffer.length) {
+                        x_char_middle += half_char_width_prev;
+                        {
+                            _2char[0] = buffer[strlen_other + i];
+                            half_char_width_prev = stb_easy_font_width(_2char) / 2.0f;
+                        }
+                        x_char_middle += half_char_width_prev;
+
+                        real x_mouse = other.mouse_Pixel.x;
+                        if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
+
+                        #if 0
+                        eso_begin(OpenGL_from_Pixel.data, SOUP_LINES, 2.0f, true);
+                        eso_color(omax.magenta);
+                        eso_vertex(x_char_middle, y_top - 10);
+                        eso_vertex(x_char_middle, y_bottom + 10);
+                        eso_end();
+                        #endif
                     }
-                    x_char_middle += half_char_width_prev;
-
-                    real x_mouse = other.mouse_Pixel.x;
-                    if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
-
-                    #if 0
-                    eso_begin(OpenGL_from_Pixel.data, SOUP_LINES, 2.0f, true);
-                    eso_color(omax.magenta);
-                    eso_vertex(x_char_middle, y_top - 10);
-                    eso_vertex(x_char_middle, y_bottom + 10);
-                    eso_end();
-                    #endif
                 }
-            }
 
-            { // popup->info_hover_cell_*
-                if (bbox_contains(field_inflated_box, other.mouse_Pixel)) {
-                    popup->FORNOW_info_mouse_is_hovering = true; // FORNOW
-                    popup->info_hover_cell_index = d;
-                    popup->info_hover_cell_cursor = d_cell_cursor;
+                { // popup->info_hover_cell_*
+                    if (bbox_contains(field_inflated_box, other.mouse_Pixel)) {
+                        popup->FORNOW_info_mouse_is_hovering = true; // FORNOW
+                        popup->info_hover_cell_index = d;
+                        popup->info_hover_cell_cursor = d_cell_cursor;
+                    }
                 }
-            }
 
-            { // popup->info_active_cell_cursor
-                if (d == popup->active_cell_index) {
-                    popup->info_active_cell_cursor = d_cell_cursor;
+                { // popup->info_active_cell_cursor
+                    if (d == popup->active_cell_index) {
+                        popup->info_active_cell_cursor = d_cell_cursor;
+                    }
                 }
             }
 
@@ -223,10 +314,7 @@ void popup_popup(
                 }
 
                 {
-                    if (popup->active_cell_index != d) {
-                        // TODO: don't use gui_printf here
-                        easy_text(&easy, buffer);
-                    } else {
+                    if (popup->active_cell_index == d) {
                         bool popup_selection_is_active = (!POPUP_SELECTION_NOT_ACTIVE());
                         if (popup_selection_is_active) {
                             eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
@@ -235,11 +323,11 @@ void popup_popup(
                             eso_end();
                         }
 
-                        real x = easy.get_position().x;
-                        real y = easy.get_position().y;
-                        easy.color = omax.cyan; {
-                            easy_text(&easy, buffer);
-                        } easy.color = omax.white;
+                        real x = pen.get_position().x;
+                        real y = pen.get_position().y;
+                        pen.color = omax.cyan; {
+                            easy_text_draw(&pen, buffer);
+                        } pen.color = omax.white;
                         if (POPUP_SELECTION_NOT_ACTIVE()) { // cursor
                                                             // if (((int) (other.time_since_cursor_start * 5)) % 10 < 5)
                             {
@@ -251,13 +339,16 @@ void popup_popup(
                                 x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                                 x -= 1.25f;
                                 // FORNOW: silly way of getting longer |
-                                text_draw(other.OpenGL_from_Pixel, "|", V2(x, y - 3.0), V4(1.0, 1.0, b, a));
-                                text_draw(other.OpenGL_from_Pixel, "|", V2(x, y + 3.0), V4(1.0, 1.0, b, a));
+                                text_draw(other.OpenGL_from_Pixel, STRING("|"), V2(x, y - 3.0), V4(1.0, 1.0, b, a));
+                                text_draw(other.OpenGL_from_Pixel, STRING("|"), V2(x, y + 3.0), V4(1.0, 1.0, b, a));
                             }
                         }
                     }
                 }
             }
+            #endif
+
+            easy_text_draw(&pen, "\n");
         }
     }
 

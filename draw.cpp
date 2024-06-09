@@ -14,7 +14,7 @@ mat4 get_M_3D_from_2D() {
 }
 
 bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
-    bbox2 face_selection_bounding_box = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+    bbox2 face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
 
     mat4 PVM_3D = P_3D * V_3D * M_3D;
@@ -61,9 +61,9 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                     alpha = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_going_inside), 1.0f, 0.7f);
 
 
-                    face_selection_bounding_box += _V2(transformPoint(inv_M_3D_from_2D, p[0]));
-                    face_selection_bounding_box += _V2(transformPoint(inv_M_3D_from_2D, p[1]));
-                    face_selection_bounding_box += _V2(transformPoint(inv_M_3D_from_2D, p[2]));
+                    face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[0]));
+                    face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[1]));
+                    face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[2]));
 
 
                 } else {
@@ -76,14 +76,14 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             // color = CLAMPED_LINEAR_REMAP(time_since_successful_feature, -0.5f, 0.5f, omax.white, color);
             eso_color(color, alpha);
             for_(d, 3) {
-                eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bounding_box.max.y, mesh->bounding_box.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
+                eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bbox.max.y, mesh->bbox.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
                 eso_vertex(p[d]);
             }
         }
         eso_end();
     }
 
-    return face_selection_bounding_box;
+    return face_selection_bbox;
 }
 
 void conversation_draw() {
@@ -417,28 +417,28 @@ void conversation_draw() {
 
 
         { // feature plane feature-plane feature_plane
-            bbox2 face_selection_bounding_box = mesh_draw(P_3D, V_3D, M4_Identity());
-            bbox2 dxf_selection_bounding_box = entities_get_bounding_box(&drawing->entities, true);
-            bbox2 target_bounding_box; {
-                target_bounding_box = face_selection_bounding_box + dxf_selection_bounding_box;
+            bbox2 face_selection_bbox = mesh_draw(P_3D, V_3D, M4_Identity());
+            bbox2 dxf_selection_bbox = entities_get_bbox(&drawing->entities, true);
+            bbox2 target_bbox; {
+                target_bbox = face_selection_bbox + dxf_selection_bbox;
                 for_(d, 2) {
-                    if (target_bounding_box.min[d] > target_bounding_box.max[d]) {
-                        target_bounding_box.min[d] = 0.0f;
-                        target_bounding_box.max[d] = 0.0f;
+                    if (target_bbox.min[d] > target_bbox.max[d]) {
+                        target_bbox.min[d] = 0.0f;
+                        target_bbox.max[d] = 0.0f;
                     }
                 }
                 {
                     real eps = 10.0f;
-                    target_bounding_box.min[0] -= eps;
-                    target_bounding_box.max[0] += eps;
-                    target_bounding_box.min[1] -= eps;
-                    target_bounding_box.max[1] += eps;
+                    target_bbox.min[0] -= eps;
+                    target_bbox.max[0] += eps;
+                    target_bbox.min[1] -= eps;
+                    target_bbox.max[1] += eps;
                 }
             }
-            JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bounding_box.min);
-            JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bounding_box.max);
+            JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
+            JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
             if (other.time_since_plane_selected == 0.0f) { // FORNOW
-                preview->feature_plane = target_bounding_box;
+                preview->feature_plane = target_bbox;
             }
         }
 

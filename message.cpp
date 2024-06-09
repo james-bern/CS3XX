@@ -3,7 +3,7 @@
 #define MESSAGE_MAX_TIME 6.0f
 
 struct Message {
-    STRING_STRUCT_CALLOC(string, MESSAGE_MAX_LENGTH);
+    _STRING_CALLOC(string, MESSAGE_MAX_LENGTH);
     real time_remaining;
     real y;
     vec3 base_color;

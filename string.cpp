@@ -9,7 +9,7 @@ bool string_pointer_is_valid(String string, char *pointer) {
 
 #define STRING(cstring_literal) { (char *)(cstring_literal), uint(strlen(cstring_literal)) }
 
-#define STRING_STRUCT_CALLOC(name, length) String name = { (char *) calloc(1, length) }
+#define _STRING_CALLOC(name, length) String name = { (char *) calloc(1, length) }
 
 String _string_from_cstring(char *cstring) {
     return { (char *)(cstring), uint(strlen(cstring)) };
