@@ -1,5 +1,4 @@
-#include <stdlib.h>
-#include <math.h>
+// NOTE: this is a (slightly) modified version of stb_easy_font with a wrapper
 
 static struct stb_easy_font_info_struct {
     unsigned char advance;
@@ -33,37 +32,18 @@ static struct stb_easy_font_info_struct {
 };
 
 static unsigned char stb_easy_font_hseg[214] = {
-   97,37,69,84,28,51,2,18,10,49,98,41,65,25,81,105,33,9,97,1,97,37,37,36,
-    81,10,98,107,3,100,3,99,58,51,4,99,58,8,73,81,10,50,98,8,73,81,4,10,50,
-    98,8,25,33,65,81,10,50,17,65,97,25,33,25,49,9,65,20,68,1,65,25,49,41,
-    11,105,13,101,76,10,50,10,50,98,11,99,10,98,11,50,99,11,50,11,99,8,57,
-    58,3,99,99,107,10,10,11,10,99,11,5,100,41,65,57,41,65,9,17,81,97,3,107,
-    9,97,1,97,33,25,9,25,41,100,41,26,82,42,98,27,83,42,98,26,51,82,8,41,
-    35,8,10,26,82,114,42,1,114,8,9,73,57,81,41,97,18,8,8,25,26,26,82,26,82,
-    26,82,41,25,33,82,26,49,73,35,90,17,81,41,65,57,41,65,25,81,90,114,20,
-    84,73,57,41,49,25,33,65,81,9,97,1,97,25,33,65,81,57,33,25,41,25,
+    97,37,69,84,28,51,2,18,10,49,98,41,65,25,81,105,33,9,97,1,97,37,37,36,81,10,98,107,3,100,3,99,58,51,4,99,58,8,73,81,10,50,98,8,73,81,4,10,50,98,8,25,33,65,81,10,50,17,65,97,25,33,25,49,9,65,20,68,1,65,25,49,41,11,105,13,101,76,10,50,10,50,98,11,99,10,98,11,50,99,11,50,11,99,8,57,58,3,99,99,107,10,10,11,10,99,11,5,100,41,65,57,41,65,9,17,81,97,3,107,9,97,1,97,33,25,9,25,41,100,41,26,82,42,98,27,83,42,98,26,51,82,8,41, 35,8,10,26,82,114,42,1,114,8,9,73,57,81,41,97,18,8,8,25,26,26,82,26,82,26,82,41,25,33,82,26,49,73,35,90,17,81,41,65,57,41,65,25,81,90,114,20,84,73,57,41,49,25,33,65,81,9,97,1,97,25,33,65,81,57,33,25,41,25,
 };
 
 static unsigned char stb_easy_font_vseg[253] = {
-   4,2,8,10,15,8,15,33,8,15,8,73,82,73,57,41,82,10,82,18,66,10,21,29,1,65,
-    27,8,27,9,65,8,10,50,97,74,66,42,10,21,57,41,29,25,14,81,73,57,26,8,8,
-    26,66,3,8,8,15,19,21,90,58,26,18,66,18,105,89,28,74,17,8,73,57,26,21,
-    8,42,41,42,8,28,22,8,8,30,7,8,8,26,66,21,7,8,8,29,7,7,21,8,8,8,59,7,8,
-    8,15,29,8,8,14,7,57,43,10,82,7,7,25,42,25,15,7,25,41,15,21,105,105,29,
-    7,57,57,26,21,105,73,97,89,28,97,7,57,58,26,82,18,57,57,74,8,30,6,8,8,
-    14,3,58,90,58,11,7,74,43,74,15,2,82,2,42,75,42,10,67,57,41,10,7,2,42,
-    74,106,15,2,35,8,8,29,7,8,8,59,35,51,8,8,15,35,30,35,8,8,30,7,8,8,60,
-    36,8,45,7,7,36,8,43,8,44,21,8,8,44,35,8,8,43,23,8,8,43,35,8,8,31,21,15,
-    20,8,8,28,18,58,89,58,26,21,89,73,89,29,20,8,8,30,7,
+    4,2,8,10,15,8,15,33,8,15,8,73,82,73,57,41,82,10,82,18,66,10,21,29,1,65, 27,8,27,9,65,8,10,50,97,74,66,42,10,21,57,41,29,25,14,81,73,57,26,8,8, 26,66,3,8,8,15,19,21,90,58,26,18,66,18,105,89,28,74,17,8,73,57,26,21, 8,42,41,42,8,28,22,8,8,30,7,8,8,26,66,21,7,8,8,29,7,7,21,8,8,8,59,7,8, 8,15,29,8,8,14,7,57,43,10,82,7,7,25,42,25,15,7,25,41,15,21,105,105,29, 7,57,57,26,21,105,73,97,89,28,97,7,57,58,26,82,18,57,57,74,8,30,6,8,8, 14,3,58,90,58,11,7,74,43,74,15,2,82,2,42,75,42,10,67,57,41,10,7,2,42, 74,106,15,2,35,8,8,29,7,8,8,59,35,51,8,8,15,35,30,35,8,8,30,7,8,8,60, 36,8,45,7,7,36,8,43,8,44,21,8,8,44,35,8,8,43,23,8,8,43,35,8,8,31,21,15, 20,8,8,28,18,58,89,58,26,21,89,73,89,29,20,8,8,30,7,
 };
 
-typedef struct
-{
-   unsigned char c[4];
+typedef struct {
+    unsigned char c[4];
 } stb_easy_font_color;
 
-static int stb_easy_font_draw_segs(float x, float y, unsigned char *segs, int num_segs, int vertical, stb_easy_font_color c, char *vbuf, int vbuf_size, int offset)
-{
+static int stb_easy_font_draw_segs(float x, float y, unsigned char *segs, int num_segs, int vertical, stb_easy_font_color c, char *vbuf, int vbuf_size, int offset) {
     int i,j;
     for (i=0; i < num_segs; ++i) {
         int len = segs[i] & 7;
@@ -88,7 +68,7 @@ static float stb_easy_font_spacing_val = 0;
 //    stb_easy_font_spacing_val = spacing;
 // }
 
-static int stb_easy_font_print(float x, float y, char *text, unsigned char color[4], void *vertex_buffer, int vbuf_size) {
+static int stb_easy_font_print(float x, float y, String string, unsigned char color[4], void *vertex_buffer, int vbuf_size) {
     char *vbuf = (char *) vertex_buffer;
     float start_x = x;
     int offset = 0;
@@ -96,7 +76,8 @@ static int stb_easy_font_print(float x, float y, char *text, unsigned char color
     stb_easy_font_color c = { 255,255,255,255 }; // use structure copying to avoid needing depending on memcpy()
     if (color) { c.c[0] = color[0]; c.c[1] = color[1]; c.c[2] = color[2]; c.c[3] = color[3]; }
 
-    while (*text && offset < vbuf_size) {
+    char *text = string.data;
+    while (string_pointer_is_valid(string, text) && (offset < vbuf_size)) {
         if (*text == '\n') {
             y += 12;
             x = start_x;
@@ -118,11 +99,11 @@ static int stb_easy_font_print(float x, float y, char *text, unsigned char color
     return (unsigned) offset/64;
 }
 
-static int stb_easy_font_width(char *text)
-{
+static int stb_easy_font_width(String string) {
     float len = 0;
     float max_len = 0;
-    while (*text) {
+    char *text = string.data;
+    while (string_pointer_is_valid(string, text)) {
         if (*text == '\n') {
             if (len > max_len) max_len = len;
             len = 0;
@@ -136,11 +117,11 @@ static int stb_easy_font_width(char *text)
     return (int) ceil(max_len);
 }
 
-static int stb_easy_font_height(char *text)
-{
+static int stb_easy_font_height(String string) {
     float y = 0;
     int nonempty_line=0;
-    while (*text) {
+    char *text = string.data;
+    while (string_pointer_is_valid(string, text)) {
         if (*text == '\n') {
             y += 12;
             nonempty_line = 0;
@@ -152,17 +133,19 @@ static int stb_easy_font_height(char *text)
     return (int) ceil(y + (nonempty_line ? 12 : 0));
 }
 
+////////////////////////////////////////
+// text_draw ///////////////////////////
+////////////////////////////////////////
 
 template <uint D_position, uint D_color> vec2 text_draw(
         mat4 PV,
-        char *cstring,
+        String string,
         Vector<D_position> _position_World,
         Vector<D_color> color,
         real font_height_Pixel = 12.0f,
         vec2 nudge_Pixel = {},
         bool force_draw_on_top = true
         ) {
-    ASSERT(cstring);
 
     vec2 *vertex_positions;
     uint num_vertices;
@@ -171,7 +154,7 @@ template <uint D_position, uint D_color> vec2 text_draw(
         static void *_vertex_positions = malloc(size);
         vertex_positions = (vec2 *) _vertex_positions;
 
-        num_vertices = 4 * stb_easy_font_print(0, 0, cstring, NULL, _vertex_positions, size);
+        num_vertices = 4 * stb_easy_font_print(0, 0, string, NULL, _vertex_positions, size);
         { // NOTE: stb stores like this [x:float y:float z:float color:uint8[4]]
             for_(i, num_vertices) {
                 ((vec2 *) vertex_positions)[i] = {
@@ -194,18 +177,42 @@ template <uint D_position, uint D_color> vec2 text_draw(
         * M4_Scaling(font_height_Pixel / 12.0f);
     soup_draw(transform, SOUP_QUADS, num_vertices, vertex_positions, NULL, color, 0, force_draw_on_top);
 
-    return (font_height_Pixel / 12.0f) * V2(stb_easy_font_width(cstring), stb_easy_font_height(cstring));
+    return (font_height_Pixel / 12.0f) * V2(stb_easy_font_width(string), stb_easy_font_height(string));
 }
 
-template <uint D_position, uint D_color> vec2 text_draw(
-        mat4 PV,
-        String string,
-        Vector<D_position> _position_World,
-        Vector<D_color> color,
-        real font_height_Pixel = 12.0f,
-        vec2 nudge_Pixel = {},
-        bool force_draw_on_top = true
-        ) {
-    char *FORNOW = string.data;
-    char tmp = FORNOW[string.length];
+////////////////////////////////////////
+// easy_text ///////////////////////////
+////////////////////////////////////////
+
+struct EasyTextState {
+    vec2 origin_Pixel;
+    real font_height_Pixel;
+    vec3 color;
+    bool automatically_append_newline;
+    vec2 offset_Pixel;
+
+    vec2 get_position() { return this->origin_Pixel + this->offset_Pixel; }
+};
+
+#define EASY_TEXT_MAX_LENGTH 4096
+void easy_text(EasyTextState *easy, const char *format, ...) {
+    static String string; {
+        if (!string.data) string.data = (char *) malloc(EASY_TEXT_MAX_LENGTH);
+
+        va_list arg;
+        va_start(arg, format);
+        string.length = vsnprintf(string.data, EASY_TEXT_MAX_LENGTH, format, arg);
+        va_end(arg);
+    }
+
+    vec2 text_box_size_Pixel = text_draw(window_get_OpenGL_from_Pixel(), string, easy->get_position(), easy->color, easy->font_height_Pixel);
+
+    bool no_newline = ARE_EQUAL(text_box_size_Pixel.y, easy->font_height_Pixel);
+
+    if (no_newline && (!easy->automatically_append_newline)) {
+        easy->offset_Pixel.x += text_box_size_Pixel.x;
+    } else {
+        easy->offset_Pixel.x = 0;
+        easy->offset_Pixel.y += text_box_size_Pixel.y;
+    }
 }

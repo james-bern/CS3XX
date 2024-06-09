@@ -7,13 +7,14 @@
 #include <stdarg.h>
 
 #include "basics.cpp"
+#include "string.cpp"
 #include "linalg.cpp"
 #include "bbox.cpp"
 #include "containers.cpp" // TODO: implement better Map
 #include "elephant.cpp"
 
 #include "app.cpp"
-#include "easy_font.cpp"
+#include "text.cpp"
 #include "extras.cpp"
 
 #include "burkardt.cpp"

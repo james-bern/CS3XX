@@ -1,0 +1,28 @@
+Objects
+-------
+i have only two kinds of objects
+
+- objects that behave like primitives (in my head, i imagine they *are* primitives)
+  vec3 a = { 1.0f, 2.0f, 3.0f };
+  vec3 b = a; // works just like a was a float; no aliasing! i shouldn't have to think!
+  a += b; 
+
+- objects that literally are plain old data structs
+  (no constructors, no destructors, no operator overloading, no blah blah blah)
+  Mesh mesh = {}; // clears struct to zero
+  Camera camera_2D = make_Camera2D(...); // fills struct with something nice
+
+
+asserts, etc.
+-------------
+- i love ASSERT(...);
+  ASSERT(2 + 2 == 5); // crash! tell me where! break if i'm in a debugger!
+
+- i like (automatic) bounds checks
+  vec3 v;
+  v[3] = 5; // crash!
+
+strings
+-------
+- prefer String
+- "CString" (null-terminated char *) is ooookay

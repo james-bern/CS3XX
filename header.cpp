@@ -105,7 +105,7 @@ enum class ClickModifier {
     Perpendicular,
     Selected,
     Window,
-    XYCoordinates,
+    XY,
 };
 
 enum class EntityType {

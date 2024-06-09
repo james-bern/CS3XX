@@ -728,7 +728,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (key_lambda('X')) {
                     if (state.click_mode != ClickMode::None) {
-                        state.click_modifier = ClickModifier::XYCoordinates;
+                        state.click_modifier = ClickModifier::XY;
                     }
                 } else if (key_lambda('X', false, true)) {
                     state.click_mode = ClickMode::MirrorX;
@@ -1608,7 +1608,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.enter_mode = EnterMode::None;
                     messagef(omax.green, "NudgeFeaturePlane %gmm", popup->feature_plane_nudge);
                 }
-            } else if (state.click_modifier == ClickModifier::XYCoordinates) {
+            } else if (state.click_modifier == ClickModifier::XY) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
                 popup_popup(true,
                         CellType::Real32, "x_coordinate", &popup->x_coordinate,

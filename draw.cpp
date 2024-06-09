@@ -484,58 +484,44 @@ void conversation_draw() {
 
 
     { // cursor decorations
-        real alpha = ((other.hot_pane == Pane::Drawing) && ((other.mouse_left_drag_pane == Pane::None) || (other.mouse_left_drag_pane == Pane::Drawing))) ? 1.0f : 0.5f;
-        vec3 color = omax.white;
-        char _color_x[64] = {};
-        if (state.click_mode == ClickMode::Color) {
-            if (state.click_modifier == ClickModifier::Selected) {
-                sprintf(_color_x, "color");
-            } else {
-                sprintf(_color_x, "color %d", state.click_color_code);
+        vec3 color; {
+            color = omax.white;
+            if ((state.click_mode == ClickMode::Color) && (state.click_modifier != ClickModifier::Selected)) {
                 color = get_color(state.click_color_code);
             }
         }
-        char _X_Y[256] = {};
-        if (state.click_modifier == ClickModifier::XYCoordinates) {
-            sprintf(_X_Y, "(%g, %g)", popup->x_coordinate, popup->y_coordinate);
-        }
 
-        text_draw(
-                other.OpenGL_from_Pixel,
-                (char *) (
-                    (state.click_mode == ClickMode::None) ? "" :
-                    (state.click_mode == ClickMode::Axis)    ? "axis" :
-                    (state.click_mode == ClickMode::BoundingBox)     ? "box" :
-                    (state.click_mode == ClickMode::Circle)  ? "circle" :
-                    (state.click_mode == ClickMode::Color)   ? _color_x :
-                    (state.click_mode == ClickMode::Deselect)? "deselect" :
-                    (state.click_mode == ClickMode::Fillet)  ? "fillet" :
-                    (state.click_mode == ClickMode::Line)    ? "line" :
-                    (state.click_mode == ClickMode::Measure) ? "measure" :
-                    (state.click_mode == ClickMode::Move)    ? "move" :
-                    (state.click_mode == ClickMode::Origin)  ? "origin" :
-                    (state.click_mode == ClickMode::Select)  ? "select" :
-                    (state.click_mode == ClickMode::MirrorX) ? "x_mirror" :
-                    (state.click_mode == ClickMode::MirrorY) ? "y_mirror" :
-                    "???MODE???"),
-                V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 14),
-                V4(color, alpha));
+        String string_click_mode = STRING_FROM_CSTRING_LITERAL(
+                (state.click_mode == ClickMode::None)        ? ""         :
+                (state.click_mode == ClickMode::Axis)        ? "AXIS"     :
+                (state.click_mode == ClickMode::BoundingBox) ? "BOX"      :
+                (state.click_mode == ClickMode::Circle)      ? "CIRCLE"   :
+                (state.click_mode == ClickMode::Color)       ? "COLOR"    :
+                (state.click_mode == ClickMode::Deselect)    ? "DESELECT" :
+                (state.click_mode == ClickMode::Fillet)      ? "FILLET"   :
+                (state.click_mode == ClickMode::Line)        ? "LINE"     :
+                (state.click_mode == ClickMode::Measure)     ? "MEASURE"  :
+                (state.click_mode == ClickMode::Move)        ? "MOVE"     :
+                (state.click_mode == ClickMode::Origin)      ? "ORIGIN"   :
+                (state.click_mode == ClickMode::Select)      ? "SELECT"   :
+                (state.click_mode == ClickMode::MirrorX)     ? "MIRROR X" :
+                (state.click_mode == ClickMode::MirrorY)     ? "MIRROR Y" :
+                "???MODE???");
 
-        text_draw(
-                other.OpenGL_from_Pixel,
-                (char *) (
-                    (state.click_modifier == ClickModifier::None)       ? "" :
-                    (state.click_modifier == ClickModifier::Center)     ? "center" :
-                    (state.click_modifier == ClickModifier::Connected)  ? "connected" :
-                    (state.click_modifier == ClickModifier::End)        ? "end" :
-                    (state.click_modifier == ClickModifier::Color)      ? "color" :
-                    (state.click_modifier == ClickModifier::Middle)     ? "middle" :
-                    (state.click_modifier == ClickModifier::Selected)   ? "selected" :
-                    (state.click_modifier == ClickModifier::Window)     ? "window" :
-                    (state.click_modifier == ClickModifier::XYCoordinates) ? _X_Y :
-                    "???MODIFIER???"),
-                V2(other.mouse_Pixel.x + 12, other.mouse_Pixel.y + 24),
-                V4(color, alpha));
+        String string_click_modifier = STRING_FROM_CSTRING_LITERAL(
+                (state.click_modifier == ClickModifier::None)      ? ""          :
+                (state.click_modifier == ClickModifier::Center)    ? "CENTER"    :
+                (state.click_modifier == ClickModifier::Connected) ? "CONNECTED" :
+                (state.click_modifier == ClickModifier::End)       ? "END"       :
+                (state.click_modifier == ClickModifier::Color)     ? "COLOR"     :
+                (state.click_modifier == ClickModifier::Middle)    ? "MIDDLE"    :
+                (state.click_modifier == ClickModifier::Selected)  ? "SELECTED"  :
+                (state.click_modifier == ClickModifier::Window)    ? "WINDOW"    :
+                (state.click_modifier == ClickModifier::XY)        ? "XY"        :
+                "???MODIFIER???");
+
+        text_draw(other.OpenGL_from_Pixel, string_click_mode,     other.mouse_Pixel + V2(12, 14), color);
+        text_draw(other.OpenGL_from_Pixel, string_click_modifier, other.mouse_Pixel + V2(12, 24), color);
     }
 
     if (other.show_help) {
@@ -580,19 +566,21 @@ void conversation_draw() {
 #define MESSAGE_MAX_NUM_MESSAGES 64
 #define MESSAGE_MAX_TIME 6.0f
 struct Message {
-    char buffer[MESSAGE_MAX_LENGTH + 1];
+    char data[MESSAGE_MAX_LENGTH];
+    uint length;
+
     real time_remaining;
     real y;
     vec3 base_color;
 };
-uint message_index;
 Message conversation_messages[MESSAGE_MAX_NUM_MESSAGES];
+uint message_index;
 void messagef(vec3 color, char *format, ...) {
     if (other.please_suppress_messagef) return;
     va_list arg;
     va_start(arg, format);
     Message *message = &conversation_messages[message_index];
-    vsnprintf(message->buffer, MESSAGE_MAX_LENGTH, format, arg);
+    message->length = vsnprintf(message->data, MESSAGE_MAX_LENGTH, format, arg);
     va_end(arg);
 
     message->base_color = color;
@@ -647,7 +635,8 @@ void conversation_message_buffer_draw() {
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
-            text_draw(other.OpenGL_from_Pixel, message->buffer, V2(x, message->y), V4(color, alpha));
+            String string = { message->data, message->length };
+            text_draw(other.OpenGL_from_Pixel, string, V2(x, message->y), V4(color, alpha));
         }
     };
 
@@ -666,34 +655,4 @@ void conversation_message_buffer_draw() {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-struct EasyTextState {
-    vec2 origin_Pixel;
-    real font_height_Pixel;
-    vec3 color;
-    bool automatically_append_newline;
-    vec2 offset_Pixel;
-
-    vec2 get_position() { return this->origin_Pixel + this->offset_Pixel; }
-};
-
-#define EASY_TEXT_MAX_LENGTH 4096
-void easy_text(EasyTextState *easy, const char *format, ...) {
-    static char cstring[EASY_TEXT_MAX_LENGTH + 1]; {
-        va_list arg;
-        va_start(arg, format);
-        vsnprintf(cstring, EASY_TEXT_MAX_LENGTH, format, arg);
-        va_end(arg);
-    }
-
-    vec2 text_box_size_Pixel = text_draw(window_get_OpenGL_from_Pixel(), cstring, easy->get_position(), easy->color, easy->font_height_Pixel);
-
-    bool no_newline = ARE_EQUAL(text_box_size_Pixel.y, easy->font_height_Pixel);
-
-    if (no_newline && (!easy->automatically_append_newline)) {
-        easy->offset_Pixel.x += text_box_size_Pixel.x;
-    } else {
-        easy->offset_Pixel.x = 0;
-        easy->offset_Pixel.y += text_box_size_Pixel.y;
-    }
-}
 
