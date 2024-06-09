@@ -246,7 +246,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         // FORNOW: i guess okay to handle these here?
         bool toggle_pause; {
             toggle_pause = false;
-            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
+            if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
                 toggle_pause = ((key == 'P') && (!control) && (!shift));
             }
         }
@@ -277,7 +277,11 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         real x_divider_Pixel = get_x_divider_Pixel();
         real eps = 6.0f;
         real x = other.mouse_Pixel.x;
-        if (popup->FORNOW_info_mouse_is_hovering) {
+        if (
+                1
+                && (popup->_FORNOW_active_popup_unique_ID__FORNOW_name0)
+                && (popup->_FORNOW_info_mouse_is_hovering)
+           ) {
             other.hot_pane = Pane::Popup;
         } else if (x < x_divider_Pixel - eps) {
             other.hot_pane = Pane::Drawing;
@@ -405,7 +409,7 @@ void callback_framebuffer_size(GLFWwindow *, int width, int height) {
 }
 
 KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_event) {
-    if (!popup->_active_popup_unique_ID__FORNOW_name0) return KeyEventSubtype::Hotkey;
+    if (!popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) return KeyEventSubtype::Hotkey;
 
     uint key = raw_key_event->key;
     bool control = raw_key_event->control;
@@ -1616,7 +1620,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         CellType::Real32, STRING("x_coordinate"), &popup->x_coordinate,
                         CellType::Real32, STRING("y_coordinate"), &popup->y_coordinate);
                 if (gui_key_enter) {
-                    // popup->_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
+                    // popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                     state.click_modifier = ClickModifier::None;
                     return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
                 }
@@ -1708,13 +1712,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             }
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
-          // NOTE: we need to do this so that the next key event doesn't get eaten by a dead popup
+          // NOTE: we need to do this so that the next key/mouse event doesn't get eaten by a dead popup
             bool enter_mode_transitioned_to_ENTER_MODE_NONE = ((_enter_mode_prev__NOTE_used_to_determine_when_to_close_popup_on_enter != EnterMode::None) && (state.enter_mode == EnterMode::None));
             if (0
                     || (!popup->_popup_actually_called_this_event)
                     || enter_mode_transitioned_to_ENTER_MODE_NONE
                ) {
-                popup->_active_popup_unique_ID__FORNOW_name0 = NULL;
+                popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL;
             }
         }
     }
@@ -1725,6 +1729,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 //////////////////////////////////////////////////
 // HISTORY ///////////////////////////////////////
 //////////////////////////////////////////////////
+
+// TODO: strip into file
 
 #ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 //
@@ -2034,7 +2040,7 @@ void freshly_baked_event_process(Event freshly_baked_event) {
             auto key_lambda = [key_event](uint key, bool control = false, bool shift = false) -> bool {
                 return _key_lambda(key_event, key, control, shift);
             };
-            if (!((popup->_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
+            if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
                 undo = (key_lambda('Z', true) || key_lambda('U'));
                 redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
             }
@@ -2042,10 +2048,10 @@ void freshly_baked_event_process(Event freshly_baked_event) {
     }
 
     if (undo) {
-        other.please_suppress_drawing_popup_popup = true;
+        other._please_suppress_drawing_popup_popup = true;
         history_undo();
     } else if (redo) {
-        other.please_suppress_drawing_popup_popup = true;
+        other._please_suppress_drawing_popup_popup = true;
         history_redo();
     } else {
         history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(freshly_baked_event);
@@ -2221,7 +2227,7 @@ int main() {
 
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
-        other.please_suppress_drawing_popup_popup = false;
+        other._please_suppress_drawing_popup_popup = false;
 
         if (other.stepping_one_frame_while_paused) {
             other.paused = false;

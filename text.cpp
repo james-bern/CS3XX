@@ -213,6 +213,7 @@ void easy_text_draw(EasyTextPen *pen, String string) {
     } else {
         pen->offset_Pixel.x = 0.0f;
         pen->offset_Pixel.y += travel.y;
+        if (pen->automatically_append_newline) pen->offset_Pixel.y += pen->font_height_Pixel;
     }
 }
 

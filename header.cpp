@@ -304,10 +304,10 @@ struct PopupState {
     uint num_cells;
 
     CellType _type_of_active_cell;
-    char *_active_popup_unique_ID__FORNOW_name0;
+    char *_FORNOW_active_popup_unique_ID__FORNOW_name0;
     bool _popup_actually_called_this_event; // FORNOW
 
-    bool FORNOW_info_mouse_is_hovering;
+    bool _FORNOW_info_mouse_is_hovering;
     uint info_hover_cell_index;
     uint info_hover_cell_cursor;
     uint info_active_cell_cursor;
@@ -386,7 +386,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     vec2 mouse_OpenGL;
     vec2 mouse_Pixel;
 
-    bool please_suppress_drawing_popup_popup;
+    bool _please_suppress_drawing_popup_popup;
     bool please_suppress_messagef;
 
     bool paused;
