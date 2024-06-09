@@ -27,7 +27,7 @@ void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
 
 void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
     for_(d, popup->num_cells) {
-        if (!popup->name[d]) continue;
+        if (!popup->name[d].data) continue;
         if (popup->cell_type[d] == CellType::Real32) {
             real *value_d_as_real_ptr = (real *)(popup->value[d]);
             *value_d_as_real_ptr = 0.0f;
@@ -51,10 +51,10 @@ void POPUP_SET_ACTIVE_CELL_INDEX(uint new_active_cell_index) {
 
 void popup_popup(
         bool zero_on_load_up,
-        CellType _cell_type0,                  char *_name0,        void *_value0,
-        CellType _cell_type1 = CellType::None, char *_name1 = NULL, void *_value1 = NULL,
-        CellType _cell_type2 = CellType::None, char *_name2 = NULL, void *_value2 = NULL,
-        CellType _cell_type3 = CellType::None, char *_name3 = NULL, void *_value3 = NULL
+        CellType _cell_type0,                  String _name0,      void *_value0,
+        CellType _cell_type1 = CellType::None, String _name1 = {}, void *_value1 = NULL,
+        CellType _cell_type2 = CellType::None, String _name2 = {}, void *_value2 = NULL,
+        CellType _cell_type3 = CellType::None, String _name3 = {}, void *_value3 = NULL
         ) {
 
     { // args info
@@ -73,7 +73,7 @@ void popup_popup(
 
         { // popup->num_cells
             popup->num_cells = 0;
-            for_(d, POPUP_MAX_NUM_CELLS) if (popup->name[d]) ++popup->num_cells;
+            for_(d, POPUP_MAX_NUM_CELLS) if (popup->name[d].data) ++popup->num_cells;
             ASSERT(popup->num_cells);
         }
     }
@@ -83,8 +83,8 @@ void popup_popup(
 
     // LOADING UP ///////////////////////////////////////////////////
 
-    if (popup->_active_popup_unique_ID__FORNOW_name0 != _name0) {
-        popup->_active_popup_unique_ID__FORNOW_name0 = _name0;
+    if (popup->_active_popup_unique_ID__FORNOW_name0 != _name0.data) {
+        popup->_active_popup_unique_ID__FORNOW_name0 = _name0.data;
         if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
         popup->active_cell_index = 0;
         POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
@@ -117,16 +117,16 @@ void popup_popup(
             {
                 // FORNOW gross;
                 if (d == popup->active_cell_index) {
-                    sprintf(buffer, "%s %s", popup->name[d], popup->active_cell_buffer.data);
+                    sprintf(buffer, "%s %s", popup->name[d].data, popup->active_cell_buffer.data);
                 } else {
                     if (popup->cell_type[d] == CellType::Real32) {
-                        sprintf(buffer,  "%s %g", popup->name[d], *((real *) popup->value[d]));
+                        sprintf(buffer,  "%s %g", popup->name[d].data, *((real *) popup->value[d]));
                     } else { ASSERT(popup->cell_type[d] == CellType::String); 
-                        sprintf(buffer,  "%s %s", popup->name[d], ((char *) popup->value[d]));
+                        sprintf(buffer,  "%s %s", popup->name[d].data, ((char *) popup->value[d]));
                     }
                 }
 
-                _strlen_name = strlen(popup->name[d]);
+                _strlen_name = popup->name[d].length;
                 _strlen_extra = 1;
                 strlen_other = _strlen_name + _strlen_extra;
                 strlen_cell = strlen(buffer) - strlen_other;
@@ -144,7 +144,7 @@ void popup_popup(
                 real x_selection_right;
                 {
                     static char tmp[4096]; // FORNOW
-                    strcpy(tmp, &buffer[strlen(popup->name[d]) + 1]); // + 1 for ' '
+                    strcpy(tmp, &buffer[_strlen_name + 1]); // + 1 for ' '
 
                     x_field_left = easy.origin_Pixel.x + (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ")) - 1.25f;
                     x_field_right = x_field_left + stb_easy_font_width(tmp);
@@ -222,7 +222,7 @@ void popup_popup(
                     eso_end();
                 }
 
-                if (popup->name[d]) {
+                {
                     if (popup->active_cell_index != d) {
                         // TODO: don't use gui_printf here
                         easy_text(&easy, buffer);

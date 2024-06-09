@@ -26,29 +26,29 @@ bool string_matches_suffix(String string, String suffix) {
     return (memcmp(&string.data[string.length - suffix.length], &suffix.data[suffix.length - suffix.length], suffix.length) == 0);
 }
 
-real strtof(String string) {
-    // FORNOW
+real strtof(String string) { // FORNOW
     static char cstring[4096];
     memset(cstring, 0, sizeof(cstring));
+    ASSERT(string.length < sizeof(cstring));
     memcpy(cstring, string.data, string.length);
     return strtof(cstring, NULL);
 }
 
-bool FILE_EXISTS(String filename) {
-    // cstring
+FILE *FILE_OPEN(String filename, char *code, bool skip_assert = false) { // FORNOW
     static char cstring[4096];
     memset(cstring, 0, sizeof(cstring));
+    ASSERT(filename.length < sizeof(cstring));
     memcpy(cstring, filename.data, filename.length);
-    return _FILE_EXISTS(cstring);
+    FILE *result = fopen(cstring, code);
+    if (!skip_assert) ASSERT(result);
+    return result;
 }
 
-FILE *FILE_OPEN(String filename, char *code) {
-    ASSERT(FILE_EXISTS(filename));
-
-    // FORNOW
-    static char FORNOW[4096];
-    memset(FORNOW, 0, sizeof(FORNOW));
-    memcpy(FORNOW, filename.data, filename.length);
-    return fopen(FORNOW, code);
+bool FILE_EXISTS(String filename) {
+    FILE *file = FILE_OPEN(filename, "r", true);
+    if (!file) {
+        return false;
+    }
+    fclose(file);
+    return true;
 }
-

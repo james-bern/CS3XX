@@ -299,12 +299,12 @@ struct PopupState {
     uint selection_cursor;
 
     CellType cell_type[POPUP_MAX_NUM_CELLS];
-    char *name[POPUP_MAX_NUM_CELLS];
+    String name[POPUP_MAX_NUM_CELLS];
     void *value[POPUP_MAX_NUM_CELLS];
     uint num_cells;
 
     CellType _type_of_active_cell;
-    void *_active_popup_unique_ID__FORNOW_name0;
+    char *_active_popup_unique_ID__FORNOW_name0;
     bool _popup_actually_called_this_event; // FORNOW
 
     bool FORNOW_info_mouse_is_hovering;

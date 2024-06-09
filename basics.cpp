@@ -176,12 +176,3 @@ bool MATCHES_SUFFIX(char *cstring, char *suffix) {
     return true;
 }
 
-// // file-handling
-bool _FILE_EXISTS(char *filename) {
-    FILE *file = (FILE *) fopen(filename, "r");
-    if (!file) {
-        return false;
-    }
-    fclose(file);
-    return true;
-}

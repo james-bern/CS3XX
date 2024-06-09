@@ -1488,7 +1488,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             if (state.enter_mode == EnterMode::Load) {
                 popup_popup(false,
-                        CellType::String, "load_filename", &popup->load_filename);
+                        CellType::String, STRING("load_filename"), &popup->load_filename);
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->load_filename)) {
                         if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
@@ -1516,7 +1516,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.enter_mode == EnterMode::Save) {
                 result.record_me = false;
                 popup_popup(false,
-                        CellType::String, "save_filename", &popup->save_filename);
+                        CellType::String, STRING("save_filename"), &popup->save_filename);
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->save_filename)) {
                         messagef(omax.pink, "(FORNOW) Save: overwriting \"%s\" without asking, popup->save_filename");
@@ -1534,8 +1534,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
-                        CellType::Real32, "extrude_add_out_length", &popup->extrude_add_out_length,
-                        CellType::Real32, "extrude_add_in_length",  &popup->extrude_add_in_length);
+                        CellType::Real32, STRING("extrude_add_out_length"), &popup->extrude_add_out_length,
+                        CellType::Real32, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "Drawing selection is empty.");
@@ -1554,8 +1554,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeCut) {
                 popup_popup(true,
-                        CellType::Real32, "extrude_cut_in_length", &popup->extrude_cut_in_length,
-                        CellType::Real32, "extrude_cut_out_length", &popup->extrude_cut_out_length);
+                        CellType::Real32, STRING("extrude_cut_in_length"), &popup->extrude_cut_in_length,
+                        CellType::Real32, STRING("extrude_cut_out_length"), &popup->extrude_cut_out_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "Drawing selection is empty.");
@@ -1575,7 +1575,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveAdd) {
-                popup_popup(true, CellType::Real32, "revolve_add_dummy", &popup->revolve_add_dummy);
+                popup_popup(true, CellType::Real32, STRING("revolve_add_dummy"), &popup->revolve_add_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "Drawing selection is empty.");
@@ -1587,7 +1587,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveCut) {
-                popup_popup(true, CellType::Real32, "revolve_cut_dummy", &popup->revolve_cut_dummy);
+                popup_popup(true, CellType::Real32, STRING("revolve_cut_dummy"), &popup->revolve_cut_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "Drawing selection is empty.");
@@ -1602,7 +1602,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
                 popup_popup(true,
-                        CellType::Real32, "feature_plane_nudge", &popup->feature_plane_nudge);
+                        CellType::Real32, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
                 if (gui_key_enter) {
                     result.record_me = true;
                     result.checkpoint_me = true;
@@ -1613,8 +1613,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.click_modifier == ClickModifier::XY) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
                 popup_popup(true,
-                        CellType::Real32, "x_coordinate", &popup->x_coordinate,
-                        CellType::Real32, "y_coordinate", &popup->y_coordinate);
+                        CellType::Real32, STRING("x_coordinate"), &popup->x_coordinate,
+                        CellType::Real32, STRING("y_coordinate"), &popup->y_coordinate);
                 if (gui_key_enter) {
                     // popup->_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                     state.click_modifier = ClickModifier::None;
@@ -1626,9 +1626,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_circle_radius = popup->circle_radius;
                     real prev_circle_circumference = popup->circle_circumference;
                     popup_popup(false,
-                            CellType::Real32, "circle_diameter", &popup->circle_diameter,
-                            CellType::Real32, "circle_radius", &popup->circle_radius,
-                            CellType::Real32, "circle_circumference", &popup->circle_circumference);
+                            CellType::Real32, STRING("circle_diameter"), &popup->circle_diameter,
+                            CellType::Real32, STRING("circle_radius"), &popup->circle_radius,
+                            CellType::Real32, STRING("circle_circumference"), &popup->circle_circumference);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
                     } else {
@@ -1651,10 +1651,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_line_run    = popup->line_run;
                     real prev_line_rise   = popup->line_rise;
                     popup_popup(true,
-                            CellType::Real32, "line_length", &popup->line_length,
-                            CellType::Real32, "line_angle",  &popup->line_angle,
-                            CellType::Real32, "line_run",    &popup->line_run,
-                            CellType::Real32, "line_rise",   &popup->line_rise
+                            CellType::Real32, STRING("line_length"), &popup->line_length,
+                            CellType::Real32, STRING("line_angle"),  &popup->line_angle,
+                            CellType::Real32, STRING("line_run"),    &popup->line_run,
+                            CellType::Real32, STRING("line_rise"),   &popup->line_rise
                             );
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
@@ -1671,8 +1671,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.click_mode == ClickMode::BoundingBox) {
                 if (two_click_command->awaiting_second_click) {
                     popup_popup(true,
-                            CellType::Real32, "box_width", &popup->box_width,
-                            CellType::Real32, "box_height", &popup->box_height);
+                            CellType::Real32, STRING("box_width"), &popup->box_width,
+                            CellType::Real32, STRING("box_height"), &popup->box_height);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
                     }
@@ -1685,10 +1685,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_move_run = popup->move_run;
                     real prev_move_rise = popup->move_rise;
                     popup_popup(true,
-                            CellType::Real32, "move_length", &popup->move_length,
-                            CellType::Real32, "move_angle", &popup->move_angle,
-                            CellType::Real32, "move_run", &popup->move_run,
-                            CellType::Real32, "move_rise", &popup->move_rise
+                            CellType::Real32, STRING("move_length"), &popup->move_length,
+                            CellType::Real32, STRING("move_angle"), &popup->move_angle,
+                            CellType::Real32, STRING("move_run"), &popup->move_run,
+                            CellType::Real32, STRING("move_rise"), &popup->move_rise
                             );
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
@@ -1704,7 +1704,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.click_mode == ClickMode::Fillet) {
                 popup_popup(false,
-                        CellType::Real32, "fillet_radius", &popup->fillet_radius);
+                        CellType::Real32, STRING("fillet_radius"), &popup->fillet_radius);
             }
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
