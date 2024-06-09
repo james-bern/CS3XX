@@ -2,20 +2,26 @@
 
 void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
     uint d = popup->active_cell_index;
-    memset(popup->active_cell_buffer, 0, POPUP_CELL_LENGTH);
     if (popup->cell_type[d] == CellType::Real32) {
-        sprintf(popup->active_cell_buffer, "%g", *((real *) popup->value[d]));
+        real *value_d_as_real_ptr = (real *)(popup->value[d]);
+        popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%g", *value_d_as_real_ptr);
     } else { ASSERT(popup->cell_type[d] == CellType::String);
-        strcpy(popup->active_cell_buffer, (char *) popup->value[d]);
+        String *value_d_as_String_ptr = (String *)(popup->value[d]);
+        memset(popup->active_cell_buffer.data, 0, POPUP_CELL_LENGTH); // NOTE: unnecessary (FORNOW: for ease of reading in debugger)
+        memcpy(popup->active_cell_buffer.data, value_d_as_String_ptr->data, value_d_as_String_ptr->length);
+        popup->active_cell_buffer.length = value_d_as_String_ptr->length;
     }
 };
 
 void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
     uint d = popup->active_cell_index;
     if (popup->cell_type[d] == CellType::Real32) {
-        *((real *) popup->value[d]) = strtof(popup->active_cell_buffer, NULL);
+        real *value_d_as_real_ptr = (real *)(popup->value[d]);
+        *value_d_as_real_ptr = strtof(popup->active_cell_buffer);
     } else { ASSERT(popup->cell_type[d] == CellType::String);
-        strcpy((char *) popup->value[d], popup->active_cell_buffer);
+        String *value_d_as_String_ptr = (String *)(popup->value[d]);
+        memcpy(value_d_as_String_ptr->data, popup->active_cell_buffer.data, popup->active_cell_buffer.length);
+        value_d_as_String_ptr->length = popup->active_cell_buffer.length;
     }
 };
 
@@ -23,9 +29,12 @@ void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
     for_(d, popup->num_cells) {
         if (!popup->name[d]) continue;
         if (popup->cell_type[d] == CellType::Real32) {
-            *((real *) popup->value[d]) = 0.0f;
+            real *value_d_as_real_ptr = (real *)(popup->value[d]);
+            *value_d_as_real_ptr = 0.0f;
         } else { ASSERT(popup->cell_type[d] == CellType::String);
-            memset(popup->value[d], 0, POPUP_CELL_LENGTH);
+            String *value_d_as_String_ptr = (String *)(popup->value[d]);
+            memset(value_d_as_String_ptr->data, 0, POPUP_CELL_LENGTH); // NOTE: unnecessary (FORNOW: for ease of reading in debugger)
+            value_d_as_String_ptr->length = 0;
         }
     }
 };
@@ -35,14 +44,14 @@ bool POPUP_SELECTION_NOT_ACTIVE() { return (popup->selection_cursor == popup->cu
 void POPUP_SET_ACTIVE_CELL_INDEX(uint new_active_cell_index) {
     popup->active_cell_index = new_active_cell_index;
     POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
-    popup->cursor = (uint) strlen(popup->active_cell_buffer);
+    popup->cursor = popup->active_cell_buffer.length;
     popup->selection_cursor = 0; // select whole cell
     popup->_type_of_active_cell = popup->cell_type[popup->active_cell_index];
 };
 
 void popup_popup(
         bool zero_on_load_up,
-        CellType _cell_type0,     char *_name0,        void *_value0,
+        CellType _cell_type0,                  char *_name0,        void *_value0,
         CellType _cell_type1 = CellType::None, char *_name1 = NULL, void *_value1 = NULL,
         CellType _cell_type2 = CellType::None, char *_name2 = NULL, void *_value2 = NULL,
         CellType _cell_type3 = CellType::None, char *_name3 = NULL, void *_value3 = NULL
@@ -79,7 +88,7 @@ void popup_popup(
         if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
         popup->active_cell_index = 0;
         POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
-        popup->cursor = strlen(popup->active_cell_buffer);
+        popup->cursor = popup->active_cell_buffer.length;
         popup->selection_cursor = 0;
         popup->_type_of_active_cell = popup->cell_type[popup->active_cell_index];
     }
@@ -108,7 +117,7 @@ void popup_popup(
             {
                 // FORNOW gross;
                 if (d == popup->active_cell_index) {
-                    sprintf(buffer, "%s %s", popup->name[d], popup->active_cell_buffer);
+                    sprintf(buffer, "%s %s", popup->name[d], popup->active_cell_buffer.data);
                 } else {
                     if (popup->cell_type[d] == CellType::Real32) {
                         sprintf(buffer,  "%s %g", popup->name[d], *((real *) popup->value[d]));
@@ -237,7 +246,7 @@ void popup_popup(
                                 real a = 0.5f + 0.5f * SIN(other.time_since_cursor_start * 7);
                                 real b = CLAMPED_LINEAR_REMAP(other.time_since_cursor_start, 0.0f, 1.0f, 1.0f, 0.0f);
                                 char tmp[4096]; // FORNOW
-                                strcpy(tmp, popup->active_cell_buffer);
+                                memcpy(tmp, popup->active_cell_buffer.data, popup->active_cell_buffer.length);
                                 tmp[popup->cursor] = '\0';
                                 x += (stb_easy_font_width(popup->name[d]) + stb_easy_font_width(" ") + stb_easy_font_width(tmp)); // (FORNOW 2 *)
                                 x -= 1.25f;

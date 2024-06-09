@@ -491,7 +491,7 @@ void conversation_draw() {
             }
         }
 
-        String string_click_mode = STRING_FROM_CSTRING_LITERAL(
+        String string_click_mode = STRING(
                 (state.click_mode == ClickMode::None)        ? ""         :
                 (state.click_mode == ClickMode::Axis)        ? "AXIS"     :
                 (state.click_mode == ClickMode::BoundingBox) ? "BOX"      :
@@ -508,7 +508,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::MirrorY)     ? "MIRROR Y" :
                 "???MODE???");
 
-        String string_click_modifier = STRING_FROM_CSTRING_LITERAL(
+        String string_click_modifier = STRING(
                 (state.click_modifier == ClickModifier::None)      ? ""          :
                 (state.click_modifier == ClickModifier::Center)    ? "CENTER"    :
                 (state.click_modifier == ClickModifier::Connected) ? "CONNECTED" :
@@ -525,7 +525,7 @@ void conversation_draw() {
     }
 
     if (other.show_help) {
-        messagef("TODO: update help popup");
+        messagef(omax.pink, "TODO: update help popup");
         other.show_help = false;
         #if 0
         { // overlay
@@ -556,100 +556,6 @@ void conversation_draw() {
         gui_printf("");
         gui_printf("you can drag and drop *.drawing and *.stl into Conversation");
         #endif
-    }
-}
-
-// messagef API ////////////////////////////////////////////////////////////////
-
-
-#define MESSAGE_MAX_LENGTH 256
-#define MESSAGE_MAX_NUM_MESSAGES 64
-#define MESSAGE_MAX_TIME 6.0f
-struct Message {
-    char data[MESSAGE_MAX_LENGTH];
-    uint length;
-
-    real time_remaining;
-    real y;
-    vec3 base_color;
-};
-Message conversation_messages[MESSAGE_MAX_NUM_MESSAGES];
-uint message_index;
-void messagef(vec3 color, char *format, ...) {
-    if (other.please_suppress_messagef) return;
-    va_list arg;
-    va_start(arg, format);
-    Message *message = &conversation_messages[message_index];
-    message->length = vsnprintf(message->data, MESSAGE_MAX_LENGTH, format, arg);
-    va_end(arg);
-
-    message->base_color = color;
-    message->time_remaining = MESSAGE_MAX_TIME;
-    message_index = (message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
-    message->y = 0.0f;
-
-    // printf("%s\n", message->buffer); // FORNOW print to terminal as well
-}
-void messagef(char *format, ...) {
-    static char string[4096];
-    va_list args;
-    va_start(args, format);
-    vsprintf(string, format, args);
-    messagef(omax.light_gray, "%s", string);
-    va_end(args);
-}
-
-real get_x_divider_Pixel();
-void conversation_message_buffer_update() {
-    for_(i, MESSAGE_MAX_NUM_MESSAGES) {
-        Message *message = &conversation_messages[i];
-        if (message->time_remaining > 0) {
-            message->time_remaining -= 0.0167f;;
-        } else {
-            message->time_remaining = 0.0f;
-        }
-    }
-}
-void conversation_message_buffer_draw() {
-    uint i_0 = (message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : message_index - 1;
-
-    uint num_drawn = 0;
-    auto draw_lambda = [&](uint message_index) {
-        Message *message = &conversation_messages[message_index];
-
-        real FADE_IN_TIME = 0.33f;
-        real FADE_OUT_TIME = 2.0f;
-
-        real alpha; { // ramp on ramp off
-            alpha = 0
-                + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_IN_TIME, 0.0f, 1.0f)
-                - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
-        }
-
-        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, omax.yellow, message->base_color);
-        color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
-
-        real x = get_x_divider_Pixel() + 12;
-        real y_target = ++num_drawn * 12.0f;
-        if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 12.0f);
-
-        JUICEIT_EASYTWEEN(&message->y, y_target);
-        if (message->time_remaining > 0) {
-            String string = { message->data, message->length };
-            text_draw(other.OpenGL_from_Pixel, string, V2(x, message->y), V4(color, alpha));
-        }
-    };
-
-    { // this is pretty gross
-        uint i = i_0;
-        while (true) {
-            draw_lambda(i);
-
-            if (i > 0) --i;
-            else if (i == 0) i = MESSAGE_MAX_NUM_MESSAGES - 1;
-
-            if (i == i_0) break;
-        }
     }
 }
 

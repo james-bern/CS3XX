@@ -177,7 +177,7 @@ bool MATCHES_SUFFIX(char *cstring, char *suffix) {
 }
 
 // // file-handling
-bool FILE_EXISTS(char *filename) {
+bool _FILE_EXISTS(char *filename) {
     FILE *file = (FILE *) fopen(filename, "r");
     if (!file) {
         return false;

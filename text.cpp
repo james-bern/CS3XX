@@ -140,12 +140,14 @@ static int stb_easy_font_height(String string) {
 template <uint D_position, uint D_color> vec2 text_draw(
         mat4 PV,
         String string,
-        Vector<D_position> _position_World,
+        Vector<D_position> position_World,
         Vector<D_color> color,
         real font_height_Pixel = 12.0f,
         vec2 nudge_Pixel = {},
         bool force_draw_on_top = true
         ) {
+    STATIC_ASSERT((D_position == 2) || (D_position == 3));
+    STATIC_ASSERT((D_color == 3) || (D_color == 4));
 
     vec2 *vertex_positions;
     uint num_vertices;
@@ -165,8 +167,11 @@ template <uint D_position, uint D_color> vec2 text_draw(
         }
     }
 
-    vec3 position_World = { _position_World.x, _position_World.y };
-    vec3 position_OpenGL = transformPoint(PV, position_World);
+    vec3 position_World3; {
+        position_World3.z = 0;
+        for_(d, D_position) position_World3[d] = position_World[d];
+    }
+    vec3 position_OpenGL = transformPoint(PV, position_World3);
 
     if (!IS_BETWEEN(position_OpenGL.z, -1.0f, 1.0f)) return {};
 
@@ -191,7 +196,9 @@ struct EasyTextState {
     bool automatically_append_newline;
     vec2 offset_Pixel;
 
-    vec2 get_position() { return this->origin_Pixel + this->offset_Pixel; }
+    vec2 get_position() {
+        return this->origin_Pixel + this->offset_Pixel;
+    }
 };
 
 #define EASY_TEXT_MAX_LENGTH 4096
@@ -215,4 +222,25 @@ void easy_text(EasyTextState *easy, const char *format, ...) {
         easy->offset_Pixel.x = 0;
         easy->offset_Pixel.y += text_box_size_Pixel.y;
     }
+}
+
+// FORNOW SHIM
+// FORNOW SHIM
+// FORNOW SHIM
+// FORNOW SHIM
+
+static int stb_easy_font_width(char *cstring) {
+    return stb_easy_font_width(_string_from_cstring(cstring));
+}
+
+template <uint D_position, uint D_color> vec2 text_draw(
+        mat4 PV,
+        char *cstring,
+        Vector<D_position> _position_World,
+        Vector<D_color> color,
+        real font_height_Pixel = 12.0f,
+        vec2 nudge_Pixel = {},
+        bool force_draw_on_top = true
+        ) {
+    return text_draw(PV, _string_from_cstring(cstring), _position_World, color, font_height_Pixel, nudge_Pixel, force_draw_on_top);
 }

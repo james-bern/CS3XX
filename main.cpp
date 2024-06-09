@@ -107,9 +107,9 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
     return result;
 }
 
-
+// FORNOW
 #include "draw.cpp"
-
+#include "message.cpp"
 #include "popup.cpp"
 
 //////////////////////////////////////////////////
@@ -196,7 +196,7 @@ bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
 //////////////////////////////////////////////////
 
 
-void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin = false) {
+void conversation_dxf_load(String filename, bool preserve_cameras_and_dxf_origin = false) {
     ASSERT(FILE_EXISTS(filename));
 
     list_free_AND_zero(&drawing->entities);
@@ -209,13 +209,13 @@ void conversation_dxf_load(char *filename, bool preserve_cameras_and_dxf_origin 
     }
 }
 
-void conversation_stl_load(char *filename) {
+void conversation_stl_load(String filename) {
     ASSERT(FILE_EXISTS(filename));
     // ?
     stl_load(filename, mesh);
 }
 
-void conversation_stl_save(char *filename) {
+void conversation_stl_save(String filename) {
     ASSERT(mesh_save_stl(mesh, filename));
 }
 
@@ -870,13 +870,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
             }
 
-            uint len = strlen(popup->active_cell_buffer);
             uint left_cursor = MIN(popup->cursor, popup->selection_cursor);
             uint right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
             if (_tab_hack_so_aliases_not_introduced_too_far_up) {
             } else if (control && (key == 'A')) {
-                popup->cursor = len;
+                popup->cursor = popup->active_cell_buffer.length;
                 popup->selection_cursor = 0;
             } else if (key == GLFW_KEY_LEFT) {
                 if (!shift && !control) {
@@ -897,25 +896,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (key == GLFW_KEY_RIGHT) {
                 if (!shift && !control) {
                     if (POPUP_SELECTION_NOT_ACTIVE()) {
-                        if (popup->cursor < len) ++popup->cursor;
+                        if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
                     } else {
                         popup->cursor = MAX(popup->cursor, popup->selection_cursor);
                     }
                     popup->selection_cursor = popup->cursor;
                 } else if (shift && !control) {
                     if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
-                    if (popup->cursor < len) ++popup->cursor;
+                    if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
                 } else if (control && !shift) {
-                    popup->selection_cursor = popup->cursor = len;
+                    popup->selection_cursor = popup->cursor = popup->active_cell_buffer.length;
                 } else { ASSERT(shift && control);
-                    popup->selection_cursor = len;
+                    popup->selection_cursor = popup->active_cell_buffer.length;
                 }
             } else if (key == GLFW_KEY_BACKSPACE) {
                 // * * * *|* * * * 
                 if (POPUP_SELECTION_NOT_ACTIVE()) {
                     if (popup->cursor > 0) {
-                        memmove(&popup->active_cell_buffer[popup->cursor - 1], &popup->active_cell_buffer[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
-                        popup->active_cell_buffer[POPUP_CELL_LENGTH - 1] = '\0';
+                        memmove(&popup->active_cell_buffer.data[popup->cursor - 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
+                        --popup->active_cell_buffer.length;
                         --popup->cursor;
                     }
                 } else {
@@ -926,8 +925,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // * * * * * * * * * * * * * * * *
                     // * * * * * * * * * * * * - - - -
                     //    L       R                   
-                    memmove(&popup->active_cell_buffer[left_cursor], &popup->active_cell_buffer[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    memset(&popup->active_cell_buffer[POPUP_CELL_LENGTH - (right_cursor - left_cursor)], 0, right_cursor - left_cursor);
+                    memmove(&popup->active_cell_buffer.data[left_cursor], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                    popup->active_cell_buffer.length -= (right_cursor - left_cursor);
                     popup->cursor = left_cursor;
                 }
                 popup->selection_cursor = popup->cursor;
@@ -946,14 +945,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
                 if (POPUP_SELECTION_NOT_ACTIVE()) {
                     if (popup->cursor < POPUP_CELL_LENGTH) {
-                        memmove(&popup->active_cell_buffer[popup->cursor + 1], &popup->active_cell_buffer[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
-                        popup->active_cell_buffer[popup->cursor++] = char_equivalent;
+                        memmove(&popup->active_cell_buffer.data[popup->cursor + 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
+                        popup->active_cell_buffer.data[popup->cursor] = char_equivalent;
+                        ++popup->cursor;
+                        ++popup->active_cell_buffer.length;
                     }
                 } else {
-                    memmove(&popup->active_cell_buffer[left_cursor + 1], &popup->active_cell_buffer[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    memset(&popup->active_cell_buffer[POPUP_CELL_LENGTH - (right_cursor - (left_cursor + 1))], 0, right_cursor - (left_cursor + 1));
+                    memmove(&popup->active_cell_buffer.data[left_cursor + 1], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                    popup->active_cell_buffer.length -= (right_cursor - left_cursor);
                     popup->cursor = left_cursor;
-                    popup->active_cell_buffer[popup->cursor++] = char_equivalent;
+                    popup->active_cell_buffer.data[popup->cursor] = char_equivalent;
+                    ++popup->cursor;
+                    ++popup->active_cell_buffer.length;
                 }
                 popup->selection_cursor = popup->cursor;
             }
@@ -1444,8 +1447,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else {
                     bool double_click = (POPUP_SELECTION_NOT_ACTIVE()) && (popup->cursor == mouse_event_popup->cursor);
                     if (double_click) {
-                        uint len = strlen(popup->active_cell_buffer); // FORNOW
-                        popup->cursor = len;
+                        popup->cursor = popup->active_cell_buffer.length;
                         popup->selection_cursor = 0;
                     } else { // move
                         popup->cursor = mouse_event_popup->cursor;
@@ -1486,10 +1488,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             if (state.enter_mode == EnterMode::Load) {
                 popup_popup(false,
-                        CellType::String, "load_filename", popup->load_filename);
+                        CellType::String, "load_filename", &popup->load_filename);
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->load_filename)) {
-                        if (MATCHES_SUFFIX(popup->load_filename, ".dxf")) {
+                        if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
                             result.record_me = true;
                             result.checkpoint_me = true;
                             result.snapshot_me = true;
@@ -1497,7 +1499,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
                             state.enter_mode = EnterMode::None;
                             messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename);
-                        } else if (MATCHES_SUFFIX(popup->load_filename, ".stl")) {
+                        } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
                             result.record_me = true;
                             result.checkpoint_me = true;
                             result.snapshot_me = true;
@@ -1514,17 +1516,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.enter_mode == EnterMode::Save) {
                 result.record_me = false;
                 popup_popup(false,
-                        CellType::String, "save_filename", popup->save_filename);
+                        CellType::String, "save_filename", &popup->save_filename);
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->save_filename)) {
                         messagef(omax.pink, "(FORNOW) Save: overwriting \"%s\" without asking, popup->save_filename");
                     }
 
-                    if (MATCHES_SUFFIX(popup->save_filename, ".stl")) {
+                    if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
                         conversation_stl_save(popup->save_filename);
                         state.enter_mode = EnterMode::None;
                         messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename);
-                    } else if (MATCHES_SUFFIX(popup->save_filename, ".dxf")) {
+                    } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
                         messagef(omax.pink, "TODO: SaveDXF");
                     } else {
                         messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename);
@@ -2257,7 +2259,7 @@ int main() {
                 }
             }
 
-            conversation_message_buffer_update();
+            _messages_update();
         } else {
             freshly_baked_event_process({});
         }
@@ -2265,7 +2267,7 @@ int main() {
         { // draw
             conversation_draw(); // FORNOW: moving this down here (be wary of frame imperfections)
             if (other.show_event_stack) history_debug_draw();
-            conversation_message_buffer_draw();
+            _messages_draw();
 
             if (other.paused) {
                 eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);

@@ -1,6 +1,6 @@
 Objects
 -------
-i have only two kinds of objects
+i have three kinds of objects
 
 - objects that behave like primitives (in my head, i imagine they *are* primitives)
   vec3 a = { 1.0f, 2.0f, 3.0f };
@@ -9,9 +9,15 @@ i have only two kinds of objects
 
 - objects that literally are plain old data structs
   (no constructors, no destructors, no operator overloading, no blah blah blah)
-  Mesh mesh = {}; // clears struct to zero
+  Mesh mesh = {}; // clears struct to default values*
   Camera camera_2D = make_Camera2D(...); // fills struct with something nice
 
+  *i almost always use 0 as my default values, with String buffer members being a big exception
+  struct Foo {
+      // String bar = { (char *) calloc(1, BAR_LENGTH) };
+      STRING_STRUCT_CALLOC(bar, BAR_LENGTH);
+  }
+  
 
 asserts, etc.
 -------------

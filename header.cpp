@@ -8,7 +8,6 @@
 ////////////////////////////////////////
 
 void messagef(vec3 color, char *format, ...);
-void messagef(char *format, ...);
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
 
 
@@ -293,11 +292,20 @@ struct TwoClickCommandState {
 
 
 struct PopupState {
-    char active_cell_buffer[POPUP_CELL_LENGTH];
+    STRING_STRUCT_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
     uint active_cell_index;
     uint cursor;
     uint selection_cursor;
+
+    CellType cell_type[POPUP_MAX_NUM_CELLS];
+    char *name[POPUP_MAX_NUM_CELLS];
+    void *value[POPUP_MAX_NUM_CELLS];
+    uint num_cells;
+
+    CellType _type_of_active_cell;
+    void *_active_popup_unique_ID__FORNOW_name0;
+    bool _popup_actually_called_this_event; // FORNOW
 
     bool FORNOW_info_mouse_is_hovering;
     uint info_hover_cell_index;
@@ -327,21 +335,8 @@ struct PopupState {
     real move_rise;
     real revolve_add_dummy;
     real revolve_cut_dummy;
-    char load_filename[POPUP_CELL_LENGTH];
-    char save_filename[POPUP_CELL_LENGTH];
-
-    // ???
-
-    CellType cell_type[POPUP_MAX_NUM_CELLS];
-    char *name[POPUP_MAX_NUM_CELLS];
-    void *value[POPUP_MAX_NUM_CELLS];
-    uint num_cells;
-
-    CellType _type_of_active_cell;
-    void *_active_popup_unique_ID__FORNOW_name0;
-    bool _popup_actually_called_this_event; // FORNOW
-
-
+    STRING_STRUCT_CALLOC(load_filename, POPUP_CELL_LENGTH);
+    STRING_STRUCT_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
@@ -549,7 +544,7 @@ void entity_get_middle(Entity *entity, real *middle_x, real *middle_y) {
 //     Entity *entities;
 // };
 
-void entities_load(char *filename, List<Entity> *entities) {
+void entities_load(String filename, List<Entity> *entities) {
     #if 0
     {
         FORNOW_UNUSED(filename);
@@ -571,7 +566,7 @@ void entities_load(char *filename, List<Entity> *entities) {
     #endif
     list_free_AND_zero(entities);
 
-    FILE *file = (FILE *) fopen(filename, "r");
+    FILE *file = (FILE *) FILE_OPEN(filename, "r");
     ASSERT(file);
 
     *entities = {}; {
@@ -1209,8 +1204,8 @@ void mesh_bounding_box_calculate(Mesh *mesh) {
     }
 }
 
-bool mesh_save_stl(Mesh *mesh, char *filename) {
-    FILE *file = fopen(filename, "wb");
+bool mesh_save_stl(Mesh *mesh, String filename) {
+    FILE *file = FILE_OPEN(filename, "wb");
     if (!file) {
         return false;
     }
@@ -1278,7 +1273,7 @@ void mesh_deep_copy(Mesh *dst, Mesh *src) {
     }
 }
 
-void stl_load(char *filename, Mesh *mesh) {
+void stl_load(String filename, Mesh *mesh) {
     // history_record_state(history, manifold_manifold, mesh); // FORNOW
 
     { // mesh
@@ -1292,7 +1287,7 @@ void stl_load(char *filename, Mesh *mesh) {
             #define STL_FILETYPE_ASCII   1
             #define STL_FILETYPE_BINARY  2
             uint filetype; {
-                FILE *file = (FILE *) fopen(filename, "r");
+                FILE *file = FILE_OPEN(filename, "r");
                 fgets(line_of_file, 80, file);
                 filetype = (MATCHES_PREFIX(line_of_file, "solid")) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
                 fclose(file);
@@ -1303,7 +1298,7 @@ void stl_load(char *filename, Mesh *mesh) {
                 real ascii_scan_p[3];
                 List<real> ascii_data = {};
 
-                FILE *file = (FILE *) fopen(filename, "r");
+                FILE *file = FILE_OPEN(filename, "r");
                 while (fgets(line_of_file, ARRAY_LENGTH(line_of_file), file)) {
                     if (MATCHES_PREFIX(line_of_file, "vertex")) {
                         sscanf(line_of_file, "%s %f %f %f", ascii_scan_dummy, &ascii_scan_p[0], &ascii_scan_p[1], &ascii_scan_p[2]);
@@ -1319,7 +1314,7 @@ void stl_load(char *filename, Mesh *mesh) {
             } else {
                 ASSERT(filetype == STL_FILETYPE_BINARY);
                 char *entire_file; {
-                    FILE *file = fopen(filename, "rb");
+                    FILE *file = FILE_OPEN(filename, "rb");
                     fseek(file, 0, SEEK_END);
                     long fsize = ftell(file);
                     fseek(file, 0, SEEK_SET);
