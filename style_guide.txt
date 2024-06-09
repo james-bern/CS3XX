@@ -31,4 +31,4 @@ asserts, etc.
 strings
 -------
 - prefer my String struct ({ char *data; uint length; }) over "C string" (null-terminated char *)
-- printf("hi!\n"), messagef("hello!"), etc. is oookay FORNOW
+- printf("hi!\n"), messagef("hello!"), etc. is okay tho (at least FORNOW)

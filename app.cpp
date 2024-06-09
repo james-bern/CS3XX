@@ -19,144 +19,6 @@ GLFWwindow *glfw_window;
 #define GL_REAL GL_FLOAT
 
 // constants
-// shaders
-struct {
-    char *_soup_vert = R""(
-        #version 330 core
-        layout (location = 0) in vec3 vertex;
-        layout (location = 1) in vec4 color;
-
-        out BLOCK {
-            vec4 color;
-        } vs_out;
-
-        uniform mat4 PVM;
-        uniform bool force_draw_on_top;
-        uniform bool has_vertex_colors;
-        uniform vec4 color_if_vertex_colors_is_NULL;
-
-        void main() {
-            gl_Position = PVM * vec4(vertex, 1);
-            vs_out.color = color_if_vertex_colors_is_NULL;
-
-            if (has_vertex_colors) {
-                vs_out.color = color;
-            }
-
-            if (force_draw_on_top) {
-                gl_Position.z = -.99 * gl_Position.w; // ?
-            }
-        }
-    )"";
-
-    char *_soup_geom_POINTS = R""(
-        #version 330 core
-        layout (points) in;
-        layout (triangle_strip, max_vertices = 4) out;
-        uniform float aspect;
-        uniform float primitive_radius_OpenGL;
-
-        in BLOCK {
-            vec4 color;
-        } gs_in[];
-
-        out GS_OUT {
-            vec4 color;
-            vec2 xy;
-        } gs_out;
-
-        vec4 _position;
-
-        void emit(float x, float y) {
-            gs_out.xy = vec2(x, y);
-            gl_Position = (_position + primitive_radius_OpenGL * vec4(x / aspect, y, 0, 0)) * gl_in[0].gl_Position.w;
-            gs_out.color = gs_in[0].color;                                     
-            EmitVertex();                                               
-        }
-
-        void main() {    
-            _position = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
-            emit(-1, -1);
-            emit(1, -1);
-            emit(-1, 1);
-            emit(1, 1);
-            EndPrimitive();
-        }  
-    )"";
-
-    char *_soup_frag_POINTS = R""(
-        #version 330 core
-
-        in GS_OUT {
-            vec4 color;
-            vec2 xy;
-        } fs_in;
-
-        out vec4 frag_color;
-
-        void main() {
-            frag_color = fs_in.color;
-            if (length(fs_in.xy) > 1) { discard; }
-        }
-    )"";
-
-    char *_soup_geom_LINES = R""(
-        #version 330 core
-        layout (lines) in;
-        layout (triangle_strip, max_vertices = 4) out;
-        uniform float aspect;
-        uniform float primitive_radius_OpenGL;
-
-        in BLOCK {
-            vec4 color;
-        } gs_in[];
-
-        out BLOCK {
-            vec4 color;
-        } gs_out;
-
-        void main() {    
-            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
-            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
-            vec4 color_s = gs_in[0].color;
-            vec4 color_t = gs_in[1].color;
-
-            vec4 perp = vec4(primitive_radius_OpenGL * vec2(1 / aspect, 1) * normalize(vec2(-1 / aspect, 1) * (t - s).yx), 0, 0);
-
-            gl_Position = (s - perp) * gl_in[0].gl_Position.w;
-            gs_out.color = color_s;
-            EmitVertex();
-
-            gl_Position = (t - perp) * gl_in[1].gl_Position.w;
-            gs_out.color = color_t;
-            EmitVertex();
-
-            gl_Position = (s + perp) * gl_in[0].gl_Position.w;
-            gs_out.color = color_s;
-            EmitVertex();
-
-            gl_Position = (t + perp) * gl_in[1].gl_Position.w;
-            gs_out.color = color_t;
-            EmitVertex();
-
-            EndPrimitive();
-        }  
-    )"";
-
-    char *_soup_frag = R""(
-        #version 330 core
-
-        in BLOCK {
-            vec4 color;
-        } fs_in;
-
-        out vec4 frag_color;
-
-        void main() {
-            frag_color = fs_in.color;
-        }
-    )"";
-} app_shaders;
 
 struct COW0_PersistsAcrossApps_NeverAutomaticallyClearedToZero__ManageItYourself {
     real *_eso_vertex_positions;
@@ -529,10 +391,6 @@ mat4 camera_get_V(Camera *camera) {
 
 mat4 camera_get_PV(Camera *camera) { return camera_get_P(camera) * camera_get_V(camera); }
 
-////////////////////////////////////////////////////////////////////////////////
-// #include "input_and_callback.cpp"////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // #include "shader.cpp"////////////////////////////////////////////////////////
@@ -725,6 +583,144 @@ void shader_draw(Shader *shader, int num_triangles, uint3 *triangle_indices) {
 ////////////////////////////////////////////////////////////////////////////////
 // #include "soup.cpp"//////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
+
+struct {
+    char *_soup_vert = R""(
+        #version 330 core
+        layout (location = 0) in vec3 vertex;
+        layout (location = 1) in vec4 color;
+
+        out BLOCK {
+            vec4 color;
+        } vs_out;
+
+        uniform mat4 PVM;
+        uniform bool force_draw_on_top;
+        uniform bool has_vertex_colors;
+        uniform vec4 color_if_vertex_colors_is_NULL;
+
+        void main() {
+            gl_Position = PVM * vec4(vertex, 1);
+            vs_out.color = color_if_vertex_colors_is_NULL;
+
+            if (has_vertex_colors) {
+                vs_out.color = color;
+            }
+
+            if (force_draw_on_top) {
+                gl_Position.z = -.99 * gl_Position.w; // ?
+            }
+        }
+    )"";
+
+    char *_soup_geom_POINTS = R""(
+        #version 330 core
+        layout (points) in;
+        layout (triangle_strip, max_vertices = 4) out;
+        uniform float aspect;
+        uniform float primitive_radius_OpenGL;
+
+        in BLOCK {
+            vec4 color;
+        } gs_in[];
+
+        out GS_OUT {
+            vec4 color;
+            vec2 xy;
+        } gs_out;
+
+        vec4 _position;
+
+        void emit(float x, float y) {
+            gs_out.xy = vec2(x, y);
+            gl_Position = (_position + primitive_radius_OpenGL * vec4(x / aspect, y, 0, 0)) * gl_in[0].gl_Position.w;
+            gs_out.color = gs_in[0].color;                                     
+            EmitVertex();                                               
+        }
+
+        void main() {    
+            _position = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+            emit(-1, -1);
+            emit(1, -1);
+            emit(-1, 1);
+            emit(1, 1);
+            EndPrimitive();
+        }  
+    )"";
+
+    char *_soup_frag_POINTS = R""(
+        #version 330 core
+
+        in GS_OUT {
+            vec4 color;
+            vec2 xy;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        void main() {
+            frag_color = fs_in.color;
+            if (length(fs_in.xy) > 1) { discard; }
+        }
+    )"";
+
+    char *_soup_geom_LINES = R""(
+        #version 330 core
+        layout (lines) in;
+        layout (triangle_strip, max_vertices = 4) out;
+        uniform float aspect;
+        uniform float primitive_radius_OpenGL;
+
+        in BLOCK {
+            vec4 color;
+        } gs_in[];
+
+        out BLOCK {
+            vec4 color;
+        } gs_out;
+
+        void main() {    
+            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
+            vec4 color_s = gs_in[0].color;
+            vec4 color_t = gs_in[1].color;
+
+            vec4 perp = vec4(primitive_radius_OpenGL * vec2(1 / aspect, 1) * normalize(vec2(-1 / aspect, 1) * (t - s).yx), 0, 0);
+
+            gl_Position = (s - perp) * gl_in[0].gl_Position.w;
+            gs_out.color = color_s;
+            EmitVertex();
+
+            gl_Position = (t - perp) * gl_in[1].gl_Position.w;
+            gs_out.color = color_t;
+            EmitVertex();
+
+            gl_Position = (s + perp) * gl_in[0].gl_Position.w;
+            gs_out.color = color_s;
+            EmitVertex();
+
+            gl_Position = (t + perp) * gl_in[1].gl_Position.w;
+            gs_out.color = color_t;
+            EmitVertex();
+
+            EndPrimitive();
+        }  
+    )"";
+
+    char *_soup_frag = R""(
+        #version 330 core
+
+        in BLOCK {
+            vec4 color;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        void main() {
+            frag_color = fs_in.color;
+        }
+    )"";
+} app_shaders;
 
 #define SOUP_POINTS         GL_POINTS
 #define SOUP_LINES          GL_LINES
