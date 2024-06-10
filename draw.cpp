@@ -483,13 +483,24 @@ void conversation_draw() {
     }
 
 
-    { // cursor decorations
+    { // cursor
+
+        if (0) { // cursor
+            eso_begin(other.OpenGL_from_Pixel, SOUP_TRIANGLES);
+            eso_color(omax.white);
+            eso_vertex(other.mouse_Pixel);
+            eso_vertex(other.mouse_Pixel + V2(12.0f, 10.0f));
+            eso_vertex(other.mouse_Pixel + V2(6.0f, 16.0f));
+            eso_end();
+        }
+
         vec3 color; {
             color = omax.white;
             if ((state.click_mode == ClickMode::Color) && (state.click_modifier != ClickModifier::Selected)) {
                 color = get_color(state.click_color_code);
             }
         }
+        real alpha = ((other.hot_pane == Pane::Drawing) && (other.mouse_left_drag_pane == Pane::None)) ? 1.0f : 0.5f;
 
         String string_click_mode = STRING(
                 (state.click_mode == ClickMode::None)        ? ""         :
@@ -520,8 +531,9 @@ void conversation_draw() {
                 (state.click_modifier == ClickModifier::XY)        ? "XY"        :
                 "???MODIFIER???");
 
-        text_draw(other.OpenGL_from_Pixel, string_click_mode,     other.mouse_Pixel + V2(12, 14), color);
-        text_draw(other.OpenGL_from_Pixel, string_click_modifier, other.mouse_Pixel + V2(12, 24), color);
+        EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - alpha };
+        easy_text_draw(&pen, string_click_mode);
+        easy_text_draw(&pen, string_click_modifier);
     }
 
     if (other.show_help) {
@@ -530,5 +542,30 @@ void conversation_draw() {
             other.show_help = false;
         }
     }
+
+    void history_debug_draw(); // forward declaration
+
+    void _messages_draw(); // forward declaration
+    _messages_draw();
+
+    if (other.show_event_stack) history_debug_draw();
+
+    if (other.paused) { // pause 
+        real x = 12.0f;
+        real y = window_get_height_Pixel() - 12.0f;
+        real w = 6.0f;
+        real h = -2.5f * w;
+        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS, 0.0f, true);
+        eso_color(omax.green);
+        for_(d, 2) {
+            real o = d * (1.7f * w);
+            eso_vertex(x     + o, y    );
+            eso_vertex(x     + o, y + h);
+            eso_vertex(x + w + o, y + h);
+            eso_vertex(x + w + o, y    );
+        }
+        eso_end();
+    }
+
 }
 

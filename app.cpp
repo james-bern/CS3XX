@@ -132,6 +132,8 @@ vec2 window_get_size_Pixel() {
     real height = real(_height) / COW0._window_macbook_retina_fixer__VERY_MYSTERIOUS;
     return { width, height };
 }
+real window_get_width_Pixel() { return window_get_size_Pixel().x; }
+real window_get_height_Pixel() { return window_get_size_Pixel().y; }
 
 real window_get_aspect() {
     vec2 size = window_get_size_Pixel();
@@ -218,7 +220,7 @@ mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_OpenGL = {}, real
     //  [z'] = [  0   0  a  b] [z] = [  az + b] ~> [      -a - b/z]
     //  [ 1] = [  0   0 -1  0] [1] = [      -z] ~> [             1]
 
-    real angle_y = angle_of_view / 2;
+    real angle_y = 0.5f * angle_of_view;
     real Q_y = 1 / TAN(angle_y);
     real Q_x = Q_y / aspect;
 

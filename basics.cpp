@@ -1,3 +1,7 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <cmath>
+#include <cstdio>
+
 // // types
 // basic types
 typedef uint32_t uint;

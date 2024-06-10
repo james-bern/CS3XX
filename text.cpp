@@ -197,6 +197,7 @@ struct EasyTextPen {
     real font_height_Pixel;
     vec3 color;
     bool automatically_append_newline;
+    real one_minus_alpha;
     vec2 offset_Pixel;
 
     vec2 get_position_Pixel() {
@@ -207,7 +208,7 @@ struct EasyTextPen {
 };
 
 void easy_text_draw(EasyTextPen *pen, String string) {
-    vec2 travel = text_draw(window_get_OpenGL_from_Pixel(), string, pen->get_position_Pixel(), pen->color, pen->font_height_Pixel);
+    vec2 travel = text_draw(window_get_OpenGL_from_Pixel(), string, pen->get_position_Pixel(), V4(pen->color, 1.0f - pen->one_minus_alpha), pen->font_height_Pixel);
 
     if (IS_ZERO(travel.y) && (!pen->automatically_append_newline)) {
         pen->offset_Pixel.x += travel.x;

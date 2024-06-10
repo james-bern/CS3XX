@@ -1,3 +1,5 @@
+StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event); // forward declaration
+
 #ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 //
 void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(Event standard_event) { _standard_event_process_NOTE_RECURSIVE(standard_event); }
@@ -167,10 +169,10 @@ void history_printf_script() {
 
 void history_debug_draw() {
     { // FORNOW
-        eso_begin(M4_Identity(), SOUP_QUADS);
-        eso_color(omax.black, 0.4f);
-        BoundingBox<2> bbox = { -1.0f, -1.0f, other.x_divider_OpenGL, 1.0f };
-        eso_bbox_SOUP_QUADS(bbox);
+        eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
+        eso_color(omax.black, 0.7f);
+        BoundingBox<2> bbox_OpenGL = { -1.0f, -1.0f, 1.0f, 1.0f };
+        eso_bbox_SOUP_QUADS(bbox_OpenGL);
         eso_end();
     }
     EasyTextPen pen;
@@ -212,7 +214,7 @@ void history_debug_draw() {
         easy_text_drawf(&pen, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
     };
 
-    pen = { V2(144.0f, 12.0f), 12.0f, omax.white, true };
+    pen = { V2(12.0f, 12.0f), 12.0f, omax.white, true };
 
     { // recorded_user_events
         if (history.recorded_user_events._redo_stack.length) {
@@ -250,7 +252,7 @@ void history_debug_draw() {
         }
     }
 
-    pen.origin_Pixel.x += 144;
+    pen.origin_Pixel.x += get_x_divider_Pixel() + 12.0f;
     pen.offset_Pixel = {};
 
     { // snapshotted_world_states

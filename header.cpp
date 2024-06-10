@@ -1,70 +1,4 @@
-// TODO: make Mesh vec3's and ivec3's
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
-
-// TODO: void eso_bbox__SOUP_QUADS(bbox2 bbox)
-
-////////////////////////////////////////
-// FORNOW: forward declarations ////////
-////////////////////////////////////////
-
-void messagef(vec3 color, char *format, ...);
-template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
-
-
-////////////////////////////////////////
-// Config-Tweaks ///////////////////////
-////////////////////////////////////////
-
-real Z_FIGHT_EPS = 0.05f;
-real TOLERANCE_DEFAULT = 5e-4f;
-uint NUM_SEGMENTS_PER_CIRCLE = 64;
-real GRID_SIDE_LENGTH = 256.0f;
-real GRID_SPACING = 10.0f;
-real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(45.0f);
-
-////////////////////////////////////////
-// colors //////////////////////////////
-////////////////////////////////////////
-
-#define RGB256(r, g, b) { (r) / 255.0f, (g) / 255.0f, (b) / 255.0f }
-
-struct {
-    vec3 yellow = { 1.0f, 1.0f, 0.0f };
-    vec3 cyan = { 0.0f, 1.0f, 1.0f };
-} basic;
-
-struct {
-    vec3 red = RGB256(255, 0, 0);
-    vec3 yellow = RGB256(255, 255, 0);
-    vec3 orange = RGB256(204, 136, 1);
-    vec3 green = RGB256(83, 255,  85);
-    vec3 cyan = RGB256(0, 255, 255);
-    vec3 blue = RGB256(0, 85, 255);
-    vec3 purple = RGB256(170, 1, 255);
-    vec3 magenta = RGB256(255, 0, 255);
-    vec3 pink = RGB256(238, 0, 119);
-    vec3 black = RGB256(0, 0, 0);
-    vec3 dark_gray = RGB256(136, 136, 136);
-    vec3 light_gray = RGB256(205, 205, 205);
-    vec3 white = RGB256(255, 255, 255);
-} omax;
-
-vec3 omax_pallete[] = {
-    omax.green,
-    omax.red,
-    omax.pink,
-    omax.magenta,
-    omax.purple,
-    omax.blue,
-    omax.dark_gray,
-    omax.light_gray,
-    omax.cyan,
-    omax.orange,
-};
-
-////////////////////////////////////////
-// enums ///////////////////////////////
-////////////////////////////////////////
 
 enum class EnterMode {
     None,
@@ -166,8 +100,6 @@ enum class ColorCode {
 
 /////////////////
 
-#define POPUP_CELL_LENGTH 256
-#define POPUP_MAX_NUM_CELLS 4
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -209,7 +141,6 @@ struct Mesh {
     bbox3 bbox;
 };
 
-// TODO: struct out RawEvent into RawMouseEvent and RawKeyEvent
 struct RawKeyEvent {
     uint key;
     bool control;
@@ -290,7 +221,8 @@ struct TwoClickCommandState {
     vec2 first_click;
 };
 
-
+#define POPUP_MAX_NUM_CELLS 4
+#define POPUP_CELL_LENGTH 256
 struct PopupState {
     _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
@@ -400,6 +332,72 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     PreviewState preview;
 };
 
+struct StandardEventProcessResult {
+    bool record_me;
+    bool checkpoint_me;
+    bool snapshot_me;
+};
+
+////////////////////////////////////////
+// colors //////////////////////////////
+////////////////////////////////////////
+
+vec3 RGB256(real r, real g, real b) {
+    return V3(r, g, b) / 255.0f;
+}
+
+struct {
+    vec3 yellow = { 1.0f, 1.0f, 0.0f };
+    vec3 cyan = { 0.0f, 1.0f, 1.0f };
+} basic;
+
+struct {
+    vec3 red = RGB256(255, 0, 0);
+    vec3 yellow = RGB256(255, 255, 0);
+    vec3 orange = RGB256(204, 136, 1);
+    vec3 green = RGB256(83, 255,  85);
+    vec3 cyan = RGB256(0, 255, 255);
+    vec3 blue = RGB256(0, 85, 255);
+    vec3 purple = RGB256(170, 1, 255);
+    vec3 magenta = RGB256(255, 0, 255);
+    vec3 pink = RGB256(238, 0, 119);
+    vec3 black = RGB256(0, 0, 0);
+    vec3 dark_gray = RGB256(136, 136, 136);
+    vec3 light_gray = RGB256(205, 205, 205);
+    vec3 white = RGB256(255, 255, 255);
+} omax;
+
+vec3 omax_pallete[] = {
+    omax.green,
+    omax.red,
+    omax.pink,
+    omax.magenta,
+    omax.purple,
+    omax.blue,
+    omax.dark_gray,
+    omax.light_gray,
+    omax.cyan,
+    omax.orange,
+};
+
+////////////////////////////////////////
+// Forward-Declarations ////////////////
+////////////////////////////////////////
+
+void messagef(vec3 color, char *format, ...);
+template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
+
+////////////////////////////////////////
+// Config-Tweaks ///////////////////////
+////////////////////////////////////////
+
+real Z_FIGHT_EPS = 0.05f;
+real TOLERANCE_DEFAULT = 5e-4f;
+uint NUM_SEGMENTS_PER_CIRCLE = 64;
+real GRID_SIDE_LENGTH = 256.0f;
+real GRID_SPACING = 10.0f;
+real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(45.0f);
+
 ////////////////////////////////////////
 // Cow Additions ///////////////////////
 ////////////////////////////////////////
@@ -442,9 +440,6 @@ void camera2D_zoom_to_bbox(Camera *camera_drawing, bbox2 bbox) {
 ////////////////////////////////////////
 // List<Entity> /////////////////////////////////
 ////////////////////////////////////////
-
-
-
 
 void get_point_on_circle_NOTE_pass_angle_in_radians(real *x, real *y, real center_x, real center_y, real radius, real angle_in_radians) {
     *x = center_x + radius * COS(angle_in_radians);
@@ -1484,7 +1479,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (enter_mode == EnterMode::ExtrudeCut) {
-                do_once { messagef(omax.pink, "(FORNOW) ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
+                do_once { messagef(omax.pink, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
             }
