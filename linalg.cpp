@@ -2,7 +2,7 @@
 // vectors and matrices ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-template <uint D> union Vector {
+tuD union Vector {
     real data[D];
     real &operator [](uint index) { return data[index]; }
 };
@@ -35,7 +35,7 @@ template <> union Vector<4> {
 };
 
 
-template <uint D> union Matrix {
+tuD union Matrix {
     real data[D * D];
     real &operator ()(uint row, uint col) {
         ASSERT(row < D);
@@ -51,7 +51,7 @@ template <uint D> union Matrix {
 
 
 
-template <uint D> union SnailTupleOfUnsignedInts {
+tuD union SnailTupleOfUnsignedInts {
     uint data[D];
     uint &operator [](uint index) { return data[index]; }
 };
@@ -243,7 +243,7 @@ tuDm &operator /= (matD &M, real scalar) {
 
 // important vector functions //////////////////////////////////////////////////
 
-template <uint D> real dot(vecD A, vecD B) {
+tuD real dot(vecD A, vecD B) {
     real result = 0.0f;
     for_(i, D) {
         result += A.data[i] * B.data[i];
@@ -267,13 +267,13 @@ vec3 cross(vec3 A, vec3 B) {
     return { A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x };
 }
 
-template <uint D> real squaredNorm(vecD A) {
+tuD real squaredNorm(vecD A) {
     return dot(A, A);
 }
-template <uint D> real norm(vecD A) {
+tuD real norm(vecD A) {
     return sqrt(squaredNorm(A));
 }
-template <uint D> real sum(vecD A) {
+tuD real sum(vecD A) {
     real result = 0.0;
     for_(i, D) result += A[i];
     return result;
@@ -283,10 +283,16 @@ tuDv normalized(vecD A) {
     // ASSERT(fabs(norm_v) > 1e-7);
     return (1 / norm_A) * A;
 }
+tuD real squaredDistance(vecD A, vecD B) {
+    return squaredNorm(A - B);
+}
+tuD real distance(vecD A, vecD B) {
+    return norm(A - B);
+}
 
 // ALIASES
-// template <uint D> real length(vecD v) { return norm(v); }
-// template <uint D> real squared_length(vecD v) { return squaredNorm(v); }
+// tuD real length(vecD v) { return norm(v); }
+// tuD real squared_length(vecD v) { return squaredNorm(v); }
 
 // important matrix functions //////////////////////////////////////////////////
 
@@ -518,7 +524,7 @@ tuDm firstDerivativeofUnitVector(vecD v) {
 #define firstDerivativeOfNorm normalized
 #define secondDerivativeOfNorm firstDerivativeofUnitVector
 
-template <uint D> real squaredNorm(matD M) {
+tuD real squaredNorm(matD M) {
     real result = 0;
     for(uint i = 0; i < D * D; ++i) {
         result += M.data[i] * M.data[i];
@@ -528,13 +534,13 @@ template <uint D> real squaredNorm(matD M) {
 
 // misc functions //////////////////////////////////////////////////////////////
 
-template <uint D> real minComponent(vecD A) {
+tuD real minComponent(vecD A) {
     real result = HUGE_VAL;
     for(uint i = 0; i < D; ++i) result = MIN(result, A.data[i]);
     return result;
 }
 
-template <uint D> real maxComponent(vecD A) {
+tuD real maxComponent(vecD A) {
     real result = -HUGE_VAL;
     for(uint i = 0; i < D; ++i) result = MAX(result, A.data[i]);
     return result;
@@ -591,7 +597,7 @@ tuDv magClamped(vecD a, real col) {
 
 // utility /////////////////////////////////////////////////////////////////////
 
-template <uint D> void pprint(vecD A) {
+tuD void pprint(vecD A) {
     printf("V%d(", D);
     for_(i, D) {
         printf("%lf", A[i]);
@@ -599,7 +605,7 @@ template <uint D> void pprint(vecD A) {
     }
     printf(")\n");
 }
-template <uint D> void pprint(matD M) {
+tuD void pprint(matD M) {
     for_(row, D) {
         printf("| ");
         for_(col, D) {

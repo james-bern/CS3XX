@@ -450,7 +450,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             // fornow window wonky case
             if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes scand qc
                 result.record_me = false;
-                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
+                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     uint hot_entity_index = dxf_find_closest_entity_result.index;
                     if (state.click_modifier != ClickModifier::Connected) {
@@ -470,7 +470,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         auto make_key = [&](real x, real y) -> vec2 {
                             return { scalar_bucket(x), scalar_bucket(y) };
-
                         };
 
                         auto nudge_key = [&](vec2 key, int dx, int dy) -> vec2 {
@@ -490,8 +489,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         Map<vec2, GridCell> grid; { // TODO: build grid
                             grid = {};
 
-                            auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](real x, real y, uint entity_index, bool end_NOT_start) {
-                                vec2 key = make_key(x, y);
+                            auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](vec2 p, uint entity_index, bool end_NOT_start) {
+                                vec2 key = make_key(p.x, p.y);
                                 GridCell *cell = _map_get_pointer(&grid, key);
                                 if (cell == NULL) {
                                     map_put(&grid, key, {});
@@ -511,10 +510,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             for_(entity_index, drawing->entities.length) {
                                 Entity *entity = &drawing->entities.array[entity_index];
 
-                                real start_x, start_y, end_x, end_y;
-                                entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(start_x, start_y, entity_index, false);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(end_x, end_y, entity_index, true);
+                                vec2 start;
+                                vec2 end;
+                                entity_get_start_and_end_points(entity, &start, &end);
+                                push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
+                                push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
                             }
                         }
 
@@ -531,15 +531,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 end_NOT_start = point->end_NOT_start;
                                 if (other_endpoint) end_NOT_start = !end_NOT_start;
                             }
-                            real x, y; {
+                            vec2 p; {
                                 Entity *entity = &drawing->entities.array[point->entity_index];
                                 if (end_NOT_start) {
-                                    entity_get_end_point(entity, &x, &y);
+                                    p = entity_get_end_point(entity);
                                 } else {
-                                    entity_get_start_point(entity, &x, &y);
+                                    p = entity_get_start_point(entity);
                                 }
                             }
-                            return make_key(x, y);
+                            return make_key(p.x, p.y);
                         };
 
                         auto get_any_point_not_part_of_an_marked_entity = [&](vec2 key) -> GridPointSlot * {
@@ -564,13 +564,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         for_(pass, 2) {
 
                             vec2 seed; {
-                                real x, y;
+                                vec2 p;
                                 if (pass == 0) {
-                                    entity_get_start_point(&drawing->entities.array[hot_entity_index], &x, &y);
+                                    p = entity_get_start_point(&drawing->entities.array[hot_entity_index]);
                                 } else {
-                                    entity_get_end_point(&drawing->entities.array[hot_entity_index], &x, &y);
+                                    p = entity_get_end_point(&drawing->entities.array[hot_entity_index]);
                                 }
-                                seed = make_key(x, y);
+                                seed = make_key(p.x, p.y);
                             }
 
                             GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
@@ -649,8 +649,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_modifier = ClickModifier::None;
-                            DXFFindClosestEntityResult result_i = dxf_find_closest_entity(&drawing->entities, first_click->x, first_click->y);
-                            DXFFindClosestEntityResult result_j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
+                            DXFFindClosestEntityResult result_i = dxf_find_closest_entity(&drawing->entities, *first_click);
+                            DXFFindClosestEntityResult result_j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
                             if ((result_i.success) && (result_j.success) && (result_i.index != result_j.index)) {
                                 uint i = result_i.index;
                                 uint j = result_j.index;
@@ -659,8 +659,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 Entity *E_j = &drawing->entities.array[j];
                                 if ((E_i->type == EntityType::Line) && (E_j->type == EntityType::Line)) {
                                     vec2 a, b, c, d;
-                                    entity_get_start_and_end_points(E_i, &a.x, &a.y, &b.x, &b.y);
-                                    entity_get_start_and_end_points(E_j, &c.x, &c.y, &d.x, &d.y);
+                                    entity_get_start_and_end_points(E_i, &a, &b);
+                                    entity_get_start_and_end_points(E_j, &c, &d);
 
                                     LineLineIntersectionResult _p = burkardt_line_line_intersection(a, b, c, d);
                                     if (_p.is_valid) {

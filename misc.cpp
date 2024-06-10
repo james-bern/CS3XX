@@ -46,7 +46,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         continue;
                     } else { ASSERT(entity->type == EntityType::Arc);
                         ArcEntity *arc_entity = &entity->arc_entity;
-                        real squared_distance = squared_distance_point_dxf_arc(before.x, before.y, arc_entity);
+                        real squared_distance = squared_distance_point_dxf_arc(before, arc_entity);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
                             result = arc_entity->center;
@@ -56,23 +56,22 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             } else if (state.click_modifier == ClickModifier::Middle) {
                 real min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
-                    real squared_distance = squared_distance_point_entity(before.x, before.y, entity);
+                    real squared_distance = squared_distance_point_entity(before, entity);
                     if (squared_distance < min_squared_distance) {
                         min_squared_distance = squared_distance;
-                        entity_get_middle(entity, &result.x, &result.y);
+                        result = entity_get_middle(entity);
                     }
                 }
             } else if (state.click_modifier == ClickModifier::End) {
                 real min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
-                    real x[2], y[2];
-                    entity_get_start_and_end_points(entity, &x[0], &y[0], &x[1], &y[1]);
+                    vec2 p[2];
+                    entity_get_start_and_end_points(entity, &p[0], &p[1]);
                     for_(d, 2) {
-                        real squared_distance = squared_distance_point_point(before.x, before.y, x[d], y[d]);
+                        real squared_distance = squaredDistance(before, p[d]);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
-                            result.x = x[d];
-                            result.y = y[d];
+                            result = p[d];
                         }
                     }
                 }

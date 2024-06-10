@@ -235,32 +235,33 @@ void conversation_draw() {
                 } eso_end();
             }
             { // entities
+                bool moving_selected_entities = ((state.click_mode == ClickMode::Move) && (two_click_command->awaiting_second_click));
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
+                    if (moving_selected_entities && entity->is_selected) continue;
                     ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
-                    real dx = 0.0f;
-                    real dy = 0.0f;
-                    if ((state.click_mode == ClickMode::Move) && (two_click_command->awaiting_second_click)) {
-                        if (entity->is_selected) {
-                            dx = preview_mouse.x - first_click->x;
-                            dy = preview_mouse.y - first_click->y;
-                            color_code = ColorCode::WaterOnly;
-                        }
-                    }
                     eso_color(get_color(color_code));
-                    eso_entity__SOUP_LINES(entity, dx, dy);
+                    eso_entity__SOUP_LINES(entity);
                 }
                 eso_end();
+                if (moving_selected_entities) {
+                    eso_begin(PV_2D * M4_Translation(preview_mouse - *first_click), SOUP_LINES);
+                    eso_color(get_color(ColorCode::WaterOnly));
+                    _for_each_selected_entity_ {
+                        eso_entity__SOUP_LINES(entity);
+                    }
+                    eso_end();
+                }
             }
             { // dots
                 if (other.show_details) {
                     eso_begin(camera_get_PV(&other.camera_drawing), SOUP_POINTS, 4.0f);
                     eso_color(omax.white);
                     _for_each_entity_ {
-                        real start_x, start_y, end_x, end_y;
-                        entity_get_start_and_end_points(entity, &start_x, &start_y, &end_x, &end_y);
-                        eso_vertex(start_x, start_y);
-                        eso_vertex(end_x, end_y);
+                        vec2 start, end;
+                        entity_get_start_and_end_points(entity, &start, &end);
+                        eso_vertex(start);
+                        eso_vertex(end);
                     }
                     eso_end();
                 }
@@ -305,7 +306,7 @@ void conversation_draw() {
                 }
                 if (state.click_mode == ClickMode::Fillet) {
                     // FORNOW
-                    DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, two_click_command->first_click.x, two_click_command->first_click.y);
+                    DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, two_click_command->first_click);
                     if (dxf_find_closest_entity_result.success) {
                         uint i = dxf_find_closest_entity_result.index;
                         eso_begin(PV_2D, SOUP_LINES);

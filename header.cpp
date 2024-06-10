@@ -413,16 +413,6 @@ bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
 }
 
 ////////////////////////////////////////
-// Squared-Distance (TODO: move non-entities parts all up here);
-////////////////////////////////////////
-
-real squared_distance_point_point(real x_A, real y_A, real x_B, real y_B) {
-    real dx = (x_A - x_B);
-    real dy = (y_A - y_B);
-    return (dx * dx) + (dy * dy);
-};
-
-////////////////////////////////////////
 // bbox2 /////////////////////////
 ////////////////////////////////////////
 
@@ -441,9 +431,8 @@ void camera2D_zoom_to_bbox(Camera *camera_drawing, bbox2 bbox) {
 // List<Entity> /////////////////////////////////
 ////////////////////////////////////////
 
-void get_point_on_circle_NOTE_pass_angle_in_radians(real *x, real *y, real center_x, real center_y, real radius, real angle_in_radians) {
-    *x = center_x + radius * COS(angle_in_radians);
-    *y = center_y + radius * SIN(angle_in_radians);
+vec2 get_point_on_circle_NOTE_pass_angle_in_radians(vec2 center, real radius, real angle_in_radians) {
+    return center + radius * V2(COS(angle_in_radians), SIN(angle_in_radians));
 }
 
 // NOTE: this is real gross
@@ -471,9 +460,8 @@ void arc_process_angles_into_lerpable_radians_considering_flip_flag(ArcEntity *a
 real entity_length(Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
-        return SQRT(squared_distance_point_point(line_entity->start.x, line_entity->start.y, line_entity->end.x, line_entity->end.y));
-    } else {
-        ASSERT(entity->type == EntityType::Arc);
+        return norm(line_entity->start - line_entity->end);
+    } else { ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
         real start_angle;
         real end_angle;
@@ -482,42 +470,37 @@ real entity_length(Entity *entity) {
     }
 }
 
-void entity_get_start_point(Entity *entity, real *start_x, real *start_y) {
+vec2 entity_get_start_point(Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
-        *start_x = line_entity->start.x;
-        *start_y = line_entity->start.y;
-    } else {
-        ASSERT(entity->type == EntityType::Arc);
+        return line_entity->start;
+    } else { ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
-        get_point_on_circle_NOTE_pass_angle_in_radians(start_x, start_y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, RAD(arc_entity->start_angle_in_degrees));
+        return get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, RAD(arc_entity->start_angle_in_degrees));
     }
 }
 
-void entity_get_end_point(Entity *entity, real *end_x, real *end_y) {
+vec2 entity_get_end_point(Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
-        *end_x = line_entity->end.x;
-        *end_y = line_entity->end.y;
-    } else {
-        ASSERT(entity->type == EntityType::Arc);
+        return line_entity->end;
+    } else { ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
-        get_point_on_circle_NOTE_pass_angle_in_radians(  end_x,   end_y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius,   RAD(arc_entity->end_angle_in_degrees));
+        return get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, RAD(arc_entity->end_angle_in_degrees));
     }
 }
 
-void entity_get_start_and_end_points(Entity *entity, real *start_x, real *start_y, real *end_x, real *end_y) {
-    entity_get_start_point(entity, start_x, start_y);
-    entity_get_end_point(entity, end_x, end_y);
+void entity_get_start_and_end_points(Entity *entity, vec2 *start, vec2 *end) {
+    *start = entity_get_start_point(entity);
+    *end = entity_get_end_point(entity);
 }
 
-void entity_lerp_considering_flip_flag(Entity *entity, real t, real *x, real *y, bool flip_flag) {
+vec2 entity_lerp_considering_flip_flag(Entity *entity, real t, bool flip_flag) {
     ASSERT(IS_BETWEEN(t, 0.0f, 1.0f));
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
         if (flip_flag) t = 1.0f - t; // FORNOW
-        *x = LERP(t, line_entity->start.x, line_entity->end.x);
-        *y = LERP(t, line_entity->start.y, line_entity->end.y);
+        return LERP(t, line_entity->start, line_entity->end);
     } else {
         ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
@@ -526,12 +509,12 @@ void entity_lerp_considering_flip_flag(Entity *entity, real t, real *x, real *y,
             arc_process_angles_into_lerpable_radians_considering_flip_flag(arc_entity, &start_angle, &end_angle, flip_flag); // FORNOW
             angle = LERP(t, start_angle, end_angle);
         }
-        get_point_on_circle_NOTE_pass_angle_in_radians(x, y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, angle);
+        return get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, angle);
     }
 }
 
-void entity_get_middle(Entity *entity, real *middle_x, real *middle_y) {
-    entity_lerp_considering_flip_flag(entity, 0.5f, middle_x, middle_y, false);
+vec2 entity_get_middle(Entity *entity) {
+    return entity_lerp_considering_flip_flag(entity, 0.5f, false);
 }
 
 // struct List<Entity> {
@@ -654,11 +637,11 @@ vec3 get_color(ColorCode color_code) {
     }
 }
 
-void eso_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) {
+void eso_entity__SOUP_LINES(Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
-        eso_vertex(line_entity->start.x + dx, line_entity->start.y + dy);
-        eso_vertex(line_entity->end.x + dx,   line_entity->end.y + dy);
+        eso_vertex(line_entity->start);
+        eso_vertex(line_entity->end);
     } else {
         ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
@@ -669,12 +652,9 @@ void eso_entity__SOUP_LINES(Entity *entity, real dx = 0.0f, real dy = 0.0f) {
         real increment = delta_angle / num_segments;
         real current_angle = start_angle;
         for_(i, num_segments) {
-            real x, y;
-            get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, current_angle);
-            eso_vertex(x + dx, y + dy);
+            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, current_angle));
             current_angle += increment;
-            get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, current_angle);
-            eso_vertex(x + dx, y + dy);
+            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, current_angle));
         }
     }
 }
@@ -690,9 +670,9 @@ void entities_debug_draw(Camera *camera_drawing, List<Entity> *entities) {
 
 bbox2 entity_get_bbox(Entity *entity) {
     bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
-    real s[2][2];
+    vec2 s[2];
     uint n = 2;
-    entity_get_start_and_end_points(entity, &s[0][0], &s[0][1], &s[1][0], &s[1][1]);
+    entity_get_start_and_end_points(entity, &s[0], &s[1]);
     for_(i, n) {
         for_(d, 2) {
             result.min[d] = MIN(result.min[d], s[i][d]);
@@ -728,26 +708,24 @@ bbox2 entities_get_bbox(List<Entity> *entities, bool only_consider_selected_enti
 ////////////////////////////////////////
 
 
-real squared_distance_point_line_segment(real x, real y, real start_x, real start_y, real end_x, real end_y) {
-    real l2 = squared_distance_point_point(start_x, start_y, end_x, end_y);
-    if (l2 < TINY_VAL) return squared_distance_point_point(x, y, start_x, start_y);
-    real num = (x - start_x) * (end_x - start_x) + (y - start_y) * (end_y - start_y);
+real squared_distance_point_line_segment(vec2 p, vec2 start, vec2 end) {
+    real l2 = squaredDistance(start, end);
+    if (l2 < TINY_VAL) return squaredDistance(p, start);
+    real num = (p.x - start.x) * (end.x - start.x) + (p.y - start.y) * (end.y - start.y);
     real t = MIN(MAX(num / l2, 0.0f), 1.0f);
-    real P_x = start_x + t * (end_x - start_x);
-    real P_y = start_y + t * (end_y - start_y);
-    return (P_x - x) * (P_x - x) + (P_y - y) * (P_y - y);
+    vec2 q = LERP(t, start, end);
+    return squaredDistance(p, q);
 }
 
-real squared_distance_point_circle(real x, real y, real center_x, real center_y, real radius) {
-    return POW(SQRT(squared_distance_point_point(x, y, center_x, center_y)) - radius, 2);
+real squared_distance_point_circle(vec2 p, vec2 center, real radius) {
+    return POW(distance(p, center) - radius, 2);
 }
 
-real squared_distance_point_arc_NOTE_pass_angles_in_radians(real x, real y, real center_x, real center_y, real radius, real start_angle_in_radians, real end_angle_in_radians) {
+real squared_distance_point_arc_NOTE_pass_angles_in_radians(vec2 p, vec2 center, real radius, real start_angle_in_radians, real end_angle_in_radians) {
     bool point_in_sector = false; {
-        real v_x = x - center_x;
-        real v_y = y - center_y;
+        vec2 v = p - center;
         // forgive me rygorous :(
-        real angle = atan2(v_y, v_x);
+        real angle = atan2(v);
         while (start_angle_in_radians < -PI) start_angle_in_radians += TAU;
         while (end_angle_in_radians < start_angle_in_radians) end_angle_in_radians += TAU;
         point_in_sector =
@@ -756,38 +734,37 @@ real squared_distance_point_arc_NOTE_pass_angles_in_radians(real x, real y, real
             || IS_BETWEEN(angle - TAU, start_angle_in_radians, end_angle_in_radians);
     }
     if (point_in_sector) {
-        return squared_distance_point_circle(x, y, center_x, center_y, radius);
+        return squared_distance_point_circle(p, center, radius);
     } else {
-        real start_x, start_y, end_x, end_y;
-        get_point_on_circle_NOTE_pass_angle_in_radians(&start_x, &start_y, center_x, center_y, radius, start_angle_in_radians);
-        get_point_on_circle_NOTE_pass_angle_in_radians(  &end_x,   &end_y, center_x, center_y, radius, end_angle_in_radians);
-        return MIN(squared_distance_point_point(x, y, start_x, start_y), squared_distance_point_point(x, y, end_x, end_y));
+        vec2 start = get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, start_angle_in_radians);
+        vec2 end = get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, end_angle_in_radians);
+        return MIN(squaredDistance(p, start), squaredDistance(p, end));
     }
 }
 
-real squared_distance_point_dxf_line(real x, real y, LineEntity *line_entity) {
-    return squared_distance_point_line_segment(x, y, line_entity->start.x, line_entity->start.y, line_entity->end.x, line_entity->end.y);
+real squared_distance_point_dxf_line(vec2 p, LineEntity *line_entity) {
+    return squared_distance_point_line_segment(p, line_entity->start, line_entity->end);
 }
 
-real squared_distance_point_dxf_arc(real x, real y, ArcEntity *arc_entity) {
-    return squared_distance_point_arc_NOTE_pass_angles_in_radians(x, y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, RAD(arc_entity->start_angle_in_degrees), RAD(arc_entity->end_angle_in_degrees));
+real squared_distance_point_dxf_arc(vec2 p, ArcEntity *arc_entity) {
+    return squared_distance_point_arc_NOTE_pass_angles_in_radians(p, arc_entity->center, arc_entity->radius, RAD(arc_entity->start_angle_in_degrees), RAD(arc_entity->end_angle_in_degrees));
 }
 
-real squared_distance_point_entity(real x, real y, Entity *entity) {
+real squared_distance_point_entity(vec2 p, Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
-        return squared_distance_point_dxf_line(x, y, line_entity);
+        return squared_distance_point_dxf_line(p, line_entity);
     } else {
         ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
-        return squared_distance_point_dxf_arc(x, y, arc_entity);
+        return squared_distance_point_dxf_arc(p, arc_entity);
     }
 }
 
-real squared_distance_point_dxf(real x, real y, List<Entity> *entities) {
+real squared_distance_point_dxf(vec2 p, List<Entity> *entities) {
     real result = HUGE_VAL;
     for (Entity *entity = entities->array; entity < &entities->array[entities->length]; ++entity) {
-        result = MIN(result, squared_distance_point_entity(x, y, entity));
+        result = MIN(result, squared_distance_point_entity(p, entity));
     }
     return result;
 }
@@ -796,12 +773,12 @@ struct DXFFindClosestEntityResult {
     bool success;
     uint index;
 };
-DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, real x, real y) {
+DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 p) {
     DXFFindClosestEntityResult result = {};
     double hot_squared_distance = HUGE_VAL;
     for_(i, entities->length) {
         Entity *entity = &entities->array[i];
-        double squared_distance = squared_distance_point_entity(x, y, entity);
+        double squared_distance = squared_distance_point_entity(p, entity);
         if (squared_distance < hot_squared_distance) {
             hot_squared_distance = squared_distance;
             result.success = true;
@@ -864,30 +841,30 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *en
                         bool added_new_entity_to_loop = false;
                         for_(entity_index, entities->length) {
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
-                            real start_x_prev, start_y_prev, end_x_prev, end_y_prev;
-                            real start_x_i, start_y_i, end_x_i, end_y_i;
+                            vec2 start_prev;
+                            vec2 end_prev;
+                            vec2 start_i;
+                            vec2 end_i;
                             DXFEntityIndexAndFlipFlag *prev_entity_index_and_flip_flag = &(stretchy_list.array[stretchy_list.length - 1].array[stretchy_list.array[stretchy_list.length - 1].length - 1]);
                             {
-                                entity_get_start_and_end_points(
-                                        &entities->array[prev_entity_index_and_flip_flag->entity_index],
-                                        &start_x_prev, &start_y_prev, &end_x_prev, &end_y_prev);
-                                entity_get_start_and_end_points(&entities->array[entity_index], &start_x_i, &start_y_i, &end_x_i, &end_y_i);
+                                entity_get_start_and_end_points(&entities->array[prev_entity_index_and_flip_flag->entity_index], &start_prev, &end_prev);
+                                entity_get_start_and_end_points(&entities->array[entity_index], &start_i, &end_i);
                             }
                             bool is_next_entity = false;
                             bool flip_flag = false;
                             if (!prev_entity_index_and_flip_flag->flip_flag) {
-                                if (squared_distance_point_point(end_x_prev, end_y_prev, start_x_i, start_y_i) < tolerance) {
+                                if (squaredDistance(end_prev, start_i) < tolerance) {
                                     is_next_entity = true;
                                     flip_flag = false;
-                                } else if (squared_distance_point_point(end_x_prev, end_y_prev, end_x_i, end_y_i) < tolerance) {
+                                } else if (squaredDistance(end_prev, end_i) < tolerance) {
                                     is_next_entity = true;
                                     flip_flag = true;
                                 }
                             } else {
-                                if (squared_distance_point_point(start_x_prev, start_y_prev, start_x_i, start_y_i) < tolerance) {
+                                if (squaredDistance(start_prev, start_i) < tolerance) {
                                     is_next_entity = true;
                                     flip_flag = false;
-                                } else if (squared_distance_point_point(start_x_prev, start_y_prev, end_x_i, end_y_i) < tolerance) {
+                                } else if (squaredDistance(start_prev, end_i) < tolerance) {
                                     is_next_entity = true;
                                     flip_flag = true;
                                 }
@@ -927,17 +904,15 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *en
                                     // - n = 2 (area-preserving approximation of arc_entity with two segments)
                                     real start_angle, end_angle;
                                     arc_process_angles_into_lerpable_radians_considering_flip_flag(arc_entity, &start_angle, &end_angle, flip_flag);
-                                    real start_x, start_y, end_x, end_y;
-                                    get_point_on_circle_NOTE_pass_angle_in_radians(&start_x, &start_y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, start_angle);
-                                    get_point_on_circle_NOTE_pass_angle_in_radians(  &end_x,   &end_y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius,   end_angle);
+                                    vec2 start = get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, start_angle);
+                                    vec2 end = get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, end_angle);
                                     real mid_angle = (start_angle + end_angle) / 2;
                                     real d; {
                                         real alpha = ABS(start_angle - end_angle) / 2;
                                         d = arc_entity->radius * alpha / SIN(alpha);
                                     }
-                                    real mid_x, mid_y;
-                                    get_point_on_circle_NOTE_pass_angle_in_radians(&mid_x, &mid_y, arc_entity->center.x, arc_entity->center.y, d, mid_angle);
-                                    twice_the_signed_area += mid_x * (end_y - start_y) + mid_y * (start_x - end_x);
+                                    vec2 mid = get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, d, mid_angle);
+                                    twice_the_signed_area += mid.x * (end.y - start.y) + mid.y * (start.x - end.x); // TODO cross(...)
                                 }
                             }
                         }
@@ -1068,10 +1043,10 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                     uint num_segments = uint(2 + ABS(delta_angle) * (NUM_SEGMENTS_PER_CIRCLE / TAU)); // FORNOW (2 + ...)
                     real increment = delta_angle / num_segments;
                     real current_angle = start_angle;
-                    real x, y;
+                    vec2 p;
                     for_(i, num_segments) {
-                        get_point_on_circle_NOTE_pass_angle_in_radians(&x, &y, arc_entity->center.x, arc_entity->center.y, arc_entity->radius, current_angle);
-                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], { x, y });
+                        p = get_point_on_circle_NOTE_pass_angle_in_radians(arc_entity->center, arc_entity->radius, current_angle);
+                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
                         current_angle += increment;
                     }
                 }
