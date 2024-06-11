@@ -146,7 +146,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.enter_mode = EnterMode::NudgeFeaturePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
-                        messagef(omax.orange, "NudgeFeaturePlane: no feature plane is selected");
+                        messagef(omax.orange, "NudgeFeaturePlane: no feature plane selected");
                     }
                 } else if (key_lambda('N', true, false)) {
                     result.checkpoint_me = true;
@@ -468,12 +468,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
                         };
 
-                        auto make_key = [&](real x, real y) -> vec2 {
-                            return { scalar_bucket(x), scalar_bucket(y) };
+                        auto make_key = [&](vec2 p) -> vec2 {
+                            return { scalar_bucket(p.x), scalar_bucket(p.y) };
                         };
 
                         auto nudge_key = [&](vec2 key, int dx, int dy) -> vec2 {
-                            return make_key(key.x + dx * GRID_CELL_WIDTH, key.y + dy * GRID_CELL_WIDTH);
+                            return make_key(V2(key.x + dx * GRID_CELL_WIDTH, key.y + dy * GRID_CELL_WIDTH));
                         };
 
                         struct GridPointSlot {
@@ -490,7 +490,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             grid = {};
 
                             auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](vec2 p, uint entity_index, bool end_NOT_start) {
-                                vec2 key = make_key(p.x, p.y);
+                                vec2 key = make_key(p);
                                 GridCell *cell = _map_get_pointer(&grid, key);
                                 if (cell == NULL) {
                                     map_put(&grid, key, {});
@@ -539,7 +539,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     p = entity_get_start_point(entity);
                                 }
                             }
-                            return make_key(p.x, p.y);
+                            return make_key(p);
                         };
 
                         auto get_any_point_not_part_of_an_marked_entity = [&](vec2 key) -> GridPointSlot * {
@@ -570,7 +570,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 } else {
                                     p = entity_get_end_point(&drawing->entities.array[hot_entity_index]);
                                 }
-                                seed = make_key(p.x, p.y);
+                                seed = make_key(p);
                             }
 
                             GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
@@ -1019,11 +1019,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         CellType::Real32, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "ExtrudeAdd: selection empty");
                     } else if (!feature_plane->is_active) {
-                        messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "ExtrudeAdd: no feature plane selected");
                     } else if (IS_ZERO(popup->extrude_add_in_length) && IS_ZERO(popup->extrude_add_out_length)) {
-                        messagef(omax.orange, "Total extrusion length is zero.");
+                        messagef(omax.orange, "ExtrudeAdd: total extrusion length zero");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
                         if (IS_ZERO(popup->extrude_add_in_length)) {
@@ -1039,13 +1039,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         CellType::Real32, STRING("extrude_cut_out_length"), &popup->extrude_cut_out_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "ExtrudeCut: selection empty");
                     } else if (!feature_plane->is_active) {
-                        messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "ExtrudeCut: no feature plane selected");
                     } else if (IS_ZERO(popup->extrude_cut_in_length) && IS_ZERO(popup->extrude_cut_out_length)) {
-                        messagef(omax.orange, "Total extrusion length is zero.");
+                        messagef(omax.orange, "ExtrudeCut: total extrusion length zero");
                     } else if (mesh->num_triangles == 0) {
-                        messagef(omax.orange, "Current mesh is empty.");
+                        messagef(omax.orange, "ExtrudeCut: current mesh empty");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
                         if (IS_ZERO(popup->extrude_cut_out_length)) {
@@ -1059,9 +1059,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 popup_popup(true, CellType::Real32, STRING("revolve_add_dummy"), &popup->revolve_add_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "RevolveAdd: selection empty");
                     } else if (!feature_plane->is_active) {
-                        messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "RevolveAdd: no feature plane selected");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
                         messagef(omax.green, "RevolveAdd");
@@ -1071,11 +1071,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 popup_popup(true, CellType::Real32, STRING("revolve_cut_dummy"), &popup->revolve_cut_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
-                        messagef(omax.orange, "Drawing selection is empty.");
+                        messagef(omax.orange, "RevolveCut: selection empty");
                     } else if (!feature_plane->is_active) {
-                        messagef(omax.orange, "No feature plane is selected.");
+                        messagef(omax.orange, "RevolveCut: no feature plane selected");
                     } else if (mesh->num_triangles == 0) {
-                        messagef(omax.orange, "Current mesh is empty.");
+                        messagef(omax.orange, "RevolveCut: current mesh empty");
                     } else {
                         GENERAL_PURPOSE_MANIFOLD_WRAPPER();
                         messagef(omax.green, "RevolveCut");

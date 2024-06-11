@@ -163,10 +163,8 @@ void conversation_draw() {
     { // panes
         bool dragging = (other.mouse_left_drag_pane == Pane::Separator);
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
-        eso_begin(M4_Identity(), SOUP_LINES,
-                dragging ? 2.0f
-                : hovering ? 6.0f
-                : 4.0f, true);
+        eso_begin(M4_Identity(), SOUP_LINES, true);
+        eso_size(dragging ? 2.0f : hovering ? 6.0f : 4.0f);
         eso_color(
                 dragging ? omax.light_gray
                 : hovering ? omax.white
@@ -195,7 +193,8 @@ void conversation_draw() {
 
         {
             if (other.show_grid) { // grid 2D grid 2d grid
-                eso_begin(PV_2D, SOUP_LINES, 2.0f);
+                eso_begin(PV_2D, SOUP_LINES);
+                eso_size(2.0f);
                 eso_color(omax.dark_gray);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
@@ -205,7 +204,8 @@ void conversation_draw() {
                     eso_vertex(GRID_SIDE_LENGTH, tmp);
                 }
                 eso_end();
-                eso_begin(PV_2D, SOUP_LINE_LOOP, 2.0f);
+                eso_begin(PV_2D, SOUP_LINE_LOOP);
+                eso_size(2.0f);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -218,14 +218,16 @@ void conversation_draw() {
 
                 eso_color(omax.white);
                 if (0) {
-                    eso_begin(PV_2D, SOUP_LINES, 1.5f); {
+                    eso_begin(PV_2D, SOUP_LINES); {
+                        eso_size(1.5f);
                         // axis
                         vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                         eso_vertex(preview_dxf_axis_base_point + v);
                         eso_vertex(preview_dxf_axis_base_point - v);
                     } eso_end();
                 }
-                eso_begin(PV_2D, SOUP_LINES, 3.0f); {
+                eso_begin(PV_2D, SOUP_LINES); {
+                    eso_size(3.0f);
                     // origin
                     real r = funky_OpenGL_factor;
                     eso_vertex(preview_dxf_origin - V2(r, 0));
@@ -255,7 +257,8 @@ void conversation_draw() {
             }
             { // dots
                 if (other.show_details) {
-                    eso_begin(camera_get_PV(&other.camera_drawing), SOUP_POINTS, 4.0f);
+                    eso_begin(camera_get_PV(&other.camera_drawing), SOUP_POINTS);
+                    eso_size(4.0f);
                     eso_color(omax.white);
                     _for_each_entity_ {
                         vec2 start, end;
@@ -376,7 +379,8 @@ void conversation_draw() {
                 }
 
                 for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
-                    eso_begin(PV_3D * M, SOUP_LINES, 5.0f); {
+                    eso_begin(PV_3D * M, SOUP_LINES); {
+                        eso_size(5.0f);
                         _for_each_selected_entity_ {
                             real alpha;
                             vec3 color;
@@ -399,7 +403,8 @@ void conversation_draw() {
         if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
             real r = other.camera_mesh.ortho_screen_height_World / 120.0f;
             eso_color(omax.white);
-            eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES, 2.0f);
+            eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES);
+            eso_size(2.0f);
             eso_vertex(-r, 0.0f);
             eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
@@ -556,7 +561,7 @@ void conversation_draw() {
         real y = window_get_height_Pixel() - 12.0f;
         real w = 6.0f;
         real h = -2.5f * w;
-        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS, 0.0f, true);
+        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS, true);
         eso_color(omax.green);
         for_(d, 2) {
             real o = d * (1.7f * w);

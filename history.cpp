@@ -169,7 +169,7 @@ void history_printf_script() {
 
 void history_debug_draw() {
     { // FORNOW
-        eso_begin(M4_Identity(), SOUP_QUADS, 0.0f, true);
+        eso_begin(M4_Identity(), SOUP_QUADS, true);
         eso_color(omax.black, 0.7f);
         BoundingBox<2> bbox_OpenGL = { -1.0f, -1.0f, 1.0f, 1.0f };
         eso_bbox_SOUP_QUADS(bbox_OpenGL);

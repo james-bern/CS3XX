@@ -40,7 +40,7 @@ struct COW1_PersistsAcrossFrames_AutomaticallyClearedToZeroBetweenAppsBycow_rese
     real _eso_PVM[16];
     int _eso_primitive;
     int _eso_num_vertices;
-    real _eso_size_in_pixels;
+    real _eso_size_Pixel;
     bool _eso_overlay;
 };
 
@@ -763,7 +763,7 @@ void _soup_draw(
         real g_if_vertex_colors_is_NULL,
         real b_if_vertex_colors_is_NULL,
         real a_if_vertex_colors_is_NULL,
-        real size_in_pixels,
+        real size_Pixel,
         bool force_draw_on_top) {
 
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
@@ -774,7 +774,7 @@ void _soup_draw(
     ASSERT(dimension_of_colors >= 0);
     ASSERT(vertex_positions);
 
-    if (IS_ZERO(size_in_pixels)) { size_in_pixels = 2.0f; }
+    if (IS_ZERO(size_Pixel)) { size_Pixel = 2.0f; }
 
     int mesh_special_case = 0;
     { // recursive calls
@@ -791,7 +791,7 @@ void _soup_draw(
                         g_if_vertex_colors_is_NULL,
                         b_if_vertex_colors_is_NULL,
                         a_if_vertex_colors_is_NULL,
-                        size_in_pixels,
+                        size_Pixel,
                         force_draw_on_top);
 
                 if (primitive == SOUP_OUTLINED_TRIANGLES) {
@@ -824,7 +824,7 @@ void _soup_draw(
                     g_if_vertex_colors_is_NULL,
                     b_if_vertex_colors_is_NULL,
                     a_if_vertex_colors_is_NULL,
-                    size_in_pixels,
+                    size_Pixel,
                     force_draw_on_top);
         }
     }
@@ -861,7 +861,7 @@ void _soup_draw(
     glUseProgram(shader_program_ID);
 
     _shader_set_uniform_real(shader_program_ID, "aspect", window_get_aspect());
-    _shader_set_uniform_real(shader_program_ID, "primitive_radius_OpenGL", 0.5f * size_in_pixels / window_get_size_Pixel().y);
+    _shader_set_uniform_real(shader_program_ID, "primitive_radius_OpenGL", 0.5f * size_Pixel / window_get_size_Pixel().y);
     _shader_set_uniform_bool(shader_program_ID, "has_vertex_colors", vertex_colors != NULL);
     _shader_set_uniform_bool(shader_program_ID, "force_draw_on_top", force_draw_on_top);
     _shader_set_uniform_mat4(shader_program_ID, "PVM", PVM);
@@ -947,7 +947,7 @@ template <uint D_position, uint D_color = 3> void soup_draw(
         Vector<D_position> *vertex_positions,
         Vector<D_color> *vertex_colors,
         Vector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-        real size_in_pixels = 0,
+        real size_Pixel = 0,
         bool force_draw_on_top = false) {
     STATIC_ASSERT(D_position == 2 || D_position == 3 || D_position == 4);
     STATIC_ASSERT(D_color == 3 || D_color == 4);
@@ -964,7 +964,7 @@ template <uint D_position, uint D_color = 3> void soup_draw(
             color_if_vertex_colors_is_NULL[1],
             color_if_vertex_colors_is_NULL[2],
             (D_color == 4) ? color_if_vertex_colors_is_NULL[3] : 1,
-            size_in_pixels,
+            size_Pixel,
             force_draw_on_top
             );
 }
@@ -976,7 +976,7 @@ template <uint D_position, uint D_color = 3> void soup_draw(
         Vector<D_position> *vertex_positions,
         void *vertex_colors = NULL,
         Vector<D_color> color_if_vertex_colors_is_NULL = { 1.0, 0.0, 1.0 },
-        real size_in_pixels = 0,
+        real size_Pixel = 0,
         bool force_draw_on_top = false) {
 
     ASSERT(vertex_colors == NULL);
@@ -993,7 +993,7 @@ template <uint D_position, uint D_color = 3> void soup_draw(
             color_if_vertex_colors_is_NULL[1],
             color_if_vertex_colors_is_NULL[2],
             (D_color == 4) ? color_if_vertex_colors_is_NULL[3] : 1,
-            size_in_pixels,
+            size_Pixel,
             force_draw_on_top
             );
 }
@@ -1017,15 +1017,18 @@ void _eso_init() {
     _eso_reset();
 }
 
-void _eso_begin(real *PVM, uint primitive, real size_in_pixels, bool force_draw_on_top) {
+void _eso_begin(real *PVM, uint primitive, bool force_draw_on_top) {
     ASSERT(!COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end);
     COW1._eso_called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
     COW1._eso_primitive = primitive;
-    COW1._eso_size_in_pixels = size_in_pixels;
     COW1._eso_overlay = force_draw_on_top;
     COW1._eso_num_vertices = 0;
     ASSERT(PVM);
     memcpy(COW1._eso_PVM, PVM, 16 * sizeof(real));
+}
+
+void eso_size(real size_Pixel) {
+    COW1._eso_size_Pixel = size_Pixel;
 }
 
 void eso_end() {
@@ -1043,7 +1046,7 @@ void eso_end() {
             0.0,
             0.0,
             0.0,
-            COW1._eso_size_in_pixels,
+            COW1._eso_size_Pixel,
             COW1._eso_overlay
             );
 }
@@ -1066,8 +1069,8 @@ void eso_color(real r, real g, real b, real a = 1.0) {
     COW1._eso_current_color[3] = a;
 }
 
-void eso_begin(mat4 PVM, uint primitive, real size_in_pixels = 0, bool force_draw_on_top = false) {
-    _eso_begin(PVM.data, primitive, size_in_pixels, force_draw_on_top);
+void eso_begin(mat4 PVM, uint primitive, bool force_draw_on_top = false) {
+    _eso_begin(PVM.data, primitive, force_draw_on_top);
 }
 
 void eso_vertex(vec2 xy) {
