@@ -17,7 +17,6 @@ aggropush.bat
 git_delete_history.bat
 hw.obj
 remedybg.exe
-*.lib
 conversation.obj
 *.obj
 ignore.stl
