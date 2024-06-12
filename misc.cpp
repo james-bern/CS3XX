@@ -13,7 +13,9 @@ template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
 real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
 
 
-real get_x_divider_Pixel() { return LINEAR_REMAP(other.x_divider_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x); }
+real get_x_divider_Pixel() {
+    return LINEAR_REMAP(other.x_divider_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
+}
 
 vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
     vec2 result = before;
@@ -46,7 +48,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         continue;
                     } else { ASSERT(entity->type == EntityType::Arc);
                         ArcEntity *arc_entity = &entity->arc_entity;
-                        real squared_distance = squared_distance_point_dxf_arc(before, arc_entity);
+                        real squared_distance = squared_distance_point_dxf_arc_entity(before, arc_entity);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
                             result = arc_entity->center;

@@ -707,13 +707,11 @@ bbox2 entities_get_bbox(List<Entity> *entities, bool only_consider_selected_enti
 // SquaredDistance /////////////////////
 ////////////////////////////////////////
 
-
 real squared_distance_point_line_segment(vec2 p, vec2 start, vec2 end) {
     real l2 = squaredDistance(start, end);
     if (l2 < TINY_VAL) return squaredDistance(p, start);
-    real num = (p.x - start.x) * (end.x - start.x) + (p.y - start.y) * (end.y - start.y);
-    real t = MIN(MAX(num / l2, 0.0f), 1.0f);
-    vec2 q = LERP(t, start, end);
+    real num = dot(p - start, end - start);
+    vec2 q = CLAMPED_LERP(num / l2, start, end);
     return squaredDistance(p, q);
 }
 
@@ -742,22 +740,22 @@ real squared_distance_point_arc_NOTE_pass_angles_in_radians(vec2 p, vec2 center,
     }
 }
 
-real squared_distance_point_dxf_line(vec2 p, LineEntity *line_entity) {
+real squared_distance_point_dxf_line_entity(vec2 p, LineEntity *line_entity) {
     return squared_distance_point_line_segment(p, line_entity->start, line_entity->end);
 }
 
-real squared_distance_point_dxf_arc(vec2 p, ArcEntity *arc_entity) {
+real squared_distance_point_dxf_arc_entity(vec2 p, ArcEntity *arc_entity) {
     return squared_distance_point_arc_NOTE_pass_angles_in_radians(p, arc_entity->center, arc_entity->radius, RAD(arc_entity->start_angle_in_degrees), RAD(arc_entity->end_angle_in_degrees));
 }
 
 real squared_distance_point_entity(vec2 p, Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line_entity = &entity->line_entity;
-        return squared_distance_point_dxf_line(p, line_entity);
+        return squared_distance_point_dxf_line_entity(p, line_entity);
     } else {
         ASSERT(entity->type == EntityType::Arc);
         ArcEntity *arc_entity = &entity->arc_entity;
-        return squared_distance_point_dxf_arc(p, arc_entity);
+        return squared_distance_point_dxf_arc_entity(p, arc_entity);
     }
 }
 
@@ -1249,9 +1247,8 @@ void stl_load(String filename, Mesh *mesh) {
 
     { // mesh
         uint num_triangles;
-        vec3 *soup;
+        vec3 *triangle_soup;
         {
-
             #define MAX_LINE_LENGTH 1024
             static _STRING_CALLOC(line_of_file, MAX_LINE_LENGTH);
 
@@ -1280,8 +1277,8 @@ void stl_load(String filename, Mesh *mesh) {
                 fclose(file);
                 num_triangles = ascii_data.length / 9;
                 uint size = ascii_data.length * sizeof(real);
-                soup = (vec3 *) malloc(size);
-                memcpy(soup, ascii_data.array, size);
+                triangle_soup = (vec3 *) malloc(size);
+                memcpy(triangle_soup, ascii_data.array, size);
                 list_free_AND_zero(&ascii_data);
             } else {
                 ASSERT(filetype == STL_FILETYPE_BINARY);
@@ -1299,17 +1296,17 @@ void stl_load(String filename, Mesh *mesh) {
                 memcpy(&num_triangles, entire_file + offset, 4);
                 offset += 4;
                 uint size = num_triangles * 36;
-                soup = (vec3 *) calloc(1, size);
+                triangle_soup = (vec3 *) calloc(1, size);
                 for_(i, num_triangles) {
                     offset += 12;
-                    memcpy(&soup[3 * i], entire_file + offset, 36);
+                    memcpy(&triangle_soup[3 * i], entire_file + offset, 36);
                     offset += 38;
                 }
             }
             { // -90 degree rotation about x: (x, y, z) <- (x, z, -y)
                 uint num_vertices = 3 * num_triangles;
                 for_(i, num_vertices) {
-                    soup[i] = { soup[i].x, soup[i].z, -soup[i].y };
+                    triangle_soup[i] = { triangle_soup[i].x, triangle_soup[i].z, -triangle_soup[i].y };
                 }
             }
         }
@@ -1325,7 +1322,7 @@ void stl_load(String filename, Mesh *mesh) {
             {
                 List<vec3> list = {};
                 for_(i, _3__times__num_triangles) {
-                    vec3 p = soup[i];
+                    vec3 p = triangle_soup[i];
                     uint j = map_get(&map, p, default_value);
                     if (j == default_value) {
                         map_put(&map, p, num_vertices++);
@@ -1340,11 +1337,11 @@ void stl_load(String filename, Mesh *mesh) {
                 list_free_AND_zero(&list);
             }
             triangle_indices = (uint3 *) malloc(num_triangles * sizeof(uint3));
-            for_(k, _3__times__num_triangles) triangle_indices[k / 3][k % 3] = map_get(&map, soup[k]);
+            for_(k, _3__times__num_triangles) triangle_indices[k / 3][k % 3] = map_get(&map, triangle_soup[k]);
             map_free_and_zero(&map);
         }
 
-        free(soup);
+        free(triangle_soup);
 
         mesh->num_vertices = num_vertices;
         mesh->num_triangles = num_triangles;
@@ -1548,18 +1545,18 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
 
     char _key_buffer[2];
     char *_key; {
-        if (0) {
-        } else if (key_event->key == GLFW_KEY_BACKSPACE) { _key = "BACKSPACE";
-        } else if (key_event->key == GLFW_KEY_DELETE) { _key = "DELETE";
-        } else if (key_event->key == GLFW_KEY_ENTER) { _key = "ENTER";
-        } else if (key_event->key == GLFW_KEY_ESCAPE) { _key = "ESCAPE";
-        } else if (key_event->key == GLFW_KEY_LEFT) { _key = "LEFT";
-        } else if (key_event->key == GLFW_KEY_RIGHT) { _key = "RIGHT";
-        } else if (key_event->key == GLFW_KEY_SPACE) { _key = "SPACE";
-        } else if (key_event->key == GLFW_KEY_TAB) { _key = "TAB";
-        } else if (key_event->key == GLFW_KEY_UP) { _key = "UP";
-        } else if (key_event->key == GLFW_KEY_DOWN) { _key = "DOWN";
-        } else {
+        if (0) ;
+        else if (key_event->key == GLFW_KEY_BACKSPACE) _key = "BACKSPACE";
+        else if (key_event->key == GLFW_KEY_DELETE) _key = "DELETE";
+        else if (key_event->key == GLFW_KEY_ENTER) _key = "ENTER";
+        else if (key_event->key == GLFW_KEY_ESCAPE) _key = "ESCAPE";
+        else if (key_event->key == GLFW_KEY_LEFT) _key = "LEFT";
+        else if (key_event->key == GLFW_KEY_RIGHT) _key = "RIGHT";
+        else if (key_event->key == GLFW_KEY_SPACE) _key = "SPACE";
+        else if (key_event->key == GLFW_KEY_TAB) _key = "TAB";
+        else if (key_event->key == GLFW_KEY_UP) _key = "UP";
+        else if (key_event->key == GLFW_KEY_DOWN) _key = "DOWN";
+        else {
             _key_buffer[0] = (char) key_event->key;
             _key_buffer[1] = '\0';
             _key = _key_buffer;

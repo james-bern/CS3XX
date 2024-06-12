@@ -56,7 +56,9 @@ run_before_main {
 #include "bbox.cpp"
 #include "containers.cpp" // TODO: implement better Map
 #include "elephant.cpp"
-#include "app.cpp"
+#include "window.cpp"
+#include "shader.cpp"
+#include "soup.cpp"
 #include "text.cpp"
 #include "extras.cpp"
 #include "burkardt.cpp"
@@ -92,8 +94,8 @@ int main() {
     { // init
         setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
         srand((unsigned int) time(NULL)); srand(0);
-        _eso_init();
         _window_init();
+        _eso_init();
         _soup_init();
         init_camera_drawing();
         init_camera_mesh();
@@ -177,6 +179,7 @@ int main() {
             other.stepping_one_frame_while_paused = false;
             other.paused = true;
         }
+
     }
 }
 

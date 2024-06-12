@@ -61,16 +61,16 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     { // hot_pane
         real x_divider_Pixel = get_x_divider_Pixel();
         real eps = 6.0f;
-        real x = other.mouse_Pixel.x;
+        real x_mouse_Pixel = other.mouse_Pixel.x;
         if (
                 1
                 && (popup->_FORNOW_active_popup_unique_ID__FORNOW_name0)
                 && (popup->_FORNOW_info_mouse_is_hovering)
            ) {
             other.hot_pane = Pane::Popup;
-        } else if (x < x_divider_Pixel - eps) {
+        } else if (x_mouse_Pixel < x_divider_Pixel - eps) {
             other.hot_pane = Pane::Drawing;
-        } else if (x < x_divider_Pixel + eps) {
+        } else if (x_mouse_Pixel < x_divider_Pixel + eps) {
             other.hot_pane = Pane::Separator;
         } else {
             other.hot_pane = Pane::Mesh;
