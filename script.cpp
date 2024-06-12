@@ -69,6 +69,8 @@ void script_process(String string) {
                     raw_key_event->key = GLFW_KEY_ENTER;
                 } else if (c == '\t') {
                     raw_key_event->key = GLFW_KEY_TAB;
+                } else if (c == '\33') {
+                    raw_key_event->key = GLFW_KEY_ESCAPE;
                 } else {
                     raw_key_event->key = c;
                 }

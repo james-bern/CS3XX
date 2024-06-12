@@ -88,15 +88,13 @@ void init_camera_drawing() {
     if (drawing->entities.length) camera2D_zoom_to_bbox(&other.camera_drawing, entities_get_bbox(&drawing->entities));
 }
 void init_camera_mesh() {
-    if (mesh->num_vertices) {
-        *camera_mesh = make_OrbitCamera3D(
-                CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
-                2.0f * MIN(150.0f, other.camera_drawing.ortho_screen_height_World),
-                { RAD(-44.0f), RAD(33.0f) },
-                {},
-                { 0.5f, -0.125f }
-                );
-    }
+    *camera_mesh = make_OrbitCamera3D(
+            CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
+            2.0f * MIN(150.0f, other.camera_drawing.ortho_screen_height_World),
+            { RAD(-44.0f), RAD(33.0f) },
+            {},
+            { 0.5f, -0.125f }
+            );
 }
 
 bool click_mode_SELECT_OR_DESELECT() {

@@ -128,7 +128,7 @@ static int stb_easy_font_travel_y(String string) {
 }
 
 static vec2 stb_easy_font_travel(String string) {
-    return V2(stb_easy_font_travel_x(string), stb_easy_font_travel_y(string));
+    return V2(real(stb_easy_font_travel_x(string)), real(stb_easy_font_travel_y(string)));
 }
 
 ////////////////////////////////////////

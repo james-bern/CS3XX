@@ -102,9 +102,9 @@ void popup_popup(
     EasyTextPen pen = { V2(12.0f), 18.0f, omax.white };
 
     popup->_FORNOW_info_mouse_is_hovering = false;
-    popup->info_hover_cell_index = -1;
-    popup->info_hover_cell_cursor = -1;
-    popup->info_active_cell_cursor = -1;
+    popup->info_hover_cell_index = uint(-1);
+    popup->info_hover_cell_cursor = uint(-1);
+    popup->info_active_cell_cursor = uint(-1);
     {
         for_(d, popup->num_cells) {
             bool d_is_active_cell_index = (popup->active_cell_index == d);

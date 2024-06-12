@@ -44,8 +44,8 @@ void _messages_draw() {
     uint i_0 = (_message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : _message_index - 1;
 
     uint num_drawn = 0;
-    auto draw_lambda = [&](uint _message_index) {
-        Message *message = &messages[_message_index];
+    auto draw_lambda = [&](uint message_index) {
+        Message *message = &messages[message_index];
 
         real FADE_IN_TIME = 0.33f;
         real FADE_OUT_TIME = 2.0f;

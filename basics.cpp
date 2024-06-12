@@ -1,6 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
+#include <utility>
 
 // // types
 // basic types

@@ -98,7 +98,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         if (other.mouse_left_drag_pane == Pane::Separator) {
             real prev_x_divider_OpenGL = other.x_divider_OpenGL;
             real prev_x_divider_Pixel = get_x_divider_Pixel();
-            other.x_divider_OpenGL = MAG_CLAMP(LINEAR_REMAP(xpos, 0.0f, window_get_width_Pixel(), -1.0f, 1.0f), 0.9975f); // *
+            other.x_divider_OpenGL = MAG_CLAMP(LINEAR_REMAP(real(xpos), 0.0f, window_get_width_Pixel(), -1.0f, 1.0f), 0.9975f); // *
             real x_divider_Pixel = get_x_divider_Pixel();
 
             real dx_divider_OpenGL = 0.5f * (other.x_divider_OpenGL - prev_x_divider_OpenGL);
@@ -123,7 +123,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // moving cameras
-      // mouse_left_drag_pane
+        // mouse_left_drag_pane
         if (other.mouse_left_drag_pane == Pane::Mesh) {
             real fac = 2.0f;
             camera_mesh->euler_angles.y -= fac * delta_mouse_OpenGL.x;
@@ -157,7 +157,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
         } else { ASSERT(action == GLFW_RELEASE);
             other.mouse_left_drag_pane = Pane::None;
         }
-    } else { ASSERT(button == GLFW_MOUSE_BUTTON_RIGHT);
+    } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
         if (action == GLFW_PRESS) {
             other.mouse_right_drag_pane = other.hot_pane;
         } else { ASSERT(action == GLFW_RELEASE);
@@ -171,7 +171,7 @@ void _callback_scroll_helper(Camera *camera_2D, double yoffset) {
     ASSERT(IS_ZERO(camera_2D->angle_of_view));
     ASSERT(IS_ZERO(camera_2D->euler_angles));
     vec2 mouse_position_before  = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_OpenGL);
-    camera_2D->ortho_screen_height_World *= (1.0f - 0.1f * yoffset);
+    camera_2D->ortho_screen_height_World *= (1.0f - 0.1f * real(yoffset));
     vec2 mouse_position_after = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_OpenGL);
     camera_2D->pre_nudge_World -= (mouse_position_after - mouse_position_before);
 }
@@ -196,3 +196,17 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
 void callback_framebuffer_size(GLFWwindow *, int width, int height) {
     glViewport(0, 0, width, height);
 }
+
+void callback_drop(GLFWwindow *, int count, const char **paths) {
+    if (count > 0) {
+        void script_process(String);
+
+        char *filename = (char *) paths[0];
+        String string_filename = STRING(filename);
+        script_process(STRING("\033"));
+        script_process(STRING("^o"));
+        script_process(string_filename);
+        script_process(STRING("\n"));
+    }
+}
+

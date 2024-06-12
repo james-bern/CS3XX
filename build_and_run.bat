@@ -30,39 +30,30 @@ IF "%1"=="" (
     set DEBARG=-Zi
     IF defined argv[--release] (
         echo [36m[cow] compiling in release mode[0m
+        set MANIFOLD_LINK_DIR=.\manifold\release
+        set MD_VERSUS_MDD_FLAG=/MD
     ) ELSE (
         echo [36m[cow] compiling in debug mode[0m
         set OPTARG=d
-    )
-
-    set MD_VERSUS_MDD_FLAG=/MDd
-    rem IF defined argv[--release] (
-    rem     set MD_VERSUS_MDD_FLAG=/MD
-    rem )
-
-    set EIGEN_LIB=
-    set EIGEN_DEFINE=
-    IF defined argv[--eigen] (
-        echo [36m[cow] linking against precompiled Eigen linear solver[0m
-        set EIGEN_LIB=codebase\ext\windows_eigen.lib
-        set EIGEN_DEFINE=/DUSE_EIGEN
+        set MANIFOLD_LINK_DIR=.\manifold\debug
+        set MD_VERSUS_MDD_FLAG=/MDd
     )
 
     cl -O!OPTARG! ^
     /d2FH4- ^
     -W4 -wd4201 -wd4127 ^
     /nologo -fp:except !DEBARG! -GR- -EHa- -FC ^
-    /I.\codebase\ext\ ^
+    /I.\opengl /I.\burkardt /I.\manifold ^
     !EIGEN_DEFINE! ^
     /EHsc ^
     !MD_VERSUS_MDD_FLAG! ^
     %1 ^
     /Feexecutable.exe ^
     /link /NODEFAULTLIB:MSVCRT ^
+    /LIBPATH:.\opengl /LIBPATH:.\burkardt /LIBPATH:!MANIFOLD_LINK_DIR! ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
-    codebase\ext\glfw3.lib ^
-    !EIGEN_LIB! ^
-    codebase\ext\Clipper2.lib codebase\ext\tbb12_debug.lib codebase\ext\tbb12.lib codebase\ext\manifold.lib codebase\ext\manifoldc.lib
+    glfw3.lib ^
+    Clipper2.lib tbb12_debug.lib tbb12.lib manifold.lib manifoldc.lib
 
     call :setESC
 

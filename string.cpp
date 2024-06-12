@@ -35,7 +35,7 @@ real strtof(String string) { // FORNOW
 
 bool string_read_line_from_file(String *string, uint max_line_length, FILE *file) {
     bool result = fgets(string->data, max_line_length, file);
-    if (result) string->length = strlen(string->data);
+    if (result) string->length = uint(strlen(string->data));
     return result;
 }
 

@@ -39,7 +39,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             };
 
             bool digit_lambda;
-            uint digit;
+            uint digit = 0;
             {
                 digit_lambda = false;
                 for_(color, 10) {

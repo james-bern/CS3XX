@@ -13,6 +13,8 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
     bool key_is_enter = (key == GLFW_KEY_ENTER);
     bool key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
     bool key_is_ctrl_a = (key == 'A') && (control);
+    bool key_is_slash = (key == '/') || (key == '\\');
+    bool key_is_extended_punc = (key == ':');
 
     bool is_consumable_by_popup; {
         is_consumable_by_popup = false;
@@ -26,6 +28,8 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
             ;
         } else if (popup->_type_of_active_cell == CellType::String) {
             is_consumable_by_popup |= key_is_alpha;
+            is_consumable_by_popup |= key_is_slash;
+            is_consumable_by_popup |= key_is_extended_punc;
         } else {
             ASSERT(false);
         }

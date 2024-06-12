@@ -9,16 +9,16 @@
 #define GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WGL
 #define GLFW_NATIVE_INCLUDE_NONE
-#include "codebase/ext/glfw3native.h"
+#include "glfw3native.h"
 #endif
 
 #define GL_REAL GL_FLOAT
 GLFWwindow *glfw_window;
 real _window_macbook_retina_fixer__VERY_MYSTERIOUS;
 
-void gl_scissor_TODO_CHECK_ARGS(real x, real y, real dx, real dy) {
+void gl_scissor_TODO_CHECK_ARGS(double x, double y, double dx, double dy) {
     real factor = _window_macbook_retina_fixer__VERY_MYSTERIOUS;
-    glScissor(factor * x, factor * y, factor * dx, factor * dy);
+    glScissor(uint(factor * x), uint(factor * y), uint(factor * dx), uint(factor * dy));
 }
 #ifdef glScissor
 #undef glScissor
@@ -37,13 +37,11 @@ void _window_init() {
 
     // glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
-    glfw_window = glfwCreateWindow(1000, 1000, "conversation -- " __DATE__ " " __TIME__, NULL, NULL);
+    glfw_window = glfwCreateWindow(960, 540, "conversation -- " __DATE__ " " __TIME__, NULL, NULL);
     if (!glfw_window) {
         printf("[cow] something's gone wonky; if you weren't just messing with init(...) or something, please try restarting your computer and try again.\n");
         ASSERT(0);
     }
-
-
     glfwMakeContextCurrent(glfw_window);
 
     #ifdef OPERATING_SYSTEM_WINDOWS
@@ -63,8 +61,7 @@ void _window_init() {
     glfwSwapInterval(1);
 
 
-    glfwSetWindowPos(glfw_window, 0.0f, 0.0f);
-    glfwSetWindowSize(glfw_window, 960.0f, 540.0f);
+    glfwSetWindowPos(glfw_window, 0, 100);
     glfwSetWindowAttrib(glfw_window, GLFW_FLOATING, false);
     glfwSetWindowAttrib(glfw_window, GLFW_DECORATED, true);
 
