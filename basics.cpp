@@ -158,3 +158,9 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 #include <windows.h>
 #define IS_NAN(x) 
 #endif
+
+run_before_main {
+    setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
+    srand((unsigned int) time(NULL));
+};
+

@@ -55,6 +55,7 @@ run_before_main {
 #include <stdarg.h>
 #include "string.cpp"
 #include "linalg.cpp"
+#include "color.cpp"
 #include "bbox.cpp"
 #include "containers.cpp" // TODO: implement better Map
 #include "elephant.cpp"
@@ -93,14 +94,29 @@ PreviewState *preview = &other.preview;
 #include "process.cpp"
 #include "script.cpp"
 
+#if 0
+int main() {
+    while (window_begin_frame()) {
+        eso_begin(window_get_OpenGL_from_Pixel(), SOUP_LINES);
 
+        eso_size(3.0f);
+        eso_stipple(0b00000000);
+        eso_color(basic.red);
+        eso_vertex(10.0f, 10.0f);
+        eso_color(basic.green);
+        eso_vertex(100.0f, 10.0f);
+
+        eso_size(9.0f);
+        eso_color(basic.blue);
+        eso_stipple(0b11000000);
+        eso_vertex(10.0f, 100.0f);
+        eso_vertex(100.0f, 100.0f);
+        eso_end();
+    }
+}
+#else
 int main() {
     { // init
-        setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
-        srand((unsigned int) time(NULL)); srand(0);
-        _window_init();
-        _eso_init();
-        _soup_init();
         init_camera_drawing();
         init_camera_mesh();
         script_process(STRING(startup_script));
@@ -122,17 +138,10 @@ int main() {
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
-
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
-    while (!glfwWindowShouldClose(glfw_window)) {
-        { // begin_frame()
-            glfwPollEvents();
-            glfwSwapBuffers(glfw_window);
-            glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    while (window_begin_frame()) {
             other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
-        }
 
         other._please_suppress_drawing_popup_popup = false;
 
@@ -187,5 +196,6 @@ int main() {
 
     }
 }
+#endif
 
 

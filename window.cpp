@@ -13,8 +13,58 @@
 #endif
 
 #define GL_REAL GL_FLOAT
+
 GLFWwindow *glfw_window;
 real _window_macbook_retina_fixer__VERY_MYSTERIOUS;
+
+run_before_main {
+    ASSERT(glfwInit());
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
+    glfwWindowHint(GLFW_SAMPLES, 1);
+
+    glfw_window = glfwCreateWindow(960, 540, "conversation -- " __DATE__ " " __TIME__, NULL, NULL);
+    if (!glfw_window) {
+        printf("Something's gone wonky; if you weren't just messing with init(...) or something, please try restarting your computer and trying again.\n");
+        ASSERT(0);
+    }
+    glfwMakeContextCurrent(glfw_window);
+    glfwSetWindowPos(glfw_window, 0, 100);
+    glfwSetWindowAttrib(glfw_window, GLFW_FLOATING, false);
+    glfwSetWindowAttrib(glfw_window, GLFW_DECORATED, true);
+
+    #ifdef OPERATING_SYSTEM_WINDOWS
+    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    #endif
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
+    glDepthRange(0.0f, 1.0f);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glfwSwapInterval(1);
+
+    { // _macbook_retina_scale
+        int num, den, _;
+        glfwGetFramebufferSize(glfw_window, &num, &_);
+        glfwGetWindowSize(glfw_window, &den, &_);
+        _window_macbook_retina_fixer__VERY_MYSTERIOUS = real(num / den);
+    }
+};
+
+bool window_begin_frame() {
+    glfwPollEvents();
+    glfwSwapBuffers(glfw_window);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+    return (!glfwWindowShouldClose(glfw_window));
+}
 
 void gl_scissor_TODO_CHECK_ARGS(double x, double y, double dx, double dy) {
     real factor = _window_macbook_retina_fixer__VERY_MYSTERIOUS;
@@ -25,53 +75,6 @@ void gl_scissor_TODO_CHECK_ARGS(double x, double y, double dx, double dy) {
 #endif
 #define glScissor RETINA_BREAKS_THIS_FUNCTION_USE_gl_scissor_WRAPPER
 
-void _window_init() {
-    ASSERT(glfwInit());
-
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
-    glfwWindowHint(GLFW_SAMPLES, 1);
-
-    // glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
-
-    glfw_window = glfwCreateWindow(960, 540, "conversation -- " __DATE__ " " __TIME__, NULL, NULL);
-    if (!glfw_window) {
-        printf("[cow] something's gone wonky; if you weren't just messing with init(...) or something, please try restarting your computer and try again.\n");
-        ASSERT(0);
-    }
-    glfwMakeContextCurrent(glfw_window);
-
-    #ifdef OPERATING_SYSTEM_WINDOWS
-    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-    #endif
-
-    glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
-    glDepthFunc(GL_LEQUAL);
-    glDepthRange(0.0f, 1.0f);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    glfwSwapInterval(1);
-
-
-    glfwSetWindowPos(glfw_window, 0, 100);
-    glfwSetWindowAttrib(glfw_window, GLFW_FLOATING, false);
-    glfwSetWindowAttrib(glfw_window, GLFW_DECORATED, true);
-
-    { // _macbook_retina_scale
-        int num, den, _;
-        glfwGetFramebufferSize(glfw_window, &num, &_);
-        glfwGetWindowSize(glfw_window, &den, &_);
-        _window_macbook_retina_fixer__VERY_MYSTERIOUS = real(num / den);
-    }
-}
 
 vec2 window_get_size_Pixel() {
     ASSERT(glfw_window);
@@ -209,7 +212,7 @@ mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_OpenGL = {}, real
 mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_OpenGL = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
     // ASSERT(!IS_ZERO(height_World));
     if (ARE_EQUAL(near_z_Camera, far_z_Camera)) {
-        near_z_Camera = 10000.0f;
+        near_z_Camera = 1000000.0f;
         far_z_Camera = -near_z_Camera;
     }
     if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }

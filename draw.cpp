@@ -32,7 +32,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         eso_end();
     }
     for_(pass, 2) {
-        eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_OUTLINED_TRIANGLES);
+        eso_begin(PVM_3D, SOUP_TRIANGLES);
 
         mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
 

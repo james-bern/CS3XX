@@ -347,11 +347,6 @@ vec3 RGB256(real r, real g, real b) {
 }
 
 struct {
-    vec3 yellow = { 1.0f, 1.0f, 0.0f };
-    vec3 cyan = { 0.0f, 1.0f, 1.0f };
-} basic;
-
-struct {
     vec3 red = RGB256(255, 0, 0);
     vec3 yellow = RGB256(255, 255, 0);
     vec3 orange = RGB256(204, 136, 1);
@@ -410,21 +405,6 @@ real WRAP_TO_0_TAU_INTERVAL(real theta) {
 
 bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
     return (WRAP_TO_0_TAU_INTERVAL(t - a) < WRAP_TO_0_TAU_INTERVAL(t - b));
-}
-
-////////////////////////////////////////
-// bbox2 /////////////////////////
-////////////////////////////////////////
-
-
-void camera2D_zoom_to_bbox(Camera *camera_drawing, bbox2 bbox) {
-    real new_o_x = AVG(bbox.min[0], bbox.max[0]);
-    real new_o_y = AVG(bbox.min[1], bbox.max[1]);
-    real new_height = MAX((bbox.max[0] - bbox.min[0]) * 2 / window_get_aspect(), (bbox.max[1] - bbox.min[1])); // factor of 2 since splitscreen
-    new_height *= 1.3f; // FORNOW: border
-    camera_drawing->ortho_screen_height_World = new_height;
-    camera_drawing->pre_nudge_World.x = new_o_x;
-    camera_drawing->pre_nudge_World.y = new_o_y;
 }
 
 ////////////////////////////////////////

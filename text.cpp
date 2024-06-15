@@ -183,7 +183,10 @@ template <uint D_position, uint D_color> vec2 text_draw(
     mat4 transform = window_get_OpenGL_from_Pixel()
         * M4_Translation(position_Pixel + nudge_Pixel)
         * M4_Scaling(font_height_Pixel / 12.0f);
-    soup_draw(transform, SOUP_QUADS, num_vertices, vertex_positions, NULL, color, 0, force_draw_on_top);
+    eso_begin(transform, SOUP_QUADS, force_draw_on_top);
+    eso_color(color);
+    for_(i, num_vertices) eso_vertex(vertex_positions[i]);
+    eso_end();
 
     return text_travel(string, font_height_Pixel);
 }

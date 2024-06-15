@@ -84,17 +84,41 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
 }
 
 void init_camera_drawing() {
-    *camera_drawing = make_Camera2D(100.0f, {}, { -0.5f, -0.125f });
-    if (drawing->entities.length) camera2D_zoom_to_bbox(&other.camera_drawing, entities_get_bbox(&drawing->entities));
+    *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_OpenGL), 0.0f });
+    if (drawing->entities.length) {
+        bbox2 bbox = entities_get_bbox(&drawing->entities);
+        real f = (get_x_divider_Pixel() / window_get_width_Pixel());
+        vec2 L = (bbox.max - bbox.min);
+        camera_drawing->ortho_screen_height_World = MAX((L.x / f) / window_get_aspect(), L.y);
+        camera_drawing->ortho_screen_height_World += 16.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
+        camera_drawing->pre_nudge_World = AVG(bbox.min, bbox.max);
+    }
 }
 void init_camera_mesh() {
     *camera_mesh = make_OrbitCamera3D(
             CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
-            2.0f * MIN(150.0f, other.camera_drawing.ortho_screen_height_World),
+            200.0f,
             { RAD(-44.0f), RAD(33.0f) },
             {},
-            { 0.5f, -0.125f }
+            { AVG(other.x_divider_OpenGL, 1.0f), 0.0f }
             );
+    // // TODO: rasterize the bounding box
+    // mat4 PV = camera_get_PV(camera_mesh);
+    // bbox2 B = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.min.x, mesh->bbox.min.y, mesh->bbox.min.z)));
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.max.x, mesh->bbox.min.y, mesh->bbox.min.z)));
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.min.x, mesh->bbox.max.y, mesh->bbox.min.z)));
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.max.x, mesh->bbox.max.y, mesh->bbox.min.z)));
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.min.x, mesh->bbox.min.y, mesh->bbox.max.z)));
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.max.x, mesh->bbox.min.y, mesh->bbox.max.z)));
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.min.x, mesh->bbox.max.y, mesh->bbox.max.z)));
+    // B += _V2(transformPoint(PV, V3(mesh->bbox.max.x, mesh->bbox.max.y, mesh->bbox.max.z)));
+    // real f = 1.0f - (get_x_divider_Pixel() / window_get_width_Pixel());
+    // vec2 L_OpenGL = (B.max - B.min);
+    // real fac = camera_mesh->persp_distance_to_origin_World * TAN(camera_mesh->angle_of_view);;
+    // vec2 L = L_OpenGL * fac;
+    // camera_mesh->persp_distance_to_origin_World = (0.5f * MAX((L.x / f) / window_get_aspect(), L.y)) / TAN(camera_mesh->angle_of_view);
+    // camera_mesh->pre_nudge_World = fac * (V2(0.5f) + 0.5f * AVG(B.min, B.max));
 }
 
 bool click_mode_SELECT_OR_DESELECT() {
