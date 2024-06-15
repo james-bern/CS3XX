@@ -303,7 +303,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     Camera camera_drawing;
     Camera camera_mesh;
 
-    bool show_grid;
+    bool hide_grid;
     bool show_details;
     bool show_help;
     bool show_event_stack;
@@ -362,7 +362,7 @@ struct {
     vec3 magenta = RGB256(255, 0, 255);
     vec3 pink = RGB256(238, 0, 119);
     vec3 black = RGB256(0, 0, 0);
-    vec3 dark_gray = RGB256(136, 136, 136);
+    vec3 dark_gray = RGB256(50, 50, 50);
     vec3 light_gray = RGB256(205, 205, 205);
     vec3 white = RGB256(255, 255, 255);
 } omax;
@@ -394,7 +394,7 @@ template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
 real Z_FIGHT_EPS = 0.05f;
 real TOLERANCE_DEFAULT = 5e-4f;
 uint NUM_SEGMENTS_PER_CIRCLE = 64;
-real GRID_SIDE_LENGTH = 256.0f;
+real GRID_SIDE_LENGTH = 250.0f;
 real GRID_SPACING = 10.0f;
 real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(45.0f);
 

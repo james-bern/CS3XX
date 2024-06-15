@@ -1,7 +1,7 @@
-// TODO: basic 3D grid with lines (have grids on by default)
+// XXXX: basic 3D grid with lines (have grids on by default)
 // TODO: camera reset needs to take into account divider position
-// TODO: switch entity_*(...) over to vec2(...) instead of void(..., real *, real *)
-// TODO: consider cookbook_lambdas -> Cookbook cookbook = cookbook(...)
+// XXXX: switch entity_*(...) over to vec2(...) instead of void(..., real *, real *)
+// XXXX: consider cookbook_lambdas -> Cookbook cookbook = cookbook(...)
 // TODO: (re)write soup.cpp
 // TODOFIRST: eso_size(...) (eso_begin doesn't take size)
 // TODO: memcmp to see if should record
@@ -10,7 +10,7 @@
 #include "basics.cpp"
 
 char *startup_script = "";
-#if 0
+#if 1
 run_before_main {
     startup_script = "cz0123456789";
     startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
@@ -89,8 +89,10 @@ PreviewState *preview = &other.preview;
 #include "history.cpp"
 #include "callbacks.cpp"
 #include "bake.cpp"
+#include "cookbook.cpp"
 #include "process.cpp"
 #include "script.cpp"
+
 
 int main() {
     { // init
@@ -137,7 +139,7 @@ int main() {
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
             { // time_since
-                real dt = 0.0167f;
+                real dt = 0.033f;
                 _for_each_entity_ entity->time_since_is_selected_changed += dt;
                 other.time_since_cursor_start += dt;
                 other.time_since_successful_feature += dt;

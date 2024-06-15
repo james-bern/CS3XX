@@ -65,12 +65,12 @@ template <typename F> struct Defer {
 template <typename F> Defer<F> makeDefer(F f) { return Defer<F>(f); };
 struct defer_dummy {};
 template <typename F> Defer<F> operator + (defer_dummy, F &&f) { return makeDefer<F>(std::forward<F>(f)); }
-#define defer auto CONCAT(defer_, __COUNTER) = defer_dummy() + [&]()
+#define defer auto CONCAT(defer_, __COUNTER__) = defer_dummy() + [&]()
 // run_before_main
 // - code inside run_before_main { ... }; runs before main
 struct run_before_main_dummy {};
 template <typename F> bool operator + (run_before_main_dummy, F &&f) { f(); return true; }
-#define run_before_main static bool CONCAT(run_before_main_, __COUNTER) = run_before_main_dummy() + []()
+#define run_before_main static bool CONCAT(run_before_main_, __COUNTER__) = run_before_main_dummy() + []()
 
 // // math
 // constants

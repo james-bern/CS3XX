@@ -99,7 +99,7 @@ void popup_popup(
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
 
-    EasyTextPen pen = { V2(12.0f), 18.0f, omax.white };
+    EasyTextPen pen = { V2(12.0f), 24.0f, omax.white };
 
     popup->_FORNOW_info_mouse_is_hovering = false;
     popup->info_hover_cell_index = uint(-1);

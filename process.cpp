@@ -12,6 +12,8 @@ StandardEventProcessResult standard_event_process(Event event) {
 
 
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
+
+
     void history_printf_script(); // FORNOW forward declaration
 
     bool skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack = event.snapshot_me;
@@ -27,7 +29,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
     StandardEventProcessResult result = {};
 
-    #include "cookbook_lambdas.cpp"
+    Cookbook cookbook = make_Cookbook(event, &result, skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
+    defer {
+        cookbook.end_frame();
+        cookbook_free(&cookbook);
+    };
 
     if (event.type == EventType::Key) {
         KeyEvent *key_event = &event.key_event;
@@ -59,12 +65,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         _for_each_entity_ {
                             uint i = uint(entity->color_code);
                             if (i != digit) continue;
-                            ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
+                            cookbook.entity_set_is_selected(entity, value_to_write_to_selection_mask);
                         }
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
                     } else if ((state.click_mode == ClickMode::Color) && (state.click_modifier == ClickModifier::Selected)) { // qs0
-                        _for_each_selected_entity_ ENTITY_SET_COLOR(entity, ColorCode(digit));
+                        _for_each_selected_entity_ cookbook.entity_set_color(entity, ColorCode(digit));
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
                         _for_each_entity_ entity->is_selected = false;
@@ -77,7 +83,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda('A')) {
                     if (click_mode_SELECT_OR_DESELECT()) {
                         result.checkpoint_me = true;
-                        CLEAR_SELECTION_MASK_TO(state.click_mode == ClickMode::Select);
+                        cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
                     }
@@ -115,7 +121,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('G')) {
                     result.record_me = false;
-                    other.show_grid = !other.show_grid;
+                    other.hide_grid = !other.hide_grid;
                 } else if (key_lambda('H')) {
                     result.record_me = false;
                     history_printf_script();
@@ -266,7 +272,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(GLFW_KEY_DELETE)) {
                     for (int i = drawing->entities.length - 1; i >= 0; --i) {
                         if (drawing->entities.array[i].is_selected) {
-                            _REMOVE_ENTITY(i);
+                            cookbook._delete_entity(i);
                         }
                     }
                 } else if (key_lambda('/', false, true)) {
@@ -455,9 +461,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     uint hot_entity_index = dxf_find_closest_entity_result.index;
                     if (state.click_modifier != ClickModifier::Connected) {
                         if (click_mode_SELECT_OR_DESELECT()) {
-                            ENTITY_SET_IS_SELECTED(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+                            cookbook.entity_set_is_selected(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
                         } else {
-                            ENTITY_SET_COLOR(&drawing->entities.array[hot_entity_index], state.click_color_code);
+                            cookbook.entity_set_color(&drawing->entities.array[hot_entity_index], state.click_color_code);
                         }
                     } else {
                         #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -559,7 +565,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
                         edge_marked[hot_entity_index] = true;
-                        ENTITY_SET_IS_SELECTED(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+                        cookbook.entity_set_is_selected(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
 
                         for_(pass, 2) {
 
@@ -576,7 +582,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
                             while (true) {
                                 if (curr == NULL) break;
-                                ENTITY_SET_IS_SELECTED(&drawing->entities.array[curr->entity_index], value_to_write_to_selection_mask);
+                                cookbook.entity_set_is_selected(&drawing->entities.array[curr->entity_index], value_to_write_to_selection_mask);
                                 edge_marked[curr->entity_index] = true;
                                 curr = get_any_point_not_part_of_an_marked_entity(get_key(curr, true)); // get other end
                                 if (curr == NULL) break;
@@ -606,7 +612,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
                         uint num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
                         for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
-                            ENTITY_SET_IS_SELECTED(&drawing->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
+                            cookbook.entity_set_is_selected(&drawing->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
                         }
                         #endif
                     }
@@ -640,10 +646,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 state.click_modifier = ClickModifier::None;
                                 vec2 other_corner_A = { first_click->x, second_click->y };
                                 vec2 other_corner_B = { second_click->x, first_click->y };
-                                ADD_LINE_ENTITY(*first_click,  other_corner_A);
-                                ADD_LINE_ENTITY(*first_click,  other_corner_B);
-                                ADD_LINE_ENTITY(*second_click, other_corner_A);
-                                ADD_LINE_ENTITY(*second_click, other_corner_B);
+                                cookbook.buffer_add_line(*first_click,  other_corner_A);
+                                cookbook.buffer_add_line(*first_click,  other_corner_B);
+                                cookbook.buffer_add_line(*second_click, other_corner_A);
+                                cookbook.buffer_add_line(*second_click, other_corner_B);
                             }
                         } else if (state.click_mode == ClickMode::Fillet) {
                             two_click_command->awaiting_second_click = false;
@@ -710,11 +716,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                             ColorCode color_i = E_i->color_code;
                                             ColorCode color_j = E_j->color_code;
-                                            _REMOVE_ENTITY(MAX(i, j));
-                                            _REMOVE_ENTITY(MIN(i, j));
+                                            cookbook.buffer_delete_entity(i);
+                                            cookbook.buffer_delete_entity(j);
 
-                                            ADD_LINE_ENTITY(s_ab, t_ab, false, color_i);
-                                            ADD_LINE_ENTITY(s_cd, t_cd, false, color_j);
+                                            cookbook.buffer_add_line(s_ab, t_ab, false, color_i);
+                                            cookbook.buffer_add_line(s_cd, t_cd, false, color_j);
 
                                             real theta_ab_in_degrees = DEG(atan2(t_ab - center));
                                             real theta_cd_in_degrees = DEG(atan2(t_cd - center));
@@ -729,7 +735,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                                 // TODO: consider tabbing to create chamfer
 
-                                                ADD_ARC_ENTITY(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
+                                                cookbook.buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
                                             }
                                         }
                                     }
@@ -748,8 +754,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 real theta_a_in_degrees = DEG(atan2(*second_click - *first_click));
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real r = norm(*second_click - *first_click);
-                                ADD_ARC_ENTITY(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
-                                ADD_ARC_ENTITY(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
+                                cookbook.buffer_add_arc(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
+                                cookbook.buffer_add_arc(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
                                 // messagef(omax.green, "Circle");
                             }
                         } else if (state.click_mode == ClickMode::Line) {
@@ -757,7 +763,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            ADD_LINE_ENTITY(*first_click, *second_click);
+                            cookbook.buffer_add_line(*first_click, *second_click);
                         } else if (state.click_mode == ClickMode::Measure) {
                             two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
@@ -793,7 +799,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             };
                             _for_each_entity_ {
                                 if (bbox_contains(window, entity_get_bbox(entity))) {
-                                    ENTITY_SET_IS_SELECTED(entity, value_to_write_to_selection_mask);
+                                    cookbook.entity_set_is_selected(entity, value_to_write_to_selection_mask);
                                 }
                             }
                         }
@@ -811,7 +817,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         _for_each_selected_entity_ {
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line_entity = &entity->line_entity;
-                                BUFFER_LINE_ENTITY(
+                                cookbook.buffer_add_line(
                                         V2(-(line_entity->start.x - mouse->x) + mouse->x, line_entity->start.y),
                                         V2(-(line_entity->end.x - mouse->x) + mouse->x, line_entity->end.y),
                                         true,
@@ -819,7 +825,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         );
                             } else { ASSERT(entity->type == EntityType::Arc);
                                 ArcEntity *arc_entity = &entity->arc_entity;
-                                BUFFER_ARC_ENTITY(
+                                cookbook.buffer_add_arc(
                                         V2(-(arc_entity->center.x - mouse->x) + mouse->x, arc_entity->center.y),
                                         arc_entity->radius,
                                         arc_entity->end_angle_in_degrees, // TODO
@@ -829,7 +835,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             entity->is_selected = false;
                         }
-                        ADD_BUFFERED_ENTITIES();
                     } else if (state.click_mode == ClickMode::MirrorY) {
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;
@@ -837,7 +842,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         _for_each_selected_entity_ {
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line_entity = &entity->line_entity;
-                                BUFFER_LINE_ENTITY(
+                                cookbook.buffer_add_line(
                                         V2(line_entity->start.x, -(line_entity->start.y - mouse->y) + mouse->y),
                                         V2(line_entity->end.x, -(line_entity->end.y - mouse->y) + mouse->y),
                                         true,
@@ -845,7 +850,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         );
                             } else { ASSERT(entity->type == EntityType::Arc);
                                 ArcEntity *arc_entity = &entity->arc_entity;
-                                BUFFER_ARC_ENTITY(
+                                cookbook.buffer_add_arc(
                                         V2(arc_entity->center.x, -(arc_entity->center.y - mouse->y) + mouse->y),
                                         arc_entity->radius,
                                         arc_entity->end_angle_in_degrees, // TODO
@@ -855,7 +860,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             entity->is_selected = false;
                         }
-                        ADD_BUFFERED_ENTITIES();
                     } else {
                         result.record_me = false;
                     }
@@ -1025,7 +1029,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (IS_ZERO(popup->extrude_add_in_length) && IS_ZERO(popup->extrude_add_out_length)) {
                         messagef(omax.orange, "ExtrudeAdd: total extrusion length zero");
                     } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        cookbook.manifold_wrapper();
                         if (IS_ZERO(popup->extrude_add_in_length)) {
                             messagef(omax.green, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
                         } else {
@@ -1047,7 +1051,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (mesh->num_triangles == 0) {
                         messagef(omax.orange, "ExtrudeCut: current mesh empty");
                     } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        cookbook.manifold_wrapper();
                         if (IS_ZERO(popup->extrude_cut_out_length)) {
                             messagef(omax.green, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
                         } else {
@@ -1063,7 +1067,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (!feature_plane->is_active) {
                         messagef(omax.orange, "RevolveAdd: no feature plane selected");
                     } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        cookbook.manifold_wrapper();
                         messagef(omax.green, "RevolveAdd");
                     }
                 }
@@ -1077,7 +1081,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (mesh->num_triangles == 0) {
                         messagef(omax.orange, "RevolveCut: current mesh empty");
                     } else {
-                        GENERAL_PURPOSE_MANIFOLD_WRAPPER();
+                        cookbook.manifold_wrapper();
                         messagef(omax.green, "RevolveCut");
                     }
                 }

@@ -41,6 +41,7 @@ void _messages_update() {
 }
 
 void _messages_draw() {
+    real font_height_Pixel = 16.0f;
     uint i_0 = (_message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : _message_index - 1;
 
     uint num_drawn = 0;
@@ -59,13 +60,13 @@ void _messages_draw() {
         vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, omax.yellow, message->base_color);
         color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
 
-        real x = get_x_divider_Pixel() + 12;
-        real y_target = ++num_drawn * 12.0f;
-        if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 12.0f);
+        real x = get_x_divider_Pixel() + font_height_Pixel;
+        real y_target = ++num_drawn * font_height_Pixel;
+        // if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 12.0f);
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
-            text_draw(other.OpenGL_from_Pixel, message->string, V2(x, message->y), V4(color, alpha));
+            text_draw(other.OpenGL_from_Pixel, message->string, V2(x, message->y), V4(color, alpha), 16.0f);
         }
     };
 

@@ -192,7 +192,7 @@ void conversation_draw() {
         }
 
         {
-            if (other.show_grid) { // grid 2D grid 2d grid
+            if (!other.hide_grid) { // grid 2D grid 2d grid
                 eso_begin(PV_2D, SOUP_LINES);
                 eso_size(2.0f);
                 eso_color(omax.dark_gray);
@@ -481,10 +481,51 @@ void conversation_draw() {
             }
         }
 
-        if (other.show_grid) { // grid 3D grid 3d grid
-                               // conversation_draw_3D_grid_box(P_3D, V_3D);
+        if (!other.hide_grid) { // grid 3D grid 3d grid
+            for_(k, 6) {
+                real sign = (k % 2 == 0) ? 1.0f : -1.0f;
+                real r = 0.5f * GRID_SIDE_LENGTH;
+                mat4 M = M4_Translation(-r, -r, sign * r);
+                vec3 n;
+                if (k < 2) {
+                    n = { 0.0f, 0.0f, sign };
+                } else if (k < 4) {
+                    M = M4_RotationAboutXAxis(-PI / 2) * M;
+                    n = { 0.0f, sign, 0.0f };
+                } else {
+                    M = M4_RotationAboutYAxis(PI / 2) * M;
+                    n = { sign, 0.0f, 0.0f };
+                }
+                vec3 z_camera; {
+                    mat4 C_3D = inverse(V_3D);
+                    z_camera = {
+                        C_3D(0, 2),
+                        C_3D(1, 2),
+                        C_3D(2, 2),
+                    };
+                }
+                if (dot(n, z_camera) > 0) continue;
+                mat4 transform = PV_3D * M;
+                eso_begin(transform, SOUP_LINES);
+                eso_size(2.0f);
+                eso_color(omax.dark_gray);
+                for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
+                    real tmp = i * GRID_SPACING;
+                    eso_vertex(tmp, 0.0f);
+                    eso_vertex(tmp, GRID_SIDE_LENGTH);
+                    eso_vertex(0.0f, tmp);
+                    eso_vertex(GRID_SIDE_LENGTH, tmp);
+                }
+                eso_end();
+                eso_begin(transform, SOUP_LINE_LOOP);
+                eso_size(2.0f);
+                eso_vertex(0.0f, 0.0f);
+                eso_vertex(0.0f, GRID_SIDE_LENGTH);
+                eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
+                eso_vertex(GRID_SIDE_LENGTH, 0.0f);
+                eso_end();
+            }
         }
-
         glDisable(GL_SCISSOR_TEST);
     }
 
