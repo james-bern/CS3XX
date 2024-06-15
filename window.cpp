@@ -198,8 +198,8 @@ mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_OpenGL = {}, real
 
     // [1 0 0  t_x_OpenGL] [Q_x   0  0  0]
     // [0 1 0  t_y_OpenGL] [  0 Q_y  0  0]
-    // [0 0 1        0] [  0   0  a  b]
-    // [0 0 0        1] [  0   0 -1  0]
+    // [0 0 1           0] [  0   0  a  b]
+    // [0 0 0           1] [  0   0 -1  0]
     result(0, 2) = -post_nudge_OpenGL.x;
     result(1, 2) = -post_nudge_OpenGL.y;
 

@@ -94,6 +94,9 @@ mat3 M3(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, 
 mat4 M4(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8, real a9, real a10, real a11, real a12, real a13, real a14, real a15) {
     return { a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 };
 }
+mat3 _M3(mat4 M) {
+    return { M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2) };
+}
 
 mat2 hstack(vec2 col0, vec2 col1) { return { col0.x, col1.x, col0.y, col1.y }; }
 mat3 hstack(vec3 col0, vec3 col1, vec3 col2) { return { col0.x, col1.x, col2.x, col0.y, col1.y, col2.y, col0.z, col1.z, col2.z }; }
@@ -399,14 +402,14 @@ tuDv transformPoint(const mat4 &M, vecD p) {
 tuDv transformVector(const mat4 &M, vecD v) {
     vec3 v_3D = {};
     memcpy(&v_3D, &v, D * sizeof(real));
-    vec3 ret_hom = M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)) * v_3D;
-    vecD result = {};
+    vec3 ret_hom = _M3(M) * v_3D;
+    vecD result;
     memcpy(&result, &ret_hom, D * sizeof(real));
     return result;
 }
 tuDv transformNormal(const mat4 &M, vecD n) {
-    vec3 ret_hom = inverse(transpose(M3(M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2)))) * n;
-    vecD result = {};
+    vec3 ret_hom = inverse(transpose(_M3(M))) * n;
+    vecD result;
     memcpy(&result, &ret_hom, D * sizeof(real));
     return result;
 }

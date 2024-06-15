@@ -28,24 +28,20 @@ struct LineLineIntersectionResult {
     vec2 position;
 };
 
+#define BURKARDT_VEC2(p, a) double p[] = { a.x, a.y };
+
 LineLineIntersectionResult burkardt_line_line_intersection(vec2 a, vec2 b, vec2 c, vec2 d) {
-    double p1[2];
-    double p2[2];
-    double p3[2];
-    double p4[2];
-    for_(k, 2) {
-        p1[k] = a[k];
-        p2[k] = b[k];
-        p3[k] = c[k];
-        p4[k] = d[k];
-    }
+    BURKARDT_VEC2(p1, a);
+    BURKARDT_VEC2(p2, b);
+    BURKARDT_VEC2(p3, c);
+    BURKARDT_VEC2(p4, d);
     int ival;
     double p[2];
     lines_exp_int_2d(p1, p2, p3, p4, &ival, p);
     LineLineIntersectionResult result;
     result.is_valid = (ival == 1);
     for_(k, 2) result.position[k] = (real) p[k];
-    { // we are less stringent than burkardt
+    { // NOTE: we are less stringent than burkardt
         if (squaredNorm(a - result.position) > HUGE_VAL) result.is_valid = false;
     }
     return result;
@@ -53,13 +49,8 @@ LineLineIntersectionResult burkardt_line_line_intersection(vec2 a, vec2 b, vec2 
 
 
 real burkardt_three_point_angle(vec2 p, vec2 center, vec2 q) {
-    double p1[2];
-    double p2[2];
-    double p3[2];
-    for_(k, 2) {
-        p1[k] = p[k];
-        p2[k] = center[k];
-        p3[k] = q[k];
-    }
+    BURKARDT_VEC2(p1, p);
+    BURKARDT_VEC2(p2, center);
+    BURKARDT_VEC2(p3, q);
     return (real) angle_rad_2d(p1, p2, p3);
 }

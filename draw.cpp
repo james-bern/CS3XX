@@ -483,29 +483,24 @@ void conversation_draw() {
 
         if (!other.hide_grid) { // grid 3D grid 3d grid
             for_(k, 6) {
-                real sign = (k % 2 == 0) ? 1.0f : -1.0f;
                 real r = 0.5f * GRID_SIDE_LENGTH;
-                mat4 M = M4_Translation(-r, -r, sign * r);
-                vec3 n;
-                if (k < 2) {
-                    n = { 0.0f, 0.0f, sign };
-                } else if (k < 4) {
-                    M = M4_RotationAboutXAxis(-PI / 2) * M;
-                    n = { 0.0f, sign, 0.0f };
-                } else {
-                    M = M4_RotationAboutYAxis(PI / 2) * M;
-                    n = { sign, 0.0f, 0.0f };
+                mat4 M0 = M4_Translation(-r, -r, r);
+                mat4 M1; {
+                    if (k == 0) M1 = M4_Identity();
+                    if (k == 1) M1 = M4_RotationAboutYAxis(PI);
+                    if (k == 2) M1 = M4_RotationAboutXAxis( PI / 2);
+                    if (k == 3) M1 = M4_RotationAboutXAxis(-PI / 2);
+                    if (k == 4) M1 = M4_RotationAboutYAxis( PI / 2);
+                    if (k == 5) M1 = M4_RotationAboutYAxis(-PI / 2);
                 }
-                vec3 z_camera; {
-                    mat4 C_3D = inverse(V_3D);
-                    z_camera = {
-                        C_3D(0, 2),
-                        C_3D(1, 2),
-                        C_3D(2, 2),
-                    };
+                mat4 PVM1 = PV_3D * M1;
+                { // backface culling (check sign of rasterized triangle)
+                    vec2 a = _V2(transformPoint(PVM1, V3(0.0f, 0.0f, r)));
+                    vec2 b = _V2(transformPoint(PVM1, V3(1.0f, 0.0f, r)));
+                    vec2 c = _V2(transformPoint(PVM1, V3(0.0f, 1.0f, r)));
+                    if (cross(b - a , c - a) > 0.0f) continue;
                 }
-                if (dot(n, z_camera) > 0) continue;
-                mat4 transform = PV_3D * M;
+                mat4 transform = PVM1 * M0;
                 eso_begin(transform, SOUP_LINES);
                 eso_size(2.0f);
                 eso_color(omax.dark_gray);
