@@ -90,7 +90,7 @@ void init_camera_drawing() {
         real f = (get_x_divider_Pixel() / window_get_width_Pixel());
         vec2 L = (bbox.max - bbox.min);
         camera_drawing->ortho_screen_height_World = MAX((L.x / f) / window_get_aspect(), L.y);
-        camera_drawing->ortho_screen_height_World += 16.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
+        camera_drawing->ortho_screen_height_World += 64.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
         camera_drawing->pre_nudge_World = AVG(bbox.min, bbox.max);
     }
 }

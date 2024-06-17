@@ -10,7 +10,7 @@ typedef uint32_t uint;
 typedef float real;
 typedef uint8_t u8;
 // vecD
-template <uint D> union Vector;
+template <uint D> struct Vector;
 typedef Vector<2> vec2;
 typedef Vector<3> vec3;
 typedef Vector<4> vec4;
@@ -18,7 +18,7 @@ typedef Vector<4> vec4;
 #define tuD  template <uint D>
 #define tuDv tuD vecD
 // matD
-template <uint D> union Matrix;
+template <uint D> struct Matrix;
 typedef Matrix<2> mat2;
 typedef Matrix<3> mat3;
 typedef Matrix<4> mat4;

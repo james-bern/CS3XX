@@ -1,3 +1,24 @@
+#if 0
+#include "playground.cpp"
+int main() {
+    while (window_begin_frame()) {
+        eso_begin(window_get_OpenGL_from_Pixel(), SOUP_LINES); {
+            eso_size(3.0f);
+            eso_stipple(0b00000000);
+            eso_color(basic.red);
+            eso_vertex(10.0f, 10.0f);
+            eso_color(basic.green);
+            eso_vertex(100.0f, 10.0f);
+
+            eso_size(9.0f);
+            eso_color(basic.blue);
+            eso_stipple(0b11000000);
+            eso_vertex(10.0f, 100.0f);
+            eso_vertex(100.0f, 100.0f);
+        } eso_end();
+    }
+}
+#else
 // XXXX: basic 3D grid with lines (have grids on by default)
 // TODO: camera reset needs to take into account divider position
 // XXXX: switch entity_*(...) over to vec2(...) instead of void(..., real *, real *)
@@ -7,7 +28,7 @@
 // TODO: memcmp to see if should record
 // TODO: timer to see if should snapshot
 
-#include "basics.cpp"
+#include "playground.cpp"
 
 char *startup_script = "";
 #if 1
@@ -50,23 +71,7 @@ run_before_main {
 };
 #endif
 
-#include <cstdint>
-#include <cstring>
-#include <stdarg.h>
-#include "string.cpp"
-#include "linalg.cpp"
-#include "color.cpp"
-#include "bbox.cpp"
-#include "containers.cpp" // TODO: implement better Map
-#include "elephant.cpp"
-#include "window.cpp"
-#include "shader.cpp"
-#include "soup.cpp"
-#include "text.cpp"
-#include "extras.cpp"
-#include "burkardt.cpp"
 #include "manifoldc.h"
-
 #include "header.cpp"
 
 // (global) state
@@ -94,27 +99,6 @@ PreviewState *preview = &other.preview;
 #include "process.cpp"
 #include "script.cpp"
 
-#if 0
-int main() {
-    while (window_begin_frame()) {
-        eso_begin(window_get_OpenGL_from_Pixel(), SOUP_LINES);
-
-        eso_size(3.0f);
-        eso_stipple(0b00000000);
-        eso_color(basic.red);
-        eso_vertex(10.0f, 10.0f);
-        eso_color(basic.green);
-        eso_vertex(100.0f, 10.0f);
-
-        eso_size(9.0f);
-        eso_color(basic.blue);
-        eso_stipple(0b11000000);
-        eso_vertex(10.0f, 100.0f);
-        eso_vertex(100.0f, 100.0f);
-        eso_end();
-    }
-}
-#else
 int main() {
     { // init
         init_camera_drawing();
@@ -141,7 +125,7 @@ int main() {
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (window_begin_frame()) {
-            other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
+        other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
         other._please_suppress_drawing_popup_popup = false;
 

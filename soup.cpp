@@ -1,12 +1,14 @@
+// XXXX: remove option to pass null in soup_draw
+// XXXX: remove rounded edges
+// NOTE: (soup draw should essentially never be called by the user)
+// TODO: per-vertex size
+// TODO: per-vertex stipple
+// TODO: properly draw meshes ala that one nvidia white paper
+
 ////////////////////////////////////////////////////////////////////////////////
 // soup ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO: remove option to pass null in soup_draw
-// TODO: remove rounded edges
-// (soup draw should essentially never be called by the user)
-
-// TODO: properly draw meshes ala that one nvidia white paper
 #define SOUP_POINTS         GL_POINTS
 #define SOUP_LINES          GL_LINES
 #define SOUP_LINE_STRIP     GL_LINE_STRIP
@@ -16,21 +18,8 @@
 #define SOUP_TRIANGLE_STRIP GL_TRIANGLE_STRIP
 #define SOUP_QUADS          255
 
-#define _SOUP_XY 2
-#define _SOUP_XYZ 3
-#define _SOUP_XYZW 4
-#define _SOUP_RGB 3
-#define _SOUP_RGBA 4
-
 struct {
-    int _shader_program_POINTS;
-    int _shader_program_LINES;
-    int _shader_program_TRIANGLES;
-    uint _VAO[3];
-    uint _VBO[2];
-    uint _EBO[3];
-
-    char *_vert = R""(
+    char *vert = R""(
         #version 330 core
         layout (location = 0) in vec3 vertex;
         layout (location = 1) in vec4 color;
@@ -52,7 +41,7 @@ struct {
         }
     )"";
 
-    char *_geom_POINTS = R""(
+    char *geom_POINTS = R""(
         #version 330 core
         layout (points) in;
         layout (triangle_strip, max_vertices = 4) out;
@@ -87,7 +76,7 @@ struct {
         }  
     )"";
 
-    char *_frag_POINTS = R""(
+    char *frag_POINTS = R""(
         #version 330 core
 
         in GS_OUT {
@@ -103,7 +92,7 @@ struct {
         }
     )"";
 
-    char *_geom_LINES = R""(
+    char *geom_LINES = R""(
         #version 330 core
         layout (lines) in;
         layout (triangle_strip, max_vertices = 4) out;
@@ -146,7 +135,7 @@ struct {
         }  
     )"";
 
-    char *_frag = R""(
+    char *frag_LINES_TRIANGLES = R""(
         #version 330 core
 
         in BLOCK {
@@ -159,15 +148,29 @@ struct {
             frag_color = fs_in.color;
         }
     )"";
+} soup_source;
+
+struct {
+    int shader_program_POINTS;
+    int shader_program_LINES;
+    int shader_program_TRIANGLES;
+    uint VAO[1];
+    uint VBO[16];
+    uint EBO[1];
 } soup;
 
 run_before_main {
-    soup._shader_program_POINTS = _shader_compile_and_build_program(soup._vert, soup._frag_POINTS, soup._geom_POINTS);
-    soup._shader_program_LINES = _shader_compile_and_build_program(soup._vert, soup._frag, soup._geom_LINES);
-    soup._shader_program_TRIANGLES = _shader_compile_and_build_program(soup._vert, soup._frag);
-    glGenVertexArrays(ARRAY_LENGTH(soup._VAO), soup._VAO);
-    glGenBuffers(ARRAY_LENGTH(soup._VBO), soup._VBO);
-    glGenBuffers(ARRAY_LENGTH(soup._EBO), soup._EBO);
+    uint vert = shader_compile(soup_source.vert, GL_VERTEX_SHADER);
+    uint frag_POINTS = shader_compile(soup_source.frag_POINTS, GL_FRAGMENT_SHADER);
+    uint frag_LINES_TRIANGLES = shader_compile(soup_source.frag_LINES_TRIANGLES, GL_FRAGMENT_SHADER);
+    uint geom_POINTS = shader_compile(soup_source.geom_POINTS, GL_GEOMETRY_SHADER);
+    uint geom_LINES = shader_compile(soup_source.geom_LINES, GL_GEOMETRY_SHADER);
+    soup.shader_program_POINTS = shader_build_program(vert, frag_POINTS, geom_POINTS);
+    soup.shader_program_LINES = shader_build_program(vert, frag_LINES_TRIANGLES, geom_LINES);
+    soup.shader_program_TRIANGLES = shader_build_program(vert, frag_LINES_TRIANGLES);
+    glGenVertexArrays(ARRAY_LENGTH(soup.VAO), soup.VAO);
+    glGenBuffers(ARRAY_LENGTH(soup.VBO), soup.VBO);
+    glGenBuffers(ARRAY_LENGTH(soup.EBO), soup.EBO);
 };
 
 void soup_draw(
@@ -180,51 +183,49 @@ void soup_draw(
         bool force_draw_on_top) {
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
 
-    glBindVertexArray(soup._VAO[0]);
-    int i_attrib = 0;
-    auto guarded_push = [&](int buffer_size, void *array, int dim) {
-        glDisableVertexAttribArray(i_attrib); // fornow
-        if (array) {
-            glBindBuffer(GL_ARRAY_BUFFER, soup._VBO[i_attrib]);
+    glBindVertexArray(soup.VAO[0]);
+    uint attrib_index = 0;
+    auto upload_vertex_attribute = [&](void *array, uint count, uint dim) {
+        ASSERT(array);
+        ASSERT(attrib_index <= ARRAY_LENGTH(soup.VBO));
+        glDisableVertexAttribArray(attrib_index); {
+            uint buffer_size = count * dim * sizeof(real);
+            glBindBuffer(GL_ARRAY_BUFFER, soup.VBO[attrib_index]);
             glBufferData(GL_ARRAY_BUFFER, buffer_size, array, GL_DYNAMIC_DRAW);
-            glVertexAttribPointer(i_attrib, dim, GL_REAL, 0, 0, NULL);
-            glEnableVertexAttribArray(i_attrib);
-        }
-        ++i_attrib;
+            glVertexAttribPointer(attrib_index, dim, GL_REAL, 0, 0, NULL);
+        } glEnableVertexAttribArray(attrib_index);
+        ++attrib_index;
     };
-    int vvv_size = int(num_vertices * sizeof(vec3));
-    int ccc_size = int(num_vertices * sizeof(vec4));
-    guarded_push(vvv_size, vertex_positions, 3);
-    guarded_push(ccc_size, vertex_colors, 4);
+    upload_vertex_attribute(vertex_positions, num_vertices, 3);
+    upload_vertex_attribute(vertex_colors, num_vertices, 4);
 
     int shader_program_ID = 0; {
         if (primitive == SOUP_POINTS) {
-            shader_program_ID = soup._shader_program_POINTS;
+            shader_program_ID = soup.shader_program_POINTS;
         } else if (primitive == SOUP_LINES || primitive == SOUP_LINE_STRIP || primitive == SOUP_LINE_LOOP) {
-            shader_program_ID = soup._shader_program_LINES;
-        } else { // including SOUP_QUADS
-            shader_program_ID = soup._shader_program_TRIANGLES;
+            shader_program_ID = soup.shader_program_LINES;
+        } else { ASSERT((primitive == SOUP_TRIANGLES) || (primitive == SOUP_TRIANGLE_FAN) || (primitive == SOUP_TRIANGLE_STRIP) || (primitive == SOUP_QUADS));
+            shader_program_ID = soup.shader_program_TRIANGLES;
         }
     }
     ASSERT(shader_program_ID);
     glUseProgram(shader_program_ID);
 
-    _shader_set_uniform_real(shader_program_ID, "aspect", window_get_aspect());
-    _shader_set_uniform_real(shader_program_ID, "primitive_radius_OpenGL", 0.5f * size_Pixel / window_get_size_Pixel().y);
-    _shader_set_uniform_bool(shader_program_ID, "force_draw_on_top", force_draw_on_top);
-    _shader_set_uniform_mat4(shader_program_ID, "transform", transform.data);
+    auto LOC = [&](char *name) { return glGetUniformLocation(shader_program_ID, name); };
+    real aspect = window_get_aspect();
+    real primitive_radius_OpenGL = 0.5f * size_Pixel / window_get_height_Pixel();
+
+    glUniform1f(LOC("aspect"), aspect);
+    glUniform1f(LOC("primitive_radius_OpenGL"), primitive_radius_OpenGL);
+    glUniform1ui(LOC("force_draw_on_top"), force_draw_on_top);
+    glUniformMatrix4fv(LOC("transform"), 1, GL_TRUE, transform.data);
 
     if (primitive != SOUP_QUADS) {
         glDrawArrays(primitive, 0, num_vertices);
     } else { ASSERT(primitive == SOUP_QUADS);
-        // we upload three EBO's _once_               
-        // and bind the appropriate one before drawing
-
         const int MAX_VERTICES = 1000000;
         ASSERT(num_vertices <= MAX_VERTICES);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, soup._EBO[0]);
-
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, soup.EBO[0]);
         {
             primitive = SOUP_TRIANGLES;
             num_vertices = (num_vertices / 4) * 6;

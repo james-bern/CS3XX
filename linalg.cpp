@@ -2,40 +2,43 @@
 // vectors and matrices ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-tuD union Vector {
-    real data[D];
-    real &operator [](uint index) { return data[index]; }
+tuD struct Vector {
+    // real data[D];
+    // real &operator [](uint index) { return data[index]; }
 };
 
-template <> union Vector<2> {
-    real data[2];
+template <> struct Vector<2> {
     struct { real x, y; };
     real &operator [](uint index) {
         ASSERT(index < 2);
-        return data[index];
+        if (index == 0) return x;
+        return y;
     }
 };
 
-template <> union Vector<3> {
-    real data[3];
+template <> struct Vector<3> {
     struct { real x, y, z; };
     real &operator [](uint index) {
         ASSERT(index < 3);
-        return data[index];
+        if (index == 0) return x;
+        if (index == 1) return y;
+        return z;
     }
 };
 
-template <> union Vector<4> {
-    real data[4];
+template <> struct Vector<4> {
     struct { real x, y, z, w; };
     real &operator [](uint index) {
         ASSERT(index < 4);
-        return data[index];
+        if (index == 0) return x;
+        if (index == 1) return y;
+        if (index == 2) return z;
+        return w;
     }
 };
 
 
-tuD union Matrix {
+tuD struct Matrix {
     real data[D * D];
     real &operator ()(uint row, uint col) {
         ASSERT(row < D);
@@ -108,7 +111,7 @@ mat4 hstack(vec4 col0, vec4 col1, vec4 col2, vec4 col3) { return { col0.x, col1.
 tuDv  operator +  (vecD A, vecD B) {
     vecD result;
     for_(i, D) {
-        result[i] = A.data[i] + B.data[i];
+        result[i] = A[i] + B[i];
     }
     return result;
 }
@@ -120,7 +123,7 @@ tuDv &operator += (vecD &A, vecD B) {
 tuDv  operator -  (vecD A, vecD B) {
     vecD result;
     for_(i, D) {
-        result[i] = A.data[i] - B.data[i];
+        result[i] = A[i] - B[i];
     }
     return result;
 }
@@ -132,7 +135,7 @@ tuDv &operator -= (vecD &A, vecD B) {
 tuDv  operator *  (real scalar, vecD A) {
     vecD result;
     for_(i, D) {
-        result[i]  = scalar * A.data[i];
+        result[i]  = scalar * A[i];
     }
     return result;
 }
@@ -249,7 +252,7 @@ tuDm &operator /= (matD &M, real scalar) {
 tuD real dot(vecD A, vecD B) {
     real result = 0.0f;
     for_(i, D) {
-        result += A.data[i] * B.data[i];
+        result += A[i] * B[i];
     }
     return result;
 }
@@ -530,7 +533,7 @@ tuDm firstDerivativeofUnitVector(vecD v) {
 tuD real squaredNorm(matD M) {
     real result = 0;
     for(uint i = 0; i < D * D; ++i) {
-        result += M.data[i] * M.data[i];
+        result += M[i] * M[i];
     }
     return result;
 }
@@ -539,28 +542,28 @@ tuD real squaredNorm(matD M) {
 
 tuD real minComponent(vecD A) {
     real result = HUGE_VAL;
-    for(uint i = 0; i < D; ++i) result = MIN(result, A.data[i]);
+    for(uint i = 0; i < D; ++i) result = MIN(result, A[i]);
     return result;
 }
 
 tuD real maxComponent(vecD A) {
     real result = -HUGE_VAL;
-    for(uint i = 0; i < D; ++i) result = MAX(result, A.data[i]);
+    for(uint i = 0; i < D; ++i) result = MAX(result, A[i]);
     return result;
 }
 
 tuDv cwiseAbs(vecD A) {
-    for(uint i = 0; i < D; ++i) A.data[i] = abs(A.data[i]);
+    for(uint i = 0; i < D; ++i) A[i] = abs(A[i]);
     return A;
 }
 tuDv cwiseMin(vecD A, vecD B) {
     vecD result = {};
-    for(uint i = 0; i < D; ++i) result[i] = (A.data[i] < B.data[i]) ? A.data[i] : B.data[i];
+    for(uint i = 0; i < D; ++i) result[i] = (A[i] < B[i]) ? A[i] : B[i];
     return result;
 }
 tuDv cwiseMax(vecD A, vecD B) {
     vecD result = {};
-    for(uint i = 0; i < D; ++i) result[i] = (A.data[i] > B.data[i]) ? A.data[i] : B.data[i];
+    for(uint i = 0; i < D; ++i) result[i] = (A[i] > B[i]) ? A[i] : B[i];
     return result;
 }
 tuDv cwiseProduct(vecD a, vecD b) {
