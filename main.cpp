@@ -1,21 +1,91 @@
-#if 0
+/*
+   johnny mnemonic
+   keanu reeves, ice t, ...
+
+   movie setting
+
+   what is a computer
+   how fast is your computer
+   so fast
+   but what 
+
+   memes
+
+
+   */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#if 1
 #include "playground.cpp"
+#include "easy_input.cpp"
 int main() {
+    real t = 0.0f;
     while (window_begin_frame()) {
-        eso_begin(window_get_OpenGL_from_Pixel(), SOUP_LINES); {
-            eso_size(3.0f);
+        #if 0
+        t += 0.033f;
+        eso_begin(window_get_OpenGL_from_Pixel(), SOUP_TRIANGLES); {
+            eso_size(15.0f + 10.0f * sin(t));
             eso_stipple(0b00000000);
             eso_color(basic.red);
-            eso_vertex(10.0f, 10.0f);
+            eso_vertex(50.0f, 50.0f);
             eso_color(basic.green);
-            eso_vertex(100.0f, 10.0f);
+            eso_size(15.0f + 10.0f * cos(t));
+            eso_vertex(300.0f, 50.0f);
 
-            eso_size(9.0f);
             eso_color(basic.blue);
             eso_stipple(0b11000000);
-            eso_vertex(10.0f, 100.0f);
-            eso_vertex(100.0f, 100.0f);
+            eso_size(9.0f);
+            eso_vertex(300.0f, 300.0f);
+            eso_size(2.0f);
+            eso_vertex(50.0f, 300.0f);
         } eso_end();
+        #else
+        static real time;
+        time += 0.0167f;
+        Camera camera = make_Camera2D(256.0f, {}, {});
+        eso_begin(camera_get_PV(&camera), SOUP_POINTS);
+        for_(i, 2048) {
+            real o = i / 100.0f;
+            real theta = i - o * time / 10.0f;
+            eso_color(LERP(.5f + .5f * cos(time / 10), color_rainbow_swirl(theta / TAU / 2 + time / 5), color_rainbow_swirl(o - time / TAU)));
+            eso_size((o) * (6.0f + 5.0f * sin(o - time)));
+            real r = 24.0f * o;
+            // real theta = (24.0f * o - time / 10.0f) / o;
+            // real theta = (24.0f * o - time / 10.0f) * o;
+            // eso_size(10.0f + 5.0f * sin(o + time));
+            // real r = 15.0f * o;
+            eso_vertex(r * e_theta(theta / 2));
+        }
+        eso_end();
+        #endif
     }
 }
 #else

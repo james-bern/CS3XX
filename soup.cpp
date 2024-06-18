@@ -23,9 +23,11 @@ struct {
         #version 330 core
         layout (location = 0) in vec3 vertex;
         layout (location = 1) in vec4 color;
+        layout (location = 2) in float size;
 
         out BLOCK {
             vec4 color;
+            float size;
         } vs_out;
 
         uniform mat4 transform;
@@ -34,10 +36,11 @@ struct {
 
         void main() {
             gl_Position = transform * vec4(vertex, 1);
-            vs_out.color = color;
             if (force_draw_on_top) {
                 gl_Position.z = -.99 * gl_Position.w; // ?
             }
+            vs_out.color = color;
+            vs_out.size = size;
         }
     )"";
 
@@ -45,11 +48,11 @@ struct {
         #version 330 core
         layout (points) in;
         layout (triangle_strip, max_vertices = 4) out;
-        uniform float aspect;
-        uniform float primitive_radius_OpenGL;
+        uniform vec2 OpenGL_from_Pixel_scale;
 
         in BLOCK {
             vec4 color;
+            float size;
         } gs_in[];
 
         out GS_OUT {
@@ -57,21 +60,20 @@ struct {
             vec2 xy;
         } gs_out;
 
-        vec4 _position;
-
-        void emit(float x, float y) {
-            gs_out.xy = vec2(x, y);
-            gl_Position = (_position + primitive_radius_OpenGL * vec4(x / aspect, y, 0, 0)) * gl_in[0].gl_Position.w;
+        void emit(vec4 p, float x, float y) {
+            vec2 radius = (gs_in[0].size / 2) * OpenGL_from_Pixel_scale;
             gs_out.color = gs_in[0].color;                                     
+            gs_out.xy = vec2(x, y);
+            gl_Position = (p + vec4(radius * gs_out.xy, 0, 0)) * gl_in[0].gl_Position.w;
             EmitVertex();                                               
         }
 
         void main() {    
-            _position = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
-            emit(-1, -1);
-            emit(1, -1);
-            emit(-1, 1);
-            emit(1, 1);
+            vec4 p = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+            emit(p, -1, -1);
+            emit(p, 1, -1);
+            emit(p, -1, 1);
+            emit(p, 1, 1);
             EndPrimitive();
         }  
     )"";
@@ -96,11 +98,11 @@ struct {
         #version 330 core
         layout (lines) in;
         layout (triangle_strip, max_vertices = 4) out;
-        uniform float aspect;
-        uniform float primitive_radius_OpenGL;
+        uniform vec2 OpenGL_from_Pixel_scale;
 
         in BLOCK {
             vec4 color;
+            float size;
         } gs_in[];
 
         out BLOCK {
@@ -113,21 +115,23 @@ struct {
             vec4 color_s = gs_in[0].color;
             vec4 color_t = gs_in[1].color;
 
-            vec4 perp = vec4(primitive_radius_OpenGL * vec2(1 / aspect, 1) * normalize(vec2(-1 / aspect, 1) * (t - s).yx), 0, 0);
+            vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
+            vec4 perp_s = vec4((gs_in[0].size / 2) * perp, 0, 0);
+            vec4 perp_t = vec4((gs_in[1].size / 2) * perp, 0, 0);
 
-            gl_Position = (s - perp) * gl_in[0].gl_Position.w;
+            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w;
             gs_out.color = color_s;
             EmitVertex();
 
-            gl_Position = (t - perp) * gl_in[1].gl_Position.w;
+            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
             gs_out.color = color_t;
             EmitVertex();
 
-            gl_Position = (s + perp) * gl_in[0].gl_Position.w;
+            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
             gs_out.color = color_s;
             EmitVertex();
 
-            gl_Position = (t + perp) * gl_in[1].gl_Position.w;
+            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
             gs_out.color = color_t;
             EmitVertex();
 
@@ -179,7 +183,7 @@ void soup_draw(
         uint num_vertices,
         vec3 *vertex_positions,
         vec4 *vertex_colors,
-        real size_Pixel,
+        real *vertex_sizes,
         bool force_draw_on_top) {
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
 
@@ -192,12 +196,13 @@ void soup_draw(
             uint buffer_size = count * dim * sizeof(real);
             glBindBuffer(GL_ARRAY_BUFFER, soup.VBO[attrib_index]);
             glBufferData(GL_ARRAY_BUFFER, buffer_size, array, GL_DYNAMIC_DRAW);
-            glVertexAttribPointer(attrib_index, dim, GL_REAL, 0, 0, NULL);
+            glVertexAttribPointer(attrib_index, dim, GL_FLOAT, GL_FALSE, 0, NULL);
         } glEnableVertexAttribArray(attrib_index);
         ++attrib_index;
     };
     upload_vertex_attribute(vertex_positions, num_vertices, 3);
     upload_vertex_attribute(vertex_colors, num_vertices, 4);
+    upload_vertex_attribute(vertex_sizes, num_vertices, 1);
 
     int shader_program_ID = 0; {
         if (primitive == SOUP_POINTS) {
@@ -212,12 +217,10 @@ void soup_draw(
     glUseProgram(shader_program_ID);
 
     auto LOC = [&](char *name) { return glGetUniformLocation(shader_program_ID, name); };
-    real aspect = window_get_aspect();
-    real primitive_radius_OpenGL = 0.5f * size_Pixel / window_get_height_Pixel();
+    vec2 OpenGL_from_Pixel_scale = (2.0f / window_get_size_Pixel());
 
-    glUniform1f(LOC("aspect"), aspect);
-    glUniform1f(LOC("primitive_radius_OpenGL"), primitive_radius_OpenGL);
     glUniform1ui(LOC("force_draw_on_top"), force_draw_on_top);
+    glUniform2f(LOC("OpenGL_from_Pixel_scale"), OpenGL_from_Pixel_scale.x, OpenGL_from_Pixel_scale.y);
     glUniformMatrix4fv(LOC("transform"), 1, GL_TRUE, transform.data);
 
     if (primitive != SOUP_QUADS) {
@@ -257,21 +260,16 @@ void soup_draw(
 
 struct {
     bool _called_eso_begin_before_calling_eso_vertex_or_eso_end;
-    vec4 _current_color;
-    vec3 *vertex_positions;
-    vec4 *vertex_colors;
+    vec4 _current_color = { 1.0f, 0.0f, 1.0f, 0.0f };
+    real _current_size = 2.0f;
+    vec3 vertex_positions[ESO_MAX_VERTICES];
+    vec4 vertex_colors[ESO_MAX_VERTICES];
+    real vertex_sizes[ESO_MAX_VERTICES];
     mat4 transform;
     uint primitive;
     uint num_vertices;
-    real size_Pixel;
     bool overlay;
 } eso;
-
-run_before_main {
-    eso.vertex_positions = (vec3 *) calloc(ESO_MAX_VERTICES, sizeof(vec3));
-    eso.vertex_colors = (vec4 *) calloc(ESO_MAX_VERTICES, sizeof(vec4));
-    eso._current_color = V4(basic.magenta, 1.0f);
-};
 
 void eso_begin(mat4 transform, uint primitive, bool force_draw_on_top = false) {
     ASSERT(!eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
@@ -286,8 +284,8 @@ void eso_stipple(u8 stipple_code) {
     FORNOW_UNUSED(stipple_code);
 }
 
-void eso_size(real size_Pixel) {
-    eso.size_Pixel = size_Pixel;
+void eso_size(real size) {
+    eso._current_size = size;
 }
 
 void eso_color(real red, real green, real blue, real alpha) {
@@ -318,6 +316,7 @@ void eso_vertex(real x, real y, real z) {
     ASSERT(eso.num_vertices < ESO_MAX_VERTICES);
     eso.vertex_positions[eso.num_vertices] = { x, y, z };
     eso.vertex_colors[eso.num_vertices] = eso._current_color;
+    eso.vertex_sizes[eso.num_vertices] = eso._current_size;
     ++eso.num_vertices;
 }
 
@@ -343,7 +342,7 @@ void eso_end() {
             eso.num_vertices,
             eso.vertex_positions,
             eso.vertex_colors,
-            eso.size_Pixel,
+            eso.vertex_sizes,
             eso.overlay);
 }
 

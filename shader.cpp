@@ -9,6 +9,7 @@ uint shader_compile(char *source, GLenum type) {
             { // log
                 char infoLog[512];
                 glGetShaderInfoLog(shader, 512, NULL, infoLog);
+                printf("%s\n", source);
                 printf("%s", infoLog);
             }
             ASSERT(0);

@@ -158,6 +158,13 @@ tuDv  operator /  (vecD A, real scalar) {
     }
     return result;
 }
+tuDv  operator /  (real scalar, vecD A) {
+    vecD result;
+    for_(i, D) {
+        result[i]  = scalar / A[i];
+    }
+    return result;
+}
 tuDv &operator /= (vecD &v, real scalar) {
     v = v / scalar;
     return v;

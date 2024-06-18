@@ -12,8 +12,6 @@
 #include "glfw3native.h"
 #endif
 
-#define GL_REAL GL_FLOAT
-
 GLFWwindow *glfw_window;
 real _window_macbook_retina_fixer__VERY_MYSTERIOUS;
 
@@ -27,7 +25,7 @@ run_before_main {
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
     glfwWindowHint(GLFW_SAMPLES, 1);
 
-    glfw_window = glfwCreateWindow(960, 540, "conversation -- " __DATE__ " " __TIME__, NULL, NULL);
+    glfw_window = glfwCreateWindow(960, 540,  __DATE__ " " __TIME__, NULL, NULL);
     if (!glfw_window) {
         printf("Something's gone wonky; if you weren't just messing with init(...) or something, please try restarting your computer and trying again.\n");
         ASSERT(0);
@@ -298,7 +296,7 @@ struct Camera {
     bool is_first_person_camera;
 };
 
-Camera make_Camera2D(real screen_height_World, vec2 center_World, vec2 post_nudge_OpenGL) {
+Camera make_Camera2D(real screen_height_World, vec2 center_World, vec2 post_nudge_OpenGL = {}) {
     Camera result = {};
     result.ortho_screen_height_World = screen_height_World;
     result.pre_nudge_World = center_World;
@@ -306,7 +304,7 @@ Camera make_Camera2D(real screen_height_World, vec2 center_World, vec2 post_nudg
     return result;
 }
 
-Camera make_OrbitCamera3D(real angle_of_view, real distance_to_origin_World, vec3 euler_angles, vec2 pre_nudge_World, vec2 post_nudge_OpenGL) {
+Camera make_OrbitCamera3D(real angle_of_view, real distance_to_origin_World, vec3 euler_angles = {}, vec2 pre_nudge_World = {}, vec2 post_nudge_OpenGL = {}) {
     Camera result = {};
     result.angle_of_view = angle_of_view;
     result.persp_distance_to_origin_World = distance_to_origin_World;
