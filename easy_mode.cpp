@@ -139,17 +139,6 @@ void Camera::easy_move() {
             this->pre_nudge_World -= (mouse_position_World_after - mouse_position_World_before);
         }
     } else if (this->type == CameraType::OrbitCamera3D) {
-        if (!IS_ZERO(_accumulator_mouse_wheel_offset)) {
-            bool is_perspective_camera = (!IS_ZERO(this->angle_of_view));
-            Camera tmp_2D = make_EquivalentCamera2D(this);
-            _callback_scroll_helper(&tmp_2D, _accumulator_mouse_wheel_offset);
-            if (is_perspective_camera) {
-                this->persp_distance_to_origin_World = ((0.5f * tmp_2D.ortho_screen_height_World) / TAN(0.5f * this->angle_of_view));
-            } else {
-                this->ortho_screen_height_World = tmp_2D.ortho_screen_height_World;
-            }
-            this->pre_nudge_World = tmp_2D.pre_nudge_World;
-        }
         if (mouse_left_held) {
             real fac = 2.0f;
             this->euler_angles.y -= fac * _accumulator_mouse_change_in_position_OpenGL.x;
@@ -161,11 +150,36 @@ void Camera::easy_move() {
             tmp_2D.pre_nudge_World -= transformVector(inverse(tmp_2D.get_PV()), _accumulator_mouse_change_in_position_OpenGL);
             this->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
+        if (!IS_ZERO(_accumulator_mouse_wheel_offset)) {
+            bool is_perspective_camera = (!IS_ZERO(this->angle_of_view));
+            Camera tmp_2D = make_EquivalentCamera2D(this);
+            _callback_scroll_helper(&tmp_2D, _accumulator_mouse_wheel_offset);
+            if (is_perspective_camera) {
+                this->persp_distance_to_origin_World = ((0.5f * tmp_2D.ortho_screen_height_World) / TAN(0.5f * this->angle_of_view));
+            } else {
+                this->ortho_screen_height_World = tmp_2D.ortho_screen_height_World;
+            }
+            this->pre_nudge_World = tmp_2D.pre_nudge_World;
+        }
     } else {  ASSERT(this->type == CameraType::FirstPersonCamera3D);
-        if (key_held['W']) this->pre_nudge_World.y -= 1.0f;
-        if (key_held['A']) this->pre_nudge_World.x += 1.0f;
-        if (key_held['S']) this->pre_nudge_World.y += 1.0f;
-        if (key_held['D']) this->pre_nudge_World.x -= 1.0f;
+        { // WASD
+            // FORNOW
+            real fac = 1.0f;
+            vec2 _forward = rotated({ 0.0f, -1.0f}, -this->euler_angles.y);
+            vec2 _perp = { -_forward.y, _forward.x };
+            vec3 forward = { _forward.x, 0.0f, _forward.y };
+            vec3 perp = { _perp.x, 0.0f, _perp.y };
+            if (key_held['W']) this->first_person_position_World += fac * forward;
+            if (key_held['A']) this->first_person_position_World -= fac * perp;
+            if (key_held['S']) this->first_person_position_World -= fac * forward;
+            if (key_held['D']) this->first_person_position_World += fac * perp;
+        }
+        {
+            real fac = 2.0f;
+            this->euler_angles.y -= fac * _accumulator_mouse_change_in_position_OpenGL.x;
+            this->euler_angles.x += fac * _accumulator_mouse_change_in_position_OpenGL.y;
+            this->euler_angles.x = CLAMP(this->euler_angles.x, -RAD(90), RAD(90));
+        }
     }
 }
 

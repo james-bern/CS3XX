@@ -356,7 +356,7 @@ mat4 Camera::get_P() {
 
 mat4 Camera::get_V() {
     mat4 C; {
-        mat4 T = M4_Translation(this->pre_nudge_World.x, this->pre_nudge_World.y, this->persp_distance_to_origin_World);
+        mat4 T = M4_Translation(this->first_person_position_World);
         mat4 R_x = M4_RotationAboutXAxis(this->euler_angles.x);
         mat4 R_y = M4_RotationAboutYAxis(this->euler_angles.y);
         mat4 R_z = M4_RotationAboutZAxis(this->euler_angles.z);

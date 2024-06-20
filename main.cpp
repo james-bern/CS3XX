@@ -42,28 +42,29 @@ int main() {
     real time = 0.0f;
     Camera camera_2D = make_Camera2D(256.0f);
     Camera orbit_camera_3D = make_OrbitCamera3D(256.0f);
-    Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 1.0f, 0.0f});
+    Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 10.0f, 0.0f});
     Camera *camera = &camera_2D;
     while (begin_frame()) {
         if (key_pressed['1']) camera = &camera_2D;
         if (key_pressed['2']) camera = &orbit_camera_3D;
         if (key_pressed['3']) camera = &first_person_camera_3D;
         camera->easy_move();
-        // time += 0.0167f;
-        eso_begin(camera->get_PV(), SOUP_LINE_STRIP);
+        // TODO: drawing some simple shapes
+        time += 0.0167f;
+        eso_begin(camera->get_PV(), SOUP_POINTS);
         for_(i, 2048) {
-            if (i % 10 != 0) continue;
             real o = i / 100.0f;
-            real theta = i - o * time / 10.0f;
+            real theta = 200 * (24.0f * o - time / 10.0f);
             eso_color(LERP(.5f + .5f * cos(time / 10), color_rainbow_swirl(theta / TAU / 2 + time / 5), color_rainbow_swirl(o - time / TAU)));
-            // eso_size((o) * (6.0f + 5.0f * sin(o - time)));
-            eso_size(3.0f);
+            eso_size((o) * (6.0f + 5.0f * sin(o - time)));
+            // eso_size(3.0f);
             real r = 24.0f * o;
             // real theta = (24.0f * o - time / 10.0f) / o;
             // real theta = (24.0f * o - time / 10.0f) * o;
             // eso_size(10.0f + 5.0f * sin(o + time));
             // real r = 15.0f * o;
-            eso_vertex(r * e_theta(SQRT(theta) / 2));
+            vec2 p = r * e_theta(SQRT(theta) / 2);
+            eso_vertex(p.x, 0.0f, p.y);
         }
         eso_end();
     }
