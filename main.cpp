@@ -12,7 +12,7 @@
    memes
    */
 
-#if 0
+#if 1
 #include "playground.cpp"
 #include "easy_mode.cpp"
 int main() {
