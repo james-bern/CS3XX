@@ -12,5 +12,4 @@
 #include "shader.cpp"
 #include "soup.cpp"
 #include "text.cpp"
-#include "extras.cpp"
 #include "burkardt.cpp"

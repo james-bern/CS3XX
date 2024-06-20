@@ -96,8 +96,8 @@ void init_camera_drawing() {
 }
 void init_camera_mesh() {
     *camera_mesh = make_OrbitCamera3D(
-            CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
             200.0f,
+            CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
             { RAD(-44.0f), RAD(33.0f) },
             {},
             { AVG(other.x_divider_OpenGL, 1.0f), 0.0f }

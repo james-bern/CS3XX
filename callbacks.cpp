@@ -55,7 +55,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         other.mouse_Pixel = { real(xpos), real(ypos) };
         other.mouse_OpenGL = transformPoint(other.OpenGL_from_Pixel, other.mouse_Pixel);
         delta_mouse_OpenGL = other.mouse_OpenGL - prev_mouse_OpenGL;
-        delta_mouse_World_2D = transformVector(inverse(camera_get_PV(camera_drawing)), delta_mouse_OpenGL);
+        delta_mouse_World_2D = transformVector(inverse(camera_drawing->get_PV()), delta_mouse_OpenGL);
     }
 
     { // hot_pane
@@ -136,7 +136,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             camera_drawing->pre_nudge_World -= delta_mouse_World_2D;
         } else if (other.mouse_right_drag_pane == Pane::Mesh) {
             Camera tmp_2D = make_EquivalentCamera2D(camera_mesh);
-            tmp_2D.pre_nudge_World -= transformVector(inverse(camera_get_PV(&tmp_2D)), delta_mouse_OpenGL);
+            tmp_2D.pre_nudge_World -= transformVector(inverse(tmp_2D.get_PV()), delta_mouse_OpenGL);
             camera_mesh->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
     }
@@ -170,10 +170,10 @@ void _callback_scroll_helper(Camera *camera_2D, double yoffset) {
     // IDEA: preserve mouse position
     ASSERT(IS_ZERO(camera_2D->angle_of_view));
     ASSERT(IS_ZERO(camera_2D->euler_angles));
-    vec2 mouse_position_before  = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_OpenGL);
+    vec2 mouse_position_World_before  = transformPoint(inverse(camera_2D->get_PV()), other.mouse_OpenGL);
     camera_2D->ortho_screen_height_World *= (1.0f - 0.1f * real(yoffset));
-    vec2 mouse_position_after = transformPoint(inverse(camera_get_PV(camera_2D)), other.mouse_OpenGL);
-    camera_2D->pre_nudge_World -= (mouse_position_after - mouse_position_before);
+    vec2 mouse_position_World_after = transformPoint(inverse(camera_2D->get_PV()), other.mouse_OpenGL);
+    camera_2D->pre_nudge_World -= (mouse_position_World_after - mouse_position_World_before);
 }
 
 void callback_scroll(GLFWwindow *, double, double yoffset) {

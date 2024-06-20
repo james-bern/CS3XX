@@ -87,10 +87,10 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
 }
 
 void conversation_draw() {
-    mat4 P_2D = camera_get_P(&other.camera_drawing);
-    mat4 V_2D = camera_get_V(&other.camera_drawing);
+    mat4 P_2D = camera_drawing->get_P();
+    mat4 V_2D = camera_drawing->get_V();
     mat4 PV_2D = P_2D * V_2D;
-    mat4 inv_PV_2D = inverse(camera_get_PV(camera_drawing));
+    mat4 inv_PV_2D = inverse(PV_2D);
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
@@ -150,8 +150,8 @@ void conversation_draw() {
     }
 
 
-    mat4 P_3D = camera_get_P(&other.camera_mesh);
-    mat4 V_3D = camera_get_V(&other.camera_mesh);
+    mat4 P_3D = camera_mesh->get_P();
+    mat4 V_3D = camera_mesh->get_V();
     mat4 PV_3D = P_3D * V_3D;
 
     uint window_width, window_height; {
@@ -164,7 +164,6 @@ void conversation_draw() {
         bool dragging = (other.mouse_left_drag_pane == Pane::Separator);
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
         eso_begin(M4_Identity(), SOUP_LINES, true);
-        eso_size(dragging ? 2.0f : hovering ? 6.0f : 4.0f);
         eso_color(
                 dragging ? omax.light_gray
                 : hovering ? omax.white
@@ -194,7 +193,6 @@ void conversation_draw() {
         {
             if (!other.hide_grid) { // grid 2D grid 2d grid
                 eso_begin(PV_2D, SOUP_LINES);
-                eso_size(2.0f);
                 eso_color(omax.dark_gray);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
@@ -205,7 +203,6 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(PV_2D, SOUP_LINE_LOOP);
-                eso_size(2.0f);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -219,7 +216,6 @@ void conversation_draw() {
                 eso_color(omax.white);
                 if (0) {
                     eso_begin(PV_2D, SOUP_LINES); {
-                        eso_size(1.5f);
                         // axis
                         vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                         eso_vertex(preview_dxf_axis_base_point + v);
@@ -227,7 +223,6 @@ void conversation_draw() {
                     } eso_end();
                 }
                 eso_begin(PV_2D, SOUP_LINES); {
-                    eso_size(3.0f);
                     // origin
                     real r = funky_OpenGL_factor;
                     eso_vertex(preview_dxf_origin - V2(r, 0));
@@ -257,8 +252,7 @@ void conversation_draw() {
             }
             { // dots
                 if (other.show_details) {
-                    eso_begin(camera_get_PV(&other.camera_drawing), SOUP_POINTS);
-                    eso_size(4.0f);
+                    eso_begin(PV_2D, SOUP_POINTS);
                     eso_color(omax.white);
                     _for_each_entity_ {
                         vec2 start, end;
@@ -380,7 +374,6 @@ void conversation_draw() {
 
                 for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
                     eso_begin(PV_3D * M, SOUP_LINES); {
-                        eso_size(5.0f);
                         _for_each_selected_entity_ {
                             real alpha;
                             vec3 color;
@@ -404,7 +397,6 @@ void conversation_draw() {
             real r = other.camera_mesh.ortho_screen_height_World / 120.0f;
             eso_color(omax.white);
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES);
-            eso_size(2.0f);
             eso_vertex(-r, 0.0f);
             eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
@@ -502,7 +494,6 @@ void conversation_draw() {
                 }
                 mat4 transform = PVM1 * M0;
                 eso_begin(transform, SOUP_LINES);
-                eso_size(2.0f);
                 eso_color(omax.dark_gray);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
@@ -513,7 +504,6 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(transform, SOUP_LINE_LOOP);
-                eso_size(2.0f);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);

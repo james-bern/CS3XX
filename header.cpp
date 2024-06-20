@@ -391,7 +391,7 @@ real TOLERANCE_DEFAULT = 5e-4f;
 uint NUM_SEGMENTS_PER_CIRCLE = 64;
 real GRID_SIDE_LENGTH = 250.0f;
 real GRID_SPACING = 10.0f;
-real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(45.0f);
+real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(60.0f);
 
 ////////////////////////////////////////
 // Cow Additions ///////////////////////
@@ -641,7 +641,7 @@ void eso_entity__SOUP_LINES(Entity *entity) {
 
 
 void entities_debug_draw(Camera *camera_drawing, List<Entity> *entities) {
-    eso_begin(camera_get_PV(camera_drawing), SOUP_LINES);
+    eso_begin(camera_drawing->get_PV(), SOUP_LINES);
     for (Entity *entity = entities->array; entity < &entities->array[entities->length]; ++entity) {
         eso_entity__SOUP_LINES(entity);
     }
@@ -1052,7 +1052,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
 }
 
 void cross_section_debug_draw(Camera *camera_drawing, CrossSectionEvenOdd *cross_section) {
-    eso_begin(camera_get_PV(camera_drawing), SOUP_LINES);
+    eso_begin(camera_drawing->get_PV(), SOUP_LINES);
     eso_color(omax.white);
     for_(loop_index, cross_section->num_polygonal_loops) {
         vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];

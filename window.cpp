@@ -1,3 +1,5 @@
+// TODO: an fps camera shouldn't be allowed to be ortho
+
 #ifdef OPERATING_SYSTEM_APPLE
 #define GL_SILENCE_DEPRECATION
 #define GLFW_INCLUDE_GL_COREARB
@@ -55,14 +57,6 @@ run_before_main {
         _window_macbook_retina_fixer__VERY_MYSTERIOUS = real(num / den);
     }
 };
-
-bool window_begin_frame() {
-    glfwPollEvents();
-    glfwSwapBuffers(glfw_window);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-    return (!glfwWindowShouldClose(glfw_window));
-}
 
 void gl_scissor_TODO_CHECK_ARGS(double x, double y, double dx, double dy) {
     real factor = _window_macbook_retina_fixer__VERY_MYSTERIOUS;
@@ -279,7 +273,15 @@ mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_OpenGL = {}, real 
     return result;
 }
 
+enum class CameraType {
+    None,
+    Camera2D,
+    OrbitCamera3D,
+    FirstPersonCamera3D,
+};
+
 struct Camera {
+    CameraType type;
     real angle_of_view; // NOTE: 0.0f <=> ortho camera
     vec3 euler_angles;
     union {
@@ -293,19 +295,25 @@ struct Camera {
         vec3 first_person_position_World;
     };
     vec2 post_nudge_OpenGL;
-    bool is_first_person_camera;
+
+    mat4 get_P();
+    mat4 get_V();
+    mat4 get_PV();
+    void easy_move();
 };
 
-Camera make_Camera2D(real screen_height_World, vec2 center_World, vec2 post_nudge_OpenGL = {}) {
+Camera make_Camera2D(real screen_height_World, vec2 center_World = {}, vec2 post_nudge_OpenGL = {}) {
     Camera result = {};
+    result.type = CameraType::Camera2D;
     result.ortho_screen_height_World = screen_height_World;
     result.pre_nudge_World = center_World;
     result.post_nudge_OpenGL = post_nudge_OpenGL;
     return result;
 }
 
-Camera make_OrbitCamera3D(real angle_of_view, real distance_to_origin_World, vec3 euler_angles = {}, vec2 pre_nudge_World = {}, vec2 post_nudge_OpenGL = {}) {
+Camera make_OrbitCamera3D(real distance_to_origin_World, real angle_of_view = RAD(60.0f), vec3 euler_angles = {}, vec2 pre_nudge_World = {}, vec2 post_nudge_OpenGL = {}) {
     Camera result = {};
+    result.type = CameraType::OrbitCamera3D;
     result.angle_of_view = angle_of_view;
     result.persp_distance_to_origin_World = distance_to_origin_World;
     result.euler_angles = euler_angles;
@@ -314,10 +322,22 @@ Camera make_OrbitCamera3D(real angle_of_view, real distance_to_origin_World, vec
     return result;
 }
 
+Camera make_FirstPersonCamera3D(vec3 first_person_position_World, real angle_of_view = RAD(60.0f), vec3 euler_angles = {}, vec2 post_nudge_OpenGL = {}) {
+    Camera result = {};
+    result.type = CameraType::FirstPersonCamera3D;
+    result.angle_of_view = angle_of_view;
+    result.euler_angles = euler_angles;
+    result.first_person_position_World = first_person_position_World;
+    result.post_nudge_OpenGL = post_nudge_OpenGL;
+    return result;
+}
+
 Camera make_EquivalentCamera2D(Camera *orbit_camera_3D) {
+    ASSERT(orbit_camera_3D->type == CameraType::OrbitCamera3D);
     bool is_perspective_camera = (!IS_ZERO(orbit_camera_3D->angle_of_view));
     Camera result; {
         result = *orbit_camera_3D;
+        result.type = CameraType::Camera2D;
         result.angle_of_view = 0.0f;
         result.euler_angles = {};
         if (is_perspective_camera) result.ortho_screen_height_World = 2.0f * (orbit_camera_3D->persp_distance_to_origin_World * TAN(0.5f * orbit_camera_3D->angle_of_view));
@@ -325,36 +345,27 @@ Camera make_EquivalentCamera2D(Camera *orbit_camera_3D) {
     return result;
 }
 
-Camera make_FirstPersonCamera3D(vec3 first_person_position_World, real angle_of_view, vec3 euler_angles, vec2 post_nudge_OpenGL) {
-    Camera result = {};
-    result.angle_of_view = angle_of_view;
-    result.euler_angles = euler_angles;
-    result.first_person_position_World = first_person_position_World;
-    result.post_nudge_OpenGL = post_nudge_OpenGL;
-    result.is_first_person_camera = true;
-    return result;
-}
 
-mat4 camera_get_P(Camera *camera) {
-    if (IS_ZERO(camera->angle_of_view)) {
-        return transform_get_P_ortho(camera->ortho_screen_height_World, camera->post_nudge_OpenGL);
+mat4 Camera::get_P() {
+    if (IS_ZERO(this->angle_of_view)) {
+        return transform_get_P_ortho(this->ortho_screen_height_World, this->post_nudge_OpenGL);
     } else {
-        return transform_get_P_persp(camera->angle_of_view, camera->post_nudge_OpenGL);
+        return transform_get_P_persp(this->angle_of_view, this->post_nudge_OpenGL);
     }
 }
 
-mat4 camera_get_V(Camera *camera) {
+mat4 Camera::get_V() {
     mat4 C; {
-        mat4 T = M4_Translation(camera->pre_nudge_World.x, camera->pre_nudge_World.y, camera->persp_distance_to_origin_World);
-        mat4 R_x = M4_RotationAboutXAxis(camera->euler_angles.x);
-        mat4 R_y = M4_RotationAboutYAxis(camera->euler_angles.y);
-        mat4 R_z = M4_RotationAboutZAxis(camera->euler_angles.z);
+        mat4 T = M4_Translation(this->pre_nudge_World.x, this->pre_nudge_World.y, this->persp_distance_to_origin_World);
+        mat4 R_x = M4_RotationAboutXAxis(this->euler_angles.x);
+        mat4 R_y = M4_RotationAboutYAxis(this->euler_angles.y);
+        mat4 R_z = M4_RotationAboutZAxis(this->euler_angles.z);
         mat4 R = (R_y * R_x * R_z);
-        C = (!camera->is_first_person_camera) ? (R * T) : (T * R);
+        C = (this->type != CameraType::FirstPersonCamera3D) ? (R * T) : (T * R);
     }
     return inverse(C);
 }
 
-mat4 camera_get_PV(Camera *camera) { return camera_get_P(camera) * camera_get_V(camera); }
+mat4 Camera::get_PV() { return get_P() * get_V(); }
 
 

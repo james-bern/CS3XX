@@ -10,48 +10,17 @@
    but what 
 
    memes
-
-
-   */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*/
 
 #if 1
 #include "playground.cpp"
-#include "easy_input.cpp"
+#include "easy_mode.cpp"
 int main() {
+    #if 0
     real t = 0.0f;
-    while (window_begin_frame()) {
-        #if 0
+    while (begin_frame()) {
         t += 0.033f;
-        eso_begin(window_get_OpenGL_from_Pixel(), SOUP_TRIANGLES); {
+        eso_begin(OpenGL_from_Pixel, SOUP_LINE_STRIP); {
             eso_size(15.0f + 10.0f * sin(t));
             eso_stipple(0b00000000);
             eso_color(basic.red);
@@ -67,26 +36,38 @@ int main() {
             eso_size(2.0f);
             eso_vertex(50.0f, 300.0f);
         } eso_end();
-        #else
-        static real time;
-        time += 0.0167f;
-        Camera camera = make_Camera2D(256.0f, {}, {});
-        eso_begin(camera_get_PV(&camera), SOUP_POINTS);
+    }
+    #else
+    // TODO: branch off and remake reasonable transform app with plane and things
+    real time = 0.0f;
+    Camera camera_2D = make_Camera2D(256.0f);
+    Camera orbit_camera_3D = make_OrbitCamera3D(256.0f);
+    Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 1.0f, 0.0f});
+    Camera *camera = &camera_2D;
+    while (begin_frame()) {
+        if (key_pressed['1']) camera = &camera_2D;
+        if (key_pressed['2']) camera = &orbit_camera_3D;
+        if (key_pressed['3']) camera = &first_person_camera_3D;
+        camera->easy_move();
+        // time += 0.0167f;
+        eso_begin(camera->get_PV(), SOUP_LINE_STRIP);
         for_(i, 2048) {
+            if (i % 10 != 0) continue;
             real o = i / 100.0f;
             real theta = i - o * time / 10.0f;
             eso_color(LERP(.5f + .5f * cos(time / 10), color_rainbow_swirl(theta / TAU / 2 + time / 5), color_rainbow_swirl(o - time / TAU)));
-            eso_size((o) * (6.0f + 5.0f * sin(o - time)));
+            // eso_size((o) * (6.0f + 5.0f * sin(o - time)));
+            eso_size(3.0f);
             real r = 24.0f * o;
             // real theta = (24.0f * o - time / 10.0f) / o;
             // real theta = (24.0f * o - time / 10.0f) * o;
             // eso_size(10.0f + 5.0f * sin(o + time));
             // real r = 15.0f * o;
-            eso_vertex(r * e_theta(theta / 2));
+            eso_vertex(r * e_theta(SQRT(theta) / 2));
         }
         eso_end();
-        #endif
     }
+    #endif
 }
 #else
 // XXXX: basic 3D grid with lines (have grids on by default)
@@ -194,7 +175,12 @@ int main() {
 
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
-    while (window_begin_frame()) {
+    while (!glfwWindowShouldClose(glfw_window)) {
+        glfwPollEvents();
+        glfwSwapBuffers(glfw_window);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
         other._please_suppress_drawing_popup_popup = false;
