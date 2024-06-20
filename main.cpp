@@ -18,7 +18,7 @@
 int main() {
     #if 0
     real t = 0.0f;
-    while (begin_frame()) {
+    while (begin_frame(NULL)) {
         t += 0.033f;
         eso_begin(OpenGL_from_Pixel, SOUP_LINE_STRIP); {
             eso_size(15.0f + 10.0f * sin(t));
@@ -42,9 +42,9 @@ int main() {
     real time = 0.0f;
     Camera camera_2D = make_Camera2D(256.0f);
     Camera orbit_camera_3D = make_OrbitCamera3D(0.5f * 256.0f / TAN(RAD(30.0f)), RAD(60.0f));
-    Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 16.0f, 0.0f});
+    Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 16.0f, 0.5f * 256.0f / TAN(RAD(30.0f)) }, RAD(60.0f));
     Camera *camera = &camera_2D;
-    while (begin_frame()) {
+    while (begin_frame(camera)) {
         if (key_pressed['1']) {
             camera = &camera_2D;
             pointer_unlock();
@@ -57,7 +57,6 @@ int main() {
             camera = &first_person_camera_3D;
             pointer_lock();
         }
-        camera->easy_move();
         // TODO: drawing some simple shapes
         // time += 0.0167f;
 

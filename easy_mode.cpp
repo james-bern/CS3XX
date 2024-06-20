@@ -101,58 +101,58 @@ void _callback_scroll_helper(Camera *camera_2D, double yoffset) {
 }
 
 // TODO: include WASD for FirstPersonCamera3D
-void Camera::easy_move() {
-    if (this->type == CameraType::Camera2D) {
+void _camera_easy_move(Camera *camera) {
+    if (camera->type == CameraType::Camera2D) {
         if (mouse_right_held) {
-            this->pre_nudge_World -= _get_mouse_change_in_position_World(this->get_PV());
+            camera->pre_nudge_World -= _get_mouse_change_in_position_World(camera->get_PV());
         }
         if (!IS_ZERO(_accumulator_mouse_wheel_offset)) {
-            vec2 mouse_position_World_before  = transformPoint(inverse(this->get_PV()), mouse_position_OpenGL);
-            this->ortho_screen_height_World *= (1.0f - 0.1f * real(_accumulator_mouse_wheel_offset));
-            vec2 mouse_position_World_after = transformPoint(inverse(this->get_PV()), mouse_position_OpenGL);
-            this->pre_nudge_World -= (mouse_position_World_after - mouse_position_World_before);
+            vec2 mouse_position_World_before  = transformPoint(inverse(camera->get_PV()), mouse_position_OpenGL);
+            camera->ortho_screen_height_World *= (1.0f - 0.1f * real(_accumulator_mouse_wheel_offset));
+            vec2 mouse_position_World_after = transformPoint(inverse(camera->get_PV()), mouse_position_OpenGL);
+            camera->pre_nudge_World -= (mouse_position_World_after - mouse_position_World_before);
         }
-    } else if (this->type == CameraType::OrbitCamera3D) {
+    } else if (camera->type == CameraType::OrbitCamera3D) {
         if (mouse_left_held) {
             real fac = 2.0f;
-            this->euler_angles.y -= fac * _accumulator_mouse_change_in_position_OpenGL.x;
-            this->euler_angles.x += fac * _accumulator_mouse_change_in_position_OpenGL.y;
-            this->euler_angles.x = CLAMP(this->euler_angles.x, -RAD(90), RAD(90));
+            camera->euler_angles.y -= fac * _accumulator_mouse_change_in_position_OpenGL.x;
+            camera->euler_angles.x += fac * _accumulator_mouse_change_in_position_OpenGL.y;
+            camera->euler_angles.x = CLAMP(camera->euler_angles.x, -RAD(90), RAD(90));
         }
         if (mouse_right_held) {
-            Camera tmp_2D = make_EquivalentCamera2D(this);
+            Camera tmp_2D = make_EquivalentCamera2D(camera);
             tmp_2D.pre_nudge_World -= transformVector(inverse(tmp_2D.get_PV()), _accumulator_mouse_change_in_position_OpenGL);
-            this->pre_nudge_World = tmp_2D.pre_nudge_World;
+            camera->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
         if (!IS_ZERO(_accumulator_mouse_wheel_offset)) {
-            bool is_perspective_camera = (!IS_ZERO(this->angle_of_view));
-            Camera tmp_2D = make_EquivalentCamera2D(this);
+            bool is_perspective_camera = (!IS_ZERO(camera->angle_of_view));
+            Camera tmp_2D = make_EquivalentCamera2D(camera);
             _callback_scroll_helper(&tmp_2D, _accumulator_mouse_wheel_offset);
             if (is_perspective_camera) {
-                this->persp_distance_to_origin_World = ((0.5f * tmp_2D.ortho_screen_height_World) / TAN(0.5f * this->angle_of_view));
+                camera->persp_distance_to_origin_World = ((0.5f * tmp_2D.ortho_screen_height_World) / TAN(0.5f * camera->angle_of_view));
             } else {
-                this->ortho_screen_height_World = tmp_2D.ortho_screen_height_World;
+                camera->ortho_screen_height_World = tmp_2D.ortho_screen_height_World;
             }
-            this->pre_nudge_World = tmp_2D.pre_nudge_World;
+            camera->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
-    } else {  ASSERT(this->type == CameraType::FirstPersonCamera3D);
+    } else {  ASSERT(camera->type == CameraType::FirstPersonCamera3D);
         { // WASD
           // FORNOW
             real fac = 1.0f;
-            vec2 _forward = rotated({ 0.0f, -1.0f}, -this->euler_angles.y);
+            vec2 _forward = rotated({ 0.0f, -1.0f}, -camera->euler_angles.y);
             vec2 _perp = { -_forward.y, _forward.x };
             vec3 forward = { _forward.x, 0.0f, _forward.y };
             vec3 perp = { _perp.x, 0.0f, _perp.y };
-            if (key_held['W']) this->first_person_position_World += fac * forward;
-            if (key_held['A']) this->first_person_position_World -= fac * perp;
-            if (key_held['S']) this->first_person_position_World -= fac * forward;
-            if (key_held['D']) this->first_person_position_World += fac * perp;
+            if (key_held['W']) camera->first_person_position_World += fac * forward;
+            if (key_held['A']) camera->first_person_position_World -= fac * perp;
+            if (key_held['S']) camera->first_person_position_World -= fac * forward;
+            if (key_held['D']) camera->first_person_position_World += fac * perp;
         }
         {
             real fac = 2.0f;
-            this->euler_angles.y -= fac * _accumulator_mouse_change_in_position_OpenGL.x;
-            this->euler_angles.x += fac * _accumulator_mouse_change_in_position_OpenGL.y;
-            this->euler_angles.x = CLAMP(this->euler_angles.x, -RAD(90), RAD(90));
+            camera->euler_angles.y -= fac * _accumulator_mouse_change_in_position_OpenGL.x;
+            camera->euler_angles.x += fac * _accumulator_mouse_change_in_position_OpenGL.y;
+            camera->euler_angles.x = CLAMP(camera->euler_angles.x, -RAD(90), RAD(90));
         }
     }
 }
@@ -181,7 +181,7 @@ void pointer_unlock() {
 }
 
 bool _initialized;
-bool begin_frame() {
+bool begin_frame(Camera *camera) {
     { // clear input before polling
         {
             _accumulator_mouse_wheel_offset = 0.0f;
@@ -202,6 +202,8 @@ bool begin_frame() {
     }
 
     OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
+
+    if (camera) _camera_easy_move(camera);
 
     return (!glfwWindowShouldClose(glfw_window));
 }

@@ -299,7 +299,6 @@ struct Camera {
     mat4 get_P();
     mat4 get_V();
     mat4 get_PV();
-    void easy_move();
 };
 
 Camera make_Camera2D(real screen_height_World, vec2 center_World = {}, vec2 post_nudge_OpenGL = {}) {
