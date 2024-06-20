@@ -41,21 +41,21 @@ int main() {
     // TODO: branch off and remake reasonable transform app with plane and things
     real time = 0.0f;
     Camera camera_2D = make_Camera2D(256.0f);
-    Camera orbit_camera_3D = make_OrbitCamera3D(128.0f / TAN(RAD(30.0f)), RAD(60.0f));
+    Camera orbit_camera_3D = make_OrbitCamera3D(0.5f * 256.0f / TAN(RAD(30.0f)), RAD(60.0f));
     Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 16.0f, 0.0f});
     Camera *camera = &camera_2D;
     while (begin_frame()) {
         if (key_pressed['1']) {
             camera = &camera_2D;
-            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            pointer_unlock();
         }
         if (key_pressed['2']) {
             camera = &orbit_camera_3D;
-            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            pointer_unlock();
         }
         if (key_pressed['3']) {
             camera = &first_person_camera_3D;
-            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            pointer_lock();
         }
         camera->easy_move();
         // TODO: drawing some simple shapes
@@ -83,13 +83,12 @@ int main() {
 
         { // ground
             eso_begin(camera->get_PV(), SOUP_QUADS);
+            real r = 128.0f;
             eso_color(basic.white);
-            real r = 256.0f;
-            real eps = 0.1f;
-            eso_vertex(-r, -eps, -r);
-            eso_vertex(-r, -eps,  r);
-            eso_vertex( r, -eps,  r);
-            eso_vertex( r, -eps, -r);
+            eso_vertex(-r, 0.0f, -r);
+            eso_vertex(-r, 0.0f,  r);
+            eso_vertex( r, 0.0f,  r);
+            eso_vertex( r, 0.0f, -r);
             eso_end();
         }
 
@@ -102,7 +101,7 @@ int main() {
                 } else {
                     eso_color(basic.red, 0.5f);
                 }
-                real r = 128.0f;
+                real r = 64.0f;
                 eso_vertex(-r, -r);
                 eso_vertex(-r,  r);
                 eso_vertex( r,  r);
@@ -211,7 +210,7 @@ int main() {
 
                 double xpos, ypos;
                 glfwGetCursorPos(glfw_window, &xpos, &ypos);
-                callback_cursor_position(glfw_window, xpos, ypos);
+                callback_cursor_position(NULL, xpos, ypos);
             }
         }
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
