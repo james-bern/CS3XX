@@ -107,6 +107,7 @@ struct {
 
         out BLOCK {
             vec4 color;
+            float size;
         } gs_out;
 
         void main() {    
