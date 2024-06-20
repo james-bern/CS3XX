@@ -144,6 +144,7 @@ struct {
 
         in BLOCK {
             vec4 color;
+            float size;
         } fs_in;
 
         out vec4 frag_color;
