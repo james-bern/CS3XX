@@ -294,6 +294,8 @@ struct PreviewState {
     vec3 tubes_color;
     vec3 feature_plane_color;
     real feature_plane_offset;
+    vec2 drawing_origin;
+    vec2 mouse;
 };
 
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
@@ -391,7 +393,7 @@ real TOLERANCE_DEFAULT = 5e-4f;
 uint NUM_SEGMENTS_PER_CIRCLE = 64;
 real GRID_SIDE_LENGTH = 250.0f;
 real GRID_SPACING = 10.0f;
-real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(60.0f);
+real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(45.0f);
 
 ////////////////////////////////////////
 // Cow Additions ///////////////////////

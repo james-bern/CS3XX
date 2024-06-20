@@ -12,7 +12,7 @@
    memes
    */
 
-#if 1
+#if 0
 #include "playground.cpp"
 #include "easy_mode.cpp"
 int main() {
@@ -220,8 +220,9 @@ int main() {
     while (!glfwWindowShouldClose(glfw_window)) {
         glfwPollEvents();
         glfwSwapBuffers(glfw_window);
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        eso_size(1.5f);
 
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
@@ -230,7 +231,7 @@ int main() {
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
             { // time_since
-                real dt = 0.033f;
+                real dt = 0.0167;
                 _for_each_entity_ entity->time_since_is_selected_changed += dt;
                 other.time_since_cursor_start += dt;
                 other.time_since_successful_feature += dt;

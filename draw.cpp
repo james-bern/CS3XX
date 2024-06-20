@@ -1,3 +1,5 @@
+// TODO: nudge-y plane move stuff needs to be incorporated into the tween engine too
+
 mat4 get_M_3D_from_2D() {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);
@@ -49,7 +51,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             real alpha;
             {
                 vec3 n_Camera = inv_transpose_V_3D * n;
-                vec3 color_n = V3(0.5f + 0.5f * n_Camera.x, 0.5f + 0.5f * n_Camera.y, 1.0f);
+                vec3 color_n = V3(V2(0.5f) + 0.5f * _V2(n_Camera), 1.0f);
                 if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
 
@@ -99,18 +101,6 @@ void conversation_draw() {
     bool adding     = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::RevolveAdd));
     bool cutting     = ((state.enter_mode == EnterMode::ExtrudeCut) || (state.enter_mode == EnterMode::RevolveCut));
 
-    // FORNOW: repeated computation; TODO function
-    bool dxf_anything_selected;
-    {
-        dxf_anything_selected = false;
-        _for_each_selected_entity_ {
-            dxf_anything_selected = true;
-            break;
-        }
-    }
-
-
-
     { // preview_extrude_in_length
         real target = (adding) ? popup->extrude_add_in_length : popup->extrude_cut_in_length;
         JUICEIT_EASYTWEEN(&preview->extrude_in_length, target);
@@ -126,14 +116,19 @@ void conversation_draw() {
     }
 
     // preview
-    vec2 preview_mouse = magic_snap(mouse_World_2D, true);
-    vec2 preview_dxf_origin; {
-        if (state.click_mode != ClickMode::Origin) {
-            preview_dxf_origin = drawing->origin;
-        } else {
-            preview_dxf_origin = preview_mouse;
-        }
+    vec2 mouse = magic_snap(mouse_World_2D, true);
+
+    {
+        vec2 target_preview_mouse = mouse;
+        JUICEIT_EASYTWEEN(&preview->mouse, target_preview_mouse);
     }
+
+    vec2 target_preview_drawing_origin = (state.click_mode != ClickMode::Origin) ? drawing->origin : mouse;
+    {
+        JUICEIT_EASYTWEEN(&preview->drawing_origin, target_preview_drawing_origin);
+    }
+
+    // TODO: lerp
     vec2 preview_dxf_axis_base_point;
     real preview_dxf_axis_angle_from_y;
     {
@@ -141,11 +136,11 @@ void conversation_draw() {
             preview_dxf_axis_base_point = drawing->axis_base_point;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else if (!two_click_command->awaiting_second_click) {
-            preview_dxf_axis_base_point = preview_mouse;
+            preview_dxf_axis_base_point = mouse;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else {
             preview_dxf_axis_base_point = two_click_command->first_click;
-            preview_dxf_axis_angle_from_y = atan2(preview_mouse - preview_dxf_axis_base_point) - PI / 2;
+            preview_dxf_axis_angle_from_y = atan2(mouse - preview_dxf_axis_base_point) - PI / 2;
         }
     }
 
@@ -174,6 +169,8 @@ void conversation_draw() {
     }
 
     real x_divider_Pixel = get_x_divider_Pixel();
+
+    bool moving_selected_entities = ((state.click_mode == ClickMode::Move) && (two_click_command->awaiting_second_click)); // TODO: loft up
 
     { // draw 2D draw 2d draw
         vec2 *first_click = &two_click_command->first_click;
@@ -225,14 +222,13 @@ void conversation_draw() {
                 eso_begin(PV_2D, SOUP_LINES); {
                     // origin
                     real r = funky_OpenGL_factor;
-                    eso_vertex(preview_dxf_origin - V2(r, 0));
-                    eso_vertex(preview_dxf_origin + V2(r, 0));
-                    eso_vertex(preview_dxf_origin - V2(0, r));
-                    eso_vertex(preview_dxf_origin + V2(0, r));
+                    eso_vertex(target_preview_drawing_origin - V2(r, 0));
+                    eso_vertex(target_preview_drawing_origin + V2(r, 0));
+                    eso_vertex(target_preview_drawing_origin - V2(0, r));
+                    eso_vertex(target_preview_drawing_origin + V2(0, r));
                 } eso_end();
             }
             { // entities
-                bool moving_selected_entities = ((state.click_mode == ClickMode::Move) && (two_click_command->awaiting_second_click));
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
                     if (moving_selected_entities && entity->is_selected) continue;
@@ -242,7 +238,7 @@ void conversation_draw() {
                 }
                 eso_end();
                 if (moving_selected_entities) {
-                    eso_begin(PV_2D * M4_Translation(preview_mouse - *first_click), SOUP_LINES);
+                    eso_begin(PV_2D * M4_Translation(mouse - *first_click), SOUP_LINES);
                     eso_color(get_color(ColorCode::WaterOnly));
                     _for_each_selected_entity_ {
                         eso_entity__SOUP_LINES(entity);
@@ -273,28 +269,28 @@ void conversation_draw() {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
                     eso_vertex(first_click->x, first_click->y);
-                    eso_vertex(preview_mouse.x, first_click->y);
-                    eso_vertex(preview_mouse.x, preview_mouse.y);
-                    eso_vertex(first_click->x, preview_mouse.y);
+                    eso_vertex(mouse.x, first_click->y);
+                    eso_vertex(mouse.x, mouse.y);
+                    eso_vertex(first_click->x, mouse.y);
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Measure) { // measure line_entity
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
-                    eso_vertex(preview_mouse);
+                    eso_vertex(mouse);
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Line) { // measure line_entity
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
-                    eso_vertex(preview_mouse);
+                    eso_vertex(mouse);
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Circle) {
                     vec2 c = { two_click_command->first_click.x, two_click_command->first_click.y };
-                    vec2 p = preview_mouse;
+                    vec2 p = mouse;
                     real r = norm(c - p);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
@@ -329,18 +325,19 @@ void conversation_draw() {
             // FORNOW
             bool moving_stuff = ((state.click_mode == ClickMode::Origin) || (state.enter_mode == EnterMode::NudgeFeaturePlane));
             vec3 target_preview_tubes_color = (0) ? V3(0)
+                : (moving_selected_entities) ? get_color(ColorCode::WaterOnly)
                 : (adding) ? get_color(ColorCode::Traverse)
                 : (cutting) ? get_color(ColorCode::Quality1)
                 : (moving_stuff) ? get_color(ColorCode::WaterOnly)
-                : omax.yellow;
+                : get_color(ColorCode::Selection);
             JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
 
             uint NUM_TUBE_STACKS_INCLUSIVE;
             mat4 M;
             mat4 M_incr;
             {
-                mat4 T_o = M4_Translation(preview_dxf_origin);
-                mat4 inv_T_o = M4_Translation(-preview_dxf_origin);
+                mat4 T_o = M4_Translation(preview->drawing_origin);
+                mat4 inv_T_o = M4_Translation(-preview->drawing_origin);
                 if (extruding) {
                     real a = -preview->extrude_in_length;
                     real L = preview->extrude_out_length + preview->extrude_in_length;
@@ -372,8 +369,14 @@ void conversation_draw() {
                     M_incr = M4_Identity();
                 }
 
+                mat4 T_Move;
+                if (moving_selected_entities) {
+                    T_Move = M4_Translation(preview->mouse - two_click_command->first_click);
+                } else {
+                    T_Move = M4_Identity();
+                }
                 for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
-                    eso_begin(PV_3D * M, SOUP_LINES); {
+                    eso_begin(PV_3D * M * T_Move, SOUP_LINES); {
                         _for_each_selected_entity_ {
                             real alpha;
                             vec3 color;
@@ -407,69 +410,79 @@ void conversation_draw() {
                 vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                 vec2 a = preview_dxf_axis_base_point + v;
                 vec2 b = preview_dxf_axis_base_point - v;
-                eso_vertex(-preview_dxf_origin + a);
-                eso_vertex(-preview_dxf_origin + b); // FORNOW
+                eso_vertex(-preview->drawing_origin + a);
+                eso_vertex(-preview->drawing_origin + b); // FORNOW
             }
             eso_end();
         }
 
 
-        { // feature plane feature-plane feature_plane
-            bbox2 face_selection_bbox = mesh_draw(P_3D, V_3D, M4_Identity());
-            bbox2 dxf_selection_bbox = entities_get_bbox(&drawing->entities, true);
-            bbox2 target_bbox; {
-                target_bbox = face_selection_bbox + dxf_selection_bbox;
-                for_(d, 2) {
-                    if (target_bbox.min[d] > target_bbox.max[d]) {
-                        target_bbox.min[d] = 0.0f;
-                        target_bbox.max[d] = 0.0f;
+        { // feature plane feature-plane feature_plane // floating sketch plane; selection plane NOTE: transparent
+            {
+                bbox2 face_selection_bbox; {
+                    face_selection_bbox = mesh_draw(P_3D, V_3D, M4_Identity());
+                }
+                bbox2 dxf_selection_bbox; {
+                    dxf_selection_bbox = entities_get_bbox(&drawing->entities, true);
+
+                    // TODO: this should incorporate a preview of the fact that some entities are moving
+                    if (moving_selected_entities) {
+                        vec2 T = (preview->mouse - two_click_command->first_click);
+                        dxf_selection_bbox.min += T;
+                        dxf_selection_bbox.max += T;
+                    }
+
+                    dxf_selection_bbox.min -= preview->drawing_origin;
+                    dxf_selection_bbox.max -= preview->drawing_origin;
+                }
+                bbox2 target_bbox; {
+                    target_bbox = face_selection_bbox + dxf_selection_bbox;
+                    for_(d, 2) {
+                        if (target_bbox.min[d] > target_bbox.max[d]) {
+                            target_bbox.min[d] = 0.0f;
+                            target_bbox.max[d] = 0.0f;
+                        }
+                    }
+                    {
+                        real eps = 10.0f;
+                        target_bbox.min[0] -= eps;
+                        target_bbox.max[0] += eps;
+                        target_bbox.min[1] -= eps;
+                        target_bbox.max[1] += eps;
                     }
                 }
+                JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
+                JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
+                if (other.time_since_plane_selected == 0.0f) { // FORNOW
+                    preview->feature_plane = target_bbox;
+                }
+            }
+
+            if (feature_plane->is_active) {
+                mat4 PVM = PV_3D * M_3D_from_2D;
+                vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
-                    real eps = 10.0f;
-                    target_bbox.min[0] -= eps;
-                    target_bbox.max[0] += eps;
-                    target_bbox.min[1] -= eps;
-                    target_bbox.max[1] += eps;
+                    if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
+                        PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
+                        target_feature_plane_color = get_color(ColorCode::WaterOnly); 
+                    } else if (state.click_mode == ClickMode::Origin) {
+                        target_feature_plane_color = get_color(ColorCode::WaterOnly); 
+                    } else if (moving_selected_entities) {
+                        target_feature_plane_color = get_color(ColorCode::WaterOnly); 
+                    }
                 }
-            }
-            JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
-            JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
-            if (other.time_since_plane_selected == 0.0f) { // FORNOW
-                preview->feature_plane = target_bbox;
-            }
-        }
 
-        if (feature_plane->is_active) { // floating sketch plane; selection plane NOTE: transparent
-            bool draw = true;
-            mat4 PVM = PV_3D * M_3D_from_2D;
-            vec3 target_feature_plane_color = omax.yellow;
-            real sign = -1.0f;
-            {
-                if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
-                    PVM *= M4_Translation(-drawing->origin.x, -drawing->origin.y, preview->feature_plane_offset);
-                    target_feature_plane_color = { 0.0f, 1.0f, 1.0f };
-                    sign = 1.0f;
-                    draw = true;
-                } else if (state.click_mode == ClickMode::Origin) {
-                    target_feature_plane_color = { 0.0f, 1.0f, 1.0f };
-                    sign = 1.0f;
-                    draw = true;
-                } else {
-                    if (dxf_anything_selected) PVM *= M4_Translation(-drawing->origin.x, -drawing->origin.y, 0.0f); // FORNOW
+                JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
+
+                {
+                    real f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), 0.0f, 1.0f);
+                    // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
+                    // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
+                    eso_begin(PVM * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
+                    eso_color(preview->feature_plane_color, f * 0.35f);
+                    eso_bbox_SOUP_QUADS(preview->feature_plane);
+                    eso_end();
                 }
-            }
-
-            JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
-
-            if (draw) {
-                real f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), 0.0f, 1.0f);
-                vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
-                mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
-                eso_begin(PVM * M4_Translation(0.0f, 0.0f, sign * Z_FIGHT_EPS) * scaling_about_center, SOUP_QUADS);
-                eso_color(preview->feature_plane_color, f * 0.35f);
-                eso_bbox_SOUP_QUADS(preview->feature_plane);
-                eso_end();
             }
         }
 

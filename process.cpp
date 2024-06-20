@@ -225,7 +225,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     return _standard_event_process_NOTE_RECURSIVE(equivalent);
                 } else if (key_lambda('Z', false, true)) {
                     state.click_mode = ClickMode::Origin;
-                    state.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::XY;
                 } else if (key_lambda(' ')) {
                     state.click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
                     return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
