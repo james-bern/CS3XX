@@ -10,7 +10,7 @@
    but what 
 
    memes
-*/
+   */
 
 #if 1
 #include "playground.cpp"
@@ -41,32 +41,75 @@ int main() {
     // TODO: branch off and remake reasonable transform app with plane and things
     real time = 0.0f;
     Camera camera_2D = make_Camera2D(256.0f);
-    Camera orbit_camera_3D = make_OrbitCamera3D(256.0f);
-    Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 10.0f, 0.0f});
+    Camera orbit_camera_3D = make_OrbitCamera3D(128.0f / TAN(RAD(30.0f)), RAD(60.0f));
+    Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 16.0f, 0.0f});
     Camera *camera = &camera_2D;
     while (begin_frame()) {
-        if (key_pressed['1']) camera = &camera_2D;
-        if (key_pressed['2']) camera = &orbit_camera_3D;
-        if (key_pressed['3']) camera = &first_person_camera_3D;
+        if (key_pressed['1']) {
+            camera = &camera_2D;
+            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+        if (key_pressed['2']) {
+            camera = &orbit_camera_3D;
+            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        }
+        if (key_pressed['3']) {
+            camera = &first_person_camera_3D;
+            glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        }
         camera->easy_move();
         // TODO: drawing some simple shapes
-        time += 0.0167f;
-        eso_begin(camera->get_PV(), SOUP_POINTS);
-        for_(i, 2048) {
-            real o = i / 100.0f;
-            real theta = 200 * (24.0f * o - time / 10.0f);
-            eso_color(LERP(.5f + .5f * cos(time / 10), color_rainbow_swirl(theta / TAU / 2 + time / 5), color_rainbow_swirl(o - time / TAU)));
-            eso_size((o) * (6.0f + 5.0f * sin(o - time)));
-            // eso_size(3.0f);
-            real r = 24.0f * o;
-            // real theta = (24.0f * o - time / 10.0f) / o;
-            // real theta = (24.0f * o - time / 10.0f) * o;
-            // eso_size(10.0f + 5.0f * sin(o + time));
-            // real r = 15.0f * o;
-            vec2 p = r * e_theta(SQRT(theta) / 2);
-            eso_vertex(p.x, 0.0f, p.y);
+        // time += 0.0167f;
+
+
+        if (0) { // dots
+            eso_begin(camera->get_PV(), SOUP_POINTS); {
+                for_(i, 2048) {
+                    real o = i / 100.0f;
+                    real theta = 200 * (24.0f * o - time / 10.0f);
+                    eso_color(LERP(.5f + .5f * cos(time / 10), color_rainbow_swirl(theta / TAU / 2 + time / 5), color_rainbow_swirl(o - time / TAU)));
+                    // eso_size((o) * (6.0f + 5.0f * sin(o - time)));
+                    eso_size(3.0f);
+                    real r = 24.0f * o;
+                    // real theta = (24.0f * o - time / 10.0f) / o;
+                    // real theta = (24.0f * o - time / 10.0f) * o;
+                    // eso_size(10.0f + 5.0f * sin(o + time));
+                    // real r = 15.0f * o;
+                    vec2 p = r * e_theta(SQRT(theta) / 2);
+                    eso_vertex(p.x, 0.0f, p.y);
+                }
+            } eso_end();
         }
-        eso_end();
+
+        { // ground
+            eso_begin(camera->get_PV(), SOUP_QUADS);
+            eso_color(basic.white);
+            real r = 256.0f;
+            real eps = 0.1f;
+            eso_vertex(-r, -eps, -r);
+            eso_vertex(-r, -eps,  r);
+            eso_vertex( r, -eps,  r);
+            eso_vertex( r, -eps, -r);
+            eso_end();
+        }
+
+        { // gate
+            for_(pass, 2) {
+                eso_begin(camera->get_PV(), (pass == 0) ? SOUP_LINE_LOOP : SOUP_QUADS);
+                eso_size(5.0f);
+                if (pass == 0) {
+                    eso_color(basic.red);
+                } else {
+                    eso_color(basic.red, 0.5f);
+                }
+                real r = 128.0f;
+                eso_vertex(-r, -r);
+                eso_vertex(-r,  r);
+                eso_vertex( r,  r);
+                eso_vertex( r, -r);
+                eso_end();
+            }
+        }
     }
     #endif
 }
