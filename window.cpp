@@ -103,7 +103,7 @@ mat4 window_get_OpenGL_from_Pixel() {
 
 mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_OpenGL = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
     if (IS_ZERO(near_z_Camera)) { near_z_Camera = -0.100f; }
-    if (IS_ZERO(far_z_Camera)) { far_z_Camera = -10000.0f; }
+    if (IS_ZERO(far_z_Camera)) { far_z_Camera = -1000.0f; }
     if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }
     ASSERT(near_z_Camera < 0.0f);
     ASSERT(far_z_Camera < 0.0f);
