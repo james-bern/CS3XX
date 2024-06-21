@@ -7,29 +7,36 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
 
     // TODO: these need to take control into account
     bool key_is_digit = ('0' <= key) && (key <= '9');
-    bool key_is_punc  = (key == '.') || (key == '-');
+    bool key_is_period = (key == '.');
+    bool key_is_hyphen = (key == '-');
     bool key_is_alpha = ('A' <= key) && (key <= 'Z');
     bool key_is_delete = (key == GLFW_KEY_BACKSPACE) || (key == GLFW_KEY_DELETE);
     bool key_is_enter = (key == GLFW_KEY_ENTER);
     bool key_is_nav = (key == GLFW_KEY_TAB) || (key == GLFW_KEY_LEFT) || (key == GLFW_KEY_RIGHT);
     bool key_is_ctrl_a = (key == 'A') && (control);
     bool key_is_slash = (key == '/') || (key == '\\');
-    bool key_is_extended_punc = (key == ':');
+    bool key_is_colon = (key == ':');
+    bool key_is_space = (key == ' ');
 
     bool is_consumable_by_popup; {
         is_consumable_by_popup = false;
         if (!_SELECT_OR_DESELECT_COLOR()) is_consumable_by_popup |= key_is_digit;
-        is_consumable_by_popup |= key_is_punc;
         is_consumable_by_popup |= key_is_delete;
         is_consumable_by_popup |= key_is_enter;
         is_consumable_by_popup |= key_is_nav;
         is_consumable_by_popup |= key_is_ctrl_a;
-        if (popup->_type_of_active_cell == CellType::Real32) {
+        if (popup->_type_of_active_cell == CellType::Real) {
+            is_consumable_by_popup |= key_is_hyphen;
+            is_consumable_by_popup |= key_is_period;
+        } else if (popup->_type_of_active_cell == CellType::Uint) {
             ;
         } else if (popup->_type_of_active_cell == CellType::String) {
             is_consumable_by_popup |= key_is_alpha;
+            is_consumable_by_popup |= key_is_colon;
+            is_consumable_by_popup |= key_is_hyphen;
+            is_consumable_by_popup |= key_is_period;
             is_consumable_by_popup |= key_is_slash;
-            is_consumable_by_popup |= key_is_extended_punc;
+            is_consumable_by_popup |= key_is_space;
         } else {
             ASSERT(false);
         }

@@ -1,8 +1,11 @@
 void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
     uint d = popup->active_cell_index;
-    if (popup->cell_type[d] == CellType::Real32) {
+    if (popup->cell_type[d] == CellType::Real) {
         real *value_d_as_real_ptr = (real *)(popup->value[d]);
         popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%g", *value_d_as_real_ptr);
+    } else if (popup->cell_type[d] == CellType::Uint) {
+        uint *value_d_as_uint_ptr = (uint *)(popup->value[d]);
+        popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%d", *value_d_as_uint_ptr);
     } else { ASSERT(popup->cell_type[d] == CellType::String);
         String *value_d_as_String_ptr = (String *)(popup->value[d]);
         memcpy(popup->active_cell_buffer.data, value_d_as_String_ptr->data, value_d_as_String_ptr->length);
@@ -13,9 +16,16 @@ void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
 
 void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
     uint d = popup->active_cell_index;
-    if (popup->cell_type[d] == CellType::Real32) {
+    if (popup->cell_type[d] == CellType::Real) {
         real *value_d_as_real_ptr = (real *)(popup->value[d]);
+        // FORNOW: null-terminating and calling strto*
+        popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0';
         *value_d_as_real_ptr = strtof(popup->active_cell_buffer);
+    } else if (popup->cell_type[d] == CellType::Uint) {
+        uint *value_d_as_uint_ptr = (uint *)(popup->value[d]);
+        // FORNOW: null-terminating and calling strto*
+        popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0';
+        *value_d_as_uint_ptr = uint(strtol(popup->active_cell_buffer.data, NULL, 10));
     } else { ASSERT(popup->cell_type[d] == CellType::String);
         String *value_d_as_String_ptr = (String *)(popup->value[d]);
         memcpy(value_d_as_String_ptr->data, popup->active_cell_buffer.data, popup->active_cell_buffer.length);
@@ -29,9 +39,12 @@ void POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE() {
 void POPUP_CLEAR_ALL_VALUES_TO_ZERO() {
     for_(d, popup->num_cells) {
         if (!popup->name[d].data) continue;
-        if (popup->cell_type[d] == CellType::Real32) {
+        if (popup->cell_type[d] == CellType::Real) {
             real *value_d_as_real_ptr = (real *)(popup->value[d]);
             *value_d_as_real_ptr = 0.0f;
+        } else if (popup->cell_type[d] == CellType::Uint) {
+            uint *value_d_as_uint_ptr = (uint *)(popup->value[d]);
+            *value_d_as_uint_ptr = 0;
         } else { ASSERT(popup->cell_type[d] == CellType::String);
             String *value_d_as_String_ptr = (String *)(popup->value[d]);
             value_d_as_String_ptr->length = 0;
@@ -50,6 +63,7 @@ void POPUP_SET_ACTIVE_CELL_INDEX(uint new_active_cell_index) {
     popup->_type_of_active_cell = popup->cell_type[popup->active_cell_index];
 };
 
+// TODO: consider adding type-checking (NOTE: maybe hard?)
 void popup_popup(
         bool zero_on_load_up,
         CellType _cell_type0,                  String _name0,      void *_value0,
@@ -132,7 +146,7 @@ void popup_popup(
                     if (d == popup->active_cell_index) {
                         field = popup->active_cell_buffer;
                     } else {
-                        if (popup->cell_type[d] == CellType::Real32) {
+                        if (popup->cell_type[d] == CellType::Real) {
                             real *value_d_as_real_ptr = (real *)(popup->value[d]);
                             static _STRING_CALLOC(scratch, POPUP_CELL_LENGTH);
                             scratch.length = snprintf(scratch.data, POPUP_CELL_LENGTH, "%g", *value_d_as_real_ptr);

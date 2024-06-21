@@ -297,6 +297,41 @@ void conversation_draw() {
                     for_(i, NUM_SEGMENTS_PER_CIRCLE) eso_vertex(c + r * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
                     eso_end();
                 }
+                if (state.click_mode == ClickMode::TwoEdgeCircle) {
+                    vec2 edge_one = { two_click_command->first_click.x, two_click_command->first_click.y };
+                    vec2 edge_two = mouse;
+                    vec2 center = (edge_one + edge_two) / 2;
+                    real radius = norm(edge_one - center);
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(basic.cyan);
+                    for_(i, NUM_SEGMENTS_PER_CIRCLE) eso_vertex(center + radius * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
+                    eso_end();
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_vertex(edge_one);
+                    eso_vertex(edge_two);
+                    eso_end();
+                }
+                if (state.click_mode == ClickMode::Polygon) {
+                    vec2 center = { two_click_command->first_click.x, two_click_command->first_click.y };
+                    vec2 vertex_one = mouse;
+                    real delta_theta = TAU / popup->polygon_num_sides;
+                    real starting_theta = atan2(vertex_one - center);
+                    real radius = norm(vertex_one - center);
+
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(basic.cyan);
+                    for(real theta = starting_theta; theta < TAU + starting_theta; theta += delta_theta) {
+                       vec2 vert = { center.x + radius * cos(theta), center.y + radius * sin(theta) }; 
+                       eso_vertex(vert);
+                    }
+                    eso_end();
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_vertex(center);
+                    eso_vertex(vertex_one);
+                    eso_end();
+                }
                 if (state.click_mode == ClickMode::Fillet) {
                     // FORNOW
                     DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, two_click_command->first_click);
@@ -491,6 +526,7 @@ void conversation_draw() {
                 real r = 0.5f * GRID_SIDE_LENGTH;
                 mat4 M0 = M4_Translation(-r, -r, r);
                 mat4 M1; {
+                    M1 = {}; // FORNOW compiler warning
                     if (k == 0) M1 = M4_Identity();
                     if (k == 1) M1 = M4_RotationAboutYAxis(PI);
                     if (k == 2) M1 = M4_RotationAboutXAxis( PI / 2);
@@ -548,20 +584,22 @@ void conversation_draw() {
         real alpha = ((other.hot_pane == Pane::Drawing) && (other.mouse_left_drag_pane == Pane::None)) ? 1.0f : 0.5f;
 
         String string_click_mode = STRING(
-                (state.click_mode == ClickMode::None)        ? ""         :
-                (state.click_mode == ClickMode::Axis)        ? "AXIS"     :
-                (state.click_mode == ClickMode::BoundingBox) ? "BOX"      :
-                (state.click_mode == ClickMode::Circle)      ? "CIRCLE"   :
-                (state.click_mode == ClickMode::Color)       ? "COLOR"    :
-                (state.click_mode == ClickMode::Deselect)    ? "DESELECT" :
-                (state.click_mode == ClickMode::Fillet)      ? "FILLET"   :
-                (state.click_mode == ClickMode::Line)        ? "LINE"     :
-                (state.click_mode == ClickMode::Measure)     ? "MEASURE"  :
-                (state.click_mode == ClickMode::Move)        ? "MOVE"     :
-                (state.click_mode == ClickMode::Origin)      ? "ORIGIN"   :
-                (state.click_mode == ClickMode::Select)      ? "SELECT"   :
-                (state.click_mode == ClickMode::MirrorX)     ? "MIRROR X" :
-                (state.click_mode == ClickMode::MirrorY)     ? "MIRROR Y" :
+                (state.click_mode == ClickMode::None)           ? ""                :
+                (state.click_mode == ClickMode::Axis)           ? "AXIS"            :
+                (state.click_mode == ClickMode::BoundingBox)    ? "BOX"             :
+                (state.click_mode == ClickMode::Circle)         ? "CIRCLE"          :
+                (state.click_mode == ClickMode::Color)          ? "COLOR"           :
+                (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
+                (state.click_mode == ClickMode::Fillet)         ? "FILLET"          :
+                (state.click_mode == ClickMode::Line)           ? "LINE"            :
+                (state.click_mode == ClickMode::Measure)        ? "MEASURE"         :
+                (state.click_mode == ClickMode::Move)           ? "MOVE"            :
+                (state.click_mode == ClickMode::Origin)         ? "ORIGIN"          :
+                (state.click_mode == ClickMode::Polygon)        ? "POLYGON"         :
+                (state.click_mode == ClickMode::Select)         ? "SELECT"          :
+                (state.click_mode == ClickMode::MirrorX)        ? "MIRROR X"        :
+                (state.click_mode == ClickMode::MirrorY)        ? "MIRROR Y"        :
+                (state.click_mode == ClickMode::TwoEdgeCircle)  ? "TWO-EDGE CIRCLE" :
                 "???MODE???");
 
         String string_click_modifier = STRING(

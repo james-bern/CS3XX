@@ -106,6 +106,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::None;
                         two_click_command->awaiting_second_click = false;
                     }
+                } else if (key_lambda('C', true, false)) {
+                    state.click_mode = ClickMode::TwoEdgeCircle;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('D')) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
@@ -168,6 +172,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     messagef(omax.green, "ResetSTL");
                 } else if (key_lambda('O', true)) {
                     state.enter_mode = EnterMode::Load;
+                } else if (key_lambda('P')) {
+                    state.click_mode = ClickMode::Polygon;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('Q')) {
                     if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::None)) {
                         state.click_modifier = ClickModifier::Color;
@@ -445,12 +453,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool click_mode_TWO_CLICK_COMMAND = 0 ||
                 (state.click_mode == ClickMode::Axis) ||
-                (state.click_mode == ClickMode::Measure) ||
-                (state.click_mode == ClickMode::Line) ||
                 (state.click_mode == ClickMode::BoundingBox) ||
                 (state.click_mode == ClickMode::Circle) ||
                 (state.click_mode == ClickMode::Fillet) ||
+                (state.click_mode == ClickMode::Line) ||
+                (state.click_mode == ClickMode::Measure) ||
                 (state.click_mode == ClickMode::Move) ||
+                (state.click_mode == ClickMode::Polygon) ||
+                (state.click_mode == ClickMode::TwoEdgeCircle) ||
                 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT; // fornow wonky case
 
             // fornow window wonky case
@@ -636,9 +646,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             drawing->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
                         } else if (state.click_mode == ClickMode::BoundingBox) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
-                                messagef(omax.orange, "[box] must have non-zero width ");
+                                messagef(omax.orange, "Box: must have non-zero width ");
                             } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
-                                messagef(omax.orange, "[box] must have non-zero height");
+                                messagef(omax.orange, "Box: must have non-zero height");
                             } else {
                                 two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
@@ -745,7 +755,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
                             if (IS_ZERO(norm(*first_click - *second_click))) {
-                                messagef(omax.orange, "[circle] must have non-zero diameter");
+                                messagef(omax.orange, "Circle: must have non-zero diameter");
                             } else {
                                 two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
@@ -756,6 +766,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 real r = norm(*second_click - *first_click);
                                 cookbook.buffer_add_arc(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
                                 cookbook.buffer_add_arc(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
+                                // messagef(omax.green, "Circle");
+                            }
+                        } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
+                            if (IS_ZERO(norm(*first_click - *second_click))) {
+                                messagef(omax.orange, "TwoEdgeCircle: must have non-zero diameter");
+                            } else {
+                                two_click_command->awaiting_second_click = false;
+                                result.checkpoint_me = true;
+                                state.click_mode = ClickMode::None;
+                                state.click_modifier = ClickModifier::None;
+                                vec2 center = (*second_click + *first_click) / 2;
+                                real theta_a_in_degrees = DEG(atan2(*second_click - center));
+                                real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
+                                real radius = norm(*second_click - *first_click) / 2;
+                                cookbook.buffer_add_arc(center, radius, theta_a_in_degrees, theta_b_in_degrees);
+                                cookbook.buffer_add_arc(center, radius, theta_b_in_degrees, theta_a_in_degrees);
                                 // messagef(omax.green, "Circle");
                             }
                         } else if (state.click_mode == ClickMode::Line) {
@@ -787,6 +813,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 } else { ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc_entity = &entity->arc_entity;
                                     arc_entity->center += ds;
+                                }
+                            }
+                        } else if (state.click_mode == ClickMode::Polygon) {
+                            if (popup->polygon_num_sides < 2) {
+                                messagef(omax.orange, "Polygon: must have at least 2 sides");
+                            } else if (IS_ZERO(norm(*first_click - *second_click))) {
+                                messagef(omax.orange, "Polygon: must have non-zero size");
+                            } else {
+                                two_click_command->awaiting_second_click = false;
+                                result.checkpoint_me = true;
+                                state.click_mode = ClickMode::None;
+                                state.click_modifier = ClickModifier::None;
+                                vec2 center = *first_click;
+                                vec2 vertex_one = *second_click;
+                                real delta_theta = TAU / popup->polygon_num_sides;
+                                real starting_theta = atan2(vertex_one - center);
+                                real radius = norm(*second_click - *first_click);
+                                for (real theta = starting_theta; theta < TAU + starting_theta; theta += delta_theta) {
+                                   cookbook.buffer_add_line({ center.x + radius * cos(theta), center.y + radius * sin(theta) }, { center.x + radius * cos(theta + delta_theta), center.y + radius * sin(theta + delta_theta) });
                                 }
                             }
                         } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
@@ -1019,8 +1064,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
-                        CellType::Real32, STRING("extrude_add_out_length"), &popup->extrude_add_out_length,
-                        CellType::Real32, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length);
+                        CellType::Real, STRING("extrude_add_out_length"), &popup->extrude_add_out_length,
+                        CellType::Real, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "ExtrudeAdd: selection empty");
@@ -1039,8 +1084,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeCut) {
                 popup_popup(true,
-                        CellType::Real32, STRING("extrude_cut_in_length"), &popup->extrude_cut_in_length,
-                        CellType::Real32, STRING("extrude_cut_out_length"), &popup->extrude_cut_out_length);
+                        CellType::Real, STRING("extrude_cut_in_length"), &popup->extrude_cut_in_length,
+                        CellType::Real, STRING("extrude_cut_out_length"), &popup->extrude_cut_out_length);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "ExtrudeCut: selection empty");
@@ -1060,7 +1105,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveAdd) {
-                popup_popup(true, CellType::Real32, STRING("revolve_add_dummy"), &popup->revolve_add_dummy);
+                popup_popup(true, CellType::Real, STRING("revolve_add_dummy"), &popup->revolve_add_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "RevolveAdd: selection empty");
@@ -1072,7 +1117,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveCut) {
-                popup_popup(true, CellType::Real32, STRING("revolve_cut_dummy"), &popup->revolve_cut_dummy);
+                popup_popup(true, CellType::Real, STRING("revolve_cut_dummy"), &popup->revolve_cut_dummy);
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "RevolveCut: selection empty");
@@ -1087,7 +1132,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
                 popup_popup(true,
-                        CellType::Real32, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
+                        CellType::Real, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
                 if (gui_key_enter) {
                     result.record_me = true;
                     result.checkpoint_me = true;
@@ -1098,8 +1143,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.click_modifier == ClickModifier::XY) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
                 popup_popup(true,
-                        CellType::Real32, STRING("x_coordinate"), &popup->x_coordinate,
-                        CellType::Real32, STRING("y_coordinate"), &popup->y_coordinate);
+                        CellType::Real, STRING("x_coordinate"), &popup->x_coordinate,
+                        CellType::Real, STRING("y_coordinate"), &popup->y_coordinate);
                 if (gui_key_enter) {
                     // popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                     state.click_modifier = ClickModifier::None;
@@ -1111,9 +1156,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_circle_radius = popup->circle_radius;
                     real prev_circle_circumference = popup->circle_circumference;
                     popup_popup(false,
-                            CellType::Real32, STRING("circle_diameter"), &popup->circle_diameter,
-                            CellType::Real32, STRING("circle_radius"), &popup->circle_radius,
-                            CellType::Real32, STRING("circle_circumference"), &popup->circle_circumference);
+                            CellType::Real, STRING("circle_diameter"), &popup->circle_diameter,
+                            CellType::Real, STRING("circle_radius"), &popup->circle_radius,
+                            CellType::Real, STRING("circle_circumference"), &popup->circle_circumference);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
                     } else {
@@ -1129,6 +1174,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
+            } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
+                ;
             } else if (state.click_mode == ClickMode::Line) {
                 if (two_click_command->awaiting_second_click) {
                     real prev_line_length = popup->line_length;
@@ -1136,10 +1183,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_line_run    = popup->line_run;
                     real prev_line_rise   = popup->line_rise;
                     popup_popup(true,
-                            CellType::Real32, STRING("line_length"), &popup->line_length,
-                            CellType::Real32, STRING("line_angle"),  &popup->line_angle,
-                            CellType::Real32, STRING("line_run"),    &popup->line_run,
-                            CellType::Real32, STRING("line_rise"),   &popup->line_rise
+                            CellType::Real, STRING("line_length"), &popup->line_length,
+                            CellType::Real, STRING("line_angle"),  &popup->line_angle,
+                            CellType::Real, STRING("line_run"),    &popup->line_run,
+                            CellType::Real, STRING("line_rise"),   &popup->line_rise
                             );
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
@@ -1156,8 +1203,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.click_mode == ClickMode::BoundingBox) {
                 if (two_click_command->awaiting_second_click) {
                     popup_popup(true,
-                            CellType::Real32, STRING("box_width"), &popup->box_width,
-                            CellType::Real32, STRING("box_height"), &popup->box_height);
+                            CellType::Real, STRING("box_width"), &popup->box_width,
+                            CellType::Real, STRING("box_height"), &popup->box_height);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
                     }
@@ -1170,11 +1217,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_move_run = popup->move_run;
                     real prev_move_rise = popup->move_rise;
                     popup_popup(true,
-                            CellType::Real32, STRING("move_length"), &popup->move_length,
-                            CellType::Real32, STRING("move_angle"), &popup->move_angle,
-                            CellType::Real32, STRING("move_run"), &popup->move_run,
-                            CellType::Real32, STRING("move_rise"), &popup->move_rise
-                            );
+                            CellType::Real, STRING("move_length"), &popup->move_length,
+                            CellType::Real, STRING("move_angle"), &popup->move_angle,
+                            CellType::Real, STRING("move_run"), &popup->move_run,
+                            CellType::Real, STRING("move_rise"), &popup->move_rise);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
                     } else {
@@ -1187,9 +1233,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
+            } else if (state.click_mode == ClickMode::Polygon) {
+                if (two_click_command->awaiting_second_click) {
+                    popup_popup(false,
+                            CellType::Uint, STRING("polygon_num_sides"), &popup->polygon_num_sides);
+                }
             } else if (state.click_mode == ClickMode::Fillet) {
                 popup_popup(false,
-                        CellType::Real32, STRING("fillet_radius"), &popup->fillet_radius);
+                        CellType::Real, STRING("fillet_radius"), &popup->fillet_radius);
             }
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
