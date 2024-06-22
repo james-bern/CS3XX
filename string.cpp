@@ -20,9 +20,17 @@ bool string_matches_prefix(String string, String prefix) {
     return (memcmp(string.data, prefix.data, prefix.length) == 0);
 }
 
+bool string_matches_prefix(String string, char *prefix) {
+    return string_matches_prefix(string, STRING(prefix));
+}
+
 bool string_matches_suffix(String string, String suffix) {
     if (string.length < suffix.length) return false;
     return (memcmp(&string.data[string.length - suffix.length], &suffix.data[suffix.length - suffix.length], suffix.length) == 0);
+}
+
+bool string_matches_suffix(String string, char *prefix) {
+    return string_matches_suffix(string, STRING(prefix));
 }
 
 real strtof(String string) { // FORNOW

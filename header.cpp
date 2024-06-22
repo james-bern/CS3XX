@@ -348,24 +348,20 @@ struct StandardEventProcessResult {
 // colors //////////////////////////////
 ////////////////////////////////////////
 
-vec3 RGB256(real r, real g, real b) {
-    return V3(r, g, b) / 255.0f;
-}
-
 struct {
-    vec3 red = RGB256(255, 0, 0);
-    vec3 yellow = RGB256(255, 255, 0);
-    vec3 orange = RGB256(204, 136, 1);
-    vec3 green = RGB256(83, 255,  85);
-    vec3 cyan = RGB256(0, 255, 255);
-    vec3 blue = RGB256(0, 85, 255);
-    vec3 purple = RGB256(170, 1, 255);
-    vec3 magenta = RGB256(255, 0, 255);
-    vec3 pink = RGB256(238, 0, 119);
-    vec3 black = RGB256(0, 0, 0);
-    vec3 dark_gray = RGB256(50, 50, 50);
-    vec3 light_gray = RGB256(205, 205, 205);
-    vec3 white = RGB256(255, 255, 255);
+    vec3 red = RGB255(255, 0, 0);
+    vec3 yellow = RGB255(255, 255, 0);
+    vec3 orange = RGB255(204, 136, 1);
+    vec3 green = RGB255(83, 255,  85);
+    vec3 cyan = RGB255(0, 255, 255);
+    vec3 blue = RGB255(0, 85, 255);
+    vec3 purple = RGB255(170, 1, 255);
+    vec3 magenta = RGB255(255, 0, 255);
+    vec3 pink = RGB255(238, 0, 119);
+    vec3 black = RGB255(0, 0, 0);
+    vec3 dark_gray = RGB255(50, 50, 50);
+    vec3 light_gray = RGB255(205, 205, 205);
+    vec3 white = RGB255(255, 255, 255);
 } omax;
 
 vec3 omax_pallete[] = {

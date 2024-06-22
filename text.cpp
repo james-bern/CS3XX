@@ -200,6 +200,7 @@ struct EasyTextPen {
     real font_height_Pixel;
     vec3 color;
     bool automatically_append_newline;
+
     real one_minus_alpha;
     vec2 offset_Pixel;
 
