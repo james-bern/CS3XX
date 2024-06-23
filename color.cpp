@@ -17,16 +17,19 @@ vec3 RGB255(uint r, uint g, uint b) {
 }
 
 struct {
-    vec3 red    = RGB255(249,  38, 114);
-    vec3 orange = RGB255(253, 151,  31);
-    vec3 yellow = RGB255(255, 255,  50); // not actual monokai yellow cause i don't like it
-    vec3 green  = RGB255(166, 226,  46);
-    vec3 blue   = RGB255(102, 217, 239);
-    vec3 purple = RGB255(174, 129, 255);
-    vec3 white  = RGB255(255, 255, 255); // *shrug*
-    vec3 gray   = RGB255(127, 127, 127); // *shrug*
-    vec3 black  = RGB255(  0,   0,   0); // *shrug*
-    vec3 brown  = RGB255(123,  63,   0); // monokai doesn't actually dofine a brown
+    vec3 red        = RGB255(249,  38, 114);
+    vec3 orange     = RGB255(253, 151,  31);
+    // not actual monokai yellow cause i don't like it
+    vec3 yellow     = RGB255(255, 255,  50);
+    vec3 green      = RGB255(166, 226,  46);
+    vec3 blue       = RGB255(102, 217, 239);
+    vec3 purple     = RGB255(174, 129, 255);
+    vec3 white      = RGB255(255, 255, 255); // *shrug*
+    vec3 light_gray = RGB255(192, 192, 192); // *shrug*
+    vec3 gray       = RGB255(127, 127, 127); // *shrug*
+    vec3 dark_gray  = RGB255( 64,  64,  64); // *shrug*
+    vec3 black      = RGB255(  0,   0,   0); // *shrug*
+    vec3 brown      = RGB255(123,  63,   0); // no actual brown
 } monokai;
 
 vec3 color_rainbow_swirl(real t) {

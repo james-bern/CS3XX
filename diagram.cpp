@@ -1,57 +1,117 @@
+// TODO (last before starting over) -- anticipate object creation in dark blue (ghost object)
+// TODOLATER field value should shrink before it changes
+// about to change should be orange (just on path should be blue)
+
+// TODO: emphasis of path when writing (idea of information following the flow of pointers / references down the chain)
+//       (field names need to pulse)
+// TODO: different color for "data that's about to change" and on_path
+// (TODO (before): the asterisk / arrow should be blue)
+// DUMMY or PATH would solve this
+
+// TODO: time_since_in_path should anticipate in blue (FORNOW: not-anticipate in yellow)
+
+// TODO: target_size size
+// TODO: target_color color
+
+// TODO: STACK versus HEAP OBJECT
+// TODO: delete object
+// TODO: line dividing stack and heap
+// TODO: preview (anticipate -- see animation book) changes
+// TODO: consider highlighting (and anticipating?) the "path" through the valriables to the data of interest
 #include "playground.cpp"
 #include "easy_mode.cpp"
 char *script = R""(
-CODE // let's learn about array lists in C/C++!
-CODE
+// CODE // let's learn about array lists in C/C++!
+// CODE
+CODE int i = 5;
+OBJ i xxi
+SET ixxi 5
+CODE int j;
+OBJ j xxj
+SET jxxj ?
+CODE j = i;
+SET jxxj 5
+CODE i = 6;
+SET ixxi 6
+//
+//
+//
+//
 CODE ArrayList list;
 OBJ list .length .capacity .array
 // FILL ? list
-PUT list.length ?
-PUT list.capacity ?
-PUT list.array ?
+SET list.length ?
+SET list.capacity ?
+SET list.array ?
 CODE list = {};
-PUT list.length 0
-PUT list.capacity 0
-PUT list.array NULL
-CODE list.capacity = 3;
-PUT list.capacity 3
-CODE list.array = (double *) malloc(list.capacity, sizeof(double));
-OBJ foo [0] [1] [2]
-PUT foo[0] ?
-PUT foo[1] ?
-PUT foo[2] ?
-PUT foo list.array
-CODE memset(list.array, 0, list.capacity * sizeof(double));
-// FILL foo 0.0
-PUT foo[0] 0.0
-PUT foo[1] 0.0
-PUT foo[2] 0.0
+SET list.length 0
+SET list.capacity 0
+SET list.array NULL
 CODE // note: we could have used "ArrayList list = {};"
 .... //       instead of "ArrayList list;" and "list = {};"
-CODE // note: we could have picked any initial capacity instead of 3
+CODE
+CODE list.capacity = 4;
+SET list.capacity 4
+CODE list.array = (double *) malloc(list.capacity, sizeof(double));
+OBJ xxA [0] [1] [2] [3]
+SET xxA[0] ?
+SET xxA[1] ?
+SET xxA[2] ?
+SET xxA[3] ?
+SET list.array *
+CODE memset(list.array, 0, list.capacity * sizeof(double));
+// NOTE: dummy set
+SET list.array *
+// FILL xxA 0.0
+SET xxA[0] 0.0
+SET xxA[1] 0.0
+SET xxA[2] 0.0
+SET xxA[3] 0.0
+CODE // note: we could have picked any initial capacity instead of 4
 CODE // note: we could have called calloc(...)
 .... //       instead of malloc(...) and memset(..., 0, ...) 
 CODE
 CODE // // as long as there are empty slots in the array, append(...) takes two steps
 CODE // 1) write the element to the array
-CODE list.array[list.length] = 1.0;
-PUT foo[0] 1.0
+.... list.array[list.length] = 6.0;
+// NOTE: dummy set
+SET list.array *
+SET xxA[0] 6.0
 CODE // 2) increment the list's length
-CODE list.length++;
-PUT list.length 1
+.... list.length++;
+SET list.length 1
 CODE
-CODE // note: we can do both steps on one line using "length++"
-CODE list.array[list.length++] = 1.0;
-PUT foo[1] 1.0
-PUT list.length 2
+CODE // note: we can do both steps on one line
+.... list.array[list.length++] = 7.0;
+SET xxA[1] 7.0
+SET list.length 2
 CODE
-CODE list.array[list.length++] = 2.0;
-PUT foo[2] 2.0
-PUT list.length 3
+CODE list.array[list.length++] = 8.0;
+SET xxA[2] 8.0
+SET list.length 3
+CODE list.array[list.length++] = 9.0;
+SET xxA[3] 9.0
+SET list.length 4
 CODE
-CODE // // we're out of room now, so the next append will be trickier!
-CODE
-CODE
+CODE // // we're out of room now!
+.... // // the next append will be trickier!
+CODE list.capacity *= 2;
+SET list.capacity 8
+CODE double *xxB = (double *) calloc(list.capacity, sizeof(double));
+OBJ xxB [0] [1] [2] [3] [4] [5] [6] [7]
+SET xxB[0] 0.0
+SET xxB[1] 0.0
+SET xxB[2] 0.0
+SET xxB[3] 0.0
+SET xxB[4] 0.0
+SET xxB[5] 0.0
+SET xxB[6] 0.0
+SET xxB[7] 0.0
+CODE memcpy(xxB, list.array, list.capacity / 2 * sizeof(double));
+SET xxB[0] 6.0
+SET xxB[1] 7.0
+SET xxB[2] 8.0
+SET xxB[3] 9.0
 CODE
 CODE
 CODE
@@ -74,6 +134,9 @@ CODE
 // // TODO: growing array
 // CODE "capacity *= 2;"
 // CODE "tmp = calloc(capacity, sizeof(double)))"";
+
+uint substep = 0;
+vec3 bottom_line_color;
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
     real f = 0.1f;
@@ -133,15 +196,33 @@ void _messages_draw() {
                 ;// - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 0.3f);
         }
 
-        vec3 color = message->base_color;//CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 5.0f * FADE_IN_TIME, basic.yellow, message->base_color);
-                                         // color = LERP(CLAMP(INVERSE_LERP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f), 0.0f, 0.8f), color, V3(0.6f));
+        vec3 color = message->base_color;
+        if (num_drawn == 0) {
+            vec3 target_bottom_line_color; {
+                if (substep == 0) {
+                    target_bottom_line_color = message->base_color;
+                } else if (substep == 1) {
+                    target_bottom_line_color = 0.3f * monokai.blue;
+                    bottom_line_color = target_bottom_line_color; // FORNOW
+                } else { ASSERT(substep == 2);
+                    target_bottom_line_color = monokai.yellow;
+                }
+            }
+            JUICEIT_EASYTWEEN(&bottom_line_color, target_bottom_line_color);
+            color = bottom_line_color;
+        }
+        //CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 5.0f * FADE_IN_TIME, basic.yellow, message->base_color);
+        // color = LERP(CLAMP(INVERSE_LERP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f), 0.0f, 0.8f), color, V3(0.6f));
 
-        real x = 16 + font_height_Pixel;
+        real x = 300;
         real y_target = ++num_drawn * font_height_Pixel;
+        // if (substep == 1) y_target -= font_height_Pixel / 2;
+        // if (substep == 0) y_target += font_height_Pixel / 16;
         // if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 12.0f);
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         // if (message->time_remaining > 0) {
+        // font_height_Pixel = CLAMPED_LINEAR_REMAP(message->time_remaining, 0.0f, 0.7f, 22.0f, 20.0f);
         text_draw(OpenGL_from_Pixel, message->string, V2(x, 256.0f - message->y), V4(color, alpha), font_height_Pixel);
         // }
     };
@@ -174,6 +255,9 @@ void messages_update_and_draw() {
 struct Field {
     _STRING_CALLOC(name, 64);
     _STRING_CALLOC(value, 64);
+
+    real time_since_in_path;
+    real time_since_changed;
 };
 
 #define MAX_NUM_FIELDS 8
@@ -182,6 +266,9 @@ struct Object {
     _STRING_CALLOC(name, 64);
     uint num_fields;
     Field fields[MAX_NUM_FIELDS];
+
+    real time_since_in_path;
+    real time_since_created;
 };
 
 #define MAX_NUM_OBJECTS 8
@@ -191,9 +278,13 @@ Object objects[MAX_NUM_OBJECTS];
 
 #define _for_each_object_ for (Object *object = objects; object < objects + MAX_NUM_OBJECTS; ++object)
 #define for_each_live_object_ _for_each_object_ if (object->is_live)
+#define for_each_field_(object) for (Field *field = object->fields; field < object->fields + object->num_fields; ++field)
 
 // TODO: parse line into words (for CODE we can wrap the argument in "..." fornow)
 // This will make everything way easier
+
+// TODO: checkbox for no comments
+// TODO: checkbox for no substepping
 
 int main() {
 
@@ -222,89 +313,168 @@ int main() {
         }
     }
 
+
     String *current_line = lines;
     while (begin_frame(NULL)) {
         if (key_pressed[GLFW_KEY_RIGHT]) {
-            ASSERT(string_matches_prefix(*current_line, "CODE"));
-            do {
-                if (current_line->length > 4) {
-                    vec3 color = monokai.white;
-                    if ((current_line->length > 6) && (current_line->data[5] == '/') && (current_line->data[6] == '/')) {
-                        color = monokai.blue;
-                    }
-                    messagef(color, "%s", &current_line->data[5]);
-                } else {
-                    messagef({}, "");
-                }
-                ++current_line;
-            } while (string_matches_prefix(*current_line, "...."));
-
-            while (!string_matches_prefix(*current_line, "CODE")) {
-                if (string_matches_prefix(*current_line, "OBJ")) {
-                    Object *object = &objects[num_objects++]; // FORNOW
-                    object->is_live = true;
-                    bool consumed_object_name = false;
-
-                    ASSERT(current_line->length > strlen("OBJ"));
-                    char *start = &current_line->data[strlen("OBJ") + 1];
-                    char *read_head = start;
-                    while (true) {
-                        ++read_head;
-                        bool is_space = (*read_head == ' ');
-                        bool is_end = !string_pointer_is_valid(*current_line, read_head);
-                        if (is_space || is_end) {
-                            String *dest_string;
-                            if (!consumed_object_name) {
-                                consumed_object_name = true;
-                                dest_string = &object->name;
-                            } else {
-                                dest_string = &object->fields[object->num_fields++].name;
-                            }
-                            dest_string->length = (read_head - start);
-                            memcpy(dest_string->data, start, dest_string->length); // FORNOW
-                            dest_string->data[dest_string->length] = '\0'; // FORNOW
-
-                            start = ++read_head;
+            if (substep == 0) {
+                ASSERT(string_matches_prefix(*current_line, "CODE"));
+                do {
+                    if (current_line->length > 4) {
+                        vec3 color;
+                        if ((current_line->length > 6) && (current_line->data[5] == '/') && (current_line->data[6] == '/')) {
+                            color = monokai.purple;
+                            substep = 0;
+                        } else {
+                            color = monokai.white;
+                            substep = 1;
                         }
-                        if (is_end) break;
+                        messagef(color, "%s", &current_line->data[5]);
+                    } else {
+                        substep = 0;
+                        messagef({}, "");
                     }
-                } else if (string_matches_prefix(*current_line, "PUT")) {
-                    bool consumed_dest = false;
+                    ++current_line;
+                } while (string_matches_prefix(*current_line, "...."));
 
-                    ASSERT(current_line->length > strlen("PUT"));
-                    char *start = &current_line->data[strlen("PUT") + 1];
-                    char *read_head = start;
-                    String *dest_string;
-                    while (true) {
-                        ++read_head;
-                        bool is_space = (*read_head == ' ');
-                        bool is_end = !string_pointer_is_valid(*current_line, read_head);
-                        if (is_space || is_end) {
-                            if (!consumed_dest) {
-                                consumed_dest = true;
-                                String key = { start, uint(read_head - start) };
-                                for_(object_index, num_objects) {
-                                    Object *object = &objects[object_index];
-                                    if (string_matches_prefix(key, object->name)) {
-                                        dest_string = &objects->fields[0].value;
+                // FORNOW horrifying copypasta to make blue highlight hit a substep earlier
+
+                String *ptr = current_line;
+                while (!string_matches_prefix(*ptr, "CODE")) {
+                    if (string_matches_prefix(*ptr, "SET")) {
+                        bool consumed_dest = false;
+
+                        ASSERT(ptr->length > strlen("SET"));
+                        char *start = &ptr->data[strlen("SET") + 1];
+                        char *read_head = start;
+                        // String *dest_string = NULL;
+                        while (true) {
+                            ++read_head;
+                            bool is_space = (*read_head == ' ');
+                            bool is_end = !string_pointer_is_valid(*ptr, read_head);
+                            if (is_space || is_end) {
+                                if (!consumed_dest) {
+                                    consumed_dest = true;
+                                    String key = { start, uint(read_head - start) };
+                                    for_each_live_object_ {
+                                        if (string_matches_prefix(key, object->name)) {
+                                            object->time_since_in_path = 0.0f;
+                                            key.data += object->name.length;
+                                            key.length -= object->name.length;
+                                            bool found = false;
+                                            for_each_field_(object) {
+                                                if (string_matches_prefix(key, field->name)) {
+                                                    field->time_since_in_path = 0.0f;
+                                                    // field->time_since_changed = 0.0f;
+                                                    // dest_string = &field->value;
+                                                    found = true;
+                                                    // break;
+                                                }
+                                            }
+                                            ASSERT(found);
+                                            break;
+                                        }
                                     }
+                                } else {
+                                    // FORNOW
+                                    // ASSERT(dest_string);
+                                    // dest_string->length = (read_head - start);
+                                    // memcpy(dest_string->data, start, dest_string->length);
+                                    // dest_string->data[dest_string->length] = '\0';
                                 }
-                            } else {
-                                // FORNOW
-                                dest_string->length = (read_head - start);
-                                memcpy(dest_string->data, start, dest_string->length);
-                                dest_string->data[dest_string->length] = '\0';
-                            }
 
-                            start = ++read_head;
+                                start = ++read_head;
+                            }
+                            if (is_end) break;
                         }
-                        if (is_end) break;
                     }
-                } else if (string_matches_prefix(*current_line, "FILL")) {
-                    // messagef(monokai.purple, "%s", *current_line);
+                    ++ptr;
                 }
 
-                ++current_line;
+            } else if (substep == 1) {
+                while (!string_matches_prefix(*current_line, "CODE")) {
+                    if (string_matches_prefix(*current_line, "OBJ")) {
+                        Object *object = &objects[num_objects++]; // FORNOW
+                        object->is_live = true;
+                        bool consumed_object_name = false;
+
+                        ASSERT(current_line->length > strlen("OBJ"));
+                        char *start = &current_line->data[strlen("OBJ") + 1];
+                        char *read_head = start;
+                        while (true) {
+                            ++read_head;
+                            bool is_space = (*read_head == ' ');
+                            bool is_end = !string_pointer_is_valid(*current_line, read_head);
+                            if (is_space || is_end) {
+                                String *dest_string;
+                                if (!consumed_object_name) {
+                                    consumed_object_name = true;
+                                    dest_string = &object->name;
+                                } else {
+                                    dest_string = &object->fields[object->num_fields++].name;
+                                }
+                                dest_string->length = (read_head - start);
+                                memcpy(dest_string->data, start, dest_string->length); // FORNOW
+                                dest_string->data[dest_string->length] = '\0'; // FORNOW
+
+                                start = ++read_head;
+                            }
+                            if (is_end) break;
+                        }
+                    } else if (string_matches_prefix(*current_line, "SET")) {
+                        bool consumed_dest = false;
+
+                        ASSERT(current_line->length > strlen("SET"));
+                        char *start = &current_line->data[strlen("SET") + 1];
+                        char *read_head = start;
+                        String *dest_string = NULL;
+                        while (true) {
+                            ++read_head;
+                            bool is_space = (*read_head == ' ');
+                            bool is_end = !string_pointer_is_valid(*current_line, read_head);
+                            if (is_space || is_end) {
+                                if (!consumed_dest) {
+                                    consumed_dest = true;
+                                    String key = { start, uint(read_head - start) };
+                                    for_each_live_object_ {
+                                        if (string_matches_prefix(key, object->name)) {
+                                            object->time_since_in_path = 0.0f;
+                                            key.data += object->name.length;
+                                            key.length -= object->name.length;
+                                            bool found = false;
+                                            for_each_field_(object) {
+                                                if (string_matches_prefix(key, field->name)) {
+                                                    // field->time_since_in_path = 0.0f;
+                                                    field->time_since_changed = 0.0f;
+                                                    dest_string = &field->value;
+                                                    found = true;
+                                                    break;
+                                                }
+                                            }
+                                            ASSERT(found);
+                                            break;
+                                        }
+                                    }
+                                } else {
+                                    // FORNOW
+                                    ASSERT(dest_string);
+                                    dest_string->length = (read_head - start);
+                                    memcpy(dest_string->data, start, dest_string->length);
+                                    dest_string->data[dest_string->length] = '\0';
+                                }
+
+                                start = ++read_head;
+                            }
+                            if (is_end) break;
+                        }
+                    } else if (string_matches_prefix(*current_line, "FILL")) {
+                        // messagef(monokai.purple, "%s", *current_line);
+                    }
+                    ++current_line;
+                }
+                substep = 2;
+            } else if (substep == 2) {
+                substep = 0;
             }
         } else if (key_pressed[GLFW_KEY_LEFT]) {
             messagef(basic.red, "TODO: implement undo");
@@ -312,14 +482,91 @@ int main() {
 
         messages_update_and_draw();
 
-        EasyTextPen pen = { 16.0f, 300.0f, 16.0f, monokai.purple, true};
+        // EasyTextPen pen = { 16.0f, 300.0f, 20.0f, monokai.purple, true};
+        // for_each_live_object_ {
+        //     easy_text_drawf(&pen, "%s", object->name.data);
+        //     for_each_field_(object) {
+        //         easy_text_drawf(&pen, "    %s = %s", field->name.data, field->value.data);
+        //     }
+        //     easy_text_drawf(&pen, "");
+        // }
 
-        for_each_live_object_ {
-            easy_text_drawf(&pen, "%s", object->name.data);
-            for (Field *field = object->fields; field < object->fields + object->num_fields; ++field) {
-                easy_text_drawf(&pen, "    %s = %s", field->name.data, field->value.data);
+        if (!substep) {
+            for_each_live_object_ {
+                object->time_since_created += 0.0167f;
+                object->time_since_in_path += 0.0167f;
+                for_each_field_(object) {
+                    field->time_since_changed += 0.0167f;
+                    field->time_since_in_path += 0.0167f;
+                }
             }
-            easy_text_drawf(&pen, "");
+        }
+
+        real field_spacing = 72.0f;
+        EasyTextPen pen = { V2(16.0f, 64.0f), 0.0f, basic.magenta, false};
+        for_each_live_object_ {
+            pen.color = CLAMPED_LINEAR_REMAP(object->time_since_in_path, 0.0f, 1.0f, monokai.blue, basic.gray);
+            pen.color = CLAMPED_LINEAR_REMAP(object->time_since_created, 0.0f, 1.0f, monokai.yellow, pen.color);
+            if (!string_matches_prefix(object->name, "xx")) {
+                pen.font_height_Pixel = 24.0f;
+                {
+                    pen.offset_Pixel.x = 0.5f * ((object->num_fields * field_spacing) - _easy_text_dx(&pen, object->name));
+                    easy_text_drawf(&pen, "%s", object->name.data);
+                }
+                pen.offset_Pixel = { 0, pen.offset_Pixel.y + 28.0f };
+            }
+            {
+                pen.font_height_Pixel = 16.0f;
+                uint field_index = 0;
+                bool any = false;
+                for_each_field_(object) {
+                    if (!string_matches_prefix(field->name, "xx")) {
+                        pen.color = CLAMPED_LINEAR_REMAP(field->time_since_in_path, 0.0f, 1.0f, monokai.blue, basic.gray);
+                        pen.color = CLAMPED_LINEAR_REMAP(object->time_since_created, 0.0f, 1.0f, monokai.yellow, pen.color);
+                        any = true;
+                        pen.offset_Pixel.x = field_index * field_spacing;
+                        pen.offset_Pixel.x += 0.5f * (field_spacing - _easy_text_dx(&pen, field->name));
+                        easy_text_drawf(&pen, "%s", field->name.data);
+                        ++field_index;
+                    }
+                }
+                if (any) pen.offset_Pixel = { 0, pen.offset_Pixel.y + 26.0f };
+            }
+            {
+                real y_top = pen.get_position_Pixel().y - 4.0f;
+                real y_bottom = y_top + 24.0f; // FORNOW
+                real x_left = pen.origin_Pixel.x;
+                real dx = field_spacing;
+                real x_right = x_left + (object->num_fields * dx);
+                eso_begin(OpenGL_from_Pixel, SOUP_LINES, true);
+                eso_size(CLAMPED_LINEAR_REMAP(object->time_since_created, 0.0f, 1.0f, 3.0f, 1.0f));
+                vec3 color = CLAMPED_LINEAR_REMAP(object->time_since_created, 0.0f, 1.0f, monokai.yellow, monokai.white);
+                eso_color(color);
+                eso_vertex(x_left, y_top);
+                eso_vertex(x_right, y_top);
+                eso_vertex(x_left, y_bottom);
+                eso_vertex(x_right, y_bottom);
+                for_(i, object->num_fields + 1) {
+                    eso_vertex(x_left + (i * dx), y_top);
+                    eso_vertex(x_left + (i * dx), y_bottom);
+                }
+                eso_end();
+            }
+            {
+                uint field_index = 0;
+                for_each_field_(object) {
+                    pen.color = CLAMPED_LINEAR_REMAP(field->time_since_in_path, 0.0f, 1.0f, monokai.blue, monokai.white);
+                    pen.color = CLAMPED_LINEAR_REMAP(field->time_since_changed, 0.0f, 1.0f, monokai.yellow, pen.color);
+                    pen.font_height_Pixel = CLAMPED_LINEAR_REMAP(field->time_since_changed, 0.0f, 0.7f, 22.0f, 20.0f);
+                    pen.offset_Pixel.x = field_index * field_spacing;
+                    pen.offset_Pixel.x += 0.5f * (field_spacing - _easy_text_dx(&pen, field->value));
+                    // pen.offset_Pixel.y -= CLAMPED_LINEAR_REMAP(field->time_since_changed, 0.0f, 0.7f, 0.5f, 0.0f);
+                    easy_text_drawf(&pen, "%s", field->value.data);
+                    ++field_index;
+                }
+            }
+            pen.offset_Pixel = { 0, pen.offset_Pixel.y + 24.0f };
+            pen.offset_Pixel = { 0, pen.offset_Pixel.y + 24.0f };
         }
     }
 }
