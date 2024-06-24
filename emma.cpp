@@ -1,6 +1,9 @@
 #include "playground.cpp"
 #include "easy_mode.cpp"
 int main() {
+
+    // wow!
+
     Camera camera_2D = make_Camera2D(256.0f);
     Camera orbit_camera_3D = make_OrbitCamera3D(0.5f * 256.0f / TAN(RAD(30.0f)), RAD(60.0f));
     Camera first_person_camera_3D = make_FirstPersonCamera3D({ 0.0f, 16.0f, 0.5f * 256.0f / TAN(RAD(30.0f)) }, RAD(60.0f));
