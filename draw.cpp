@@ -34,7 +34,10 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         eso_end();
     }
     for_(pass, 2) {
-        eso_begin(PVM_3D, SOUP_TRIANGLES);
+        // eso_begin(PVM_3D, SOUP_TRIANGLES);
+        eso_begin(PVM_3D, SOUP_TRI_MESH);
+        // eso_begin(PVM_3D, SOUP_POINTS);
+        eso_size(10.0f);
 
         mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
 
@@ -82,6 +85,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 eso_vertex(p[d]);
             }
         }
+        eso_size(2.0f);
         eso_end();
     }
 
@@ -451,6 +455,45 @@ void conversation_draw() {
             eso_end();
         }
 
+        if (!other.hide_grid) { // grid 3D grid 3d grid
+            for_(k, 6) {
+                real r = 0.5f * GRID_SIDE_LENGTH;
+                mat4 M0 = M4_Translation(-r, -r, r);
+                mat4 M1; {
+                    M1 = {}; // FORNOW compiler warning
+                    if (k == 0) M1 = M4_Identity();
+                    if (k == 1) M1 = M4_RotationAboutYAxis(PI);
+                    if (k == 2) M1 = M4_RotationAboutXAxis( PI / 2);
+                    if (k == 3) M1 = M4_RotationAboutXAxis(-PI / 2);
+                    if (k == 4) M1 = M4_RotationAboutYAxis( PI / 2);
+                    if (k == 5) M1 = M4_RotationAboutYAxis(-PI / 2);
+                }
+                mat4 PVM1 = PV_3D * M1;
+                { // backface culling (check sign of rasterized triangle)
+                    vec2 a = _V2(transformPoint(PVM1, V3(0.0f, 0.0f, r)));
+                    vec2 b = _V2(transformPoint(PVM1, V3(1.0f, 0.0f, r)));
+                    vec2 c = _V2(transformPoint(PVM1, V3(0.0f, 1.0f, r)));
+                    if (cross(b - a , c - a) > 0.0f) continue;
+                }
+                mat4 transform = PVM1 * M0;
+                eso_begin(transform, SOUP_LINES);
+                eso_color(omax.dark_gray);
+                for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
+                    real tmp = i * GRID_SPACING;
+                    eso_vertex(tmp, 0.0f);
+                    eso_vertex(tmp, GRID_SIDE_LENGTH);
+                    eso_vertex(0.0f, tmp);
+                    eso_vertex(GRID_SIDE_LENGTH, tmp);
+                }
+                eso_end();
+                eso_begin(transform, SOUP_LINE_LOOP);
+                eso_vertex(0.0f, 0.0f);
+                eso_vertex(0.0f, GRID_SIDE_LENGTH);
+                eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
+                eso_vertex(GRID_SIDE_LENGTH, 0.0f);
+                eso_end();
+            }
+        }
 
         { // feature plane feature-plane feature_plane // floating sketch plane; selection plane NOTE: transparent
             {
@@ -521,45 +564,6 @@ void conversation_draw() {
             }
         }
 
-        if (!other.hide_grid) { // grid 3D grid 3d grid
-            for_(k, 6) {
-                real r = 0.5f * GRID_SIDE_LENGTH;
-                mat4 M0 = M4_Translation(-r, -r, r);
-                mat4 M1; {
-                    M1 = {}; // FORNOW compiler warning
-                    if (k == 0) M1 = M4_Identity();
-                    if (k == 1) M1 = M4_RotationAboutYAxis(PI);
-                    if (k == 2) M1 = M4_RotationAboutXAxis( PI / 2);
-                    if (k == 3) M1 = M4_RotationAboutXAxis(-PI / 2);
-                    if (k == 4) M1 = M4_RotationAboutYAxis( PI / 2);
-                    if (k == 5) M1 = M4_RotationAboutYAxis(-PI / 2);
-                }
-                mat4 PVM1 = PV_3D * M1;
-                { // backface culling (check sign of rasterized triangle)
-                    vec2 a = _V2(transformPoint(PVM1, V3(0.0f, 0.0f, r)));
-                    vec2 b = _V2(transformPoint(PVM1, V3(1.0f, 0.0f, r)));
-                    vec2 c = _V2(transformPoint(PVM1, V3(0.0f, 1.0f, r)));
-                    if (cross(b - a , c - a) > 0.0f) continue;
-                }
-                mat4 transform = PVM1 * M0;
-                eso_begin(transform, SOUP_LINES);
-                eso_color(omax.dark_gray);
-                for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
-                    real tmp = i * GRID_SPACING;
-                    eso_vertex(tmp, 0.0f);
-                    eso_vertex(tmp, GRID_SIDE_LENGTH);
-                    eso_vertex(0.0f, tmp);
-                    eso_vertex(GRID_SIDE_LENGTH, tmp);
-                }
-                eso_end();
-                eso_begin(transform, SOUP_LINE_LOOP);
-                eso_vertex(0.0f, 0.0f);
-                eso_vertex(0.0f, GRID_SIDE_LENGTH);
-                eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
-                eso_vertex(GRID_SIDE_LENGTH, 0.0f);
-                eso_end();
-            }
-        }
         glDisable(GL_SCISSOR_TEST);
     }
 

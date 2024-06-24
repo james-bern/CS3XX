@@ -15,14 +15,16 @@ uint shader_compile(char *source, GLenum type) {
             ASSERT(0);
         }
     }
+    ASSERT(shader);
     return shader;
 };
 
-uint shader_build_program(uint vertex_shader, uint fragment_shader, uint geometry_shader = 0) {
+uint shader_build_program(uint vertex_shader, uint geometry_shader, uint fragment_shader) {
     uint shader_program_ID = glCreateProgram();
-    glAttachShader(shader_program_ID, vertex_shader);
-    glAttachShader(shader_program_ID, fragment_shader);
+    ASSERT(shader_program_ID);
+    ASSERT(vertex_shader); glAttachShader(shader_program_ID, vertex_shader);
     if (geometry_shader) glAttachShader(shader_program_ID, geometry_shader);
+    ASSERT(fragment_shader); glAttachShader(shader_program_ID, fragment_shader);
     glLinkProgram(shader_program_ID);
     {
         int success = 0;
