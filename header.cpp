@@ -25,7 +25,9 @@ enum class ClickMode {
     MirrorY,
     Move,
     Origin,
+    Polygon,
     Select,
+    TwoEdgeCircle,
 };
 
 enum class ClickModifier {
@@ -56,8 +58,9 @@ enum class Pane {
 
 enum class CellType {
     None,
-    Real32,
+    Real,
     String,
+    Uint,
 };
 
 enum class EventType {
@@ -265,6 +268,7 @@ struct PopupState {
     real move_angle;
     real move_run;
     real move_rise;
+    uint polygon_num_sides = 5;
     real revolve_add_dummy;
     real revolve_cut_dummy;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);

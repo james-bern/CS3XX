@@ -22,7 +22,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         bool toggle_pause; {
             toggle_pause = false;
             if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
-                toggle_pause = ((key == 'P') && (!control) && (!shift));
+                toggle_pause = ((key == 'P') && (control) && (shift));
             }
         }
         bool step = (other.paused) && ((key == '.') && (!control) && (!shift));

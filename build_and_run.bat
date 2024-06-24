@@ -9,9 +9,9 @@ Taskkill /IM "executable.exe" /F  >nul 2>&1
 for %%a in (%*) do set "argv[%%a]=1"
 
 IF "%1"=="" (
-    echo build and   run in   debug mode: [36build_and_run.bat filename.cpp [0m
-    echo build and   run in release mode: [36build_and_run.bat filename.cpp --release[0m
-    echo build and debug in     remedyBG: [36build_and_run.bat filename.cpp --debug[0m
+    echo build and   run in   debug mode: [36mbuild_and_run.bat filename.cpp [0m
+    echo build and   run in release mode: [36mbuild_and_run.bat filename.cpp --release[0m
+    echo build and debug in     remedyBG: [36mbuild_and_run.bat filename.cpp --debug[0m
     echo ---
     echo include [36m--eigen[0m to use Eigen's sparse linear solver
 ) ELSE (
