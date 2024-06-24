@@ -330,12 +330,13 @@ void conversation_draw() {
                     real radius = distance(center, vertex_0);
                     real theta_0 = ATAN2(vertex_0 - center);
                     {
+                        eso_stipple(true); // TODO
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(basic.cyan);
-                        eso_stipple(true);
                         eso_vertex(center);
                         eso_vertex(vertex_0);
                         eso_end();
+                        eso_stipple(false); // TODO
                     }
                     {
                         eso_begin(PV_2D, SOUP_LINE_LOOP);

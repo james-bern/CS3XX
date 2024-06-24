@@ -10,10 +10,11 @@ struct {
     vec3 gray = { 0.5f, 0.5f, 0.5f };
     vec3 dark_gray = { 0.25f, 0.25f, 0.25f };
     vec3 black = { 0.0f, 0.0f, 0.0f };
+    // TODO: add orange, brown, purple,
 } basic;
 
 vec3 RGB255(uint r, uint g, uint b) {
-    return V3(r, g, b) / 255.0f;
+    return V3(real(r), real(g), real(b)) / 255.0f;
 }
 
 struct {

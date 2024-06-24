@@ -89,6 +89,8 @@ struct {
         out BLOCK {
             vec4 color;
             float size;
+            vec2 position_Pixel; // NOTE: y flipped sorry
+            float angle;
         } gs_out;
 
         void main() {    
@@ -97,24 +99,34 @@ struct {
             vec4 color_s = gs_in[0].color;
             vec4 color_t = gs_in[1].color;
 
+            float angle = atan(OpenGL_from_Pixel_scale.x * (t.y - s.y), OpenGL_from_Pixel_scale.y * (t.x - s.x));
+
             vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
             vec4 perp_s = vec4((gs_in[0].size / 2) * perp, 0, 0);
             vec4 perp_t = vec4((gs_in[1].size / 2) * perp, 0, 0);
 
             gl_Position = (s - perp_s) * gl_in[0].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_s;
+            gs_out.angle = angle;
             EmitVertex();
 
             gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_t;
+            gs_out.angle = angle;
             EmitVertex();
 
             gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_s;
+            gs_out.angle = angle;
             EmitVertex();
 
             gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_t;
+            gs_out.angle = angle;
             EmitVertex();
 
             EndPrimitive();
@@ -163,7 +175,36 @@ struct {
         }
     )"";
 
-    char *frag_LINES_TRIANGLES = R""(
+    char *frag_LINES = R""(
+        #version 330 core
+
+        uniform bool stipple;
+
+        in BLOCK {
+            vec4 color;
+            float size;
+            vec2 position_Pixel;
+            float angle;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        void main() {
+            frag_color = fs_in.color;
+            if (stipple) {
+                vec2 xy = fs_in.position_Pixel;
+                // rotate by -angle
+                float s = sin(fs_in.angle);
+                float c = cos(fs_in.angle);
+                mat2 Rinv = mat2(c, -s, s, c);
+                vec2 uv = Rinv * xy;
+
+                if (int(uv.x + 9999) % 10 < 5) discard; // FORNOW
+            }
+        }
+    )"";
+
+    char *frag_TRIANGLES = R""(
         #version 330 core
 
         in BLOCK {
@@ -181,6 +222,7 @@ struct {
     char *frag_TRI_MESH = R""(#version 330 core
         in GS_OUT {
             vec4 color;
+            noperspective vec3 distance; // TODO
         } fs_in;
 
         out vec4 frag_color;
@@ -207,16 +249,26 @@ run_before_main {
     uint geom_LINES = shader_compile(soup_source.geom_LINES, GL_GEOMETRY_SHADER);
     uint geom_TRI_MESH = shader_compile(soup_source.geom_TRI_MESH, GL_GEOMETRY_SHADER);
     uint frag_POINTS = shader_compile(soup_source.frag_POINTS, GL_FRAGMENT_SHADER);
-    uint frag_LINES_TRIANGLES = shader_compile(soup_source.frag_LINES_TRIANGLES, GL_FRAGMENT_SHADER);
+    uint frag_LINES = shader_compile(soup_source.frag_LINES, GL_FRAGMENT_SHADER);
+    uint frag_TRIANGLES = shader_compile(soup_source.frag_TRIANGLES, GL_FRAGMENT_SHADER);
     uint frag_TRI_MESH = shader_compile(soup_source.frag_TRI_MESH, GL_FRAGMENT_SHADER);
     soup.shader_program_POINTS = shader_build_program(vert, geom_POINTS, frag_POINTS);
-    soup.shader_program_LINES = shader_build_program(vert, geom_LINES, frag_LINES_TRIANGLES);
-    soup.shader_program_TRIANGLES = shader_build_program(vert, 0, frag_LINES_TRIANGLES);
+    soup.shader_program_LINES = shader_build_program(vert, geom_LINES, frag_LINES);
+    soup.shader_program_TRIANGLES = shader_build_program(vert, 0, frag_TRIANGLES);
     soup.shader_program_TRI_MESH = shader_build_program(vert, geom_TRI_MESH, frag_TRI_MESH);
     glGenVertexArrays(ARRAY_LENGTH(soup.VAO), soup.VAO);
     glGenBuffers(ARRAY_LENGTH(soup.VBO), soup.VBO);
     glGenBuffers(ARRAY_LENGTH(soup.EBO), soup.EBO);
 };
+
+//
+//             .
+//
+//
+//
+//
+//    .
+//
 
 void soup_draw(
         mat4 transform,
@@ -225,7 +277,8 @@ void soup_draw(
         vec3 *vertex_positions,
         vec4 *vertex_colors,
         real *vertex_sizes,
-        bool force_draw_on_top) {
+        bool force_draw_on_top,
+        bool stipple) {
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
 
     glBindVertexArray(soup.VAO[0]);
@@ -283,6 +336,7 @@ void soup_draw(
     auto LOC = [&](char *name) { return glGetUniformLocation(shader_program_ID, name); };
     vec2 OpenGL_from_Pixel_scale = (2.0f / window_get_size_Pixel());
 
+    glUniform1ui(LOC("stipple"), stipple);
     glUniform1ui(LOC("force_draw_on_top"), force_draw_on_top);
     glUniform2f(LOC("OpenGL_from_Pixel_scale"), OpenGL_from_Pixel_scale.x, OpenGL_from_Pixel_scale.y);
     glUniformMatrix4fv(LOC("transform"), 1, GL_TRUE, transform.data);
@@ -333,6 +387,7 @@ struct {
     uint primitive;
     uint num_vertices;
     bool overlay;
+    bool stipple;
 } eso;
 
 void eso_begin(mat4 transform, uint primitive, bool force_draw_on_top = false) {
@@ -344,8 +399,8 @@ void eso_begin(mat4 transform, uint primitive, bool force_draw_on_top = false) {
     eso.transform = transform;
 }
 
-void eso_stipple(u8 stipple_code) {
-    FORNOW_UNUSED(stipple_code);
+void eso_stipple(bool stipple) {
+    eso.stipple = stipple;
 }
 
 void eso_size(real size) {
@@ -407,6 +462,7 @@ void eso_end() {
             eso.vertex_positions,
             eso.vertex_colors,
             eso.vertex_sizes,
-            eso.overlay);
+            eso.overlay,
+            eso.stipple);
 }
 
