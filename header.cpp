@@ -269,6 +269,9 @@ struct PopupState {
     real move_run;
     real move_rise;
     uint polygon_num_sides = 5;
+    real polygon_distance_to_side;
+    real polygon_distance_to_corner;
+    real polygon_side_length;
     real revolve_add_dummy;
     real revolve_cut_dummy;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
@@ -709,7 +712,7 @@ real squared_distance_point_arc_NOTE_pass_angles_in_radians(vec2 p, vec2 center,
     bool point_in_sector = false; {
         vec2 v = p - center;
         // forgive me rygorous :(
-        real angle = atan2(v);
+        real angle = ATAN2(v);
         while (start_angle_in_radians < -PI) start_angle_in_radians += TAU;
         while (end_angle_in_radians < start_angle_in_radians) end_angle_in_radians += TAU;
         point_in_sector =

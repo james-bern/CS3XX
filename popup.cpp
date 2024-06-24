@@ -5,7 +5,7 @@ void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
         popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%g", *value_d_as_real_ptr);
     } else if (popup->cell_type[d] == CellType::Uint) {
         uint *value_d_as_uint_ptr = (uint *)(popup->value[d]);
-        popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%d", *value_d_as_uint_ptr);
+        popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%u", *value_d_as_uint_ptr);
     } else { ASSERT(popup->cell_type[d] == CellType::String);
         String *value_d_as_String_ptr = (String *)(popup->value[d]);
         memcpy(popup->active_cell_buffer.data, value_d_as_String_ptr->data, value_d_as_String_ptr->length);
@@ -150,6 +150,11 @@ void popup_popup(
                             real *value_d_as_real_ptr = (real *)(popup->value[d]);
                             static _STRING_CALLOC(scratch, POPUP_CELL_LENGTH);
                             scratch.length = snprintf(scratch.data, POPUP_CELL_LENGTH, "%g", *value_d_as_real_ptr);
+                            field = scratch;
+                        } else if (popup->cell_type[d] == CellType::Uint) {
+                            uint *value_d_as_uint_ptr = (uint *)(popup->value[d]);
+                            static _STRING_CALLOC(scratch, POPUP_CELL_LENGTH);
+                            scratch.length = snprintf(scratch.data, POPUP_CELL_LENGTH, "%u", *value_d_as_uint_ptr);
                             field = scratch;
                         } else { ASSERT(popup->cell_type[d] == CellType::String); 
                             String *value_d_as_String_ptr = (String *)(popup->value[d]);

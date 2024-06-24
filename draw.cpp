@@ -140,7 +140,7 @@ void conversation_draw() {
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else {
             preview_dxf_axis_base_point = two_click_command->first_click;
-            preview_dxf_axis_angle_from_y = atan2(mouse - preview_dxf_axis_base_point) - PI / 2;
+            preview_dxf_axis_angle_from_y = ATAN2(mouse - preview_dxf_axis_base_point) - PI / 2;
         }
     }
 
@@ -289,22 +289,28 @@ void conversation_draw() {
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Circle) {
-                    vec2 c = { two_click_command->first_click.x, two_click_command->first_click.y };
-                    vec2 p = mouse;
-                    real r = norm(c - p);
+                    vec2 center = two_click_command->first_click;
+                    vec2 point = mouse;
+                    real radius = distance(center, point);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
-                    for_(i, NUM_SEGMENTS_PER_CIRCLE) eso_vertex(c + r * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
+                    for_(i, NUM_SEGMENTS_PER_CIRCLE) {
+                        real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
+                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
+                    }
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::TwoEdgeCircle) {
-                    vec2 edge_one = { two_click_command->first_click.x, two_click_command->first_click.y };
+                    vec2 edge_one = two_click_command->first_click;
                     vec2 edge_two = mouse;
                     vec2 center = (edge_one + edge_two) / 2;
                     real radius = norm(edge_one - center);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
-                    for_(i, NUM_SEGMENTS_PER_CIRCLE) eso_vertex(center + radius * e_theta(real(i) / NUM_SEGMENTS_PER_CIRCLE * TAU));
+                    for_(i, NUM_SEGMENTS_PER_CIRCLE) {
+                        real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
+                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
+                    }
                     eso_end();
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
@@ -313,24 +319,31 @@ void conversation_draw() {
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Polygon) {
-                    vec2 center = { two_click_command->first_click.x, two_click_command->first_click.y };
-                    vec2 vertex_one = mouse;
-                    real delta_theta = TAU / popup->polygon_num_sides;
-                    real starting_theta = atan2(vertex_one - center);
-                    real radius = norm(vertex_one - center);
-
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(basic.cyan);
-                    for(real theta = starting_theta; theta < TAU + starting_theta; theta += delta_theta) {
-                       vec2 vert = { center.x + radius * cos(theta), center.y + radius * sin(theta) }; 
-                       eso_vertex(vert);
+                    uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
+                    real delta_theta = TAU / polygon_num_sides;
+                    vec2 center = two_click_command->first_click;
+                    vec2 vertex_0 = mouse;
+                    real radius = distance(center, vertex_0);
+                    real theta_0 = ATAN2(vertex_0 - center);
+                    {
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(basic.cyan);
+                        eso_stipple(true);
+                        eso_vertex(center);
+                        eso_vertex(vertex_0);
+                        eso_end();
                     }
-                    eso_end();
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(basic.cyan);
-                    eso_vertex(center);
-                    eso_vertex(vertex_one);
-                    eso_end();
+                    {
+                        eso_begin(PV_2D, SOUP_LINE_LOOP);
+                        eso_color(basic.cyan);
+                        for_(i, polygon_num_sides) {
+                           real theta_i = theta_0 + (i * delta_theta);
+                           real theta_ip1 = theta_i + delta_theta;
+                           eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
+                           eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
+                        }
+                        eso_end();
+                    }
                 }
                 if (state.click_mode == ClickMode::Fillet) {
                     // FORNOW

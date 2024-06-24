@@ -581,8 +581,8 @@ tuDv cwiseProduct(vecD a, vecD b) {
 vec2 e_theta(real theta) {
     return { COS(theta), SIN(theta) };
 }
-real atan2(vec2 a) {
-    return atan2f(a.y, a.x);
+real ATAN2(vec2 a) {
+    return ATAN2(a.y, a.x);
 }
 vec2 rotated(vec2 a, real theta) {
     return { COS(theta) * a.x - SIN(theta) * a.y, SIN(theta) * a.x + COS(theta) * a.y };

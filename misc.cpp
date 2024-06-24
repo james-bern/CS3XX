@@ -5,6 +5,64 @@
 
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected)
 
+bool click_mode_SNAP_ELIGIBLE() {
+    return 0
+        || (state.click_mode == ClickMode::Axis)
+        || (state.click_mode == ClickMode::BoundingBox)
+        || (state.click_mode == ClickMode::Circle)
+        || (state.click_mode == ClickMode::TwoEdgeCircle)
+        || (state.click_mode == ClickMode::Line)
+        || (state.click_mode == ClickMode::Measure)
+        || (state.click_mode == ClickMode::Move)
+        || (state.click_mode == ClickMode::Origin)
+        || (state.click_mode == ClickMode::Polygon)
+        || (state.click_mode == ClickMode::MirrorX)
+        || (state.click_mode == ClickMode::MirrorY)
+        ;
+}
+
+bool click_mode_15_DEG_ELIGIBLE() {
+    return 0
+        || (state.click_mode == ClickMode::Axis)
+        || (state.click_mode == ClickMode::BoundingBox)
+        || (state.click_mode == ClickMode::Circle)
+        || (state.click_mode == ClickMode::TwoEdgeCircle)
+        || (state.click_mode == ClickMode::Line)
+        || (state.click_mode == ClickMode::Measure)
+        || (state.click_mode == ClickMode::Move)
+        || (state.click_mode == ClickMode::Origin)
+        || (state.click_mode == ClickMode::Polygon)
+        || (state.click_mode == ClickMode::MirrorX)
+        || (state.click_mode == ClickMode::MirrorY)
+        ;
+}
+
+bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
+    return 0
+        || (state.click_mode == ClickMode::Axis)
+        || (state.click_mode == ClickMode::BoundingBox)
+        || (state.click_mode == ClickMode::Circle)
+        || (state.click_mode == ClickMode::TwoEdgeCircle)
+        || (state.click_mode == ClickMode::Fillet)
+        || (state.click_mode == ClickMode::Line)
+        || (state.click_mode == ClickMode::Measure)
+        || (state.click_mode == ClickMode::Move)
+        || (state.click_mode == ClickMode::Origin)
+        || (state.click_mode == ClickMode::MirrorX)
+        || (state.click_mode == ClickMode::MirrorY)
+        ;
+}
+
+bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
+    return 0
+        || (state.enter_mode == EnterMode::ExtrudeAdd)
+        || (state.enter_mode == EnterMode::ExtrudeCut)
+        || (state.enter_mode == EnterMode::RevolveAdd)
+        || (state.enter_mode == EnterMode::RevolveCut)
+        || (state.enter_mode == EnterMode::NudgeFeaturePlane)
+        ;
+}
+
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
     real f = 0.1f;
     if (!other.paused) *a += f * (b - *a);
@@ -21,10 +79,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
     vec2 result = before;
     {
         if (
-                ( 0 
-                  || (state.click_mode == ClickMode::Line)
-                  || (state.click_mode == ClickMode::Axis)
-                )
+                click_mode_15_DEG_ELIGIBLE()
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             vec2 a = two_click_command->first_click;
@@ -32,7 +87,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             vec2 r = b - a; 
             real norm_r = norm(r);
             real factor = 360 / 15 / TAU;
-            real theta = roundf(atan2(r) * factor) / factor;
+            real theta = roundf(ATAN2(r) * factor) / factor;
             result = a + norm_r * e_theta(theta);
         } else if (
                 (state.click_mode == ClickMode::BoundingBox)
@@ -133,46 +188,4 @@ bool _SELECT_OR_DESELECT_COLOR() {
     bool A = click_mode_SELECT_OR_DESELECT();
     bool B = (state.click_modifier == ClickModifier::Color);
     return A && B;
-}
-
-bool click_mode_SNAP_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Fillet)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
-    return 0
-        || (state.enter_mode == EnterMode::ExtrudeAdd)
-        || (state.enter_mode == EnterMode::ExtrudeCut)
-        || (state.enter_mode == EnterMode::RevolveAdd)
-        || (state.enter_mode == EnterMode::RevolveCut)
-        || (state.enter_mode == EnterMode::NudgeFeaturePlane)
-        ;
 }
