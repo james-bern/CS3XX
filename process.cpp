@@ -451,6 +451,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
 
+            // TODO: move to misc.cpp; TODO: rename misc.cpp -> bool.cpp?
             bool click_mode_TWO_CLICK_COMMAND = 0 ||
                 (state.click_mode == ClickMode::Axis) ||
                 (state.click_mode == ClickMode::BoundingBox) ||
@@ -643,7 +644,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
                             drawing->axis_base_point = *first_click;
-                            drawing->axis_angle_from_y = (-PI / 2) + atan2(*second_click - *first_click);
+                            drawing->axis_angle_from_y = (-PI / 2) + ATAN2(*second_click - *first_click);
                         } else if (state.click_mode == ClickMode::BoundingBox) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
                                 messagef(omax.orange, "Box: must have non-zero width ");
@@ -732,8 +733,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             cookbook.buffer_add_line(s_ab, t_ab, false, color_i);
                                             cookbook.buffer_add_line(s_cd, t_cd, false, color_j);
 
-                                            real theta_ab_in_degrees = DEG(atan2(t_ab - center));
-                                            real theta_cd_in_degrees = DEG(atan2(t_cd - center));
+                                            real theta_ab_in_degrees = DEG(ATAN2(t_ab - center));
+                                            real theta_cd_in_degrees = DEG(ATAN2(t_cd - center));
 
                                             if (!IS_ZERO(radius)) {
                                                 if (burkardt_three_point_angle(t_ab, center, t_cd) < PI) {
@@ -761,7 +762,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
-                                real theta_a_in_degrees = DEG(atan2(*second_click - *first_click));
+                                real theta_a_in_degrees = DEG(ATAN2(*second_click - *first_click));
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real r = norm(*second_click - *first_click);
                                 cookbook.buffer_add_arc(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
@@ -777,7 +778,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
                                 vec2 center = (*second_click + *first_click) / 2;
-                                real theta_a_in_degrees = DEG(atan2(*second_click - center));
+                                real theta_a_in_degrees = DEG(ATAN2(*second_click - center));
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real radius = norm(*second_click - *first_click) / 2;
                                 cookbook.buffer_add_arc(center, radius, theta_a_in_degrees, theta_b_in_degrees);
@@ -794,7 +795,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            real angle = DEG(atan2(*second_click - *first_click));
+                            real angle = DEG(ATAN2(*second_click - *first_click));
                             if (angle < 0.0f) angle += 360.0f;
                             real length = norm(*second_click - *first_click);
                             messagef(omax.cyan, "Angle is %gdeg.", angle);
@@ -816,22 +817,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state.click_mode == ClickMode::Polygon) {
-                            if (popup->polygon_num_sides < 2) {
-                                messagef(omax.orange, "Polygon: must have at least 2 sides");
-                            } else if (IS_ZERO(norm(*first_click - *second_click))) {
+                            uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
+                            if (IS_ZERO(norm(*first_click - *second_click))) {
                                 messagef(omax.orange, "Polygon: must have non-zero size");
                             } else {
                                 two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
+                                real delta_theta = TAU / polygon_num_sides;
                                 vec2 center = *first_click;
-                                vec2 vertex_one = *second_click;
-                                real delta_theta = TAU / popup->polygon_num_sides;
-                                real starting_theta = atan2(vertex_one - center);
-                                real radius = norm(*second_click - *first_click);
-                                for (real theta = starting_theta; theta < TAU + starting_theta; theta += delta_theta) {
-                                   cookbook.buffer_add_line({ center.x + radius * cos(theta), center.y + radius * sin(theta) }, { center.x + radius * cos(theta + delta_theta), center.y + radius * sin(theta + delta_theta) });
+                                vec2 vertex_0 = *second_click;
+                                real radius = distance(center, vertex_0);
+                                real theta_0 = ATAN2(vertex_0 - center);
+                                cookbook.buffer_add_line(center, vertex_0); // center line (so sayeth LAYOUT)
+                                for_(i, polygon_num_sides) {
+                                   real theta_i = theta_0 + (i * delta_theta);
+                                   real theta_ip1 = theta_i + delta_theta;
+                                   cookbook.buffer_add_line(
+                                       get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i),
+                                       get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1)
+                                   );
                                 }
                             }
                         } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
@@ -1235,8 +1241,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.click_mode == ClickMode::Polygon) {
                 if (two_click_command->awaiting_second_click) {
+                    real prev_polygon_distance_to_corner = popup->polygon_distance_to_corner;
+                    real prev_polygon_distance_to_side = popup->polygon_distance_to_side;
+                    real prev_polygon_side_length = popup->polygon_side_length;
+                    real theta = PI / popup->polygon_num_sides;
                     popup_popup(false,
-                            CellType::Uint, STRING("polygon_num_sides"), &popup->polygon_num_sides);
+                            CellType::Uint, STRING("polygon_num_sides"), &popup->polygon_num_sides, 
+                            CellType::Real, STRING("polygon_distance_to_corner"), &popup->polygon_distance_to_corner,
+                            CellType::Real, STRING("polygon_distance_to_side"), &popup->polygon_distance_to_side,
+                            CellType::Real, STRING("polygon_side_length"), &popup->polygon_side_length);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
+                    } else {
+                        if (prev_polygon_distance_to_corner != popup->polygon_distance_to_corner) {
+                            popup->polygon_distance_to_side = popup->polygon_distance_to_corner * COS(theta);
+                            popup->polygon_side_length = 2 * popup->polygon_distance_to_corner * SIN(theta);
+                        } else if (prev_polygon_distance_to_side != popup->polygon_distance_to_side) {
+                            popup->polygon_distance_to_corner = popup->polygon_distance_to_side / COS(theta); 
+                            popup->polygon_side_length = 2 * popup->polygon_distance_to_side * TAN(theta);
+                        } else if (prev_polygon_side_length != popup->polygon_side_length) {
+                            popup->polygon_distance_to_corner = popup->polygon_side_length / (2 * SIN(theta));
+                            popup->polygon_distance_to_side = popup->polygon_side_length / (2 * TAN(theta));
+                        }
+                    }
                 }
             } else if (state.click_mode == ClickMode::Fillet) {
                 popup_popup(false,
