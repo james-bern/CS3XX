@@ -9,7 +9,7 @@ int main() {
     //// draw teapot
     double *vertex_positions = (double *) calloc(99999, sizeof(double)); 
     int *triangle_indices = (int *) calloc(99999, sizeof(int)); 
-    FILE *file = fopen("teapot.txt", "r");
+    FILE *file = fopen("_henok_teapot.txt", "r");
     ASSERT(file);
     int num_vertices = 0;
     int num_triangles = 0;
@@ -32,6 +32,7 @@ int main() {
          }
     }
     fclose(file);
+
     while (begin_frame(camera)) {
         time += 0.0167f;
         int traingle_index = 0; 
@@ -61,10 +62,10 @@ int main() {
        
             traingle_index += 3;
         }
-        ////
         
-
-        { // switch cameras
+        
+// switch cameras
+        { 
             if (key_pressed['1']) {
                 camera = &camera_2D;
                 pointer_unlock();
