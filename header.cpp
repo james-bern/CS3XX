@@ -28,6 +28,7 @@ enum class ClickMode {
     Move,
     Origin,
     Polygon,
+    Rotate,
     Select,
     TwoEdgeCircle,
 };

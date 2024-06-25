@@ -174,7 +174,7 @@ void conversation_draw() {
 
     real x_divider_Pixel = get_x_divider_Pixel();
 
-    bool moving_selected_entities = ((state.click_mode == ClickMode::Move || state.click_mode == ClickMode::LinearCopy) && (two_click_command->awaiting_second_click)); // TODO: loft up
+    bool moving_selected_entities = ((state.click_mode == ClickMode::Move || state.click_mode == ClickMode::Rotate || state.click_mode == ClickMode::LinearCopy) && (two_click_command->awaiting_second_click)); // TODO: loft up
 
     { // draw 2D draw 2d draw
         vec2 *first_click = &two_click_command->first_click;
@@ -241,7 +241,7 @@ void conversation_draw() {
                     eso_entity__SOUP_LINES(entity);
                 }
                 eso_end();
-                if (moving_selected_entities) {
+                if (moving_selected_entities && state.click_mode != ClickMode::Rotate) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(get_color(ColorCode::WaterOnly));
                     eso_vertex(mouse);
@@ -251,6 +251,37 @@ void conversation_draw() {
                     eso_color(get_color(ColorCode::WaterOnly));
                     _for_each_selected_entity_ {
                         eso_entity__SOUP_LINES(entity);
+                    }
+                    eso_end();
+                } else if (moving_selected_entities && state.click_mode == ClickMode::Rotate) {
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(get_color(ColorCode::WaterOnly));
+                    eso_vertex(mouse);
+                    eso_vertex(*first_click);
+                    eso_end();
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(get_color(ColorCode::WaterOnly));
+                    real theta = ATAN2(mouse - *first_click);
+                    real s = sin(theta), c = cos(theta);
+                    mat2 rotate = M2(c, -s, s, c);
+                    mat2 rotateBack = inverse(rotate);
+                    _for_each_selected_entity_ {
+                        Entity ent = *entity;
+                        if (entity->type == EntityType::Line) {
+                            LineEntity *line_entity = &ent.line_entity;
+                            vec2 rotatedStart = rotate * (line_entity->start - *first_click);
+                            line_entity->start = rotatedStart + *first_click;
+                            vec2 rotatedEnd = rotate * (line_entity->end - *first_click);
+                            line_entity->end = rotatedEnd + *first_click;
+                            eso_entity__SOUP_LINES(&ent);
+                        } else { ASSERT(entity->type == EntityType::Arc);
+                            ArcEntity *arc_entity = &ent.arc_entity;
+                            vec2 rotatedCenter = rotate * (arc_entity->center - *first_click);
+                            arc_entity->center = rotatedCenter + *first_click;
+                            arc_entity->start_angle_in_degrees = DEG(theta) + arc_entity->start_angle_in_degrees;
+                            arc_entity->end_angle_in_degrees = DEG(theta) + arc_entity->end_angle_in_degrees;
+                            eso_entity__SOUP_LINES(&ent);
+                        }
                     }
                     eso_end();
                 }
@@ -298,6 +329,13 @@ void conversation_draw() {
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Line) { // measure line_entity
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_vertex(two_click_command->first_click);
+                    eso_vertex(mouse);
+                    eso_end();
+                }
+                if (state.click_mode == ClickMode::Rotate) { // measure line_entity
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
@@ -628,6 +666,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Origin)         ? "ORIGIN"          :
                 (state.click_mode == ClickMode::Polygon)        ? "POLYGON"         :
                 (state.click_mode == ClickMode::Select)         ? "SELECT"          :
+                (state.click_mode == ClickMode::Rotate)         ? "ROTATE"          :
                 (state.click_mode == ClickMode::MirrorLine)     ? "MIRROR LINE"     :
                 (state.click_mode == ClickMode::MirrorX)        ? "MIRROR X"        :
                 (state.click_mode == ClickMode::MirrorY)        ? "MIRROR Y"        :
