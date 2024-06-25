@@ -151,6 +151,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Measure;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                } else if (key_lambda('M', true, true)) {
+                    state.click_mode = ClickMode::MirrorLine;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('N')) {
                     if (feature_plane->is_active) {
                         state.enter_mode = EnterMode::NudgeFeaturePlane;
@@ -170,6 +174,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     mesh_free_AND_zero(mesh);
                     *feature_plane = {};
                     messagef(omax.green, "ResetSTL");
+                } else if (key_lambda('O')) {
+                    state.click_mode = ClickMode::LinearCopy;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('O', true)) {
                     state.enter_mode = EnterMode::Load;
                 } else if (key_lambda('P')) {
@@ -458,7 +466,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 (state.click_mode == ClickMode::Circle) ||
                 (state.click_mode == ClickMode::Fillet) ||
                 (state.click_mode == ClickMode::Line) ||
+                (state.click_mode == ClickMode::LinearCopy) ||
                 (state.click_mode == ClickMode::Measure) ||
+                (state.click_mode == ClickMode::MirrorLine) ||
                 (state.click_mode == ClickMode::Move) ||
                 (state.click_mode == ClickMode::Polygon) ||
                 (state.click_mode == ClickMode::TwoEdgeCircle) ||
@@ -800,6 +810,45 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real length = norm(*second_click - *first_click);
                             messagef(omax.cyan, "Angle is %gdeg.", angle);
                             messagef(omax.cyan, "Length is %gmm.", length);
+                        } else if (state.click_mode == ClickMode::MirrorLine) {
+                            two_click_command->awaiting_second_click = false;
+                            result.checkpoint_me = true;
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            vec2 u = *second_click - *first_click; // new y axis
+                            real theta = ATAN2(u);
+                            real s = sin(PI - theta);
+                            real c = cos(PI - theta);
+                            mat2 rotate = M2(c, -s, s , c);
+                            mat2 rotateBack = inverse(rotate);
+
+                            _for_each_selected_entity_ {
+                                if (entity->type == EntityType::Line) {
+                                    LineEntity *line_entity = &entity->line_entity;
+                                    vec2 rotatedStart = rotate * (line_entity->start - *first_click);
+                                    rotatedStart = { rotatedStart.x, -rotatedStart.y }; 
+                                    vec2 rotatedEnd = rotate * (line_entity->end - *first_click);
+                                    rotatedEnd = { rotatedEnd.x, -rotatedEnd.y }; 
+                                    cookbook.buffer_add_line(
+                                            (rotateBack * rotatedStart) + *first_click,
+                                            (rotateBack * rotatedEnd) + *first_click, 
+                                            true,
+                                            entity->color_code
+                                            );
+                                } else { ASSERT(entity->type == EntityType::Arc);
+                                    ArcEntity *arc_entity = &entity->arc_entity;
+                                    vec2 rotatedCenter = rotate * (arc_entity->center - *first_click);
+                                    rotatedCenter = { rotatedCenter.x, -rotatedCenter.y }; 
+                                    cookbook.buffer_add_arc(
+                                            (rotateBack * rotatedCenter) + *first_click, 
+                                            arc_entity->radius,
+                                            2 * DEG(theta) - arc_entity->end_angle_in_degrees,
+                                            2 * DEG(theta) - arc_entity->start_angle_in_degrees,
+                                            true,
+                                            entity->color_code); // FORNOW + 180
+                                }
+                                entity->is_selected = false;
+                            }
                         } else if (state.click_mode == ClickMode::Move) {
                             two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
@@ -814,6 +863,31 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 } else { ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc_entity = &entity->arc_entity;
                                     arc_entity->center += ds;
+                                }
+                            }
+                        } else if (state.click_mode == ClickMode::LinearCopy) {
+                            two_click_command->awaiting_second_click = false;
+                            result.checkpoint_me = true;
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            vec2 ds = *second_click - *first_click;
+                            _for_each_selected_entity_ {
+                                entity->is_selected = false;
+                                for_(i, max(1, popup->num_copies)) {
+                                    Entity newEntity = *entity;
+                                    if (i == max(1, popup->num_copies) - 1) {
+                                        newEntity.is_selected = true;
+                                    }
+                                    if (entity->type == EntityType::Line) {
+                                        LineEntity *line_entity = &newEntity.line_entity;
+                                        line_entity->start += ds + ds * real(i);
+                                        line_entity->end   += ds + ds * real(i);
+                                        cookbook._buffer_add_entity(newEntity);
+                                    } else { ASSERT(entity->type == EntityType::Arc);
+                                        ArcEntity *arc_entity = &newEntity.arc_entity;
+                                        arc_entity->center += ds + ds * real(i);
+                                        cookbook._buffer_add_entity(newEntity);
+                                    }
                                 }
                             }
                         } else if (state.click_mode == ClickMode::Polygon) {
@@ -879,8 +953,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_arc(
                                         V2(-(arc_entity->center.x - mouse->x) + mouse->x, arc_entity->center.y),
                                         arc_entity->radius,
-                                        arc_entity->end_angle_in_degrees, // TODO
-                                        arc_entity->start_angle_in_degrees, // TODO
+                                        180 - arc_entity->end_angle_in_degrees,
+                                        180 - arc_entity->start_angle_in_degrees,
                                         true,
                                         entity->color_code); // FORNOW + 180
                             }
@@ -904,8 +978,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_arc(
                                         V2(arc_entity->center.x, -(arc_entity->center.y - mouse->y) + mouse->y),
                                         arc_entity->radius,
-                                        arc_entity->end_angle_in_degrees, // TODO
-                                        arc_entity->start_angle_in_degrees, // TODO
+                                        -arc_entity->end_angle_in_degrees,
+                                        -arc_entity->start_angle_in_degrees,
                                         true,
                                         entity->color_code); // FORNOW + 180
                             }
@@ -1238,6 +1312,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
                         }
                     }
+                }
+            } else if (state.click_mode == ClickMode::LinearCopy) {
+                // FORNOW: this is repeated from LINE
+                if (two_click_command->awaiting_second_click) {
+                    popup_popup(true,
+                            CellType::Uint, STRING("num_copies"), &popup->num_copies);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
+                    } 
                 }
             } else if (state.click_mode == ClickMode::Polygon) {
                 if (two_click_command->awaiting_second_click) {

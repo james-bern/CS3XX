@@ -174,7 +174,7 @@ void conversation_draw() {
 
     real x_divider_Pixel = get_x_divider_Pixel();
 
-    bool moving_selected_entities = ((state.click_mode == ClickMode::Move) && (two_click_command->awaiting_second_click)); // TODO: loft up
+    bool moving_selected_entities = ((state.click_mode == ClickMode::Move || state.click_mode == ClickMode::LinearCopy) && (two_click_command->awaiting_second_click)); // TODO: loft up
 
     { // draw 2D draw 2d draw
         vec2 *first_click = &two_click_command->first_click;
@@ -235,13 +235,18 @@ void conversation_draw() {
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
-                    if (moving_selected_entities && entity->is_selected) continue;
+                    if ((moving_selected_entities && state.click_mode != ClickMode::LinearCopy) && entity->is_selected) continue;
                     ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
                     eso_color(get_color(color_code));
                     eso_entity__SOUP_LINES(entity);
                 }
                 eso_end();
                 if (moving_selected_entities) {
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(get_color(ColorCode::WaterOnly));
+                    eso_vertex(mouse);
+                    eso_vertex(*first_click);
+                    eso_end();
                     eso_begin(PV_2D * M4_Translation(mouse - *first_click), SOUP_LINES);
                     eso_color(get_color(ColorCode::WaterOnly));
                     _for_each_selected_entity_ {
@@ -279,6 +284,13 @@ void conversation_draw() {
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Measure) { // measure line_entity
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_vertex(two_click_command->first_click);
+                    eso_vertex(mouse);
+                    eso_end();
+                }
+                if (state.click_mode == ClickMode::MirrorLine) { // measure line_entity
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
@@ -610,11 +622,13 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
                 (state.click_mode == ClickMode::Fillet)         ? "FILLET"          :
                 (state.click_mode == ClickMode::Line)           ? "LINE"            :
+                (state.click_mode == ClickMode::LinearCopy)     ? "LINEAR COPY"     :
                 (state.click_mode == ClickMode::Measure)        ? "MEASURE"         :
                 (state.click_mode == ClickMode::Move)           ? "MOVE"            :
                 (state.click_mode == ClickMode::Origin)         ? "ORIGIN"          :
                 (state.click_mode == ClickMode::Polygon)        ? "POLYGON"         :
                 (state.click_mode == ClickMode::Select)         ? "SELECT"          :
+                (state.click_mode == ClickMode::MirrorLine)     ? "MIRROR LINE"     :
                 (state.click_mode == ClickMode::MirrorX)        ? "MIRROR X"        :
                 (state.click_mode == ClickMode::MirrorY)        ? "MIRROR Y"        :
                 (state.click_mode == ClickMode::TwoEdgeCircle)  ? "TWO-EDGE CIRCLE" :

@@ -20,7 +20,9 @@ enum class ClickMode {
     Deselect,
     Fillet,
     Line,
+    LinearCopy,
     Measure,
+    MirrorLine,
     MirrorX,
     MirrorY,
     Move,
@@ -274,6 +276,7 @@ struct PopupState {
     real polygon_side_length;
     real revolve_add_dummy;
     real revolve_cut_dummy;
+    uint num_copies = 1;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
