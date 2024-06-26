@@ -195,6 +195,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                } else if (key_lambda('R', false, true)) {
+                    state.click_mode = ClickMode::RotateCopy;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
+                    popup->have_fields_been_edited = 0; // to store some state for autofilling fields
                 } else if (key_lambda('S')) {
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
@@ -476,6 +481,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 (state.click_mode == ClickMode::Move) ||
                 (state.click_mode == ClickMode::Polygon) ||
                 (state.click_mode == ClickMode::Rotate) ||
+                (state.click_mode == ClickMode::RotateCopy) ||
                 (state.click_mode == ClickMode::TwoEdgeCircle) ||
                 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT; // fornow wonky case
 
@@ -865,17 +871,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real c = cos(theta);
                             mat2 rotate = M2(c, -s, s , c);
 
-                                messagef(omax.orange, "theta: %f", theta);
-                            pprint(*first_click); 
                             _for_each_selected_entity_ {
                                 if (entity->type == EntityType::Line) {
                                     LineEntity *line_entity = &entity->line_entity;
-                                    pprint(line_entity->start);
                                     vec2 rotatedStart = rotate * (line_entity->start - *first_click);
                                     vec2 rotatedEnd = rotate * (line_entity->end - *first_click);
                                     line_entity->start = rotatedStart + *first_click;
                                     line_entity->end = rotatedEnd + *first_click;
-                                    pprint(line_entity->end);
                                 } else { ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc_entity = &entity->arc_entity;
                                     vec2 rotatedCenter = rotate * (arc_entity->center - *first_click);
@@ -883,6 +885,40 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     arc_entity->start_angle_in_degrees = DEG(theta) + arc_entity->start_angle_in_degrees;
                                     arc_entity->end_angle_in_degrees = DEG(theta) + arc_entity->end_angle_in_degrees;
                                 }
+                            }
+                        } else if (state.click_mode == ClickMode::RotateCopy) {
+                            two_click_command->awaiting_second_click = false;
+                            result.checkpoint_me = true;
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            real theta = popup->angle_of_rotation_in_radians == 0 ? PI : max(0, popup->angle_of_rotation_in_radians);
+                            real s = sin(theta);
+                            real c = cos(theta);
+                            mat2 rotate = M2(c, -s, s , c);
+                            popup->num_copies = max(2, popup->num_copies);
+
+                            pprint(*first_click); 
+                            _for_each_selected_entity_ {
+                                Entity oldEntity = *entity;
+                                for_(j, popup->num_copies - 1) { // layout has copies as + 1 of what you want so i copied it but it seems strange
+                                    Entity newEntity = oldEntity;
+                                    if (entity->type == EntityType::Line) {
+                                        LineEntity *line_entity = &newEntity.line_entity;
+                                        vec2 rotatedStart = rotate * (line_entity->start - *first_click);
+                                        vec2 rotatedEnd = rotate * (line_entity->end - *first_click);
+                                        line_entity->start = rotatedStart + *first_click;
+                                        line_entity->end = rotatedEnd + *first_click;
+                                    } else { ASSERT(entity->type == EntityType::Arc);
+                                        ArcEntity *arc_entity = &newEntity.arc_entity;
+                                        vec2 rotatedCenter = rotate * (arc_entity->center - *first_click);
+                                        arc_entity->center = rotatedCenter + *first_click;
+                                        arc_entity->start_angle_in_degrees = DEG(theta) + arc_entity->start_angle_in_degrees;
+                                        arc_entity->end_angle_in_degrees = DEG(theta) + arc_entity->end_angle_in_degrees;
+                                    }
+                                    cookbook._buffer_add_entity(newEntity);
+                                    oldEntity = newEntity;
+                                }
+
                             }
                         } else if (state.click_mode == ClickMode::Move) {
                             two_click_command->awaiting_second_click = false;
@@ -1345,6 +1381,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
                             popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
                             popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
+                        }
+                    }
+                }
+            } else if (state.click_mode == ClickMode::RotateCopy) {
+                // FORNOW: this is repeated from LINE
+                if (two_click_command->awaiting_second_click) {
+                    real prev_degree = popup->angle_of_rotation_in_degrees;
+                    real prev_rad = popup->angle_of_rotation_in_radians;
+                    popup_popup(true,
+                            CellType::Uint, STRING("num_copies"), &popup->num_copies,
+                            CellType::Real, STRING("angle_of_roation_in_degrees"), &popup->angle_of_rotation_in_degrees,
+                            CellType::Real, STRING("angle_of_roation_in_radians"), &popup->angle_of_rotation_in_radians);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(V2(0, 0)));
+                    } else {
+                        if (prev_degree != popup->angle_of_rotation_in_degrees) {
+                            popup->have_fields_been_edited++;
+                            popup->angle_of_rotation_in_radians = RAD(popup->angle_of_rotation_in_degrees);
+                        } else if (prev_rad != popup->angle_of_rotation_in_radians) {
+                            popup->have_fields_been_edited++;
+                            popup->angle_of_rotation_in_degrees = DEG(popup->angle_of_rotation_in_radians);
+                        } else if (popup->num_copies > 0 && !popup->have_fields_been_edited) {
+                            popup->angle_of_rotation_in_degrees = 360.0f / popup->num_copies;
+                            popup->angle_of_rotation_in_radians = RAD(popup->angle_of_rotation_in_degrees);
                         }
                     }
                 }

@@ -667,6 +667,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Polygon)        ? "POLYGON"         :
                 (state.click_mode == ClickMode::Select)         ? "SELECT"          :
                 (state.click_mode == ClickMode::Rotate)         ? "ROTATE"          :
+                (state.click_mode == ClickMode::RotateCopy)     ? "ROTATE COPY"     :
                 (state.click_mode == ClickMode::MirrorLine)     ? "MIRROR LINE"     :
                 (state.click_mode == ClickMode::MirrorX)        ? "MIRROR X"        :
                 (state.click_mode == ClickMode::MirrorY)        ? "MIRROR Y"        :

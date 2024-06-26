@@ -29,6 +29,7 @@ enum class ClickMode {
     Origin,
     Polygon,
     Rotate,
+    RotateCopy,
     Select,
     TwoEdgeCircle,
 };
@@ -277,7 +278,10 @@ struct PopupState {
     real polygon_side_length;
     real revolve_add_dummy;
     real revolve_cut_dummy;
-    uint num_copies = 1;
+    uint num_copies = 2;
+    uint have_fields_been_edited = 0;
+    real angle_of_rotation_in_degrees = 0;
+    real angle_of_rotation_in_radians = 0;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
