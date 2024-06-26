@@ -134,6 +134,26 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         }
                     }
                 }
+            } else if (state.click_modifier == ClickModifier::Perpendicular) { // layout also does a divide which can be added if wanted
+                real min_squared_distance = HUGE_VAL;
+                vec2 click_one = two_click_command->first_click;
+                Entity *closestEnt;
+                _for_each_entity_ {
+                    real squared_distance = squared_distance_point_entity(before, entity);
+                    if (squared_distance < min_squared_distance) {
+                        min_squared_distance = squared_distance;
+                        closestEnt = entity;
+                    }
+                }
+                if (closestEnt->type == EntityType::Line) {
+                    vec2 a_to_b = closestEnt->line_entity.end - closestEnt->line_entity.start;
+                    vec2 a_to_p = click_one - closestEnt->line_entity.start;
+                    real t = dot(a_to_p, a_to_b) / dot(a_to_b, a_to_b);
+                    result = closestEnt->line_entity.start + t * a_to_b; 
+                } else if (closestEnt->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
+                    vec2 normalized_in_direction = normalized(click_one - closestEnt->arc_entity.center);
+                    result = closestEnt->arc_entity.center + closestEnt->arc_entity.radius * normalized_in_direction;
+                }
             }
         }
     }

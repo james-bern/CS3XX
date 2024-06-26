@@ -675,15 +675,16 @@ void conversation_draw() {
                 "???MODE???");
 
         String string_click_modifier = STRING(
-                (state.click_modifier == ClickModifier::None)      ? ""          :
-                (state.click_modifier == ClickModifier::Center)    ? "CENTER"    :
-                (state.click_modifier == ClickModifier::Connected) ? "CONNECTED" :
-                (state.click_modifier == ClickModifier::End)       ? "END"       :
-                (state.click_modifier == ClickModifier::Color)     ? "COLOR"     :
-                (state.click_modifier == ClickModifier::Middle)    ? "MIDDLE"    :
-                (state.click_modifier == ClickModifier::Selected)  ? "SELECTED"  :
-                (state.click_modifier == ClickModifier::Window)    ? "WINDOW"    :
-                (state.click_modifier == ClickModifier::XY)        ? "XY"        :
+                (state.click_modifier == ClickModifier::None)           ? ""                :
+                (state.click_modifier == ClickModifier::Center)         ? "CENTER"          :
+                (state.click_modifier == ClickModifier::Connected)      ? "CONNECTED"       :
+                (state.click_modifier == ClickModifier::End)            ? "END"             :
+                (state.click_modifier == ClickModifier::Color)          ? "COLOR"           :
+                (state.click_modifier == ClickModifier::Middle)         ? "MIDDLE"          :
+                (state.click_modifier == ClickModifier::Perpendicular)  ? "PERPENDICULAR"   :
+                (state.click_modifier == ClickModifier::Selected)       ? "SELECTED"        :
+                (state.click_modifier == ClickModifier::Window)         ? "WINDOW"          :
+                (state.click_modifier == ClickModifier::XY)             ? "XY"              :
                 "???MODIFIER???");
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - alpha };

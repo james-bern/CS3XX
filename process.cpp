@@ -181,9 +181,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda('O', true)) {
                     state.enter_mode = EnterMode::Load;
                 } else if (key_lambda('P')) {
-                    state.click_mode = ClickMode::Polygon;
-                    state.click_modifier = ClickModifier::None;
-                    two_click_command->awaiting_second_click = false;
+                    if (click_mode_SNAP_ELIGIBLE()) {
+                        result.record_me = false;
+                        state.click_modifier = ClickModifier::Perpendicular;
+                    } else {
+                        state.click_mode = ClickMode::Polygon;
+                        state.click_modifier = ClickModifier::None;
+                        two_click_command->awaiting_second_click = false;
+                    }
                 } else if (key_lambda('Q')) {
                     if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::None)) {
                         state.click_modifier = ClickModifier::Color;
