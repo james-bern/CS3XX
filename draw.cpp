@@ -285,13 +285,21 @@ void conversation_draw() {
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Line) { // measure line_entity
+                if (state.click_mode == ClickMode::Line) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
+                if (state.click_mode == ClickMode::Move) { 
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_vertex(two_click_command->first_click);
+                    eso_vertex(mouse);
+                    eso_end();
+                }
+                
                 if (state.click_mode == ClickMode::Circle) {
                     vec2 center = two_click_command->first_click;
                     vec2 point = mouse;
@@ -608,6 +616,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Circle)         ? "CIRCLE"          :
                 (state.click_mode == ClickMode::Color)          ? "COLOR"           :
                 (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
+                (state.click_mode == ClickMode::Divide)         ? "DIVIDE"          :
                 (state.click_mode == ClickMode::Fillet)         ? "FILLET"          :
                 (state.click_mode == ClickMode::Line)           ? "LINE"            :
                 (state.click_mode == ClickMode::Measure)        ? "MEASURE"         :

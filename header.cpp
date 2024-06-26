@@ -18,6 +18,7 @@ enum class ClickMode {
     Circle,
     Color,
     Deselect,
+    Divide,
     Fillet,
     Line,
     Measure,
@@ -696,7 +697,7 @@ real squared_distance_point_line_segment(vec2 p, vec2 start, vec2 end) {
     real l2 = squaredDistance(start, end);
     if (l2 < TINY_VAL) return squaredDistance(p, start);
     real num = dot(p - start, end - start);
-    vec2 q = CLAMPED_LERP(num / l2, start, end);
+    vec2 q = CLAMPED_LERP(num / l2, start, end);//
     return squaredDistance(p, q);
 }
 
