@@ -19,6 +19,7 @@ enum class ClickMode {
     Circle,
     Color,
     Deselect,
+    DivideNearest,
     Fillet,
     Line,
     LinearCopy,
@@ -714,7 +715,7 @@ real squared_distance_point_line_segment(vec2 p, vec2 start, vec2 end) {
     real l2 = squaredDistance(start, end);
     if (l2 < TINY_VAL) return squaredDistance(p, start);
     real num = dot(p - start, end - start);
-    vec2 q = CLAMPED_LERP(num / l2, start, end);
+    vec2 q = CLAMPED_LERP(num / l2, start, end);//
     return squaredDistance(p, q);
 }
 
@@ -773,6 +774,9 @@ real squared_distance_point_dxf(vec2 p, List<Entity> *entities) {
 struct DXFFindClosestEntityResult {
     bool success;
     uint index;
+    Entity *closest_entity;
+    vec2 line_nearest_point;
+    real arc_nearest_angle_in_degrees;
 };
 DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 p) {
     DXFFindClosestEntityResult result = {};
@@ -784,6 +788,20 @@ DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 
             hot_squared_distance = squared_distance;
             result.success = true;
             result.index = i;
+            result.closest_entity = &entities->array[i];
+            if (result.closest_entity->type == EntityType::Line) {
+                LineEntity *line_entity = &result.closest_entity->line_entity;
+                real l2 = squaredDistance(line_entity->start, line_entity->end);
+                if (l2 < TINY_VAL) {
+                    result.line_nearest_point = line_entity->start;
+                } else {
+                    real num = dot(p - line_entity->start, line_entity->end - line_entity->start);
+                    result.line_nearest_point = CLAMPED_LERP(num / l2, line_entity->start, line_entity->end);
+                }
+            } else { ASSERT(result.closest_entity->type == EntityType::Arc);
+                ArcEntity *arc_entity = &result.closest_entity->arc_entity;
+                result.arc_nearest_angle_in_degrees = DEG(ATAN2(p - arc_entity->center));
+            }
         }
     }
     return result;

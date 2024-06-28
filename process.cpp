@@ -113,6 +113,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda('D')) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
+                } else if (key_lambda('D', false, true)) {
+                    state.click_mode = ClickMode::DivideNearest;
+                    state.click_modifier = ClickModifier::None;
                 } else if (key_lambda('E')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
@@ -1192,6 +1195,41 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
                         drawing->origin = *mouse;
+                    } else if (state.click_mode == ClickMode::DivideNearest) { 
+                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse); // TODO *closest* -> *nearest*
+                        if (closest_results.success) {
+                            result.checkpoint_me = true;
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            Entity *entity = closest_results.closest_entity;
+                            if (entity->type == EntityType::Line) {
+                                LineEntity *line = &entity->line_entity;
+                                cookbook.buffer_add_line(line->start, 
+                                                         closest_results.line_nearest_point, 
+                                                         entity->is_selected, entity->color_code);
+                                cookbook.buffer_add_line(closest_results.line_nearest_point, line->end, entity->is_selected, entity->color_code);
+                                cookbook.buffer_delete_entity(entity);
+                            } else { ASSERT(entity->type == EntityType::Arc);
+                                ArcEntity *arc = &entity->arc_entity;
+                                if (ANGLE_IS_BETWEEN_CCW(RAD(closest_results.arc_nearest_angle_in_degrees), 
+                                                         RAD(arc->start_angle_in_degrees), 
+                                                         RAD(arc->end_angle_in_degrees))) {
+                                    cookbook.buffer_add_arc(arc->center, 
+                                                            arc->radius, 
+                                                            arc->start_angle_in_degrees, 
+                                                            closest_results.arc_nearest_angle_in_degrees, 
+                                                            entity->is_selected, 
+                                                            entity->color_code);
+                                    cookbook.buffer_add_arc(arc->center, 
+                                                            arc->radius, 
+                                                            closest_results.arc_nearest_angle_in_degrees, 
+                                                            arc->end_angle_in_degrees, 
+                                                            entity->is_selected, 
+                                                            entity->color_code);
+                                    cookbook.buffer_delete_entity(entity);
+                                }
+                            }          
+                        }
                     } else if (state.click_mode == ClickMode::MirrorX) {
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;

@@ -9,43 +9,45 @@
 
 #include "playground.cpp"
 
-char *startup_script = "pz";
-#if 0  
+char *startup_script = "";
+#if 1 
 run_before_main {
     startup_script = "cz0123456789";
     startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
     startup_script = \
-                     "cz10\n"
-                     "cz\t10\n"
-                     "bzx30\t30\n"
-                     "ysadcz"
-                     "[5\t15\n"
-                     "sc<m2d 0 30>qs3"
-                     "1<m2d 30 15>0<esc>"
-                     "sq1sq3me<m2d 40 40>x15\t15\n"
-                     "{3\n"
-                     "sczZm<m2d -50 0>]\n"
-                     "^n"
-                     "cx30\t30\n3.4\n"
-                     "saXzYzXzsa[1\n"
-                     "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n"
-                     "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n"
-                     "^n"
-                     "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>"
-                     "n25\n"
-                     "sa[1\n"
-                     "n0\n"
-                     "^n"
-                     "cz8\n"
-                     "<m3d 1 100 -1 0 -1 0>"
-                     "sa{100\n"
-                     ";"
-                     "^odemo.dxf\n"
-                     "^signore.stl\n"
-                     "^oignore.stl\n"
-                     ".."
-                     "pz\t5\n"
-                     // "^N^obug.drawing\nysa"
+                     "cz10\n" // TODO: comment
+                     "cz\t10\n" // TODO: comment
+                     "bzx30\t30\n" // TODO: comment
+                     "ysadcz" // TODO: comment
+                     "[5\t15\n" // TODO: comment
+                     "sc<m2d 0 30>qs3" // TODO: comment
+                     "1<m2d 30 15>0<esc>" // TODO: comment
+                     "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
+                     "{3\n" // TODO: comment
+                     "sczZm<m2d -50 0>]\n" // TODO: comment
+                     "^n" // TODO: comment
+                     "cx30\t30\n3.4\n" // TODO: comment
+                     "saXzYzXzsa[1\n" // TODO: comment
+                     "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n" // TODO: comment
+                     "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
+                     "^n" // TODO: comment
+                     "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
+                     "n25\n" // TODO: comment
+                     "sa[1\n" // TODO: comment
+                     "n0\n" // TODO: comment
+                     "^n" // TODO: comment
+                     "cz8\n" // TODO: comment
+                     "<m3d 1 100 -1 0 -1 0>" // TODO: comment
+                     "sa{100\n" // TODO: comment
+                     ";" // TODO: comment
+                     "^odemo.dxf\n" // TODO: comment
+                     "^signore.stl\n" // TODO: comment
+                     "^oignore.stl\n" // TODO: comment
+                     ".." // TODO: comment
+                     "pz\t5\n" // (Nathan) Polygon
+                     "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
+                     
+                     // "^N^ob:wug.drawing\nysa"
                      ;
 };
 #endif
