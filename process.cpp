@@ -1037,8 +1037,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 return p;
                             };
 
-                            auto R = [](real angle_in_degrees) {
-                                return -(angle_in_degrees - theta_in_degrees) + theta_in_degrees,
+                            auto R = [theta_in_degrees](real angle_in_degrees) {
+                                return -(angle_in_degrees - theta_in_degrees) + theta_in_degrees;
                             };
 
                             _for_each_selected_entity_ {
