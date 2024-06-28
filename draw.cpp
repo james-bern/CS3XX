@@ -649,15 +649,63 @@ void conversation_draw() {
     }
 
     if (other.show_help) {
-        EasyTextPen pen = { V2(12.0f, 16.0f), 16.0f, omax.cyan, true};
-        const String help = STRING(R""(
+        EasyTextPen pen1 = { V2(12.0f, 16.0f), 16.0f, omax.cyan, true};
+        EasyTextPen pen2 = { V2(512.0f, 16.0f), 16.0f, omax.cyan, true};
+        const String help1 = STRING(R""(
+        Spacebar - Previous hot key
+           Shift - Previous hot key on 3D 
+        Backspace - Delete selected
+        Del - Delete selected
+        Esc - Exit to default click settings
+        Tab - light/dark mode
+            - newline when entering coordinates
+        Enter - Execute command
+        [ - ExtrudeAdd
+            Shift - ExtrudeCut
+        ] - RevolveAdd
+            Shift - RevolveCut
+        . - Show drawing details
+        ; - Deactivate feature plane
+        ' - zoom in/zoom out 3D camera
+        ? - Help Menu
         A - Axis
         B - Bounding Box
-        C - Circle  -- Center -- Connected
-          Shift - TwoEdgeCircle
-          D - Deselect
-          Shift - DivideNearest
-           E - End 
+        C - Circle, Center, Connected
+            Shift - TwoEdgeCircle
+        D - Deselect
+            Shift - DivideNearest                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+        E - End
+        F - Fillet
+        G - Hide Grid
+        H - Print history // NOT IMPLEMENTED
+        I -
+        J - )"");
+        const String help2 = STRING(R""(
+        K - Show Event Stack
+        L - Line
+        M - Move, Middle
+           Shift - Measure
+        N - Nudge Feature Plane
+           Control - Clear Drawing
+           Control + Shift - Clear Mesh
+        O - 
+            Control - Load File
+        P - Polygon
+        Q - Colors
+        R - 
+        S - Select , Color
+            Control - Save
+        T -
+        U -
+        V -
+        W - Window (use with select or deselect)
+        X - XY ( choose a point)
+            Shift - MirrorX 
+            Control + Shift - Drawing Frame
+        Y - Feature Plane, Change between feature planes
+            Shift - MirrorY  
+        Z - Origin
+            Shift - Change Origin
   
         )"");
         eso_begin(M4_Identity(), SOUP_QUADS); {
@@ -667,7 +715,8 @@ void conversation_draw() {
             eso_vertex( 1.0f,  1.0f);
             eso_vertex( 1.0f, -1.0f);
         } eso_end();
-        easy_text_draw(&pen, help);      
+        easy_text_draw(&pen1, help1); 
+        easy_text_draw(&pen2, help2);     
     }
 
     void history_debug_draw(); // forward declaration
