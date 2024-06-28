@@ -372,6 +372,17 @@ void conversation_draw() {
                     eso_vertex(edge_two);
                     eso_end();
                 }
+                if (state.click_mode == ClickMode::TwoClickDivide) {
+                    if (other.stored_entity == NULL) {
+                        DXFFindClosestEntityResult closest_result_one = dxf_find_closest_entity(&drawing->entities, *first_click);
+                        other.stored_entity = &drawing->entities.array[closest_result_one.index];
+                        other.entity_index = closest_result_one.index;
+                    }
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_entity__SOUP_LINES(other.stored_entity);
+                    eso_end();
+                }
                 if (state.click_mode == ClickMode::Polygon) {
                     uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
                     real delta_theta = TAU / polygon_num_sides;
@@ -672,6 +683,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::MirrorX)        ? "MIRROR X"        :
                 (state.click_mode == ClickMode::MirrorY)        ? "MIRROR Y"        :
                 (state.click_mode == ClickMode::TwoEdgeCircle)  ? "TWO-EDGE CIRCLE" :
+                (state.click_mode == ClickMode::TwoClickDivide) ? "TWO-CLICK DIVIDE" :
                 "???MODE???");
 
         String string_click_modifier = STRING(
@@ -682,6 +694,7 @@ void conversation_draw() {
                 (state.click_modifier == ClickModifier::Color)          ? "COLOR"           :
                 (state.click_modifier == ClickModifier::Middle)         ? "MIDDLE"          :
                 (state.click_modifier == ClickModifier::Perpendicular)  ? "PERPENDICULAR"   :
+                (state.click_modifier == ClickModifier::Quad)           ? "QUAD"            :
                 (state.click_modifier == ClickModifier::Selected)       ? "SELECTED"        :
                 (state.click_modifier == ClickModifier::Window)         ? "WINDOW"          :
                 (state.click_modifier == ClickModifier::XY)             ? "XY"              :

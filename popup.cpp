@@ -69,7 +69,8 @@ void popup_popup(
         CellType _cell_type0,                  String _name0,      void *_value0,
         CellType _cell_type1 = CellType::None, String _name1 = {}, void *_value1 = NULL,
         CellType _cell_type2 = CellType::None, String _name2 = {}, void *_value2 = NULL,
-        CellType _cell_type3 = CellType::None, String _name3 = {}, void *_value3 = NULL
+        CellType _cell_type3 = CellType::None, String _name3 = {}, void *_value3 = NULL,
+        CellType _cell_type4 = CellType::None, String _name4 = {}, void *_value4 = NULL
         ) {
 
     { // args info
@@ -77,14 +78,17 @@ void popup_popup(
         popup->cell_type[1] = _cell_type1;
         popup->cell_type[2] = _cell_type2;
         popup->cell_type[3] = _cell_type3;
+        popup->cell_type[4] = _cell_type4;
         popup->name[0] = _name0;
         popup->name[1] = _name1;
         popup->name[2] = _name2;
         popup->name[3] = _name3;
+        popup->name[4] = _name4;
         popup->value[0] = _value0;
         popup->value[1] = _value1;
         popup->value[2] = _value2;
         popup->value[3] = _value3;
+        popup->value[4] = _value4;
 
         { // popup->num_cells
             popup->num_cells = 0;

@@ -137,20 +137,50 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             } else if (state.click_modifier == ClickModifier::Perpendicular) { // layout also does a divide which can be added if wanted
                 real min_squared_distance = HUGE_VAL;
                 vec2 click_one = two_click_command->first_click;
+                Entity* closest_entitiy = NULL;
                 _for_each_entity_ {
                     real squared_distance = squared_distance_point_entity(before, entity);
                     if (squared_distance < min_squared_distance) {
                         min_squared_distance = squared_distance;
-                        if (entity->type == EntityType::Line) {
-                            vec2 a_to_b = entity->line_entity.end - entity->line_entity.start;
-                            vec2 a_to_p = click_one - entity->line_entity.start;
-                            real t = dot(a_to_p, a_to_b) / dot(a_to_b, a_to_b);
-                            result = entity->line_entity.start + t * a_to_b; 
-                        } else if (entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
-                            vec2 normalized_in_direction = normalized(click_one - entity->arc_entity.center);
-                            result = entity->arc_entity.center + entity->arc_entity.radius * normalized_in_direction;
+                        closest_entitiy = entity;
+                    }
+                }
+
+                if (closest_entitiy == NULL) {
+                } else if (closest_entitiy->type == EntityType::Line) {
+                    vec2 a_to_b = closest_entitiy->line_entity.end - closest_entitiy->line_entity.start;
+                    vec2 a_to_p = click_one - closest_entitiy->line_entity.start;
+                    real t = dot(a_to_p, a_to_b) / dot(a_to_b, a_to_b);
+                    result = closest_entitiy->line_entity.start + t * a_to_b; 
+                } else if (closest_entitiy->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
+                    vec2 normalized_in_direction = normalized(click_one - closest_entitiy->arc_entity.center);
+                    result = closest_entitiy->arc_entity.center + closest_entitiy->arc_entity.radius * normalized_in_direction;
+                }
+            } else if (state.click_modifier == ClickModifier::Quad) {
+                real min_squared_distance = HUGE_VAL;
+                Entity* closest_entitiy = NULL;
+                _for_each_entity_ {
+                    if (entity->type == EntityType::Line) {
+                        continue;
+                    } else { ASSERT(entity->type == EntityType::Arc);
+                        ArcEntity *arc_entity = &entity->arc_entity;
+                        real squared_distance = squared_distance_point_dxf_arc_entity(before, arc_entity);
+                        if (squared_distance < min_squared_distance) {
+                            min_squared_distance = squared_distance;
+                            closest_entitiy = entity;
                         }
                     }
+                }
+                if (closest_entitiy == NULL) {
+                } else {
+                    vec2 center = closest_entitiy->arc_entity.center;
+                    float radius = closest_entitiy->arc_entity.radius;
+                    float theta = ATAN2(before - center);
+                    result = theta < PI * -3 / 4 ? V2(center.x - radius, center.y) :
+                             theta < PI * -1 / 4 ? V2(center.x, center.y - radius) :
+                             theta < PI *  1 / 4 ? V2(center.x + radius, center.y) :
+                             theta < PI *  3 / 4 ? V2(center.x, center.y + radius) :
+                             V2(center.x - radius, center.y);
                 }
             }
         }
