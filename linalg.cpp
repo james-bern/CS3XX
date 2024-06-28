@@ -303,6 +303,13 @@ tuD real distance(vecD A, vecD B) {
     return norm(A - B);
 }
 
+real ATAN2(vec2); // FORNOW: forward declaration
+real angle_from_0_TAU(vec2 A, vec2 B) {
+    real result = ATAN2(B - A);
+     if (result < 0.0f) result += TAU;
+     return result;
+}
+
 // ALIASES
 // tuD real length(vecD v) { return norm(v); }
 // tuD real squared_length(vecD v) { return squaredNorm(v); }

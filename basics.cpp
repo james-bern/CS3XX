@@ -93,6 +93,7 @@ real MM(real inches) { return ((inches) * real(25.4)); }
 // POW, SQRT
 #define POW powf
 #define SQRT sqrtf
+#define ROUND roundf
 // SGN
 int SGN(  int a) { return (a < 0) ? -1 : 1; }
 int SGN(float a) { return (a < 0) ? -1 : 1; }

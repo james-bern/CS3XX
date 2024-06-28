@@ -1024,37 +1024,34 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            vec2 u = *second_click - *first_click; // new y axis
-                            real theta = ATAN2(u);
-                            real PI_minus_theta = PI - theta;
+
+                            real theta = ATAN2(click_vector);
+                            real theta_in_degrees = DEG(theta);
+
+                            auto Q = [theta, first_click](vec2 p) {
+                                p -= *first_click;
+                                p = rotated(p, -theta);
+                                p = cwiseProduct(V2(1, -1), p);
+                                p = rotated(p, theta);
+                                p += *first_click;
+                                return p;
+                            };
+
+                            auto R = [](real angle_in_degrees) {
+                                return -(angle_in_degrees - theta_in_degrees) + theta_in_degrees,
+                            };
 
                             _for_each_selected_entity_ {
                                 if (entity->type == EntityType::Line) {
-                                    LineEntity *line_entity = &entity->line_entity;
-                                    vec2 rotatedStart = rotated(line_entity->start - *first_click, PI_minus_theta); 
-                                    rotatedStart = { rotatedStart.x, -rotatedStart.y }; 
-                                    vec2 rotatedEnd = rotated(line_entity->end - *first_click, PI_minus_theta); 
-                                    rotatedEnd = { rotatedEnd.x, -rotatedEnd.y }; 
-                                    cookbook.buffer_add_line(
-                                            rotated(rotatedStart, -PI_minus_theta) + *first_click,
-                                            rotated(rotatedEnd, -PI_minus_theta) + *first_click,
-                                            true,
-                                            entity->color_code
-                                            );
+                                    LineEntity *line = &entity->line_entity;
+                                    cookbook.buffer_add_line(Q(line->start), Q(line->end), true, entity->color_code);
                                 } else { ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc_entity = &entity->arc_entity;
-                                    vec2 rotatedCenter = rotated(arc_entity->center - *first_click, PI_minus_theta); 
-                                    rotatedCenter = { rotatedCenter.x, -rotatedCenter.y }; 
-                                    cookbook.buffer_add_arc(
-                                            rotated(rotatedCenter, -PI_minus_theta) + *first_click,
-                                            arc_entity->radius,
-                                            2 * DEG(theta) - arc_entity->end_angle_in_degrees,
-                                            2 * DEG(theta) - arc_entity->start_angle_in_degrees,
-                                            true,
-                                            entity->color_code);
+                                    ArcEntity *arc = &entity->arc_entity;
+                                    cookbook.buffer_add_arc(Q(arc->center), arc->radius, R(arc->end_angle_in_degrees), R(arc->start_angle_in_degrees), true, entity->color_code);
                                 }
                                 entity->is_selected = false;
                             }
+
                         } else if (state.click_mode == ClickMode::Rotate) {
                             two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
