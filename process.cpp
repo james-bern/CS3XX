@@ -238,6 +238,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
                 } else if (key_lambda('W')) {
+                    // click_mode_SELECT_OR_DESELECT() ??
                     if ((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect)) {
                         state.click_modifier = ClickModifier::Window;
                         two_click_command->awaiting_second_click = false;
