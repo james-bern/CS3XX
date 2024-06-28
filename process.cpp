@@ -114,7 +114,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
                 } else if (key_lambda('D', false, true)) {
-                    state.click_mode = ClickMode::Divide;
+                    state.click_mode = ClickMode::DivideNearest;
                     state.click_modifier = ClickModifier::None;
                 } else if (key_lambda('E')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
@@ -864,54 +864,42 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
                         drawing->origin = *mouse;
-                    }else if (state.click_mode == ClickMode::Divide){ 
-                        result.checkpoint_me = true;
-                        state.click_mode = ClickMode::None;
-                        state.click_modifier = ClickModifier::None;
-                        
-                        vec2 mouse_click_position = *mouse;
-                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_click_position);
-                        Entity *closest_entity = &drawing->entities.array[closest_result.index];
-                        
-                        if(closest_result.success) {
-
-                            if (closest_entity->type == EntityType::Line){
-                                LineEntity *line_entity = &closest_entity->line_entity;
-                                vec2 start = line_entity->start;
-                                vec2 end = line_entity->end;
-                                // find point on line closes to mouse pos
-                                real l2 = squaredDistance(start, end);
-                                vec2 divide_point;
-                                if (l2 < TINY_VAL) {
-                                    divide_point = start;
-                                } else {
-                                    real num = dot(mouse_click_position - start, end - start);
-                                    divide_point = CLAMPED_LERP(num / l2, start, end);
+                    } else if (state.click_mode == ClickMode::DivideNearest) { 
+                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse); // TODO *closest* -> *nearest*
+                        if (closest_results.success) {
+                            result.checkpoint_me = true;
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            Entity *entity = closest_results.closest_entity;
+                            if (entity->type == EntityType::Line) {
+                                LineEntity *line = &entity->line_entity;
+                                cookbook.buffer_add_line(line->start, 
+                                                         closest_results.line_nearest_point, 
+                                                         entity->is_selected, entity->color_code);
+                                cookbook.buffer_add_line(closest_results.line_nearest_point, line->end, entity->is_selected, entity->color_code);
+                                cookbook.buffer_delete_entity(entity);
+                            } else { ASSERT(entity->type == EntityType::Arc);
+                                ArcEntity *arc = &entity->arc_entity;
+                                if (ANGLE_IS_BETWEEN_CCW(RAD(closest_results.arc_nearest_angle_in_degrees), 
+                                                         RAD(arc->start_angle_in_degrees), 
+                                                         RAD(arc->end_angle_in_degrees))) {
+                                    cookbook.buffer_add_arc(arc->center, 
+                                                            arc->radius, 
+                                                            arc->start_angle_in_degrees, 
+                                                            closest_results.arc_nearest_angle_in_degrees, 
+                                                            entity->is_selected, 
+                                                            entity->color_code);
+                                    cookbook.buffer_add_arc(arc->center, 
+                                                            arc->radius, 
+                                                            closest_results.arc_nearest_angle_in_degrees, 
+                                                            arc->end_angle_in_degrees, 
+                                                            entity->is_selected, 
+                                                            entity->color_code);
+                                    cookbook.buffer_delete_entity(entity);
                                 }
-                                cookbook.buffer_add_line(start, divide_point);
-                                cookbook.buffer_add_line(divide_point, end);
-                                cookbook.buffer_delete_entity(closest_result.index);                      
-                            
-                            } else { ASSERT(closest_entity->type == EntityType::Arc);
-                                ArcEntity *arc_entity = &closest_entity->arc_entity;
-                                closest_entity->is_selected = true;
-                                
-                                vec2 arc_center = arc_entity->center;
-                                real radius = arc_entity->radius;
-                                real start_angle_in_degrees = arc_entity->start_angle_in_degrees;
-                                real end_angle_in_degrees = arc_entity->end_angle_in_degrees;
-
-                                //angle of selected point
-                                real point_angle = (ATAN2(mouse_click_position-arc_center)) * (180.0 / PI) ;
-
-                                cookbook.buffer_add_arc(arc_center, radius, start_angle_in_degrees, point_angle);
-                                cookbook.buffer_add_arc(arc_center, radius, point_angle, end_angle_in_degrees);
-                                cookbook.buffer_delete_entity(closest_result.index);
-                                    
-                            }
+                            }          
                         }
-                        
-                    }else if (state.click_mode == ClickMode::MirrorX) {
+                    } else if (state.click_mode == ClickMode::MirrorX) {
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;

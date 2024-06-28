@@ -254,6 +254,7 @@ void conversation_draw() {
                 if (other.show_details) {
                     eso_begin(PV_2D, SOUP_POINTS);
                     eso_color(omax.white);
+                    eso_size(4.0f);
                     _for_each_entity_ {
                         vec2 start, end;
                         entity_get_start_and_end_points(entity, &start, &end);
@@ -261,6 +262,7 @@ void conversation_draw() {
                         eso_vertex(end);
                     }
                     eso_end();
+                    eso_size(1.0f); // FORNOW
                 }
             }
 
@@ -616,7 +618,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Circle)         ? "CIRCLE"          :
                 (state.click_mode == ClickMode::Color)          ? "COLOR"           :
                 (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
-                (state.click_mode == ClickMode::Divide)         ? "DIVIDE"          :
+                (state.click_mode == ClickMode::DivideNearest)  ? "DIVIDE-NEAREST"  :
                 (state.click_mode == ClickMode::Fillet)         ? "FILLET"          :
                 (state.click_mode == ClickMode::Line)           ? "LINE"            :
                 (state.click_mode == ClickMode::Measure)        ? "MEASURE"         :
@@ -647,10 +649,25 @@ void conversation_draw() {
     }
 
     if (other.show_help) {
-        { // FORNOW TODO: actually implement help
-            messagef(omax.pink, "TODO: update help popup");
-            other.show_help = false;
-        }
+        EasyTextPen pen = { V2(12.0f, 16.0f), 16.0f, omax.cyan, true};
+        const String help = STRING(R""(
+        A - Axis
+        B - Bounding Box
+        C - Circle  -- Center -- Connected
+          Shift - TwoEdgeCircle
+          D - Deselect
+          Shift - DivideNearest
+           E - End 
+  
+        )"");
+        eso_begin(M4_Identity(), SOUP_QUADS); {
+            eso_color(omax.black, 0.5f);
+            eso_vertex(-1.0f, -1.0f);
+            eso_vertex(-1.0f,  1.0f);
+            eso_vertex( 1.0f,  1.0f);
+            eso_vertex( 1.0f, -1.0f);
+        } eso_end();
+        easy_text_draw(&pen, help);      
     }
 
     void history_debug_draw(); // forward declaration
