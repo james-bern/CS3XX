@@ -9,6 +9,7 @@ enum class EnterMode {
     RevolveAdd,
     RevolveCut,
     Save,
+    Size,
 };
 
 enum class ClickMode {
@@ -21,14 +22,19 @@ enum class ClickMode {
     DivideNearest,
     Fillet,
     Line,
+    LinearCopy,
     Measure,
+    MirrorLine,
     MirrorX,
     MirrorY,
     Move,
     Origin,
     Polygon,
+    Rotate,
+    RotateCopy,
     Select,
     TwoEdgeCircle,
+    TwoClickDivide,
 };
 
 enum class ClickModifier {
@@ -39,6 +45,7 @@ enum class ClickModifier {
     End,
     Middle,
     Perpendicular,
+    Quad,
     Selected,
     Window,
     XY,
@@ -225,7 +232,7 @@ struct TwoClickCommandState {
     vec2 first_click;
 };
 
-#define POPUP_MAX_NUM_CELLS 4
+#define POPUP_MAX_NUM_CELLS 5
 #define POPUP_CELL_LENGTH 256
 struct PopupState {
     _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
@@ -275,6 +282,10 @@ struct PopupState {
     real polygon_side_length;
     real revolve_add_dummy;
     real revolve_cut_dummy;
+    uint num_copies = 2;
+    uint have_fields_been_edited = 0;
+    real angle_of_rotation_in_degrees = 0;
+    real angle_of_rotation_in_radians = 0;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
@@ -340,6 +351,9 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     real time_since_going_inside;
 
     PreviewState preview;
+
+    Entity* stored_entity; // useful for two click divide
+    uint entity_index;
 };
 
 struct StandardEventProcessResult {
@@ -411,6 +425,10 @@ real WRAP_TO_0_TAU_INTERVAL(real theta) {
 
 bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
     return (WRAP_TO_0_TAU_INTERVAL(t - a) < WRAP_TO_0_TAU_INTERVAL(t - b));
+}
+
+bool ANGLE_IS_BETWEEN_CCW_DEGREES(real t, real a, real b) {
+    return (WRAP_TO_0_TAU_INTERVAL(RAD(t) - RAD(a)) < WRAP_TO_0_TAU_INTERVAL(RAD(t) - RAD(b)));
 }
 
 ////////////////////////////////////////

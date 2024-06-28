@@ -24,7 +24,7 @@
 // - radians everywhere
 
 struct LineLineIntersectionResult {
-    bool is_valid;
+    bool success;
     vec2 position;
 };
 
@@ -39,10 +39,10 @@ LineLineIntersectionResult burkardt_line_line_intersection(vec2 a, vec2 b, vec2 
     double p[2];
     lines_exp_int_2d(p1, p2, p3, p4, &ival, p);
     LineLineIntersectionResult result;
-    result.is_valid = (ival == 1);
+    result.success = (ival == 1);
     for_(k, 2) result.position[k] = (real) p[k];
     { // NOTE: we are less stringent than burkardt
-        if (squaredNorm(a - result.position) > HUGE_VAL) result.is_valid = false;
+        if (squaredNorm(a - result.position) > HUGE_VAL) result.success = false;
     }
     return result;
 }
