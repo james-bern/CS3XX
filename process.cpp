@@ -228,9 +228,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (key_lambda('S', false, true)) {  // this is also doing precalculations because otherwise
                                                             // it would be done every frame
                     state.enter_mode = EnterMode::Size;
-                    vec2 center;
-                    vec2 corner;
-                    float minX = HUGE_VAL, minY = HUGE_VAL, maxX = -HUGE_VAL, maxY = -HUGE_VAL;
+                    //vec2 center;
+                    //vec2 corner;
+                    //  float minX = HUGE_VAL, minY = HUGE_VAL, maxX = -HUGE_VAL, maxY = -HUGE_VAL;
                     _for_each_selected_entity_ {
 
                     }
