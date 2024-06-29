@@ -76,6 +76,20 @@ struct {
         }  
     )"";
 
+    char *frag_POINTS = R""(#version 330 core
+        in GS_OUT {
+            vec4 color;
+            vec2 xy;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        void main() {
+            frag_color = fs_in.color;
+            if (length(fs_in.xy) > 1) { discard; }
+        }
+    )"";
+
     char *geom_LINES = R""(#version 330 core
         layout (lines) in;
         layout (triangle_strip, max_vertices = 4) out;
@@ -91,6 +105,7 @@ struct {
             float size;
             vec2 position_Pixel; // NOTE: y flipped sorry
             float angle;
+            vec2 starting_point_Pixel;
         } gs_out;
 
         void main() {    
@@ -109,75 +124,35 @@ struct {
             gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_s;
             gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
             EmitVertex();
 
             gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
             gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_t;
             gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
             EmitVertex();
 
             gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
             gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_s;
             gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
             EmitVertex();
 
             gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
             gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
             gs_out.color = color_t;
             gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
             EmitVertex();
 
             EndPrimitive();
         }  
     )"";
 
-    char *geom_TRI_MESH = R""(#version 330 core
-        layout (triangles) in;
-        layout (triangle_strip, max_vertices = 3) out;
-
-        in BLOCK {
-            vec4 color;
-            float size;
-        } gs_in[];
-
-        out GS_OUT {
-            vec4 color;
-            noperspective vec3 distance; // TODO
-        } gs_out;
-
-
-        void main() {    
-
-            for (int d = 0; d < 3; ++d) {
-                vec4 p = gl_in[d].gl_Position / gl_in[d].gl_Position.w;
-                gl_Position = p;
-                gs_out.color = gs_in[d].color;
-                EmitVertex();                                               
-            }
-
-            EndPrimitive();
-        }  
-    )"";
-
-    char *frag_POINTS = R""(#version 330 core
-        in GS_OUT {
-            vec4 color;
-            vec2 xy;
-        } fs_in;
-
-        out vec4 frag_color;
-
-        void main() {
-            frag_color = fs_in.color;
-            if (length(fs_in.xy) > 1) { discard; }
-        }
-    )"";
-
-    char *frag_LINES = R""(
-        #version 330 core
-
+    char *frag_LINES = R""(#version 330 core
         uniform bool stipple;
 
         in BLOCK {
@@ -185,6 +160,7 @@ struct {
             float size;
             vec2 position_Pixel;
             float angle;
+            vec2 starting_point_Pixel;
         } fs_in;
 
         out vec4 frag_color;
@@ -197,16 +173,14 @@ struct {
                 float s = sin(fs_in.angle);
                 float c = cos(fs_in.angle);
                 mat2 Rinv = mat2(c, -s, s, c);
-                vec2 uv = Rinv * xy;
+                vec2 uv = Rinv * (xy - fs_in.starting_point_Pixel);
 
-                if (int(uv.x + 9999) % 10 < 5) discard; // FORNOW
+                if (int(uv.x + 99999) % 10 > 5) discard; // FORNOW
             }
         }
     )"";
 
-    char *frag_TRIANGLES = R""(
-        #version 330 core
-
+    char *frag_TRIANGLES = R""(#version 330 core
         in BLOCK {
             vec4 color;
             float size;
@@ -219,18 +193,82 @@ struct {
         }
     )"";
 
+    char *geom_TRI_MESH = R""(#version 330 core
+        layout (triangles) in;
+        layout (triangle_strip, max_vertices = 3) out;
+
+        uniform vec2 OpenGL_from_Pixel_scale;
+
+        in BLOCK {
+            vec4 color;
+            float size;
+        } gs_in[];
+
+        out GS_OUT {
+            vec4 color;
+            noperspective vec3 heights;
+            noperspective vec3 sizes;
+        } gs_out;
+
+        float point_line_dist(vec2 p, vec2 a, vec2 b) {
+           vec2 line = b - a;
+           vec2 n = vec2(line.y, -line.x);
+           vec2 v = p - a;
+           return abs(dot(v, n)) / length(n);
+        }
+
+        void main() {    
+            vec3 sizes = vec3(gs_in[0].size, gs_in[1].size, gs_in[2].size);
+
+            for (int d = 0; d < 3; ++d) {
+                gl_Position = gl_in[d].gl_Position / gl_in[d].gl_Position.w;
+                gs_out.color = gs_in[d].color;
+
+                int e = (d + 1) % 3;
+                int f = (d + 2) % 3;
+                vec2 p = gl_in[d].gl_Position.xy / gl_in[d].gl_Position.w / OpenGL_from_Pixel_scale;
+                vec2 q = gl_in[e].gl_Position.xy / gl_in[e].gl_Position.w / OpenGL_from_Pixel_scale;
+                vec2 r = gl_in[f].gl_Position.xy / gl_in[f].gl_Position.w / OpenGL_from_Pixel_scale;
+                vec3 heights = vec3(0);
+                heights[d] = point_line_dist(p, q, r);
+                vec3 bary = vec3(0);
+                bary[d] = 1;
+
+                gs_out.heights = heights;
+                gs_out.sizes = sizes;
+                EmitVertex();                                               
+            }
+
+            EndPrimitive();
+        }  
+    )"";
+
     char *frag_TRI_MESH = R""(#version 330 core
         in GS_OUT {
             vec4 color;
-            noperspective vec3 distance; // TODO
+            noperspective vec3 heights;
+            noperspective vec3 sizes;
         } fs_in;
 
         out vec4 frag_color;
 
+        // TODO: eso_size should go in here, and you can remove the z-fight-y pass ...
+        // NOTE: passing 0 for size should be NO edges
         void main() {
-            frag_color = fs_in.color;
+            int i = 0;
+            if (fs_in.heights[1] < fs_in.heights[i]) i = 1;
+            if (fs_in.heights[2] < fs_in.heights[i]) i = 2;
+
+            if (fs_in.sizes[i] < 0.01) frag_color = fs_in.color;
+            else {
+                vec3 h = fs_in.heights / fs_in.sizes;
+                float height = min(min(h.x, h.y), h.z);
+                frag_color = mix(mix(vec4(0,0,0,1), fs_in.color, 0.5), fs_in.color, smoothstep(0.5, 1.0, height));
+            }
         }
     )"";
+
+
 } soup_source;
 
 struct {
@@ -260,15 +298,6 @@ run_before_main {
     glGenBuffers(ARRAY_LENGTH(soup.VBO), soup.VBO);
     glGenBuffers(ARRAY_LENGTH(soup.EBO), soup.EBO);
 };
-
-//
-//             .
-//
-//
-//
-//
-//    .
-//
 
 void soup_draw(
         mat4 transform,

@@ -138,6 +138,7 @@ struct Mesh {
     uint3 *triangle_indices;
     vec3 *triangle_normals;
 
+    // ??
     uint num_cosmetic_edges;
     uint2 *cosmetic_edges;
 

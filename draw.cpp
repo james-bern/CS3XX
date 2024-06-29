@@ -21,23 +21,25 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
 
     mat4 PVM_3D = P_3D * V_3D * M_3D;
 
-    if (mesh->cosmetic_edges) {
-        eso_begin(PVM_3D, SOUP_LINES); 
-        // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, omax.white, omax.black));
-        eso_color(0.0f, 0.0f, 0.0f);
-        // 3 * num_triangles * 2 / 2
-        for_(i, mesh->num_cosmetic_edges) {
-            for_(d, 2) {
-                eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
+    if (!other.show_details) {
+        if (mesh->cosmetic_edges) {
+            eso_begin(PVM_3D, SOUP_LINES); 
+            // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, omax.white, omax.black));
+            eso_color(0.0f, 0.0f, 0.0f);
+            eso_size(1.0f);
+            // 3 * num_triangles * 2 / 2
+            for_(i, mesh->num_cosmetic_edges) {
+                for_(d, 2) {
+                    eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
+                }
             }
+            eso_end();
         }
-        eso_end();
     }
+
+    eso_size(0.5f);
     for_(pass, 2) {
-        // eso_begin(PVM_3D, SOUP_TRIANGLES);
-        eso_begin(PVM_3D, SOUP_TRI_MESH);
-        // eso_begin(PVM_3D, SOUP_POINTS);
-        eso_size(10.0f);
+        eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_TRI_MESH);
 
         mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
 
@@ -82,10 +84,10 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             eso_color(color, alpha);
             for_(d, 3) {
                 eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bbox.max.y, mesh->bbox.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
+
                 eso_vertex(p[d]);
             }
         }
-        eso_size(2.0f);
         eso_end();
     }
 
@@ -342,10 +344,10 @@ void conversation_draw() {
                         eso_begin(PV_2D, SOUP_LINE_LOOP);
                         eso_color(basic.cyan);
                         for_(i, polygon_num_sides) {
-                           real theta_i = theta_0 + (i * delta_theta);
-                           real theta_ip1 = theta_i + delta_theta;
-                           eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
-                           eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
+                            real theta_i = theta_0 + (i * delta_theta);
+                            real theta_ip1 = theta_i + delta_theta;
+                            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
+                            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
                         }
                         eso_end();
                     }
