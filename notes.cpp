@@ -68,7 +68,7 @@
 
 // // things we are almost always unwilling to compromise on
 // zero is initialization
-// keep the tool (line_entity, circle, box, move, ...) code simple, formulaic, and not-clever
+// keep the tool (line, circle, box, move, ...) code simple, formulaic, and not-clever
 // - repetition is fine
 // we write things ourselves
 // - the primary reason to do this is "we can do better"
@@ -92,7 +92,7 @@
 // - watch this: https://www.youtube.com/watch?v=AJdEqssNZ-U
 
 // // vocab
-// an entity is a line_entity or arc_entity in a dxf
+// an entity is a line or arc in a dxf
 
 
 // BUG: clicking with sc doesn't do anything sometimes
@@ -113,7 +113,7 @@
 // TODO#define DEBUG_HISTORY_RECORD_EVERYTHING
 // TODO#define DEBUG_HISTORY_CHECKPOINT_EVERYTHING
 // TODO: remove all usage of gui-printf (after folding in cow)
-// NOTE multiple popups is a really pen situation to find self in (start drawing a line_entity then extrude; this seems like a job for much later
+// NOTE multiple popups is a really pen situation to find self in (start drawing a line then extrude; this seems like a job for much later
 // XXX: dragging hot pane divider
 // TODO: bring cameras into app
 // TODO: possible bug: GUI_MOUSE getting triggered when it shouldn't
@@ -152,8 +152,8 @@
 // TODO: ERASE (including drawing the eraser circle in pixel coordinates
 // TODO: three click circle
 // TODO: elipse
-// TODO: fillet line_entity-arc_entity
-// TODO: fillet arc_entity-arc_entity
+// TODO: fillet line-arc
+// TODO: fillet arc-arc
 // TODO: power intersect
 // TODO: 1 click intersect
 // TODO: 2 click intersect

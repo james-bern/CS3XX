@@ -93,6 +93,7 @@ real MM(real inches) { return ((inches) * real(25.4)); }
 // POW, SQRT
 #define POW powf
 #define SQRT sqrtf
+#define ROUND roundf
 // SGN
 int SGN(  int a) { return (a < 0) ? -1 : 1; }
 int SGN(float a) { return (a < 0) ? -1 : 1; }
@@ -100,11 +101,11 @@ int SGN(float a) { return (a < 0) ? -1 : 1; }
 int  ABS( int a) { return (a < 0) ? -a : a; }
 real ABS(real a) { return (a < 0) ? -a : a; }
 // MIN
-int  MIN( int a,  int b) { return (a < b) ? a : b; }
+// int  MIN( int a,  int b) { return (a < b) ? a : b; } // TODO: do we ever use this?
 uint MIN(uint a, uint b) { return (a < b) ? a : b; }
 real MIN(real a, real b) { return (a < b) ? a : b; }
 // MAX
-int  MAX( int a,  int b) { return (a > b) ? a : b; }
+// int  MAX( int a,  int b) { return (a > b) ? a : b; } // TODO: do we ever use this?
 uint MAX(uint a, uint b) { return (a > b) ? a : b; }
 real MAX(real a, real b) { return (a > b) ? a : b; }
 // floating-poiut comparisons

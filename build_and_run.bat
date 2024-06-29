@@ -25,16 +25,15 @@ IF "%1"=="" (
 
     cls
 
-    set OPTARG=2
-    set DEBARG=-Zi
+    set DEBARG=-Z7
+    set MANIFOLD_LINK_DIR=.\manifold
     IF defined argv[--release] (
         echo [36m[cow] compiling in release mode[0m
-        set MANIFOLD_LINK_DIR=.\manifold\release
-        set MD_VERSUS_MDD_FLAG=/MD
+        set OPTARG=2
+        set MD_VERSUS_MDD_FLAG=/MDd
     ) ELSE (
         echo [36m[cow] compiling in debug mode[0m
         set OPTARG=d
-        set MANIFOLD_LINK_DIR=.\manifold\debug
         set MD_VERSUS_MDD_FLAG=/MDd
     )
 

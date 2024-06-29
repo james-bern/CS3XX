@@ -303,6 +303,13 @@ tuD real distance(vecD A, vecD B) {
     return norm(A - B);
 }
 
+real ATAN2(vec2); // FORNOW: forward declaration
+real angle_from_0_TAU(vec2 A, vec2 B) {
+    real result = ATAN2(B - A);
+     if (result < 0.0f) result += TAU;
+     return result;
+}
+
 // ALIASES
 // tuD real length(vecD v) { return norm(v); }
 // tuD real squared_length(vecD v) { return squaredNorm(v); }
@@ -587,12 +594,16 @@ real ATAN2(vec2 a) {
 vec2 rotated(vec2 a, real theta) {
     return { COS(theta) * a.x - SIN(theta) * a.y, SIN(theta) * a.x + COS(theta) * a.y };
 }
+vec2 rotated_about(vec2 a, vec2 o, real theta) {
+    return rotated(a - o, theta) + o;
+}
 mat2 R_theta_2x2(real theta) {
     return { COS(theta), -SIN(theta), SIN(theta), COS(theta) };
 }
 vec2 perpendicularTo(vec2 v) {
     return { v.y, -v.x };
 }
+
 mat4 xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
     return {
         x[0], y[0], z[0], o[0],

@@ -176,10 +176,11 @@ void conversation_draw() {
 
     real x_divider_Pixel = get_x_divider_Pixel();
 
-    bool moving_selected_entities = ((state.click_mode == ClickMode::Move) && (two_click_command->awaiting_second_click)); // TODO: loft up
+    bool moving_selected_entities = ((state.click_mode == ClickMode::Move || state.click_mode == ClickMode::Rotate || state.click_mode == ClickMode::LinearCopy) && (two_click_command->awaiting_second_click)); // TODO: loft up
 
     { // draw 2D draw 2d draw
         vec2 *first_click = &two_click_command->first_click;
+        vec2 click_vector = (mouse - *first_click);
 
         {
             glEnable(GL_SCISSOR_TEST);
@@ -237,17 +238,47 @@ void conversation_draw() {
             { // entities
                 eso_begin(PV_2D, SOUP_LINES);
                 _for_each_entity_ {
-                    if (moving_selected_entities && entity->is_selected) continue;
+                    if ((moving_selected_entities && state.click_mode != ClickMode::LinearCopy) && entity->is_selected) continue;
                     ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
                     eso_color(get_color(color_code));
                     eso_entity__SOUP_LINES(entity);
                 }
                 eso_end();
-                if (moving_selected_entities) {
+                if (moving_selected_entities && state.click_mode != ClickMode::Rotate) {
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(get_color(ColorCode::WaterOnly));
+                    eso_vertex(mouse);
+                    eso_vertex(*first_click);
+                    eso_end();
                     eso_begin(PV_2D * M4_Translation(mouse - *first_click), SOUP_LINES);
                     eso_color(get_color(ColorCode::WaterOnly));
                     _for_each_selected_entity_ {
                         eso_entity__SOUP_LINES(entity);
+                    }
+                    eso_end();
+                } else if (moving_selected_entities && state.click_mode == ClickMode::Rotate) {
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(get_color(ColorCode::WaterOnly));
+                    eso_vertex(mouse);
+                    eso_vertex(*first_click);
+                    eso_end();
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(get_color(ColorCode::WaterOnly));
+                    real theta = ATAN2(click_vector);
+                    _for_each_selected_entity_ {
+                        Entity copy = *entity;
+                        if (copy.type == EntityType::Line) {
+                            LineEntity *line = &copy.line;
+                            line->start = rotated_about(line->start, *first_click, theta);
+                            line->end = rotated_about(line->end, *first_click, theta);
+                            eso_entity__SOUP_LINES(&copy);
+                        } else { ASSERT(copy.type == EntityType::Arc);
+                            ArcEntity *arc = &copy.arc;
+                            arc->center = rotated_about(arc->center, *first_click, theta);
+                            arc->start_angle_in_degrees = DEG(theta) + arc->start_angle_in_degrees;
+                            arc->end_angle_in_degrees = DEG(theta) + arc->end_angle_in_degrees;
+                            eso_entity__SOUP_LINES(&copy);
+                        }
                     }
                     eso_end();
                 }
@@ -280,14 +311,28 @@ void conversation_draw() {
                     eso_vertex(first_click->x, mouse.y);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Measure) { // measure line_entity
+                if (state.click_mode == ClickMode::Measure) { // measure line
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Line) { // measure line_entity
+                if (state.click_mode == ClickMode::MirrorLine) { // measure line
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_vertex(two_click_command->first_click);
+                    eso_vertex(mouse);
+                    eso_end();
+                }
+                if (state.click_mode == ClickMode::Line) { // measure line
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_vertex(two_click_command->first_click);
+                    eso_vertex(mouse);
+                    eso_end();
+                }
+                if (state.click_mode == ClickMode::Rotate) { // measure line
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
@@ -322,6 +367,17 @@ void conversation_draw() {
                     eso_color(basic.cyan);
                     eso_vertex(edge_one);
                     eso_vertex(edge_two);
+                    eso_end();
+                }
+                if (state.click_mode == ClickMode::TwoClickDivide) {
+                    if (other.stored_entity == NULL) {
+                        DXFFindClosestEntityResult closest_result_one = dxf_find_closest_entity(&drawing->entities, *first_click);
+                        other.stored_entity = &drawing->entities.array[closest_result_one.index];
+                        other.entity_index = closest_result_one.index;
+                    }
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(basic.cyan);
+                    eso_entity__SOUP_LINES(other.stored_entity);
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Polygon) {
@@ -612,26 +668,33 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
                 (state.click_mode == ClickMode::Fillet)         ? "FILLET"          :
                 (state.click_mode == ClickMode::Line)           ? "LINE"            :
+                (state.click_mode == ClickMode::LinearCopy)     ? "LINEAR COPY"     :
                 (state.click_mode == ClickMode::Measure)        ? "MEASURE"         :
                 (state.click_mode == ClickMode::Move)           ? "MOVE"            :
                 (state.click_mode == ClickMode::Origin)         ? "ORIGIN"          :
                 (state.click_mode == ClickMode::Polygon)        ? "POLYGON"         :
                 (state.click_mode == ClickMode::Select)         ? "SELECT"          :
+                (state.click_mode == ClickMode::Rotate)         ? "ROTATE"          :
+                (state.click_mode == ClickMode::RotateCopy)     ? "ROTATE COPY"     :
+                (state.click_mode == ClickMode::MirrorLine)     ? "MIRROR LINE"     :
                 (state.click_mode == ClickMode::MirrorX)        ? "MIRROR X"        :
                 (state.click_mode == ClickMode::MirrorY)        ? "MIRROR Y"        :
                 (state.click_mode == ClickMode::TwoEdgeCircle)  ? "TWO-EDGE CIRCLE" :
+                (state.click_mode == ClickMode::TwoClickDivide) ? "TWO-CLICK DIVIDE" :
                 "???MODE???");
 
         String string_click_modifier = STRING(
-                (state.click_modifier == ClickModifier::None)      ? ""          :
-                (state.click_modifier == ClickModifier::Center)    ? "CENTER"    :
-                (state.click_modifier == ClickModifier::Connected) ? "CONNECTED" :
-                (state.click_modifier == ClickModifier::End)       ? "END"       :
-                (state.click_modifier == ClickModifier::Color)     ? "COLOR"     :
-                (state.click_modifier == ClickModifier::Middle)    ? "MIDDLE"    :
-                (state.click_modifier == ClickModifier::Selected)  ? "SELECTED"  :
-                (state.click_modifier == ClickModifier::Window)    ? "WINDOW"    :
-                (state.click_modifier == ClickModifier::XY)        ? "XY"        :
+                (state.click_modifier == ClickModifier::None)           ? ""                :
+                (state.click_modifier == ClickModifier::Center)         ? "CENTER"          :
+                (state.click_modifier == ClickModifier::Connected)      ? "CONNECTED"       :
+                (state.click_modifier == ClickModifier::End)            ? "END"             :
+                (state.click_modifier == ClickModifier::Color)          ? "COLOR"           :
+                (state.click_modifier == ClickModifier::Middle)         ? "MIDDLE"          :
+                (state.click_modifier == ClickModifier::Perpendicular)  ? "PERPENDICULAR"   :
+                (state.click_modifier == ClickModifier::Quad)           ? "QUAD"            :
+                (state.click_modifier == ClickModifier::Selected)       ? "SELECTED"        :
+                (state.click_modifier == ClickModifier::Window)         ? "WINDOW"          :
+                (state.click_modifier == ClickModifier::XY)             ? "XY"              :
                 "???MODIFIER???");
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - alpha };
@@ -640,10 +703,74 @@ void conversation_draw() {
     }
 
     if (other.show_help) {
-        { // FORNOW TODO: actually implement help
-            messagef(omax.pink, "TODO: update help popup");
-            other.show_help = false;
-        }
+        EasyTextPen pen1 = { V2(12.0f, 16.0f), 16.0f, omax.cyan, true};
+        EasyTextPen pen2 = { V2(512.0f, 16.0f), 16.0f, omax.cyan, true};
+        const String help1 = STRING(R""(
+        Spacebar - Previous hot key
+           Shift - Previous hot key on 3D 
+        Backspace - Delete selected
+        Del - Delete selected
+        Esc - Exit to default click settings
+        Tab - light/dark mode
+            - newline when entering coordinates
+        Enter - Execute command
+        [ - ExtrudeAdd
+            Shift - ExtrudeCut
+        ] - RevolveAdd
+            Shift - RevolveCut
+        . - Show drawing details
+        ; - Deactivate feature plane
+        ' - zoom in/zoom out 3D camera
+        ? - Help Menu
+        A - Axis
+        B - Bounding Box
+        C - Circle, Center, Connected
+            Shift - TwoEdgeCircle
+        D - Deselect
+            Shift - DivideNearest                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+        E - End
+        F - Fillet
+        G - Hide Grid
+        H - Print history // NOT IMPLEMENTED
+        I -
+        J - )"");
+        const String help2 = STRING(R""(
+        K - Show Event Stack
+        L - Line
+        M - Move, Middle
+           Shift - Measure
+        N - Nudge Feature Plane
+           Control - Clear Drawing
+           Control + Shift - Clear Mesh
+        O - 
+            Control - Load File
+        P - Polygon
+        Q - Colors
+        R - 
+        S - Select , Color
+            Control - Save
+        T -
+        U -
+        V -
+        W - Window (use with select or deselect)
+        X - XY ( choose a point)
+            Shift - MirrorX 
+            Control + Shift - Drawing Frame
+        Y - Feature Plane, Change between feature planes
+            Shift - MirrorY  
+        Z - Origin
+            Shift - Change Origin
+  
+        )"");
+        eso_begin(M4_Identity(), SOUP_QUADS); {
+            eso_color(omax.black, 0.5f);
+            eso_vertex(-1.0f, -1.0f);
+            eso_vertex(-1.0f,  1.0f);
+            eso_vertex( 1.0f,  1.0f);
+            eso_vertex( 1.0f, -1.0f);
+        } eso_end();
+        easy_text_draw(&pen1, help1); 
+        easy_text_draw(&pen2, help2);     
     }
 
     void history_debug_draw(); // forward declaration
