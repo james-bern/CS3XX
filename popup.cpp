@@ -247,7 +247,8 @@ void popup_popup(
                     bool d_is_hover_cell_index = (d == popup->info_hover_cell_index);
                     bool draw_hover_bbox = ((d_is_hover_cell_index) && (other.mouse_left_drag_pane == Pane::None));
                     if (draw_hover_bbox) {
-                        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS, 1.0f);
+                        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
+                        eso_overlay(true);
                         eso_color(omax.cyan, 0.4f);
                         eso_bbox_SOUP_QUADS(field_bbox);
                         eso_end();

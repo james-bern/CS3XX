@@ -37,11 +37,11 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         }
     }
 
-    eso_size(0.5f);
     for_(pass, 2) {
         eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_TRI_MESH);
+        eso_size(0.5f);
 
-        mat3 inv_transpose_V_3D = inverse(transpose(M3(V_3D(0, 0), V_3D(0, 1), V_3D(0, 2), V_3D(1, 0), V_3D(1, 1), V_3D(1, 2), V_3D(2, 0), V_3D(2, 1), V_3D(2, 2))));
+        mat3 inv_transpose_V_3D = inverse(transpose(_M3(V_3D)));
 
 
         for_(i, mesh->num_triangles) {
@@ -66,7 +66,6 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                     // if (2.0f * time_since_plane_selected < 0.3f) color = omax.white; // FORNOW
 
                     alpha = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_going_inside), 1.0f, 0.7f);
-
 
                     face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[0]));
                     face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[1]));
@@ -164,7 +163,8 @@ void conversation_draw() {
     { // panes
         bool dragging = (other.mouse_left_drag_pane == Pane::Separator);
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
-        eso_begin(M4_Identity(), SOUP_LINES, true);
+        eso_begin(M4_Identity(), SOUP_LINES);
+        eso_overlay(true);
         eso_color(
                 dragging ? omax.light_gray
                 : hovering ? omax.white
@@ -207,6 +207,7 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(PV_2D, SOUP_LINE_LOOP);
+                eso_color(omax.dark_gray);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -217,10 +218,14 @@ void conversation_draw() {
                 real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
                 real LL = 1000 * funky_OpenGL_factor;
 
-                eso_color(omax.white);
-                if (0) {
+                if (0
+                        || state.click_mode == ClickMode::Axis
+                        || state.enter_mode == EnterMode::RevolveAdd
+                        || state.enter_mode == EnterMode::RevolveCut
+                   ) {
                     eso_begin(PV_2D, SOUP_LINES); {
                         // axis
+                        eso_color(omax.white);
                         vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                         eso_vertex(preview_dxf_axis_base_point + v);
                         eso_vertex(preview_dxf_axis_base_point - v);
@@ -228,6 +233,7 @@ void conversation_draw() {
                 }
                 eso_begin(PV_2D, SOUP_LINES); {
                     // origin
+                    eso_color(omax.white);
                     real r = funky_OpenGL_factor;
                     eso_vertex(target_preview_drawing_origin - V2(r, 0));
                     eso_vertex(target_preview_drawing_origin + V2(r, 0));
@@ -287,6 +293,7 @@ void conversation_draw() {
                 if (other.show_details) {
                     eso_begin(PV_2D, SOUP_POINTS);
                     eso_color(omax.white);
+                    eso_size(3.0f);
                     _for_each_entity_ {
                         vec2 start, end;
                         entity_get_start_and_end_points(entity, &start, &end);
@@ -364,6 +371,7 @@ void conversation_draw() {
                     }
                     eso_end();
                     eso_begin(PV_2D, SOUP_LINES);
+                    eso_stipple(true);
                     eso_color(basic.cyan);
                     eso_vertex(edge_one);
                     eso_vertex(edge_two);
@@ -388,13 +396,12 @@ void conversation_draw() {
                     real radius = distance(center, vertex_0);
                     real theta_0 = ATAN2(vertex_0 - center);
                     {
-                        eso_stipple(true); // TODO
                         eso_begin(PV_2D, SOUP_LINES);
+                        eso_stipple(true);
                         eso_color(basic.cyan);
                         eso_vertex(center);
                         eso_vertex(vertex_0);
                         eso_end();
-                        eso_stipple(false); // TODO
                     }
                     {
                         eso_begin(PV_2D, SOUP_LINE_LOOP);
@@ -509,8 +516,8 @@ void conversation_draw() {
 
         if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
             real r = other.camera_mesh.ortho_screen_height_World / 120.0f;
-            eso_color(omax.white);
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES);
+            eso_color(omax.white);
             eso_vertex(-r, 0.0f);
             eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
@@ -550,6 +557,7 @@ void conversation_draw() {
                 mat4 transform = PVM1 * M0;
                 eso_begin(transform, SOUP_LINES);
                 eso_color(omax.dark_gray);
+                eso_size(1.0f);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
                     eso_vertex(tmp, 0.0f);
@@ -559,6 +567,7 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(transform, SOUP_LINE_LOOP);
+                eso_color(omax.dark_gray);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -702,10 +711,12 @@ void conversation_draw() {
         easy_text_draw(&pen, string_click_modifier);
     }
 
+    void history_debug_draw(); // forward declaration
+    void _messages_draw(); // forward declaration
+    _messages_draw();
+
     if (other.show_help) {
-        EasyTextPen pen1 = { V2(12.0f, 16.0f), 16.0f, omax.cyan, true};
-        EasyTextPen pen2 = { V2(512.0f, 16.0f), 16.0f, omax.cyan, true};
-        const String help1 = STRING(R""(
+        static String help1 = STRING(R""(
         Spacebar - Previous hot key
            Shift - Previous hot key on 3D 
         Backspace - Delete selected
@@ -727,14 +738,15 @@ void conversation_draw() {
         C - Circle, Center, Connected
             Shift - TwoEdgeCircle
         D - Deselect
-            Shift - DivideNearest                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+            Shift - DivideNearest
         E - End
         F - Fillet
         G - Hide Grid
         H - Print history // NOT IMPLEMENTED
         I -
         J - )"");
-        const String help2 = STRING(R""(
+
+        static String help2 = STRING(R""(
         K - Show Event Stack
         L - Line
         M - Move, Middle
@@ -745,9 +757,9 @@ void conversation_draw() {
         O - 
             Control - Load File
         P - Polygon
-        Q - Colors
+        Q - Color
         R - 
-        S - Select , Color
+        S - Select
             Control - Save
         T -
         U -
@@ -760,23 +772,23 @@ void conversation_draw() {
             Shift - MirrorY  
         Z - Origin
             Shift - Change Origin
-  
         )"");
+
         eso_begin(M4_Identity(), SOUP_QUADS); {
-            eso_color(omax.black, 0.5f);
+            eso_overlay(true);
+            eso_color(omax.black, 0.7f);
             eso_vertex(-1.0f, -1.0f);
             eso_vertex(-1.0f,  1.0f);
             eso_vertex( 1.0f,  1.0f);
             eso_vertex( 1.0f, -1.0f);
         } eso_end();
+
+        EasyTextPen pen1 = { V2(-24.0f, 16.0f), 16.0f, omax.white, true}; // FORNOW
+        EasyTextPen pen2 = pen1;
+        pen2.origin_Pixel.x += 350.0f;
         easy_text_draw(&pen1, help1); 
         easy_text_draw(&pen2, help2);     
     }
-
-    void history_debug_draw(); // forward declaration
-
-    void _messages_draw(); // forward declaration
-    _messages_draw();
 
     if (other.show_event_stack) history_debug_draw();
 
@@ -785,7 +797,8 @@ void conversation_draw() {
         real y = window_get_height_Pixel() - 12.0f;
         real w = 6.0f;
         real h = -2.5f * w;
-        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS, true);
+        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
+        eso_overlay(true);
         eso_color(omax.green);
         for_(d, 2) {
             real o = d * (1.7f * w);

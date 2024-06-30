@@ -1,3 +1,5 @@
+// TODO: reset everything in eso on begin
+
 // XXXX: basic 3D grid with lines (have grids on by default)
 // ////: camera reset needs to take into account divider position
 // XXXX: switch entity_*(...) over to vec2(...) instead of void(..., real *, real *)

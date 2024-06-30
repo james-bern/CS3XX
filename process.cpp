@@ -91,6 +91,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                    do_once { messagef(omax.red, "TODO: implement magical LAYOUT thing that bumps your cursor along current axis"); };
                 } else if (key_lambda('B')) {
                     state.click_mode = ClickMode::BoundingBox;
                     state.click_modifier = ClickModifier::None;
@@ -212,7 +213,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    do_once { messagef(omax.red, "TODO: implement magical LAYOUT thing that moves your cursor over to the right"); };
+                    do_once { messagef(omax.red, "TODO: implement magical LAYOUT thing that bumps your cursor over to the right"); };
                 } else if (key_lambda('R', false, true)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
@@ -907,7 +908,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             cookbook.buffer_delete_entity(closest_result_two.index);
                                         }
                                     }
-
                                 } else { //AT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
                                          //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
                                     ArcEntity arc;

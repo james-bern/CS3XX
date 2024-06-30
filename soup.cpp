@@ -407,25 +407,55 @@ void soup_draw(
 
 struct {
     bool _called_eso_begin_before_calling_eso_vertex_or_eso_end;
-    vec4 _current_color = { 1.0f, 0.0f, 1.0f, 0.0f };
-    real _current_size = 2.0f;
+
+    vec4 current_color;
+    real current_size;
+
+    bool overlay;
+    bool stipple;
+
+    mat4 transform;
+    uint primitive;
+
+    uint num_vertices;
+
     vec3 vertex_positions[ESO_MAX_VERTICES];
     vec4 vertex_colors[ESO_MAX_VERTICES];
     real vertex_sizes[ESO_MAX_VERTICES];
-    mat4 transform;
-    uint primitive;
-    uint num_vertices;
-    bool overlay;
-    bool stipple;
 } eso;
 
-void eso_begin(mat4 transform, uint primitive, bool force_draw_on_top = false) {
+void eso_begin(mat4 transform, uint primitive) {
     ASSERT(!eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
     eso._called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
-    eso.primitive = primitive;
-    eso.overlay = force_draw_on_top;
-    eso.num_vertices = 0;
+
+    eso.current_color = V4(basic.magenta, 1.0f);
+    eso.current_size = 1.5f;
+
+    eso.overlay = false;
+    eso.stipple = false;
+
     eso.transform = transform;
+    eso.primitive = primitive;
+
+    eso.num_vertices = 0;
+}
+
+void eso_end() {
+    ASSERT(eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
+    eso._called_eso_begin_before_calling_eso_vertex_or_eso_end = false;
+    soup_draw(
+            eso.transform,
+            eso.primitive,
+            eso.num_vertices,
+            eso.vertex_positions,
+            eso.vertex_colors,
+            eso.vertex_sizes,
+            eso.overlay,
+            eso.stipple);
+}
+
+void eso_overlay(bool overlay) {
+    eso.overlay = overlay;
 }
 
 void eso_stipple(bool stipple) {
@@ -433,14 +463,14 @@ void eso_stipple(bool stipple) {
 }
 
 void eso_size(real size) {
-    eso._current_size = size;
+    eso.current_size = size;
 }
 
 void eso_color(real red, real green, real blue, real alpha) {
-    eso._current_color[0] = red;
-    eso._current_color[1] = green;
-    eso._current_color[2] = blue;
-    eso._current_color[3] = alpha;
+    eso.current_color[0] = red;
+    eso.current_color[1] = green;
+    eso.current_color[2] = blue;
+    eso.current_color[3] = alpha;
 }
 
 void eso_color(real red, real green, real blue) {
@@ -463,8 +493,8 @@ void eso_vertex(real x, real y, real z) {
     ASSERT(eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
     ASSERT(eso.num_vertices < ESO_MAX_VERTICES);
     eso.vertex_positions[eso.num_vertices] = { x, y, z };
-    eso.vertex_colors[eso.num_vertices] = eso._current_color;
-    eso.vertex_sizes[eso.num_vertices] = eso._current_size;
+    eso.vertex_colors[eso.num_vertices] = eso.current_color;
+    eso.vertex_sizes[eso.num_vertices] = eso.current_size;
     ++eso.num_vertices;
 }
 
@@ -481,17 +511,4 @@ void eso_vertex(vec3 xyz) {
     eso_vertex(xyz[0], xyz[1], xyz[2]);
 }
 
-void eso_end() {
-    ASSERT(eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
-    eso._called_eso_begin_before_calling_eso_vertex_or_eso_end = false;
-    soup_draw(
-            eso.transform,
-            eso.primitive,
-            eso.num_vertices,
-            eso.vertex_positions,
-            eso.vertex_colors,
-            eso.vertex_sizes,
-            eso.overlay,
-            eso.stipple);
-}
 

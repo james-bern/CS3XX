@@ -147,7 +147,7 @@ template <uint D_position, uint D_color> vec2 text_draw(
         Vector<D_color> color,
         real font_height_Pixel = 12.0f,
         vec2 nudge_Pixel = {},
-        bool force_draw_on_top = true
+        bool overlay = true
         ) {
     STATIC_ASSERT((D_position == 2) || (D_position == 3));
     STATIC_ASSERT((D_color == 3) || (D_color == 4));
@@ -183,7 +183,8 @@ template <uint D_position, uint D_color> vec2 text_draw(
     mat4 transform = window_get_OpenGL_from_Pixel()
         * M4_Translation(position_Pixel + nudge_Pixel)
         * M4_Scaling(font_height_Pixel / 12.0f);
-    eso_begin(transform, SOUP_QUADS, force_draw_on_top);
+    eso_begin(transform, SOUP_QUADS);
+    eso_overlay(overlay);
     eso_color(color);
     for_(i, num_vertices) eso_vertex(vertex_positions[i]);
     eso_end();
