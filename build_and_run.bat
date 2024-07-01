@@ -12,8 +12,7 @@ IF "%1"=="" (
     echo build and   run in   debug mode: [36mbuild_and_run.bat filename.cpp [0m
     echo build and   run in release mode: [36mbuild_and_run.bat filename.cpp --release[0m
     echo build and debug in     remedyBG: [36mbuild_and_run.bat filename.cpp --debug[0m
-    echo ---
-    echo include [36m--eigen[0m to use Eigen's sparse linear solver
+    echo build and   run in    ship mode: [36mbuild_and_run.bat filename.cpp --ship[0m
 ) ELSE (
     IF EXIST "main.obj"       ( del hw.obj         )
     IF EXIST "vc140.pdb"      ( del vc140.pdb      )
@@ -25,30 +24,34 @@ IF "%1"=="" (
 
     cls
 
-    set DEBARG=-Z7
-    set MANIFOLD_LINK_DIR=.\manifold
-    IF defined argv[--release] (
+    set SHIPDEF=
+    IF defined argv[--ship] (
+        echo [36m[cow] compiling in ship mode[0m
+        set SHIPDEF=/DSHIP
+        set OPTARG=2
+    ) ELSE IF defined argv[--release] (
         echo [36m[cow] compiling in release mode[0m
         set OPTARG=2
-        set MD_VERSUS_MDD_FLAG=/MDd
     ) ELSE (
         echo [36m[cow] compiling in debug mode[0m
         set OPTARG=d
-        set MD_VERSUS_MDD_FLAG=/MDd
     )
 
     cl -O!OPTARG! ^
     /d2FH4- ^
     -W4 -wd4201 -wd4127 ^
-    /nologo -fp:except !DEBARG! -GR- -EHa- -FC ^
-    /I.\opengl /I.\burkardt /I.\manifold ^
-    !EIGEN_DEFINE! ^
+    /nologo -fp:except -Z7 -GR- -EHa- -FC ^
+    /I .\opengl ^
+    /I .\burkardt ^
+    /I .\manifold ^
     /EHsc ^
-    !MD_VERSUS_MDD_FLAG! ^
+    /MDd ^
+    !SHIPDEF! ^
     %1 ^
     /Feexecutable.exe ^
     /link /NODEFAULTLIB:MSVCRT ^
-    /LIBPATH:.\opengl /LIBPATH:.\burkardt /LIBPATH:!MANIFOLD_LINK_DIR! ^
+    /LIBPATH:.\opengl ^
+    /LIBPATH:.\manifold ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
     glfw3.lib ^
     Clipper2.lib tbb12_debug.lib tbb12.lib manifold.lib manifoldc.lib
@@ -59,9 +62,6 @@ IF "%1"=="" (
         IF defined argv[--debug] (
             echo [36m[cow] debugging in remedyBG[0m
             call _windows_debug_remedybg.bat
-        ) ELSE IF defined argv[--debug-vscode] (
-            echo [36m[cow] debugging in Visual Studio Code[0m
-            _xplat_debug_vscode.bat
         ) ELSE (
             echo [36m[cow] running executable[0m
             @echo on

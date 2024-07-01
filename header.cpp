@@ -231,6 +231,9 @@ struct FeaturePlaneState {
 struct TwoClickCommandState {
     bool awaiting_second_click;
     vec2 first_click;
+    
+    Entity* stored_entity;
+    uint entity_index;
 };
 
 #define POPUP_MAX_NUM_CELLS 5
@@ -354,8 +357,6 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
     PreviewState preview;
 
-    Entity* stored_entity; // useful for two click divide
-    uint entity_index;
 };
 
 struct StandardEventProcessResult {
