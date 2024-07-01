@@ -13,7 +13,7 @@ IF "%1"=="" (
     echo build and   run in release mode: [35mbuild_and_run.bat filename.cpp --release[0m
     echo build and   run in    ship mode: [36mbuild_and_run.bat filename.cpp --ship[0m
     echo ---
-    echo build and debug in     remedyBG: [34mbuild_and_run.bat filename.cpp --debug[0m
+    echo build and debug in     remedyBG: [37mbuild_and_run.bat filename.cpp --debug[0m
 ) ELSE (
     IF EXIST "main.obj"       ( del hw.obj         )
     IF EXIST "vc140.pdb"      ( del vc140.pdb      )
@@ -94,7 +94,7 @@ if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
     echo "build and run   in release mode: [35m./build_and_run.bat main.cpp --release[0m"
     echo "build and run   in    ship mode: [36m./build_and_run.bat main.cpp --ship[0m"
     echo "---"
-    echo "build and debug in      VS Code: [36m./build_and_run.bat main.cpp --debug[0m"
+    echo "build and debug in      VS Code: [37m./build_and_run.bat main.cpp --debug[0m"
 else
     if [ -f "executable" ]; then
         rm executable
@@ -116,13 +116,13 @@ else
     fi
 
     clang++ \
-        $1 \
-        -o executable \
+        -c $1 \
         -std=c++11 \
         -fno-strict-aliasing \
         -ferror-limit=256 \
+        -mmacosx-version-min=11.0 \
         -O$OPTARG \
-        -g \
+        -g -fstandalone-debug \
         -Wall -Wextra \
         -Wshadow \
         -Werror=vla \
@@ -131,12 +131,18 @@ else
         -Wno-missing-field-initializers \
         -Wno-char-subscripts \
         -Wno-write-strings \
-        -L./manifold -I./manifold \
-        -L./opengl   -I./opengl   \
-        -L./burkardt -I./burkardt \
+        -I./manifold \
+        -I./opengl   \
+        -I./burkardt \
+
+    clang++ \
+        -g -o executable $(basename $1 .cpp).o \
+        -L./manifold \
+        -L./opengl   \
+        -L./burkardt \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
-        -mmacosx-version-min=11.0 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
+        -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
         $ARCH \
         # -mmacosx-version-min=13.5 \
         # -Wno-c++11-narrowing \
@@ -145,11 +151,13 @@ else
     if [ -f "executable" ]; then
         if [ "$2" = "--debug" ]; then
             echo "[32mdebugging in XCode[0m"
-            source _xplat_debug_vscode.bat
+            source _mac_debug_xcode.sh
         else
             echo "[33mrunning executable[0m"
             ./executable
         fi
     fi
+
+    rm $(basename $1 .cpp).o
 fi
 
