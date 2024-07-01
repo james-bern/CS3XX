@@ -53,6 +53,12 @@ run_before_main {
                      ;
 };
 #endif
+#ifdef SHIP
+run_before_main {
+    startup_script = "";
+    glfwSetWindowTitle(glfw_window, "Conversation pre-alpha " __DATE__ " " __TIME__);
+};
+#endif
 
 #include "manifoldc.h"
 #include "header.cpp"
@@ -104,6 +110,10 @@ int main() {
         }
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
+
+    #ifdef SHIP
+    messagef(omax.green, "press ? for help");
+    #endif
 
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
