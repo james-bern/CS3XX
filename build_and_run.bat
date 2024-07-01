@@ -27,14 +27,14 @@ IF "%1"=="" (
 
     set SHIPDEF=
     IF defined argv[--ship] (
-        echo [36m compiling in ship mode[0m
+        echo [36mbuilding in ship mode[0m
         set SHIPDEF=/DSHIP
         set OPTARG=2
     ) ELSE IF defined argv[--release] (
-        echo [35m compiling in release mode[0m
+        echo [35mbuilding in release mode[0m
         set OPTARG=2
     ) ELSE (
-        echo [34m compiling in debug mode[0m
+        echo [34mbuilding in debug mode[0m
         set OPTARG=d
     )
 
@@ -105,14 +105,14 @@ else
     OPTARG=0
     ARCH=
     if [ "$2" = "--ship" ]; then
-        echo "[36m building $1 in ship mode[0m"
+        echo "[36mbuilding $1 in ship mode[0m"
         ARCH="-arch arm64 -arch x86_64"
         OPTARG=3
     elif [ "$2" = "--release" ]; then
-        echo "[35m building $1 in release mode[0m"
+        echo "[35mbuilding $1 in release mode[0m"
         OPTARG=3
     else
-        echo "[34m building $1 in debug mode[0m"
+        echo "[34mbuilding $1 in debug mode[0m"
     fi
 
     clang++ \
