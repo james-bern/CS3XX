@@ -1,7 +1,25 @@
+windows
+-------
+
+cmake-gui
+???
+
 regress to v141 in VS2017
 RelWithDebugInfo
 set to /MDd
- https://stackoverflow.com/questions/7668200/error-lnk2038-mismatch-detected-for-iterator-debug-level-value-0-doesnt
+https://stackoverflow.com/questions/7668200/error-lnk2038-mismatch-detected-for-iterator-debug-level-value-0-doesnt
 include algorithm in public.h
 copy tbb.lib into a duplicate called tbb_debug.lib (wtf)
- // Z7??
+NOTE: make sure to use Z7 so you don't have to ship the pdb as well
+
+mac
+---
+
+git clone --recurse-submodules https://github.com/elalish/manifold.git
+cd manifold
+mkdir build
+cd build
+
+cmake "-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0" -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64;arm64" -DBUILD_SHARED_LIBS=OFF -DMANIFOLD_JSBIND=OFF -DMANIFOLD_CBIND=ON -DMANIFOLD_PAR=TBB -DMANIFOLD_TEST=OFF .. && make
+
+

@@ -1,3 +1,6 @@
+// TODO: stippled lines
+// TODO: reset everything in eso on begin
+
 // XXXX: basic 3D grid with lines (have grids on by default)
 // ////: camera reset needs to take into account divider position
 // XXXX: switch entity_*(...) over to vec2(...) instead of void(..., real *, real *)
@@ -10,7 +13,7 @@
 #include "playground.cpp"
 
 char *startup_script = "";
-#if 1 
+#if 0 
 run_before_main {
     startup_script = "cz0123456789";
     startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
@@ -46,8 +49,7 @@ run_before_main {
                      ".." // TODO: comment
                      "pz\t5\n" // (Nathan) Polygon
                      "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                     
-                     // "^N^ob:wug.drawing\nysa"
+                                                                          // "^N^ob:wug.drawing\nysa"
                      ;
 };
 #endif
@@ -119,7 +121,7 @@ int main() {
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
             { // time_since
-                // FORNOW: HAAAAAACK TODO: time frames and actually increment time properly
+              // FORNOW: HAAAAAACK TODO: time frames and actually increment time properly
                 real dt = 0.0167f;
                 #ifdef OPERATING_SYSTEM_WINDOWS
                 dt *= 2;

@@ -104,11 +104,11 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                     if (entity->type == EntityType::Line) {
                         continue;
                     } else { ASSERT(entity->type == EntityType::Arc);
-                        ArcEntity *arc_entity = &entity->arc_entity;
-                        real squared_distance = squared_distance_point_dxf_arc_entity(before, arc_entity);
+                        ArcEntity *arc = &entity->arc;
+                        real squared_distance = squared_distance_point_dxf_arc_entity(before, arc);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
-                            result = arc_entity->center;
+                            result = arc->center;
                         }
                     }
                 }
@@ -148,13 +148,13 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
 
                 if (closest_entity == NULL) {
                 } else if (closest_entity->type == EntityType::Line) {
-                    vec2 a_to_b = closest_entity->line_entity.end - closest_entity->line_entity.start;
-                    vec2 a_to_p = click_one - closest_entity->line_entity.start;
+                    vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
+                    vec2 a_to_p = click_one - closest_entity->line.start;
                     real t = dot(a_to_p, a_to_b) / dot(a_to_b, a_to_b);
-                    result = closest_entity->line_entity.start + t * a_to_b; 
+                    result = closest_entity->line.start + t * a_to_b; 
                 } else if (closest_entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
-                    vec2 normalized_in_direction = normalized(click_one - closest_entity->arc_entity.center);
-                    result = closest_entity->arc_entity.center + closest_entity->arc_entity.radius * normalized_in_direction;
+                    vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
+                    result = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
                 }
             } else if (state.click_modifier == ClickModifier::Quad) {
                 real min_squared_distance = HUGE_VAL;
@@ -164,7 +164,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                 _for_each_entity_ {
                     if (entity->type == EntityType::Line) continue;
                     ASSERT(entity->type == EntityType::Arc);
-                    ArcEntity *arc = &entity->arc_entity;
+                    ArcEntity *arc = &entity->arc;
                     real squared_distance = squared_distance_point_dxf_arc_entity(before, arc);
                     if (squared_distance < min_squared_distance) {
                         min_squared_distance = squared_distance;
@@ -172,7 +172,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                     }
                 }
                 if (closest_entity) {
-                    ArcEntity *arc = &closest_entity->arc_entity;
+                    ArcEntity *arc = &closest_entity->arc;
                     real angle; {
                         angle = LINEAR_REMAP(angle_from_0_TAU(arc->center, before), 0.0f, TAU, 0.0f, 4.0f);
                         angle = (ROUND(angle) / 4.0f) * TAU;
