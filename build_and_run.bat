@@ -128,10 +128,10 @@ else
         -L./burkardt -I./burkardt \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
+        -mmacosx-version-min=11.0 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
         -arch arm64 \
-        -mmacosx-version-min=13.5 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
         # -arch x86_64 \
-        # -mmacosx-version-min=11.0 \
+        # -mmacosx-version-min=13.5 \
         # -Wno-c++11-narrowing \
         # -ftime-report \
 

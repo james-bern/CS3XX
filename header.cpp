@@ -379,6 +379,7 @@ struct {
     vec3 pink = RGB255(238, 0, 119);
     vec3 black = RGB255(0, 0, 0);
     vec3 dark_gray = RGB255(50, 50, 50);
+    vec3 gray = RGB255(152, 152, 152);
     vec3 light_gray = RGB255(205, 205, 205);
     vec3 white = RGB255(255, 255, 255);
 } omax;
@@ -390,8 +391,8 @@ vec3 omax_pallete[] = {
     omax.magenta,
     omax.purple,
     omax.blue,
-    omax.dark_gray,
     omax.light_gray,
+    basic.magenta,
     omax.cyan,
     omax.orange,
 };

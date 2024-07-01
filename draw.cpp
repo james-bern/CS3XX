@@ -1,3 +1,4 @@
+// TODO: draw axis when revolving
 // TODO: nudge-y plane move stuff needs to be incorporated into the tween engine too
 
 mat4 get_M_3D_from_2D() {
@@ -25,9 +26,8 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         if (mesh->cosmetic_edges) {
             eso_begin(PVM_3D, SOUP_LINES); 
             // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, omax.white, omax.black));
-            eso_color(0.0f, 0.0f, 0.0f);
+            eso_color(omax.black);
             eso_size(1.0f);
-            // 3 * num_triangles * 2 / 2
             for_(i, mesh->num_cosmetic_edges) {
                 for_(d, 2) {
                     eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
@@ -61,7 +61,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                     if (pass == 0) continue;
 
                     // TODO:
-                    color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), omax.white, V3(0.85f, 0.87f, 0.30f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, omax.yellow, V3(0.85f, 0.87f, 0.30f));
+                    color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), omax.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, omax.yellow, V3(0.85f, 0.87f, 0.30f));
 
                     // if (2.0f * time_since_plane_selected < 0.3f) color = omax.white; // FORNOW
 
@@ -218,19 +218,25 @@ void conversation_draw() {
                 real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
                 real LL = 1000 * funky_OpenGL_factor;
 
-                if (0
-                        || state.click_mode == ClickMode::Axis
-                        || state.enter_mode == EnterMode::RevolveAdd
-                        || state.enter_mode == EnterMode::RevolveCut
-                   ) {
-                    eso_begin(PV_2D, SOUP_LINES); {
-                        // axis
-                        eso_color(omax.white);
-                        vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
-                        eso_vertex(preview_dxf_axis_base_point + v);
-                        eso_vertex(preview_dxf_axis_base_point - v);
-                    } eso_end();
-                }
+                eso_begin(PV_2D, SOUP_LINES); {
+                    // axis
+                    if (state.click_mode == ClickMode::Axis) {
+                        eso_size(3.0f);
+                        eso_color(omax.yellow);
+                    } else if (state.enter_mode == EnterMode::RevolveAdd) {
+                        eso_size(3.0f);
+                        eso_color(monokai.green);
+                    } else if (state.enter_mode == EnterMode::RevolveCut) {
+                        eso_size(3.0f);
+                        eso_color(monokai.red);
+                    } else {
+                        eso_stipple(true);
+                        eso_color(omax.dark_gray);
+                    }
+                    vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
+                    eso_vertex(preview_dxf_axis_base_point + v);
+                    eso_vertex(preview_dxf_axis_base_point - v);
+                } eso_end();
                 eso_begin(PV_2D, SOUP_LINES); {
                     // origin
                     eso_color(omax.white);
@@ -712,11 +718,12 @@ void conversation_draw() {
     }
 
     void history_debug_draw(); // forward declaration
+
     void _messages_draw(); // forward declaration
     _messages_draw();
 
     if (other.show_help) {
-        static String help1 = STRING(R""(
+        char * help1 = R""(
         Spacebar - Previous hot key
            Shift - Previous hot key on 3D 
         Backspace - Delete selected
@@ -744,9 +751,9 @@ void conversation_draw() {
         G - Hide Grid
         H - Print history // NOT IMPLEMENTED
         I -
-        J - )"");
+        J - )"";
 
-        static String help2 = STRING(R""(
+        char *help2 = R""(
         K - Show Event Stack
         L - Line
         M - Move, Middle
@@ -772,7 +779,7 @@ void conversation_draw() {
             Shift - MirrorY  
         Z - Origin
             Shift - Change Origin
-        )"");
+        )"";
 
         eso_begin(M4_Identity(), SOUP_QUADS); {
             eso_overlay(true);
@@ -786,8 +793,8 @@ void conversation_draw() {
         EasyTextPen pen1 = { V2(-24.0f, 16.0f), 16.0f, omax.white, true}; // FORNOW
         EasyTextPen pen2 = pen1;
         pen2.origin_Pixel.x += 350.0f;
-        easy_text_draw(&pen1, help1); 
-        easy_text_draw(&pen2, help2);     
+        easy_text_drawf(&pen1, "%s", help1); 
+        easy_text_drawf(&pen2, "%s", help2);     
     }
 
     if (other.show_event_stack) history_debug_draw();
