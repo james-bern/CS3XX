@@ -61,7 +61,7 @@ IF "%1"=="" (
 
     IF EXIST "executable.exe" (
         IF defined argv[--debug] (
-            echo [34m debugging in remedyBG[0m
+            echo [32mdebugging in remedyBG[0m
             call _windows_debug_remedybg.bat
         ) ELSE (
             echo [33mrunning executable[0m
@@ -144,7 +144,7 @@ else
 
     if [ -f "executable" ]; then
         if [ "$2" = "--debug" ]; then
-            echo "[34m TODO: debugging $1 in Visual Studio Code[0m"
+            echo "[32mdebugging in XCode[0m"
             source _xplat_debug_vscode.bat
         else
             echo "[33mrunning executable[0m"
