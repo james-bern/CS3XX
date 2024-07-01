@@ -1,3 +1,9 @@
+TODO: put a youtube video here (or...animated gif i guess?)
+TODO: put Mac app
+TOOD: put Windows app
+
+---
+
 Disclaimer
 ======================
 i am going to present just one (relatively) simple setup for doing 3D graphics
