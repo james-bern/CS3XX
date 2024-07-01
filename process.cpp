@@ -1441,8 +1441,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.enter_mode == EnterMode::Size) {
                 result.record_me = false;
                 popup_popup(false,
-                        CellType::String, STRING("scale factor"), &popup->save_filename);
+                        CellType::Real, STRING("scale factor"), &popup->scale_factor);
                 if (gui_key_enter) {
+                    bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+
+                    vec2 center = (bbox.min + bbox.max) / 2;
+
+                    real scale_factor = CLAMP(0.01f, popup->scale_factor, HUGE_VAL);
+
+                    _for_each_selected_entity_ {
+                        if (entity->type == EntityType::Line) {
+                            entity->line_entity.start = scale_factor * entity->line_entity.start - (scale_factor - 1) * center;
+                            entity->line_entity.end = scale_factor * entity->line_entity.end - (scale_factor - 1) * center;
+                        } else { ASSERT(entity->type == EntityType::Arc);
+                            entity->arc_entity.center = scale_factor * entity->arc_entity.center - (scale_factor - 1) * center;
+                            entity->arc_entity.radius = scale_factor * entity->arc_entity.radius;
+                        }
+                    }
+
+                    state.enter_mode = EnterMode::None;
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,

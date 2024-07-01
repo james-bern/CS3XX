@@ -286,6 +286,7 @@ struct PopupState {
     uint have_fields_been_edited = 0;
     real angle_of_rotation_in_degrees = 0;
     real angle_of_rotation_in_radians = 0;
+    real scale_factor;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
