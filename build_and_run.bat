@@ -64,7 +64,7 @@ IF "%1"=="" (
             echo [34m debugging in remedyBG[0m
             call _windows_debug_remedybg.bat
         ) ELSE (
-            echo [33m running executable[0m
+            echo [33mrunning executable[0m
             @echo on
             start executable.exe
         )
@@ -147,7 +147,7 @@ else
             echo "[34m TODO: debugging $1 in Visual Studio Code[0m"
             source _xplat_debug_vscode.bat
         else
-            echo "[33m running executable[0m"
+            echo "[33mrunning executable[0m"
             ./executable
         fi
     fi
