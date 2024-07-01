@@ -19,7 +19,7 @@ tuDb BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
 
 tuD bool bbox_contains(bboxD A, vecD point) {
     for_(d, D) {
-        if (!IS_BETWEEN(point[d], A.min[d], A.max[d])) return false;
+        if (!IS_BETWEEN_LOOSE(point[d], A.min[d], A.max[d])) return false;
     }
     return true;
 }

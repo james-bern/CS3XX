@@ -731,9 +731,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     entity_get_start_and_end_points(E_i, &a, &b);
                                     entity_get_start_and_end_points(E_j, &c, &d);
 
-                                    LineLineIntersectionResult _p = burkardt_line_line_intersection(a, b, c, d);
+                                    LineLineXResult _p = burkardt_line_line_intersection(a, b, c, d);
                                     if (_p.success) {
-                                        vec2 p = _p.position;
+                                        vec2 p = _p.point;
 
                                         //  a -- b   p          s -- t-.  
                                         //                              - 
@@ -773,9 +773,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
                                         vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
-                                        LineLineIntersectionResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
+                                        LineLineXResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
                                         if (_center.success) {
-                                            vec2 center = _center.position;
+                                            vec2 center = _center.point;
 
                                             ColorCode color_i = E_i->color_code;
                                             ColorCode color_j = E_j->color_code;
@@ -851,15 +851,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 if (closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Line){
                                     LineEntity lineA = closest_entity_one->line;
                                     LineEntity lineB = closest_entity_two->line;
-                                    LineLineIntersectionResult line_line_intersection_result = burkardt_line_line_intersection(lineA.start, lineA.end, lineB.start, lineB.end);
+                                    LineLineXResult line_line_intersection_result = burkardt_line_line_intersection(lineA.start, lineA.end, lineB.start, lineB.end);
                                     if (line_line_intersection_result.success) {
-                                        vec2 intersect = line_line_intersection_result.position;
-                                        cookbook.buffer_add_line(intersect, lineA.start);
-                                        cookbook.buffer_add_line(intersect, lineA.end);
-                                        cookbook.buffer_add_line(intersect, lineB.start);
-                                        cookbook.buffer_add_line(intersect, lineB.end);
-                                        cookbook.buffer_delete_entity(other.entity_index);
-                                        cookbook.buffer_delete_entity(closest_result_two.index);
+                                        // need to check which lines actually get divided
+                                        vec2 intersect = line_line_intersection_result.point;
+                                        bool point_on_lineA = ABS(distance(lineA.start, intersect) + distance(intersect, lineA.end) ) < distance(lineA.start, lineA.end) + 0.001;
+                                        bool point_on_lineB = ABS(distance(lineB.start, intersect) + distance(intersect, lineB.end) ) < distance(lineB.start, lineB.end) + 0.001;
+
+                                        // vec2 a1 = lineA.start - intersect;
+                                        // vec2 a2 = lineA.end - intersect;
+                                        // vec2 A = a1 + a2;
+                                        // real d2A = squaredNorm(A);
+
+                                        if (point_on_lineA) {
+
+                                            cookbook.buffer_add_line(intersect, lineA.start);
+                                            cookbook.buffer_add_line(intersect, lineA.end);
+                                            cookbook.buffer_delete_entity(other.entity_index);
+                                        }
+                                        if (point_on_lineB) {
+                                            cookbook.buffer_add_line(intersect, lineB.start);
+                                            cookbook.buffer_add_line(intersect, lineB.end);
+                                            cookbook.buffer_delete_entity(closest_result_two.index);
+                                        } 
                                     }
                                 } else if (closest_entity_one->type == EntityType::Arc && closest_entity_two->type == EntityType::Arc){
                                     // math for this is here https://paulbourke.net/geometry/circlesphere/

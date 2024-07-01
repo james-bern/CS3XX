@@ -23,34 +23,57 @@
 // - vecX everywhere
 // - radians everywhere
 
-struct LineLineIntersectionResult {
-    bool success;
-    vec2 position;
+enum class LineLineXResultType {
+    NoIntersection, // NOTE: combines LinesAreCollinear, LinesAreParallelButNotCollinear,
+    SegmentsIntersectAndThereforeLinesAlsoIntersect,
+    LinesIntersectButSegmentsDoNot,
 };
 
-#define BURKARDT_VEC2(p, a) double p[] = { a.x, a.y };
+struct LineLineXResult {
+    LineLineXResultType type;
+    bool success;
+    vec2 point;
+    real t_ab;
+    real t_cd;
+};
 
-LineLineIntersectionResult burkardt_line_line_intersection(vec2 a, vec2 b, vec2 c, vec2 d) {
-    BURKARDT_VEC2(p1, a);
-    BURKARDT_VEC2(p2, b);
-    BURKARDT_VEC2(p3, c);
-    BURKARDT_VEC2(p4, d);
-    int ival;
-    double p[2];
-    lines_exp_int_2d(p1, p2, p3, p4, &ival, p);
-    LineLineIntersectionResult result;
-    result.success = (ival == 1);
-    for_(k, 2) result.position[k] = (real) p[k];
-    { // NOTE: we are less stringent than burkardt
-        if (squaredNorm(a - result.position) > HUGE_VAL) result.success = false;
+
+LineLineXResult burkardt_line_line_intersection(vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
+    vec2 r = p_plus_r - p;
+    vec2 s = q_plus_s - q;
+    real r_cross_s = cross(r, s);
+    vec2 q_minus_p = q - p;
+
+    // r x s = 0 => segments parallel (or anti-parallel)
+    bool lines_parallel = IS_ZERO(r_cross_s);
+    // // q_m_p x r = 0 => q is on line p, p+r
+    // bool q_on_other_line = IS_ZERO(cross(q_minus_p, r));
+
+    LineLineXResult result = {};
+
+    if (lines_parallel) {
+        result.success = false;
+        result.type = LineLineXResultType::NoIntersection;
+    } else {
+        result.success = true;
+        result.t_ab = cross(q_minus_p, s) / r_cross_s;
+        result.t_cd = cross(q_minus_p, r) / r_cross_s;
+        result.point = p + result.t_ab * p_plus_r;
+        if (IS_BETWEEN_TIGHT(result.t_ab, 0.0f, 1.0f) && IS_BETWEEN_TIGHT(result.t_cd, 0.0f, 1.0f)) {
+            result.type = LineLineXResultType::SegmentsIntersectAndThereforeLinesAlsoIntersect;
+        } else {
+            result.type = LineLineXResultType::LinesIntersectButSegmentsDoNot;
+        }
     }
+
     return result;
 }
 
+#define BURKARDT_VEC2(p, a) double p[] = { a.x, a.y };
 
 real burkardt_three_point_angle(vec2 p, vec2 center, vec2 q) {
-    BURKARDT_VEC2(p1, p);
-    BURKARDT_VEC2(p2, center);
-    BURKARDT_VEC2(p3, q);
-    return (real) angle_rad_2d(p1, p2, p3);
+    BURKARDT_VEC2(_1, p);
+    BURKARDT_VEC2(_2, center);
+    BURKARDT_VEC2(_3, q);
+    return (real) angle_rad_2d(_1, _2, _3);
 }

@@ -503,7 +503,7 @@ void entity_get_start_and_end_points(Entity *entity, vec2 *start, vec2 *end) {
 }
 
 vec2 entity_lerp_considering_flip_flag(Entity *entity, real t, bool flip_flag) {
-    ASSERT(IS_BETWEEN(t, 0.0f, 1.0f));
+    ASSERT(IS_BETWEEN_LOOSE(t, 0.0f, 1.0f));
     if (entity->type == EntityType::Line) {
         LineEntity *line = &entity->line;
         if (flip_flag) t = 1.0f - t; // FORNOW
@@ -734,9 +734,9 @@ real squared_distance_point_arc_NOTE_pass_angles_in_radians(vec2 p, vec2 center,
         while (start_angle_in_radians < -PI) start_angle_in_radians += TAU;
         while (end_angle_in_radians < start_angle_in_radians) end_angle_in_radians += TAU;
         point_in_sector =
-            IS_BETWEEN(angle, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN(angle + TAU, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN(angle - TAU, start_angle_in_radians, end_angle_in_radians);
+            IS_BETWEEN_LOOSE(angle, start_angle_in_radians, end_angle_in_radians)
+            || IS_BETWEEN_LOOSE(angle + TAU, start_angle_in_radians, end_angle_in_radians)
+            || IS_BETWEEN_LOOSE(angle - TAU, start_angle_in_radians, end_angle_in_radians);
     }
     if (point_in_sector) {
         return squared_distance_point_circle(p, center, radius);
