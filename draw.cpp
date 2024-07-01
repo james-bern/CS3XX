@@ -767,6 +767,7 @@ void conversation_draw() {
         Q - Color
         R - 
         S - Select
+            Shift - Resize selected
             Control - Save
         T -
         U -

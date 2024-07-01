@@ -1434,29 +1434,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 popup_popup(false,
                         CellType::Real, STRING("scale factor"), &popup->scale_factor);
                 if (gui_key_enter) {
-                    bbox2 bbox = entities_get_bbox(&drawing->entities, true);
-
-                    vec2 center = (bbox.min + bbox.max) / 2;
-
-                    real scale_factor = CLAMP(0.01f, popup->scale_factor, HUGE_VAL);
-
-                    _for_each_selected_entity_ {
-                        if (entity->type == EntityType::Line) {
-                            entity->line_entity.start = scale_factor * entity->line_entity.start - (scale_factor - 1) * center;
-                            entity->line_entity.end = scale_factor * entity->line_entity.end - (scale_factor - 1) * center;
-                        } else { ASSERT(entity->type == EntityType::Arc);
-                            entity->arc_entity.center = scale_factor * entity->arc_entity.center - (scale_factor - 1) * center;
-                            entity->arc_entity.radius = scale_factor * entity->arc_entity.radius;
+                    if (!IS_ZERO(popup->scale_factor)) {
+                        bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                        vec2 bbox_center = AVG(bbox.min, bbox.max);
+                        _for_each_selected_entity_ {
+                            if (entity->type == EntityType::Line) {
+                                LineEntity *line = &entity->line;
+                                line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
+                                line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
+                            } else { ASSERT(entity->type == EntityType::Arc);
+                                ArcEntity *arc = &entity->arc;
+                                arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
+                                arc->radius *= popup->scale_factor;
+                            }
                         }
                     }
-
                     state.enter_mode = EnterMode::None;
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
                         CellType::Real, STRING("extrude_add_out_length"), &popup->extrude_add_out_length,
-                        CellType::Real, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length);
-                if (gui_key_enter) {
+                        CellType::Real, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length); if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "ExtrudeAdd: selection empty");
                     } else if (!feature_plane->is_active) {
