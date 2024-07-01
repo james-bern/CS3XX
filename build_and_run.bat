@@ -9,10 +9,11 @@ Taskkill /IM "executable.exe" /F  >nul 2>&1
 for %%a in (%*) do set "argv[%%a]=1"
 
 IF "%1"=="" (
-    echo build and   run in   debug mode: [36mbuild_and_run.bat filename.cpp [0m
-    echo build and   run in release mode: [36mbuild_and_run.bat filename.cpp --release[0m
-    echo build and debug in     remedyBG: [36mbuild_and_run.bat filename.cpp --debug[0m
+    echo build and   run in   debug mode: [34mbuild_and_run.bat filename.cpp [0m
+    echo build and   run in release mode: [35mbuild_and_run.bat filename.cpp --release[0m
     echo build and   run in    ship mode: [36mbuild_and_run.bat filename.cpp --ship[0m
+    echo ---
+    echo build and debug in     remedyBG: [34mbuild_and_run.bat filename.cpp --debug[0m
 ) ELSE (
     IF EXIST "main.obj"       ( del hw.obj         )
     IF EXIST "vc140.pdb"      ( del vc140.pdb      )
@@ -26,14 +27,14 @@ IF "%1"=="" (
 
     set SHIPDEF=
     IF defined argv[--ship] (
-        echo [36m[cow] compiling in ship mode[0m
+        echo [36m compiling in ship mode[0m
         set SHIPDEF=/DSHIP
         set OPTARG=2
     ) ELSE IF defined argv[--release] (
-        echo [36m[cow] compiling in release mode[0m
+        echo [35m compiling in release mode[0m
         set OPTARG=2
     ) ELSE (
-        echo [36m[cow] compiling in debug mode[0m
+        echo [34m compiling in debug mode[0m
         set OPTARG=d
     )
 
@@ -60,10 +61,10 @@ IF "%1"=="" (
 
     IF EXIST "executable.exe" (
         IF defined argv[--debug] (
-            echo [36m[cow] debugging in remedyBG[0m
+            echo [34m debugging in remedyBG[0m
             call _windows_debug_remedybg.bat
         ) ELSE (
-            echo [36m[cow] running executable[0m
+            echo [33m running executable[0m
             @echo on
             start executable.exe
         )
@@ -89,8 +90,10 @@ exit /B
 BATCH
 
 if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
-    echo "build and run   in   debug mode: [36m./build_and_run.bat main.cpp [0m"
-    echo "build and run   in release mode: [36m./build_and_run.bat main.cpp --release[0m"
+    echo "build and run   in   debug mode: [34m./build_and_run.bat main.cpp [0m"
+    echo "build and run   in release mode: [35m./build_and_run.bat main.cpp --release[0m"
+    echo "build and run   in    ship mode: [36m./build_and_run.bat main.cpp --ship[0m"
+    echo "---"
     echo "build and debug in      VS Code: [36m./build_and_run.bat main.cpp --debug[0m"
 else
     if [ -f "executable" ]; then
@@ -102,13 +105,14 @@ else
     OPTARG=0
     ARCH=
     if [ "$2" = "--ship" ]; then
-        echo "[34m[cow] building $1 in ship mode[0m"
+        echo "[36m building $1 in ship mode[0m"
         ARCH="-arch arm64 -arch x86_64"
+        OPTARG=3
     elif [ "$2" = "--release" ]; then
-        echo "[35m[cow] building $1 in release mode[0m"
+        echo "[35m building $1 in release mode[0m"
         OPTARG=3
     else
-        echo "[36m[cow] building $1 in debug mode[0m"
+        echo "[34m building $1 in debug mode[0m"
     fi
 
     clang++ \
@@ -140,10 +144,10 @@ else
 
     if [ -f "executable" ]; then
         if [ "$2" = "--debug" ]; then
-            echo "[36m[cow] TODO: debugging $1 in Visual Studio Code[0m"
+            echo "[34m TODO: debugging $1 in Visual Studio Code[0m"
             source _xplat_debug_vscode.bat
         else
-            echo "[36m[cow] running executable[0m"
+            echo "[33m running executable[0m"
             ./executable
         fi
     fi
