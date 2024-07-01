@@ -100,8 +100,12 @@ else
     clear
 
     OPTARG=0
-    if [ "$2" = "--release" ]; then
-        echo "[36m[cow] building $1 in release mode[0m"
+    ARCH=
+    if [ "$2" = "--ship" ]; then
+        echo "[34m[cow] building $1 in ship mode[0m"
+        ARCH="-arch arm64 -arch x86_64"
+    elif [ "$2" = "--release" ]; then
+        echo "[35m[cow] building $1 in release mode[0m"
         OPTARG=3
     else
         echo "[36m[cow] building $1 in debug mode[0m"
@@ -129,8 +133,7 @@ else
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
         -mmacosx-version-min=11.0 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
-        -arch arm64 \
-        # -arch x86_64 \
+        $ARCH \
         # -mmacosx-version-min=13.5 \
         # -Wno-c++11-narrowing \
         # -ftime-report \
