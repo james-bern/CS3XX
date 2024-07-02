@@ -9,11 +9,11 @@ Taskkill /IM "executable.exe" /F  >nul 2>&1
 for %%a in (%*) do set "argv[%%a]=1"
 
 IF "%1"=="" (
-    echo build and   run in   debug mode: [36mbuild_and_run.bat filename.cpp [0m
-    echo build and   run in release mode: [36mbuild_and_run.bat filename.cpp --release[0m
-    echo build and debug in     remedyBG: [36mbuild_and_run.bat filename.cpp --debug[0m
+    echo build and   run in   debug mode: [34mbuild_and_run.bat filename.cpp [0m
+    echo build and   run in release mode: [35mbuild_and_run.bat filename.cpp --release[0m
+    echo build and   run in    ship mode: [36mbuild_and_run.bat filename.cpp --ship[0m
     echo ---
-    echo include [36m--eigen[0m to use Eigen's sparse linear solver
+    echo build and debug in     remedyBG: [37mbuild_and_run.bat filename.cpp --debug[0m
 ) ELSE (
     IF EXIST "main.obj"       ( del hw.obj         )
     IF EXIST "vc140.pdb"      ( del vc140.pdb      )
@@ -25,30 +25,34 @@ IF "%1"=="" (
 
     cls
 
-    set DEBARG=-Z7
-    set MANIFOLD_LINK_DIR=.\manifold
-    IF defined argv[--release] (
-        echo [36m[cow] compiling in release mode[0m
+    set SHIPDEF=
+    IF defined argv[--ship] (
+        echo [36mbuilding in ship mode[0m
+        set SHIPDEF=/DSHIP
         set OPTARG=2
-        set MD_VERSUS_MDD_FLAG=/MDd
+    ) ELSE IF defined argv[--release] (
+        echo [35mbuilding in release mode[0m
+        set OPTARG=2
     ) ELSE (
-        echo [36m[cow] compiling in debug mode[0m
+        echo [34mbuilding in debug mode[0m
         set OPTARG=d
-        set MD_VERSUS_MDD_FLAG=/MDd
     )
 
     cl -O!OPTARG! ^
     /d2FH4- ^
     -W4 -wd4201 -wd4127 ^
-    /nologo -fp:except !DEBARG! -GR- -EHa- -FC ^
-    /I.\opengl /I.\burkardt /I.\manifold ^
-    !EIGEN_DEFINE! ^
+    /nologo -fp:except -Z7 -GR- -EHa- -FC ^
+    /I .\opengl ^
+    /I .\burkardt ^
+    /I .\manifold ^
     /EHsc ^
-    !MD_VERSUS_MDD_FLAG! ^
+    /MDd ^
+    !SHIPDEF! ^
     %1 ^
     /Feexecutable.exe ^
     /link /NODEFAULTLIB:MSVCRT ^
-    /LIBPATH:.\opengl /LIBPATH:.\burkardt /LIBPATH:!MANIFOLD_LINK_DIR! ^
+    /LIBPATH:.\opengl ^
+    /LIBPATH:.\manifold ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
     glfw3.lib ^
     Clipper2.lib tbb12_debug.lib tbb12.lib manifold.lib manifoldc.lib
@@ -57,13 +61,10 @@ IF "%1"=="" (
 
     IF EXIST "executable.exe" (
         IF defined argv[--debug] (
-            echo [36m[cow] debugging in remedyBG[0m
+            echo [32mdebugging in remedyBG[0m
             call _windows_debug_remedybg.bat
-        ) ELSE IF defined argv[--debug-vscode] (
-            echo [36m[cow] debugging in Visual Studio Code[0m
-            _xplat_debug_vscode.bat
         ) ELSE (
-            echo [36m[cow] running executable[0m
+            echo [33mrunning executable[0m
             @echo on
             start executable.exe
         )
@@ -89,9 +90,11 @@ exit /B
 BATCH
 
 if [ "$#" -eq 0  ] || ! [ -f "$1" ]; then
-    echo "build and run   in   debug mode: [36m./build_and_run.bat main.cpp [0m"
-    echo "build and run   in release mode: [36m./build_and_run.bat main.cpp --release[0m"
-    echo "build and debug in      VS Code: [36m./build_and_run.bat main.cpp --debug[0m"
+    echo "build and run   in   debug mode: [34m./build_and_run.bat main.cpp [0m"
+    echo "build and run   in release mode: [35m./build_and_run.bat main.cpp --release[0m"
+    echo "build and run   in    ship mode: [36m./build_and_run.bat main.cpp --ship[0m"
+    echo "---"
+    echo "build and debug in      VS Code: [37m./build_and_run.bat main.cpp --debug[0m"
 else
     if [ -f "executable" ]; then
         rm executable
@@ -100,21 +103,26 @@ else
     clear
 
     OPTARG=0
-    if [ "$2" = "--release" ]; then
-        echo "[36m[cow] building $1 in release mode[0m"
+    ARCH=
+    if [ "$2" = "--ship" ]; then
+        echo "[36mbuilding $1 in ship mode[0m"
+        ARCH="-arch arm64 -arch x86_64"
+        OPTARG=3
+    elif [ "$2" = "--release" ]; then
+        echo "[35mbuilding $1 in release mode[0m"
         OPTARG=3
     else
-        echo "[36m[cow] building $1 in debug mode[0m"
+        echo "[34mbuilding $1 in debug mode[0m"
     fi
 
     clang++ \
-        $1 \
-        -o executable \
+        -c $1 \
         -std=c++11 \
         -fno-strict-aliasing \
         -ferror-limit=256 \
+        -mmacosx-version-min=11.0 \
         -O$OPTARG \
-        -g \
+        -g -fstandalone-debug \
         -Wall -Wextra \
         -Wshadow \
         -Werror=vla \
@@ -123,26 +131,33 @@ else
         -Wno-missing-field-initializers \
         -Wno-char-subscripts \
         -Wno-write-strings \
-        -L./manifold -I./manifold \
-        -L./opengl   -I./opengl   \
-        -L./burkardt -I./burkardt \
+        -I./manifold \
+        -I./opengl   \
+        -I./burkardt \
+
+    clang++ \
+        -g -o executable $(basename $1 .cpp).o \
+        -L./manifold \
+        -L./opengl   \
+        -L./burkardt \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit \
-        -mmacosx-version-min=11.0 -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
-        -arch arm64 \
-        # -arch x86_64 \
+        -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
+        $ARCH \
         # -mmacosx-version-min=13.5 \
         # -Wno-c++11-narrowing \
         # -ftime-report \
 
     if [ -f "executable" ]; then
         if [ "$2" = "--debug" ]; then
-            echo "[36m[cow] TODO: debugging $1 in Visual Studio Code[0m"
-            source _xplat_debug_vscode.bat
+            echo "[32mdebugging in XCode[0m"
+            source _mac_debug_xcode.sh
         else
-            echo "[36m[cow] running executable[0m"
+            echo "[33mrunning executable[0m"
             ./executable
         fi
     fi
+
+    rm $(basename $1 .cpp).o
 fi
 

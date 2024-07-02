@@ -176,7 +176,7 @@ template <uint D_position, uint D_color> vec2 text_draw(
     }
     vec3 position_OpenGL = transformPoint(PV, position_World3);
 
-    if (!IS_BETWEEN(position_OpenGL.z, -1.0f, 1.0f)) return {};
+    if (!IS_BETWEEN_LOOSE(position_OpenGL.z, -1.0f, 1.0f)) return {};
 
     vec2 position_Pixel = transformPoint(inverse(window_get_OpenGL_from_Pixel()), _V2(position_OpenGL));
 

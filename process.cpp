@@ -721,22 +721,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_modifier = ClickModifier::None;
-                            DXFFindClosestEntityResult result_i = dxf_find_closest_entity(&drawing->entities, *first_click);
                             DXFFindClosestEntityResult result_j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
-                            if ((result_i.success) && (result_j.success) && (result_i.index != result_j.index)) {
-                                uint i = result_i.index;
+                            if ((two_click_command->stored_entity != NULL) && (result_j.success) && (two_click_command->entity_index != result_j.index)) {
+                                uint i = two_click_command->entity_index;
                                 uint j = result_j.index;
                                 real radius = popup->fillet_radius;
-                                Entity *E_i = &drawing->entities.array[i];
+                                Entity *E_i = two_click_command->stored_entity;
                                 Entity *E_j = &drawing->entities.array[j];
                                 if ((E_i->type == EntityType::Line) && (E_j->type == EntityType::Line)) {
                                     vec2 a, b, c, d;
                                     entity_get_start_and_end_points(E_i, &a, &b);
                                     entity_get_start_and_end_points(E_j, &c, &d);
 
-                                    LineLineIntersectionResult _p = burkardt_line_line_intersection(a, b, c, d);
-                                    if (_p.success) {
-                                        vec2 p = _p.position;
+                                    LineLineXResult _p = burkardt_line_line_intersection(a, b, c, d);
+                                    if (!_p.lines_are_parallel) {
+                                        vec2 p = _p.point;
 
                                         //  a -- b   p          s -- t-.  
                                         //                              - 
@@ -776,9 +775,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
                                         vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
-                                        LineLineIntersectionResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
-                                        if (_center.success) {
-                                            vec2 center = _center.position;
+                                        LineLineXResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
+                                        if (!_center.lines_are_parallel) {
+                                            vec2 center = _center.point;
 
                                             ColorCode color_i = E_i->color_code;
                                             ColorCode color_j = E_j->color_code;
@@ -846,23 +845,32 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_modifier = ClickModifier::None;
 
                             // i want to store the first click closest somewhere because otherwise it has to search
-                            Entity *closest_entity_one = other.stored_entity; 
+                            Entity *closest_entity_one = two_click_command->stored_entity; 
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
-                            Entity *closest_entity_two = &drawing->entities.array[closest_result_two.index];
-
-                            if(closest_entity_one != NULL && closest_result_two.success) {
-                                if (closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Line){
-                                    LineEntity lineA = closest_entity_one->line;
-                                    LineEntity lineB = closest_entity_two->line;
-                                    LineLineIntersectionResult line_line_intersection_result = burkardt_line_line_intersection(lineA.start, lineA.end, lineB.start, lineB.end);
-                                    if (line_line_intersection_result.success) {
-                                        vec2 intersect = line_line_intersection_result.position;
-                                        cookbook.buffer_add_line(intersect, lineA.start);
-                                        cookbook.buffer_add_line(intersect, lineA.end);
-                                        cookbook.buffer_add_line(intersect, lineB.start);
-                                        cookbook.buffer_add_line(intersect, lineB.end);
-                                        cookbook.buffer_delete_entity(other.entity_index);
-                                        cookbook.buffer_delete_entity(closest_result_two.index);
+                            if (closest_entity_one != NULL && closest_result_two.success) {
+                                Entity *closest_entity_two = &drawing->entities.array[closest_result_two.index];
+                                if (closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Line) {
+                                    LineEntity segment_one = closest_entity_one->line;
+                                    LineEntity segment_two = closest_entity_two->line;
+                                    vec2 a = segment_one.start;
+                                    vec2 b = segment_one.end;
+                                    vec2 c = segment_two.start;
+                                    vec2 d = segment_two.end;
+                                    LineLineXResult X_result = burkardt_line_line_intersection(a, b, c, d);
+                                    bool neither_line_extension_hits_the_other_segment = ((!X_result.point_is_on_segment_ab) && (!X_result.point_is_on_segment_cd));
+                                    if (neither_line_extension_hits_the_other_segment) {
+                                        messagef(omax.orange, "TwoClickDivide: no intersection found");
+                                    } else {
+                                        if (X_result.point_is_on_segment_ab) {
+                                            cookbook.buffer_add_line(X_result.point, a);
+                                            cookbook.buffer_add_line(X_result.point, b);
+                                            cookbook.buffer_delete_entity(two_click_command->entity_index);
+                                        }
+                                        if (X_result.point_is_on_segment_cd) {
+                                            cookbook.buffer_add_line(X_result.point, c);
+                                            cookbook.buffer_add_line(X_result.point, d);
+                                            cookbook.buffer_delete_entity(closest_result_two.index);
+                                        } 
                                     }
                                 } else if (closest_entity_one->type == EntityType::Arc && closest_entity_two->type == EntityType::Arc){
                                     // math for this is here https://paulbourke.net/geometry/circlesphere/
@@ -907,11 +915,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             cookbook.buffer_add_arc(arcA.center, arcA.radius, theta1a, arcA.end_angle_in_degrees);
                                             cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta1b);
                                             cookbook.buffer_add_arc(arcB.center, arcB.radius, theta1b, arcB.end_angle_in_degrees);
-                                            cookbook.buffer_delete_entity(other.entity_index);
+                                            cookbook.buffer_delete_entity(two_click_command->entity_index);
                                             cookbook.buffer_delete_entity(closest_result_two.index);
                                         }
                                     }
-                                } else { //AT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
+                                } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
                                          //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
                                     ArcEntity arc;
                                     LineEntity line;
@@ -938,25 +946,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                     if (d < 0) {                // no intersect
                                         does_intersect = false; // can we exit early???
-                                    } else if (d == 0) {        // one intersect
-                                                                // TODO: THIS SHOULD BE BETTER CHECK FOR FLOATS
-                                                                // also not sure if need bc i dont think it'll ever
-                                                                // evaluate to true from floating point error
-                                                                // plus two points is fine anyway bc we only take one
-                                        float t = -b / 2*a;
-                                        intersect = line.start + t * v1;
-                                        
-                                        theta = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(intersect - arc.center)));
-                                        bool does_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
-                                        /*
-                                        // deals with wraps
-                                        real arcEndAngle = arc.end_angle_in_degrees < arc.start_angle_in_degrees ? arc.end_angle_in_degrees + 360.0f : arc.end_angle_in_degrees;
-                                        
-                                        bool does_arc_intersect = arc.start_angle_in_degrees < theta && theta < arcEndAngle; */
-                                        bool does_line_intersect = MIN(line.start.x, line.end.x) < intersect.x && intersect.x < MAX(line.start.x, line.end.x)
-                                                                && MIN(line.start.y, line.end.y) < intersect.y && intersect.y < MAX(line.start.y, line.end.y);
-                                        does_intersect = does_arc_intersect && does_line_intersect;
-
                                     } else {                    // two intersects
                                         float t1 = (-b + SQRT(d)) / (2 * a); 
                                         float t2 = (-b - SQRT(d)) / (2 * a); 
@@ -968,12 +957,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         float theta2 = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p2 - arc.center)));
                                         bool does_p1_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta1, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
                                         bool does_p2_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta2, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
-                                        /*
-                                        // deals with wraps
-                                        real arcEndAngle = arc.end_angle_in_degrees < arc.start_angle_in_degrees ? arc.end_angle_in_degrees + 360.0f : arc.end_angle_in_degrees;
                                         
-                                        bool does_p1_arc_intersect = arc.start_angle_in_degrees < theta1 && theta1 < arcEndAngle;
-                                        bool does_p2_arc_intersect = arc.start_angle_in_degrees < theta2 && theta2 < arcEndAngle;*/
                                         bool does_p1_line_intersect = MIN(line.start.x, line.end.x) < p1.x && p1.x < MAX(line.start.x, line.end.x)
                                                                    && MIN(line.start.y, line.end.y) < p1.y && p1.y < MAX(line.start.y, line.end.y);
                                         bool does_p2_line_intersect = MIN(line.start.x, line.end.x) < p2.x && p2.x < MAX(line.start.x, line.end.x)
@@ -1006,7 +990,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         cookbook.buffer_add_line(intersect, line.end);
                                         cookbook.buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, theta);
                                         cookbook.buffer_add_arc(arc.center, arc.radius, theta, arc.end_angle_in_degrees);
-                                        cookbook.buffer_delete_entity(other.entity_index);
+                                        cookbook.buffer_delete_entity(two_click_command->entity_index);
                                         cookbook.buffer_delete_entity(closest_result_two.index);
                                     }
                                 }
@@ -1085,7 +1069,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real theta = IS_ZERO(popup->angle_of_rotation_in_radians) ? PI : MAX(0.0f, popup->angle_of_rotation_in_radians);
                             popup->num_copies = MAX(2U, popup->num_copies);
 
-                            pprint(*first_click); 
                             _for_each_selected_entity_ {
                                 Entity oldEntity = *entity;
                                 for_(j, popup->num_copies - 1) { // layout has copies as + 1 of what you want so i copied it but it seems strange
@@ -1481,14 +1464,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.enter_mode == EnterMode::Size) {
                 result.record_me = false;
                 popup_popup(false,
-                        CellType::String, STRING("scale factor"), &popup->save_filename);
+                        CellType::Real, STRING("scale factor"), &popup->scale_factor);
                 if (gui_key_enter) {
+                    if (!IS_ZERO(popup->scale_factor)) {
+                        bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                        vec2 bbox_center = AVG(bbox.min, bbox.max);
+                        _for_each_selected_entity_ {
+                            if (entity->type == EntityType::Line) {
+                                LineEntity *line = &entity->line;
+                                line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
+                                line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
+                            } else { ASSERT(entity->type == EntityType::Arc);
+                                ArcEntity *arc = &entity->arc;
+                                arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
+                                arc->radius *= popup->scale_factor;
+                            }
+                        }
+                    }
+                    state.enter_mode = EnterMode::None;
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
                         CellType::Real, STRING("extrude_add_out_length"), &popup->extrude_add_out_length,
-                        CellType::Real, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length);
-                if (gui_key_enter) {
+                        CellType::Real, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length); if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "ExtrudeAdd: selection empty");
                     } else if (!feature_plane->is_active) {

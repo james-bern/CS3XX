@@ -384,15 +384,19 @@ void conversation_draw() {
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::TwoClickDivide) {
-                    if (other.stored_entity == NULL) {
+                    if (two_click_command->stored_entity == NULL) {
                         DXFFindClosestEntityResult closest_result_one = dxf_find_closest_entity(&drawing->entities, *first_click);
-                        other.stored_entity = &drawing->entities.array[closest_result_one.index];
-                        other.entity_index = closest_result_one.index;
+                        if (closest_result_one.success) {
+                            two_click_command->stored_entity = &drawing->entities.array[closest_result_one.index];
+                            two_click_command->entity_index = closest_result_one.index;
+                        }
+                    } 
+                    if (two_click_command->stored_entity != NULL) {
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(basic.cyan);
+                        eso_entity__SOUP_LINES(two_click_command->stored_entity);
+                        eso_end();
                     }
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(basic.cyan);
-                    eso_entity__SOUP_LINES(other.stored_entity);
-                    eso_end();
                 }
                 if (state.click_mode == ClickMode::Polygon) {
                     uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
@@ -423,12 +427,17 @@ void conversation_draw() {
                 }
                 if (state.click_mode == ClickMode::Fillet) {
                     // FORNOW
-                    DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, two_click_command->first_click);
-                    if (dxf_find_closest_entity_result.success) {
-                        uint i = dxf_find_closest_entity_result.index;
+                    if (two_click_command->stored_entity == NULL) {
+                        DXFFindClosestEntityResult closest_result_one = dxf_find_closest_entity(&drawing->entities, *first_click);
+                        if (closest_result_one.success) {
+                            two_click_command->stored_entity = &drawing->entities.array[closest_result_one.index];
+                            two_click_command->entity_index = closest_result_one.index;
+                        }
+                    } 
+                    if (two_click_command->stored_entity != NULL) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(ColorCode::WaterOnly));
-                        eso_entity__SOUP_LINES(&drawing->entities.array[i]);
+                        eso_color(basic.cyan);
+                        eso_entity__SOUP_LINES(two_click_command->stored_entity);
                         eso_end();
                     }
                 }
@@ -769,6 +778,7 @@ void conversation_draw() {
         Q - Color
         R - 
         S - Select
+            Shift - Resize selected
             Control - Save
         T -
         U -

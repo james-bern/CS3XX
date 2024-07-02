@@ -232,6 +232,9 @@ struct FeaturePlaneState {
 struct TwoClickCommandState {
     bool awaiting_second_click;
     vec2 first_click;
+    
+    Entity* stored_entity;
+    uint entity_index;
 };
 
 #define POPUP_MAX_NUM_CELLS 5
@@ -289,6 +292,7 @@ struct PopupState {
     uint have_fields_been_edited = 0;
     real angle_of_rotation_in_degrees = 0;
     real angle_of_rotation_in_radians = 0;
+    real scale_factor;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
@@ -355,8 +359,6 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
     PreviewState preview;
 
-    Entity* stored_entity; // useful for two click divide
-    uint entity_index;
 };
 
 struct StandardEventProcessResult {
@@ -504,7 +506,7 @@ void entity_get_start_and_end_points(Entity *entity, vec2 *start, vec2 *end) {
 }
 
 vec2 entity_lerp_considering_flip_flag(Entity *entity, real t, bool flip_flag) {
-    ASSERT(IS_BETWEEN(t, 0.0f, 1.0f));
+    ASSERT(IS_BETWEEN_LOOSE(t, 0.0f, 1.0f));
     if (entity->type == EntityType::Line) {
         LineEntity *line = &entity->line;
         if (flip_flag) t = 1.0f - t; // FORNOW
@@ -735,9 +737,9 @@ real squared_distance_point_arc_NOTE_pass_angles_in_radians(vec2 p, vec2 center,
         while (start_angle_in_radians < -PI) start_angle_in_radians += TAU;
         while (end_angle_in_radians < start_angle_in_radians) end_angle_in_radians += TAU;
         point_in_sector =
-            IS_BETWEEN(angle, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN(angle + TAU, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN(angle - TAU, start_angle_in_radians, end_angle_in_radians);
+            IS_BETWEEN_LOOSE(angle, start_angle_in_radians, end_angle_in_radians)
+            || IS_BETWEEN_LOOSE(angle + TAU, start_angle_in_radians, end_angle_in_radians)
+            || IS_BETWEEN_LOOSE(angle - TAU, start_angle_in_radians, end_angle_in_radians);
     }
     if (point_in_sector) {
         return squared_distance_point_circle(p, center, radius);

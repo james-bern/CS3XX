@@ -597,6 +597,9 @@ vec2 rotated(vec2 a, real theta) {
 vec2 rotated_about(vec2 a, vec2 o, real theta) {
     return rotated(a - o, theta) + o;
 }
+vec2 scaled_about(vec2 a, vec2 o, real scale) {
+    return scale * (a - o) + o;
+}
 mat2 R_theta_2x2(real theta) {
     return { COS(theta), -SIN(theta), SIN(theta), COS(theta) };
 }

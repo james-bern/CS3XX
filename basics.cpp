@@ -113,7 +113,8 @@ real MAX(real a, real b) { return (a > b) ? a : b; }
 bool IS_ZERO(real a) { return (ABS(a) < TINY_VAL); }
 tuD bool IS_ZERO(vecD a) { for_(d, D) if (!IS_ZERO(a[d])) return false; return true; }
 bool ARE_EQUAL(real a, real b) { return IS_ZERO(ABS(a - b)); }
-bool IS_BETWEEN(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
+bool IS_BETWEEN_LOOSE(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
+bool IS_BETWEEN_TIGHT(real p, real a, real b) { return (((a + TINY_VAL) < p) && (p < (b - TINY_VAL))); }
 // CLAMP
 real CLAMP(real t, real a, real b) { return MIN(MAX(t, a), b); }
 real MAG_CLAMP(real t, real a) {
