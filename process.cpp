@@ -730,7 +730,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     entity_get_start_and_end_points(E_i, &a, &b);
                                     entity_get_start_and_end_points(E_j, &c, &d);
 
-                                    LineLineXResult _p = burkardt_line_line_intersection(a, b, c, d);
+                                    LineLineXResult _p = line_line_intersection(a, b, c, d);
                                     if (!_p.lines_are_parallel) {
                                         vec2 p = _p.point;
 
@@ -772,7 +772,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
                                         vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
-                                        LineLineXResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
+                                        LineLineXResult _center = line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
                                         if (!_center.lines_are_parallel) {
                                             vec2 center = _center.point;
 
@@ -846,14 +846,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
                             if (closest_entity_one != NULL && closest_result_two.success) {
                                 Entity *closest_entity_two = &drawing->entities.array[closest_result_two.index];
-                                if (closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Line) {
+                                if (closest_entity_one->type == EntityType::Line && closest_entity_two->type == EntityType::Line) {
                                     LineEntity segment_one = closest_entity_one->line;
                                     LineEntity segment_two = closest_entity_two->line;
                                     vec2 a = segment_one.start;
                                     vec2 b = segment_one.end;
                                     vec2 c = segment_two.start;
                                     vec2 d = segment_two.end;
-                                    LineLineXResult X_result = burkardt_line_line_intersection(a, b, c, d);
+                                    LineLineXResult X_result = line_line_intersection(a, b, c, d);
                                     bool neither_line_extension_hits_the_other_segment = ((!X_result.point_is_on_segment_ab) && (!X_result.point_is_on_segment_cd));
                                     if (neither_line_extension_hits_the_other_segment) {
                                         messagef(omax.orange, "TwoClickDivide: no intersection found");
@@ -875,120 +875,104 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     ArcEntity arcA = closest_entity_one->arc;
                                     ArcEntity arcB = closest_entity_two->arc;
                                     
-                                    float d = distance(arcA.center, arcB.center);
-                                    //TODO: find fucntion that checks to see if they are close enough for floats
-                                    if (d > arcA.radius + arcB.radius) {                // non intersecting
-                                    } else if (d < abs(arcA.radius-arcB.radius)) {      // One circle within other
-                                    } else if (d == 0 && arcA.radius == arcB.radius) {  // coincident circles
-                                    } else {
-                                        real a = (POW(arcA.radius, 2) - POW(arcB.radius, 2) + POW(d, 2)) / (2 * d);
-                                        real h = SQRT(POW(arcA.radius, 2) - POW(a, 2));
+                                    ArcArcXResult arc_x_arc_result = arc_arc_intersection(&arcA, &arcB);
 
-                                        vec2 v = arcA.center + a * (arcB.center - arcA.center) / d; 
+                                    bool p1Works = arc_x_arc_result.point1_is_on_arc_a || arc_x_arc_result.point1_is_on_arc_b; 
+                                    bool p2Works = arc_x_arc_result.point2_is_on_arc_a || arc_x_arc_result.point2_is_on_arc_b; 
+                                    bool cut_arc_a = false;
+                                    bool cut_arc_b = false;
+                                    real theta_a = 0;
+                                    real theta_b = 0;
 
-                                        vec2 p1 = { v.x + h * (arcB.center.y - arcA.center.y) / d, v.y - h * (arcB.center.x - arcA.center.x) / d };
-                                        vec2 p2 = { v.x - h * (arcB.center.y - arcA.center.y) / d, v.y + h * (arcB.center.x - arcA.center.x) / d };
-
-                                        real theta1a = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p1 - arcA.center)));
-                                        real theta2a = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p2 - arcA.center)));
-                                        real theta1b = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p1 - arcB.center)));
-                                        real theta2b = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p2 - arcB.center)));
-
-                                        bool p1Good = ANGLE_IS_BETWEEN_CCW_DEGREES(theta1a, arcA.start_angle_in_degrees, arcA.end_angle_in_degrees)
-                                                   && ANGLE_IS_BETWEEN_CCW_DEGREES(theta1b, arcB.start_angle_in_degrees, arcB.end_angle_in_degrees);
-                                        bool p2Good = ANGLE_IS_BETWEEN_CCW_DEGREES(theta2a, arcA.start_angle_in_degrees, arcA.end_angle_in_degrees)
-                                                   && ANGLE_IS_BETWEEN_CCW_DEGREES(theta2b, arcB.start_angle_in_degrees, arcB.end_angle_in_degrees);
-
-                                        if (p1Good || p2Good) {
-                                            bool choosing_p1 = p1Good;
-                                            if (p1Good && p2Good) {
-                                                choosing_p1 = distance(p1, *second_click) < distance(p2, *second_click);
-                                            } 
-                                            if (!choosing_p1) { 
-                                                theta1a = theta2a;
-                                                theta1b = theta2b; 
-                                            }
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta1a);
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta1a, arcA.end_angle_in_degrees);
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta1b);
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta1b, arcB.end_angle_in_degrees);
-                                            cookbook.buffer_delete_entity(two_click_command->entity_index);
-                                            cookbook.buffer_delete_entity(closest_result_two.index);
+                                    if (p1Works) {
+                                        real click_to_p1 = distance(arc_x_arc_result.point1, *second_click);
+                                        real click_to_p2 = distance(arc_x_arc_result.point2, *second_click);
+                                        if (p2Works && click_to_p2 < click_to_p1) { 
+                                            theta_a = arc_x_arc_result.theta_2a;
+                                            theta_b = arc_x_arc_result.theta_2b;
+                                            cut_arc_a = arc_x_arc_result.point2_is_on_arc_a;
+                                            cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
+                                        } else {
+                                            theta_a = arc_x_arc_result.theta_1a;
+                                            theta_b = arc_x_arc_result.theta_1b;
+                                            cut_arc_a = arc_x_arc_result.point1_is_on_arc_a;
+                                            cut_arc_b = arc_x_arc_result.point1_is_on_arc_b;
                                         }
+                                    } else if (p2Works) {
+                                        theta_a = arc_x_arc_result.theta_2a;
+                                        theta_b = arc_x_arc_result.theta_2b;
+                                        cut_arc_a = arc_x_arc_result.point2_is_on_arc_a;
+                                        cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
+                                    }
+                                    if (cut_arc_a) {
+                                        cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a);
+                                        cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees);
+                                        cookbook.buffer_delete_entity(two_click_command->entity_index);
+                                    }
+                                    if (cut_arc_b) {
+                                        cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b);
+                                        cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees);
+                                        cookbook.buffer_delete_entity(closest_result_two.index);
                                     }
                                 } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
                                          //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
                                     ArcEntity arc;
                                     LineEntity line;
+                                    uint arc_index;
+                                    uint line_index;
                                     if (closest_entity_one->type == EntityType::Arc) {
                                         arc = closest_entity_one->arc;
                                         line = closest_entity_two->line;
+                                        arc_index = two_click_command->entity_index;
+                                        line_index = closest_result_two.index;
                                     } else {
                                         line = closest_entity_one->line;
                                         arc = closest_entity_two->arc;
+                                        line_index = two_click_command->entity_index;
+                                        arc_index = closest_result_two.index;
                                     }
 
-                                    // using determinant to find num intersects https://www.nagwa.com/en/explainers/987161873194/#:~:text=The%20discriminant%20%CE%94%20%3D%20%F0%9D%90%B5%20%E2%88%92%204,and%20the%20circle%20are%20disjoint.
-                                    vec2 v1 = line.end - line.start;
-                                    vec2 v2 = line.start - arc.center;
+                                    LineArcXResult line_x_arc_result = line_arc_intersection(&line, &arc);
+                                    bool p1Works = line_x_arc_result.point1_is_on_arc || line_x_arc_result.point1_is_on_line_segment;
+                                    bool p2Works = line_x_arc_result.point2_is_on_arc || line_x_arc_result.point2_is_on_line_segment;
 
-                                    float a = dot(v1, v1);
-                                    float b = 2 * dot(v1, v2);
-                                    float c = dot(v2, v2) - POW(arc.radius, 2);
-                                    float d = POW(b, 2) - 4 * a * c;
-
-                                    vec2 intersect = {}; // because compiler was complaining
+                                    vec2 intersect = {};
                                     real theta = 0;
-                                    bool does_intersect;
+                                    bool cutLine = false;
+                                    bool cutArc = false;
 
-                                    if (d < 0) {                // no intersect
-                                        does_intersect = false; // can we exit early???
-                                    } else {                    // two intersects
-                                        float t1 = (-b + SQRT(d)) / (2 * a); 
-                                        float t2 = (-b - SQRT(d)) / (2 * a); 
-
-                                        vec2 p1 = line.start + t1 * v1;
-                                        vec2 p2 = line.start + t2 * v1;
-
-                                        float theta1 = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p1 - arc.center)));
-                                        float theta2 = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p2 - arc.center)));
-                                        bool does_p1_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta1, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
-                                        bool does_p2_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta2, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
-                                        
-                                        bool does_p1_line_intersect = MIN(line.start.x, line.end.x) < p1.x && p1.x < MAX(line.start.x, line.end.x)
-                                                                   && MIN(line.start.y, line.end.y) < p1.y && p1.y < MAX(line.start.y, line.end.y);
-                                        bool does_p2_line_intersect = MIN(line.start.x, line.end.x) < p2.x && p2.x < MAX(line.start.x, line.end.x)
-                                                                   && MIN(line.start.y, line.end.y) < p2.y && p2.y < MAX(line.start.y, line.end.y);
-
-                                        bool p1_works = does_p1_arc_intersect && does_p1_line_intersect;
-                                        bool p2_works = does_p2_arc_intersect && does_p2_line_intersect;
-
-                                        does_intersect = p1_works || p2_works;
-
-                                        if (p1_works && p2_works) {
-                                            if (distance(p1, *second_click) < distance(p2, *second_click)) {
-                                                intersect = p1;
-                                                theta = theta1;
-                                            } else {
-                                                intersect = p2;
-                                                theta = theta2;
-                                            }
-                                        } else if (p1_works) {
-                                            intersect = p1;
-                                            theta = theta1;
-                                        } else if (p2_works) {
-                                            intersect = p2;
-                                            theta = theta2;
+                                    if (p1Works) {
+                                        real click_to_p1 = distance(line_x_arc_result.point1, *second_click);
+                                        real click_to_p2 = distance(line_x_arc_result.point2, *second_click);
+                                        if (p2Works && click_to_p2 < click_to_p1) { 
+                                            intersect = line_x_arc_result.point2;
+                                            theta = line_x_arc_result.theta_2;
+                                            cutLine = line_x_arc_result.point2_is_on_line_segment;
+                                            cutArc = line_x_arc_result.point2_is_on_arc;
+                                        } else {
+                                            intersect = line_x_arc_result.point1;
+                                            theta = line_x_arc_result.theta_1;
+                                            cutLine = line_x_arc_result.point1_is_on_line_segment;
+                                            cutArc = line_x_arc_result.point1_is_on_arc;
                                         }
-
+                                    } else if (p2Works) {
+                                        intersect = line_x_arc_result.point2;
+                                        theta = line_x_arc_result.theta_2;
+                                        cutLine = line_x_arc_result.point2_is_on_line_segment;
+                                        cutArc = line_x_arc_result.point2_is_on_arc;
                                     }
-                                    if (does_intersect) {
-                                        cookbook.buffer_add_line(intersect, line.start);
-                                        cookbook.buffer_add_line(intersect, line.end);
-                                        cookbook.buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, theta);
-                                        cookbook.buffer_add_arc(arc.center, arc.radius, theta, arc.end_angle_in_degrees);
-                                        cookbook.buffer_delete_entity(two_click_command->entity_index);
-                                        cookbook.buffer_delete_entity(closest_result_two.index);
+
+                                    if (p1Works || p2Works) {
+                                        if (cutLine) {
+                                            cookbook.buffer_add_line(intersect, line.start);
+                                            cookbook.buffer_add_line(intersect, line.end);
+                                            cookbook.buffer_delete_entity(line_index);
+                                        }
+                                        if (cutArc) {
+                                            cookbook.buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, theta);
+                                            cookbook.buffer_add_arc(arc.center, arc.radius, theta, arc.end_angle_in_degrees);
+                                            cookbook.buffer_delete_entity(arc_index);
+                                        }
                                     }
                                 }
                             }
