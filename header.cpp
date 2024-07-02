@@ -435,6 +435,9 @@ bool ANGLE_IS_BETWEEN_CCW_DEGREES(real t, real a, real b) {
     return (WRAP_TO_0_TAU_INTERVAL(RAD(t) - RAD(a)) < WRAP_TO_0_TAU_INTERVAL(RAD(t) - RAD(b)));
 }
 
+bool ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(real t, real a, real b) {
+    return ANGLE_IS_BETWEEN_CCW_DEGREES(t, a + 100 * TINY_VAL, b - 100 * TINY_VAL);
+}
 ////////////////////////////////////////
 // List<Entity> /////////////////////////////////
 ////////////////////////////////////////
@@ -450,18 +453,13 @@ void arc_process_angles_into_lerpable_radians_considering_flip_flag(ArcEntity *a
     // (start -ccw-> end)
     //
     // To flip an arc entity, we need to go B -cw-> A
-    *start_angle = RAD(arc->start_angle_in_degrees);
-    *end_angle = RAD(arc->end_angle_in_degrees);
-    if (!flip_flag) {
-        // start -ccw-> end
-        while (*end_angle < *start_angle) *end_angle += TAU;
-    } else {
-        // swap
+    *start_angle = WRAP_TO_0_TAU_INTERVAL(RAD(arc->start_angle_in_degrees));
+    *end_angle = WRAP_TO_0_TAU_INTERVAL(RAD(arc->end_angle_in_degrees));
+    if (*end_angle < *start_angle) *end_angle += TAU;
+    if (flip_flag) { // swap
         real tmp = *start_angle;
         *start_angle = *end_angle;
         *end_angle = tmp;
-        // start -cw-> end
-        while (*end_angle > *start_angle) *start_angle += TAU;
     }
 }
 
@@ -781,6 +779,7 @@ struct DXFFindClosestEntityResult {
     Entity *closest_entity;
     vec2 line_nearest_point;
     real arc_nearest_angle_in_degrees;
+    // TODO: t
 };
 DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 p) {
     DXFFindClosestEntityResult result = {};
@@ -1590,4 +1589,157 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
 
     sprintf(buffer, "%s%s%s", _ctrl_plus, _shift_plus, _key);
     return buffer;
+}
+
+////////////////////////////////////////
+// intersection ////////////////////////
+////////////////////////////////////////
+
+
+struct LineLineXResult {
+    vec2 point;
+    real t_ab;
+    real t_cd;
+    bool point_is_on_segment_ab;
+    bool point_is_on_segment_cd;
+    bool lines_are_parallel;
+};
+
+
+LineLineXResult line_line_intersection(//vec2 a, vec2 b, vec2 c, vec2 d) {
+    vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
+    // https://stackoverflow.com/a/565282
+    vec2 r = p_plus_r - p;
+    vec2 s = q_plus_s - q;
+    real r_cross_s = cross(r, s);
+
+    LineLineXResult result = {};
+    result.lines_are_parallel = IS_ZERO(r_cross_s);
+    if (result.lines_are_parallel) {
+    } else {
+        vec2 q_minus_p = q - p;
+        result.t_ab = cross(q_minus_p, s) / r_cross_s;
+        result.t_cd = cross(q_minus_p, r) / r_cross_s;
+        result.point = p + result.t_ab * r;
+        result.point_is_on_segment_ab = IS_BETWEEN_TIGHT(result.t_ab, 0.0f, 1.0f);
+        result.point_is_on_segment_cd = IS_BETWEEN_TIGHT(result.t_cd, 0.0f, 1.0f);
+    }
+    return result;
+}
+
+LineLineXResult line_line_intersection(LineEntity *a, LineEntity *b) {
+    return line_line_intersection(a->start, a->end, b->start, b->end);
+}
+
+struct ArcArcXResult {
+    vec2 point1;
+    vec2 point2;
+    real theta_1a;
+    real theta_1b;
+    real theta_2a;
+    real theta_2b;
+    bool point1_is_on_arc_a;
+    bool point1_is_on_arc_b;
+    bool point2_is_on_arc_a;
+    bool point2_is_on_arc_b;
+    bool no_possible_intersection;
+};
+
+// burkardt is amazing, he even uses our arc struct
+ArcArcXResult arc_arc_intersection(ArcEntity *arc_a, ArcEntity *arc_b) {
+
+    ArcArcXResult result = {};
+
+    float d = distance(arc_a->center, arc_b->center);
+
+    //TODO: find fucntion that checks to see if they are close enough for floats
+    if (d > arc_a->radius + arc_b->radius) {                // non intersecting
+        result.no_possible_intersection = true;
+    } else if (d < abs(arc_a->radius-arc_b->radius)) {      // One circle within other
+        result.no_possible_intersection = true;
+    } else if (d == 0 && arc_a->radius == arc_b->radius) {  // coincident circles
+        result.no_possible_intersection = true;
+    } else {
+        real a = (POW(arc_a->radius, 2) - POW(arc_b->radius, 2) + POW(d, 2)) / (2 * d);
+        real h = SQRT(POW(arc_a->radius, 2) - POW(a, 2));
+
+        vec2 v = arc_a->center + a * (arc_b->center - arc_a->center) / d; 
+
+        result.point1 = { v.x + h * (arc_b->center.y - arc_a->center.y) / d, v.y - h * (arc_b->center.x - arc_a->center.x) / d };
+        result.point2 = { v.x - h * (arc_b->center.y - arc_a->center.y) / d, v.y + h * (arc_b->center.x - arc_a->center.x) / d };
+
+        result.theta_1a = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(result.point1 - arc_a->center)));
+        result.theta_2a = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(result.point2 - arc_a->center)));
+        result.theta_1b = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(result.point1 - arc_b->center)));
+        result.theta_2b = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(result.point2 - arc_b->center)));
+
+
+        result.point1_is_on_arc_a = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_1a, arc_a->start_angle_in_degrees + TINY_VAL, arc_a->end_angle_in_degrees - TINY_VAL);
+        result.point1_is_on_arc_b = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_1b, arc_b->start_angle_in_degrees, arc_b->end_angle_in_degrees);
+        result.point2_is_on_arc_a = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_2a, arc_a->start_angle_in_degrees, arc_a->end_angle_in_degrees);
+        result.point2_is_on_arc_b = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_2b, arc_b->start_angle_in_degrees, arc_b->end_angle_in_degrees);
+
+        result.no_possible_intersection = false;
+    }
+
+    return result;
+}
+
+struct LineArcXResult {
+    vec2 point1;
+    vec2 point2;
+    real theta_1;
+    real theta_2;
+    real t1;
+    real t2;
+    bool point1_is_on_arc;
+    bool point1_is_on_line_segment;
+    bool point2_is_on_arc;
+    bool point2_is_on_line_segment;
+    bool no_possible_intersection;
+};
+
+LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
+    // using determinant to find num intersects https://www.nagwa.com/en/explainers/987161873194/#:~:text=the%20discriminant%20%ce%94%20%3d%20%f0%9d%90%b5%20%e2%88%92%204,and%20the%20circle%20are%20disjoint.
+    LineArcXResult result = {};
+
+    vec2 v1 = line->end - line->start;
+    vec2 v2 = line->start - arc->center;
+
+    float a = dot(v1, v1);
+    float b = 2 * dot(v1, v2);
+    float c = dot(v2, v2) - POW(arc->radius, 2);
+    float d = POW(b, 2) - 4 * a * c;
+
+    vec2 intersect = {}; // because compiler was complaining
+    bool does_intersect;
+
+    if (d < 0) {                // no intersect
+        does_intersect = false; // can we exit early???
+    } else {                    // two intersects
+        result.t1 = (-b + SQRT(d)) / (2 * a); 
+        result.t2 = (-b - SQRT(d)) / (2 * a); 
+
+        result.point1 = line->start + result.t1 * v1;
+        result.point2 = line->start + result.t2 * v1;
+
+        result.theta_1 = DEG(angle_from_0_TAU(arc->center, result.point1));
+        result.theta_2 = DEG(angle_from_0_TAU(arc->center, result.point2));
+        result.point1_is_on_arc = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_1, arc->start_angle_in_degrees, arc->end_angle_in_degrees);
+        result.point2_is_on_arc = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_2, arc->start_angle_in_degrees, arc->end_angle_in_degrees);
+        
+        result.point1_is_on_line_segment = IS_BETWEEN_TIGHT(result.t1, 0.0f, 1.0f);
+        result.point2_is_on_line_segment = IS_BETWEEN_TIGHT(result.t2, 0.0f, 1.0f);
+
+    }
+
+    return result;
+}
+
+real burkardt_three_point_angle(vec2 p, vec2 center, vec2 q) {
+    real theta_p = angle_from_0_TAU(center, p);
+    real theta_q = angle_from_0_TAU(center, q);
+    real result = theta_q - theta_p;
+    if (result < 0.0f) result += TAU;
+    return result;
 }

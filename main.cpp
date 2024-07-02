@@ -77,6 +77,7 @@ Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
 
+#include "boolean.cpp"
 #include "misc.cpp"
 #include "draw.cpp"
 #include "message.cpp"

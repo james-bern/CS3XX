@@ -3,67 +3,7 @@
         entity < &drawing->entities.array[drawing->entities.length];\
         ++entity)
 
-#define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected)
-
-bool click_mode_SNAP_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::LinearCopy)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool click_mode_15_DEG_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::LinearCopy)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Fillet)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
-    return 0
-        || (state.enter_mode == EnterMode::ExtrudeAdd)
-        || (state.enter_mode == EnterMode::ExtrudeCut)
-        || (state.enter_mode == EnterMode::RevolveAdd)
-        || (state.enter_mode == EnterMode::RevolveCut)
-        || (state.enter_mode == EnterMode::NudgeFeaturePlane)
-        ;
-}
+#define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected) 
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
     real f = 0.1f;
