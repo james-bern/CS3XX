@@ -139,6 +139,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
                     other.stored_entity = NULL;
+                } else if (key_lambda('J')) {
+                    state.click_mode = ClickMode::Offset;
+                    state.click_modifier = ClickModifier::None;
                 } else if (key_lambda('K')) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
@@ -1198,8 +1201,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 LineEntity *line = &entity->line;
                                 cookbook.buffer_add_line(line->start, 
                                                          closest_results.line_nearest_point, 
-                                                         entity->is_selected, entity->color_code);
-                                cookbook.buffer_add_line(closest_results.line_nearest_point, line->end, entity->is_selected, entity->color_code);
+                                                         entity->is_selected, 
+                                                         entity->color_code);
+                                cookbook.buffer_add_line(closest_results.line_nearest_point, 
+                                                         line->end, 
+                                                         entity->is_selected, 
+                                                         entity->color_code);
                                 cookbook.buffer_delete_entity(entity);
                             } else { ASSERT(entity->type == EntityType::Arc);
                                 ArcEntity *arc = &entity->arc;
@@ -1271,6 +1278,48 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         entity->color_code);
                             }
                             entity->is_selected = false;
+                        }
+                    } else if (state.click_mode == ClickMode::Offset) {
+                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse);
+                        if (closest_results.success) {
+                            result.checkpoint_me = true;
+                            state.click_modifier = ClickModifier::None;
+                            Entity *entity = closest_results.closest_entity;
+                            real input_offset = popup->offset_size;
+                            if (entity->type == EntityType::Line) {
+                                LineEntity *line = &entity->line;
+                                vec2 dir = *mouse - closest_results.line_nearest_point; // is there an easier way to find offset??
+                                vec2 offset = (input_offset * (dir/norm(dir)));
+                                cookbook.buffer_add_line(line->start + offset, line->end + offset, entity->is_selected, entity->color_code);
+                            } else { ASSERT(entity->type == EntityType::Arc);
+                                ArcEntity *arc = &entity->arc;
+                                real distance_from_center = distance(arc->center, *mouse);
+                                if (ANGLE_IS_BETWEEN_CCW(RAD(closest_results.arc_nearest_angle_in_degrees), 
+                                                         RAD(arc->start_angle_in_degrees), 
+                                                         RAD(arc->end_angle_in_degrees))) {
+                                    if (distance_from_center > arc->radius) {
+                                        real radius = distance_from_center + arc->radius;
+                                    } else if (distance_from_center > 0) {
+                                        real radius = arc->radius - input_offset;
+                                    }
+                                    cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, 
+                                                            entity->is_selected, 
+                                                            entity->color_code);
+                                } else {
+                                    // vec2 start_point = entity_get_start_point(arc);
+                                    // vec2 end_point = entity_get_end_point(arc);
+                                    vec2 middle_point = entity_get_middle(arc);
+                                    // vec2 perpendicular_to_start = perpendicularTo(start_point - center);
+                                    // vec2 perpendicular_to_end = perpendicularTo(end_point - center);
+                                    real angle = 
+                                    vec2 x_dist = arc->radius;
+                                    real hyp = x_dist/COS(angle);
+                                    vec2 intersect_point = arc_center + V2(hyp)
+                                    
+                                
+                                }
+                                
+                            }
                         }
                     } else {
                         result.record_me = false;
@@ -1699,6 +1748,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
+            } else if (state.click_mode == ClickMode::Offset) {
+                popup_popup(false,
+                        CellType::Real, STRING("offset_size"), &popup->offset_size);
             } else if (state.click_mode == ClickMode::Fillet) {
                 popup_popup(false,
                         CellType::Real, STRING("fillet_radius"), &popup->fillet_radius);

@@ -681,11 +681,13 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Circle)         ? "CIRCLE"          :
                 (state.click_mode == ClickMode::Color)          ? "COLOR"           :
                 (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
+                (state.click_mode == ClickMode::DivideNearest)  ? "DIVIDE-NEAREST"  :
                 (state.click_mode == ClickMode::Fillet)         ? "FILLET"          :
                 (state.click_mode == ClickMode::Line)           ? "LINE"            :
                 (state.click_mode == ClickMode::LinearCopy)     ? "LINEAR COPY"     :
                 (state.click_mode == ClickMode::Measure)        ? "MEASURE"         :
                 (state.click_mode == ClickMode::Move)           ? "MOVE"            :
+                (state.click_mode == ClickMode::Offset)         ? "OFFSET"          :
                 (state.click_mode == ClickMode::Origin)         ? "ORIGIN"          :
                 (state.click_mode == ClickMode::Polygon)        ? "POLYGON"         :
                 (state.click_mode == ClickMode::Select)         ? "SELECT"          :
