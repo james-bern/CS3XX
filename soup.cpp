@@ -404,9 +404,10 @@ void soup_draw(
 ////////////////////////////////////////////////////////////////////////////////
 
 #define ESO_MAX_VERTICES 9999999
-
+#define ESO_MAX_CONTEXTS 3
 
 struct EsoContext {
+	int _context_index;
     bool _called_eso_begin_before_calling_eso_vertex_or_eso_end;
 
     vec4 current_color;
@@ -425,10 +426,33 @@ struct EsoContext {
     real vertex_sizes[ESO_MAX_VERTICES];
 };
 
+EsoContext context_pool[ESO_MAX_CONTEXTS];
+unsigned int indexes_in_use = 0;
+
 EsoContext *current_eso_context = NULL; 
 
+int get_free_index() {
+	for_(i, ESO_MAX_CONTEXTS) {
+        if (!(indexes_in_use & (1 << i))) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 EsoContext* eso_create_context() {
-    EsoContext* context = (EsoContext*)malloc(sizeof(EsoContext));
+
+	// find free index
+	int index = get_free_index();
+
+	ASSERT(index != -1); // what is best way to handle in production?
+
+	indexes_in_use |= (1 << index);
+
+
+    EsoContext* context = &context_pool[index];
+
+	context->_context_index = index;
     // Initialize default values
     context->_called_eso_begin_before_calling_eso_vertex_or_eso_end = false;
 
@@ -475,7 +499,9 @@ void eso_end() {
             current_eso_context->vertex_sizes,
             current_eso_context->overlay,
             current_eso_context->stipple);
-	free(current_eso_context);
+	
+	indexes_in_use &= ~(1 << current_eso_context->_context_index);
+
 	current_eso_context = NULL;
 }
 
