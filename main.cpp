@@ -123,7 +123,9 @@ int main() {
         glfwSwapBuffers(glfw_window);
         glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        eso_size(1.5f);
+        
+		// im not sure exactly what this was but it seems to be without a eso begin which is weird
+		// eso_size(1.5f);
 
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
