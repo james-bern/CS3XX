@@ -471,25 +471,22 @@ void eso_set_context(EsoContext* context) {
 	current_eso_context = context;
 }
 
-void eso_begin(mat4 transform, uint primitive) {
-	if (current_eso_context == NULL) {
-		eso_set_context(eso_create_context());
-	}
-    
-	ASSERT(!current_eso_context->_called_eso_begin_before_calling_eso_vertex_or_eso_end);
+void eso_begin(mat4 transform, uint primitive, EsoContext *context) {
+	ASSERT(context);
 
-	current_eso_context->_called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
+	ASSERT(!context->_called_eso_begin_before_calling_eso_vertex_or_eso_end);
 
-    current_eso_context->transform = transform;
-    current_eso_context->primitive = primitive;
+	context->_called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
 
-    ASSERT(current_eso_context);
+    context->transform = transform;
+    context->primitive = primitive;
+
 }
 
-void eso_end() {
-    ASSERT(current_eso_context);
-    ASSERT(current_eso_context->_called_eso_begin_before_calling_eso_vertex_or_eso_end);
-    current_eso_context->_called_eso_begin_before_calling_eso_vertex_or_eso_end = false;
+void eso_end(EsoContext *context) {
+    ASSERT(context);
+    ASSERT(context->_called_eso_begin_before_calling_eso_vertex_or_eso_end);
+    context->_called_eso_begin_before_calling_eso_vertex_or_eso_end = false;
     soup_draw(
             current_eso_context->transform,
             current_eso_context->primitive,
@@ -500,70 +497,144 @@ void eso_end() {
             current_eso_context->overlay,
             current_eso_context->stipple);
 	
-	indexes_in_use &= ~(1 << current_eso_context->_context_index);
+	indexes_in_use &= ~(1 << context->_context_index);
+}
+
+void eso_overlay(bool overlay, EsoContext *context) {
+    ASSERT(context);
+    context->overlay = overlay;
+}
+
+void eso_stipple(bool stipple, EsoContext *context) {
+    ASSERT(context);
+    context->stipple = stipple;
+}
+
+void eso_size(real size, EsoContext *context) {
+    ASSERT(context);
+    context->current_size = size;
+}
+
+void eso_color(real red, real green, real blue, real alpha, EsoContext *context) {
+    ASSERT(context);
+    context->current_color[0] = red;
+    context->current_color[1] = green;
+    context->current_color[2] = blue;
+    context->current_color[3] = alpha;
+}
+
+void eso_color(real red, real green, real blue, EsoContext *context) {
+    eso_color(red, green, blue, 1.0f, context);
+}
+
+void eso_color(vec3 rgb, EsoContext *context) {
+    eso_color(rgb[0], rgb[1], rgb[2], 1.0f, context);
+}
+
+void eso_color(vec3 rgb, real alpha, EsoContext *context) {
+    eso_color(rgb[0], rgb[1], rgb[2], alpha, context);
+}
+
+void eso_color(vec4 rgba, EsoContext *context) {
+    eso_color(rgba[0], rgba[1], rgba[2], rgba[3], context);
+}
+void eso_vertex(real x, real y, real z, EsoContext *context) {
+    ASSERT(context);
+    ASSERT(context->_called_eso_begin_before_calling_eso_vertex_or_eso_end);
+    ASSERT(context->num_vertices < ESO_MAX_VERTICES);
+    context->vertex_positions[current_eso_context->num_vertices] = { x, y, z };
+    context->vertex_colors[current_eso_context->num_vertices] = current_eso_context->current_color;
+    context->vertex_sizes[context->num_vertices] = context->current_size;
+    ++context->num_vertices;
+}
+
+void eso_vertex(real x, real y, EsoContext *context) {
+    eso_vertex(x, y, 0.0f, context);
+}
+
+
+void eso_vertex(vec2 xy, EsoContext *context) {
+    eso_vertex(xy[0], xy[1], context);
+}
+
+void eso_vertex(vec3 xyz, EsoContext *context) {
+    eso_vertex(xyz[0], xyz[1], xyz[2], context);
+}
+
+
+void eso_begin(mat4 transform, uint primitive) {
+    if (current_eso_context == NULL) {
+        eso_set_context(eso_create_context());
+    }
+    ASSERT(current_eso_context);
+    eso_begin(transform, primitive, current_eso_context);
+}
+
+void eso_end() {
+    ASSERT(current_eso_context);
+	eso_end(current_eso_context);
 
 	current_eso_context = NULL;
 }
 
 void eso_overlay(bool overlay) {
     ASSERT(current_eso_context);
-    current_eso_context->overlay = overlay;
+    eso_overlay(overlay, current_eso_context); 
 }
 
 void eso_stipple(bool stipple) {
     ASSERT(current_eso_context);
-    current_eso_context->stipple = stipple;
+    eso_stipple(stipple, current_eso_context);
 }
 
 void eso_size(real size) {
     ASSERT(current_eso_context);
-    current_eso_context->current_size = size;
+    eso_size(size, current_eso_context);
 }
 
 void eso_color(real red, real green, real blue, real alpha) {
     ASSERT(current_eso_context);
-    current_eso_context->current_color[0] = red;
-    current_eso_context->current_color[1] = green;
-    current_eso_context->current_color[2] = blue;
-    current_eso_context->current_color[3] = alpha;
+	eso_color(red, green, blue, alpha, current_eso_context);
 }
 
 void eso_color(real red, real green, real blue) {
-    eso_color(red, green, blue, 1.0f);
+    ASSERT(current_eso_context);
+	eso_color(red, green, blue, 1.0f, current_eso_context);
 }
 
 void eso_color(vec3 rgb) {
-    eso_color(rgb[0], rgb[1], rgb[2], 1.0f);
+    ASSERT(current_eso_context);
+    eso_color(rgb[0], rgb[1], rgb[2], 1.0f, current_eso_context);
 }
 
 void eso_color(vec3 rgb, real alpha) {
-    eso_color(rgb[0], rgb[1], rgb[2], alpha);
+    ASSERT(current_eso_context);
+    eso_color(rgb[0], rgb[1], rgb[2], alpha, current_eso_context);
 }
 
 void eso_color(vec4 rgba) {
-    eso_color(rgba[0], rgba[1], rgba[2], rgba[3]);
+    ASSERT(current_eso_context);
+    eso_color(rgba[0], rgba[1], rgba[2], rgba[3], current_eso_context);
 }
 void eso_vertex(real x, real y, real z) {
     ASSERT(current_eso_context);
-    ASSERT(current_eso_context->_called_eso_begin_before_calling_eso_vertex_or_eso_end);
-    ASSERT(current_eso_context->num_vertices < ESO_MAX_VERTICES);
-    current_eso_context->vertex_positions[current_eso_context->num_vertices] = { x, y, z };
-    current_eso_context->vertex_colors[current_eso_context->num_vertices] = current_eso_context->current_color;
-    current_eso_context->vertex_sizes[current_eso_context->num_vertices] = current_eso_context->current_size;
-    ++current_eso_context->num_vertices;
+	eso_vertex(x, y, z, current_eso_context);
 }
 
 void eso_vertex(real x, real y) {
-    eso_vertex(x, y, 0.0f);
+    ASSERT(current_eso_context);
+    eso_vertex(x, y, 0.0f, current_eso_context);
 }
 
 
 void eso_vertex(vec2 xy) {
-    eso_vertex(xy[0], xy[1]);
+    ASSERT(current_eso_context);
+    eso_vertex(xy[0], xy[1], current_eso_context);
 }
 
 void eso_vertex(vec3 xyz) {
-    eso_vertex(xyz[0], xyz[1], xyz[2]);
+    ASSERT(current_eso_context);
+    eso_vertex(xyz[0], xyz[1], xyz[2], current_eso_context);
 }
 
 
