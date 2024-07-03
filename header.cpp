@@ -1711,11 +1711,9 @@ LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
     float c = dot(v2, v2) - POW(arc->radius, 2);
     float d = POW(b, 2) - 4 * a * c;
 
-    vec2 intersect = {}; // because compiler was complaining
-    bool does_intersect;
 
     if (d < 0) {                // no intersect
-        does_intersect = false; // can we exit early???
+        result.no_possible_intersection = false; // can we exit early???
     } else {                    // two intersects
         result.t1 = (-b + SQRT(d)) / (2 * a); 
         result.t2 = (-b - SQRT(d)) / (2 * a); 
