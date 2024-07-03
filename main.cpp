@@ -140,6 +140,7 @@ int main() {
                 other.time_since_cursor_start += dt;
                 other.time_since_successful_feature += dt;
                 other.time_since_plane_selected += dt;
+                other.time_since_plane_deselected += dt;
                 // time_since_successful_feature = 1.0f;
 
                 bool going_inside = 0

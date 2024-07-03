@@ -319,6 +319,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (key_lambda(';')) {
                     result.checkpoint_me = true;
+                    if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
                 } else if (key_lambda('\'')) {
                     result.record_me = false;

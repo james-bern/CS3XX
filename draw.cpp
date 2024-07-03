@@ -57,11 +57,13 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             {
                 vec3 n_Camera = inv_transpose_V_3D * n;
                 vec3 color_n = V3(V2(0.5f) + 0.5f * _V2(n_Camera), 1.0f);
-                if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
+                if ((true || feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
 
                     // TODO:
-                    color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), omax.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, omax.yellow, V3(0.85f, 0.87f, 0.30f));
+                    if (feature_plane->is_active) {
+                        color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), omax.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, omax.yellow, V3(0.85f, 0.87f, 0.30f));
+                    } else color = color_n;
 
                     // if (2.0f * time_since_plane_selected < 0.3f) color = omax.white; // FORNOW
 
@@ -625,14 +627,18 @@ void conversation_draw() {
                         target_bbox.max[1] += eps;
                     }
                 }
+                if (!feature_plane->is_active) {
+                    target_bbox.min -= V2(10.0f);
+                    target_bbox.max += V2(10.0f);
+                }
                 JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
                 JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
-                if (other.time_since_plane_selected == 0.0f) { // FORNOW
-                    preview->feature_plane = target_bbox;
-                }
+                // if (other.time_since_plane_selected == 0.0f) { // FORNOW
+                //     preview->feature_plane = target_bbox;
+                // }
             }
 
-            if (feature_plane->is_active) {
+            {
                 mat4 PVM = PV_3D * M_3D_from_2D;
                 vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
@@ -649,7 +655,8 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
 
                 {
-                    real f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), 0.0f, 1.0f);
+                    real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
+                    if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
                     // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
                     // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
                     eso_begin(PVM * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);

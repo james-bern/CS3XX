@@ -353,6 +353,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     real time_since_cursor_start;
     real time_since_successful_feature;
     real time_since_plane_selected;
+    real time_since_plane_deselected;
     real time_since_going_inside;
 
     PreviewState preview;
