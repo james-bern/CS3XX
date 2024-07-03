@@ -61,7 +61,9 @@ enum class Pane {
     Drawing,
     Mesh,
     Popup,
-    Separator,
+    DrawingMeshSeparator,
+    StampDrawingSeparator,
+    Stamps,
 };
 
 enum class CellType {
@@ -99,7 +101,7 @@ enum class ColorCode {
     Quality5,
     Etch,
     Unknown,
-    WaterOnly,
+    _WaterOnly,
     LeadIO,
     QualitySlit1 = 21,
     QualitySlit2,
@@ -107,6 +109,7 @@ enum class ColorCode {
     QualitySlit4,
     QualitySlit5,
     Selection = 255,
+    Emphasis = 254,
 };
 
 /////////////////
@@ -336,7 +339,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
 
     Pane hot_pane;
-    real x_divider_OpenGL;
+    real x_divider_stamp_drawing_OpenGL = -1.0f / 3.0f; // TODO: CLEAN UP
+    real x_divider_drawing_mesh_OpenGL  =  1.0f / 3.0f; // TODO: CLEAN UP
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
@@ -637,6 +641,8 @@ vec3 get_color(ColorCode color_code) {
         return omax_pallete[i - 20];
     } else if (color_code == ColorCode::Selection) {
         return omax.yellow;
+    } else if (color_code == ColorCode::Emphasis) {
+        return omax.cyan;
     } else {
         ASSERT(false);
         return {};

@@ -98,7 +98,11 @@ Event bake_event(RawEvent raw_event) {
                     mouse_event_popup->cell_index = popup->active_cell_index; // hmm...
                     mouse_event_popup->cursor = popup->info_active_cell_cursor;
                 }
-            } else { ASSERT(raw_mouse_event->pane == Pane::Separator);
+            } else if (raw_mouse_event->pane == Pane::Stamps) {
+                event = {};
+            } else if (raw_mouse_event->pane == Pane::StampDrawingSeparator) {
+                event = {};
+            } else { ASSERT(raw_mouse_event->pane == Pane::DrawingMeshSeparator);
                 event = {};
             }
         }

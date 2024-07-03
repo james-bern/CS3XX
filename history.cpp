@@ -253,7 +253,7 @@ void history_debug_draw() {
         }
     }
 
-    pen.origin_Pixel.x += get_x_divider_Pixel() + 12.0f;
+    pen.origin_Pixel.x += get_x_divider_drawing_mesh_Pixel() + 12.0f;
     pen.offset_Pixel = {};
 
     { // snapshotted_world_states

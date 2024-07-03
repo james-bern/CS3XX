@@ -60,7 +60,7 @@ void _messages_draw() {
         vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, omax.yellow, message->base_color);
         color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
 
-        real x = get_x_divider_Pixel() + font_height_Pixel;
+        real x = get_x_divider_drawing_mesh_Pixel() + font_height_Pixel;
         real y_target = ++num_drawn * font_height_Pixel;
         // if (message->time_remaining < FADE_OUT_TIME) y_target += CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 12.0f);
 
