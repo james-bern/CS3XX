@@ -519,12 +519,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 result.record_me = false;
                 DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
                 if (dxf_find_closest_entity_result.success) {
-                    uint hot_entity_index = dxf_find_closest_entity_result.index;
+                    Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
                     if (state.click_modifier != ClickModifier::Connected) {
                         if (click_mode_SELECT_OR_DESELECT()) {
-                            cookbook.entity_set_is_selected(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+                            cookbook.entity_set_is_selected(hot_entity, value_to_write_to_selection_mask);
                         } else {
-                            cookbook.entity_set_color(&drawing->entities.array[hot_entity_index], state.click_color_code);
+                            cookbook.entity_set_color(hot_entity, state.click_color_code);
                         }
                     } else {
                         #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -623,6 +623,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         };
 
 
+                        uint hot_entity_index = hot_entity - drawing->entities.array;
 
                         // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
                         edge_marked[hot_entity_index] = true;
@@ -863,7 +864,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
                             if (closest_result_two.success && (closest_entity_one != closest_result_two.closest_entity)) {
                                 two_click_command->awaiting_second_click = false; // ??? (why did code work without this)
-                                Entity *closest_entity_two = &drawing->entities.array[closest_result_two.index];
+                                Entity *closest_entity_two = closest_result_two.closest_entity;
                                 ASSERT(closest_entity_one != closest_entity_two);
                                 if (closest_entity_one->type == EntityType::Line && closest_entity_two->type == EntityType::Line) {
                                     LineEntity segment_one = closest_entity_one->line;

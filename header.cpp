@@ -780,7 +780,7 @@ real squared_distance_point_dxf(vec2 p, List<Entity> *entities) {
 
 struct DXFFindClosestEntityResult {
     bool success;
-    uint index;
+    // uint index;
     Entity *closest_entity;
     vec2 line_nearest_point;
     real arc_nearest_angle_in_degrees;
@@ -789,13 +789,11 @@ struct DXFFindClosestEntityResult {
 DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 p) {
     DXFFindClosestEntityResult result = {};
     double hot_squared_distance = HUGE_VAL;
-    for_(i, entities->length) {
-        Entity *entity = &entities->array[i];
+    for (Entity *entity = entities->array; entity < entities->array + entities->length; ++entity) {
         double squared_distance = squared_distance_point_entity(p, entity);
         if (squared_distance < hot_squared_distance) {
             hot_squared_distance = squared_distance;
             result.success = true;
-            result.index = i;
             result.closest_entity = entity;
             if (result.closest_entity->type == EntityType::Line) {
                 LineEntity *line = &result.closest_entity->line;
