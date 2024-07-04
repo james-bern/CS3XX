@@ -37,7 +37,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             real theta = roundf(ATAN2(r) * factor) / factor;
             result = a + norm_r * e_theta(theta);
         } else if (
-                (state.click_mode == ClickMode::BoundingBox)
+                (state.click_mode == ClickMode::Box)
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             // TODO (Felipe): snap square

@@ -338,7 +338,7 @@ void conversation_draw() {
                 if (
                         0
                         || (state.click_modifier == ClickModifier::Window)
-                        ||(state.click_mode == ClickMode::BoundingBox )
+                        || (state.click_mode == ClickMode::Box)
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
@@ -700,7 +700,7 @@ void conversation_draw() {
         String string_click_mode = STRING(
                 (state.click_mode == ClickMode::None)           ? ""                :
                 (state.click_mode == ClickMode::Axis)           ? "AXIS"            :
-                (state.click_mode == ClickMode::BoundingBox)    ? "BOX"             :
+                (state.click_mode == ClickMode::Box)            ? "BOX"             :
                 (state.click_mode == ClickMode::Circle)         ? "CIRCLE"          :
                 (state.click_mode == ClickMode::Color)          ? "COLOR"           :
                 (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
@@ -764,7 +764,7 @@ void conversation_draw() {
         ' - zoom in/zoom out 3D camera
         ? - Help Menu
         A - Axis
-        B - Bounding Box
+        B - Box
         C - Circle, Center, Connected
             Shift - TwoEdgeCircle
         D - Deselect

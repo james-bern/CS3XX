@@ -1,7 +1,7 @@
 bool click_mode_SNAP_ELIGIBLE() {
     return 0
         || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
+        || (state.click_mode == ClickMode::Box)
         || (state.click_mode == ClickMode::Circle)
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::LinearCopy)
@@ -19,7 +19,7 @@ bool click_mode_SNAP_ELIGIBLE() {
 bool click_mode_15_DEG_ELIGIBLE() {
     return 0
         || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
+        || (state.click_mode == ClickMode::Box)
         || (state.click_mode == ClickMode::Circle)
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::LinearCopy)
@@ -39,7 +39,7 @@ bool click_mode_15_DEG_ELIGIBLE() {
 bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
         || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
+        || (state.click_mode == ClickMode::Box)
         || (state.click_mode == ClickMode::Circle)
         || (state.click_mode == ClickMode::Fillet)
         || (state.click_mode == ClickMode::Line)

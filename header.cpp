@@ -15,7 +15,7 @@ enum class EnterMode {
 enum class ClickMode {
     None,
     Axis,
-    BoundingBox,
+    Box,
     Circle,
     Color,
     Deselect,
