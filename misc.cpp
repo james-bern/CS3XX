@@ -140,7 +140,7 @@ void init_camera_drawing() {
     *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_drawing_mesh_OpenGL), 0.0f });
     if (drawing->entities.length) {
         bbox2 bbox = entities_get_bbox(&drawing->entities);
-        real f = (get_x_divider_stamp_drawing_Pixel() / window_get_width_Pixel());
+        real f = (get_x_divider_drawing_mesh_Pixel() / window_get_width_Pixel());
         vec2 L = (bbox.max - bbox.min);
         camera_drawing->ortho_screen_height_World = MAX((L.x / f) / window_get_aspect(), L.y);
         camera_drawing->ortho_screen_height_World += 64.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());

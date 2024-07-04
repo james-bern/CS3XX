@@ -17,6 +17,7 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
     bool key_is_slash = (key == '/') || (key == '\\');
     bool key_is_colon = (key == ':');
     bool key_is_space = (key == ' ');
+    bool key_is_underscore = (key == '_');
 
     bool is_consumable_by_popup; {
         is_consumable_by_popup = false;
@@ -37,6 +38,7 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
             is_consumable_by_popup |= key_is_period;
             is_consumable_by_popup |= key_is_slash;
             is_consumable_by_popup |= key_is_space;
+            is_consumable_by_popup |= key_is_underscore;
         } else {
             ASSERT(false);
         }

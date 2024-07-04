@@ -212,7 +212,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    do_once { messagef(omax.red, "TODO: implement magical LAYOUT thing that bumps your cursor over to the right"); };
                 } else if (key_lambda('R', false, true)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
@@ -701,6 +700,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->first_click = mouse_event_drawing->mouse_position;
                             two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
                             if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
+                            { // bump bumps cursor bump cursor bumps
+                            if (state.click_mode == ClickMode::Rotate) {
+                                double xpos, ypos;
+                                glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                                real x_new = xpos + 64;
+                                real y_new = ypos;
+                                glfwSetCursorPos(glfw_window, x_new, y_new);
+                                callback_cursor_position(glfw_window, x_new, y_new);
+                            }
+                            if (state.click_mode == ClickMode::Axis) {
+                                double xpos, ypos;
+                                glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                                real theta = (PI / 2) + drawing->axis_angle_from_y;
+                                real r = 64;
+                                real x_new = xpos + r * COS(theta);
+                                real y_new = ypos - r * SIN(theta);
+                                glfwSetCursorPos(glfw_window, x_new, y_new);
+                                callback_cursor_position(glfw_window, x_new, y_new);
+                            }
+                            }
                         }
                     } else {
                         vec2 *first_click = &two_click_command->first_click;
@@ -735,20 +754,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         } else if (state.click_mode == ClickMode::Fillet) {
                             result.checkpoint_me = true;
+
                             state.click_modifier = ClickModifier::None;
                             two_click_command->awaiting_second_click = false;
-                            Entity *E_i = two_click_command->entity_closest_to_first_click;
-                            DXFFindClosestEntityResult result_j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
-                            if (result_j.success) {
-                                Entity *E_j = result_j.closest_entity;
-                                if (E_i == E_j) {
+
+                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, *second_click);
+                            if (_F.success) {
+                                Entity *E = two_click_command->entity_closest_to_first_click;
+                                Entity *F = _F.closest_entity;
+                                if (E == F) {
                                     messagef(omax.orange, "Fillet: clicked same entity twice");
                                 } else {
                                     real radius = popup->fillet_radius;
-                                    if ((E_i->type == EntityType::Line) && (E_j->type == EntityType::Line)) {
-                                        vec2 a, b, c, d;
-                                        entity_get_start_and_end_points(E_i, &a, &b);
-                                        entity_get_start_and_end_points(E_j, &c, &d);
+                                    if ((E->type == EntityType::Line) && (F->type == EntityType::Line)) {
+                                        vec2 a, b, c, d; {
+                                            entity_get_start_and_end_points(E, &a, &b);
+                                            entity_get_start_and_end_points(F, &c, &d);
+                                        }
 
                                         LineLineXResult _p = line_line_intersection(a, b, c, d);
                                         if (!_p.lines_are_parallel) {
@@ -794,16 +816,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             if (!_center.lines_are_parallel) {
                                                 vec2 center = _center.point;
 
-                                                ColorCode color_i = E_i->color_code;
-                                                ColorCode color_j = E_j->color_code;
-                                                cookbook.buffer_delete_entity(E_i);
-                                                cookbook.buffer_delete_entity(E_j);
+                                                cookbook.buffer_delete_entity(E);
+                                                cookbook.buffer_delete_entity(F);
+                                                cookbook.buffer_add_line(s_ab, t_ab, false, E->color_code);
+                                                cookbook.buffer_add_line(s_cd, t_cd, false, F->color_code);
 
-                                                cookbook.buffer_add_line(s_ab, t_ab, false, color_i);
-                                                cookbook.buffer_add_line(s_cd, t_cd, false, color_j);
-
-                                                real theta_ab_in_degrees = DEG(ATAN2(t_ab - center));
-                                                real theta_cd_in_degrees = DEG(ATAN2(t_cd - center));
+                                                real theta_ab_in_degrees = DEG(angle_from_0_TAU(center, t_ab));
+                                                real theta_cd_in_degrees = DEG(angle_from_0_TAU(center, t_cd));
 
                                                 if (!IS_ZERO(radius)) {
                                                     if (get_three_point_angle(t_ab, center, t_cd) > PI) {
