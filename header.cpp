@@ -731,17 +731,7 @@ real squared_distance_point_circle(vec2 p, vec2 center, real radius) {
 }
 
 real squared_distance_point_arc_NOTE_pass_angles_in_radians(vec2 p, vec2 center, real radius, real start_angle_in_radians, real end_angle_in_radians) {
-    bool point_in_sector = false; {
-        vec2 v = p - center;
-        // forgive me rygorous :(
-        real angle = ATAN2(v);
-        while (start_angle_in_radians < -PI) start_angle_in_radians += TAU;
-        while (end_angle_in_radians < start_angle_in_radians) end_angle_in_radians += TAU;
-        point_in_sector =
-            IS_BETWEEN_LOOSE(angle, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN_LOOSE(angle + TAU, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN_LOOSE(angle - TAU, start_angle_in_radians, end_angle_in_radians);
-    }
+    bool point_in_sector = ANGLE_IS_BETWEEN_CCW(angle_from_0_TAU(center, p), start_angle_in_radians, end_angle_in_radians);
     if (point_in_sector) {
         return squared_distance_point_circle(p, center, radius);
     } else {
