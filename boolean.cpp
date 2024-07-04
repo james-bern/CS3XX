@@ -52,6 +52,7 @@ bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (state.click_mode == ClickMode::Polygon)
         || (state.click_mode == ClickMode::Rotate)
         || (state.click_mode == ClickMode::RotateCopy)
+        || (state.click_mode == ClickMode::TwoClickDivide)
         || (state.click_mode == ClickMode::TwoEdgeCircle)
         ;
 }

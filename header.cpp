@@ -234,9 +234,7 @@ struct FeaturePlaneState {
 struct TwoClickCommandState {
     bool awaiting_second_click;
     vec2 first_click;
-    
-    Entity* stored_entity;
-    uint entity_index;
+    Entity *entity_closest_to_first_click;
 };
 
 #define POPUP_MAX_NUM_CELLS 5
@@ -339,8 +337,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
 
     Pane hot_pane;
-    real x_divider_stamp_drawing_OpenGL = -1.0f / 3.0f; // TODO: CLEAN UP
-    real x_divider_drawing_mesh_OpenGL  =  1.0f / 3.0f; // TODO: CLEAN UP
+    real x_divider_stamp_drawing_OpenGL = -0.98f; // TODO: CLEAN UP
+    real x_divider_drawing_mesh_OpenGL  =  0.0f; // TODO: CLEAN UP
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
@@ -798,7 +796,7 @@ DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 
             hot_squared_distance = squared_distance;
             result.success = true;
             result.index = i;
-            result.closest_entity = &entities->array[i];
+            result.closest_entity = entity;
             if (result.closest_entity->type == EntityType::Line) {
                 LineEntity *line = &result.closest_entity->line;
                 real l2 = squaredDistance(line->start, line->end);
@@ -1741,7 +1739,7 @@ LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
     return result;
 }
 
-real burkardt_three_point_angle(vec2 p, vec2 center, vec2 q) {
+real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
     real theta_p = angle_from_0_TAU(center, p);
     real theta_q = angle_from_0_TAU(center, q);
     real result = theta_q - theta_p;

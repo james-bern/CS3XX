@@ -138,7 +138,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-                    two_click_command->stored_entity = NULL;
                 } else if (key_lambda('K')) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
@@ -494,7 +493,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (mouse_event->mouse_held) result.record_me = false;
 
             vec2 *mouse = &mouse_event_drawing->mouse_position;
-            vec2 *second_click = &mouse_event_drawing->mouse_position;
 
             bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
 
@@ -682,14 +680,33 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (!mouse_event->mouse_held) {
                 if (click_mode_TWO_CLICK_COMMAND) {
-                    vec2 *first_click = &two_click_command->first_click;
-                    vec2 click_vector = (*second_click - *first_click);
 
                     if (!two_click_command->awaiting_second_click) {
-                        two_click_command->awaiting_second_click = true;
-                        *first_click = mouse_event_drawing->mouse_position;
-                        if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
+                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
+                        bool first_click_accepted; {
+                            bool first_click_must_acquire_entity = (
+                                    0 ||
+                                    (state.click_mode == ClickMode::Fillet) ||
+                                    (state.click_mode == ClickMode::TwoClickDivide)
+                                    );
+                            if (!first_click_must_acquire_entity) {
+                                first_click_accepted = true;
+                            } else {
+                                first_click_accepted = find_nearest_result.success;
+                            }
+                        }
+                        if (first_click_accepted) {
+                            two_click_command->awaiting_second_click = true;
+                            two_click_command->first_click = mouse_event_drawing->mouse_position;
+                            two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
+                            if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
+                        }
                     } else {
+                        vec2 *first_click = &two_click_command->first_click;
+                        vec2 *second_click = mouse;
+                        vec2 click_vector = (*second_click - *first_click);
+                        real click_theta = angle_from_0_TAU(*first_click, *second_click);
+
                         if (0) {
                         } else if (state.click_mode == ClickMode::Axis) {
                             two_click_command->awaiting_second_click = false;
@@ -697,7 +714,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
                             drawing->axis_base_point = *first_click;
-                            drawing->axis_angle_from_y = (-PI / 2) + ATAN2(*second_click - *first_click);
+                            drawing->axis_angle_from_y = (-PI / 2) + click_theta;
                         } else if (state.click_mode == ClickMode::BoundingBox) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
                                 messagef(omax.orange, "Box: must have non-zero width ");
@@ -716,16 +733,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(*second_click, other_corner_B);
                             }
                         } else if (state.click_mode == ClickMode::Fillet) {
-                            two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_modifier = ClickModifier::None;
                             DXFFindClosestEntityResult result_j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
-                            if ((two_click_command->stored_entity != NULL) && (result_j.success) && (two_click_command->entity_index != result_j.index)) {
-                                uint i = two_click_command->entity_index;
-                                uint j = result_j.index;
+                            if ((two_click_command->awaiting_second_click) && (result_j.success) && (two_click_command->entity_closest_to_first_click != result_j.closest_entity)) {
+                                two_click_command->awaiting_second_click = false;
                                 real radius = popup->fillet_radius;
-                                Entity *E_i = two_click_command->stored_entity;
-                                Entity *E_j = &drawing->entities.array[j];
+                                Entity *E_i = two_click_command->entity_closest_to_first_click;
+                                Entity *E_j = result_j.closest_entity;
+                                ASSERT(E_i);
+                                ASSERT(E_j);
+                                ASSERT(E_i != E_j);
                                 if ((E_i->type == EntityType::Line) && (E_j->type == EntityType::Line)) {
                                     vec2 a, b, c, d;
                                     entity_get_start_and_end_points(E_i, &a, &b);
@@ -760,12 +778,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             keep_c = (vector_p_m_in_edge_basis.y < 0.0f);
                                         }
 
-                                        // TODO: in general, just use burkardt's angle stuff
-
                                         vec2 s_ab = (keep_a) ? a : b;
                                         vec2 s_cd = (keep_c) ? c : d;
                                         real half_angle; {
-                                            real angle = burkardt_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
+                                            real angle = get_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
                                             if (angle > PI) angle = TAU - angle;
                                             half_angle = angle / 2;
                                         }
@@ -779,8 +795,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                             ColorCode color_i = E_i->color_code;
                                             ColorCode color_j = E_j->color_code;
-                                            cookbook.buffer_delete_entity(i);
-                                            cookbook.buffer_delete_entity(j);
+                                            cookbook.buffer_delete_entity(E_i);
+                                            cookbook.buffer_delete_entity(E_j);
 
                                             cookbook.buffer_add_line(s_ab, t_ab, false, color_i);
                                             cookbook.buffer_add_line(s_cd, t_cd, false, color_j);
@@ -789,7 +805,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             real theta_cd_in_degrees = DEG(ATAN2(t_cd - center));
 
                                             if (!IS_ZERO(radius)) {
-                                                if (burkardt_three_point_angle(t_ab, center, t_cd) < PI) {
+                                                if (get_three_point_angle(t_ab, center, t_cd) > PI) {
                                                     // FORNOW TODO consider swap
                                                     real tmp = theta_ab_in_degrees;
                                                     theta_ab_in_degrees = theta_cd_in_degrees;
@@ -814,7 +830,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
-                                real theta_a_in_degrees = DEG(ATAN2(*second_click - *first_click));
+                                real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real r = norm(*second_click - *first_click);
                                 cookbook.buffer_add_arc(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
@@ -842,11 +858,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
 
-                            // i want to store the first click closest somewhere because otherwise it has to search
-                            Entity *closest_entity_one = two_click_command->stored_entity; 
+                            Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
+                            ASSERT(closest_entity_one);
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
-                            if (closest_entity_one != NULL && closest_result_two.success) {
+                            if (closest_result_two.success && (closest_entity_one != closest_result_two.closest_entity)) {
+                                two_click_command->awaiting_second_click = false; // ??? (why did code work without this)
                                 Entity *closest_entity_two = &drawing->entities.array[closest_result_two.index];
+                                ASSERT(closest_entity_one != closest_entity_two);
                                 if (closest_entity_one->type == EntityType::Line && closest_entity_two->type == EntityType::Line) {
                                     LineEntity segment_one = closest_entity_one->line;
                                     LineEntity segment_two = closest_entity_two->line;
@@ -862,7 +880,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         if (X_result.point_is_on_segment_ab) {
                                             cookbook.buffer_add_line(X_result.point, a);
                                             cookbook.buffer_add_line(X_result.point, b);
-                                            cookbook.buffer_delete_entity(two_click_command->entity_index);
+                                            cookbook.buffer_delete_entity(closest_entity_one);
                                         }
                                         if (X_result.point_is_on_segment_cd) {
                                             cookbook.buffer_add_line(X_result.point, c);
@@ -908,7 +926,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     if (cut_arc_a) {
                                         cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a);
                                         cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees);
-                                        cookbook.buffer_delete_entity(two_click_command->entity_index);
+                                        cookbook.buffer_delete_entity(closest_entity_one);
                                     }
                                     if (cut_arc_b) {
                                         cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b);
@@ -917,23 +935,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
                                          //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
-                                    ArcEntity arc;
-                                    LineEntity line;
-                                    uint arc_index;
-                                    uint line_index;
+                                    Entity *entity_arc;
+                                    Entity *entity_line;
                                     if (closest_entity_one->type == EntityType::Arc) {
-                                        arc = closest_entity_one->arc;
-                                        line = closest_entity_two->line;
-                                        arc_index = two_click_command->entity_index;
-                                        line_index = closest_result_two.index;
+                                        entity_arc = closest_entity_one;
+                                        entity_line = closest_entity_two;
                                     } else {
-                                        line = closest_entity_one->line;
-                                        arc = closest_entity_two->arc;
-                                        line_index = two_click_command->entity_index;
-                                        arc_index = closest_result_two.index;
+                                        entity_arc = closest_entity_two;
+                                        entity_line = closest_entity_one;
                                     }
+                                    ArcEntity *arc = &entity_arc->arc;
+                                    LineEntity *line = &entity_line->line;
 
-                                    LineArcXResult line_x_arc_result = line_arc_intersection(&line, &arc);
+                                    LineArcXResult line_x_arc_result = line_arc_intersection(line, arc);
                                     bool p1Works = line_x_arc_result.point1_is_on_arc || line_x_arc_result.point1_is_on_line_segment;
                                     bool p2Works = line_x_arc_result.point2_is_on_arc || line_x_arc_result.point2_is_on_line_segment;
 
@@ -965,14 +979,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                     if (p1Works || p2Works) {
                                         if (cutLine) {
-                                            cookbook.buffer_add_line(intersect, line.start);
-                                            cookbook.buffer_add_line(intersect, line.end);
-                                            cookbook.buffer_delete_entity(line_index);
+                                            cookbook.buffer_add_line(intersect, line->start);
+                                            cookbook.buffer_add_line(intersect, line->end);
+                                            cookbook.buffer_delete_entity(entity_line);
                                         }
                                         if (cutArc) {
-                                            cookbook.buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, theta);
-                                            cookbook.buffer_add_arc(arc.center, arc.radius, theta, arc.end_angle_in_degrees);
-                                            cookbook.buffer_delete_entity(arc_index);
+                                            cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta);
+                                            cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees);
+                                            cookbook.buffer_delete_entity(entity_arc);
                                         }
                                     }
                                 }
@@ -987,8 +1001,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            real angle = DEG(ATAN2(*second_click - *first_click));
-                            if (angle < 0.0f) angle += 360.0f;
+                            real angle = DEG(click_theta);
                             real length = norm(*second_click - *first_click);
                             messagef(omax.cyan, "Angle is %gdeg.", angle);
                             messagef(omax.cyan, "Length is %gmm.", length);
@@ -1030,17 +1043,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            real theta = ATAN2(click_vector);
                             _for_each_selected_entity_ {
                                 if (entity->type == EntityType::Line) {
                                     LineEntity *line = &entity->line;
-                                    line->start = rotated_about(line->start, *first_click, theta);
-                                    line->end = rotated_about(line->end, *first_click, theta);
+                                    line->start = rotated_about(line->start, *first_click, click_theta);
+                                    line->end = rotated_about(line->end, *first_click, click_theta);
                                 } else { ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc = &entity->arc;
-                                    arc->center = rotated_about(arc->center, *first_click, theta);
-                                    arc->start_angle_in_degrees = DEG(theta) + arc->start_angle_in_degrees;
-                                    arc->end_angle_in_degrees = DEG(theta) + arc->end_angle_in_degrees;
+                                    arc->center = rotated_about(arc->center, *first_click, click_theta);
+                                    arc->start_angle_in_degrees = DEG(click_theta) + arc->start_angle_in_degrees;
+                                    arc->end_angle_in_degrees = DEG(click_theta) + arc->end_angle_in_degrees;
                                 }
                             }
                         } else if (state.click_mode == ClickMode::RotateCopy) {
