@@ -885,7 +885,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         if (X_result.point_is_on_segment_cd) {
                                             cookbook.buffer_add_line(X_result.point, c);
                                             cookbook.buffer_add_line(X_result.point, d);
-                                            cookbook.buffer_delete_entity(closest_result_two.index);
+                                            cookbook.buffer_delete_entity(closest_entity_two);
                                         } 
                                     }
                                 } else if (closest_entity_one->type == EntityType::Arc && closest_entity_two->type == EntityType::Arc){
@@ -931,7 +931,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     if (cut_arc_b) {
                                         cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b);
                                         cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees);
-                                        cookbook.buffer_delete_entity(closest_result_two.index);
+                                        cookbook.buffer_delete_entity(closest_entity_two);
                                     }
                                 } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
                                          //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
