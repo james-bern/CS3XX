@@ -1,6 +1,7 @@
-// TODO (Jim): revolve++
+// TODO (Jim): cookbook_delete should throw a warning if you're trying to delete the same entity twice (run a O(n) pass on the sorted list)
 // TODO (Jim): fillet
 // TODO (Jim): power fillet
+// TODO (Jim): revolve++ (with same cool animation for partial revolves
 // TODO (Jim): dog ear
 // TODO (Jim): power dog ear
 

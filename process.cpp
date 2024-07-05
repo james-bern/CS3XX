@@ -322,6 +322,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                 } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(GLFW_KEY_DELETE)) {
+                    // trust me you want these lines (imagine deleting stuff while in the middle of a two click command)
+                    state.click_mode = ClickMode::None;
+                    state.click_modifier = ClickModifier::None;
+
                     for (int i = drawing->entities.length - 1; i >= 0; --i) {
                         if (drawing->entities.array[i].is_selected) {
                             cookbook._delete_entity(i);
@@ -882,7 +886,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             do_once { messagef(omax.red, "TODO: add warnings for no intersection found for arc-arc and arc-line"); }
 
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
-                            ASSERT(closest_entity_one);
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
                             if (closest_result_two.success) {
                                 Entity *closest_entity_two = closest_result_two.closest_entity;
