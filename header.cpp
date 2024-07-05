@@ -15,7 +15,7 @@ enum class EnterMode {
 enum class ClickMode {
     None,
     Axis,
-    BoundingBox,
+    Box,
     Circle,
     Color,
     Deselect,
@@ -234,9 +234,7 @@ struct FeaturePlaneState {
 struct TwoClickCommandState {
     bool awaiting_second_click;
     vec2 first_click;
-    
-    Entity* stored_entity;
-    uint entity_index;
+    Entity *entity_closest_to_first_click;
 };
 
 #define POPUP_MAX_NUM_CELLS 5
@@ -339,8 +337,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
 
     Pane hot_pane;
-    real x_divider_stamp_drawing_OpenGL = -1.0f / 3.0f; // TODO: CLEAN UP
-    real x_divider_drawing_mesh_OpenGL  =  1.0f / 3.0f; // TODO: CLEAN UP
+    real x_divider_stamp_drawing_OpenGL = -0.98f; // TODO: CLEAN UP
+    real x_divider_drawing_mesh_OpenGL  =  0.0f; // TODO: CLEAN UP
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
@@ -733,17 +731,7 @@ real squared_distance_point_circle(vec2 p, vec2 center, real radius) {
 }
 
 real squared_distance_point_arc_NOTE_pass_angles_in_radians(vec2 p, vec2 center, real radius, real start_angle_in_radians, real end_angle_in_radians) {
-    bool point_in_sector = false; {
-        vec2 v = p - center;
-        // forgive me rygorous :(
-        real angle = ATAN2(v);
-        while (start_angle_in_radians < -PI) start_angle_in_radians += TAU;
-        while (end_angle_in_radians < start_angle_in_radians) end_angle_in_radians += TAU;
-        point_in_sector =
-            IS_BETWEEN_LOOSE(angle, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN_LOOSE(angle + TAU, start_angle_in_radians, end_angle_in_radians)
-            || IS_BETWEEN_LOOSE(angle - TAU, start_angle_in_radians, end_angle_in_radians);
-    }
+    bool point_in_sector = ANGLE_IS_BETWEEN_CCW(angle_from_0_TAU(center, p), start_angle_in_radians, end_angle_in_radians);
     if (point_in_sector) {
         return squared_distance_point_circle(p, center, radius);
     } else {
@@ -782,7 +770,7 @@ real squared_distance_point_dxf(vec2 p, List<Entity> *entities) {
 
 struct DXFFindClosestEntityResult {
     bool success;
-    uint index;
+    // uint index;
     Entity *closest_entity;
     vec2 line_nearest_point;
     real arc_nearest_angle_in_degrees;
@@ -791,14 +779,12 @@ struct DXFFindClosestEntityResult {
 DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 p) {
     DXFFindClosestEntityResult result = {};
     double hot_squared_distance = HUGE_VAL;
-    for_(i, entities->length) {
-        Entity *entity = &entities->array[i];
+    for (Entity *entity = entities->array; entity < entities->array + entities->length; ++entity) {
         double squared_distance = squared_distance_point_entity(p, entity);
         if (squared_distance < hot_squared_distance) {
             hot_squared_distance = squared_distance;
             result.success = true;
-            result.index = i;
-            result.closest_entity = &entities->array[i];
+            result.closest_entity = entity;
             if (result.closest_entity->type == EntityType::Line) {
                 LineEntity *line = &result.closest_entity->line;
                 real l2 = squaredDistance(line->start, line->end);
@@ -1741,7 +1727,7 @@ LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
     return result;
 }
 
-real burkardt_three_point_angle(vec2 p, vec2 center, vec2 q) {
+real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
     real theta_p = angle_from_0_TAU(center, p);
     real theta_q = angle_from_0_TAU(center, q);
     real result = theta_q - theta_p;

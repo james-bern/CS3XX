@@ -37,7 +37,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             real theta = roundf(ATAN2(r) * factor) / factor;
             result = a + norm_r * e_theta(theta);
         } else if (
-                (state.click_mode == ClickMode::BoundingBox)
+                (state.click_mode == ClickMode::Box)
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             // TODO (Felipe): snap square
@@ -140,7 +140,7 @@ void init_camera_drawing() {
     *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_drawing_mesh_OpenGL), 0.0f });
     if (drawing->entities.length) {
         bbox2 bbox = entities_get_bbox(&drawing->entities);
-        real f = (get_x_divider_stamp_drawing_Pixel() / window_get_width_Pixel());
+        real f = (get_x_divider_drawing_mesh_Pixel() / window_get_width_Pixel());
         vec2 L = (bbox.max - bbox.min);
         camera_drawing->ortho_screen_height_World = MAX((L.x / f) / window_get_aspect(), L.y);
         camera_drawing->ortho_screen_height_World += 64.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
