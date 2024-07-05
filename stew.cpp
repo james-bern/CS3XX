@@ -40,6 +40,7 @@ struct {
         out BLOCK {
             vec4 color;
             float size;
+            int primitive_type;
         } vs_out;
 
         uniform mat4 transform;
@@ -55,19 +56,96 @@ struct {
         }
     )"";
 
-    char *frag_UBER = R""(#version 330 core
+    char *geom_UBER = R""(#version 330 core
+        layout (lines) in;
+        layout (triangle_strip, max_vertices = 4) out;
+        uniform vec2 OpenGL_from_Pixel_scale;
+
         in BLOCK {
             vec4 color;
             float size;
+        } gs_in[];
+
+        out BLOCK {
+            vec4 color;
+            float size;
+            vec2 position_Pixel; // NOTE: y flipped sorry
+            float angle;
+            vec2 starting_point_Pixel;
+        } gs_out;
+
+        void main() {    
+            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
+            vec4 color_s = gs_in[0].color;
+            vec4 color_t = gs_in[1].color;
+
+            float angle = atan(OpenGL_from_Pixel_scale.x * (t.y - s.y), OpenGL_from_Pixel_scale.y * (t.x - s.x));
+
+            vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
+            vec4 perp_s = vec4((gs_in[0].size / 2) * perp, 0, 0);
+            vec4 perp_t = vec4((gs_in[1].size / 2) * perp, 0, 0);
+
+            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_s;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_t;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_s;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_t;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            EndPrimitive();
+        }  
+    )"";
+
+    char *frag_UBER= R""(#version 330 core
+        uniform bool stipple;
+
+        in BLOCK {
+            vec4 color;
+            float size;
+            vec2 position_Pixel;
+            float angle;
+            vec2 starting_point_Pixel;
         } fs_in;
 
         out vec4 frag_color;
 
         void main() {
             frag_color = fs_in.color;
+            if (stipple) {
+                vec2 xy = fs_in.position_Pixel;
+                // rotate by -angle
+                float s = sin(fs_in.angle);
+                float c = cos(fs_in.angle);
+                mat2 Rinv = mat2(c, -s, s, c);
+                vec2 uv = Rinv * (xy - fs_in.starting_point_Pixel);
+
+                if (int(uv.x + 99999) % 10 > 5) discard; // FORNOW
+            }
         }
     )"";
-
+    
     char *vert = R""(#version 330 core
         layout (location = 0) in vec3 vertex;
         layout (location = 1) in vec4 color;
@@ -248,9 +326,6 @@ struct {
 
 struct {
 	uint shader_program_UBER;
-    uint shader_program_POINTS;
-    uint shader_program_LINES;
-    uint shader_program_TRIANGLES;
     uint VAO[1];
     uint VBO[16];
     uint EBO[1];
@@ -258,18 +333,10 @@ struct {
 
 run_before_main {
     uint vert_UBER = shader_compile(stew_source.vert_UBER, GL_VERTEX_SHADER);
+    uint geom_UBER = shader_compile(stew_source.geom_UBER, GL_GEOMETRY_SHADER);
 	uint frag_UBER = shader_compile(stew_source.frag_UBER, GL_FRAGMENT_SHADER);
-	stew.shader_program_UBER = shader_build_program(vert_UBER, 0, frag_UBER);
+	stew.shader_program_UBER = shader_build_program(vert_UBER, geom_UBER, frag_UBER);
 
-	uint vert = shader_compile(stew_source.vert, GL_VERTEX_SHADER);
-    uint geom_POINTS = shader_compile(stew_source.geom_POINTS, GL_GEOMETRY_SHADER);
-    uint geom_LINES = shader_compile(stew_source.geom_LINES, GL_GEOMETRY_SHADER);
-    uint frag_POINTS = shader_compile(stew_source.frag_POINTS, GL_FRAGMENT_SHADER);
-    uint frag_LINES = shader_compile(stew_source.frag_LINES, GL_FRAGMENT_SHADER);
-    uint frag_TRIANGLES = shader_compile(stew_source.frag_TRIANGLES, GL_FRAGMENT_SHADER);
-    stew.shader_program_POINTS = shader_build_program(vert, geom_POINTS, frag_POINTS);
-    stew.shader_program_LINES = shader_build_program(vert, geom_LINES, frag_LINES);
-    stew.shader_program_TRIANGLES = shader_build_program(vert, 0, frag_TRIANGLES);
     glGenVertexArrays(ARRAY_LENGTH(stew.VAO), stew.VAO);
     glGenBuffers(ARRAY_LENGTH(stew.VBO), stew.VBO);
     glGenBuffers(ARRAY_LENGTH(stew.EBO), stew.EBO);
@@ -277,11 +344,11 @@ run_before_main {
 
 void stew_draw(
         mat4 transform,
-        uint STEW_primitive,
         uint num_vertices,
         vec3 *vertex_positions,
         vec4 *vertex_colors,
         real *vertex_sizes,
+        uint *vertex_primitives,
         bool force_draw_on_top,
         bool stipple) {
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
@@ -302,11 +369,10 @@ void stew_draw(
     upload_vertex_attribute(vertex_positions, num_vertices, 3);
     upload_vertex_attribute(vertex_colors, num_vertices, 4);
     upload_vertex_attribute(vertex_sizes, num_vertices, 1);
+    upload_vertex_attribute(vertex_primitives, num_vertices, 1);
 
-    uint GL_primitive;
     uint shader_program_ID;
     {
-		GL_primitive = STEW_primitive;
 		shader_program_ID = stew.shader_program_UBER;
 #if 0
         if (STEW_primitive == STEW_POINTS) {
@@ -345,7 +411,7 @@ void stew_draw(
     glUniform2f(LOC("OpenGL_from_Pixel_scale"), OpenGL_from_Pixel_scale.x, OpenGL_from_Pixel_scale.y);
     glUniformMatrix4fv(LOC("transform"), 1, GL_TRUE, transform.data);
 
-    glDrawArrays(GL_primitive, 0, num_vertices);
+    glDrawArrays(GL_TRIANGLES, 0, num_vertices);
 }
 
 
@@ -360,21 +426,23 @@ struct {
 
     vec4 current_color;
     real current_size;
+    uint current_primitive;
 
     bool overlay;
     bool stipple;
 
     mat4 transform;
-    uint primitive;
+
 
     uint num_vertices;
 
     vec3 vertex_positions[GL_MAX_VERTICES];
     vec4 vertex_colors[GL_MAX_VERTICES];
     real vertex_sizes[GL_MAX_VERTICES];
+    uint vertex_primitives[GL_MAX_VERTICES];
 } gl;
 
-void gl_begin(mat4 transform, uint primitive) {
+void gl_begin(mat4 transform) {
     ASSERT(!gl._called_gl_begin_before_calling_gl_vertex_or_gl_end);
     gl._called_gl_begin_before_calling_gl_vertex_or_gl_end = true;
 
@@ -385,7 +453,6 @@ void gl_begin(mat4 transform, uint primitive) {
     gl.stipple = false;
 
     gl.transform = transform;
-    gl.primitive = primitive;
 
     gl.num_vertices = 0;
 
@@ -396,13 +463,17 @@ void gl_end() {
     gl._called_gl_begin_before_calling_gl_vertex_or_gl_end = false;
     stew_draw(
             gl.transform,
-            gl.primitive,
             gl.num_vertices,
             gl.vertex_positions,
             gl.vertex_colors,
             gl.vertex_sizes,
+            gl.vertex_primitives,
             gl.overlay,
             gl.stipple);
+}
+
+void gl_primitive(uint primitive) {
+    gl.current_primitive = primitive;
 }
 
 void gl_overlay(bool overlay) {
@@ -446,6 +517,7 @@ void gl_vertex(real x, real y, real z) {
     gl.vertex_positions[gl.num_vertices] = { x, y, z };
     gl.vertex_colors[gl.num_vertices] = gl.current_color;
     gl.vertex_sizes[gl.num_vertices] = gl.current_size;
+    gl.vertex_primitives[gl.num_vertices] = gl.current_primitive;
     ++gl.num_vertices;
 }
 
