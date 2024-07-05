@@ -2,13 +2,16 @@
 #include "easy_mode.cpp"
 #include "stew.cpp"
 int main() {
+    printf("%u", GL_POINTS);
+    printf("%u", GL_LINES);
+    printf("%u", GL_TRIANGLES);
     Camera camera = make_OrbitCamera3D(0.5f * 256.0f / TAN(RAD(30.0f)), RAD(60.0f));
     real time = 0.0f;
     while (begin_frame(&camera)) {
         time += 0.0167f;
 
         gl_begin(OpenGL_from_Pixel);
-        gl_primitive(STEW_LINE_LOOP);
+        gl_primitive(GL_TRIANGLES);
         // gl_model_matrix(...);
         gl_color(monokai.red);
         gl_vertex(16.0f, 16.0f);
