@@ -1573,6 +1573,10 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
         else if (key_event->key == GLFW_KEY_TAB) _key = "TAB";
         else if (key_event->key == GLFW_KEY_UP) _key = "UP";
         else if (key_event->key == GLFW_KEY_DOWN) _key = "DOWN";
+        else if (key_event->key == GLFW_KEY_PAGE_UP) _key = "PAGE_UP";
+        else if (key_event->key == GLFW_KEY_PAGE_DOWN) _key = "PAGE_DOWN";
+        else if (key_event->key == GLFW_KEY_HOME) _key = "HOME";
+        else if (key_event->key == GLFW_KEY_END) _key = "END";
         else {
             _key_buffer[0] = (char) key_event->key;
             _key_buffer[1] = '\0';
