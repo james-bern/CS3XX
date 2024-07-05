@@ -766,10 +766,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 } else {
                                     real radius = popup->fillet_radius;
                                     if ((E->type == EntityType::Line) && (F->type == EntityType::Line)) {
-                                        vec2 a, b, c, d; {
-                                            entity_get_start_and_end_points(E, &a, &b);
-                                            entity_get_start_and_end_points(F, &c, &d);
-                                        }
+                                        vec2 a = E->line.start;
+                                        vec2 b = E->line.end;
+                                        vec2 c = F->line.start;
+                                        vec2 d = F->line.end;
 
                                         LineLineXResult _p = line_line_intersection(a, b, c, d);
                                         if (!_p.lines_are_parallel) {
@@ -833,7 +833,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                                     // TODO: consider tabbing to create chamfer
 
-                                                    cookbook.buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
+                                                    cookbook.buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees, false, E->color_code);
                                                 }
                                             }
                                         }

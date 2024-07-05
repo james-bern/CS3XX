@@ -1,3 +1,10 @@
+// TODO (Jim): revolve++
+// TODO (Jim): fillet
+// TODO (Jim): power fillet
+// TODO (Jim): dog ear
+// TODO (Jim): power dog ear
+
+
 // TODO (Jim): upgrade test bed
 // TODO (Jim): switch everything from radians to turns
 
