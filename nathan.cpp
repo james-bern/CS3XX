@@ -5,7 +5,7 @@ int main() {
     Camera camera = make_OrbitCamera3D(0.5f * 256.0f / TAN(RAD(30.0f)), RAD(60.0f));
     real time = 0.0f;
     while (begin_frame(&camera)) {
-        time += 0.0167;
+        time += 0.0167f;
 
         gl_begin(OpenGL_from_Pixel);
         gl_primitive(STEW_LINE_LOOP);
