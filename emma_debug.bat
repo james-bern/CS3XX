@@ -1,0 +1,1 @@
+build_and_run.bat emma.cpp --debug
