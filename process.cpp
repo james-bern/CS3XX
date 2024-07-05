@@ -91,9 +91,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    do_once { messagef(omax.red, "TODO: implement magical LAYOUT thing that bumps your cursor along current axis"); };
                 } else if (key_lambda('B')) {
-                    state.click_mode = ClickMode::BoundingBox;
+                    state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 } else if (key_lambda('C')) {
@@ -138,7 +137,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-                    other.stored_entity = NULL;
                 } else if (key_lambda('K')) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
@@ -213,7 +211,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    do_once { messagef(omax.red, "TODO: implement magical LAYOUT thing that bumps your cursor over to the right"); };
                 } else if (key_lambda('R', false, true)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
@@ -319,11 +316,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (key_lambda(';')) {
                     result.checkpoint_me = true;
+                    if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
                 } else if (key_lambda('\'')) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                 } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(GLFW_KEY_DELETE)) {
+                    // trust me you want these lines (imagine deleting stuff while in the middle of a two click command)
+                    state.click_mode = ClickMode::None;
+                    state.click_modifier = ClickModifier::None;
+
                     for (int i = drawing->entities.length - 1; i >= 0; --i) {
                         if (drawing->entities.array[i].is_selected) {
                             cookbook._delete_entity(i);
@@ -493,14 +495,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (mouse_event->mouse_held) result.record_me = false;
 
             vec2 *mouse = &mouse_event_drawing->mouse_position;
-            vec2 *second_click = &mouse_event_drawing->mouse_position;
 
             bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
 
             // TODO: move to misc.cpp; TODO: rename misc.cpp -> bool.cpp?
             bool click_mode_TWO_CLICK_COMMAND = 0 ||
                 (state.click_mode == ClickMode::Axis) ||
-                (state.click_mode == ClickMode::BoundingBox) ||
+                (state.click_mode == ClickMode::Box) ||
                 (state.click_mode == ClickMode::Circle) ||
                 (state.click_mode == ClickMode::Fillet) ||
                 (state.click_mode == ClickMode::Line) ||
@@ -520,12 +521,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 result.record_me = false;
                 DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
                 if (dxf_find_closest_entity_result.success) {
-                    uint hot_entity_index = dxf_find_closest_entity_result.index;
+                    Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
                     if (state.click_modifier != ClickModifier::Connected) {
                         if (click_mode_SELECT_OR_DESELECT()) {
-                            cookbook.entity_set_is_selected(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
+                            cookbook.entity_set_is_selected(hot_entity, value_to_write_to_selection_mask);
                         } else {
-                            cookbook.entity_set_color(&drawing->entities.array[hot_entity_index], state.click_color_code);
+                            cookbook.entity_set_color(hot_entity, state.click_color_code);
                         }
                     } else {
                         #if 1 // TODO: consider just using the O(n*m) algorithm here instead
@@ -624,6 +625,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         };
 
 
+                        uint hot_entity_index = hot_entity - drawing->entities.array;
 
                         // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
                         edge_marked[hot_entity_index] = true;
@@ -681,29 +683,68 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (!mouse_event->mouse_held) {
                 if (click_mode_TWO_CLICK_COMMAND) {
-                    vec2 *first_click = &two_click_command->first_click;
-                    vec2 click_vector = (*second_click - *first_click);
 
                     if (!two_click_command->awaiting_second_click) {
-                        two_click_command->awaiting_second_click = true;
-                        *first_click = mouse_event_drawing->mouse_position;
-                        if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
+                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
+                        bool first_click_accepted; {
+                            bool first_click_must_acquire_entity = (
+                                    0 ||
+                                    (state.click_mode == ClickMode::Fillet) ||
+                                    (state.click_mode == ClickMode::TwoClickDivide)
+                                    );
+                            if (!first_click_must_acquire_entity) {
+                                first_click_accepted = true;
+                            } else {
+                                first_click_accepted = find_nearest_result.success;
+                            }
+                        }
+                        if (first_click_accepted) {
+                            two_click_command->awaiting_second_click = true;
+                            two_click_command->first_click = mouse_event_drawing->mouse_position;
+                            two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
+                            if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
+                            { // bump bumps cursor bump cursor bumps
+                            if (state.click_mode == ClickMode::Rotate) {
+                                double xpos, ypos;
+                                glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                                real x_new = xpos + 64;
+                                real y_new = ypos;
+                                glfwSetCursorPos(glfw_window, x_new, y_new);
+                                callback_cursor_position(glfw_window, x_new, y_new);
+                            }
+                            if (state.click_mode == ClickMode::Axis) {
+                                double xpos, ypos;
+                                glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                                real theta = (PI / 2) + drawing->axis_angle_from_y;
+                                real r = 64;
+                                real x_new = xpos + r * COS(theta);
+                                real y_new = ypos - r * SIN(theta);
+                                glfwSetCursorPos(glfw_window, x_new, y_new);
+                                callback_cursor_position(glfw_window, x_new, y_new);
+                            }
+                            }
+                        }
                     } else {
+                        vec2 *first_click = &two_click_command->first_click;
+                        vec2 *second_click = mouse;
+                        vec2 click_vector = (*second_click - *first_click);
+                        real click_theta = angle_from_0_TAU(*first_click, *second_click);
+
                         if (0) {
                         } else if (state.click_mode == ClickMode::Axis) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
                             drawing->axis_base_point = *first_click;
-                            drawing->axis_angle_from_y = (-PI / 2) + ATAN2(*second_click - *first_click);
-                        } else if (state.click_mode == ClickMode::BoundingBox) {
+                            drawing->axis_angle_from_y = (-PI / 2) + click_theta;
+                        } else if (state.click_mode == ClickMode::Box) {
                             if (IS_ZERO(ABS(first_click->x - second_click->x))) {
                                 messagef(omax.orange, "Box: must have non-zero width ");
                             } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
                                 messagef(omax.orange, "Box: must have non-zero height");
                             } else {
-                                two_click_command->awaiting_second_click = false;
+                                // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
@@ -715,95 +756,94 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(*second_click, other_corner_B);
                             }
                         } else if (state.click_mode == ClickMode::Fillet) {
-                            two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
+
                             state.click_modifier = ClickModifier::None;
-                            DXFFindClosestEntityResult result_i = dxf_find_closest_entity(&drawing->entities, *first_click);
-                            DXFFindClosestEntityResult result_j = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
-                            if ((result_i.success) && (result_j.success) && (result_i.index != result_j.index)) {
-                                uint i = result_i.index;
-                                uint j = result_j.index;
-                                real radius = popup->fillet_radius;
-                                Entity *E_i = &drawing->entities.array[i];
-                                Entity *E_j = &drawing->entities.array[j];
-                                if ((E_i->type == EntityType::Line) && (E_j->type == EntityType::Line)) {
-                                    vec2 a, b, c, d;
-                                    entity_get_start_and_end_points(E_i, &a, &b);
-                                    entity_get_start_and_end_points(E_j, &c, &d);
+                            two_click_command->awaiting_second_click = false;
 
-                                    LineLineIntersectionResult _p = burkardt_line_line_intersection(a, b, c, d);
-                                    if (_p.success) {
-                                        vec2 p = _p.position;
+                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, *second_click);
+                            if (_F.success) {
+                                Entity *E = two_click_command->entity_closest_to_first_click;
+                                Entity *F = _F.closest_entity;
+                                if (E == F) {
+                                    messagef(omax.orange, "Fillet: clicked same entity twice");
+                                } else {
+                                    real radius = popup->fillet_radius;
+                                    if ((E->type == EntityType::Line) && (F->type == EntityType::Line)) {
+                                        vec2 a = E->line.start;
+                                        vec2 b = E->line.end;
+                                        vec2 c = F->line.start;
+                                        vec2 d = F->line.end;
 
-                                        //  a -- b   p          s -- t-.  
-                                        //                              - 
-                                        //           d    =>             t
-                                        //     m     |             m     |
-                                        //           c                   s
+                                        LineLineXResult _p = line_line_intersection(a, b, c, d);
+                                        if (!_p.lines_are_parallel) {
+                                            vec2 p = _p.point;
 
-                                        //         d                              
-                                        //         |                              
-                                        //         |                              
-                                        //  a ---- p ---- b   =>   s - t.         
-                                        //         |                     -t       
-                                        //    m    |                 m    |       
-                                        //         c                      s       
+                                            //  a -- b   p          s -- t-.  
+                                            //                              - 
+                                            //           d    =>             t
+                                            //     m     |             m     |
+                                            //           c                   s
 
-                                        vec2 m = AVG(*first_click, *second_click);
+                                            //         d                              
+                                            //         |                              
+                                            //         |                              
+                                            //  a ---- p ---- b   =>   s - t.         
+                                            //         |                     -t       
+                                            //    m    |                 m    |       
+                                            //         c                      s       
 
-                                        vec2 e_ab = normalized(b - a);
-                                        vec2 e_cd = normalized(d - c);
+                                            vec2 m = AVG(*first_click, *second_click);
 
-                                        bool keep_a, keep_c; {
-                                            vec2 vector_p_m_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (m - p);
-                                            keep_a = (vector_p_m_in_edge_basis.x < 0.0f);
-                                            keep_c = (vector_p_m_in_edge_basis.y < 0.0f);
-                                        }
+                                            vec2 e_ab = normalized(b - a);
+                                            vec2 e_cd = normalized(d - c);
 
-                                        // TODO: in general, just use burkardt's angle stuff
+                                            bool keep_a, keep_c; {
+                                                vec2 vector_p_m_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (m - p);
+                                                keep_a = (vector_p_m_in_edge_basis.x < 0.0f);
+                                                keep_c = (vector_p_m_in_edge_basis.y < 0.0f);
+                                            }
 
-                                        vec2 s_ab = (keep_a) ? a : b;
-                                        vec2 s_cd = (keep_c) ? c : d;
-                                        real half_angle; {
-                                            real angle = burkardt_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
-                                            if (angle > PI) angle = TAU - angle;
-                                            half_angle = angle / 2;
-                                        }
-                                        real length = radius / TAN(half_angle);
-                                        vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
-                                        vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
+                                            vec2 s_ab = (keep_a) ? a : b;
+                                            vec2 s_cd = (keep_c) ? c : d;
+                                            real half_angle; {
+                                                real angle = get_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
+                                                if (angle > PI) angle = TAU - angle;
+                                                half_angle = angle / 2;
+                                            }
+                                            real length = radius / TAN(half_angle);
+                                            vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
+                                            vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
-                                        LineLineIntersectionResult _center = burkardt_line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
-                                        if (_center.success) {
-                                            vec2 center = _center.position;
+                                            LineLineXResult _center = line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
+                                            if (!_center.lines_are_parallel) {
+                                                vec2 center = _center.point;
 
-                                            ColorCode color_i = E_i->color_code;
-                                            ColorCode color_j = E_j->color_code;
-                                            cookbook.buffer_delete_entity(i);
-                                            cookbook.buffer_delete_entity(j);
+                                                cookbook.buffer_delete_entity(E);
+                                                cookbook.buffer_delete_entity(F);
+                                                cookbook.buffer_add_line(s_ab, t_ab, false, E->color_code);
+                                                cookbook.buffer_add_line(s_cd, t_cd, false, F->color_code);
 
-                                            cookbook.buffer_add_line(s_ab, t_ab, false, color_i);
-                                            cookbook.buffer_add_line(s_cd, t_cd, false, color_j);
+                                                real theta_ab_in_degrees = DEG(angle_from_0_TAU(center, t_ab));
+                                                real theta_cd_in_degrees = DEG(angle_from_0_TAU(center, t_cd));
 
-                                            real theta_ab_in_degrees = DEG(ATAN2(t_ab - center));
-                                            real theta_cd_in_degrees = DEG(ATAN2(t_cd - center));
+                                                if (!IS_ZERO(radius)) {
+                                                    if (get_three_point_angle(t_ab, center, t_cd) > PI) {
+                                                        // FORNOW TODO consider swap
+                                                        real tmp = theta_ab_in_degrees;
+                                                        theta_ab_in_degrees = theta_cd_in_degrees;
+                                                        theta_cd_in_degrees = tmp;
+                                                    }
 
-                                            if (!IS_ZERO(radius)) {
-                                                if (burkardt_three_point_angle(t_ab, center, t_cd) < PI) {
-                                                    // FORNOW TODO consider swap
-                                                    real tmp = theta_ab_in_degrees;
-                                                    theta_ab_in_degrees = theta_cd_in_degrees;
-                                                    theta_cd_in_degrees = tmp;
+                                                    // TODO: consider tabbing to create chamfer
+
+                                                    cookbook.buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees, false, E->color_code);
                                                 }
-
-                                                // TODO: consider tabbing to create chamfer
-
-                                                cookbook.buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees);
                                             }
                                         }
+                                    } else {
+                                        messagef(omax.red, "TODO: line-arc fillet; arc-arc fillet");
                                     }
-                                } else {
-                                    messagef(omax.red, "TODO: line-arc fillet; arc-arc fillet");
                                 }
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
@@ -814,7 +854,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
-                                real theta_a_in_degrees = DEG(ATAN2(*second_click - *first_click));
+                                real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real r = norm(*second_click - *first_click);
                                 cookbook.buffer_add_arc(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
@@ -825,7 +865,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (IS_ZERO(norm(*first_click - *second_click))) {
                                 messagef(omax.orange, "TwoEdgeCircle: must have non-zero diameter");
                             } else {
-                                two_click_command->awaiting_second_click = false;
+                                // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
@@ -841,190 +881,160 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
+                            // two_click_command->awaiting_second_click = false;
 
-                            // i want to store the first click closest somewhere because otherwise it has to search
-                            Entity *closest_entity_one = other.stored_entity; 
+                            do_once { messagef(omax.red, "TODO: add warnings for no intersection found for arc-arc and arc-line"); }
+
+                            Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
-                            Entity *closest_entity_two = &drawing->entities.array[closest_result_two.index];
-
-                            if(closest_entity_one != NULL && closest_result_two.success) {
-                                if (closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Line){
-                                    LineEntity lineA = closest_entity_one->line;
-                                    LineEntity lineB = closest_entity_two->line;
-                                    LineLineIntersectionResult line_line_intersection_result = burkardt_line_line_intersection(lineA.start, lineA.end, lineB.start, lineB.end);
-                                    if (line_line_intersection_result.success) {
-                                        vec2 intersect = line_line_intersection_result.position;
-                                        cookbook.buffer_add_line(intersect, lineA.start);
-                                        cookbook.buffer_add_line(intersect, lineA.end);
-                                        cookbook.buffer_add_line(intersect, lineB.start);
-                                        cookbook.buffer_add_line(intersect, lineB.end);
-                                        cookbook.buffer_delete_entity(other.entity_index);
-                                        cookbook.buffer_delete_entity(closest_result_two.index);
-                                    }
-                                } else if (closest_entity_one->type == EntityType::Arc && closest_entity_two->type == EntityType::Arc){
-                                    // math for this is here https://paulbourke.net/geometry/circlesphere/
-
-                                    ArcEntity arcA = closest_entity_one->arc;
-                                    ArcEntity arcB = closest_entity_two->arc;
-                                    
-                                    float d = distance(arcA.center, arcB.center);
-                                    //TODO: find fucntion that checks to see if they are close enough for floats
-                                    if (d > arcA.radius + arcB.radius) {                // non intersecting
-                                    } else if (d < abs(arcA.radius-arcB.radius)) {      // One circle within other
-                                    } else if (d == 0 && arcA.radius == arcB.radius) {  // coincident circles
-                                    } else {
-                                        real a = (POW(arcA.radius, 2) - POW(arcB.radius, 2) + POW(d, 2)) / (2 * d);
-                                        real h = SQRT(POW(arcA.radius, 2) - POW(a, 2));
-
-                                        vec2 v = arcA.center + a * (arcB.center - arcA.center) / d; 
-
-                                        vec2 p1 = { v.x + h * (arcB.center.y - arcA.center.y) / d, v.y - h * (arcB.center.x - arcA.center.x) / d };
-                                        vec2 p2 = { v.x - h * (arcB.center.y - arcA.center.y) / d, v.y + h * (arcB.center.x - arcA.center.x) / d };
-
-                                        real theta1a = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p1 - arcA.center)));
-                                        real theta2a = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p2 - arcA.center)));
-                                        real theta1b = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p1 - arcB.center)));
-                                        real theta2b = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p2 - arcB.center)));
-
-                                        bool p1Good = ANGLE_IS_BETWEEN_CCW_DEGREES(theta1a, arcA.start_angle_in_degrees, arcA.end_angle_in_degrees)
-                                                   && ANGLE_IS_BETWEEN_CCW_DEGREES(theta1b, arcB.start_angle_in_degrees, arcB.end_angle_in_degrees);
-                                        bool p2Good = ANGLE_IS_BETWEEN_CCW_DEGREES(theta2a, arcA.start_angle_in_degrees, arcA.end_angle_in_degrees)
-                                                   && ANGLE_IS_BETWEEN_CCW_DEGREES(theta2b, arcB.start_angle_in_degrees, arcB.end_angle_in_degrees);
-
-                                        if (p1Good || p2Good) {
-                                            bool choosing_p1 = p1Good;
-                                            if (p1Good && p2Good) {
-                                                choosing_p1 = distance(p1, *second_click) < distance(p2, *second_click);
+                            if (closest_result_two.success) {
+                                Entity *closest_entity_two = closest_result_two.closest_entity;
+                                if (closest_entity_one == closest_entity_two) {
+                                    messagef(omax.orange, "TwoClickDivide: clicked same entity twice");
+                                } else {
+                                    if (closest_entity_one->type == EntityType::Line && closest_entity_two->type == EntityType::Line) {
+                                        LineEntity segment_one = closest_entity_one->line;
+                                        LineEntity segment_two = closest_entity_two->line;
+                                        vec2 a = segment_one.start;
+                                        vec2 b = segment_one.end;
+                                        vec2 c = segment_two.start;
+                                        vec2 d = segment_two.end;
+                                        LineLineXResult X_result = line_line_intersection(a, b, c, d);
+                                        bool neither_line_extension_hits_the_other_segment = ((!X_result.point_is_on_segment_ab) && (!X_result.point_is_on_segment_cd));
+                                        if (neither_line_extension_hits_the_other_segment) {
+                                            messagef(omax.orange, "TwoClickDivide: no intersection found");
+                                        } else {
+                                            if (X_result.point_is_on_segment_ab) {
+                                                cookbook.buffer_add_line(X_result.point, a);
+                                                cookbook.buffer_add_line(X_result.point, b);
+                                                cookbook.buffer_delete_entity(closest_entity_one);
+                                            }
+                                            if (X_result.point_is_on_segment_cd) {
+                                                cookbook.buffer_add_line(X_result.point, c);
+                                                cookbook.buffer_add_line(X_result.point, d);
+                                                cookbook.buffer_delete_entity(closest_entity_two);
                                             } 
-                                            if (!choosing_p1) { 
-                                                theta1a = theta2a;
-                                                theta1b = theta2b; 
-                                            }
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta1a);
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta1a, arcA.end_angle_in_degrees);
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta1b);
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta1b, arcB.end_angle_in_degrees);
-                                            cookbook.buffer_delete_entity(other.entity_index);
-                                            cookbook.buffer_delete_entity(closest_result_two.index);
                                         }
-                                    }
-                                } else { //AT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
-                                         //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
-                                    ArcEntity arc;
-                                    LineEntity line;
-                                    if (closest_entity_one->type == EntityType::Arc) {
-                                        arc = closest_entity_one->arc;
-                                        line = closest_entity_two->line;
-                                    } else {
-                                        line = closest_entity_one->line;
-                                        arc = closest_entity_two->arc;
-                                    }
+                                    } else if (closest_entity_one->type == EntityType::Arc && closest_entity_two->type == EntityType::Arc){
+                                        // math for this is here https://paulbourke.net/geometry/circlesphere/
 
-                                    // using determinant to find num intersects https://www.nagwa.com/en/explainers/987161873194/#:~:text=The%20discriminant%20%CE%94%20%3D%20%F0%9D%90%B5%20%E2%88%92%204,and%20the%20circle%20are%20disjoint.
-                                    vec2 v1 = line.end - line.start;
-                                    vec2 v2 = line.start - arc.center;
+                                        ArcEntity arcA = closest_entity_one->arc;
+                                        ArcEntity arcB = closest_entity_two->arc;
 
-                                    float a = dot(v1, v1);
-                                    float b = 2 * dot(v1, v2);
-                                    float c = dot(v2, v2) - POW(arc.radius, 2);
-                                    float d = POW(b, 2) - 4 * a * c;
+                                        ArcArcXResult arc_x_arc_result = arc_arc_intersection(&arcA, &arcB);
 
-                                    vec2 intersect = {}; // because compiler was complaining
-                                    real theta = 0;
-                                    bool does_intersect;
+                                        bool p1Works = arc_x_arc_result.point1_is_on_arc_a || arc_x_arc_result.point1_is_on_arc_b; 
+                                        bool p2Works = arc_x_arc_result.point2_is_on_arc_a || arc_x_arc_result.point2_is_on_arc_b; 
+                                        bool cut_arc_a = false;
+                                        bool cut_arc_b = false;
+                                        real theta_a = 0;
+                                        real theta_b = 0;
 
-                                    if (d < 0) {                // no intersect
-                                        does_intersect = false; // can we exit early???
-                                    } else if (d == 0) {        // one intersect
-                                                                // TODO: THIS SHOULD BE BETTER CHECK FOR FLOATS
-                                                                // also not sure if need bc i dont think it'll ever
-                                                                // evaluate to true from floating point error
-                                                                // plus two points is fine anyway bc we only take one
-                                        float t = -b / 2*a;
-                                        intersect = line.start + t * v1;
-                                        
-                                        theta = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(intersect - arc.center)));
-                                        bool does_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
-                                        /*
-                                        // deals with wraps
-                                        real arcEndAngle = arc.end_angle_in_degrees < arc.start_angle_in_degrees ? arc.end_angle_in_degrees + 360.0f : arc.end_angle_in_degrees;
-                                        
-                                        bool does_arc_intersect = arc.start_angle_in_degrees < theta && theta < arcEndAngle; */
-                                        bool does_line_intersect = MIN(line.start.x, line.end.x) < intersect.x && intersect.x < MAX(line.start.x, line.end.x)
-                                                                && MIN(line.start.y, line.end.y) < intersect.y && intersect.y < MAX(line.start.y, line.end.y);
-                                        does_intersect = does_arc_intersect && does_line_intersect;
-
-                                    } else {                    // two intersects
-                                        float t1 = (-b + SQRT(d)) / (2 * a); 
-                                        float t2 = (-b - SQRT(d)) / (2 * a); 
-
-                                        vec2 p1 = line.start + t1 * v1;
-                                        vec2 p2 = line.start + t2 * v1;
-
-                                        float theta1 = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p1 - arc.center)));
-                                        float theta2 = DEG(WRAP_TO_0_TAU_INTERVAL(ATAN2(p2 - arc.center)));
-                                        bool does_p1_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta1, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
-                                        bool does_p2_arc_intersect = ANGLE_IS_BETWEEN_CCW_DEGREES(theta2, arc.start_angle_in_degrees, arc.end_angle_in_degrees);
-                                        /*
-                                        // deals with wraps
-                                        real arcEndAngle = arc.end_angle_in_degrees < arc.start_angle_in_degrees ? arc.end_angle_in_degrees + 360.0f : arc.end_angle_in_degrees;
-                                        
-                                        bool does_p1_arc_intersect = arc.start_angle_in_degrees < theta1 && theta1 < arcEndAngle;
-                                        bool does_p2_arc_intersect = arc.start_angle_in_degrees < theta2 && theta2 < arcEndAngle;*/
-                                        bool does_p1_line_intersect = MIN(line.start.x, line.end.x) < p1.x && p1.x < MAX(line.start.x, line.end.x)
-                                                                   && MIN(line.start.y, line.end.y) < p1.y && p1.y < MAX(line.start.y, line.end.y);
-                                        bool does_p2_line_intersect = MIN(line.start.x, line.end.x) < p2.x && p2.x < MAX(line.start.x, line.end.x)
-                                                                   && MIN(line.start.y, line.end.y) < p2.y && p2.y < MAX(line.start.y, line.end.y);
-
-                                        bool p1_works = does_p1_arc_intersect && does_p1_line_intersect;
-                                        bool p2_works = does_p2_arc_intersect && does_p2_line_intersect;
-
-                                        does_intersect = p1_works || p2_works;
-
-                                        if (p1_works && p2_works) {
-                                            if (distance(p1, *second_click) < distance(p2, *second_click)) {
-                                                intersect = p1;
-                                                theta = theta1;
+                                        if (p1Works) {
+                                            real click_to_p1 = distance(arc_x_arc_result.point1, *second_click);
+                                            real click_to_p2 = distance(arc_x_arc_result.point2, *second_click);
+                                            if (p2Works && click_to_p2 < click_to_p1) { 
+                                                theta_a = arc_x_arc_result.theta_2a;
+                                                theta_b = arc_x_arc_result.theta_2b;
+                                                cut_arc_a = arc_x_arc_result.point2_is_on_arc_a;
+                                                cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
                                             } else {
-                                                intersect = p2;
-                                                theta = theta2;
+                                                theta_a = arc_x_arc_result.theta_1a;
+                                                theta_b = arc_x_arc_result.theta_1b;
+                                                cut_arc_a = arc_x_arc_result.point1_is_on_arc_a;
+                                                cut_arc_b = arc_x_arc_result.point1_is_on_arc_b;
                                             }
-                                        } else if (p1_works) {
-                                            intersect = p1;
-                                            theta = theta1;
-                                        } else if (p2_works) {
-                                            intersect = p2;
-                                            theta = theta2;
+                                        } else if (p2Works) {
+                                            theta_a = arc_x_arc_result.theta_2a;
+                                            theta_b = arc_x_arc_result.theta_2b;
+                                            cut_arc_a = arc_x_arc_result.point2_is_on_arc_a;
+                                            cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
+                                        }
+                                        if (cut_arc_a) {
+                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a);
+                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees);
+                                            cookbook.buffer_delete_entity(closest_entity_one);
+                                        }
+                                        if (cut_arc_b) {
+                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b);
+                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees);
+                                            cookbook.buffer_delete_entity(closest_entity_two);
+                                        }
+                                    } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
+                                             //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
+                                        Entity *entity_arc;
+                                        Entity *entity_line;
+                                        if (closest_entity_one->type == EntityType::Arc) {
+                                            entity_arc = closest_entity_one;
+                                            entity_line = closest_entity_two;
+                                        } else {
+                                            entity_arc = closest_entity_two;
+                                            entity_line = closest_entity_one;
+                                        }
+                                        ArcEntity *arc = &entity_arc->arc;
+                                        LineEntity *line = &entity_line->line;
+
+                                        LineArcXResult line_x_arc_result = line_arc_intersection(line, arc);
+                                        bool p1Works = line_x_arc_result.point1_is_on_arc || line_x_arc_result.point1_is_on_line_segment;
+                                        bool p2Works = line_x_arc_result.point2_is_on_arc || line_x_arc_result.point2_is_on_line_segment;
+
+                                        vec2 intersect = {};
+                                        real theta = 0;
+                                        bool cutLine = false;
+                                        bool cutArc = false;
+
+                                        if (p1Works) {
+                                            real click_to_p1 = distance(line_x_arc_result.point1, *second_click);
+                                            real click_to_p2 = distance(line_x_arc_result.point2, *second_click);
+                                            if (p2Works && click_to_p2 < click_to_p1) { 
+                                                intersect = line_x_arc_result.point2;
+                                                theta = line_x_arc_result.theta_2;
+                                                cutLine = line_x_arc_result.point2_is_on_line_segment;
+                                                cutArc = line_x_arc_result.point2_is_on_arc;
+                                            } else {
+                                                intersect = line_x_arc_result.point1;
+                                                theta = line_x_arc_result.theta_1;
+                                                cutLine = line_x_arc_result.point1_is_on_line_segment;
+                                                cutArc = line_x_arc_result.point1_is_on_arc;
+                                            }
+                                        } else if (p2Works) {
+                                            intersect = line_x_arc_result.point2;
+                                            theta = line_x_arc_result.theta_2;
+                                            cutLine = line_x_arc_result.point2_is_on_line_segment;
+                                            cutArc = line_x_arc_result.point2_is_on_arc;
                                         }
 
-                                    }
-                                    if (does_intersect) {
-                                        cookbook.buffer_add_line(intersect, line.start);
-                                        cookbook.buffer_add_line(intersect, line.end);
-                                        cookbook.buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, theta);
-                                        cookbook.buffer_add_arc(arc.center, arc.radius, theta, arc.end_angle_in_degrees);
-                                        cookbook.buffer_delete_entity(other.entity_index);
-                                        cookbook.buffer_delete_entity(closest_result_two.index);
+                                        if (p1Works || p2Works) {
+                                            if (cutLine) {
+                                                cookbook.buffer_add_line(intersect, line->start);
+                                                cookbook.buffer_add_line(intersect, line->end);
+                                                cookbook.buffer_delete_entity(entity_line);
+                                            }
+                                            if (cutArc) {
+                                                cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta);
+                                                cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees);
+                                                cookbook.buffer_delete_entity(entity_arc);
+                                            }
+                                        }
                                     }
                                 }
                             }
                         } else if (state.click_mode == ClickMode::Line) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
                             cookbook.buffer_add_line(*first_click, *second_click);
                         } else if (state.click_mode == ClickMode::Measure) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            real angle = DEG(ATAN2(*second_click - *first_click));
-                            if (angle < 0.0f) angle += 360.0f;
+                            real angle = DEG(click_theta);
                             real length = norm(*second_click - *first_click);
                             messagef(omax.cyan, "Angle is %gdeg.", angle);
                             messagef(omax.cyan, "Length is %gmm.", length);
                         } else if (state.click_mode == ClickMode::MirrorLine) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
@@ -1055,34 +1065,31 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                                 entity->is_selected = false;
                             }
-
                         } else if (state.click_mode == ClickMode::Rotate) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            real theta = ATAN2(click_vector);
                             _for_each_selected_entity_ {
                                 if (entity->type == EntityType::Line) {
                                     LineEntity *line = &entity->line;
-                                    line->start = rotated_about(line->start, *first_click, theta);
-                                    line->end = rotated_about(line->end, *first_click, theta);
+                                    line->start = rotated_about(line->start, *first_click, click_theta);
+                                    line->end = rotated_about(line->end, *first_click, click_theta);
                                 } else { ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc = &entity->arc;
-                                    arc->center = rotated_about(arc->center, *first_click, theta);
-                                    arc->start_angle_in_degrees = DEG(theta) + arc->start_angle_in_degrees;
-                                    arc->end_angle_in_degrees = DEG(theta) + arc->end_angle_in_degrees;
+                                    arc->center = rotated_about(arc->center, *first_click, click_theta);
+                                    arc->start_angle_in_degrees = DEG(click_theta) + arc->start_angle_in_degrees;
+                                    arc->end_angle_in_degrees = DEG(click_theta) + arc->end_angle_in_degrees;
                                 }
                             }
                         } else if (state.click_mode == ClickMode::RotateCopy) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
                             real theta = IS_ZERO(popup->angle_of_rotation_in_radians) ? PI : MAX(0.0f, popup->angle_of_rotation_in_radians);
                             popup->num_copies = MAX(2U, popup->num_copies);
 
-                            pprint(*first_click); 
                             _for_each_selected_entity_ {
                                 Entity oldEntity = *entity;
                                 for_(j, popup->num_copies - 1) { // layout has copies as + 1 of what you want so i copied it but it seems strange
@@ -1102,7 +1109,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state.click_mode == ClickMode::Move) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
@@ -1117,7 +1124,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state.click_mode == ClickMode::LinearCopy) {
-                            two_click_command->awaiting_second_click = false;
+                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
@@ -1147,7 +1154,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (IS_ZERO(norm(*first_click - *second_click))) {
                                 messagef(omax.orange, "Polygon: must have non-zero size");
                             } else {
-                                two_click_command->awaiting_second_click = false;
+                                // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
@@ -1158,12 +1165,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 real theta_0 = ATAN2(vertex_0 - center);
                                 cookbook.buffer_add_line(center, vertex_0); // center line (so sayeth LAYOUT)
                                 for_(i, polygon_num_sides) {
-                                   real theta_i = theta_0 + (i * delta_theta);
-                                   real theta_ip1 = theta_i + delta_theta;
-                                   cookbook.buffer_add_line(
-                                       get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i),
-                                       get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1)
-                                   );
+                                    real theta_i = theta_0 + (i * delta_theta);
+                                    real theta_ip1 = theta_i + delta_theta;
+                                    cookbook.buffer_add_line(
+                                            get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i),
+                                            get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1)
+                                            );
                                 }
                             }
                         } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
@@ -1197,27 +1204,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line = &entity->line;
                                 cookbook.buffer_add_line(line->start, 
-                                                         closest_results.line_nearest_point, 
-                                                         entity->is_selected, entity->color_code);
+                                        closest_results.line_nearest_point, 
+                                        entity->is_selected, entity->color_code);
                                 cookbook.buffer_add_line(closest_results.line_nearest_point, line->end, entity->is_selected, entity->color_code);
                                 cookbook.buffer_delete_entity(entity);
                             } else { ASSERT(entity->type == EntityType::Arc);
                                 ArcEntity *arc = &entity->arc;
                                 if (ANGLE_IS_BETWEEN_CCW(RAD(closest_results.arc_nearest_angle_in_degrees), 
-                                                         RAD(arc->start_angle_in_degrees), 
-                                                         RAD(arc->end_angle_in_degrees))) {
+                                            RAD(arc->start_angle_in_degrees), 
+                                            RAD(arc->end_angle_in_degrees))) {
                                     cookbook.buffer_add_arc(arc->center, 
-                                                            arc->radius, 
-                                                            arc->start_angle_in_degrees, 
-                                                            closest_results.arc_nearest_angle_in_degrees, 
-                                                            entity->is_selected, 
-                                                            entity->color_code);
+                                            arc->radius, 
+                                            arc->start_angle_in_degrees, 
+                                            closest_results.arc_nearest_angle_in_degrees, 
+                                            entity->is_selected, 
+                                            entity->color_code);
                                     cookbook.buffer_add_arc(arc->center, 
-                                                            arc->radius, 
-                                                            closest_results.arc_nearest_angle_in_degrees, 
-                                                            arc->end_angle_in_degrees, 
-                                                            entity->is_selected, 
-                                                            entity->color_code);
+                                            arc->radius, 
+                                            closest_results.arc_nearest_angle_in_degrees, 
+                                            arc->end_angle_in_degrees, 
+                                            entity->is_selected, 
+                                            entity->color_code);
                                     cookbook.buffer_delete_entity(entity);
                                 }
                             }          
@@ -1432,14 +1439,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.enter_mode == EnterMode::Size) {
                 result.record_me = false;
                 popup_popup(false,
-                        CellType::String, STRING("scale factor"), &popup->save_filename);
+                        CellType::Real, STRING("scale factor"), &popup->scale_factor);
                 if (gui_key_enter) {
+                    if (!IS_ZERO(popup->scale_factor)) {
+                        bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                        vec2 bbox_center = AVG(bbox.min, bbox.max);
+                        _for_each_selected_entity_ {
+                            if (entity->type == EntityType::Line) {
+                                LineEntity *line = &entity->line;
+                                line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
+                                line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
+                            } else { ASSERT(entity->type == EntityType::Arc);
+                                ArcEntity *arc = &entity->arc;
+                                arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
+                                arc->radius *= popup->scale_factor;
+                            }
+                        }
+                    }
+                    state.enter_mode = EnterMode::None;
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
                 popup_popup(true,
                         CellType::Real, STRING("extrude_add_out_length"), &popup->extrude_add_out_length,
-                        CellType::Real, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length);
-                if (gui_key_enter) {
+                        CellType::Real, STRING("extrude_add_in_length"),  &popup->extrude_add_in_length); if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "ExtrudeAdd: selection empty");
                     } else if (!feature_plane->is_active) {
@@ -1573,7 +1595,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-            } else if (state.click_mode == ClickMode::BoundingBox) {
+            } else if (state.click_mode == ClickMode::Box) {
                 if (two_click_command->awaiting_second_click) {
                     popup_popup(true,
                             CellType::Real, STRING("box_width"), &popup->box_width,

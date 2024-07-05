@@ -66,12 +66,12 @@ struct Cookbook {
         list_delete_at(&drawing->entities, i);
     };
 
-    void buffer_delete_entity(uint i) {
+    void _buffer_delete_entity_DEPRECATED_INDEX_VERSION(uint i) {
         list_push_back(&_delete_buffer, i);
     };
 
     void buffer_delete_entity(Entity *entity) {
-        buffer_delete_entity(uint(entity - drawing->entities.array));
+        _buffer_delete_entity_DEPRECATED_INDEX_VERSION(uint(entity - drawing->entities.array));
     };
 
     static int _compare_delete_buffer(const void *_a, const void *_b) {

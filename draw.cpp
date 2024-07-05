@@ -57,11 +57,13 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             {
                 vec3 n_Camera = inv_transpose_V_3D * n;
                 vec3 color_n = V3(V2(0.5f) + 0.5f * _V2(n_Camera), 1.0f);
-                if ((feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
+                if ((true || feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
 
                     // TODO:
-                    color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), omax.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, omax.yellow, V3(0.85f, 0.87f, 0.30f));
+                    if (feature_plane->is_active) {
+                        color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), omax.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, omax.yellow, V3(0.85f, 0.87f, 0.30f));
+                    } else color = color_n;
 
                     // if (2.0f * time_since_plane_selected < 0.3f) color = omax.white; // FORNOW
 
@@ -160,31 +162,63 @@ void conversation_draw() {
         window_height = uint(_window_size.y);
     }
 
-    { // panes
-        bool dragging = (other.mouse_left_drag_pane == Pane::Separator);
-        bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
+    { // stamp drawing panes
+        bool dragging = (other.mouse_left_drag_pane == Pane::StampDrawingSeparator);
+        bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::StampDrawingSeparator));
         eso_begin(M4_Identity(), SOUP_LINES);
         eso_overlay(true);
         eso_color(
                 dragging ? omax.light_gray
                 : hovering ? omax.white
                 : omax.dark_gray);
-        eso_vertex(other.x_divider_OpenGL,  1.0f);
-        eso_vertex(other.x_divider_OpenGL, -1.0f);
+        eso_vertex(other.x_divider_stamp_drawing_OpenGL,  1.0f);
+        eso_vertex(other.x_divider_stamp_drawing_OpenGL, -1.0f);
         eso_end();
     }
 
-    real x_divider_Pixel = get_x_divider_Pixel();
+    { // drawing mesh panes
+        bool dragging = (other.mouse_left_drag_pane == Pane::DrawingMeshSeparator);
+        bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::DrawingMeshSeparator));
+        eso_begin(M4_Identity(), SOUP_LINES);
+        eso_overlay(true);
+        eso_color(
+                dragging ? omax.light_gray
+                : hovering ? omax.white
+                : omax.dark_gray);
+        eso_vertex(other.x_divider_drawing_mesh_OpenGL,  1.0f);
+        eso_vertex(other.x_divider_drawing_mesh_OpenGL, -1.0f);
+        eso_end();
+    }
 
-    bool moving_selected_entities = ((state.click_mode == ClickMode::Move || state.click_mode == ClickMode::Rotate || state.click_mode == ClickMode::LinearCopy) && (two_click_command->awaiting_second_click)); // TODO: loft up
 
-    { // draw 2D draw 2d draw
+    real x_divider_stamp_drawing_Pixel = get_x_divider_stamp_drawing_Pixel();
+    real x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
+
+    bool moving_selected_entities = (
+    (two_click_command->awaiting_second_click)
+    && (0 
+    || (state.click_mode == ClickMode::Move)
+    || (state.click_mode == ClickMode::Rotate)
+    || (state.click_mode == ClickMode::LinearCopy))
+    ); // TODO: loft up
+
+    { // STAMP draw STAMP stamp draw stamp ??????????????!?!??!!????!?!?!?!?!?!? 
+        {
+            glEnable(GL_SCISSOR_TEST);
+            gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_stamp_drawing_Pixel, window_height);
+        }
+
+        glDisable(GL_SCISSOR_TEST);
+    }
+    { // draw 2D draw 2d draw // perfectly normal statement
         vec2 *first_click = &two_click_command->first_click;
         vec2 click_vector = (mouse - *first_click);
+        real click_theta = ATAN2(click_vector);
 
         {
             glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_Pixel, window_height);
+            gl_scissor_TODO_CHECK_ARGS(x_divider_stamp_drawing_Pixel, 0, x_divider_drawing_mesh_Pixel - x_divider_stamp_drawing_Pixel, window_height);
+            // WHAT IS WAS BEFORE: gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_drawing_mesh_Pixel, window_height);
         }
 
         {
@@ -195,7 +229,7 @@ void conversation_draw() {
         }
 
         {
-            if (!other.hide_grid) { // grid 2D grid 2d grid
+            if (!other.hide_grid) { // grid 2D grid 2d grid // jim wtf are these supposed to mean
                 eso_begin(PV_2D, SOUP_LINES);
                 eso_color(omax.dark_gray);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
@@ -247,74 +281,64 @@ void conversation_draw() {
                     eso_vertex(target_preview_drawing_origin + V2(0, r));
                 } eso_end();
             }
+
             { // entities
-                eso_begin(PV_2D, SOUP_LINES);
-                _for_each_entity_ {
-                    if ((moving_selected_entities && state.click_mode != ClickMode::LinearCopy) && entity->is_selected) continue;
-                    ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
-                    eso_color(get_color(color_code));
-                    eso_entity__SOUP_LINES(entity);
-                }
-                eso_end();
-                if (moving_selected_entities && state.click_mode != ClickMode::Rotate) {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(get_color(ColorCode::WaterOnly));
-                    eso_vertex(mouse);
-                    eso_vertex(*first_click);
-                    eso_end();
-                    eso_begin(PV_2D * M4_Translation(mouse - *first_click), SOUP_LINES);
-                    eso_color(get_color(ColorCode::WaterOnly));
-                    _for_each_selected_entity_ {
+
+                bool moving = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::Move);
+                bool linear_copying = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::LinearCopy);
+                bool rotating = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::Rotate);
+                bool draw_annotation_line = (moving || rotating || linear_copying);
+
+
+
+                eso_begin(PV_2D, SOUP_LINES); {
+                    if (draw_annotation_line) {
+                        eso_color(get_color(ColorCode::Emphasis));
+                        eso_vertex(mouse);
+                        eso_vertex(*first_click);
+                    }
+
+                    _for_each_entity_ {
+                        if (entity->is_selected && (rotating || moving)) continue;
+                        ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
+                        eso_color(get_color(color_code));
                         eso_entity__SOUP_LINES(entity);
                     }
-                    eso_end();
-                } else if (moving_selected_entities && state.click_mode == ClickMode::Rotate) {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(get_color(ColorCode::WaterOnly));
-                    eso_vertex(mouse);
-                    eso_vertex(*first_click);
-                    eso_end();
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(get_color(ColorCode::WaterOnly));
-                    real theta = ATAN2(click_vector);
-                    _for_each_selected_entity_ {
-                        Entity copy = *entity;
-                        if (copy.type == EntityType::Line) {
-                            LineEntity *line = &copy.line;
-                            line->start = rotated_about(line->start, *first_click, theta);
-                            line->end = rotated_about(line->end, *first_click, theta);
-                            eso_entity__SOUP_LINES(&copy);
-                        } else { ASSERT(copy.type == EntityType::Arc);
-                            ArcEntity *arc = &copy.arc;
-                            arc->center = rotated_about(arc->center, *first_click, theta);
-                            arc->start_angle_in_degrees = DEG(theta) + arc->start_angle_in_degrees;
-                            arc->end_angle_in_degrees = DEG(theta) + arc->end_angle_in_degrees;
-                            eso_entity__SOUP_LINES(&copy);
+                } eso_end();
+                
+                if (draw_annotation_line) {
+                    mat4 M; {
+                        if (moving || linear_copying) {
+                            M = M4_Translation(click_vector);
+                        } else { ASSERT(rotating);
+                            M = M4_Translation(*first_click) * M4_RotationAboutZAxis(click_theta) * M4_Translation(-*first_click);
                         }
                     }
+                    eso_begin(PV_2D * M, SOUP_LINES);
+                    eso_color(get_color(ColorCode::Emphasis));
+                    _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
                     eso_end();
                 }
-            }
-            { // dots
+
                 if (other.show_details) {
                     eso_begin(PV_2D, SOUP_POINTS);
                     eso_color(omax.white);
                     eso_size(3.0f);
                     _for_each_entity_ {
-                        vec2 start, end;
-                        entity_get_start_and_end_points(entity, &start, &end);
-                        eso_vertex(start);
-                        eso_vertex(end);
+                        if (entity->is_selected && (rotating || moving)) continue;
+                        eso_vertex(entity_get_start_point(entity));
+                        eso_vertex(entity_get_end_point(entity));
                     }
                     eso_end();
                 }
             }
 
+
             if (two_click_command->awaiting_second_click) {
                 if (
                         0
                         || (state.click_modifier == ClickModifier::Window)
-                        ||(state.click_mode == ClickMode::BoundingBox )
+                        || (state.click_mode == ClickMode::Box)
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
@@ -384,15 +408,12 @@ void conversation_draw() {
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::TwoClickDivide) {
-                    if (other.stored_entity == NULL) {
-                        DXFFindClosestEntityResult closest_result_one = dxf_find_closest_entity(&drawing->entities, *first_click);
-                        other.stored_entity = &drawing->entities.array[closest_result_one.index];
-                        other.entity_index = closest_result_one.index;
+                    if (two_click_command->awaiting_second_click) {
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(basic.cyan);
+                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        eso_end();
                     }
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(basic.cyan);
-                    eso_entity__SOUP_LINES(other.stored_entity);
-                    eso_end();
                 }
                 if (state.click_mode == ClickMode::Polygon) {
                     uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
@@ -422,13 +443,10 @@ void conversation_draw() {
                     }
                 }
                 if (state.click_mode == ClickMode::Fillet) {
-                    // FORNOW
-                    DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, two_click_command->first_click);
-                    if (dxf_find_closest_entity_result.success) {
-                        uint i = dxf_find_closest_entity_result.index;
+                    if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(ColorCode::WaterOnly));
-                        eso_entity__SOUP_LINES(&drawing->entities.array[i]);
+                        eso_color(basic.cyan);
+                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
                         eso_end();
                     }
                 }
@@ -440,7 +458,7 @@ void conversation_draw() {
     { // 3D draw 3D 3d draw 3d
         {
             glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(x_divider_Pixel, 0, window_width - x_divider_Pixel, window_height);
+            gl_scissor_TODO_CHECK_ARGS(x_divider_drawing_mesh_Pixel, 0, window_width - x_divider_drawing_mesh_Pixel, window_height);
         }
 
 
@@ -449,10 +467,10 @@ void conversation_draw() {
             // FORNOW
             bool moving_stuff = ((state.click_mode == ClickMode::Origin) || (state.enter_mode == EnterMode::NudgeFeaturePlane));
             vec3 target_preview_tubes_color = (0) ? V3(0)
-                : (moving_selected_entities) ? get_color(ColorCode::WaterOnly)
+                : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
                 : (adding) ? get_color(ColorCode::Traverse)
                 : (cutting) ? get_color(ColorCode::Quality1)
-                : (moving_stuff) ? get_color(ColorCode::WaterOnly)
+                : (moving_stuff) ? get_color(ColorCode::Emphasis)
                 : get_color(ColorCode::Selection);
             JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
 
@@ -616,31 +634,36 @@ void conversation_draw() {
                         target_bbox.max[1] += eps;
                     }
                 }
+                if (!feature_plane->is_active) {
+                    target_bbox.min -= V2(10.0f);
+                    target_bbox.max += V2(10.0f);
+                }
                 JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
                 JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
-                if (other.time_since_plane_selected == 0.0f) { // FORNOW
-                    preview->feature_plane = target_bbox;
-                }
+                // if (other.time_since_plane_selected == 0.0f) { // FORNOW
+                //     preview->feature_plane = target_bbox;
+                // }
             }
 
-            if (feature_plane->is_active) {
+            {
                 mat4 PVM = PV_3D * M_3D_from_2D;
                 vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
                     if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
                         PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
-                        target_feature_plane_color = get_color(ColorCode::WaterOnly); 
+                        target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (state.click_mode == ClickMode::Origin) {
-                        target_feature_plane_color = get_color(ColorCode::WaterOnly); 
+                        target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (moving_selected_entities) {
-                        target_feature_plane_color = get_color(ColorCode::WaterOnly); 
+                        target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     }
                 }
 
                 JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
 
                 {
-                    real f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), 0.0f, 1.0f);
+                    real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
+                    if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
                     // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
                     // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
                     eso_begin(PVM * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
@@ -677,7 +700,7 @@ void conversation_draw() {
         String string_click_mode = STRING(
                 (state.click_mode == ClickMode::None)           ? ""                :
                 (state.click_mode == ClickMode::Axis)           ? "AXIS"            :
-                (state.click_mode == ClickMode::BoundingBox)    ? "BOX"             :
+                (state.click_mode == ClickMode::Box)            ? "BOX"             :
                 (state.click_mode == ClickMode::Circle)         ? "CIRCLE"          :
                 (state.click_mode == ClickMode::Color)          ? "COLOR"           :
                 (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
@@ -741,7 +764,7 @@ void conversation_draw() {
         ' - zoom in/zoom out 3D camera
         ? - Help Menu
         A - Axis
-        B - Bounding Box
+        B - Box
         C - Circle, Center, Connected
             Shift - TwoEdgeCircle
         D - Deselect
@@ -767,6 +790,7 @@ void conversation_draw() {
         Q - Color
         R - 
         S - Select
+            Shift - Resize selected
             Control - Save
         T -
         U -

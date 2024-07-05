@@ -3,67 +3,7 @@
         entity < &drawing->entities.array[drawing->entities.length];\
         ++entity)
 
-#define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected)
-
-bool click_mode_SNAP_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::LinearCopy)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool click_mode_15_DEG_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::LinearCopy)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::BoundingBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
-        || (state.click_mode == ClickMode::Fillet)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
-        ;
-}
-
-bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
-    return 0
-        || (state.enter_mode == EnterMode::ExtrudeAdd)
-        || (state.enter_mode == EnterMode::ExtrudeCut)
-        || (state.enter_mode == EnterMode::RevolveAdd)
-        || (state.enter_mode == EnterMode::RevolveCut)
-        || (state.enter_mode == EnterMode::NudgeFeaturePlane)
-        ;
-}
+#define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected) 
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
     real f = 0.1f;
@@ -73,9 +13,14 @@ template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
 real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
 
 
-real get_x_divider_Pixel() {
-    return LINEAR_REMAP(other.x_divider_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
+real get_x_divider_drawing_mesh_Pixel() {
+    return LINEAR_REMAP(other.x_divider_drawing_mesh_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
 }
+
+real get_x_divider_stamp_drawing_Pixel() {
+    return LINEAR_REMAP(other.x_divider_stamp_drawing_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
+}
+
 
 vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
     vec2 result = before;
@@ -92,7 +37,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             real theta = roundf(ATAN2(r) * factor) / factor;
             result = a + norm_r * e_theta(theta);
         } else if (
-                (state.click_mode == ClickMode::BoundingBox)
+                (state.click_mode == ClickMode::Box)
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             // TODO (Felipe): snap square
@@ -192,10 +137,10 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
 }
 
 void init_camera_drawing() {
-    *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_OpenGL), 0.0f });
+    *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_drawing_mesh_OpenGL), 0.0f });
     if (drawing->entities.length) {
         bbox2 bbox = entities_get_bbox(&drawing->entities);
-        real f = (get_x_divider_Pixel() / window_get_width_Pixel());
+        real f = (get_x_divider_drawing_mesh_Pixel() / window_get_width_Pixel());
         vec2 L = (bbox.max - bbox.min);
         camera_drawing->ortho_screen_height_World = MAX((L.x / f) / window_get_aspect(), L.y);
         camera_drawing->ortho_screen_height_World += 64.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
@@ -208,7 +153,7 @@ void init_camera_mesh() {
             CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW,
             { RAD(-44.0f), RAD(33.0f) },
             {},
-            { AVG(other.x_divider_OpenGL, 1.0f), 0.0f }
+            { AVG(other.x_divider_drawing_mesh_OpenGL, 1.0f), 0.0f }
             );
     // // TODO: rasterize the bounding box
     // mat4 PV = camera_get_PV(camera_mesh);

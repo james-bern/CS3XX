@@ -1,4 +1,15 @@
-// TODO: stippled lines
+// TODO (Jim): cookbook_delete should throw a warning if you're trying to delete the same entity twice (run a O(n) pass on the sorted list)
+// TODO (Jim): fillet
+// TODO (Jim): power fillet
+// TODO (Jim): revolve++ (with same cool animation for partial revolves
+// TODO (Jim): dog ear
+// TODO (Jim): power dog ear
+
+
+// TODO (Jim): upgrade test bed
+// TODO (Jim): switch everything from radians to turns
+
+// XXXX: stippled lines
 // TODO: reset everything in eso on begin
 
 // XXXX: basic 3D grid with lines (have grids on by default)
@@ -9,10 +20,20 @@
 // TODOFIRST: eso_size(...) (eso_begin doesn't take size)
 // TODO: memcmp to see if should record
 // TODO: timer to see if should snapshot
+// TODO (Nathan): color of entities from two-click divide (see LAYOUT)
 
 #include "playground.cpp"
 
 char *startup_script = "";
+#if 0
+run_before_main {
+    startup_script = 
+        "cz8\n"
+        "samz16\n"
+        "bz4\t4\n"
+        ;
+};
+#endif
 #if 0 
 run_before_main {
     startup_script = "cz0123456789";
@@ -53,6 +74,12 @@ run_before_main {
                      ;
 };
 #endif
+#ifdef SHIP
+run_before_main {
+    startup_script = "";
+    glfwSetWindowTitle(glfw_window, "Conversation pre-alpha " __DATE__ " " __TIME__);
+};
+#endif
 
 #include "manifoldc.h"
 #include "header.cpp"
@@ -71,6 +98,7 @@ Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
 
+#include "boolean.cpp"
 #include "misc.cpp"
 #include "draw.cpp"
 #include "message.cpp"
@@ -105,6 +133,10 @@ int main() {
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
 
+    #ifdef SHIP
+    messagef(omax.green, "press ? for help");
+    #endif
+
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
@@ -130,6 +162,7 @@ int main() {
                 other.time_since_cursor_start += dt;
                 other.time_since_successful_feature += dt;
                 other.time_since_plane_selected += dt;
+                other.time_since_plane_deselected += dt;
                 // time_since_successful_feature = 1.0f;
 
                 bool going_inside = 0
