@@ -14,6 +14,7 @@ int main() {
         gl_primitive(GL_TRIANGLES);
         // gl_model_matrix(...);
         gl_color(monokai.red);
+        gl_size(5.0f);
         gl_vertex(16.0f, 16.0f);
 
         gl_size(8.0f + 5.0f * SIN(5 * time));
@@ -22,8 +23,12 @@ int main() {
 
         gl_size(5.0f);
         gl_color(monokai.blue);
-        gl_vertex(256.0f, 256.0f);
+        gl_vertex(0.0f, 256.0f);
 
+        gl_primitive(GL_POINTS);
+        gl_vertex(500.0f, 100.0f);
+        gl_vertex(400.0f, 0.0f);
+        gl_vertex(400.0f, 100.0f);
         gl_end();
     }
 }

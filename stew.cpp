@@ -79,16 +79,33 @@ struct {
             vec2 position_Pixel; // NOTE: y flipped sorry
             float angle;
             vec2 starting_point_Pixel;
+            vec2 xy;
             flat uint primitive_type;
         } gs_out;
 
+        void emit_point(vec4 p, float x, float y) {
+            vec2 radius = (gs_in[0].size / 2) * OpenGL_from_Pixel_scale;
+            gs_out.color = gs_in[0].color;                                     
+            gs_out.xy = vec2(x, y);
+            gl_Position = (p + vec4(radius * gs_out.xy, 0, 0)) * gl_in[0].gl_Position.w;
+            gs_out.primitive_type = gs_in[0].primitive_type;
+            EmitVertex();                                               
+        }
+        
+
         void main() {
             if (gs_in[0].primitive_type == 0u) { // GL_POINTS == 0
-            } else if (gl_in[0].primitive_type == 1u) {
+                vec4 p = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+                emit_point(p, -1, -1);
+                emit_point(p, 1, -1);
+                emit_point(p, -1, 1);
+                emit_point(p, 1, 1);
+            } else if (gs_in[0].primitive_type == 1u) { // GL_LINES == 1
             } else if (gs_in[0].primitive_type == 4u) { // GL_TRIANGLES == 4
                 for(int i = 0; i < 3; i++) {
                     gl_Position = gl_in[i].gl_Position;
                     gs_out.color = gs_in[i].color;
+            gs_out.primitive_type = gs_in[0].primitive_type;
                     // If you have vertex attributes, pass them through
                     // outNormal = inNormal[i];
                     // outTexCoord = inTexCoord[i];
@@ -96,6 +113,7 @@ struct {
                     EmitVertex();
                 }
             }
+            EndPrimitive();
         }  
     )"";
 
@@ -108,13 +126,20 @@ struct {
             vec2 position_Pixel;
             float angle;
             vec2 starting_point_Pixel;
+            vec2 xy;
             flat uint primitive_type;
         } fs_in;
 
         out vec4 frag_color;
 
         void main() {
-            frag_color = fs_in.color;
+            if (fs_in.primitive_type == 0u) { // GL_POINTS == 0
+                frag_color = fs_in.color;
+                if (length(fs_in.xy) > 1) { discard; }
+            } else if (fs_in.primitive_type == 1u) { // GL_LINES == 1
+            } else if (fs_in.primitive_type == 4u) { // GL_TRIANGLES == 4
+                frag_color = fs_in.color;
+            }
         }
 
     )"";
@@ -184,8 +209,8 @@ struct {
         out vec4 frag_color;
 
         void main() {
-            frag_color = fs_in.color;
-            if (length(fs_in.xy) > 1) { discard; }
+        frag_color = fs_in.color;
+        if (length(fs_in.xy) > 1) { discard; }
         }
     )"";
 
@@ -335,7 +360,7 @@ void stew_draw(
             uint buffer_size = count * dim * (isInt ? sizeof(uint) : sizeof(real));
             glBindBuffer(GL_ARRAY_BUFFER, stew.VBO[attrib_index]);
             glBufferData(GL_ARRAY_BUFFER, buffer_size, array, GL_DYNAMIC_DRAW);
-            if (isInt) { // note special fucntion with 'I' because opengl says so
+            if (isInt) { // note special fucntion with 'I' because opengl says s
                 glVertexAttribIPointer(attrib_index, dim, GL_UNSIGNED_INT, 0, NULL);
             } else { 
                 glVertexAttribPointer(attrib_index, dim, GL_FLOAT, GL_FALSE, 0, NULL);
@@ -499,7 +524,12 @@ void gl_vertex(real x, real y, real z) {
     gl.vertex_colors[gl.num_vertices] = gl.current_color;
     gl.vertex_sizes[gl.num_vertices] = gl.current_size;
     gl.vertex_primitives[gl.num_vertices] = gl.current_primitive;
-    ++gl.num_vertices;
+    if (gl.current_primitive == GL_POINTS) {
+        gl.num_vertices += 3;
+    } else if (gl.current_primitive == GL_LINES) {
+    } else { ASSERT(gl.current_primitive == GL_TRIANGLES); // TODO: make better
+        gl.num_vertices += 1;
+    }
 }
 
 void gl_vertex(real x, real y) {
