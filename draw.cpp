@@ -162,20 +162,6 @@ void conversation_draw() {
         window_height = uint(_window_size.y);
     }
 
-    { // stamp drawing panes
-        bool dragging = (other.mouse_left_drag_pane == Pane::StampDrawingSeparator);
-        bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::StampDrawingSeparator));
-        eso_begin(M4_Identity(), SOUP_LINES);
-        eso_overlay(true);
-        eso_color(
-                dragging ? omax.light_gray
-                : hovering ? omax.white
-                : omax.dark_gray);
-        eso_vertex(other.x_divider_stamp_drawing_OpenGL,  1.0f);
-        eso_vertex(other.x_divider_stamp_drawing_OpenGL, -1.0f);
-        eso_end();
-    }
-
     { // drawing mesh panes
         bool dragging = (other.mouse_left_drag_pane == Pane::DrawingMeshSeparator);
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::DrawingMeshSeparator));
@@ -190,36 +176,23 @@ void conversation_draw() {
         eso_end();
     }
 
-
-    real x_divider_stamp_drawing_Pixel = get_x_divider_stamp_drawing_Pixel();
     real x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
 
     bool moving_selected_entities = (
-    (two_click_command->awaiting_second_click)
-    && (0 
-    || (state.click_mode == ClickMode::Move)
-    || (state.click_mode == ClickMode::Rotate)
-    || (state.click_mode == ClickMode::LinearCopy))
-    ); // TODO: loft up
+            (two_click_command->awaiting_second_click)
+            && (0 
+                || (state.click_mode == ClickMode::Move)
+                || (state.click_mode == ClickMode::Rotate)
+                || (state.click_mode == ClickMode::LinearCopy))
+            ); // TODO: loft up
 
-    { // STAMP draw STAMP stamp draw stamp ??????????????!?!??!!????!?!?!?!?!?!? 
-        {
-            glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_stamp_drawing_Pixel, window_height);
-        }
-
-        glDisable(GL_SCISSOR_TEST);
-    }
-    { // draw 2D draw 2d draw // perfectly normal statement
+    { // draw 2D draw 2d draw
         vec2 *first_click = &two_click_command->first_click;
         vec2 click_vector = (mouse - *first_click);
         real click_theta = ATAN2(click_vector);
 
-        {
-            glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(x_divider_stamp_drawing_Pixel, 0, x_divider_drawing_mesh_Pixel - x_divider_stamp_drawing_Pixel, window_height);
-            // WHAT IS WAS BEFORE: gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_drawing_mesh_Pixel, window_height);
-        }
+        glEnable(GL_SCISSOR_TEST);
+        gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_drawing_mesh_Pixel, window_height);
 
         {
             #if 0
@@ -305,7 +278,7 @@ void conversation_draw() {
                         eso_entity__SOUP_LINES(entity);
                     }
                 } eso_end();
-                
+
                 if (draw_annotation_line) {
                     mat4 M; {
                         if (moving || linear_copying) {

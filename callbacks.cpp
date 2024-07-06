@@ -62,7 +62,6 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 
         // by definition x_divider_stamp_drawing < x_divider_stamp_drawing
         // unless we want to implement something where we can hide windows
-        real x_divider_stamp_drawing_Pixel = get_x_divider_stamp_drawing_Pixel();
         real x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
         real eps = 6.0f;
         real x_mouse_Pixel = other.mouse_Pixel.x;
@@ -72,10 +71,6 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
                 && (popup->_FORNOW_info_mouse_is_hovering)
            ) {
             other.hot_pane = Pane::Popup;
-        } else if (x_mouse_Pixel < x_divider_stamp_drawing_Pixel - eps) {
-            other.hot_pane = Pane::Stamps;
-        } else if (x_mouse_Pixel < x_divider_stamp_drawing_Pixel + eps) {
-            other.hot_pane = Pane::StampDrawingSeparator;
         } else if (x_mouse_Pixel < x_divider_drawing_mesh_Pixel - eps) {
             other.hot_pane = Pane::Drawing;
         } else if (x_mouse_Pixel < x_divider_drawing_mesh_Pixel + eps) {
@@ -102,25 +97,11 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         }
     }
 
-    { // dragging stamp drawing divider
-        if (other.mouse_left_drag_pane == Pane::StampDrawingSeparator) {
-            real prev_x_divider_stamp_drawing_OpenGL = other.x_divider_stamp_drawing_OpenGL;
-            real prev_x_divider_stamp_drawing_Pixel = get_x_divider_stamp_drawing_Pixel();
-            other.x_divider_stamp_drawing_OpenGL = CLAMP(LINEAR_REMAP(real(xpos), 0.0f, window_get_width_Pixel(), -1.0f, 1.0f), -0.9975f, other.x_divider_drawing_mesh_OpenGL- 0.1f); // *
-            real x_divider_stamp_drawing_Pixel = get_x_divider_stamp_drawing_Pixel();
-
-            real dx_divider_stamp_drawing_OpenGL = 0.5f * (other.x_divider_stamp_drawing_OpenGL - prev_x_divider_stamp_drawing_OpenGL);
-            camera_drawing->post_nudge_OpenGL.x += dx_divider_stamp_drawing_OpenGL;
-
-            real width_ratio_drawing = (x_divider_stamp_drawing_Pixel / prev_x_divider_stamp_drawing_Pixel);
-            camera_drawing->ortho_screen_height_World *= width_ratio_drawing;
-        }
-    }
     { // dragging drawing mesh divider
         if (other.mouse_left_drag_pane == Pane::DrawingMeshSeparator) {
             real prev_x_divider_drawing_mesh_OpenGL = other.x_divider_drawing_mesh_OpenGL;
             real prev_x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
-            other.x_divider_drawing_mesh_OpenGL = CLAMP(LINEAR_REMAP(real(xpos), 0.0f, window_get_width_Pixel(), -1.0f, 1.0f), other.x_divider_stamp_drawing_OpenGL + 0.1f, 0.9975f); // *
+            other.x_divider_drawing_mesh_OpenGL = CLAMP(LINEAR_REMAP(real(xpos), 0.0f, window_get_width_Pixel(), -1.0f, 1.0f), -0.9975f, 0.9975f); // *
             real x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
 
             real dx_divider_drawing_mesh_OpenGL = 0.5f * (other.x_divider_drawing_mesh_OpenGL - prev_x_divider_drawing_mesh_OpenGL);

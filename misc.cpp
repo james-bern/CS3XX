@@ -17,11 +17,6 @@ real get_x_divider_drawing_mesh_Pixel() {
     return LINEAR_REMAP(other.x_divider_drawing_mesh_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
 }
 
-real get_x_divider_stamp_drawing_Pixel() {
-    return LINEAR_REMAP(other.x_divider_stamp_drawing_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
-}
-
-
 vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
     vec2 result = before;
     {

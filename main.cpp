@@ -93,6 +93,7 @@ Drawing *drawing = &state.drawing;
 FeaturePlaneState *feature_plane = &state.feature_plane;
 Mesh *mesh = &state.mesh;
 PopupState *popup = &state.popup;
+ToolboxState *toolbox = &state.toolbox;
 TwoClickCommandState *two_click_command = &state.two_click_command;
 Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
@@ -107,6 +108,7 @@ PreviewState *preview = &other.preview;
 #include "callbacks.cpp"
 #include "bake.cpp"
 #include "cookbook.cpp"
+#include "button.cpp"
 #include "process.cpp"
 #include "script.cpp"
 
@@ -182,16 +184,22 @@ int main() {
                         Event freshly_baked_event = bake_event(raw_event);
                         freshly_baked_event_process(freshly_baked_event);
                     }
-                } else {
-                    // NOTE: this is so we draw the popups
-                    freshly_baked_event_process({});
+                }
+
+                {
+                    // "process" dummy event to draw popups and buttons
+                    // NOTE: it's a Key;Hotkey event in order to enter that section of the code
+                    Event dummy = {};
+                    dummy.type = EventType::Key;
+                    dummy.key_event.subtype = KeyEventSubtype::Hotkey;
+                    freshly_baked_event_process(dummy);
                 }
             }
 
             _messages_update();
         } else {
-            // "process" dummy event to draw popups
-            freshly_baked_event_process({});
+            // TODO: process dummy event when not drawing popups
+            ;
         }
 
         { // draw

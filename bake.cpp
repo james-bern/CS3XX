@@ -68,6 +68,7 @@ Event bake_event(RawEvent raw_event) {
 
         event.type = EventType::Mouse;
         MouseEvent *mouse_event = &event.mouse_event;
+        mouse_event->mouse_Pixel = raw_mouse_event->mouse_Pixel;
         mouse_event->mouse_held = raw_mouse_event->mouse_held;
         {
             if (raw_mouse_event->pane == Pane::Drawing) {
@@ -100,10 +101,6 @@ Event bake_event(RawEvent raw_event) {
                     mouse_event_popup->cell_index = popup->active_cell_index; // hmm...
                     mouse_event_popup->cursor = popup->info_active_cell_cursor;
                 }
-            } else if (raw_mouse_event->pane == Pane::Stamps) {
-                event = {};
-            } else if (raw_mouse_event->pane == Pane::StampDrawingSeparator) {
-                event = {};
             } else { ASSERT(raw_mouse_event->pane == Pane::DrawingMeshSeparator);
                 event = {};
             }

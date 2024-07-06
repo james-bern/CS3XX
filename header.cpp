@@ -62,8 +62,6 @@ enum class Pane {
     Mesh,
     Popup,
     DrawingMeshSeparator,
-    StampDrawingSeparator,
-    Stamps,
 };
 
 enum class CellType {
@@ -192,6 +190,7 @@ struct MouseEventPopup {
 struct MouseEvent {
     MouseEventSubtype subtype;
 
+    vec2 mouse_Pixel;
     bool mouse_held;
 
     MouseEventDrawing mouse_event_drawing;
@@ -210,6 +209,7 @@ struct KeyEvent {
 struct Event {
     EventType type;
 
+    // ew
     bool record_me;
     bool checkpoint_me;
     bool snapshot_me;
@@ -296,12 +296,17 @@ struct PopupState {
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
 
+struct ToolboxState {
+    // char *_FORNOW_hot_button_unique_ID__FORNOW_name;
+};
+
 struct WorldState_ChangesToThisMustBeRecorded_state {
     Mesh mesh;
     Drawing drawing;
     FeaturePlaneState feature_plane;
     TwoClickCommandState two_click_command;
     PopupState popup;
+    ToolboxState toolbox;
 
     ClickMode click_mode;
     ClickModifier click_modifier;
@@ -337,8 +342,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
 
     Pane hot_pane;
-    real x_divider_stamp_drawing_OpenGL = -0.98f; // TODO: CLEAN UP
-    real x_divider_drawing_mesh_OpenGL  =  0.0f; // TODO: CLEAN UP
+    real x_divider_drawing_mesh_OpenGL;
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
@@ -1563,6 +1567,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
     char _key_buffer[2];
     char *_key; {
         if (0) ;
+        else if (key_event->key == '\0') _key = "NULL_CHARACTER";
         else if (key_event->key == GLFW_KEY_BACKSPACE) _key = "BACKSPACE";
         else if (key_event->key == GLFW_KEY_DELETE) _key = "DELETE";
         else if (key_event->key == GLFW_KEY_ENTER) _key = "ENTER";

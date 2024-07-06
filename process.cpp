@@ -1,3 +1,5 @@
+// TODO: linear copy and rotate copy should allow gui on first click as well
+
 #if 0
 // TODO
 StandardEventProcessResult standard_event_process(Event event) {
@@ -35,12 +37,47 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         cookbook_free(&cookbook);
     };
 
+
+    // NOTE: we can put other buttons in there at will (select all, etc.)
+    //       we are NOT going to use a general-purpose retained-mode gui lib like layout
+    // NEW IDEA (the old one won't work because of how we record history):
+    //          ((we have to bake the correct event type--really can't depend on window, etc., very fragile))
+    //          let's let the dummy event pass through the key events and draw everything
+    //          then, like with popup, we'll bake based on which bkey_lambda is hot hot hot
+    // IDEA (hacky but may work): if buttons are enabled, we'll attempt to steal any Mouse
+    //                            event and press buttons with its mouse_Pixel field
+    //                            if this works, we consume the event (regardless of pane)
+    // TODO: should popup have worked this same way?
+    //       it probably could have been (though i maybe recall the graphics get messed up
+    //       if you reorder things) so popup hits first
+    //       (as is, we bake MouseEventPopup based on popups from last frame)
     if (event.type == EventType::Key) {
         KeyEvent *key_event = &event.key_event;
         if (key_event->subtype == KeyEventSubtype::Hotkey) {
             result.record_me = true;
 
-            auto key_lambda = [key_event](uint key, bool control = false, bool shift = false) -> bool {
+            real y = 128;
+            auto key_lambda = [&](bool control, bool shift, uint key, char *name = NULL, char *_TODO_MAYBE_script = NULL) -> bool {
+                real x = 16;
+
+                if (name) {
+                    bbox2 bbox = { x, y, x + 32, y + 12 };
+
+                    bool hovering = bbox_contains(bbox, other.mouse_Pixel);
+
+                    if (hovering) {
+                    }
+
+                    eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
+                    if (hovering) eso_color(monokai.green);
+                    eso_bbox_SOUP_QUADS(bbox);
+                    eso_end();
+                    y += 16;
+                }
+
+                // TODO: ScriptEvent
+                // TODO: this should store whether we're hovering in toolbox as well as the event that will be generated if we click
+
                 return _key_lambda(key_event, key, control, shift);
             };
 
@@ -49,7 +86,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             {
                 digit_lambda = false;
                 for_(color, 10) {
-                    if (key_lambda('0' + color)) {
+                    if (key_lambda(0,0,'0' + color)) {
                         digit_lambda = true;
                         digit = color;
                         break;
@@ -80,22 +117,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::None;
                         state.click_color_code = ColorCode(digit);
                     }
-                } else if (key_lambda('A')) {
+                } if (key_lambda(0,0,'A')) {
                     if (click_mode_SELECT_OR_DESELECT()) {
                         result.checkpoint_me = true;
                         cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
                     }
-                } else if (key_lambda('A', false, true)) {
+                } if (key_lambda(0,1,'A')) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('B')) {
+                } if (key_lambda(0,0,'B', "box")) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('C')) {
+                } if (key_lambda(0,0,'C', "circle")) {
                     if (((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect)) && (state.click_modifier != ClickModifier::Connected)) {
                         state.click_modifier = ClickModifier::Connected;
                     } else if (click_mode_SNAP_ELIGIBLE()) {
@@ -106,46 +143,46 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::None;
                         two_click_command->awaiting_second_click = false;
                     }
-                } else if (key_lambda('C', true, false)) {
+                } if (key_lambda(1,0,'C')) {
                     state.click_mode = ClickMode::TwoEdgeCircle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('D')) {
+                } if (key_lambda(0,0,'D')) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
-                } else if (key_lambda('D', false, true)) {
+                } if (key_lambda(0,1,'D')) {
                     state.click_mode = ClickMode::DivideNearest;
                     state.click_modifier = ClickModifier::None;
-                } else if (key_lambda('E')) {
+                } if (key_lambda(0,0,'E')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::End;
                     }
-                } else if (key_lambda('F')) {
+                } if (key_lambda(0,0,'F')) {
                     state.click_mode = ClickMode::Fillet;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('G')) {
+                } if (key_lambda(0,0,'G')) {
                     result.record_me = false;
                     other.hide_grid = !other.hide_grid;
-                } else if (key_lambda('H')) {
+                } if (key_lambda(0,0,'H')) {
                     result.record_me = false;
                     history_printf_script();
-                } else if (key_lambda('I')) {
+                } if (key_lambda(0,0,'I')) {
                     state.click_mode = ClickMode::TwoClickDivide;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('K')) { 
+                } if (key_lambda(0,0,'K')) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
                     result.record_me = false;
-                } else if (key_lambda('L')) {
+                } if (key_lambda(0,0,'L')) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('M')) {
+                } if (key_lambda(0,0,'M')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Middle;
@@ -154,41 +191,41 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::None;
                         two_click_command->awaiting_second_click = false;
                     }
-                } else if (key_lambda('M', false, true)) {
+                } if (key_lambda(0,1,'M')) {
                     result.record_me = false;
                     state.click_mode = ClickMode::Measure;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('M', true, true)) {
+                } if (key_lambda(1,1,'M')) {
                     state.click_mode = ClickMode::MirrorLine;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('N')) {
+                } if (key_lambda(0,0,'N')) {
                     if (feature_plane->is_active) {
                         state.enter_mode = EnterMode::NudgeFeaturePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
                         messagef(omax.orange, "NudgeFeaturePlane: no feature plane selected");
                     }
-                } else if (key_lambda('N', true, false)) {
+                } if (key_lambda(1,0,'N')) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     list_free_AND_zero(&drawing->entities);
                     *drawing = {};
                     messagef(omax.green, "ResetDXF");
-                } else if (key_lambda('N', true, true)) {
+                } if (key_lambda(1,1,'N')) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     mesh_free_AND_zero(mesh);
                     *feature_plane = {};
                     messagef(omax.green, "ResetSTL");
-                } else if (key_lambda('O')) {
+                } if (key_lambda(0,0,'O')) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('O', true)) {
+                } if (key_lambda(1,0,'O')) {
                     state.enter_mode = EnterMode::Load;
-                } else if (key_lambda('P')) {
+                } if (key_lambda(0,0,'P')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Perpendicular;
@@ -197,7 +234,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::None;
                         two_click_command->awaiting_second_click = false;
                     }
-                } else if (key_lambda('Q')) {
+                } if (key_lambda(0,0,'Q')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Quad;
@@ -207,27 +244,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_mode = ClickMode::Color;
                         state.click_modifier = ClickModifier::None;
                     }
-                } else if (key_lambda('R')) {
+                } if (key_lambda(0,0,'R')) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                } else if (key_lambda('R', false, true)) {
+                } if (key_lambda(0,1,'R')) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                     popup->have_fields_been_edited = 0; // to store some state for autofilling fields
-                } else if (key_lambda('S')) {
+                } if (key_lambda(0,0,'S')) {
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
                         state.click_modifier = ClickModifier::None;
                     } else {
                         state.click_modifier = ClickModifier::Selected;
                     }
-                } else if (key_lambda('S', true)) {
+                } if (key_lambda(1,0,'S')) {
                     result.record_me = false;
                     state.enter_mode = EnterMode::Save;
-                } else if (key_lambda('S', false, true)) {  // this is also doing precalculations because otherwise
-                                                            // it would be done every frame
+                } if (key_lambda(0,1,'S')) {  // this is also doing precalculations because otherwise
+                                              // it would be done every frame
                     state.enter_mode = EnterMode::Size;
                     //vec2 center;
                     //vec2 corner;
@@ -235,24 +272,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     _for_each_selected_entity_ {
 
                     }
-                } else if (key_lambda('W')) {
+                } if (key_lambda(0,0,'W')) {
                     // click_mode_SELECT_OR_DESELECT() ??
                     if ((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect)) {
                         state.click_modifier = ClickModifier::Window;
                         two_click_command->awaiting_second_click = false;
                     }
-                } else if (key_lambda('X')) {
+                } if (key_lambda(0,0,'X')) {
                     if (state.click_mode != ClickMode::None) {
                         state.click_modifier = ClickModifier::XY;
                     }
-                } else if (key_lambda('X', false, true)) {
+                } if (key_lambda(0,1,'X')) {
                     state.click_mode = ClickMode::MirrorX;
                     state.click_modifier = ClickModifier::None;
-                } else if (key_lambda('X', true, true)) {
+                } if (key_lambda(1,1,'X')) {
                     result.record_me = false;
                     init_camera_drawing();
                     init_camera_mesh();
-                } else if (key_lambda('Y')) {
+                } if (key_lambda(0,0,'Y')) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
                     result.checkpoint_me = true;
                     other.time_since_plane_selected = 0.0f;
@@ -265,36 +302,36 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->signed_distance_to_world_origin = 0.0f;
                         feature_plane->normal = { 0.0f, 1.0f, 0.0f };
                     }
-                } else if (key_lambda('Y', false, true)) {
+                } if (key_lambda(0,1,'Y')) {
                     state.click_mode = ClickMode::MirrorY;
                     state.click_modifier = ClickModifier::None;
-                } else if (key_lambda('Z')) {
+                } if (key_lambda(0,0,'Z')) {
                     Event equivalent = {};
                     equivalent.type = EventType::Mouse;
                     equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
                     // .mouse_position = {};
                     return _standard_event_process_NOTE_RECURSIVE(equivalent);
-                } else if (key_lambda('Z', false, true)) {
+                } if (key_lambda(0,1,'Z')) {
                     state.click_mode = ClickMode::Origin;
                     state.click_modifier = ClickModifier::XY;
-                } else if (key_lambda(' ')) {
+                } if (key_lambda(0,0,' ')) {
                     state.click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
                     return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
-                } else if (key_lambda(' ', false, true)) {
+                } if (key_lambda(0,1,' ')) {
                     return _standard_event_process_NOTE_RECURSIVE(state.shift_space_bar_event);
-                } else if (key_lambda('[')) {
+                } if (key_lambda(0,0,'[')) {
                     state.enter_mode = EnterMode::ExtrudeAdd;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
-                } else if (key_lambda('[', false, true)) {
+                } if (key_lambda(0,1,'[')) {
                     state.enter_mode = EnterMode::ExtrudeCut;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
-                } else if (key_lambda(']')) {
+                } if (key_lambda(0,0,']')) {
                     state.enter_mode = EnterMode::RevolveAdd;
-                } else if (key_lambda(']', false, true)) {
+                } if (key_lambda(0,0,']')) {
                     state.enter_mode = EnterMode::RevolveCut;
-                } else if (key_lambda('.')) { 
+                } if (key_lambda(0,0,'.')) { 
                     result.record_me = false;
                     other.show_details = !other.show_details;
                     { // messagef
@@ -314,15 +351,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         messagef(omax.cyan,"Mesh has %d triangles", mesh->num_triangles);
                         messagef(omax.cyan,"Drawing has %d elements = %d lines + %d arcs", drawing->entities.length, num_lines, num_arcs);
                     }
-                } else if (key_lambda(';')) {
+                } if (key_lambda(0,0,';')) {
                     result.checkpoint_me = true;
                     if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
-                } else if (key_lambda('\'')) {
+                } if (key_lambda(0,0,'\'')) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
-                } else if (key_lambda(GLFW_KEY_BACKSPACE) || key_lambda(GLFW_KEY_DELETE)) {
-                    // trust me you want these lines (imagine deleting stuff while in the middle of a two click command)
+                } if (key_lambda(0,0,GLFW_KEY_BACKSPACE) || key_lambda(0,0,GLFW_KEY_DELETE)) {
+                    // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
 
@@ -331,15 +368,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             cookbook._delete_entity(i);
                         }
                     }
-                } else if (key_lambda('/', false, true)) {
+                } if (key_lambda(0,1,'/')) {
                     result.record_me = false;
                     other.show_help = !other.show_help;
-                } else if (key_lambda(GLFW_KEY_ESCAPE)) {
+                } if (key_lambda(0,0,GLFW_KEY_ESCAPE)) {
                     state.enter_mode = EnterMode::None;
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
                     state.click_color_code = ColorCode::Traverse;
-                } else if (key_lambda(GLFW_KEY_TAB)) { // FORNOW
+                } if (key_lambda(0,0,GLFW_KEY_TAB)) { // FORNOW
                     result.record_me = false;
                     {
                         vec3 tmp = omax.light_gray;
@@ -351,14 +388,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         omax.white = omax.black;
                         omax.black = tmp;
                     }
-                } else if (key_lambda(GLFW_KEY_ENTER)) { // FORNOW
-                                                         // messagef(omax.orange, "EnterMode is None.");
+                } if (key_lambda(0,0,GLFW_KEY_ENTER)) { // FORNOW
+                                                        // messagef(omax.orange, "EnterMode is None.");
                     result.record_me = false;
-                } else {
+                } if (key_lambda(0,0,'\0')) { // FORNOW
+                    result.record_me = false;
+                }
+
+
+                if (0) {
                     messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
                     result.record_me = false;
                     ;
                 }
+
+
             }
             bool changed_click_mode = (prev_click_mode != state.click_mode);
             bool changed_enter_mode = (prev_enter_mode != state.enter_mode);
@@ -704,24 +748,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
                             if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
                             { // bump bumps cursor bump cursor bumps
-                            if (state.click_mode == ClickMode::Rotate) {
-                                double xpos, ypos;
-                                glfwGetCursorPos(glfw_window, &xpos, &ypos);
-                                real x_new = xpos + 64;
-                                real y_new = ypos;
-                                glfwSetCursorPos(glfw_window, x_new, y_new);
-                                callback_cursor_position(glfw_window, x_new, y_new);
-                            }
-                            if (state.click_mode == ClickMode::Axis) {
-                                double xpos, ypos;
-                                glfwGetCursorPos(glfw_window, &xpos, &ypos);
-                                real theta = (PI / 2) + drawing->axis_angle_from_y;
-                                real r = 64;
-                                real x_new = xpos + r * COS(theta);
-                                real y_new = ypos - r * SIN(theta);
-                                glfwSetCursorPos(glfw_window, x_new, y_new);
-                                callback_cursor_position(glfw_window, x_new, y_new);
-                            }
+                                if (state.click_mode == ClickMode::Rotate) {
+                                    double xpos, ypos;
+                                    glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                                    real x_new = xpos + 64;
+                                    real y_new = ypos;
+                                    glfwSetCursorPos(glfw_window, x_new, y_new);
+                                    callback_cursor_position(glfw_window, x_new, y_new);
+                                }
+                                if (state.click_mode == ClickMode::Axis) {
+                                    double xpos, ypos;
+                                    glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                                    real theta = (PI / 2) + drawing->axis_angle_from_y;
+                                    real r = 64;
+                                    real x_new = xpos + r * COS(theta);
+                                    real y_new = ypos - r * SIN(theta);
+                                    glfwSetCursorPos(glfw_window, x_new, y_new);
+                                    callback_cursor_position(glfw_window, x_new, y_new);
+                                }
                             }
                         }
                     } else {
@@ -1344,7 +1388,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 popup->selection_cursor = mouse_event_popup->cursor;
             }
         }
-    } else { ASSERT(event.type == EventType::None);
+    } else if (event.type == EventType::None) {
         result.record_me = false;
     }
 
