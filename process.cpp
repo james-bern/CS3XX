@@ -152,7 +152,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     {
                         eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
-                        eso_color((hovering) ? omax.green : omax.dark_gray);
+                        eso_color((hovering) ? omax.purple : omax.dark_gray);
                         eso_bbox_SOUP_QUADS(bbox);
                         eso_end();
                     }

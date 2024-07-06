@@ -121,8 +121,9 @@ void popup_popup(
     EasyTextPen pen = { V2(12.0f), 22.0f, omax.white };
     if (!other._please_suppress_drawing_popup_popup) {
         easy_text_draw(&pen, title);
-        pen.origin_Pixel.x += pen.offset_Pixel.x + 12;
+        pen.origin_Pixel.x += pen.offset_Pixel.x + 12.0f;
         pen.offset_Pixel.x = 0.0f;
+        pen.origin_Pixel.y += 2.5f; // FORNOW
         pen.font_height_Pixel = 18.0f;
     }
 
@@ -134,7 +135,7 @@ void popup_popup(
         for_(d, popup->num_cells) {
             bool d_is_active_cell_index = (popup->active_cell_index == d);
 
-            pen.color = (d_is_active_cell_index) ? omax.cyan : omax.light_gray;
+            pen.color = (d_is_active_cell_index) ? omax.yellow : omax.light_gray;
 
             real y_top;
             real y_bottom;
@@ -226,7 +227,7 @@ void popup_popup(
                         }
                         real alpha = 0.5f + 0.5f * SIN(other.time_since_cursor_start * 7);
                         eso_begin(other.OpenGL_from_Pixel, SOUP_LINES);
-                        eso_color(omax.yellow, alpha);
+                        eso_color(AVG(omax.white, omax.yellow), alpha);
                         eso_vertex(x_cursor, y_top);
                         eso_vertex(x_cursor, y_bottom);
                         eso_end();
