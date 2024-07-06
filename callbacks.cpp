@@ -67,6 +67,11 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         real x_mouse_Pixel = other.mouse_Pixel.x;
         if (
                 1
+                && (toolbox->hot_name)
+           ) {
+            other.hot_pane = Pane::Toolbox;
+        } else if (
+                1
                 && (popup->_FORNOW_active_popup_unique_ID__FORNOW_name0)
                 && (popup->_FORNOW_info_mouse_is_hovering)
            ) {
@@ -110,8 +115,8 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 
             real width_ratio_drawing = (x_divider_drawing_mesh_Pixel / prev_x_divider_drawing_mesh_Pixel);
             camera_drawing->ortho_screen_height_World /= width_ratio_drawing;
-            real window_width_Pixel = window_get_width_Pixel();
-            real width_ratio_mesh = (window_width_Pixel - x_divider_drawing_mesh_Pixel) / (window_width_Pixel - prev_x_divider_drawing_mesh_Pixel);
+            real _window_width_Pixel = window_get_width_Pixel();
+            real width_ratio_mesh = (_window_width_Pixel - x_divider_drawing_mesh_Pixel) / (_window_width_Pixel - prev_x_divider_drawing_mesh_Pixel);
             { // camera_mesh->*
                 bool is_perspective_camera = (!IS_ZERO(camera_mesh->angle_of_view));
                 Camera tmp_2D = make_EquivalentCamera2D(camera_mesh);

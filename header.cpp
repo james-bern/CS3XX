@@ -62,6 +62,7 @@ enum class Pane {
     Mesh,
     Popup,
     DrawingMeshSeparator,
+    Toolbox,
 };
 
 enum class CellType {
@@ -204,6 +205,7 @@ struct KeyEvent {
     uint key;
     bool control;
     bool shift;
+    char *_name_of_spoofing_button;
 };
 
 struct Event {
@@ -281,23 +283,27 @@ struct PopupState {
     real move_angle;
     real move_run;
     real move_rise;
+    real linear_copy_length;
+    real linear_copy_angle;
+    real linear_copy_run;
+    real linear_copy_rise;
+    uint linear_copy_num_copies;
     uint polygon_num_sides = 5;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
     real polygon_side_length;
     real revolve_add_dummy;
     real revolve_cut_dummy;
-    uint num_copies = 2;
-    uint have_fields_been_edited = 0;
-    real angle_of_rotation_in_degrees = 0;
-    real angle_of_rotation_in_radians = 0;
+    real rotate_angle;
+    uint rotate_copy_num_copies;
+    real rotate_copy_angle;
     real scale_factor;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
 };
 
 struct ToolboxState {
-    // char *_FORNOW_hot_button_unique_ID__FORNOW_name;
+    char *hot_name;
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
@@ -309,7 +315,6 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     ToolboxState toolbox;
 
     ClickMode click_mode;
-    ClickModifier click_modifier;
     ColorCode click_color_code;
     EnterMode enter_mode;
 
@@ -340,6 +345,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_help;
     bool show_event_stack;
 
+    ClickModifier click_modifier;
 
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL;
@@ -352,6 +358,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
     bool _please_suppress_drawing_popup_popup;
     bool please_suppress_messagef;
+    bool _please_suppress_drawing_toolbox;
+    bool _please_suppress_drawing_toolbox_snaps;
 
     bool paused;
     bool stepping_one_frame_while_paused;
@@ -1567,7 +1575,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
     char _key_buffer[2];
     char *_key; {
         if (0) ;
-        else if (key_event->key == '\0') _key = "NULL_CHARACTER";
+        else if (key_event->key == '\0') _key = "";
         else if (key_event->key == GLFW_KEY_BACKSPACE) _key = "BACKSPACE";
         else if (key_event->key == GLFW_KEY_DELETE) _key = "DELETE";
         else if (key_event->key == GLFW_KEY_ENTER) _key = "ENTER";

@@ -42,7 +42,7 @@ run_before_main {
                      "cz10\n" // TODO: comment
                      "cz\t10\n" // TODO: comment
                      "bzx30\t30\n" // TODO: comment
-                     "ysadcz" // TODO: comment
+                     "ysadc<m2d 0 0>" // TODO: comment
                      "[5\t15\n" // TODO: comment
                      "sc<m2d 0 30>qs3" // TODO: comment
                      "1<m2d 30 15>0<esc>" // TODO: comment
@@ -83,6 +83,8 @@ run_before_main {
 
 #include "manifoldc.h"
 #include "header.cpp"
+
+#define DUMMY_HOTKEY 9999
 
 // (global) state
 WorldState_ChangesToThisMustBeRecorded_state state;
@@ -139,9 +141,22 @@ int main() {
     messagef(omax.green, "press ? for help");
     #endif
 
+    auto SEND_DUMMY = [&]() {
+        // "process" dummy event to draw popups and buttons
+        // NOTE: it's a Key;Hotkey event in order to enter that section of the code
+        // FORNOW: buttons drawn on EVERY event (no good; TODO fix later)
+        Event dummy = {};
+        dummy.type = EventType::Key;
+        dummy.key_event.subtype = KeyEventSubtype::Hotkey;
+        dummy.key_event.key = DUMMY_HOTKEY;
+        freshly_baked_event_process(dummy);
+    };
+
+
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
+        // SLEEP(1000);
         glfwPollEvents();
         glfwSwapBuffers(glfw_window);
         glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
@@ -151,6 +166,7 @@ int main() {
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
         other._please_suppress_drawing_popup_popup = false;
+        other._please_suppress_drawing_toolbox = false;
 
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
@@ -177,7 +193,12 @@ int main() {
                 }
             }
 
+
             { // events
+                {
+                    SEND_DUMMY();
+                }
+
                 if (raw_event_queue.length) {
                     while (raw_event_queue.length) {
                         RawEvent raw_event = queue_dequeue(&raw_event_queue);
@@ -185,20 +206,11 @@ int main() {
                         freshly_baked_event_process(freshly_baked_event);
                     }
                 }
-
-                {
-                    // "process" dummy event to draw popups and buttons
-                    // NOTE: it's a Key;Hotkey event in order to enter that section of the code
-                    Event dummy = {};
-                    dummy.type = EventType::Key;
-                    dummy.key_event.subtype = KeyEventSubtype::Hotkey;
-                    freshly_baked_event_process(dummy);
-                }
             }
 
             _messages_update();
         } else {
-            // TODO: process dummy event when not drawing popups
+            SEND_DUMMY();
             ;
         }
 

@@ -38,7 +38,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             // TODO (Felipe): snap square
             result = before;
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
-            if (state.click_modifier == ClickModifier::Center) {
+            if (other.click_modifier == ClickModifier::Center) {
                 real min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
                     if (entity->type == EntityType::Line) {
@@ -52,7 +52,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         }
                     }
                 }
-            } else if (state.click_modifier == ClickModifier::Middle) {
+            } else if (other.click_modifier == ClickModifier::Middle) {
                 real min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
                     real squared_distance = squared_distance_point_entity(before, entity);
@@ -61,7 +61,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         result = entity_get_middle(entity);
                     }
                 }
-            } else if (state.click_modifier == ClickModifier::End) {
+            } else if (other.click_modifier == ClickModifier::End) {
                 real min_squared_distance = HUGE_VAL;
                 _for_each_entity_ {
                     vec2 p[2];
@@ -74,7 +74,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         }
                     }
                 }
-            } else if (state.click_modifier == ClickModifier::Perpendicular) { // layout also does a divide which can be added if wanted
+            } else if (other.click_modifier == ClickModifier::Perpendicular) { // layout also does a divide which can be added if wanted
                 real min_squared_distance = HUGE_VAL;
                 vec2 click_one = two_click_command->first_click;
                 Entity* closest_entity = NULL;
@@ -96,7 +96,7 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                     vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
                     result = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
                 }
-            } else if (state.click_modifier == ClickModifier::Quad) {
+            } else if (other.click_modifier == ClickModifier::Quad) {
                 real min_squared_distance = HUGE_VAL;
 
                 // TODO: find_closest_entity( ,...)
@@ -174,11 +174,11 @@ bool click_mode_SELECT_OR_DESELECT() {
 }
 
 bool _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
-    return ((click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Window)) || (state.click_mode == ClickMode::Color));
+    return ((click_mode_SELECT_OR_DESELECT() && (other.click_modifier != ClickModifier::Window)) || (state.click_mode == ClickMode::Color));
 }
 
 bool _SELECT_OR_DESELECT_COLOR() {
     bool A = click_mode_SELECT_OR_DESELECT();
-    bool B = (state.click_modifier == ClickModifier::Color);
+    bool B = (other.click_modifier == ClickModifier::Color);
     return A && B;
 }

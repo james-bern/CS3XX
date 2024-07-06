@@ -190,7 +190,11 @@ void history_debug_draw() {
                         boxed = "[KEY_POPUP]";
                     }
                 }
-                sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
+                if (!key_event->_name_of_spoofing_button) {
+                    sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
+                } else {
+                    sprintf(message, "%s %s", boxed, key_event->_name_of_spoofing_button);
+                }
             } else { ASSERT(event.type == EventType::Mouse);
                 MouseEvent *mouse_event = &event.mouse_event;
                 if (mouse_event->subtype == MouseEventSubtype::Drawing) {

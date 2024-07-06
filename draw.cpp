@@ -310,7 +310,7 @@ void conversation_draw() {
             if (two_click_command->awaiting_second_click) {
                 if (
                         0
-                        || (state.click_modifier == ClickModifier::Window)
+                        || (other.click_modifier == ClickModifier::Window)
                         || (state.click_mode == ClickMode::Box)
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
@@ -664,7 +664,7 @@ void conversation_draw() {
 
         vec3 color; {
             color = omax.white;
-            if ((state.click_mode == ClickMode::Color) && (state.click_modifier != ClickModifier::Selected)) {
+            if ((state.click_mode == ClickMode::Color) && (other.click_modifier != ClickModifier::Selected)) {
                 color = get_color(state.click_color_code);
             }
         }
@@ -672,40 +672,40 @@ void conversation_draw() {
 
         String string_click_mode = STRING(
                 (state.click_mode == ClickMode::None)           ? ""                :
-                (state.click_mode == ClickMode::Axis)           ? "AXIS"            :
-                (state.click_mode == ClickMode::Box)            ? "BOX"             :
-                (state.click_mode == ClickMode::Circle)         ? "CIRCLE"          :
-                (state.click_mode == ClickMode::Color)          ? "COLOR"           :
-                (state.click_mode == ClickMode::Deselect)       ? "DESELECT"        :
-                (state.click_mode == ClickMode::Fillet)         ? "FILLET"          :
-                (state.click_mode == ClickMode::Line)           ? "LINE"            :
-                (state.click_mode == ClickMode::LinearCopy)     ? "LINEAR COPY"     :
-                (state.click_mode == ClickMode::Measure)        ? "MEASURE"         :
-                (state.click_mode == ClickMode::Move)           ? "MOVE"            :
-                (state.click_mode == ClickMode::Origin)         ? "ORIGIN"          :
-                (state.click_mode == ClickMode::Polygon)        ? "POLYGON"         :
-                (state.click_mode == ClickMode::Select)         ? "SELECT"          :
-                (state.click_mode == ClickMode::Rotate)         ? "ROTATE"          :
-                (state.click_mode == ClickMode::RotateCopy)     ? "ROTATE COPY"     :
-                (state.click_mode == ClickMode::MirrorLine)     ? "MIRROR LINE"     :
-                (state.click_mode == ClickMode::MirrorX)        ? "MIRROR X"        :
-                (state.click_mode == ClickMode::MirrorY)        ? "MIRROR Y"        :
-                (state.click_mode == ClickMode::TwoEdgeCircle)  ? "TWO-EDGE CIRCLE" :
-                (state.click_mode == ClickMode::TwoClickDivide) ? "TWO-CLICK DIVIDE" :
+                (state.click_mode == ClickMode::Axis)           ? "Axis"            :
+                (state.click_mode == ClickMode::Box)            ? "Box"             :
+                (state.click_mode == ClickMode::Circle)         ? "Circle"          :
+                (state.click_mode == ClickMode::Color)          ? "Color"           :
+                (state.click_mode == ClickMode::Deselect)       ? "Deselect"        :
+                (state.click_mode == ClickMode::Fillet)         ? "Fillet"          :
+                (state.click_mode == ClickMode::Line)           ? "Line"            :
+                (state.click_mode == ClickMode::LinearCopy)     ? "LinearCopy"      :
+                (state.click_mode == ClickMode::Measure)        ? "Measure"         :
+                (state.click_mode == ClickMode::Move)           ? "Move"            :
+                (state.click_mode == ClickMode::Origin)         ? "Origin"          :
+                (state.click_mode == ClickMode::Polygon)        ? "Polygon"         :
+                (state.click_mode == ClickMode::Select)         ? "Select"          :
+                (state.click_mode == ClickMode::Rotate)         ? "Rotate"          :
+                (state.click_mode == ClickMode::RotateCopy)     ? "RotateCopy"      :
+                (state.click_mode == ClickMode::MirrorLine)     ? "MirrorLine"      :
+                (state.click_mode == ClickMode::MirrorX)        ? "MirrorX"         :
+                (state.click_mode == ClickMode::MirrorY)        ? "MirrorY"         :
+                (state.click_mode == ClickMode::TwoEdgeCircle)  ? "TwoEdgeCircle"   :
+                (state.click_mode == ClickMode::TwoClickDivide) ? "TwoClickDivide"  :
                 "???MODE???");
 
         String string_click_modifier = STRING(
-                (state.click_modifier == ClickModifier::None)           ? ""                :
-                (state.click_modifier == ClickModifier::Center)         ? "CENTER"          :
-                (state.click_modifier == ClickModifier::Connected)      ? "CONNECTED"       :
-                (state.click_modifier == ClickModifier::End)            ? "END"             :
-                (state.click_modifier == ClickModifier::Color)          ? "COLOR"           :
-                (state.click_modifier == ClickModifier::Middle)         ? "MIDDLE"          :
-                (state.click_modifier == ClickModifier::Perpendicular)  ? "PERPENDICULAR"   :
-                (state.click_modifier == ClickModifier::Quad)           ? "QUAD"            :
-                (state.click_modifier == ClickModifier::Selected)       ? "SELECTED"        :
-                (state.click_modifier == ClickModifier::Window)         ? "WINDOW"          :
-                (state.click_modifier == ClickModifier::XY)             ? "XY"              :
+                (other.click_modifier == ClickModifier::None)           ? ""                :
+                (other.click_modifier == ClickModifier::Center)         ? "Center"          :
+                (other.click_modifier == ClickModifier::Connected)      ? "Connected"       :
+                (other.click_modifier == ClickModifier::End)            ? "End"             :
+                (other.click_modifier == ClickModifier::Color)          ? "Color"           :
+                (other.click_modifier == ClickModifier::Middle)         ? "Middle"          :
+                (other.click_modifier == ClickModifier::Perpendicular)  ? "Perpendicular"   :
+                (other.click_modifier == ClickModifier::Quad)           ? "Quad"            :
+                (other.click_modifier == ClickModifier::Selected)       ? "Selected"        :
+                (other.click_modifier == ClickModifier::Window)         ? "Window"          :
+                (other.click_modifier == ClickModifier::XY)             ? "XY"              :
                 "???MODIFIER???");
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - alpha };
