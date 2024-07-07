@@ -26,7 +26,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         if (mesh->cosmetic_edges) {
             eso_begin(PVM_3D, SOUP_LINES); 
             // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, omax.white, omax.black));
-            eso_color(omax.black);
+            eso_color(0,0,0);
             eso_size(1.0f);
             for_(i, mesh->num_cosmetic_edges) {
                 for_(d, 2) {
@@ -166,7 +166,7 @@ void conversation_draw() {
         bool dragging = (other.mouse_left_drag_pane == Pane::DrawingMeshSeparator);
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::DrawingMeshSeparator));
         eso_begin(M4_Identity(), SOUP_LINES);
-        eso_overlay(true);
+        // eso_overlay(true);
         eso_color(
                 dragging ? omax.light_gray
                 : hovering ? omax.white
@@ -227,17 +227,14 @@ void conversation_draw() {
 
                 eso_begin(PV_2D, SOUP_LINES); {
                     // axis
+                    eso_stipple(true);
                     if (state.click_mode == ClickMode::Axis) {
-                        eso_size(3.0f);
                         eso_color(omax.yellow);
                     } else if (state.enter_mode == EnterMode::RevolveAdd) {
-                        eso_size(3.0f);
-                        eso_color(monokai.green);
+                        eso_color(omax.green);
                     } else if (state.enter_mode == EnterMode::RevolveCut) {
-                        eso_size(3.0f);
-                        eso_color(monokai.red);
+                        eso_color(omax.red);
                     } else {
-                        eso_stipple(true);
                         eso_color(omax.dark_gray);
                     }
                     vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
@@ -310,7 +307,7 @@ void conversation_draw() {
             if (two_click_command->awaiting_second_click) {
                 if (
                         0
-                        || (other.click_modifier == ClickModifier::Window)
+                        || (state.click_modifier == ClickModifier::Window)
                         || (state.click_mode == ClickMode::Box)
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
@@ -321,28 +318,28 @@ void conversation_draw() {
                     eso_vertex(first_click->x, mouse.y);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Measure) { // measure line
+                if (state.click_mode == ClickMode::Measure) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::MirrorLine) { // measure line
+                if (state.click_mode == ClickMode::MirrorLine) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Line) { // measure line
+                if (state.click_mode == ClickMode::Line) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Rotate) { // measure line
+                if (state.click_mode == ClickMode::Rotate) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
@@ -664,7 +661,7 @@ void conversation_draw() {
 
         vec3 color; {
             color = omax.white;
-            if ((state.click_mode == ClickMode::Color) && (other.click_modifier != ClickModifier::Selected)) {
+            if ((state.click_mode == ClickMode::Color) && (state.click_modifier != ClickModifier::Selected)) {
                 color = get_color(state.click_color_code);
             }
         }
@@ -695,17 +692,17 @@ void conversation_draw() {
                 "???MODE???");
 
         String string_click_modifier = STRING(
-                (other.click_modifier == ClickModifier::None)           ? ""                :
-                (other.click_modifier == ClickModifier::Center)         ? "Center"          :
-                (other.click_modifier == ClickModifier::Connected)      ? "Connected"       :
-                (other.click_modifier == ClickModifier::End)            ? "End"             :
-                (other.click_modifier == ClickModifier::Color)          ? "Color"           :
-                (other.click_modifier == ClickModifier::Middle)         ? "Middle"          :
-                (other.click_modifier == ClickModifier::Perpendicular)  ? "Perpendicular"   :
-                (other.click_modifier == ClickModifier::Quad)           ? "Quad"            :
-                (other.click_modifier == ClickModifier::Selected)       ? "Selected"        :
-                (other.click_modifier == ClickModifier::Window)         ? "Window"          :
-                (other.click_modifier == ClickModifier::XY)             ? "XY"              :
+                (state.click_modifier == ClickModifier::None)           ? ""                :
+                (state.click_modifier == ClickModifier::Center)         ? "Center"          :
+                (state.click_modifier == ClickModifier::Connected)      ? "Connected"       :
+                (state.click_modifier == ClickModifier::End)            ? "End"             :
+                (state.click_modifier == ClickModifier::Color)          ? "Color"           :
+                (state.click_modifier == ClickModifier::Middle)         ? "Middle"          :
+                (state.click_modifier == ClickModifier::Perpendicular)  ? "Perpendicular"   :
+                (state.click_modifier == ClickModifier::Quad)           ? "Quad"            :
+                (state.click_modifier == ClickModifier::Selected)       ? "Selected"        :
+                (state.click_modifier == ClickModifier::Window)         ? "Window"          :
+                (state.click_modifier == ClickModifier::XY)             ? "XY"              :
                 "???MODIFIER???");
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - alpha };
@@ -715,8 +712,6 @@ void conversation_draw() {
 
     void history_debug_draw(); // forward declaration
 
-    void _messages_draw(); // forward declaration
-    _messages_draw();
 
     if (other.show_help) {
         char * help1 = R""(

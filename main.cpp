@@ -193,6 +193,8 @@ int main() {
                 }
             }
 
+    void _messages_draw(); // forward declaration
+    _messages_draw();
 
             { // events
                 {

@@ -149,7 +149,7 @@ void popup_popup(
 
                 if (!other._please_suppress_drawing_popup_popup) {
                     easy_text_draw(&pen, popup->name[d]);
-                    easy_text_drawf(&pen, " ");
+                    easy_text_drawf(&pen, ": ");
                 }
 
                 x_field_left = pen.get_x_Pixel() - (pen.font_height_Pixel / 12.0f);

@@ -288,12 +288,14 @@ struct PopupState {
     real linear_copy_run;
     real linear_copy_rise;
     uint linear_copy_num_copies;
-    uint polygon_num_sides = 5;
+    uint polygon_num_sides = 6;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
     real polygon_side_length;
-    real revolve_add_dummy;
-    real revolve_cut_dummy;
+    real revolve_add_in_angle;
+    real revolve_add_out_angle;
+    real revolve_cut_in_angle;
+    real revolve_cut_out_angle;
     real rotate_angle;
     uint rotate_copy_num_copies;
     real rotate_copy_angle;
@@ -317,6 +319,7 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     ClickMode click_mode;
     ColorCode click_color_code;
     EnterMode enter_mode;
+    ClickModifier click_modifier; // TODO: split; snaps should be in ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other
 
     Event space_bar_event;
     Event shift_space_bar_event;
@@ -344,8 +347,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_details;
     bool show_help;
     bool show_event_stack;
-
-    ClickModifier click_modifier;
+    bool hide_toolbox;
 
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL;
@@ -399,6 +401,8 @@ struct {
     vec3 gray = RGB255(152, 152, 152);
     vec3 light_gray = RGB255(205, 205, 205);
     vec3 white = RGB255(255, 255, 255);
+
+    vec3 dark_yellow = RGB255(122, 122, 0);
 } omax;
 
 vec3 omax_pallete[] = {

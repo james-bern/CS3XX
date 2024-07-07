@@ -109,6 +109,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = click_mode_SNAP_ELIGIBLE();
 
+            bool hotkey_recognized = false;
             auto magic_magic = [&](
                     bool control,
                     bool shift,
@@ -119,27 +120,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 // TODO: gray out irrelevant buttons (snaps)
 
-                EasyTextPen *pen;
-                EasyTextPen *pen2;
-                bool horz = false;
-                if (group == ToolboxGroup::Drawing) {
-                    pen = &drawing_pen;
-                    pen2 = &drawing_pen2;
-                } else if (group == ToolboxGroup::Snap) {
-                    pen = &snap_pen;
-                    pen2 = &snap_pen2;
-                    horz = true;
-                } else { ASSERT(group == ToolboxGroup::Mesh);
-                    pen = &mesh_pen;
-                    pen2 = &mesh_pen2;
-                }
 
                 bool special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch = (other._please_suppress_drawing_popup_popup && (group == ToolboxGroup::Snap));
+                bool draw_tool = name;
 
-                if (name
+                if (!other.hide_toolbox
+                        && draw_tool
                         && !special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch
                         && ((group != ToolboxGroup::Snap) || special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch)
                    ) {
+                    EasyTextPen *pen;
+                    EasyTextPen *pen2;
+                    bool horz = false;
+                    if (group == ToolboxGroup::Drawing) {
+                        pen = &drawing_pen;
+                        pen2 = &drawing_pen2;
+                    } else if (group == ToolboxGroup::Snap) {
+                        pen = &snap_pen;
+                        pen2 = &snap_pen2;
+                        horz = true;
+                    } else { ASSERT(group == ToolboxGroup::Mesh);
+                        pen = &mesh_pen;
+                        pen2 = &mesh_pen2;
+                    }
+
                     real y = pen->get_y_Pixel();
                     bbox2 bbox = { pen->origin_Pixel.x, y - 2, pen->origin_Pixel.x + w, y + h };
 
@@ -152,7 +156,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     {
                         eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
-                        eso_color((hovering) ? omax.purple : omax.dark_gray);
+                        eso_overlay(true);
+                        eso_color((hovering) ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? omax.pink : omax.purple) : omax.dark_gray);
                         eso_bbox_SOUP_QUADS(bbox);
                         eso_end();
                     }
@@ -177,7 +182,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (key_event->_name_of_spoofing_button) return name == key_event->_name_of_spoofing_button;
                 if (hotkey_label_only) return false;
-                return _key_lambda(key_event, key, control, shift);
+                bool result = _key_lambda(key_event, key, control, shift);
+                hotkey_recognized |= result;
+                return result;
             };
 
 
@@ -186,17 +193,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             { // magic_magic
                 if (magic_magic(0,0,'L', "Line")) {
                     state.click_mode = ClickMode::Line;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 { // 'C'
                     bool hotkey_C = magic_magic(0,0,'C');
                     bool button_circle = magic_magic(0,0,'C',"Circle",true);
                     {
-                        if (click_mode_SELECT_OR_DESELECT() && (other.click_modifier != ClickModifier::Connected)) {
+                        if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Connected)) {
                             if (hotkey_C) {
                                 hotkey_C = false;
-                                other.click_modifier = ClickModifier::Connected;
+                                state.click_modifier = ClickModifier::Connected;
                             }
                         }
                         if (click_mode_SNAP_ELIGIBLE()) {
@@ -204,19 +211,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (hotkey_C || button_center) {
                                 hotkey_C = false;
                                 result.record_me = false;
-                                other.click_modifier = ClickModifier::Center;
+                                state.click_modifier = ClickModifier::Center;
                             }
                         }
                         if (hotkey_C || button_circle) {
                             state.click_mode = ClickMode::Circle;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             two_click_command->awaiting_second_click = false;
                         }
                     }
                 }
                 if (magic_magic(0,0,'B',"Box")) {
                     state.click_mode = ClickMode::Box;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 { // 'P'
@@ -228,12 +235,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (hotkey_P || button_perpendiular) {
                                 hotkey_P = false;
                                 result.record_me = false;
-                                other.click_modifier = ClickModifier::Perpendicular;
+                                state.click_modifier = ClickModifier::Perpendicular;
                             }
                         }
                         if (hotkey_P || button_polygon) {
                             state.click_mode = ClickMode::Polygon;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             two_click_command->awaiting_second_click = false;
                         }
                     }
@@ -244,14 +251,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(0,0,'S',"Select")) { // TODO
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                     } else {
-                        other.click_modifier = ClickModifier::Selected;
+                        state.click_modifier = ClickModifier::Selected;
                     }
                 }
                 if (magic_magic(0,0,'D',"Deselect")) {
                     state.click_mode = ClickMode::Deselect;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -265,19 +272,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (hotkey_M || button_middle) {
                                 hotkey_M = false;
                                 result.record_me = false;
-                                other.click_modifier = ClickModifier::Middle;
+                                state.click_modifier = ClickModifier::Middle;
                             }
                         }
                         if (hotkey_M || button_move) {
                             state.click_mode = ClickMode::Move;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             two_click_command->awaiting_second_click = false;
                         }
                     }
                 }
                 if (magic_magic(0,0,'R',"Rotate")) {
                     state.click_mode = ClickMode::Rotate;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -285,12 +292,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(0,0,'O',"LinearCopy")) {
                     state.click_mode = ClickMode::LinearCopy;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 if (magic_magic(0,1,'R',"RotateCopy")) {
                     state.click_mode = ClickMode::RotateCopy;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -299,14 +306,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(0,0,'F',"Fillet")) {
                     state.click_mode = ClickMode::Fillet;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
                 if (magic_magic(0,0,'I',"TwoClickDivide")) {
                     state.click_mode = ClickMode::TwoClickDivide;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
                 }
@@ -315,11 +322,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(0,1,'Z',"Origin")) {
                     state.click_mode = ClickMode::Origin;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                 }
                 if (magic_magic(0,1,'A',"Axis")) {
                     state.click_mode = ClickMode::Axis;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -328,14 +335,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(0,0,'E',"End",false,ToolboxGroup::Snap)) {
                         result.record_me = false;
-                        other.click_modifier = ClickModifier::End;
+                        state.click_modifier = ClickModifier::End;
                     }
                 }
 
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(0,0,'X',"XY",false,ToolboxGroup::Snap)) {
                         if (state.click_mode != ClickMode::None) {
-                            other.click_modifier = ClickModifier::XY;
+                            state.click_modifier = ClickModifier::XY;
                         }
                     }
                 }
@@ -411,23 +418,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
                 if (hotkey_0123456789) {
-                    if (click_mode_SELECT_OR_DESELECT() && (other.click_modifier == ClickModifier::Color)) { // [sd]q0
+                    if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Color)) { // [sd]q0
                         _for_each_entity_ {
                             uint i = uint(entity->color_code);
                             if (i != digit) continue;
                             cookbook.entity_set_is_selected(entity, value_to_write_to_selection_mask);
                         }
                         state.click_mode = ClickMode::None;
-                        other.click_modifier = ClickModifier::None;
-                    } else if ((state.click_mode == ClickMode::Color) && (other.click_modifier == ClickModifier::Selected)) { // qs0
+                        state.click_modifier = ClickModifier::None;
+                    } else if ((state.click_mode == ClickMode::Color) && (state.click_modifier == ClickModifier::Selected)) { // qs0
                         _for_each_selected_entity_ cookbook.entity_set_color(entity, ColorCode(digit));
                         state.click_mode = ClickMode::None;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                         _for_each_entity_ entity->is_selected = false;
                     } else { // 0
                         result.record_me = true;
                         state.click_mode = ClickMode::Color;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                         state.click_color_code = ColorCode(digit);
                     }
                 }
@@ -437,20 +444,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.checkpoint_me = true;
                         cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
                         state.click_mode = ClickMode::None;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                     }
                 }
 
                 if (magic_magic(1,0,'C')) {
                     state.click_mode = ClickMode::TwoEdgeCircle;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
 
                 if (magic_magic(0,1,'D')) {
                     state.click_mode = ClickMode::DivideNearest;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                 }
 
 
@@ -478,12 +485,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(0,1,'M')) {
                     result.record_me = false;
                     state.click_mode = ClickMode::Measure;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 if (magic_magic(1,1,'M')) {
                     state.click_mode = ClickMode::MirrorLine;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -515,12 +522,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(0,0,'Q')) {
                     if (click_mode_SNAP_ELIGIBLE()) {
                         result.record_me = false;
-                        other.click_modifier = ClickModifier::Quad;
-                    } else if (click_mode_SELECT_OR_DESELECT() && (other.click_modifier == ClickModifier::None)) {
-                        other.click_modifier = ClickModifier::Color;
+                        state.click_modifier = ClickModifier::Quad;
+                    } else if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::None)) {
+                        state.click_modifier = ClickModifier::Color;
                     } else {
                         state.click_mode = ClickMode::Color;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                     }
                 }
 
@@ -546,7 +553,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(0,0,'W')) {
                     // click_mode_SELECT_OR_DESELECT() ??
                     if ((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect)) {
-                        other.click_modifier = ClickModifier::Window;
+                        state.click_modifier = ClickModifier::Window;
                         two_click_command->awaiting_second_click = false;
                     }
                 }
@@ -554,7 +561,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(0,1,'X')) {
                     state.click_mode = ClickMode::MirrorX;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                 }
 
                 if (magic_magic(1,1,'X')) {
@@ -566,7 +573,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(0,1,'Y')) {
                     state.click_mode = ClickMode::MirrorY;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                 }
 
 
@@ -618,7 +625,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(0,0,GLFW_KEY_BACKSPACE) || magic_magic(0,0,GLFW_KEY_DELETE)) {
                     // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
                     state.click_mode = ClickMode::None;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
 
                     for (int i = drawing->entities.length - 1; i >= 0; --i) {
                         if (drawing->entities.array[i].is_selected) {
@@ -635,7 +642,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(0,0,GLFW_KEY_ESCAPE)) {
                     state.enter_mode = EnterMode::None;
                     state.click_mode = ClickMode::None;
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     state.click_color_code = ColorCode::Traverse;
                 }
 
@@ -651,7 +658,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         omax.white = omax.black;
                         omax.black = tmp;
                     }
+                    {
+                        vec3 tmp = omax.yellow;
+                        omax.yellow = omax.dark_yellow;
+                        omax.dark_yellow = tmp;
+                    }
                 }
+
+                if (magic_magic(0,1,GLFW_KEY_TAB)) { // FORNOW
+                    result.record_me = false;
+                    other.hide_toolbox = !other.hide_toolbox;
+                }
+
+
 
                 if (magic_magic(0,0,GLFW_KEY_ENTER)) { // FORNOW
                     result.record_me = false;
@@ -665,7 +684,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.record_me = false;
                 }
 
-                if (0) {
+                if (!hotkey_recognized) {
                     messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
                     result.record_me = false;
                     ;
@@ -809,7 +828,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             vec2 *mouse = &mouse_event_drawing->mouse_position;
 
-            bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (other.click_modifier == ClickModifier::Window));
+            bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
 
             // TODO: move to misc.cpp; TODO: rename misc.cpp -> bool.cpp?
             bool click_mode_TWO_CLICK_COMMAND = 0 ||
@@ -835,7 +854,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
-                    if (other.click_modifier != ClickModifier::Connected) {
+                    if (state.click_modifier != ClickModifier::Connected) {
                         if (click_mode_SELECT_OR_DESELECT()) {
                             cookbook.entity_set_is_selected(hot_entity, value_to_write_to_selection_mask);
                         } else {
@@ -1015,7 +1034,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = true;
                             two_click_command->first_click = mouse_event_drawing->mouse_position;
                             two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
-                            if (other.click_modifier != ClickModifier::Window) other.click_modifier = ClickModifier::None;
+                            if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
                             { // bump bumps cursor bump cursor bumps
                                 if (state.click_mode == ClickMode::Rotate) {
                                     double xpos, ypos;
@@ -1048,7 +1067,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             drawing->axis_base_point = *first_click;
                             drawing->axis_angle_from_y = (-PI / 2) + click_theta;
                         } else if (state.click_mode == ClickMode::Box) {
@@ -1060,7 +1079,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
-                                other.click_modifier = ClickModifier::None;
+                                state.click_modifier = ClickModifier::None;
                                 vec2 other_corner_A = { first_click->x, second_click->y };
                                 vec2 other_corner_B = { second_click->x, first_click->y };
                                 cookbook.buffer_add_line(*first_click,  other_corner_A);
@@ -1071,7 +1090,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (state.click_mode == ClickMode::Fillet) {
                             result.checkpoint_me = true;
 
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             two_click_command->awaiting_second_click = false;
 
                             DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, *second_click);
@@ -1166,7 +1185,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
-                                other.click_modifier = ClickModifier::None;
+                                state.click_modifier = ClickModifier::None;
                                 real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 real r = norm(*second_click - *first_click);
@@ -1181,7 +1200,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
-                                other.click_modifier = ClickModifier::None;
+                                state.click_modifier = ClickModifier::None;
                                 vec2 center = (*second_click + *first_click) / 2;
                                 real theta_a_in_degrees = DEG(ATAN2(*second_click - center));
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
@@ -1193,7 +1212,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (state.click_mode == ClickMode::TwoClickDivide) { // TODO: make sure no 0 length shenanigans
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             // two_click_command->awaiting_second_click = false;
 
                             do_once { messagef(omax.red, "TODO: add warnings for no intersection found for arc-arc and arc-line"); }
@@ -1336,12 +1355,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             cookbook.buffer_add_line(*first_click, *second_click);
                         } else if (state.click_mode == ClickMode::Measure) {
                             // two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             real angle = DEG(click_theta);
                             real length = norm(*second_click - *first_click);
                             messagef(omax.cyan, "Angle is %gdeg.", angle);
@@ -1350,7 +1369,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
 
                             real theta = ATAN2(click_vector);
                             real theta_in_degrees = DEG(theta);
@@ -1382,7 +1401,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             _for_each_selected_entity_ {
                                 if (entity->type == EntityType::Line) {
                                     LineEntity *line = &entity->line;
@@ -1399,23 +1418,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
-                            real theta = IS_ZERO(popup->rotate_copy_angle) ? PI : MAX(0.0f, DEG(popup->rotate_copy_angle));
-                            popup->rotate_copy_num_copies = MAX(2U, popup->rotate_copy_num_copies);
+                            state.click_modifier = ClickModifier::None;
+
+                            uint num_copies = MAX(2U, popup->rotate_copy_num_copies);
+                            real theta_deg = popup->rotate_copy_angle;
+                            real theta_rad = RAD(theta_deg);
 
                             _for_each_selected_entity_ {
                                 Entity oldEntity = *entity;
-                                for_(j, popup->rotate_copy_num_copies - 1) { // layout has copies as + 1 of what you want so i copied it but it seems strange
+                                for_(j, popup->rotate_copy_num_copies - 1) {
                                     Entity new_entity = oldEntity;
                                     if (entity->type == EntityType::Line) {
                                         LineEntity *line = &new_entity.line;
-                                        line->start = rotated_about(line->start, *first_click, theta);
-                                        line->end = rotated_about(line->end, *first_click, theta);
+                                        line->start = rotated_about(line->start, *first_click, theta_rad);
+                                        line->end = rotated_about(line->end, *first_click, theta_rad);
                                     } else { ASSERT(entity->type == EntityType::Arc);
                                         ArcEntity *arc = &new_entity.arc;
-                                        arc->center = rotated_about(arc->center, *first_click, theta);
-                                        arc->start_angle_in_degrees = DEG(theta) + arc->start_angle_in_degrees;
-                                        arc->end_angle_in_degrees = DEG(theta) + arc->end_angle_in_degrees;
+                                        arc->center = rotated_about(arc->center, *first_click, theta_rad);
+                                        arc->start_angle_in_degrees = theta_deg + arc->start_angle_in_degrees;
+                                        arc->end_angle_in_degrees = theta_deg + arc->end_angle_in_degrees;
                                     }
                                     cookbook._buffer_add_entity(new_entity);
                                     oldEntity = new_entity;
@@ -1425,7 +1446,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             _for_each_selected_entity_ {
                                 if (entity->type == EntityType::Line) {
                                     LineEntity *line = &entity->line;
@@ -1440,7 +1461,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             uint num_copies = MAX(1U, popup->linear_copy_num_copies);
                             for_(i, num_copies) {
                                 vec2 displacement = real(i + 1) * click_vector;
@@ -1470,13 +1491,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
-                                other.click_modifier = ClickModifier::None;
+                                state.click_modifier = ClickModifier::None;
                                 real delta_theta = TAU / polygon_num_sides;
                                 vec2 center = *first_click;
                                 vec2 vertex_0 = *second_click;
                                 real radius = distance(center, vertex_0);
                                 real theta_0 = ATAN2(vertex_0 - center);
-                                cookbook.buffer_add_line(center, vertex_0); // center line (so sayeth LAYOUT)
+                                // cookbook.buffer_add_line(center, vertex_0); // center line (so sayeth LAYOUT)
                                 for_(i, polygon_num_sides) {
                                     real theta_i = theta_0 + (i * delta_theta);
                                     real theta_ip1 = theta_i + delta_theta;
@@ -1505,14 +1526,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (state.click_mode == ClickMode::Origin) {
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                         drawing->origin = *mouse;
                     } else if (state.click_mode == ClickMode::DivideNearest) { 
                         DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse); // TODO *closest* -> *nearest*
                         if (closest_results.success) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
-                            other.click_modifier = ClickModifier::None;
+                            state.click_modifier = ClickModifier::None;
                             Entity *entity = closest_results.closest_entity;
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line = &entity->line;
@@ -1545,7 +1566,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (state.click_mode == ClickMode::MirrorX) {
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                         _for_each_selected_entity_ {
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line = &entity->line;
@@ -1570,7 +1591,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (state.click_mode == ClickMode::MirrorY) {
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;
-                        other.click_modifier = ClickModifier::None;
+                        state.click_modifier = ClickModifier::None;
                         _for_each_selected_entity_ {
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line = &entity->line;
@@ -1814,7 +1835,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::RevolveAdd) {
                 popup_popup(STRING("RevolveAdd"), true,
-                        CellType::Real, STRING("revolve_add_dummy"), &popup->revolve_add_dummy);
+                        CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle,
+                        CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle
+                        );
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "RevolveAdd: selection empty");
@@ -1827,7 +1850,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::RevolveCut) {
                 popup_popup(STRING("RevolveCut"), true,
-                        CellType::Real, STRING("revolve_cut_dummy"), &popup->revolve_cut_dummy);
+                        CellType::Real, STRING("in_angle"), &popup->revolve_cut_in_angle,
+                        CellType::Real, STRING("out_angle"), &popup->revolve_cut_out_angle
+                        );
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "RevolveCut: selection empty");
@@ -1850,14 +1875,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.enter_mode = EnterMode::None;
                     messagef(omax.green, "NudgeFeaturePlane %gmm", popup->feature_plane_nudge);
                 }
-            } else if (other.click_modifier == ClickModifier::XY) {
+            } else if (state.click_modifier == ClickModifier::XY) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
                 popup_popup(STRING("XY"), true,
                         CellType::Real, STRING("x"), &popup->x_coordinate,
                         CellType::Real, STRING("y"), &popup->y_coordinate);
                 if (gui_key_enter) {
                     // popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
-                    other.click_modifier = ClickModifier::None;
+                    state.click_modifier = ClickModifier::None;
                     return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
                 }
             } else if (state.click_mode == ClickMode::Circle) {
