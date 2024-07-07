@@ -1420,13 +1420,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
 
-                            uint num_copies = MAX(2U, popup->rotate_copy_num_copies);
+                            uint num_total_copies = popup->rotate_copy_num_total_copies;
                             real theta_deg = popup->rotate_copy_angle;
+                            if (IS_ZERO(theta_deg)) theta_deg = 180.0f;
                             real theta_rad = RAD(theta_deg);
 
                             _for_each_selected_entity_ {
                                 Entity oldEntity = *entity;
-                                for_(j, popup->rotate_copy_num_copies - 1) {
+                                for_(j, num_total_copies - 1) {
                                     Entity new_entity = oldEntity;
                                     if (entity->type == EntityType::Line) {
                                         LineEntity *line = &new_entity.line;
@@ -1462,10 +1463,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            uint num_copies = MAX(1U, popup->linear_copy_num_copies);
-                            for_(i, num_copies) {
+                            uint num_additional_copies = MAX(1U, popup->linear_copy_num_additional_copies);
+                            for_(i, num_additional_copies) {
                                 vec2 displacement = real(i + 1) * click_vector;
-                                bool is_selected = (i == num_copies - 1);
+                                bool is_selected = (i == num_additional_copies - 1);
                                 _for_each_selected_entity_ {
                                     Entity new_entity; {
                                         new_entity = *entity;
@@ -1980,18 +1981,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (state.click_mode == ClickMode::RotateCopy) {
                 if (two_click_command->awaiting_second_click) {
                     real prev_rotate_copy_angle_in_degrees = popup->rotate_copy_angle;
-                    uint prev_rotate_copy_num_copies = popup->rotate_copy_num_copies;
+                    uint prev_rotate_copy_num_copies = popup->rotate_copy_num_total_copies;
                     popup_popup(STRING("RotateCopy"), true,
-                            CellType::Uint, STRING("num_copies"), &popup->rotate_copy_num_copies,
+                            CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
                             CellType::Real, STRING("angle"), &popup->rotate_copy_angle
                             );
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
                     } else {
                         if (prev_rotate_copy_angle_in_degrees != popup->rotate_copy_angle) {
-                            popup->rotate_copy_num_copies = uint(360 / popup->rotate_copy_angle);
-                        } else if (prev_rotate_copy_num_copies != popup->rotate_copy_num_copies) {
-                            popup->rotate_copy_angle = 360 / popup->rotate_copy_num_copies;
+                            popup->rotate_copy_num_total_copies = MAX(2U, uint(360 / popup->rotate_copy_angle));
+                        } else if (prev_rotate_copy_num_copies != popup->rotate_copy_num_total_copies) {
+                            popup->rotate_copy_angle = 360 / popup->rotate_copy_num_total_copies;
                         }
                     }
                 }
@@ -2002,7 +2003,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_linear_copy_run = popup->linear_copy_run;
                     real prev_linear_copy_rise = popup->linear_copy_rise;
                     popup_popup(STRING("LinearCopy"), true,
-                            CellType::Uint, STRING("num_copies"), &popup->linear_copy_num_copies,
+                            CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
                             CellType::Real, STRING("length"), &popup->linear_copy_length,
                             CellType::Real, STRING("angle"), &popup->linear_copy_angle,
                             CellType::Real, STRING("run"), &popup->linear_copy_run,

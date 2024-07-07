@@ -287,7 +287,7 @@ struct PopupState {
     real linear_copy_angle;
     real linear_copy_run;
     real linear_copy_rise;
-    uint linear_copy_num_copies;
+    uint linear_copy_num_additional_copies;
     uint polygon_num_sides = 6;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
@@ -297,7 +297,7 @@ struct PopupState {
     real revolve_cut_in_angle;
     real revolve_cut_out_angle;
     real rotate_angle;
-    uint rotate_copy_num_copies;
+    uint rotate_copy_num_total_copies;
     real rotate_copy_angle;
     real scale_factor;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
