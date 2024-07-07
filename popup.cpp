@@ -65,7 +65,7 @@ void POPUP_SET_ACTIVE_CELL_INDEX(uint new_active_cell_index) {
 
 // TODO: consider adding type-checking (NOTE: maybe hard?)
 void popup_popup(
-        String title,
+        String title, ToolboxGroup group,
         bool zero_on_load_up,
         CellType _cell_type0,                  String _name0,      void *_value0,
         CellType _cell_type1 = CellType::None, String _name1 = {}, void *_value1 = NULL,
@@ -118,7 +118,7 @@ void popup_popup(
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
 
-    EasyTextPen pen = { V2(12.0f), 22.0f, omax.white };
+    EasyTextPen pen = { V2(12.0f), 22.0f, AVG(omax.white, get_accent_color(group)) };
     if (!other._please_suppress_drawing_popup_popup) {
         easy_text_draw(&pen, title);
         pen.origin_Pixel.x += pen.offset_Pixel.x + 12.0f;
@@ -135,7 +135,7 @@ void popup_popup(
         for_(d, popup->num_cells) {
             bool d_is_active_cell_index = (popup->active_cell_index == d);
 
-            pen.color = (d_is_active_cell_index) ? omax.yellow : omax.light_gray;
+            pen.color = (d_is_active_cell_index) ? get_accent_color(group) : omax.light_gray;
 
             real y_top;
             real y_bottom;

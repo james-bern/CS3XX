@@ -4,13 +4,24 @@ enum class EnterMode {
     None,
     ExtrudeAdd,
     ExtrudeCut,
-    NudgeFeaturePlane,
+    NudgePlane,
     Load,
     RevolveAdd,
     RevolveCut,
     Save,
     Size,
 };
+
+
+
+enum class ToolboxGroup {
+    None,
+    Drawing,
+    Snap,
+    Mesh,
+};
+
+
 
 enum class ClickMode {
     None,
@@ -402,7 +413,7 @@ struct {
     vec3 light_gray = RGB255(205, 205, 205);
     vec3 white = RGB255(255, 255, 255);
 
-    vec3 dark_yellow = RGB255(122, 122, 0);
+    vec3 dark_yellow = RGB255(200, 200, 0);
 } omax;
 
 vec3 omax_pallete[] = {
@@ -412,11 +423,25 @@ vec3 omax_pallete[] = {
     omax.magenta,
     omax.purple,
     omax.blue,
-    omax.light_gray,
+    omax.gray,
     basic.magenta,
     omax.cyan,
     omax.orange,
 };
+
+vec3 get_accent_color(ToolboxGroup group) {
+    vec3 result;
+    if (group == ToolboxGroup::Drawing) {
+        result = LERP(0.2f, omax.cyan, omax.blue);
+    } else if (group == ToolboxGroup::Snap) {
+        result = omax.pink;
+    } else if (group == ToolboxGroup::Mesh) {
+        result = omax.orange;
+    } else { ASSERT(group == ToolboxGroup::None);
+        result = omax.yellow;
+    }
+    return result;
+}
 
 ////////////////////////////////////////
 // Forward-Declarations ////////////////
@@ -1621,7 +1646,7 @@ struct LineLineXResult {
 
 
 LineLineXResult line_line_intersection(//vec2 a, vec2 b, vec2 c, vec2 d) {
-    vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
+vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
     // https://stackoverflow.com/a/565282
     vec2 r = p_plus_r - p;
     vec2 s = q_plus_s - q;
@@ -1739,7 +1764,7 @@ LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
         result.theta_2 = DEG(angle_from_0_TAU(arc->center, result.point2));
         result.point1_is_on_arc = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_1, arc->start_angle_in_degrees, arc->end_angle_in_degrees);
         result.point2_is_on_arc = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_2, arc->start_angle_in_degrees, arc->end_angle_in_degrees);
-        
+
         result.point1_is_on_line_segment = IS_BETWEEN_TIGHT(result.t1, 0.0f, 1.0f);
         result.point2_is_on_line_segment = IS_BETWEEN_TIGHT(result.t2, 0.0f, 1.0f);
 

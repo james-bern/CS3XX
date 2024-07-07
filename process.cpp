@@ -1,3 +1,4 @@
+
 // TODO: beautiful buttons; should indicate what's selected in green (persistent)
 // FORNOW: rotate copy's usage of second click is wonky
 
@@ -5,7 +6,8 @@
 
 // TODO: pressing F when Fillet already active should highlight popup field
 
-// TODO: linear copy and rotate copy should popup on first click as well
+// TODO: linear copy like layout
+// TODO: ???linear copy shouldn't be able to snap to the thing that 
 
 // TODO: mouse still pops on undo/redo
 // ~~~~: snaps flicker when typing in the popup 
@@ -70,11 +72,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             *toolbox = {};
 
-            enum class ToolboxGroup {
-                Drawing,
-                Snap,
-                Mesh,
-            };
 
             real padding = 12.0f;
 
@@ -116,7 +113,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     uint key,
                     char *name = NULL,
                     bool hotkey_label_only = false,
-                    ToolboxGroup group = ToolboxGroup::Drawing) -> bool {
+                    ToolboxGroup group = ToolboxGroup::Drawing,
+                    ClickMode click_mode = ClickMode::None,
+                    ClickModifier click_modifier = ClickModifier::None,
+                    EnterMode enter_mode = EnterMode::None
+                    ) -> bool {
 
                 // TODO: gray out irrelevant buttons (snaps)
 
@@ -155,9 +156,36 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     {
+
+                        vec3 accent_color = get_accent_color(group); 
+
+                        bool can_toggle;
+                        bool toggled;
+                        {
+                            can_toggle = false;
+                            toggled = false;
+                            if (click_mode != ClickMode::None) {
+                                can_toggle = true;
+                                toggled = (click_mode == state.click_mode);
+                            } else if (click_modifier != ClickModifier::None) {
+                                can_toggle = true;
+                                toggled = (click_modifier == state.click_modifier);
+                            } else if (enter_mode != EnterMode::None) {
+                                can_toggle = true;
+                                toggled = (enter_mode == state.enter_mode);
+                            }
+                        }
+
+                        vec3 base_color = (can_toggle) ? omax.dark_gray : AVG(omax.dark_gray, omax.gray);
+
                         eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
                         eso_overlay(true);
-                        eso_color((hovering) ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? omax.pink : omax.purple) : omax.dark_gray);
+                        eso_color(
+                                (hovering)
+                                ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(omax.white, accent_color) : accent_color)
+                                : ((toggled) ? AVG(omax.black, accent_color)
+                                    : base_color)
+                                );
                         eso_bbox_SOUP_QUADS(bbox);
                         eso_end();
                     }
@@ -172,18 +200,31 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (horz) {
                         pen->offset_Pixel = {};
                         pen2->offset_Pixel = {};
-                        pen->origin_Pixel.x += w + 4;
-                        pen2->origin_Pixel.x += w + 4;
+                        pen->origin_Pixel.x += w + 2;
+                        pen2->origin_Pixel.x += w + 2;
                     }
                 }
 
                 // TODO: ScriptEvent
                 // TODO: this should store whether we're hovering in toolbox as well as the event that will be generated if we click
 
-                if (key_event->_name_of_spoofing_button) return name == key_event->_name_of_spoofing_button;
-                if (hotkey_label_only) return false;
-                bool result = _key_lambda(key_event, key, control, shift);
-                hotkey_recognized |= result;
+                if (!hotkey_label_only) {
+                    hotkey_recognized |= _key_lambda(key_event, key, control, shift);
+                }
+
+                bool result = false;
+                if (key_event->_name_of_spoofing_button) result |= (name == key_event->_name_of_spoofing_button);
+                if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift);
+
+                #if 0
+                // canned logic 
+                if (result) {
+                    if (click_mode != ClickMode::None) { ASSERT(group == ToolboxGroup::Drawing); state.click_mode = click_mode; }
+                    if (click_mode_SNAP_ELIGIBLE() && (click_modifier != ClickModifier::None)) { ASSERT(group == ToolboxGroup::Snap); state.click_modifier = click_modifier; }
+                    if (enter_mode != EnterMode::None) { ASSERT(group == ToolboxGroup::Mesh); state.enter_mode = enter_mode; }
+                }
+                #endif
+
                 return result;
             };
 
@@ -191,14 +232,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             ClickMode prev_click_mode = state.click_mode;
             EnterMode prev_enter_mode = state.enter_mode;
             { // magic_magic
-                if (magic_magic(0,0,'L', "Line")) {
+                if (magic_magic(0,0,'L',"Line",false,ToolboxGroup::Drawing,ClickMode::Line)) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 { // 'C'
                     bool hotkey_C = magic_magic(0,0,'C');
-                    bool button_circle = magic_magic(0,0,'C',"Circle",true);
+                    bool button_circle = magic_magic(0,0,'C',"Circle",true,ToolboxGroup::Drawing,ClickMode::Circle);
                     {
                         if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Connected)) {
                             if (hotkey_C) {
@@ -207,7 +248,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
                         if (click_mode_SNAP_ELIGIBLE()) {
-                            bool button_center = magic_magic(0,0,'C',"Center",true,ToolboxGroup::Snap);
+                            bool button_center = magic_magic(0,0,'C',"Center",true,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center);
                             if (hotkey_C || button_center) {
                                 hotkey_C = false;
                                 result.record_me = false;
@@ -221,17 +262,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-                if (magic_magic(0,0,'B',"Box")) {
+                if (magic_magic(0,0,'B',"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 { // 'P'
                     bool hotkey_P = magic_magic(0,0,'P');
-                    bool button_polygon = magic_magic(0,0,'P',"Polygon",true);
+                    bool button_polygon = magic_magic(0,0,'P',"Polygon",true,ToolboxGroup::Drawing,ClickMode::Polygon);
                     {
                         if (click_mode_SNAP_ELIGIBLE()) {
-                            bool button_perpendiular = magic_magic(0,0,'P',"Perpendicular",true,ToolboxGroup::Snap);
+                            bool button_perpendiular = magic_magic(0,0,'P',"Perpendicular",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular);
                             if (hotkey_P || button_perpendiular) {
                                 hotkey_P = false;
                                 result.record_me = false;
@@ -248,7 +289,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(0,0,'S',"Select")) { // TODO
+                if (magic_magic(0,0,'S',"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
                         state.click_modifier = ClickModifier::None;
@@ -256,7 +297,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::Selected;
                     }
                 }
-                if (magic_magic(0,0,'D',"Deselect")) {
+                if (magic_magic(0,0,'D',"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
                 }
@@ -265,14 +306,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 { // 'M'
                     bool hotkey_M      = magic_magic(0,0,'M');
-                    bool button_move   = magic_magic(0,0,'M',"Move",true);
+                    bool button_move   = magic_magic(0,0,'M',"Move",true,ToolboxGroup::Drawing,ClickMode::Move);
                     {
                         if (click_mode_SNAP_ELIGIBLE()) {
-                            bool button_middle = magic_magic(0,0,'M',"Middle",true,ToolboxGroup::Snap);
+                            bool button_middle = magic_magic(0,0,'M',"Middle",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle);
                             if (hotkey_M || button_middle) {
                                 hotkey_M = false;
-                                result.record_me = false;
                                 state.click_modifier = ClickModifier::Middle;
+                                result.record_me = false;
                             }
                         }
                         if (hotkey_M || button_move) {
@@ -282,7 +323,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-                if (magic_magic(0,0,'R',"Rotate")) {
+                if (magic_magic(0,0,'R',"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -290,12 +331,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(0,0,'O',"LinearCopy")) {
+                if (magic_magic(0,0,'O',"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy)) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
-                if (magic_magic(0,1,'R',"RotateCopy")) {
+                if (magic_magic(0,1,'R',"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -304,14 +345,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 SEPERATOR(ToolboxGroup::Drawing);
 
 
-                if (magic_magic(0,0,'F',"Fillet")) {
+                if (magic_magic(0,0,'F',"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     state.click_mode = ClickMode::Fillet;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(0,0,'I',"TwoClickDivide")) {
+                if (magic_magic(0,0,'I',"TwoClickDivide",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
                     state.click_mode = ClickMode::TwoClickDivide;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
@@ -320,11 +361,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(0,1,'Z',"Origin")) {
+                if (magic_magic(0,1,'Z',"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin)) {
                     state.click_mode = ClickMode::Origin;
                     state.click_modifier = ClickModifier::None;
                 }
-                if (magic_magic(0,1,'A',"Axis")) {
+                if (magic_magic(0,1,'A',"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis)) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -333,14 +374,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 ////////////////////////////////////////////////////////////////////////////////
 
                 if (click_mode_SNAP_ELIGIBLE()) {
-                    if (magic_magic(0,0,'E',"End",false,ToolboxGroup::Snap)) {
+                    if (magic_magic(0,0,'E',"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::End;
                     }
                 }
 
                 if (click_mode_SNAP_ELIGIBLE()) {
-                    if (magic_magic(0,0,'X',"XY",false,ToolboxGroup::Snap)) {
+                    if (magic_magic(0,0,'X',"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
                         if (state.click_mode != ClickMode::None) {
                             state.click_modifier = ClickModifier::XY;
                         }
@@ -374,29 +415,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
                 SEPERATOR(ToolboxGroup::Mesh);
-                if (magic_magic(0,0,'[',"ExtrudeAdd",false,ToolboxGroup::Mesh)) {
+                if (magic_magic(0,0,'[',"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
                     state.enter_mode = EnterMode::ExtrudeAdd;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
                 }
-                if (magic_magic(0,1,'[', "ExtrudeCut",false,ToolboxGroup::Mesh)) {
+                if (magic_magic(0,1,'[', "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
                     state.enter_mode = EnterMode::ExtrudeCut;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
                 }
-                if (magic_magic(0,0,']', "RevolveAdd",false,ToolboxGroup::Mesh)) {
+                if (magic_magic(0,0,']', "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
                     state.enter_mode = EnterMode::RevolveAdd;
                 }
-                if (magic_magic(0,1,']', "RevolveCut",false,ToolboxGroup::Mesh)) {
+                if (magic_magic(0,1,']', "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
                     state.enter_mode = EnterMode::RevolveCut;
                 }
                 SEPERATOR(ToolboxGroup::Mesh);
-                if (magic_magic(0,0,'N', "NudgePlane",false,ToolboxGroup::Mesh)) {
+                if (magic_magic(0,0,'N', "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
                     if (feature_plane->is_active) {
-                        state.enter_mode = EnterMode::NudgeFeaturePlane;
+                        state.enter_mode = EnterMode::NudgePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
-                        messagef(omax.orange, "NudgeFeaturePlane: no feature plane selected");
+                        messagef(omax.orange, "NudgePlane: no feature plane selected");
                     }
                 }
 
@@ -1707,7 +1748,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             }
 
             if (state.enter_mode == EnterMode::Load) {
-                popup_popup(STRING("Load"), false,
+                popup_popup(STRING("Load"), ToolboxGroup::Drawing,
+                        false,
                         CellType::String, STRING("filename"), &popup->load_filename);
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->load_filename)) {
@@ -1751,7 +1793,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::Save) {
                 result.record_me = false;
-                popup_popup(STRING("Save"), false,
+                popup_popup(STRING("Save"), ToolboxGroup::Drawing,
+                        false,
                         CellType::String, STRING("filename"), &popup->save_filename);
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->save_filename)) {
@@ -1773,7 +1816,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::Size) {
                 result.record_me = false;
-                popup_popup(STRING("Size"), false,
+                popup_popup(STRING("Size"), ToolboxGroup::Drawing,
+                        false,
                         CellType::Real, STRING("scale factor"), &popup->scale_factor);
                 if (gui_key_enter) {
                     if (!IS_ZERO(popup->scale_factor)) {
@@ -1794,7 +1838,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.enter_mode = EnterMode::None;
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
-                popup_popup(STRING("ExtrudeAdd"), true,
+                popup_popup(STRING("ExtrudeAdd"), ToolboxGroup::Mesh,
+                        true,
                         CellType::Real, STRING("out_length"), &popup->extrude_add_out_length,
                         CellType::Real, STRING("in_length"),  &popup->extrude_add_in_length); if (gui_key_enter) {
                     if (!dxf_anything_selected) {
@@ -1813,7 +1858,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::ExtrudeCut) {
-                popup_popup(STRING("ExtrudeCut"), true,
+                popup_popup(STRING("ExtrudeCut"), ToolboxGroup::Mesh,
+                        true,
                         CellType::Real, STRING("in_length"), &popup->extrude_cut_in_length,
                         CellType::Real, STRING("out_length"), &popup->extrude_cut_out_length);
                 if (gui_key_enter) {
@@ -1835,7 +1881,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveAdd) {
-                popup_popup(STRING("RevolveAdd"), true,
+                popup_popup(STRING("RevolveAdd"), ToolboxGroup::Mesh,
+                        true,
                         CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle,
                         CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle
                         );
@@ -1850,7 +1897,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveCut) {
-                popup_popup(STRING("RevolveCut"), true,
+                popup_popup(STRING("RevolveCut"), ToolboxGroup::Mesh,
+                        true,
                         CellType::Real, STRING("in_angle"), &popup->revolve_cut_in_angle,
                         CellType::Real, STRING("out_angle"), &popup->revolve_cut_out_angle
                         );
@@ -1866,19 +1914,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         messagef(omax.green, "RevolveCut");
                     }
                 }
-            } else if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
-                popup_popup(STRING("NudgeFeaturePlane"), true,
+            } else if (state.enter_mode == EnterMode::NudgePlane) {
+                popup_popup(STRING("NudgePlane"), ToolboxGroup::Mesh,
+                        true,
                         CellType::Real, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
                 if (gui_key_enter) {
                     result.record_me = true;
                     result.checkpoint_me = true;
                     feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
                     state.enter_mode = EnterMode::None;
-                    messagef(omax.green, "NudgeFeaturePlane %gmm", popup->feature_plane_nudge);
+                    messagef(omax.green, "NudgePlane %gmm", popup->feature_plane_nudge);
                 }
             } else if (state.click_modifier == ClickModifier::XY) {
                 // sus calling this a modifier but okay; make sure it's first or else bad bad
-                popup_popup(STRING("XY"), true,
+                popup_popup(STRING("XY"), ToolboxGroup::Snap,
+                        true,
                         CellType::Real, STRING("x"), &popup->x_coordinate,
                         CellType::Real, STRING("y"), &popup->y_coordinate);
                 if (gui_key_enter) {
@@ -1891,7 +1941,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_circle_diameter = popup->circle_diameter;
                     real prev_circle_radius = popup->circle_radius;
                     real prev_circle_circumference = popup->circle_circumference;
-                    popup_popup(STRING("Circle"), false,
+                    popup_popup(STRING("Circle"), ToolboxGroup::Drawing,
+                            false,
                             CellType::Real, STRING("diameter"), &popup->circle_diameter,
                             CellType::Real, STRING("radius"), &popup->circle_radius,
                             CellType::Real, STRING("circumference"), &popup->circle_circumference);
@@ -1918,7 +1969,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_line_angle  = popup->line_angle;
                     real prev_line_run    = popup->line_run;
                     real prev_line_rise   = popup->line_rise;
-                    popup_popup(STRING("Line"), true,
+                    popup_popup(STRING("Line"), ToolboxGroup::Drawing,
+                            true,
                             CellType::Real, STRING("length"), &popup->line_length,
                             CellType::Real, STRING("angle"),  &popup->line_angle,
                             CellType::Real, STRING("run"),    &popup->line_run,
@@ -1938,7 +1990,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.click_mode == ClickMode::Box) {
                 if (two_click_command->awaiting_second_click) {
-                    popup_popup(STRING("Box"), true,
+                    popup_popup(STRING("Box"), ToolboxGroup::Drawing,
+                            true,
                             CellType::Real, STRING("width"), &popup->box_width,
                             CellType::Real, STRING("height"), &popup->box_height);
                     if (gui_key_enter) {
@@ -1952,7 +2005,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_move_angle = popup->move_angle;
                     real prev_move_run = popup->move_run;
                     real prev_move_rise = popup->move_rise;
-                    popup_popup(STRING("Move"), true,
+                    popup_popup(STRING("Move"), ToolboxGroup::Drawing,
+                            true,
                             CellType::Real, STRING("length"), &popup->move_length,
                             CellType::Real, STRING("angle"), &popup->move_angle,
                             CellType::Real, STRING("run"), &popup->move_run,
@@ -1971,7 +2025,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.click_mode == ClickMode::Rotate) {
                 if (two_click_command->awaiting_second_click) {
-                    popup_popup(STRING("Rotate"), true,
+                    popup_popup(STRING("Rotate"), ToolboxGroup::Drawing,
+                            true,
                             CellType::Real, STRING("angle"), &popup->rotate_angle
                             );
                     if (gui_key_enter) {
@@ -1982,7 +2037,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (two_click_command->awaiting_second_click) {
                     real prev_rotate_copy_angle_in_degrees = popup->rotate_copy_angle;
                     uint prev_rotate_copy_num_copies = popup->rotate_copy_num_total_copies;
-                    popup_popup(STRING("RotateCopy"), true,
+                    popup_popup(STRING("RotateCopy"), ToolboxGroup::Drawing,
+                            true,
                             CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
                             CellType::Real, STRING("angle"), &popup->rotate_copy_angle
                             );
@@ -2002,7 +2058,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_linear_copy_angle = popup->linear_copy_angle;
                     real prev_linear_copy_run = popup->linear_copy_run;
                     real prev_linear_copy_rise = popup->linear_copy_rise;
-                    popup_popup(STRING("LinearCopy"), true,
+                    popup_popup(STRING("LinearCopy"), ToolboxGroup::Drawing,
+                            true,
                             CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
                             CellType::Real, STRING("length"), &popup->linear_copy_length,
                             CellType::Real, STRING("angle"), &popup->linear_copy_angle,
@@ -2026,7 +2083,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_polygon_distance_to_side = popup->polygon_distance_to_side;
                     real prev_polygon_side_length = popup->polygon_side_length;
                     real theta = PI / popup->polygon_num_sides;
-                    popup_popup(STRING("Polygon"), false,
+                    popup_popup(STRING("Polygon"), ToolboxGroup::Drawing,
+                            false,
                             CellType::Uint, STRING("num_sides"), &popup->polygon_num_sides, 
                             CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner,
                             CellType::Real, STRING("distance_to_side"), &popup->polygon_distance_to_side,
@@ -2047,7 +2105,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.click_mode == ClickMode::Fillet) {
-                popup_popup(STRING("Fillet"), false,
+                popup_popup(STRING("Fillet"), ToolboxGroup::Drawing,
+                        false,
                         CellType::Real, STRING("radius"), &popup->fillet_radius);
             }
         }
@@ -2074,12 +2133,12 @@ void freshly_baked_event_process(Event freshly_baked_event) {
         redo = false;
         if (freshly_baked_event.type == EventType::Key) {
             KeyEvent *key_event = &freshly_baked_event.key_event;
-            auto magic_magic = [key_event](uint key, bool control = false, bool shift = false) -> bool {
+            auto key_lambda = [key_event](uint key, bool control = false, bool shift = false) -> bool {
                 return _key_lambda(key_event, key, control, shift);
             };
             if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
-                undo = (magic_magic('Z', true) || magic_magic('U'));
-                redo = (magic_magic('Y', true) || magic_magic('Z', true, true) || magic_magic('U', false, true));
+                undo = (key_lambda('Z', true) || key_lambda('U'));
+                redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
             }
         }
     }

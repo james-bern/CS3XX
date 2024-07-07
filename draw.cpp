@@ -118,7 +118,7 @@ void conversation_draw() {
     }
     // TODO
     { // preview_feature_plane_offset
-        real target = (state.enter_mode == EnterMode::NudgeFeaturePlane) ? popup->feature_plane_nudge : 0.0f;
+        real target = (state.enter_mode == EnterMode::NudgePlane) ? popup->feature_plane_nudge : 0.0f;
         JUICEIT_EASYTWEEN(&preview->feature_plane_offset, target);
     }
 
@@ -231,9 +231,9 @@ void conversation_draw() {
                     if (state.click_mode == ClickMode::Axis) {
                         eso_color(omax.yellow);
                     } else if (state.enter_mode == EnterMode::RevolveAdd) {
-                        eso_color(omax.green);
+                        eso_color(omax.orange);
                     } else if (state.enter_mode == EnterMode::RevolveCut) {
-                        eso_color(omax.red);
+                        eso_color(omax.orange);
                     } else {
                         eso_color(omax.dark_gray);
                     }
@@ -435,7 +435,7 @@ void conversation_draw() {
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
             // FORNOW
-            bool moving_stuff = ((state.click_mode == ClickMode::Origin) || (state.enter_mode == EnterMode::NudgeFeaturePlane));
+            bool moving_stuff = ((state.click_mode == ClickMode::Origin) || (state.enter_mode == EnterMode::NudgePlane));
             vec3 target_preview_tubes_color = (0) ? V3(0)
                 : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
                 : (adding) ? get_color(ColorCode::Traverse)
@@ -471,7 +471,7 @@ void conversation_draw() {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
-                } else if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
+                } else if (state.enter_mode == EnterMode::NudgePlane) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview->feature_plane_offset + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
@@ -619,7 +619,7 @@ void conversation_draw() {
                 mat4 PVM = PV_3D * M_3D_from_2D;
                 vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
-                    if (state.enter_mode == EnterMode::NudgeFeaturePlane) {
+                    if (state.enter_mode == EnterMode::NudgePlane) {
                         PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (state.click_mode == ClickMode::Origin) {

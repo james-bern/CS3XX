@@ -65,6 +65,6 @@ bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (state.enter_mode == EnterMode::ExtrudeCut)
         || (state.enter_mode == EnterMode::RevolveAdd)
         || (state.enter_mode == EnterMode::RevolveCut)
-        || (state.enter_mode == EnterMode::NudgeFeaturePlane)
+        || (state.enter_mode == EnterMode::NudgePlane)
         ;
 }
