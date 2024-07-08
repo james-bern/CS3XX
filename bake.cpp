@@ -68,6 +68,7 @@ Event bake_event(RawEvent raw_event) {
 
         event.type = EventType::Mouse;
         MouseEvent *mouse_event = &event.mouse_event;
+        mouse_event->mouse_Pixel = raw_mouse_event->mouse_Pixel;
         mouse_event->mouse_held = raw_mouse_event->mouse_held;
         {
             if (raw_mouse_event->pane == Pane::Drawing) {
@@ -100,10 +101,13 @@ Event bake_event(RawEvent raw_event) {
                     mouse_event_popup->cell_index = popup->active_cell_index; // hmm...
                     mouse_event_popup->cursor = popup->info_active_cell_cursor;
                 }
-            } else if (raw_mouse_event->pane == Pane::Stamps) {
+            } else if (raw_mouse_event->pane == Pane::Toolbox) {
+                // FORNOW: hack hack hack
                 event = {};
-            } else if (raw_mouse_event->pane == Pane::StampDrawingSeparator) {
-                event = {};
+                event.type = EventType::Key;
+                KeyEvent *key_event = &event.key_event;
+                key_event->subtype = KeyEventSubtype::Hotkey;
+                key_event->_name_of_spoofing_button = toolbox->hot_name;
             } else { ASSERT(raw_mouse_event->pane == Pane::DrawingMeshSeparator);
                 event = {};
             }

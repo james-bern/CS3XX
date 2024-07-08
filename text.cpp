@@ -238,3 +238,7 @@ void easy_text_drawf(EasyTextPen *pen, const char *format, ...) {
 real _easy_text_dx(EasyTextPen *pen, String string) {
     return text_travel(string, pen->font_height_Pixel).x;
 }
+
+real _easy_text_dx(EasyTextPen *pen, char *cstring) {
+    return _easy_text_dx(pen, STRING(cstring));
+}

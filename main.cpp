@@ -1,3 +1,11 @@
+// TODO (Jim): cookbook_delete should throw a warning if you're trying to delete the same entity twice (run a O(n) pass on the sorted list)
+// TODO (Jim): fillet
+// TODO (Jim): power fillet
+// TODO (Jim): revolve++ (with same cool animation for partial revolves
+// TODO (Jim): dog ear
+// TODO (Jim): power dog ear
+
+
 // TODO (Jim): upgrade test bed
 // TODO (Jim): switch everything from radians to turns
 
@@ -34,7 +42,7 @@ run_before_main {
                      "cz10\n" // TODO: comment
                      "cz\t10\n" // TODO: comment
                      "bzx30\t30\n" // TODO: comment
-                     "ysadcz" // TODO: comment
+                     "ysadc<m2d 0 0>" // TODO: comment
                      "[5\t15\n" // TODO: comment
                      "sc<m2d 0 30>qs3" // TODO: comment
                      "1<m2d 30 15>0<esc>" // TODO: comment
@@ -76,6 +84,8 @@ run_before_main {
 #include "manifoldc.h"
 #include "header.cpp"
 
+#define DUMMY_HOTKEY 9999
+
 // (global) state
 WorldState_ChangesToThisMustBeRecorded_state state;
 ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other other;
@@ -85,6 +95,7 @@ Drawing *drawing = &state.drawing;
 FeaturePlaneState *feature_plane = &state.feature_plane;
 Mesh *mesh = &state.mesh;
 PopupState *popup = &state.popup;
+ToolboxState *toolbox = &state.toolbox;
 TwoClickCommandState *two_click_command = &state.two_click_command;
 Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
@@ -99,6 +110,7 @@ PreviewState *preview = &other.preview;
 #include "callbacks.cpp"
 #include "bake.cpp"
 #include "cookbook.cpp"
+#include "button.cpp"
 #include "process.cpp"
 #include "script.cpp"
 
@@ -129,9 +141,22 @@ int main() {
     messagef(omax.green, "press ? for help");
     #endif
 
+    auto SEND_DUMMY = [&]() {
+        // "process" dummy event to draw popups and buttons
+        // NOTE: it's a Key;Hotkey event in order to enter that section of the code
+        // FORNOW: buttons drawn on EVERY event (no good; TODO fix later)
+        Event dummy = {};
+        dummy.type = EventType::Key;
+        dummy.key_event.subtype = KeyEventSubtype::Hotkey;
+        dummy.key_event.key = DUMMY_HOTKEY;
+        freshly_baked_event_process(dummy);
+    };
+
+
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
+        // SLEEP(1000);
         glfwPollEvents();
         glfwSwapBuffers(glfw_window);
         glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
@@ -141,6 +166,7 @@ int main() {
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
         other._please_suppress_drawing_popup_popup = false;
+        other._please_suppress_drawing_toolbox = false;
 
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
@@ -167,23 +193,27 @@ int main() {
                 }
             }
 
+    void _messages_draw(); // forward declaration
+    _messages_draw();
+
             { // events
+                {
+                    SEND_DUMMY();
+                }
+
                 if (raw_event_queue.length) {
                     while (raw_event_queue.length) {
                         RawEvent raw_event = queue_dequeue(&raw_event_queue);
                         Event freshly_baked_event = bake_event(raw_event);
                         freshly_baked_event_process(freshly_baked_event);
                     }
-                } else {
-                    // NOTE: this is so we draw the popups
-                    freshly_baked_event_process({});
                 }
             }
 
             _messages_update();
         } else {
-            // "process" dummy event to draw popups
-            freshly_baked_event_process({});
+            SEND_DUMMY();
+            ;
         }
 
         { // draw

@@ -27,7 +27,7 @@ run_before_main {
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
     glfwWindowHint(GLFW_SAMPLES, 1);
 
-    glfw_window = glfwCreateWindow(960, 540,  __DATE__ " " __TIME__, NULL, NULL);
+    glfw_window = glfwCreateWindow(960, 720,  __DATE__ " " __TIME__, NULL, NULL);
     if (!glfw_window) {
         printf("Something's gone wonky; if you weren't just messing with init(...) or something, please try restarting your computer and trying again.\n");
         ASSERT(0);

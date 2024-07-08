@@ -68,7 +68,7 @@ y_Pixel                           | |
 |                                 | v
  ---------------------------------  -
 
-|<----- window_width_Pixel ------>| 
+|<----- window_get_width_Pixel ------>| 
           
 
 OpenGL-coordinates (aka Normalized Device Coordinates -- NDC)

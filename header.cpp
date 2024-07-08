@@ -4,13 +4,24 @@ enum class EnterMode {
     None,
     ExtrudeAdd,
     ExtrudeCut,
-    NudgeFeaturePlane,
+    NudgePlane,
     Load,
     RevolveAdd,
     RevolveCut,
     Save,
     Size,
 };
+
+
+
+enum class ToolboxGroup {
+    None,
+    Drawing,
+    Snap,
+    Mesh,
+};
+
+
 
 enum class ClickMode {
     None,
@@ -62,8 +73,7 @@ enum class Pane {
     Mesh,
     Popup,
     DrawingMeshSeparator,
-    StampDrawingSeparator,
-    Stamps,
+    Toolbox,
 };
 
 enum class CellType {
@@ -192,6 +202,7 @@ struct MouseEventPopup {
 struct MouseEvent {
     MouseEventSubtype subtype;
 
+    vec2 mouse_Pixel;
     bool mouse_held;
 
     MouseEventDrawing mouse_event_drawing;
@@ -205,11 +216,13 @@ struct KeyEvent {
     uint key;
     bool control;
     bool shift;
+    char *_name_of_spoofing_button;
 };
 
 struct Event {
     EventType type;
 
+    // ew
     bool record_me;
     bool checkpoint_me;
     bool snapshot_me;
@@ -281,19 +294,29 @@ struct PopupState {
     real move_angle;
     real move_run;
     real move_rise;
-    uint polygon_num_sides = 5;
+    real linear_copy_length;
+    real linear_copy_angle;
+    real linear_copy_run;
+    real linear_copy_rise;
+    uint linear_copy_num_additional_copies;
+    uint polygon_num_sides = 6;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
     real polygon_side_length;
-    real revolve_add_dummy;
-    real revolve_cut_dummy;
-    uint num_copies = 2;
-    uint have_fields_been_edited = 0;
-    real angle_of_rotation_in_degrees = 0;
-    real angle_of_rotation_in_radians = 0;
+    real revolve_add_in_angle;
+    real revolve_add_out_angle;
+    real revolve_cut_in_angle;
+    real revolve_cut_out_angle;
+    real rotate_angle;
+    uint rotate_copy_num_total_copies;
+    real rotate_copy_angle;
     real scale_factor;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
+};
+
+struct ToolboxState {
+    char *hot_name;
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
@@ -302,11 +325,12 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     FeaturePlaneState feature_plane;
     TwoClickCommandState two_click_command;
     PopupState popup;
+    ToolboxState toolbox;
 
     ClickMode click_mode;
-    ClickModifier click_modifier;
     ColorCode click_color_code;
     EnterMode enter_mode;
+    ClickModifier click_modifier; // TODO: split; snaps should be in ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other
 
     Event space_bar_event;
     Event shift_space_bar_event;
@@ -334,11 +358,10 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_details;
     bool show_help;
     bool show_event_stack;
-
+    bool hide_toolbox;
 
     Pane hot_pane;
-    real x_divider_stamp_drawing_OpenGL = -0.98f; // TODO: CLEAN UP
-    real x_divider_drawing_mesh_OpenGL  =  0.0f; // TODO: CLEAN UP
+    real x_divider_drawing_mesh_OpenGL;
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
@@ -348,6 +371,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
     bool _please_suppress_drawing_popup_popup;
     bool please_suppress_messagef;
+    bool _please_suppress_drawing_toolbox;
+    bool _please_suppress_drawing_toolbox_snaps;
 
     bool paused;
     bool stepping_one_frame_while_paused;
@@ -387,6 +412,8 @@ struct {
     vec3 gray = RGB255(152, 152, 152);
     vec3 light_gray = RGB255(205, 205, 205);
     vec3 white = RGB255(255, 255, 255);
+
+    vec3 dark_yellow = RGB255(200, 200, 0);
 } omax;
 
 vec3 omax_pallete[] = {
@@ -396,11 +423,25 @@ vec3 omax_pallete[] = {
     omax.magenta,
     omax.purple,
     omax.blue,
-    omax.light_gray,
+    omax.gray,
     basic.magenta,
     omax.cyan,
     omax.orange,
 };
+
+vec3 get_accent_color(ToolboxGroup group) {
+    vec3 result;
+    if (group == ToolboxGroup::Drawing) {
+        result = LERP(0.2f, omax.cyan, omax.blue);
+    } else if (group == ToolboxGroup::Snap) {
+        result = omax.pink;
+    } else if (group == ToolboxGroup::Mesh) {
+        result = omax.orange;
+    } else { ASSERT(group == ToolboxGroup::None);
+        result = omax.yellow;
+    }
+    return result;
+}
 
 ////////////////////////////////////////
 // Forward-Declarations ////////////////
@@ -1563,6 +1604,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
     char _key_buffer[2];
     char *_key; {
         if (0) ;
+        else if (key_event->key == '\0') _key = "";
         else if (key_event->key == GLFW_KEY_BACKSPACE) _key = "BACKSPACE";
         else if (key_event->key == GLFW_KEY_DELETE) _key = "DELETE";
         else if (key_event->key == GLFW_KEY_ENTER) _key = "ENTER";
@@ -1604,7 +1646,7 @@ struct LineLineXResult {
 
 
 LineLineXResult line_line_intersection(//vec2 a, vec2 b, vec2 c, vec2 d) {
-    vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
+vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
     // https://stackoverflow.com/a/565282
     vec2 r = p_plus_r - p;
     vec2 s = q_plus_s - q;
@@ -1722,7 +1764,7 @@ LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
         result.theta_2 = DEG(angle_from_0_TAU(arc->center, result.point2));
         result.point1_is_on_arc = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_1, arc->start_angle_in_degrees, arc->end_angle_in_degrees);
         result.point2_is_on_arc = ANGLE_IS_BETWEEN_CCW_DEGREES_TIGHT(result.theta_2, arc->start_angle_in_degrees, arc->end_angle_in_degrees);
-        
+
         result.point1_is_on_line_segment = IS_BETWEEN_TIGHT(result.t1, 0.0f, 1.0f);
         result.point2_is_on_line_segment = IS_BETWEEN_TIGHT(result.t2, 0.0f, 1.0f);
 
