@@ -1258,8 +1258,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_modifier = ClickModifier::None;
                             // two_click_command->awaiting_second_click = false;
 
-                            do_once { messagef(omax.red, "TODO: add warnings for no intersection found for arc-arc and arc-line"); }
-
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
                             if (closest_result_two.success) {
@@ -1280,13 +1278,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             messagef(omax.orange, "TwoClickDivide: no intersection found");
                                         } else {
                                             if (X_result.point_is_on_segment_ab) {
-                                                cookbook.buffer_add_line(X_result.point, a);
-                                                cookbook.buffer_add_line(X_result.point, b);
+                                                cookbook.buffer_add_line(X_result.point, a, false, closest_entity_one->color_code);
+                                                cookbook.buffer_add_line(X_result.point, b, false, closest_entity_one->color_code);
                                                 cookbook.buffer_delete_entity(closest_entity_one);
                                             }
                                             if (X_result.point_is_on_segment_cd) {
-                                                cookbook.buffer_add_line(X_result.point, c);
-                                                cookbook.buffer_add_line(X_result.point, d);
+                                                cookbook.buffer_add_line(X_result.point, c, false, closest_entity_two->color_code);
+                                                cookbook.buffer_add_line(X_result.point, d, false, closest_entity_two->color_code);
                                                 cookbook.buffer_delete_entity(closest_entity_two);
                                             } 
                                         }
@@ -1326,14 +1324,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
                                         }
                                         if (cut_arc_a) {
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a);
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees);
+                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a, false, closest_entity_one->color_code);
+                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees, false, closest_entity_one->color_code);
                                             cookbook.buffer_delete_entity(closest_entity_one);
                                         }
                                         if (cut_arc_b) {
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b);
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees);
+                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b, false, closest_entity_two->color_code);
+                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees, false, closest_entity_two->color_code);
                                             cookbook.buffer_delete_entity(closest_entity_two);
+                                        }
+                                        if (!cut_arc_a && !cut_arc_b) {
+                                            messagef(omax.orange, "TwoClickDivide: no intersection found");
                                         }
                                     } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
                                              //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
@@ -1381,15 +1382,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                         if (p1Works || p2Works) {
                                             if (cutLine) {
-                                                cookbook.buffer_add_line(intersect, line->start);
-                                                cookbook.buffer_add_line(intersect, line->end);
+                                                cookbook.buffer_add_line(intersect, line->start, false, entity_line->color_code);
+                                                cookbook.buffer_add_line(intersect, line->end, false, entity_line->color_code);
                                                 cookbook.buffer_delete_entity(entity_line);
                                             }
                                             if (cutArc) {
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta);
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees);
+                                                cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta, false, entity_arc->color_code);
+                                                cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees, false, entity_arc->color_code);
                                                 cookbook.buffer_delete_entity(entity_arc);
                                             }
+                                        }
+                                        if (!cutArc && !cutLine) {
+                                            messagef(omax.orange, "TwoClickDivide: no intersection found");
                                         }
                                     }
                                 }
