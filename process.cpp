@@ -1,3 +1,4 @@
+// TODO: rz needs work
 
 // TODO: beautiful buttons; should indicate what's selected in green (persistent)
 // FORNOW: rotate copy's usage of second click is wonky
@@ -72,15 +73,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             *toolbox = {};
 
-
             real padding = 12.0f;
 
-            EasyTextPen drawing_pen = { V2(padding, 124.0f), 18.0f, omax.white, true };
+            EasyTextPen drawing_pen = { V2(padding, padding), 12.0f, omax.white, true };
             EasyTextPen drawing_pen2 = drawing_pen;
-            drawing_pen2.font_height_Pixel = 12.0f;
+            drawing_pen2.font_height_Pixel = 9.0f;
             drawing_pen2.color = omax.light_gray;
 
-            real w = 124.0f;
             real h = drawing_pen.font_height_Pixel + drawing_pen2.font_height_Pixel;
 
             EasyTextPen snap_pen = drawing_pen;
@@ -90,7 +89,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             EasyTextPen mesh_pen = drawing_pen;
             EasyTextPen mesh_pen2 = drawing_pen2;
-            mesh_pen.origin_Pixel.x = window_get_width_Pixel() - w - drawing_pen.origin_Pixel.x;
+            mesh_pen.origin_Pixel.x = get_x_divider_drawing_mesh_Pixel() + drawing_pen.origin_Pixel.x;
             mesh_pen2.origin_Pixel.x = mesh_pen.origin_Pixel.x;
 
             auto SEPERATOR = [&](ToolboxGroup group) {
@@ -144,6 +143,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         pen = &mesh_pen;
                         pen2 = &mesh_pen2;
                     }
+                    real w = (horz) ? 80.0f : 96.0f;
 
                     real y = pen->get_y_Pixel();
                     bbox2 bbox = { pen->origin_Pixel.x, y - 2, pen->origin_Pixel.x + w, y + h };
@@ -232,6 +232,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             ClickMode prev_click_mode = state.click_mode;
             EnterMode prev_enter_mode = state.enter_mode;
             { // magic_magic
+
+                if (magic_magic(0,0,'S',"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
+                    if (state.click_mode != ClickMode::Color) {
+                        state.click_mode = ClickMode::Select;
+                        state.click_modifier = ClickModifier::None;
+                    } else {
+                        state.click_modifier = ClickModifier::Selected;
+                    }
+                }
+                if (magic_magic(0,0,'D',"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
+                    state.click_mode = ClickMode::Deselect;
+                    state.click_modifier = ClickModifier::None;
+                }
+
+                SEPERATOR(ToolboxGroup::Drawing);
+
                 if (magic_magic(0,0,'L',"Line",false,ToolboxGroup::Drawing,ClickMode::Line)) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
@@ -287,22 +303,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                SEPERATOR(ToolboxGroup::Drawing);
-
-                if (magic_magic(0,0,'S',"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
-                    if (state.click_mode != ClickMode::Color) {
-                        state.click_mode = ClickMode::Select;
-                        state.click_modifier = ClickModifier::None;
-                    } else {
-                        state.click_modifier = ClickModifier::Selected;
-                    }
-                }
-                if (magic_magic(0,0,'D',"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
-                    state.click_mode = ClickMode::Deselect;
-                    state.click_modifier = ClickModifier::None;
-                }
 
                 SEPERATOR(ToolboxGroup::Drawing);
+
 
                 { // 'M'
                     bool hotkey_M      = magic_magic(0,0,'M');
@@ -717,18 +720,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.record_me = false;
                 }
 
-                if (magic_magic(0,0,'\0')) { // FORNOW
+                if (magic_magic(0,0,DUMMY_HOTKEY)) { // FORNOW
                     result.record_me = false;
                 }
 
-                if (magic_magic(0,0,DUMMY_HOTKEY)) { // FORNOW
-                    result.record_me = false;
+                if (magic_magic(0,0,'\0')) { // FORNOW
+                    ;
                 }
 
                 if (!hotkey_recognized) {
                     messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
                     result.record_me = false;
-                    ;
                 }
 
 

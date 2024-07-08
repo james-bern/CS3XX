@@ -193,6 +193,7 @@ void history_debug_draw() {
                 if (!key_event->_name_of_spoofing_button) {
                     sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
                 } else {
+                    boxed = "[BUTTON]"; // FORNOW
                     sprintf(message, "%s %s", boxed, key_event->_name_of_spoofing_button);
                 }
             } else { ASSERT(event.type == EventType::Mouse);

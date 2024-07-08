@@ -118,7 +118,8 @@ void popup_popup(
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
 
-    EasyTextPen pen = { V2(12.0f), 22.0f, AVG(omax.white, get_accent_color(group)) };
+    EasyTextPen pen = { V2(128.0f, 12.0f), 22.0f, AVG(omax.white, get_accent_color(group)) };
+    if (group == ToolboxGroup::Mesh) pen.origin_Pixel.x += get_x_divider_drawing_mesh_Pixel();
     if (!other._please_suppress_drawing_popup_popup) {
         easy_text_draw(&pen, title);
         pen.origin_Pixel.x += pen.offset_Pixel.x + 12.0f;
