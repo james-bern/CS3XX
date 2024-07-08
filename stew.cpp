@@ -46,10 +46,10 @@ struct {
         layout (location = 6) in vec3 PV_c1; 
         layout (location = 7) in vec3 PV_c2; 
         layout (location = 8) in vec3 PV_c3; 
-        layout (location = 9) in vec3 transform_c0; // you might ask why we pass 4 vec 3s when all we need are the first 3 rows
-        layout (location = 10) in vec3 transform_c1; // this is because glsl is the best language ever and is column major
-        layout (location = 11) in vec3 transform_c2; // despite it being a c like languange
-        layout (location = 12) in vec3 transform_c3; // this resulted in 0 hours of lost time and no frustration whatsoever
+        layout (location = 9) in vec3 Model_c0; // you might ask why we pass 4 vec 3s when all we need are the first 3 rows
+        layout (location = 10) in vec3 Model_c1; // this is because glsl is the best language ever and is column major
+        layout (location = 11) in vec3 Model_c2; // despite it being a c like languange
+        layout (location = 12) in vec3 Model_c3; // this resulted in 0 hours of lost time and no frustration whatsoever
 
         out BLOCK {
             vec4 color;
@@ -59,7 +59,7 @@ struct {
         } vs_out;
 
         uniform bool force_draw_on_top;
-        uniform mat4 test_transform;
+        uniform mat4 test_Model;
 
         void main() {
         
@@ -70,14 +70,14 @@ struct {
                 vec4(PV_c3, 1.0)
             );
 
-            mat4 transform = mat4(
-                vec4(transform_c0, 0.0),
-                vec4(transform_c1, 0.0),
-                vec4(transform_c2, 0.0),
-                vec4(transform_c3, 1.0)
+            mat4 Model = mat4(
+                vec4(Model_c0, 0.0),
+                vec4(Model_c1, 0.0),
+                vec4(Model_c2, 0.0),
+                vec4(Model_c3, 1.0)
             );
 
-            gl_Position = PV * transform * vec4(vertex, 1);
+            gl_Position = PV * Model * vec4(vertex, 1);
             if (force_draw_on_top) {
                 gl_Position.z = -.99 * gl_Position.w; // ?
             }
@@ -261,12 +261,12 @@ void stew_draw(
         vec3 *vertex_PV_c1,
         vec3 *vertex_PV_c2,
         vec3 *vertex_PV_c3,
-        vec3 *vertex_transform_c0,
-        vec3 *vertex_transform_c1,
-        vec3 *vertex_transform_c2,
-        vec3 *vertex_transform_c3,
+        vec3 *vertex_Model_c0,
+        vec3 *vertex_Model_c1,
+        vec3 *vertex_Model_c2,
+        vec3 *vertex_Model_c3,
         bool force_draw_on_top,
-        mat4 current_transform) {
+        mat4 current_Model) {
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
 
     glBindVertexArray(stew.VAO[0]);
@@ -295,10 +295,10 @@ void stew_draw(
     upload_vertex_attribute(vertex_PV_c1, num_vertices, 3, false);
     upload_vertex_attribute(vertex_PV_c2, num_vertices, 3, false);
     upload_vertex_attribute(vertex_PV_c3, num_vertices, 3, false);
-    upload_vertex_attribute(vertex_transform_c0, num_vertices, 3, false);
-    upload_vertex_attribute(vertex_transform_c1, num_vertices, 3, false);
-    upload_vertex_attribute(vertex_transform_c2, num_vertices, 3, false);
-    upload_vertex_attribute(vertex_transform_c3, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c0, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c1, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c2, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c3, num_vertices, 3, false);
 
     uint shader_program_ID;
     {
@@ -337,7 +337,7 @@ void stew_draw(
 
     glUniform1ui(LOC("force_draw_on_top"), force_draw_on_top);
     glUniform2f(LOC("OpenGL_from_Pixel_scale"), OpenGL_from_Pixel_scale.x, OpenGL_from_Pixel_scale.y);
-    glUniformMatrix4fv(LOC("test_transform"), 1, GL_TRUE, current_transform.data);
+    glUniformMatrix4fv(LOC("test_Model"), 1, GL_TRUE, current_Model.data);
 
     glDrawArrays(GL_TRIANGLES, 0, num_vertices);
 }
@@ -359,7 +359,7 @@ struct {
     bool overlay;
     bool stipple;
 
-    mat4 current_transform;
+    mat4 current_Model;
     mat4 current_PV;
 
 
@@ -374,10 +374,10 @@ struct {
     vec3 vertex_PV_c1[GL_MAX_VERTICES];
     vec3 vertex_PV_c2[GL_MAX_VERTICES];
     vec3 vertex_PV_c3[GL_MAX_VERTICES];
-    vec3 vertex_transforms_c0[GL_MAX_VERTICES];
-    vec3 vertex_transforms_c1[GL_MAX_VERTICES];
-    vec3 vertex_transforms_c2[GL_MAX_VERTICES];
-    vec3 vertex_transforms_c3[GL_MAX_VERTICES];
+    vec3 vertex_Models_c0[GL_MAX_VERTICES];
+    vec3 vertex_Models_c1[GL_MAX_VERTICES];
+    vec3 vertex_Models_c2[GL_MAX_VERTICES];
+    vec3 vertex_Models_c3[GL_MAX_VERTICES];
 } gl;
 
 void gl_begin() {
@@ -392,7 +392,7 @@ void gl_begin() {
 
     gl.num_vertices = 0;
 
-    gl.current_transform = _Identity4x4;
+    gl.current_Model = _Identity4x4;
 }
 
 void gl_end() {
@@ -409,12 +409,12 @@ void gl_end() {
             gl.vertex_PV_c1,
             gl.vertex_PV_c2,
             gl.vertex_PV_c3,
-            gl.vertex_transforms_c0,
-            gl.vertex_transforms_c1,
-            gl.vertex_transforms_c2,
-            gl.vertex_transforms_c3,
+            gl.vertex_Models_c0,
+            gl.vertex_Models_c1,
+            gl.vertex_Models_c2,
+            gl.vertex_Models_c3,
             gl.overlay,
-            gl.current_transform);
+            gl.current_Model);
 }
 
 void gl_primitive(uint primitive) {
@@ -433,8 +433,8 @@ void gl_PV(mat4 PV) {
     gl.current_PV = PV;
 }
 
-void gl_transform(mat4 transform) {
-    gl.current_transform = transform;
+void gl_Model(mat4 Model) {
+    gl.current_Model = Model;
 }
 
 void gl_size(real size) {
@@ -477,26 +477,26 @@ void gl_vertex(real x, real y, real z) {
         gl.vertex_PV_c1[gl.num_vertices][i] = gl.current_PV(i, 1); 
         gl.vertex_PV_c2[gl.num_vertices][i] = gl.current_PV(i, 2); 
         gl.vertex_PV_c3[gl.num_vertices][i] = gl.current_PV(i, 3); 
-        gl.vertex_transforms_c0[gl.num_vertices][i] = gl.current_transform(i, 0); 
-        gl.vertex_transforms_c1[gl.num_vertices][i] = gl.current_transform(i, 1); 
-        gl.vertex_transforms_c2[gl.num_vertices][i] = gl.current_transform(i, 2); 
-        gl.vertex_transforms_c3[gl.num_vertices][i] = gl.current_transform(i, 3); 
-        //printf("%f ", gl.vertex_transforms_c0[gl.num_vertices][i]);
+        gl.vertex_Models_c0[gl.num_vertices][i] = gl.current_Model(i, 0); 
+        gl.vertex_Models_c1[gl.num_vertices][i] = gl.current_Model(i, 1); 
+        gl.vertex_Models_c2[gl.num_vertices][i] = gl.current_Model(i, 2); 
+        gl.vertex_Models_c3[gl.num_vertices][i] = gl.current_Model(i, 3); 
+        //printf("%f ", gl.vertex_Models_c0[gl.num_vertices][i]);
     }
     printf("\n");
     for_(i, 3) {
-        //printf("%f ", transform(1, i));
-        //printf("%f ", gl.vertex_transforms_c1[gl.num_vertices][i]);
+        //printf("%f ", Model(1, i));
+        //printf("%f ", gl.vertex_Models_c1[gl.num_vertices][i]);
     }
     printf("\n");
     for_(i, 3) {
-        //printf("%f ", gl.vertex_transforms_c2[gl.num_vertices][i]);
-        //printf("%f ", transform(2, i));
+        //printf("%f ", gl.vertex_Models_c2[gl.num_vertices][i]);
+        //printf("%f ", Model(2, i));
     }
     printf("\n");
     for_(i, 3) {
-        //printf("%f ", gl.vertex_transforms_c3[gl.num_vertices][i]);
-        //printf("%f ", transform(2, i));
+        //printf("%f ", gl.vertex_Models_c3[gl.num_vertices][i]);
+        //printf("%f ", Model(2, i));
     }
     //printf("\n\n\n\n");
     if (gl.current_primitive == GL_POINTS) {
