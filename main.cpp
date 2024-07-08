@@ -49,7 +49,8 @@ run_before_main {
                      ".." // TODO: comment
                      "pz\t5\n" // (Nathan) Polygon
                      "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                                                                          // "^N^ob:wug.drawing\nysa"
+                     "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
+                     "^N^ob:wug.drawing\nysa"
                      ;
 };
 #endif

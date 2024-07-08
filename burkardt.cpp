@@ -41,7 +41,7 @@ LineLineXResult burkardt_line_line_intersection(//vec2 a, vec2 b, vec2 c, vec2 d
     real r_cross_s = cross(r, s);
 
     LineLineXResult result = {};
-    result.lines_are_parallel = IS_ZERO(r_cross_s);
+    result.lines_are_parallel = abs(r_cross_s) < 0.0001;
     if (result.lines_are_parallel) {
     } else {
         vec2 q_minus_p = q - p;

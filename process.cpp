@@ -138,7 +138,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-                    other.stored_entity = NULL;
+                    //other.stored_entity = NULL;
+                    two_click_command->stored_entity = NULL;
                 } else if (key_lambda('J')) {
                     state.click_mode = ClickMode::Offset;
                     state.click_modifier = ClickModifier::None;
@@ -1276,32 +1277,38 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(line->start + offset, line->end + offset, entity->is_selected, entity->color_code);
                             } else { ASSERT(entity->type == EntityType::Arc);
                                 ArcEntity *arc = &entity->arc;
-                                real distance_from_center = distance(arc->center, *mouse);
+                                real radius = arc->radius - input_offset;
                                 if (ANGLE_IS_BETWEEN_CCW(RAD(closest_results.arc_nearest_angle_in_degrees), 
                                                          RAD(arc->start_angle_in_degrees), 
                                                          RAD(arc->end_angle_in_degrees))) {
-                                    if (distance_from_center > arc->radius) {
-                                        real radius = distance_from_center + arc->radius;
-                                    } else if (distance_from_center > 0) {
-                                        real radius = arc->radius - input_offset;
+                                    if (distance(arc->center, *mouse) > arc->radius) {
+                                        radius = input_offset + arc->radius;
                                     }
-                                    cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, 
-                                                            entity->is_selected, 
-                                                            entity->color_code);
                                 } else {
-                                    // vec2 start_point = entity_get_start_point(arc);
-                                    // vec2 end_point = entity_get_end_point(arc);
-                                    vec2 middle_point = entity_get_middle(arc);
-                                    // vec2 perpendicular_to_start = perpendicularTo(start_point - center);
-                                    // vec2 perpendicular_to_end = perpendicularTo(end_point - center);
-                                    real angle = 
-                                    vec2 x_dist = arc->radius;
-                                    real hyp = x_dist/COS(angle);
-                                    vec2 intersect_point = arc_center + V2(hyp)
-                                    
-                                
+                                    vec2 start_point = entity_get_start_point(entity);
+                                    vec2 end_point = entity_get_end_point(entity);
+                                    vec2 perp_end = perpendicularTo(end_point - arc->center);
+                                    vec2 perp_start = perpendicularTo(start_point - arc->center);
+                                    LineLineXResult sector_result = burkardt_line_line_intersection(end_point,
+                                                                                         end_point + perp_end,
+                                                                                         start_point,
+                                                                                         start_point + perp_start);
+                                    real end_angle = ATAN2(end_point - sector_result.point);
+                                    real point_angle = ATAN2(*mouse - sector_result.point);
+                                    real start_angle = ATAN2(start_point - sector_result.point);
+                                    if (sector_result.lines_are_parallel) {
+                                        real dist_to_l1 = SQRT(squared_distance_point_line_segment(*mouse, start_point, start_point + (HUGE_VAL * perp_start)));
+                                        real dist_to_l2 = SQRT(squared_distance_point_line_segment(*mouse, end_point, end_point + (-HUGE_VAL * perp_end)));
+                                        real l1_to_l2 = SQRT(squared_distance_point_line_segment(start_point , end_point, end_point + (-HUGE_VAL * perp_end)));
+                                        messagef(omax.green, "%f", abs(l1_to_l2 - (dist_to_l1 + dist_to_l2)));
+                                        if (abs(l1_to_l2 - (dist_to_l1 + dist_to_l2)) > 0.0001) { // TINY_VAL is too big
+                                            radius = arc->radius + input_offset;
+                                        }
+                                    } else if (!(ANGLE_IS_BETWEEN_CCW(point_angle, end_angle, start_angle))) {
+                                        radius = arc->radius + input_offset;
+                                    }   
                                 }
-                                
+                                cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, entity->is_selected, entity->color_code);
                             }
                         }
                     } else {

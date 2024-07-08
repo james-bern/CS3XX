@@ -736,7 +736,7 @@ void conversation_draw() {
     if (other.show_help) {
         char * help1 = R""(
         Spacebar - Previous hot key
-           Shift - Previous hot key on 3D 
+        Shift + Spacebar - Previous hot key(3D)
         Backspace - Delete selected
         Del - Delete selected
         Esc - Exit to default click settings
@@ -747,50 +747,60 @@ void conversation_draw() {
             Shift - ExtrudeCut
         ] - RevolveAdd
             Shift - RevolveCut
-        . - Show drawing details
+        . - Toggle dots
         ; - Deactivate feature plane
         ' - zoom in/zoom out 3D camera
         ? - Help Menu
         A - Axis
         B - Bounding Box
-        C - Circle, Center, Connected
-            Shift - TwoEdgeCircle
+        C - Circle, Center
+        Shift + C - TwoEdgeCircle
         D - Deselect
-            Shift - DivideNearest
+        Shift + D - DivideNearest
         E - End
         F - Fillet
         G - Hide Grid
         H - Print history // NOT IMPLEMENTED
-        I -
-        J - )"";
-
-        char *help2 = R""(
+        I - Two Click Divide
+        J - Offset
         K - Show Event Stack
         L - Line
         M - Move, Middle
-           Shift - Measure
+        Shift + M - Measure)"";
+
+        char *help2 = R""(
         N - Nudge Feature Plane
-           Control - Clear Drawing
-           Control + Shift - Clear Mesh
-        O - 
-            Control - Load File
+        Control + N - Clear Drawing
+        Control + Shift + N - Clear Mesh
+        O - Linear Copy
+        Control + O - Load File
         P - Polygon
         Q - Color
-        R - 
         S - Select
-            Shift - Resize selected
-            Control - Save
-        T -
-        U -
-        V -
+        Shift + S - Resize selected
+        Control + S - Save
         W - Window (use with select or deselect)
         X - XY ( choose a point)
-            Shift - MirrorX 
-            Control + Shift - Drawing Frame
-        Y - Feature Plane, Change between feature planes
-            Shift - MirrorY  
+        Shift + X - MirrorX 
+        Control + Shift + X - Drawing Frame
+        Y - Feature Plane, Next feature plane
+        Shift + Y - MirrorY  
         Z - Origin
-            Shift - Change Origin
+        Shift + Z - Change Origin
+        
+        Compound:
+        ---------------
+        A          All
+        W          Window
+        C          Connected
+
+        Snaps:
+        ---------------
+        E          Endpoint
+        M          Middle of line
+        C          Center of arc.
+        Z          Zero point
+        X          Specify (X,Y)
         )"";
 
         eso_begin(M4_Identity(), SOUP_QUADS); {
@@ -802,7 +812,7 @@ void conversation_draw() {
             eso_vertex( 1.0f, -1.0f);
         } eso_end();
 
-        EasyTextPen pen1 = { V2(-24.0f, 16.0f), 16.0f, omax.white, true}; // FORNOW
+        EasyTextPen pen1 = { V2(-24.0f, 8.0f), 16.0f, omax.white, true}; // FORNOW
         EasyTextPen pen2 = pen1;
         pen2.origin_Pixel.x += 350.0f;
         easy_text_drawf(&pen1, "%s", help1); 
