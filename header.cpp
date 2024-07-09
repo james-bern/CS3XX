@@ -1773,6 +1773,35 @@ LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
     return result;
 }
 
+struct LineArcXClosestResult {
+    vec2 point;
+    real theta;
+    real t;
+    bool point_is_on_arc;
+    bool point_is_on_line_segment;
+    bool no_possible_intersection;
+};
+
+LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity *arc, vec2 *point) {
+    LineArcXClosestResult result;
+    LineArcXResult two_point_result = line_arc_intersection(line, arc);
+    if (distance(*point, two_point_result.point1) < distance(*point, two_point_result.point2)) {
+        result.point = two_point_result.point1;
+        result.theta = two_point_result.theta_1;
+        result.t = two_point_result.t1;
+        result.point_is_on_arc = two_point_result.point1_is_on_arc;
+        result.point_is_on_line_segment = two_point_result.point1_is_on_line_segment;
+    } else {
+        result.point = two_point_result.point2;
+        result.theta = two_point_result.theta_2;
+        result.t = two_point_result.t2;
+        result.point_is_on_arc = two_point_result.point2_is_on_arc;
+        result.point_is_on_line_segment = two_point_result.point2_is_on_line_segment;
+    }
+    result.no_possible_intersection = two_point_result.no_possible_intersection;
+    return result;
+}
+
 real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
     real theta_p = angle_from_0_TAU(center, p);
     real theta_q = angle_from_0_TAU(center, q);

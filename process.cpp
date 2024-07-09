@@ -1216,8 +1216,128 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                 }
                                             }
                                         }
-                                    } else {
-                                        messagef(omax.red, "TODO: line-arc fillet; arc-arc fillet");
+                                    } else if ((E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line)) {
+                                        // general idea
+                                        // 1. find what quadrant the click is in
+                                        // 2. use that to get the intersect between line and circle
+                                        // 3. ?????
+                                        // 4, perfect fillet
+
+
+                                        messagef(omax.red, "TODO: line-arc fillet");\
+                                        Entity *EntL = E->type == EntityType::Line ? E : F;
+                                        Entity *EntA  = E->type == EntityType::Arc  ? E : F;
+
+                                        LineEntity line = EntL->line;
+                                        ArcEntity arc = EntA->arc;
+                                        real fillet_radius = popup->fillet_radius;
+
+                                        // get closest intersection point
+                                        // in current version both points can always work
+                                        // this is only checking for the 
+                                        LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, second_click);
+
+                                        messagef(omax.green, "%d\n", intersection.no_possible_intersection);
+                                        if (!intersection.no_possible_intersection) {
+                                            // Now have to decide which of the 4 possible fillets to do
+                                            // This currently only depends on the line as the arc can  
+                                            //   wrap both directions
+                                            // Check to see if one predicted by click position works otherwise
+                                            //   fillet from opposite side (inside/outside) of circle
+                                            //
+                                            //           \
+                                            //        B   \   A
+                                            //            |
+                                            //      ------|------
+                                            //            /
+                                            //        C  /   D
+                                            //      
+
+                                            // in this case we can do any fillet
+                                            // in cases where the radius is massive weird stuff happens
+                                            // thats on the user though, or at least for now
+                                            bool all_fillets_valid = intersection.point_is_on_line_segment;
+
+                                            messagef(omax.orange, "wowowowow\n");
+
+                                                                    // if click is inside the circle when both work
+                                            bool fillet_inside_circle = (all_fillets_valid && distance(*second_click, arc.center) < arc.radius) ||
+                                                                    // or if the line is inside the circle
+                                                                    // if it was far away on the other side it would instead snap to the other intersect
+                                                                 (distance(line.start, arc.center) < arc.radius);\
+
+                                            vec2 line_vector = line.end - line.start;
+                                            bool line_left = cross(line_vector, *second_click - line.start) < 0;
+                                            vec2 line_adjust = fillet_radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
+                                            LineEntity new_line;
+                                            new_line.start = line.start + line_adjust; 
+                                            new_line.end = line.end + line_adjust; 
+
+                                            ArcEntity new_arc = arc;
+                                            new_arc.radius += fillet_radius * (fillet_inside_circle ? -1 : 1);
+
+                                            LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, second_click);
+
+                                            vec2 fillet_center = fillet_point.point;
+                                            vec2 line_fillet_intersect = fillet_center - line_adjust;
+                                            vec2 arc_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
+                                            real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
+                                            real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
+
+                                            if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
+                                                real temp = fillet_line_theta;
+                                                fillet_line_theta = fillet_arc_theta;
+                                                fillet_arc_theta = temp;
+                                            }
+
+                                            if (fillet_radius > TINY_VAL) {
+                                                cookbook.buffer_add_arc(fillet_center, fillet_radius, DEG(fillet_arc_theta), DEG(fillet_line_theta));
+                                            }
+                                            // TODO: MAKE THIS WORK FOR 0 RADIUS FILLETS
+                                            if (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0) {
+                                                EntL->line.start = line_fillet_intersect;
+                                            } else {
+                                                EntL->line.end = line_fillet_intersect;
+                                            }
+
+                                            real divide_theta = DEG(ATAN2(fillet_center - arc.center));
+                                            real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+
+                                            // kinda weird but checks if divide theta > theta where line was tangent
+                                            real offset = DEG(ATAN2(*second_click - arc.center)); 
+                                            bool ccw;
+                                            if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
+                                                messagef(omax.red, "cthathajh");
+                                                ccw = ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f);
+                                            } else if (divide_theta > theta_where_line_was_tangent) {
+                                                ccw = true;
+                                            } else {
+                                                if (ABS(theta_where_line_was_tangent - (divide_theta)) > 180.0f) {
+                                                    ccw = true;
+                                                } else {
+                                                    ccw = false;
+                                                }
+                                            }
+                                            if (ccw) {
+                                                messagef(omax.red, "case1");
+                                                if (ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
+                                                    EntA->arc.start_angle_in_degrees = divide_theta;
+                                                } else {
+                                                    EntA->arc.end_angle_in_degrees = divide_theta;
+                                                }
+                                            } else {
+                                                messagef(omax.red, "case2");
+                                                if (ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees, arc.start_angle_in_degrees)) {
+                                                    EntA->arc.start_angle_in_degrees = divide_theta; 
+                                                } else {
+                                                    EntA->arc.end_angle_in_degrees = divide_theta;
+                                                }
+                                            }
+                                                                                        
+                                        }
+                                        
+                                    } else { 
+                                        messagef(omax.red, "TODO: arc-arc fillet");
                                     }
                                 }
                             }
