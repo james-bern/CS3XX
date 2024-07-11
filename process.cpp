@@ -1261,6 +1261,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             messagef(omax.orange, "wowowowow\n");
 
                                                                     // if click is inside the circle when both work
+                                            // TODO: better check for this as a line outside of arc still says outside
                                             bool fillet_inside_circle = (all_fillets_valid && distance(*second_click, arc.center) < arc.radius) ||
                                                                     // or if the line is inside the circle
                                                                     // if it was far away on the other side it would instead snap to the other intersect
@@ -1336,8 +1337,50 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                                                         
                                         }
                                         
-                                    } else { 
+                                    } else { // TODO: put an assert here
                                         messagef(omax.red, "TODO: arc-arc fillet");
+
+                                        ArcEntity arc_a = E->arc;
+                                        ArcEntity arc_b = F->arc;
+                                        real fillet_radius = popup->fillet_radius;
+
+                                        bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
+                                        bool fillet_inside_arc_b = distance(arc_b.center, *second_click) < arc_b.radius;
+                                        
+                                        ArcEntity new_arc_a = arc_a;
+                                        new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * fillet_radius;
+                                        
+                                        ArcEntity new_arc_b = arc_b;
+                                        new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * fillet_radius;
+                                        
+
+                                        ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, second_click);
+                                        
+                                        if (!fillet_point.no_possible_intersection) {
+                                            vec2 fillet_center = fillet_point.point;
+                                            vec2 arc_a_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
+                                            vec2 arc_b_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
+                                            real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
+                                            real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
+
+                                            // a swap so the fillet goes the right way
+                                            // (smallest angle
+                                            if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
+                                                real temp = fillet_arc_b_theta;
+                                                fillet_arc_b_theta = fillet_arc_a_theta;
+                                                fillet_arc_a_theta = temp;
+                                            }
+
+                                            if (fillet_radius > TINY_VAL) {
+                                                cookbook.buffer_add_arc(fillet_center, fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta));
+                                            }
+
+                                            real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
+                                            real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
+
+                                            // kinda weird but checks if divide theta > theta where line was tangent
+                                            real offset_a = DEG(ATAN2(*second_click - arc_a.center)); 
+                                        }
                                     }
                                 }
                             }
