@@ -1370,16 +1370,38 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                 fillet_arc_b_theta = fillet_arc_a_theta;
                                                 fillet_arc_a_theta = temp;
                                             }
-
+                                            Entity fillet_arc = cookbook._make_arc(fillet_center, fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta));
                                             if (fillet_radius > TINY_VAL) {
-                                                cookbook.buffer_add_arc(fillet_center, fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta));
+                                                cookbook._buffer_add_entity(fillet_arc);
                                             }
 
                                             real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
                                             real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
 
-                                            // kinda weird but checks if divide theta > theta where line was tangent
-                                            real offset_a = DEG(ATAN2(*second_click - arc_a.center)); 
+                                            vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+                                            real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
+                                            real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
+                                            real offset_a = DEG(ATAN2(*second_click - middle_angle_vec)); 
+                                            real offset_b = DEG(ATAN2(*second_click - middle_angle_vec)); 
+                                            messagef(omax.orange, "%f", offset_a);
+                                            if (ARE_EQUAL(divide_theta_a, fillet_middle_arc_a)) {
+                                                fillet_middle_arc_a = DEG(ATAN2(*second_click - arc_a.center));
+                                            }
+                                            if (ARE_EQUAL(divide_theta_b, fillet_middle_arc_b)) {
+                                                fillet_middle_arc_b = DEG(ATAN2(*second_click - arc_b.center));
+                                            }
+                                            if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                                                E->arc.start_angle_in_degrees = divide_theta_a;
+                                            } else {
+                                                E->arc.end_angle_in_degrees = divide_theta_a;
+
+                                            }
+                                            if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                                                F->arc.start_angle_in_degrees = divide_theta_b;
+                                            } else {
+                                                F->arc.end_angle_in_degrees = divide_theta_b;
+
+                                            }
                                         }
                                     }
                                 }
