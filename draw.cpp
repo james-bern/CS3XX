@@ -1,5 +1,13 @@
-// TODO: draw axis when revolving
-// TODO: nudge-y plane move stuff needs to be incorporated into the tween engine too
+// // TODO: (Jim) stuff for alpha
+// TODO: fix in/out relationship (right now they just seem to add)
+// TODO: tubes
+// TODO: manifold_wrapper
+// XXX: fix origin axis relationship with revolve
+// XXX: - tubes
+// XXX: - manifold_wrapper
+// TODO: draw axis on RHS when revolving
+// TODO: 3D-picking is broken for non xyz planes
+// TODO: revisit extruded cut on the botton of box with name (why did the students need to flip their names)
 
 mat4 get_M_3D_from_2D() {
     vec3 up = { 0.0f, 1.0f, 0.0f };
@@ -108,14 +116,23 @@ void conversation_draw() {
     bool adding     = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::RevolveAdd));
     bool cutting     = ((state.enter_mode == EnterMode::ExtrudeCut) || (state.enter_mode == EnterMode::RevolveCut));
 
-    { // preview_extrude_in_length
+    { // preview->extrude_in_length
         real target = (adding) ? popup->extrude_add_in_length : popup->extrude_cut_in_length;
         JUICEIT_EASYTWEEN(&preview->extrude_in_length, target);
     }
-    { // preview_extrude_out_length
+    { // preview->extrude_out_length
         real target = (adding) ? popup->extrude_add_out_length : popup->extrude_cut_out_length;
         JUICEIT_EASYTWEEN(&preview->extrude_out_length, target);
     }
+    { // preview->revolve_in_angle
+        real target = (adding) ? popup->revolve_add_in_angle : popup->revolve_cut_in_angle;
+        JUICEIT_EASYTWEEN(&preview->revolve_in_angle, target);
+    }
+    { // preview->revolve_out_angle
+        real target = (adding) ? popup->revolve_add_out_angle : popup->revolve_cut_out_angle;
+        JUICEIT_EASYTWEEN(&preview->revolve_out_angle, target);
+    }
+
     // TODO
     { // preview_feature_plane_offset
         real target = (state.enter_mode == EnterMode::NudgePlane) ? popup->feature_plane_nudge : 0.0f;
@@ -228,14 +245,14 @@ void conversation_draw() {
                 eso_begin(PV_2D, SOUP_LINES); {
                     // axis
                     eso_stipple(true);
+                    eso_color(omax.dark_gray);
                     if (state.click_mode == ClickMode::Axis) {
-                        eso_color(omax.yellow);
+                        eso_color(omax.cyan);
                     } else if (state.enter_mode == EnterMode::RevolveAdd) {
-                        eso_color(omax.orange);
+                        eso_color(AVG(omax.dark_gray, omax.cyan));
                     } else if (state.enter_mode == EnterMode::RevolveCut) {
-                        eso_color(omax.orange);
+                        eso_color(AVG(omax.dark_gray, omax.cyan));
                     } else {
-                        eso_color(omax.dark_gray);
                     }
                     vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                     eso_vertex(preview_dxf_axis_base_point + v);
@@ -253,7 +270,6 @@ void conversation_draw() {
             }
 
             { // entities
-
                 bool moving = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::Move);
                 bool linear_copying = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::LinearCopy);
                 bool rotating = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::Rotate);
@@ -432,6 +448,7 @@ void conversation_draw() {
         }
 
 
+        mat4 inv_T_o = M4_Translation(-preview->drawing_origin);
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
             // FORNOW
@@ -448,25 +465,26 @@ void conversation_draw() {
             mat4 M;
             mat4 M_incr;
             {
-                mat4 T_o = M4_Translation(preview->drawing_origin);
-                mat4 inv_T_o = M4_Translation(-preview->drawing_origin);
+                // mat4 T_o = M4_Translation(preview->drawing_origin);
                 if (extruding) {
                     real a = -preview->extrude_in_length;
                     real L = preview->extrude_out_length + preview->extrude_in_length;
-                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(roundf(L / 2.5f)) + 2);
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / 2.5f)) + 2);
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
                     M_incr = M4_Translation(0.0f, 0.0f, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
                 } else if (revolving) {
-                    NUM_TUBE_STACKS_INCLUSIVE = 64;
-                    M = M_3D_from_2D * inv_T_o;
-                    { // M_incr
-                        real a = 0.0f;
-                        real b = TAU;
-                        mat4 R_a = M4_RotationAbout(V3(e_theta(PI / 2 + preview_dxf_axis_angle_from_y), 0.0f), (b - a) / (NUM_TUBE_STACKS_INCLUSIVE - 1));
-                        mat4 T_a = M4_Translation(V3(preview_dxf_axis_base_point, 0.0f));
-                        mat4 inv_T_a = inverse(T_a);
-                        M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
-                    }
+                    real a = -RAD(preview->revolve_out_angle);
+                    real b = RAD(preview->revolve_in_angle);
+                    real L = b - a;
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / .1)) + 2);
+                    vec3 axis = V3(e_theta(PI / 2 + preview_dxf_axis_angle_from_y), 0.0f);
+                    mat4 R_0 = M4_RotationAbout(axis, a);
+                    mat4 R_inc = M4_RotationAbout(axis, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                    mat4 T_a = M4_Translation(V3(preview_dxf_axis_base_point, 0.0f));
+                    mat4 inv_T_a = inverse(T_a);
+                    // M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
+                    M_incr = T_a * R_inc * inv_T_a;
+                    M = M_3D_from_2D * inv_T_o * T_a * R_0 * inv_T_a;
                 } else if (state.click_mode == ClickMode::Origin) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
@@ -516,12 +534,13 @@ void conversation_draw() {
             eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
             eso_vertex(0.0f,  r);
-            if (0) {
+            if (revolving) {
                 // TODO: clip this to the feature_plane
-                real LL = 10.0f;
+                real LL = 100.0f;
                 vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                 vec2 a = preview_dxf_axis_base_point + v;
                 vec2 b = preview_dxf_axis_base_point - v;
+                eso_color(omax.cyan);
                 eso_vertex(-preview->drawing_origin + a);
                 eso_vertex(-preview->drawing_origin + b); // FORNOW
             }
@@ -585,8 +604,8 @@ void conversation_draw() {
                         dxf_selection_bbox.max += T;
                     }
 
-                    dxf_selection_bbox.min -= preview->drawing_origin;
-                    dxf_selection_bbox.max -= preview->drawing_origin;
+                    dxf_selection_bbox.min -= target_preview_drawing_origin;
+                    dxf_selection_bbox.max -= target_preview_drawing_origin;
                 }
                 bbox2 target_bbox; {
                     target_bbox = face_selection_bbox + dxf_selection_bbox;
@@ -637,7 +656,7 @@ void conversation_draw() {
                     // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
                     // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
                     eso_begin(PVM * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
-                    eso_color(preview->feature_plane_color, f * 0.35f);
+                    eso_color(preview->feature_plane_color, f * 0.4f);
                     eso_bbox_SOUP_QUADS(preview->feature_plane);
                     eso_end();
                 }
