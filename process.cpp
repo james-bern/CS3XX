@@ -1258,8 +1258,193 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                 }
                                             }
                                         }
-                                    } else {
-                                        messagef(omax.red, "TODO: line-arc fillet; arc-arc fillet");
+                                    } else if ((E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line)) {
+                                        // general idea
+                                        // 1. find what quadrant the click is in
+                                        // 2. use that to get the intersect between line and circle
+                                        // 3. ?????
+                                        // 4, perfect fillet
+
+
+                                        messagef(omax.red, "TODO: line-arc fillet");\
+                                        Entity *EntL = E->type == EntityType::Line ? E : F;
+                                        Entity *EntA  = E->type == EntityType::Arc  ? E : F;
+
+                                        LineEntity line = EntL->line;
+                                        ArcEntity arc = EntA->arc;
+                                        real fillet_radius = popup->fillet_radius;
+
+                                        // get closest intersection point
+                                        // in current version both points can always work
+                                        // this is only checking for the 
+                                        LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, second_click);
+
+                                        messagef(omax.green, "%d\n", intersection.no_possible_intersection);
+                                        if (!intersection.no_possible_intersection) {
+                                            // Now have to decide which of the 4 possible fillets to do
+                                            // This currently only depends on the line as the arc can  
+                                            //   wrap both directions
+                                            // Check to see if one predicted by click position works otherwise
+                                            //   fillet from opposite side (inside/outside) of circle
+                                            //
+                                            //           \
+                                            //        B   \   A
+                                            //            |
+                                            //      ------|------
+                                            //            /
+                                            //        C  /   D
+                                            //      
+
+                                            // in this case we can do any fillet
+                                            // in cases where the radius is massive weird stuff happens
+                                            // thats on the user though, or at least for now
+                                            bool all_fillets_valid = intersection.point_is_on_line_segment;
+
+                                            messagef(omax.orange, "wowowowow\n");
+
+                                                                    // if click is inside the circle when both work
+                                            // TODO: better check for this as a line outside of arc still says outside
+                                            bool fillet_inside_circle = (all_fillets_valid && distance(*second_click, arc.center) < arc.radius) ||
+                                                                    // or if the line is inside the circle
+                                                                    // if it was far away on the other side it would instead snap to the other intersect
+                                                                 (distance(line.start, arc.center) < arc.radius);\
+
+                                            vec2 line_vector = line.end - line.start;
+                                            bool line_left = cross(line_vector, *second_click - line.start) < 0;
+                                            vec2 line_adjust = fillet_radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
+                                            LineEntity new_line;
+                                            new_line.start = line.start + line_adjust; 
+                                            new_line.end = line.end + line_adjust; 
+
+                                            ArcEntity new_arc = arc;
+                                            new_arc.radius += fillet_radius * (fillet_inside_circle ? -1 : 1);
+
+                                            LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, second_click);
+
+                                            vec2 fillet_center = fillet_point.point;
+                                            vec2 line_fillet_intersect = fillet_center - line_adjust;
+                                            vec2 arc_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
+                                            real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
+                                            real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
+
+                                            if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
+                                                real temp = fillet_line_theta;
+                                                fillet_line_theta = fillet_arc_theta;
+                                                fillet_arc_theta = temp;
+                                            }
+
+                                            if (fillet_radius > TINY_VAL) {
+                                                cookbook.buffer_add_arc(fillet_center, fillet_radius, DEG(fillet_arc_theta), DEG(fillet_line_theta));
+                                            }
+                                            // TODO: MAKE THIS WORK FOR 0 RADIUS FILLETS
+                                            if (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0) {
+                                                EntL->line.start = line_fillet_intersect;
+                                            } else {
+                                                EntL->line.end = line_fillet_intersect;
+                                            }
+
+                                            real divide_theta = DEG(ATAN2(fillet_center - arc.center));
+                                            real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+
+                                            // kinda weird but checks if divide theta > theta where line was tangent
+                                            real offset = DEG(ATAN2(*second_click - arc.center)); 
+                                            bool ccw;
+                                            if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
+                                                messagef(omax.red, "cthathajh");
+                                                ccw = ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f);
+                                            } else if (divide_theta > theta_where_line_was_tangent) {
+                                                ccw = true;
+                                            } else {
+                                                if (ABS(theta_where_line_was_tangent - (divide_theta)) > 180.0f) {
+                                                    ccw = true;
+                                                } else {
+                                                    ccw = false;
+                                                }
+                                            }
+                                            if (ccw) {
+                                                messagef(omax.red, "case1");
+                                                if (ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
+                                                    EntA->arc.start_angle_in_degrees = divide_theta;
+                                                } else {
+                                                    EntA->arc.end_angle_in_degrees = divide_theta;
+                                                }
+                                            } else {
+                                                messagef(omax.red, "case2");
+                                                if (ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees, arc.start_angle_in_degrees)) {
+                                                    EntA->arc.start_angle_in_degrees = divide_theta; 
+                                                } else {
+                                                    EntA->arc.end_angle_in_degrees = divide_theta;
+                                                }
+                                            }
+                                                                                        
+                                        }
+                                        
+                                    } else { // TODO: put an assert here
+                                        messagef(omax.red, "TODO: arc-arc fillet");
+
+                                        ArcEntity arc_a = E->arc;
+                                        ArcEntity arc_b = F->arc;
+                                        real fillet_radius = popup->fillet_radius;
+
+                                        bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
+                                        bool fillet_inside_arc_b = distance(arc_b.center, *second_click) < arc_b.radius;
+                                        
+                                        ArcEntity new_arc_a = arc_a;
+                                        new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * fillet_radius;
+                                        
+                                        ArcEntity new_arc_b = arc_b;
+                                        new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * fillet_radius;
+                                        
+
+                                        ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, second_click);
+                                        
+                                        if (!fillet_point.no_possible_intersection) {
+                                            vec2 fillet_center = fillet_point.point;
+                                            vec2 arc_a_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
+                                            vec2 arc_b_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
+                                            real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
+                                            real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
+
+                                            // a swap so the fillet goes the right way
+                                            // (smallest angle
+                                            if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
+                                                real temp = fillet_arc_b_theta;
+                                                fillet_arc_b_theta = fillet_arc_a_theta;
+                                                fillet_arc_a_theta = temp;
+                                            }
+                                            Entity fillet_arc = cookbook._make_arc(fillet_center, fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta));
+                                            if (fillet_radius > TINY_VAL) {
+                                                cookbook._buffer_add_entity(fillet_arc);
+                                            }
+
+                                            real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
+                                            real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
+
+                                            vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+                                            real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
+                                            real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
+                                            real offset_a = DEG(ATAN2(*second_click - middle_angle_vec)); 
+                                            real offset_b = DEG(ATAN2(*second_click - middle_angle_vec)); 
+                                            messagef(omax.orange, "%f", offset_a);
+                                            if (ARE_EQUAL(divide_theta_a, fillet_middle_arc_a)) {
+                                                fillet_middle_arc_a = DEG(ATAN2(*second_click - arc_a.center));
+                                            }
+                                            if (ARE_EQUAL(divide_theta_b, fillet_middle_arc_b)) {
+                                                fillet_middle_arc_b = DEG(ATAN2(*second_click - arc_b.center));
+                                            }
+                                            if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                                                E->arc.start_angle_in_degrees = divide_theta_a;
+                                            } else {
+                                                E->arc.end_angle_in_degrees = divide_theta_a;
+
+                                            }
+                                            if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                                                F->arc.start_angle_in_degrees = divide_theta_b;
+                                            } else {
+                                                F->arc.end_angle_in_degrees = divide_theta_b;
+
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -1300,8 +1485,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_modifier = ClickModifier::None;
                             // two_click_command->awaiting_second_click = false;
 
-                            do_once { messagef(omax.red, "TODO: add warnings for no intersection found for arc-arc and arc-line"); }
-
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
                             if (closest_result_two.success) {
@@ -1322,13 +1505,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             messagef(omax.orange, "TwoClickDivide: no intersection found");
                                         } else {
                                             if (X_result.point_is_on_segment_ab) {
-                                                cookbook.buffer_add_line(X_result.point, a);
-                                                cookbook.buffer_add_line(X_result.point, b);
+                                                cookbook.buffer_add_line(X_result.point, a, false, closest_entity_one->color_code);
+                                                cookbook.buffer_add_line(X_result.point, b, false, closest_entity_one->color_code);
                                                 cookbook.buffer_delete_entity(closest_entity_one);
                                             }
                                             if (X_result.point_is_on_segment_cd) {
-                                                cookbook.buffer_add_line(X_result.point, c);
-                                                cookbook.buffer_add_line(X_result.point, d);
+                                                cookbook.buffer_add_line(X_result.point, c, false, closest_entity_two->color_code);
+                                                cookbook.buffer_add_line(X_result.point, d, false, closest_entity_two->color_code);
                                                 cookbook.buffer_delete_entity(closest_entity_two);
                                             } 
                                         }
@@ -1368,14 +1551,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
                                         }
                                         if (cut_arc_a) {
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a);
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees);
+                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a, false, closest_entity_one->color_code);
+                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees, false, closest_entity_one->color_code);
                                             cookbook.buffer_delete_entity(closest_entity_one);
                                         }
                                         if (cut_arc_b) {
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b);
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees);
+                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b, false, closest_entity_two->color_code);
+                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees, false, closest_entity_two->color_code);
                                             cookbook.buffer_delete_entity(closest_entity_two);
+                                        }
+                                        if (!cut_arc_a && !cut_arc_b) {
+                                            messagef(omax.orange, "TwoClickDivide: no intersection found");
                                         }
                                     } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
                                              //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
@@ -1423,15 +1609,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                         if (p1Works || p2Works) {
                                             if (cutLine) {
-                                                cookbook.buffer_add_line(intersect, line->start);
-                                                cookbook.buffer_add_line(intersect, line->end);
+                                                cookbook.buffer_add_line(intersect, line->start, false, entity_line->color_code);
+                                                cookbook.buffer_add_line(intersect, line->end, false, entity_line->color_code);
                                                 cookbook.buffer_delete_entity(entity_line);
                                             }
                                             if (cutArc) {
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta);
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees);
+                                                cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta, false, entity_arc->color_code);
+                                                cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees, false, entity_arc->color_code);
                                                 cookbook.buffer_delete_entity(entity_arc);
                                             }
+                                        }
+                                        if (!cutArc && !cutLine) {
+                                            messagef(omax.orange, "TwoClickDivide: no intersection found");
                                         }
                                     }
                                 }

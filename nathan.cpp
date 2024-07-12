@@ -10,8 +10,21 @@ int main() {
     while (begin_frame(&camera)) {
         time += 0.0167f;
 
-        gl_begin(OpenGL_from_Pixel);
+        gl_begin();
         gl_primitive(GL_TRIANGLES);
+        gl_PV(OpenGL_from_Pixel);
+        for_(i, 4) {
+            printf("%f ", OpenGL_from_Pixel(0, i));}
+        printf("\n");
+        for_(i, 4) {
+            printf("%f ", OpenGL_from_Pixel(1, i));}
+        printf("\n");
+        for_(i, 4) {
+            printf("%f ", OpenGL_from_Pixel(2, i));}
+        printf("\n");
+        for_(i, 4) {
+            printf("%f ", OpenGL_from_Pixel(3, i));}
+        //printf("\n\n\n\n");
         // gl_model_matrix(...);
         gl_color(monokai.red);
         gl_size(5.0f);
@@ -24,12 +37,28 @@ int main() {
         gl_size(5.0f);
         gl_color(monokai.blue);
         gl_vertex(0.0f, 256.0f);
-
         gl_primitive(GL_POINTS);
         gl_vertex(500.0f, 100.0f);
         gl_vertex(400.0f, 0.0f);
         gl_vertex(400.0f, 100.0f);
+
+        gl_primitive(GL_LINES);
+        gl_vertex(500.0f, 500.0f);
+        gl_vertex(500.0f, 300.0f);
+        
+        gl_stipple(true);
+        gl_vertex(500.0f, 400.0f);
+        gl_vertex(400.0f, 400.0f);
         gl_end();
+
+
+        eso_begin(OpenGL_from_Pixel, GL_LINES);
+
+        eso_size(5.0f);
+        eso_stipple(true);
+        eso_vertex(500.0f, 100.0f);
+        eso_vertex(400.0f, 0.0f);
+        eso_end();
     }
 }
 

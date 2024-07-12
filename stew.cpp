@@ -41,24 +41,50 @@ struct {
         layout (location = 1) in vec4 color;
         layout (location = 2) in float size;
         layout (location = 3) in uint primitive_type;
+        layout (location = 4) in uint stipple;
+        layout (location = 5) in vec3 PV_c0; 
+        layout (location = 6) in vec3 PV_c1; 
+        layout (location = 7) in vec3 PV_c2; 
+        layout (location = 8) in vec3 PV_c3; 
+        layout (location = 9) in vec3 Model_c0; // you might ask why we pass 4 vec 3s when all we need are the first 3 rows
+        layout (location = 10) in vec3 Model_c1; // this is because glsl is the best language ever and is column major
+        layout (location = 11) in vec3 Model_c2; // despite it being a c like languange
+        layout (location = 12) in vec3 Model_c3; // this resulted in 0 hours of lost time and no frustration whatsoever
 
         out BLOCK {
             vec4 color;
             float size;
             flat uint primitive_type;
+            flat uint stipple;
         } vs_out;
 
-        uniform mat4 transform;
         uniform bool force_draw_on_top;
+        uniform mat4 test_Model;
 
         void main() {
-            gl_Position = transform * vec4(vertex, 1);
+        
+            mat4 PV = mat4(
+                vec4(PV_c0, 0.0),
+                vec4(PV_c1, 0.0),
+                vec4(PV_c2, 0.0),
+                vec4(PV_c3, 1.0)
+            );
+
+            mat4 Model = mat4(
+                vec4(Model_c0, 0.0),
+                vec4(Model_c1, 0.0),
+                vec4(Model_c2, 0.0),
+                vec4(Model_c3, 1.0)
+            );
+
+            gl_Position = PV * Model * vec4(vertex, 1);
             if (force_draw_on_top) {
                 gl_Position.z = -.99 * gl_Position.w; // ?
             }
-            vs_out.color = color;
+            vs_out.color = color; 
             vs_out.size = size;
             vs_out.primitive_type = primitive_type;
+            vs_out.stipple = stipple;
         }
     )"";
 
@@ -71,6 +97,7 @@ struct {
             vec4 color;
             float size;
             flat uint primitive_type;
+            flat uint stipple;
         } gs_in[];
 
         out BLOCK {
@@ -81,6 +108,7 @@ struct {
             vec2 starting_point_Pixel;
             vec2 xy;
             flat uint primitive_type;
+            flat uint stipple;
         } gs_out;
 
         void emit_point(vec4 p, float x, float y) {
@@ -101,11 +129,58 @@ struct {
                 emit_point(p, -1, 1);
                 emit_point(p, 1, 1);
             } else if (gs_in[0].primitive_type == 1u) { // GL_LINES == 1
+                vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+                vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
+                vec4 color_s = gs_in[0].color;
+                vec4 color_t = gs_in[1].color;
+
+                float angle = atan(OpenGL_from_Pixel_scale.x * (t.y - s.y), OpenGL_from_Pixel_scale.y * (t.x - s.x));
+
+                vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
+                vec4 perp_s = vec4((gs_in[0].size / 2) * perp, 0, 0);
+                vec4 perp_t = vec4((gs_in[1].size / 2) * perp, 0, 0);
+
+                gl_Position = (s - perp_s) * gl_in[0].gl_Position.w;
+                gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+                gs_out.color = color_s;
+                gs_out.angle = angle;
+                gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+                gs_out.primitive_type = gs_in[0].primitive_type;
+                gs_out.stipple = gs_in[0].stipple;
+                EmitVertex();
+
+                gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
+                gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+                gs_out.color = color_t;
+                gs_out.angle = angle;
+                gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+                gs_out.primitive_type = gs_in[0].primitive_type;
+                gs_out.stipple = gs_in[0].stipple;
+                EmitVertex();
+
+                gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
+                gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+                gs_out.color = color_s;
+                gs_out.angle = angle;
+                gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+                gs_out.primitive_type = gs_in[0].primitive_type;
+                gs_out.stipple = gs_in[0].stipple;
+                EmitVertex();
+
+                gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
+                gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+                gs_out.color = color_t;
+                gs_out.angle = angle;
+                gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+                gs_out.primitive_type = gs_in[0].primitive_type;
+                gs_out.stipple = gs_in[0].stipple;
+                EmitVertex();
             } else if (gs_in[0].primitive_type == 4u) { // GL_TRIANGLES == 4
                 for(int i = 0; i < 3; i++) {
                     gl_Position = gl_in[i].gl_Position;
                     gs_out.color = gs_in[i].color;
-            gs_out.primitive_type = gs_in[0].primitive_type;
+                    gs_out.primitive_type = gs_in[0].primitive_type;
+                    gs_out.stipple = gs_in[0].stipple;
                     // If you have vertex attributes, pass them through
                     // outNormal = inNormal[i];
                     // outTexCoord = inTexCoord[i];
@@ -118,7 +193,6 @@ struct {
     )"";
 
     char *frag_UBER= R""(#version 330 core
-        uniform bool stipple;
 
         in BLOCK {
             vec4 color;
@@ -128,6 +202,7 @@ struct {
             vec2 starting_point_Pixel;
             vec2 xy;
             flat uint primitive_type;
+            flat uint stipple;
         } fs_in;
 
         out vec4 frag_color;
@@ -136,200 +211,35 @@ struct {
             if (fs_in.primitive_type == 0u) { // GL_POINTS == 0
                 frag_color = fs_in.color;
                 if (length(fs_in.xy) > 1) { discard; }
-            } else if (fs_in.primitive_type == 1u) { // GL_LINES == 1
-            } else if (fs_in.primitive_type == 4u) { // GL_TRIANGLES == 4
+            } else if (fs_in.primitive_type == 1u) { // GL_LINES == 1;
+                frag_color = fs_in.color; // TODO: add stipple
+                if (fs_in.stipple == 1u) {
+                        vec2 xy = fs_in.position_Pixel;
+                        // rotate by -angle
+                        float s = sin(fs_in.angle);
+                        float c = cos(fs_in.angle);
+                        mat2 Rinv = mat2(c, -s, s, c);
+                        vec2 uv = Rinv * (xy - fs_in.starting_point_Pixel);
+
+                        if (int(uv.x + 99999) % 10 > 5) discard; // FORNOW
+                }
+            } else if (fs_in.primitive_type == 4u) {
                 frag_color = fs_in.color;
             }
         }
 
     )"";
 
-    char *vert = R""(#version 330 core
-        layout (location = 0) in vec3 vertex;
-        layout (location = 1) in vec4 color;
-        layout (location = 2) in float size;
+        } stew_source;
 
-        out BLOCK {
-            vec4 color;
-            float size;
-        } vs_out;
+        struct {
+            uint shader_program_UBER;
+            uint VAO[1];
+            uint VBO[32];
+            uint EBO[1];
+        } stew;
 
-        uniform mat4 transform;
-        uniform bool force_draw_on_top;
-
-        void main() {
-            gl_Position = transform * vec4(vertex, 1);
-            if (force_draw_on_top) {
-                gl_Position.z = -.99 * gl_Position.w; // ?
-            }
-            vs_out.color = color;
-            vs_out.size = size;
-        }
-    )"";
-
-    char *geom_POINTS = R""(#version 330 core
-        layout (points) in;
-        layout (triangle_strip, max_vertices = 4) out;
-        uniform vec2 OpenGL_from_Pixel_scale;
-
-        in BLOCK {
-            vec4 color;
-            float size;
-        } gs_in[];
-
-        out GS_OUT {
-            vec4 color;
-            vec2 xy;
-        } gs_out;
-
-        void emit(vec4 p, float x, float y) {
-            vec2 radius = (gs_in[0].size / 2) * OpenGL_from_Pixel_scale;
-            gs_out.color = gs_in[0].color;                                     
-            gs_out.xy = vec2(x, y);
-            gl_Position = (p + vec4(radius * gs_out.xy, 0, 0)) * gl_in[0].gl_Position.w;
-            EmitVertex();                                               
-        }
-
-        void main() {    
-            vec4 p = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
-            emit(p, -1, -1);
-            emit(p, 1, -1);
-            emit(p, -1, 1);
-            emit(p, 1, 1);
-            EndPrimitive();
-        }  
-    )"";
-
-    char *frag_POINTS = R""(#version 330 core
-        in GS_OUT {
-            vec4 color;
-            vec2 xy;
-        } fs_in;
-
-        out vec4 frag_color;
-
-        void main() {
-        frag_color = fs_in.color;
-        if (length(fs_in.xy) > 1) { discard; }
-        }
-    )"";
-
-    char *geom_LINES = R""(#version 330 core
-        layout (lines) in;
-        layout (triangle_strip, max_vertices = 4) out;
-        uniform vec2 OpenGL_from_Pixel_scale;
-
-        in BLOCK {
-            vec4 color;
-            float size;
-        } gs_in[];
-
-        out BLOCK {
-            vec4 color;
-            float size;
-            vec2 position_Pixel; // NOTE: y flipped sorry
-            float angle;
-            vec2 starting_point_Pixel;
-        } gs_out;
-
-        void main() {    
-            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
-            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
-            vec4 color_s = gs_in[0].color;
-            vec4 color_t = gs_in[1].color;
-
-            float angle = atan(OpenGL_from_Pixel_scale.x * (t.y - s.y), OpenGL_from_Pixel_scale.y * (t.x - s.x));
-
-            vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
-            vec4 perp_s = vec4((gs_in[0].size / 2) * perp, 0, 0);
-            vec4 perp_t = vec4((gs_in[1].size / 2) * perp, 0, 0);
-
-            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_s;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
-
-            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_t;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
-
-            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_s;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
-
-            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_t;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
-
-            EndPrimitive();
-        }  
-    )"";
-
-    char *frag_LINES = R""(#version 330 core
-        uniform bool stipple;
-
-        in BLOCK {
-            vec4 color;
-            float size;
-            vec2 position_Pixel;
-            float angle;
-            vec2 starting_point_Pixel;
-        } fs_in;
-
-        out vec4 frag_color;
-
-        void main() {
-            frag_color = fs_in.color;
-            if (stipple) {
-                vec2 xy = fs_in.position_Pixel;
-                // rotate by -angle
-                float s = sin(fs_in.angle);
-                float c = cos(fs_in.angle);
-                mat2 Rinv = mat2(c, -s, s, c);
-                vec2 uv = Rinv * (xy - fs_in.starting_point_Pixel);
-
-                if (int(uv.x + 99999) % 10 > 5) discard; // FORNOW
-            }
-        }
-    )"";
-
-    char *frag_TRIANGLES = R""(#version 330 core
-        in BLOCK {
-            vec4 color;
-            float size;
-        } fs_in;
-
-        out vec4 frag_color;
-
-        void main() {
-            frag_color = fs_in.color;
-        }
-    )"";
-
-
-    // TODO: uber
-
-} stew_source;
-
-struct {
-    uint shader_program_UBER;
-    uint VAO[1];
-    uint VBO[16];
-    uint EBO[1];
-} stew;
-
-run_before_main {
+    run_before_main {
     uint vert_UBER = shader_compile(stew_source.vert_UBER, GL_VERTEX_SHADER);
     uint geom_UBER = shader_compile(stew_source.geom_UBER, GL_GEOMETRY_SHADER);
     uint frag_UBER = shader_compile(stew_source.frag_UBER, GL_FRAGMENT_SHADER);
@@ -341,14 +251,22 @@ run_before_main {
 };
 
 void stew_draw(
-        mat4 transform,
         uint num_vertices,
         vec3 *vertex_positions,
         vec4 *vertex_colors,
         real *vertex_sizes,
         uint *vertex_primitives,
+        uint *vertex_stipple,
+        vec3 *vertex_PV_c0,
+        vec3 *vertex_PV_c1,
+        vec3 *vertex_PV_c2,
+        vec3 *vertex_PV_c3,
+        vec3 *vertex_Model_c0,
+        vec3 *vertex_Model_c1,
+        vec3 *vertex_Model_c2,
+        vec3 *vertex_Model_c3,
         bool force_draw_on_top,
-        bool stipple) {
+        mat4 current_Model) {
     if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
 
     glBindVertexArray(stew.VAO[0]);
@@ -372,10 +290,15 @@ void stew_draw(
     upload_vertex_attribute(vertex_colors, num_vertices, 4, false);
     upload_vertex_attribute(vertex_sizes, num_vertices, 1, false);
     upload_vertex_attribute(vertex_primitives, num_vertices, 1, true);
-
-    printf("%u\n", vertex_primitives[0]);
-    printf("%u\n", vertex_primitives[1]);
-    printf("%u\n", vertex_primitives[2]);
+    upload_vertex_attribute(vertex_stipple, num_vertices, 1, true);
+    upload_vertex_attribute(vertex_PV_c0, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_PV_c1, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_PV_c2, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_PV_c3, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c0, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c1, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c2, num_vertices, 3, false);
+    upload_vertex_attribute(vertex_Model_c3, num_vertices, 3, false);
 
     uint shader_program_ID;
     {
@@ -412,10 +335,9 @@ void stew_draw(
     auto LOC = [&](char *name) { return glGetUniformLocation(shader_program_ID, name); };
     vec2 OpenGL_from_Pixel_scale = (2.0f / window_get_size_Pixel());
 
-    glUniform1ui(LOC("stipple"), stipple);
     glUniform1ui(LOC("force_draw_on_top"), force_draw_on_top);
     glUniform2f(LOC("OpenGL_from_Pixel_scale"), OpenGL_from_Pixel_scale.x, OpenGL_from_Pixel_scale.y);
-    glUniformMatrix4fv(LOC("transform"), 1, GL_TRUE, transform.data);
+    glUniformMatrix4fv(LOC("test_Model"), 1, GL_TRUE, current_Model.data);
 
     glDrawArrays(GL_TRIANGLES, 0, num_vertices);
 }
@@ -437,7 +359,8 @@ struct {
     bool overlay;
     bool stipple;
 
-    mat4 transform;
+    mat4 current_Model;
+    mat4 current_PV;
 
 
     uint num_vertices;
@@ -446,9 +369,18 @@ struct {
     vec4 vertex_colors[GL_MAX_VERTICES];
     real vertex_sizes[GL_MAX_VERTICES];
     uint vertex_primitives[GL_MAX_VERTICES];
+    uint vertex_stipple[GL_MAX_VERTICES];
+    vec3 vertex_PV_c0[GL_MAX_VERTICES];
+    vec3 vertex_PV_c1[GL_MAX_VERTICES];
+    vec3 vertex_PV_c2[GL_MAX_VERTICES];
+    vec3 vertex_PV_c3[GL_MAX_VERTICES];
+    vec3 vertex_Models_c0[GL_MAX_VERTICES];
+    vec3 vertex_Models_c1[GL_MAX_VERTICES];
+    vec3 vertex_Models_c2[GL_MAX_VERTICES];
+    vec3 vertex_Models_c3[GL_MAX_VERTICES];
 } gl;
 
-void gl_begin(mat4 transform) {
+void gl_begin() {
     ASSERT(!gl._called_gl_begin_before_calling_gl_vertex_or_gl_end);
     gl._called_gl_begin_before_calling_gl_vertex_or_gl_end = true;
 
@@ -458,24 +390,31 @@ void gl_begin(mat4 transform) {
     gl.overlay = false;
     gl.stipple = false;
 
-    gl.transform = transform;
-
     gl.num_vertices = 0;
 
+    gl.current_Model = _Identity4x4;
 }
 
 void gl_end() {
     ASSERT(gl._called_gl_begin_before_calling_gl_vertex_or_gl_end);
     gl._called_gl_begin_before_calling_gl_vertex_or_gl_end = false;
     stew_draw(
-            gl.transform,
             gl.num_vertices,
             gl.vertex_positions,
             gl.vertex_colors,
             gl.vertex_sizes,
             gl.vertex_primitives,
+            gl.vertex_stipple,
+            gl.vertex_PV_c0,
+            gl.vertex_PV_c1,
+            gl.vertex_PV_c2,
+            gl.vertex_PV_c3,
+            gl.vertex_Models_c0,
+            gl.vertex_Models_c1,
+            gl.vertex_Models_c2,
+            gl.vertex_Models_c3,
             gl.overlay,
-            gl.stipple);
+            gl.current_Model);
 }
 
 void gl_primitive(uint primitive) {
@@ -488,6 +427,14 @@ void gl_overlay(bool overlay) {
 
 void gl_stipple(bool stipple) {
     gl.stipple = stipple;
+}
+
+void gl_PV(mat4 PV) {
+    gl.current_PV = PV;
+}
+
+void gl_Model(mat4 Model) {
+    gl.current_Model = Model;
 }
 
 void gl_size(real size) {
@@ -524,9 +471,42 @@ void gl_vertex(real x, real y, real z) {
     gl.vertex_colors[gl.num_vertices] = gl.current_color;
     gl.vertex_sizes[gl.num_vertices] = gl.current_size;
     gl.vertex_primitives[gl.num_vertices] = gl.current_primitive;
+    gl.vertex_stipple[gl.num_vertices] = gl.stipple;
+    for_(i, 3) {
+        gl.vertex_PV_c0[gl.num_vertices][i] = gl.current_PV(i, 0); 
+        gl.vertex_PV_c1[gl.num_vertices][i] = gl.current_PV(i, 1); 
+        gl.vertex_PV_c2[gl.num_vertices][i] = gl.current_PV(i, 2); 
+        gl.vertex_PV_c3[gl.num_vertices][i] = gl.current_PV(i, 3); 
+        gl.vertex_Models_c0[gl.num_vertices][i] = gl.current_Model(i, 0); 
+        gl.vertex_Models_c1[gl.num_vertices][i] = gl.current_Model(i, 1); 
+        gl.vertex_Models_c2[gl.num_vertices][i] = gl.current_Model(i, 2); 
+        gl.vertex_Models_c3[gl.num_vertices][i] = gl.current_Model(i, 3); 
+        //printf("%f ", gl.vertex_Models_c0[gl.num_vertices][i]);
+    }
+    printf("\n");
+    for_(i, 3) {
+        //printf("%f ", Model(1, i));
+        //printf("%f ", gl.vertex_Models_c1[gl.num_vertices][i]);
+    }
+    printf("\n");
+    for_(i, 3) {
+        //printf("%f ", gl.vertex_Models_c2[gl.num_vertices][i]);
+        //printf("%f ", Model(2, i));
+    }
+    printf("\n");
+    for_(i, 3) {
+        //printf("%f ", gl.vertex_Models_c3[gl.num_vertices][i]);
+        //printf("%f ", Model(2, i));
+    }
+    //printf("\n\n\n\n");
     if (gl.current_primitive == GL_POINTS) {
         gl.num_vertices += 3;
     } else if (gl.current_primitive == GL_LINES) {
+        if (gl.num_vertices % 3 == 1) {
+            gl.num_vertices += 2;
+        } else {
+        gl.num_vertices += 1;
+        }
     } else { ASSERT(gl.current_primitive == GL_TRIANGLES); // TODO: make better
         gl.num_vertices += 1;
     }

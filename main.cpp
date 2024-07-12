@@ -20,7 +20,6 @@
 // TODOFIRST: eso_size(...) (eso_begin doesn't take size)
 // TODO: memcmp to see if should record
 // TODO: timer to see if should snapshot
-// TODO (Nathan): color of entities from two-click divide (see LAYOUT)
 
 #include "playground.cpp"
 
