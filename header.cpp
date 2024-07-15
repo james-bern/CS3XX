@@ -19,6 +19,7 @@ enum class ToolboxGroup {
     Drawing,
     Snap,
     Mesh,
+    NUMBER_OF,
 };
 
 
@@ -255,23 +256,29 @@ struct TwoClickCommandState {
 struct PopupState {
     _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
+    ToolboxGroup active_toolbox_group = ToolboxGroup::Drawing;
     uint active_cell_index;
     uint cursor;
     uint selection_cursor;
 
-    CellType cell_type[POPUP_MAX_NUM_CELLS];
-    String name[POPUP_MAX_NUM_CELLS];
-    void *value[POPUP_MAX_NUM_CELLS];
-    uint num_cells;
-
     CellType _type_of_active_cell;
     char *_FORNOW_active_popup_unique_ID__FORNOW_name0;
+
     bool _popup_actually_called_this_event; // FORNOW
 
     bool _FORNOW_info_mouse_is_hovering;
     uint info_hover_cell_index;
     uint info_hover_cell_cursor;
     uint info_active_cell_cursor;
+
+    bool a_popup_from_this_group_was_already_called_this_frame[uint(ToolboxGroup::NUMBER_OF)];
+
+
+    // TODO: move this information into popup
+    // TODO (before that): move handling of popup key and mouse into popup_popup()
+    //                     TODO: does this idea make sense??
+
+
 
     real extrude_add_out_length;
     real extrude_add_in_length;

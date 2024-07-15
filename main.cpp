@@ -24,9 +24,17 @@
 #include "playground.cpp"
 
 char *startup_script = "";
-#if 0
+
+#if 1 // multi-popup
 run_before_main {
-    // revolve development
+    startup_script = 
+        "lzx["
+        ;
+};
+#endif
+
+#if 0 // revolve
+run_before_main {
     startup_script = 
         "y"
         "cz10\n"
@@ -39,7 +47,8 @@ run_before_main {
         ;
 };
 #endif
-#if 0 
+
+#if 0 // kitchen_sink
 run_before_main {
     startup_script = "cz0123456789";
     startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
@@ -79,6 +88,7 @@ run_before_main {
                      ;
 };
 #endif
+
 #ifdef SHIP
 run_before_main {
     startup_script = "";
@@ -105,6 +115,8 @@ TwoClickCommandState *two_click_command = &state.two_click_command;
 Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
+
+Event global_event_being_processed; // TODO: just pass the event to popup_popup i think
 
 #include "boolean.cpp"
 #include "misc.cpp"
@@ -173,6 +185,9 @@ int main() {
         other._please_suppress_drawing_popup_popup = false;
         other._please_suppress_drawing_toolbox = false;
 
+
+        memset(popup->a_popup_from_this_group_was_already_called_this_frame, 0, sizeof(popup->a_popup_from_this_group_was_already_called_this_frame));
+
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
             { // time_since
@@ -198,8 +213,8 @@ int main() {
                 }
             }
 
-    void _messages_draw(); // forward declaration
-    _messages_draw();
+            void _messages_draw(); // forward declaration
+            _messages_draw();
 
             { // events
                 {

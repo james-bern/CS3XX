@@ -1,3 +1,6 @@
+// TODO: multiple popups
+
+// TODO: sc broken on 10mm side length polygon
 // TODO: rz needs work
 
 // TODO: beautiful buttons; should indicate what's selected in green (persistent)
@@ -29,6 +32,7 @@ StandardEventProcessResult standard_event_process(Event event) {
 
 
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
+    global_event_being_processed = event;
 
 
     void history_printf_script(); // FORNOW forward declaration
@@ -140,7 +144,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         pen = &mesh_pen;
                         pen2 = &mesh_pen2;
                     }
-                    real w = (horz) ? 80.0f : 96.0f;
+                    real w = 64.0f;//(horz) ? 80.0f : 64.0f;
 
                     real y = pen->get_y_Pixel();
                     bbox2 bbox = { pen->origin_Pixel.x, y - 2, pen->origin_Pixel.x + w, y + h };
@@ -237,6 +241,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.record_me = false;
                         other._please_suppress_drawing_popup_popup = true;
                         history_undo();
+                        other._please_suppress_drawing_popup_popup = false;
                     }
                 }
 
@@ -248,6 +253,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
                         other._please_suppress_drawing_popup_popup = true;
                         history_redo();
+                        other._please_suppress_drawing_popup_popup = false;
                     }
                 }
 
@@ -310,7 +316,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     bool button_polygon = magic_magic(0,0,'P',"Polygon",true,ToolboxGroup::Drawing,ClickMode::Polygon);
                     {
                         if (click_mode_SNAP_ELIGIBLE()) {
-                            bool button_perpendiular = magic_magic(0,0,'P',"Perpendicular",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular);
+                            bool button_perpendiular = magic_magic(0,0,'P',"Perp",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular);
                             if (hotkey_P || button_perpendiular) {
                                 hotkey_P = false;
                                 result.record_me = false;
@@ -379,6 +385,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
+
+                if (magic_magic(0,0,'F',"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
+                    state.click_mode = ClickMode::Fillet;
+                    state.click_modifier = ClickModifier::None;
+                    state.enter_mode = EnterMode::None;
+                    two_click_command->awaiting_second_click = false;
+                }
+
+                if (magic_magic(0,0,'I',"Divide2",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
+                    state.click_mode = ClickMode::TwoClickDivide;
+                    state.click_modifier = ClickModifier::None;
+                    state.enter_mode = EnterMode::None;
+                    two_click_command->awaiting_second_click = false;
+                }
+
+                SEPERATOR(ToolboxGroup::Drawing);
+
                 if (magic_magic(0,0,'O',"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy)) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
@@ -392,19 +415,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-
-                if (magic_magic(0,0,'F',"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
-                    state.click_mode = ClickMode::Fillet;
+                if (magic_magic(0,1,'X',"XMirror",false,ToolboxGroup::Drawing,ClickMode::MirrorX)) {
+                    state.click_mode = ClickMode::MirrorX;
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
-                    two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(0,0,'I',"TwoClickDivide",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
-                    state.click_mode = ClickMode::TwoClickDivide;
+                if (magic_magic(0,1,'Y',"YMirror",false,ToolboxGroup::Drawing,ClickMode::MirrorY)) {
+                    state.click_mode = ClickMode::MirrorY;
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
-                    two_click_command->awaiting_second_click = false;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -645,10 +663,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(0,1,'X')) {
-                    state.click_mode = ClickMode::MirrorX;
-                    state.click_modifier = ClickModifier::None;
-                }
 
                 if (magic_magic(1,1,'X')) {
                     result.record_me = false;
@@ -656,11 +670,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     init_camera_mesh();
                 }
 
-
-                if (magic_magic(0,1,'Y')) {
-                    state.click_mode = ClickMode::MirrorY;
-                    state.click_modifier = ClickModifier::None;
-                }
 
 
 
@@ -732,7 +741,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_color_code = ColorCode::Traverse;
                 }
 
-                if (magic_magic(0,0,GLFW_KEY_TAB)) { // FORNOW
+                if (magic_magic(1,1,'H')) { // FORNOW
                     result.record_me = false;
                     {
                         vec3 tmp = omax.light_gray;
@@ -782,125 +791,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (changed_click_mode && click_mode_SPACE_BAR_REPEAT_ELIGIBLE()) state.space_bar_event = event;
             if (changed_enter_mode && enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE()) state.shift_space_bar_event = event;
         } else { ASSERT(key_event->subtype == KeyEventSubtype::Popup);
-            result.record_me = true;
-
-            other.time_since_cursor_start = 0.0; // FORNOW
-
-            uint key = key_event->key;
-            bool shift = key_event->shift;
-            bool control = key_event->control;
-
-            bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
-            if (key == GLFW_KEY_TAB) {
-                _tab_hack_so_aliases_not_introduced_too_far_up = true;
-                uint new_active_cell_index; {
-                    // FORNOW
-                    if (!shift) {
-                        new_active_cell_index = (popup->active_cell_index + 1) % popup->num_cells;
-                    } else {
-                        if (popup->active_cell_index != 0) {
-                            new_active_cell_index = popup->active_cell_index - 1;
-                        } else {
-                            new_active_cell_index = popup->num_cells - 1;
-                        }
-                    }
-                }
-                POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
-            }
-
-            uint left_cursor = MIN(popup->cursor, popup->selection_cursor);
-            uint right_cursor = MAX(popup->cursor, popup->selection_cursor);
-
-            if (_tab_hack_so_aliases_not_introduced_too_far_up) {
-            } else if (control && (key == 'A')) {
-                popup->cursor = popup->active_cell_buffer.length;
-                popup->selection_cursor = 0;
-            } else if (key == GLFW_KEY_LEFT) {
-                if (!shift && !control) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) {
-                        if (popup->cursor > 0) --popup->cursor;
-                    } else {
-                        popup->cursor = left_cursor;
-                    }
-                    popup->selection_cursor = popup->cursor;
-                } else if (shift && !control) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
-                    if (popup->cursor > 0) --popup->cursor;
-                } else if (control && !shift) {
-                    popup->selection_cursor = popup->cursor = 0;
-                } else { ASSERT(shift && control);
-                    popup->selection_cursor = 0;
-                }
-            } else if (key == GLFW_KEY_RIGHT) {
-                if (!shift && !control) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) {
-                        if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
-                    } else {
-                        popup->cursor = MAX(popup->cursor, popup->selection_cursor);
-                    }
-                    popup->selection_cursor = popup->cursor;
-                } else if (shift && !control) {
-                    if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
-                    if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
-                } else if (control && !shift) {
-                    popup->selection_cursor = popup->cursor = popup->active_cell_buffer.length;
-                } else { ASSERT(shift && control);
-                    popup->selection_cursor = popup->active_cell_buffer.length;
-                }
-            } else if (key == GLFW_KEY_BACKSPACE) {
-                // * * * *|* * * * 
-                if (POPUP_SELECTION_NOT_ACTIVE()) {
-                    if (popup->cursor > 0) {
-                        memmove(&popup->active_cell_buffer.data[popup->cursor - 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
-                        --popup->active_cell_buffer.length;
-                        --popup->cursor;
-                    }
-                } else {
-                    // * * * * * * * * * * * * * * * *
-                    // * * * * * * * - - - - - - - - -
-                    //    L                 R 
-
-                    // * * * * * * * * * * * * * * * *
-                    // * * * * * * * * * * * * - - - -
-                    //    L       R                   
-                    memmove(&popup->active_cell_buffer.data[left_cursor], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    popup->active_cell_buffer.length -= (right_cursor - left_cursor);
-                    popup->cursor = left_cursor;
-                }
-                popup->selection_cursor = popup->cursor;
-            } else if (key == GLFW_KEY_ENTER) {
-                ;
-            } else {
-                // TODO: strip char_equivalent into function
-
-                bool key_is_alpha = ('A' <= key) && (key <= 'Z');
-
-                char char_equivalent; {
-                    char_equivalent = (char) key;
-                    if (!shift && key_is_alpha) {
-                        char_equivalent = 'a' + (char_equivalent - 'A');
-                    }
-                }
-                if (POPUP_SELECTION_NOT_ACTIVE()) {
-                    if (popup->cursor < POPUP_CELL_LENGTH) {
-                        memmove(&popup->active_cell_buffer.data[popup->cursor + 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
-                        popup->active_cell_buffer.data[popup->cursor] = char_equivalent;
-                        ++popup->cursor;
-                        ++popup->active_cell_buffer.length;
-                    }
-                } else {
-                    memmove(&popup->active_cell_buffer.data[left_cursor + 1], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                    popup->active_cell_buffer.length -= (right_cursor - left_cursor);
-                    popup->cursor = left_cursor;
-                    popup->active_cell_buffer.data[popup->cursor] = char_equivalent;
-                    ++popup->cursor;
-                    ++popup->active_cell_buffer.length;
-                }
-                popup->selection_cursor = popup->cursor;
-            }
-
-            // FORNOW: keeping null-termination around for messagef?
-            popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0';
+            // NOTE: this case has been moved into popup_popup();
+            result.record_me = true; // FORNOW
         }
     } else if (event.type == EventType::Mouse) {
         MouseEvent *mouse_event = &event.mouse_event;
@@ -1146,6 +1038,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         vec2 *second_click = mouse;
                         vec2 click_vector = (*second_click - *first_click);
                         real click_theta = angle_from_0_TAU(*first_click, *second_click);
+                        bool click_clicks_are_same = IS_ZERO(squaredNorm(click_vector));
 
                         if (0) {
                         } else if (state.click_mode == ClickMode::Axis) {
@@ -1267,7 +1160,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                                         messagef(omax.red, "TODO: line-arc fillet");\
-                                        Entity *EntL = E->type == EntityType::Line ? E : F;
+                                            Entity *EntL = E->type == EntityType::Line ? E : F;
                                         Entity *EntA  = E->type == EntityType::Arc  ? E : F;
 
                                         LineEntity line = EntL->line;
@@ -1302,14 +1195,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                             messagef(omax.orange, "wowowowow\n");
 
-                                                                    // if click is inside the circle when both work
+                                            // if click is inside the circle when both work
                                             // TODO: better check for this as a line outside of arc still says outside
                                             bool fillet_inside_circle = (all_fillets_valid && distance(*second_click, arc.center) < arc.radius) ||
-                                                                    // or if the line is inside the circle
-                                                                    // if it was far away on the other side it would instead snap to the other intersect
-                                                                 (distance(line.start, arc.center) < arc.radius);\
+                                                // or if the line is inside the circle
+                                                // if it was far away on the other side it would instead snap to the other intersect
+                                                (distance(line.start, arc.center) < arc.radius);\
 
-                                            vec2 line_vector = line.end - line.start;
+                                                vec2 line_vector = line.end - line.start;
                                             bool line_left = cross(line_vector, *second_click - line.start) < 0;
                                             vec2 line_adjust = fillet_radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
                                             LineEntity new_line;
@@ -1376,9 +1269,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                     EntA->arc.end_angle_in_degrees = divide_theta;
                                                 }
                                             }
-                                                                                        
+
                                         }
-                                        
+
                                     } else { // TODO: put an assert here
                                         messagef(omax.red, "TODO: arc-arc fillet");
 
@@ -1388,16 +1281,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                         bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
                                         bool fillet_inside_arc_b = distance(arc_b.center, *second_click) < arc_b.radius;
-                                        
+
                                         ArcEntity new_arc_a = arc_a;
                                         new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * fillet_radius;
-                                        
+
                                         ArcEntity new_arc_b = arc_b;
                                         new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * fillet_radius;
-                                        
+
 
                                         ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, second_click);
-                                        
+
                                         if (!fillet_point.no_possible_intersection) {
                                             vec2 fillet_center = fillet_point.point;
                                             vec2 arc_a_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
@@ -1424,7 +1317,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
                                             real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
                                             real offset_a = DEG(ATAN2(*second_click - middle_angle_vec)); 
-                                            real offset_b = DEG(ATAN2(*second_click - middle_angle_vec)); 
+                                            // real offset_b = DEG(ATAN2(*second_click - middle_angle_vec)); 
                                             messagef(omax.orange, "%f", offset_a);
                                             if (ARE_EQUAL(divide_theta_a, fillet_middle_arc_a)) {
                                                 fillet_middle_arc_a = DEG(ATAN2(*second_click - arc_a.center));
@@ -1449,7 +1342,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
-                            if (IS_ZERO(norm(*first_click - *second_click))) {
+                            if (click_clicks_are_same) {
                                 messagef(omax.orange, "Circle: must have non-zero diameter");
                             } else {
                                 two_click_command->awaiting_second_click = false;
@@ -1464,7 +1357,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 // messagef(omax.green, "Circle");
                             }
                         } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
-                            if (IS_ZERO(norm(*first_click - *second_click))) {
+                            if (click_clicks_are_same) {
                                 messagef(omax.orange, "TwoEdgeCircle: must have non-zero diameter");
                             } else {
                                 // two_click_command->awaiting_second_click = false;
@@ -1630,7 +1523,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            cookbook.buffer_add_line(*first_click, *second_click);
+                            if (click_clicks_are_same) {
+                                messagef(omax.orange, "Line: must have non-zero length");
+                            } else {
+                                cookbook.buffer_add_line(*first_click, *second_click);
+                            }
                         } else if (state.click_mode == ClickMode::Measure) {
                             // two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
@@ -1760,7 +1657,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             _for_each_selected_entity_ entity->is_selected = false;
                         } else if (state.click_mode == ClickMode::Polygon) {
                             uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
-                            if (IS_ZERO(norm(*first_click - *second_click))) {
+                            if (click_clicks_are_same) {
                                 messagef(omax.orange, "Polygon: must have non-zero size");
                             } else {
                                 // two_click_command->awaiting_second_click = false;
@@ -1774,8 +1671,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 real theta_0 = ATAN2(vertex_0 - center);
                                 // cookbook.buffer_add_line(center, vertex_0); // center line (so sayeth LAYOUT)
                                 for_(i, polygon_num_sides) {
-                                    real theta_i = theta_0 + (i * delta_theta);
-                                    real theta_ip1 = theta_i + delta_theta;
+                                    real theta_i   = theta_0 + (i                             * delta_theta);
+                                    // real theta_ip1 = theta_i + delta_theta; // NOTE: breaks sc of pz\t\t\t10\n (FORNOW)
+                                    real theta_ip1 = theta_0 + (((i + 1) % polygon_num_sides) * delta_theta);
                                     cookbook.buffer_add_line(
                                             get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i),
                                             get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1)
@@ -1929,36 +1827,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
         } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
-            MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-
-            other.time_since_cursor_start = 0.0f;
-            result.record_me = true; // FORNOW (don't bother implementing the old manual tagging method; we're going to upgrade to the memcmp approach soon)
-
-            if (!mouse_event->mouse_held) { // press
-                if (popup->active_cell_index != mouse_event_popup->cell_index) { // switch cell
-                    POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_popup->cell_index);
-                    popup->cursor = mouse_event_popup->cursor;
-                    popup->selection_cursor = popup->cursor;
-                } else {
-                    bool double_click = (POPUP_SELECTION_NOT_ACTIVE()) && (popup->cursor == mouse_event_popup->cursor);
-                    if (double_click) {
-                        popup->cursor = popup->active_cell_buffer.length;
-                        popup->selection_cursor = 0;
-                    } else { // move
-                        popup->cursor = mouse_event_popup->cursor;
-                        popup->selection_cursor = popup->cursor;
-                    }
-                }
-            } else { // drag
-                popup->selection_cursor = mouse_event_popup->cursor;
-            }
+            // NOTE: this case has been moved into popup_popup();
+            result.record_me = true; // FORNOW
         }
     } else if (event.type == EventType::None) {
         result.record_me = false;
     }
 
     { // sanity checks
-        ASSERT(popup->active_cell_index <= popup->num_cells);
+      // ASSERT(popup->active_cell_index <= popup->num_cells);
         ASSERT(popup->cursor <= POPUP_CELL_LENGTH);
         ASSERT(popup->selection_cursor <= POPUP_CELL_LENGTH);
     }
@@ -1977,6 +1854,194 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (key_event->subtype == KeyEventSubtype::Popup) {
                         gui_key_enter = (key_event->key == GLFW_KEY_ENTER);
                     }
+                }
+            }
+
+
+            if (state.click_mode == ClickMode::Circle) {
+                if (two_click_command->awaiting_second_click) {
+                    real prev_circle_diameter = popup->circle_diameter;
+                    real prev_circle_radius = popup->circle_radius;
+                    real prev_circle_circumference = popup->circle_circumference;
+                    popup_popup(STRING("Circle"), ToolboxGroup::Drawing,
+                            false,
+                            CellType::Real, STRING("diameter"), &popup->circle_diameter,
+                            CellType::Real, STRING("radius"), &popup->circle_radius,
+                            CellType::Real, STRING("circumference"), &popup->circle_circumference);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
+                    } else {
+                        if (prev_circle_diameter != popup->circle_diameter) {
+                            popup->circle_radius = popup->circle_diameter / 2;
+                            popup->circle_circumference = PI * popup->circle_diameter;
+                        } else if (prev_circle_radius != popup->circle_radius) {
+                            popup->circle_diameter = 2 * popup->circle_radius;
+                            popup->circle_circumference = PI * popup->circle_diameter;
+                        } else if (prev_circle_circumference != popup->circle_circumference) {
+                            popup->circle_diameter = popup->circle_circumference / PI;
+                            popup->circle_radius = popup->circle_diameter / 2;
+                        }
+                    }
+                }
+            } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
+                ;
+            } else if (state.click_mode == ClickMode::Line) {
+                if (two_click_command->awaiting_second_click) {
+                    real prev_line_length = popup->line_length;
+                    real prev_line_angle  = popup->line_angle;
+                    real prev_line_run    = popup->line_run;
+                    real prev_line_rise   = popup->line_rise;
+                    popup_popup(STRING("Line"), ToolboxGroup::Drawing,
+                            true,
+                            CellType::Real, STRING("length"), &popup->line_length,
+                            CellType::Real, STRING("angle"), &popup->line_angle,
+                            CellType::Real, STRING("dx"), &popup->line_run,
+                            CellType::Real, STRING("dy"), &popup->line_rise
+                            );
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
+                    } else {
+                        if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
+                            popup->line_run  = popup->line_length * COS(RAD(popup->line_angle));
+                            popup->line_rise = popup->line_length * SIN(RAD(popup->line_angle));
+                        } else if ((prev_line_run != popup->line_run) || (prev_line_rise != popup->line_rise)) {
+                            popup->line_length = SQRT(popup->line_run * popup->line_run + popup->line_rise * popup->line_rise);
+                            popup->line_angle = DEG(ATAN2(popup->line_rise, popup->line_run));
+                        }
+                    }
+                }
+            } else if (state.click_mode == ClickMode::Box) {
+                if (two_click_command->awaiting_second_click) {
+                    popup_popup(STRING("Box"), ToolboxGroup::Drawing,
+                            true,
+                            CellType::Real, STRING("width"), &popup->box_width,
+                            CellType::Real, STRING("height"), &popup->box_height);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
+                    }
+                }
+            } else if (state.click_mode == ClickMode::Move) {
+                // FORNOW: this is repeated from LINE
+                if (two_click_command->awaiting_second_click) {
+                    real prev_move_length = popup->move_length;
+                    real prev_move_angle = popup->move_angle;
+                    real prev_move_run = popup->move_run;
+                    real prev_move_rise = popup->move_rise;
+                    popup_popup(STRING("Move"), ToolboxGroup::Drawing,
+                            true,
+                            CellType::Real, STRING("length"), &popup->move_length,
+                            CellType::Real, STRING("angle"), &popup->move_angle,
+                            CellType::Real, STRING("dx"), &popup->move_run,
+                            CellType::Real, STRING("dy"), &popup->move_rise);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
+                    } else {
+                        if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
+                            popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
+                            popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
+                        } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
+                            popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
+                            popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
+                        }
+                    }
+                }
+            } else if (state.click_mode == ClickMode::Rotate) {
+                if (two_click_command->awaiting_second_click) {
+                    popup_popup(STRING("Rotate"), ToolboxGroup::Drawing,
+                            true,
+                            CellType::Real, STRING("angle"), &popup->rotate_angle
+                            );
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(*first_click + e_theta(RAD(popup->rotate_angle))));
+                    }
+                }
+            } else if (state.click_mode == ClickMode::RotateCopy) {
+                if (two_click_command->awaiting_second_click) {
+                    real prev_rotate_copy_angle_in_degrees = popup->rotate_copy_angle;
+                    uint prev_rotate_copy_num_copies = popup->rotate_copy_num_total_copies;
+                    popup_popup(STRING("RotateCopy"), ToolboxGroup::Drawing,
+                            true,
+                            CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
+                            CellType::Real, STRING("angle"), &popup->rotate_copy_angle
+                            );
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
+                    } else {
+                        if (prev_rotate_copy_angle_in_degrees != popup->rotate_copy_angle) {
+                            popup->rotate_copy_num_total_copies = MAX(2U, uint(360 / popup->rotate_copy_angle));
+                        } else if (prev_rotate_copy_num_copies != popup->rotate_copy_num_total_copies) {
+                            popup->rotate_copy_angle = 360 / popup->rotate_copy_num_total_copies;
+                        }
+                    }
+                }
+            } else if (state.click_mode == ClickMode::LinearCopy) {
+                if (two_click_command->awaiting_second_click) {
+                    real prev_linear_copy_length = popup->linear_copy_length;
+                    real prev_linear_copy_angle = popup->linear_copy_angle;
+                    real prev_linear_copy_run = popup->linear_copy_run;
+                    real prev_linear_copy_rise = popup->linear_copy_rise;
+                    popup_popup(STRING("LinearCopy"), ToolboxGroup::Drawing,
+                            true,
+                            CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
+                            CellType::Real, STRING("length"), &popup->linear_copy_length,
+                            CellType::Real, STRING("angle"), &popup->linear_copy_angle,
+                            CellType::Real, STRING("dx"), &popup->linear_copy_run,
+                            CellType::Real, STRING("dy"), &popup->linear_copy_rise);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->linear_copy_run, first_click->y + popup->linear_copy_rise));
+                    } else {
+                        if ((prev_linear_copy_length != popup->linear_copy_length) || (prev_linear_copy_angle != popup->linear_copy_angle)) {
+                            popup->linear_copy_run = popup->linear_copy_length * COS(RAD(popup->linear_copy_angle));
+                            popup->linear_copy_rise = popup->linear_copy_length * SIN(RAD(popup->linear_copy_angle));
+                        } else if ((prev_linear_copy_run != popup->linear_copy_run) || (prev_linear_copy_rise != popup->linear_copy_rise)) {
+                            popup->linear_copy_length = SQRT(popup->linear_copy_run * popup->linear_copy_run + popup->linear_copy_rise * popup->linear_copy_rise);
+                            popup->linear_copy_angle = DEG(ATAN2(popup->linear_copy_rise, popup->linear_copy_run));
+                        }
+                    }
+                }
+            } else if (state.click_mode == ClickMode::Polygon) {
+                if (two_click_command->awaiting_second_click) {
+                    real prev_polygon_distance_to_corner = popup->polygon_distance_to_corner;
+                    real prev_polygon_distance_to_side = popup->polygon_distance_to_side;
+                    real prev_polygon_side_length = popup->polygon_side_length;
+                    real theta = PI / popup->polygon_num_sides;
+                    popup_popup(STRING("Polygon"), ToolboxGroup::Drawing,
+                            false,
+                            CellType::Uint, STRING("num_sides"), &popup->polygon_num_sides, 
+                            CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner,
+                            CellType::Real, STRING("distance_to_side"), &popup->polygon_distance_to_side,
+                            CellType::Real, STRING("side_length"), &popup->polygon_side_length);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
+                    } else {
+                        if (prev_polygon_distance_to_corner != popup->polygon_distance_to_corner) {
+                            popup->polygon_distance_to_side = popup->polygon_distance_to_corner * COS(theta);
+                            popup->polygon_side_length = 2 * popup->polygon_distance_to_corner * SIN(theta);
+                        } else if (prev_polygon_distance_to_side != popup->polygon_distance_to_side) {
+                            popup->polygon_distance_to_corner = popup->polygon_distance_to_side / COS(theta); 
+                            popup->polygon_side_length = 2 * popup->polygon_distance_to_side * TAN(theta);
+                        } else if (prev_polygon_side_length != popup->polygon_side_length) {
+                            popup->polygon_distance_to_corner = popup->polygon_side_length / (2 * SIN(theta));
+                            popup->polygon_distance_to_side = popup->polygon_side_length / (2 * TAN(theta));
+                        }
+                    }
+                }
+            } else if (state.click_mode == ClickMode::Fillet) {
+                popup_popup(STRING("Fillet"), ToolboxGroup::Drawing,
+                        false,
+                        CellType::Real, STRING("radius"), &popup->fillet_radius);
+            }
+
+            if (state.click_modifier == ClickModifier::XY) {
+                // sus calling this a modifier but okay; make sure it's first or else bad bad
+                popup_popup(STRING("XY"), ToolboxGroup::Snap,
+                        true,
+                        CellType::Real, STRING("x"), &popup->x_coordinate,
+                        CellType::Real, STRING("y"), &popup->y_coordinate);
+                if (gui_key_enter) {
+                    // popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
+                    state.click_modifier = ClickModifier::None;
+                    return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
                 }
             }
 
@@ -2114,18 +2179,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveAdd) {
-                char *prev = popup->_FORNOW_active_popup_unique_ID__FORNOW_name0;
+                // char *prev = popup->_FORNOW_active_popup_unique_ID__FORNOW_name0;
                 popup_popup(STRING("RevolveAdd"), ToolboxGroup::Mesh,
                         true,
                         CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle,
                         CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle
                         );
-                if (prev != popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) { // HACKHACKHACK
-                    popup->revolve_add_out_angle = 360;
-                    POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
-                    popup->cursor = popup->active_cell_buffer.length;
-                    popup->selection_cursor = 0;
-                }
+                // if (prev != popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) { // HACKHACKHACK
+                //     popup->revolve_add_out_angle = 360;
+                //     POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+                //     popup->cursor = popup->active_cell_buffer.length;
+                //     popup->selection_cursor = 0;
+                // }
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "RevolveAdd: selection empty");
@@ -2165,190 +2230,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.enter_mode = EnterMode::None;
                     messagef(omax.green, "NudgePlane %gmm", popup->feature_plane_nudge);
                 }
-            } else if (state.click_modifier == ClickModifier::XY) {
-                // sus calling this a modifier but okay; make sure it's first or else bad bad
-                popup_popup(STRING("XY"), ToolboxGroup::Snap,
-                        true,
-                        CellType::Real, STRING("x"), &popup->x_coordinate,
-                        CellType::Real, STRING("y"), &popup->y_coordinate);
-                if (gui_key_enter) {
-                    // popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
-                    state.click_modifier = ClickModifier::None;
-                    return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
-                }
-            } else if (state.click_mode == ClickMode::Circle) {
-                if (two_click_command->awaiting_second_click) {
-                    real prev_circle_diameter = popup->circle_diameter;
-                    real prev_circle_radius = popup->circle_radius;
-                    real prev_circle_circumference = popup->circle_circumference;
-                    popup_popup(STRING("Circle"), ToolboxGroup::Drawing,
-                            false,
-                            CellType::Real, STRING("diameter"), &popup->circle_diameter,
-                            CellType::Real, STRING("radius"), &popup->circle_radius,
-                            CellType::Real, STRING("circumference"), &popup->circle_circumference);
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
-                    } else {
-                        if (prev_circle_diameter != popup->circle_diameter) {
-                            popup->circle_radius = popup->circle_diameter / 2;
-                            popup->circle_circumference = PI * popup->circle_diameter;
-                        } else if (prev_circle_radius != popup->circle_radius) {
-                            popup->circle_diameter = 2 * popup->circle_radius;
-                            popup->circle_circumference = PI * popup->circle_diameter;
-                        } else if (prev_circle_circumference != popup->circle_circumference) {
-                            popup->circle_diameter = popup->circle_circumference / PI;
-                            popup->circle_radius = popup->circle_diameter / 2;
-                        }
-                    }
-                }
-            } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
-                ;
-            } else if (state.click_mode == ClickMode::Line) {
-                if (two_click_command->awaiting_second_click) {
-                    real prev_line_length = popup->line_length;
-                    real prev_line_angle  = popup->line_angle;
-                    real prev_line_run    = popup->line_run;
-                    real prev_line_rise   = popup->line_rise;
-                    popup_popup(STRING("Line"), ToolboxGroup::Drawing,
-                            true,
-                            CellType::Real, STRING("length"), &popup->line_length,
-                            CellType::Real, STRING("angle"),  &popup->line_angle,
-                            CellType::Real, STRING("run"),    &popup->line_run,
-                            CellType::Real, STRING("rise"),   &popup->line_rise
-                            );
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
-                    } else {
-                        if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
-                            popup->line_run  = popup->line_length * COS(RAD(popup->line_angle));
-                            popup->line_rise = popup->line_length * SIN(RAD(popup->line_angle));
-                        } else if ((prev_line_run != popup->line_run) || (prev_line_rise != popup->line_rise)) {
-                            popup->line_length = SQRT(popup->line_run * popup->line_run + popup->line_rise * popup->line_rise);
-                            popup->line_angle = DEG(ATAN2(popup->line_rise, popup->line_run));
-                        }
-                    }
-                }
-            } else if (state.click_mode == ClickMode::Box) {
-                if (two_click_command->awaiting_second_click) {
-                    popup_popup(STRING("Box"), ToolboxGroup::Drawing,
-                            true,
-                            CellType::Real, STRING("width"), &popup->box_width,
-                            CellType::Real, STRING("height"), &popup->box_height);
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
-                    }
-                }
-            } else if (state.click_mode == ClickMode::Move) {
-                // FORNOW: this is repeated from LINE
-                if (two_click_command->awaiting_second_click) {
-                    real prev_move_length = popup->move_length;
-                    real prev_move_angle = popup->move_angle;
-                    real prev_move_run = popup->move_run;
-                    real prev_move_rise = popup->move_rise;
-                    popup_popup(STRING("Move"), ToolboxGroup::Drawing,
-                            true,
-                            CellType::Real, STRING("length"), &popup->move_length,
-                            CellType::Real, STRING("angle"), &popup->move_angle,
-                            CellType::Real, STRING("run"), &popup->move_run,
-                            CellType::Real, STRING("rise"), &popup->move_rise);
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
-                    } else {
-                        if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
-                            popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
-                            popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
-                        } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
-                            popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
-                            popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
-                        }
-                    }
-                }
-            } else if (state.click_mode == ClickMode::Rotate) {
-                if (two_click_command->awaiting_second_click) {
-                    popup_popup(STRING("Rotate"), ToolboxGroup::Drawing,
-                            true,
-                            CellType::Real, STRING("angle"), &popup->rotate_angle
-                            );
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(*first_click + e_theta(RAD(popup->rotate_angle))));
-                    }
-                }
-            } else if (state.click_mode == ClickMode::RotateCopy) {
-                if (two_click_command->awaiting_second_click) {
-                    real prev_rotate_copy_angle_in_degrees = popup->rotate_copy_angle;
-                    uint prev_rotate_copy_num_copies = popup->rotate_copy_num_total_copies;
-                    popup_popup(STRING("RotateCopy"), ToolboxGroup::Drawing,
-                            true,
-                            CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
-                            CellType::Real, STRING("angle"), &popup->rotate_copy_angle
-                            );
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
-                    } else {
-                        if (prev_rotate_copy_angle_in_degrees != popup->rotate_copy_angle) {
-                            popup->rotate_copy_num_total_copies = MAX(2U, uint(360 / popup->rotate_copy_angle));
-                        } else if (prev_rotate_copy_num_copies != popup->rotate_copy_num_total_copies) {
-                            popup->rotate_copy_angle = 360 / popup->rotate_copy_num_total_copies;
-                        }
-                    }
-                }
-            } else if (state.click_mode == ClickMode::LinearCopy) {
-                if (two_click_command->awaiting_second_click) {
-                    real prev_linear_copy_length = popup->linear_copy_length;
-                    real prev_linear_copy_angle = popup->linear_copy_angle;
-                    real prev_linear_copy_run = popup->linear_copy_run;
-                    real prev_linear_copy_rise = popup->linear_copy_rise;
-                    popup_popup(STRING("LinearCopy"), ToolboxGroup::Drawing,
-                            true,
-                            CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
-                            CellType::Real, STRING("length"), &popup->linear_copy_length,
-                            CellType::Real, STRING("angle"), &popup->linear_copy_angle,
-                            CellType::Real, STRING("run"), &popup->linear_copy_run,
-                            CellType::Real, STRING("rise"), &popup->linear_copy_rise);
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->linear_copy_run, first_click->y + popup->linear_copy_rise));
-                    } else {
-                        if ((prev_linear_copy_length != popup->linear_copy_length) || (prev_linear_copy_angle != popup->linear_copy_angle)) {
-                            popup->linear_copy_run = popup->linear_copy_length * COS(RAD(popup->linear_copy_angle));
-                            popup->linear_copy_rise = popup->linear_copy_length * SIN(RAD(popup->linear_copy_angle));
-                        } else if ((prev_linear_copy_run != popup->linear_copy_run) || (prev_linear_copy_rise != popup->linear_copy_rise)) {
-                            popup->linear_copy_length = SQRT(popup->linear_copy_run * popup->linear_copy_run + popup->linear_copy_rise * popup->linear_copy_rise);
-                            popup->linear_copy_angle = DEG(ATAN2(popup->linear_copy_rise, popup->linear_copy_run));
-                        }
-                    }
-                }
-            } else if (state.click_mode == ClickMode::Polygon) {
-                if (two_click_command->awaiting_second_click) {
-                    real prev_polygon_distance_to_corner = popup->polygon_distance_to_corner;
-                    real prev_polygon_distance_to_side = popup->polygon_distance_to_side;
-                    real prev_polygon_side_length = popup->polygon_side_length;
-                    real theta = PI / popup->polygon_num_sides;
-                    popup_popup(STRING("Polygon"), ToolboxGroup::Drawing,
-                            false,
-                            CellType::Uint, STRING("num_sides"), &popup->polygon_num_sides, 
-                            CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner,
-                            CellType::Real, STRING("distance_to_side"), &popup->polygon_distance_to_side,
-                            CellType::Real, STRING("side_length"), &popup->polygon_side_length);
-                    if (gui_key_enter) {
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
-                    } else {
-                        if (prev_polygon_distance_to_corner != popup->polygon_distance_to_corner) {
-                            popup->polygon_distance_to_side = popup->polygon_distance_to_corner * COS(theta);
-                            popup->polygon_side_length = 2 * popup->polygon_distance_to_corner * SIN(theta);
-                        } else if (prev_polygon_distance_to_side != popup->polygon_distance_to_side) {
-                            popup->polygon_distance_to_corner = popup->polygon_distance_to_side / COS(theta); 
-                            popup->polygon_side_length = 2 * popup->polygon_distance_to_side * TAN(theta);
-                        } else if (prev_polygon_side_length != popup->polygon_side_length) {
-                            popup->polygon_distance_to_corner = popup->polygon_side_length / (2 * SIN(theta));
-                            popup->polygon_distance_to_side = popup->polygon_side_length / (2 * TAN(theta));
-                        }
-                    }
-                }
-            } else if (state.click_mode == ClickMode::Fillet) {
-                popup_popup(STRING("Fillet"), ToolboxGroup::Drawing,
-                        false,
-                        CellType::Real, STRING("radius"), &popup->fillet_radius);
             }
+
         }
         { // popup_close (FORNOW: just doing off of enter transitions)
           // NOTE: we need to do this so that the next key/mouse event doesn't get eaten by a dead popup
@@ -2362,6 +2245,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         }
     }
 
+    global_event_being_processed = {};
     return result;
 }
 
