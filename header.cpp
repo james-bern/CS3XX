@@ -674,12 +674,7 @@ void entities_load(String filename, List<Entity> *entities) {
     fclose(file);
 }
 
-void write_dxf_header(FILE* file) {
-}
-
-void write_dxf_tables(FILE* file) {
-}
-
+// if this isnt the most b
 bool drawing_save_dxf(Drawing *drawing, String filename) {
     List<Entity> *entities = &drawing->entities;
 
