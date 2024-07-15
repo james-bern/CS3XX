@@ -2057,6 +2057,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
                     } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
                         messagef(omax.pink, "TODO: SaveDXF");
+                        {
+                            bool success = drawing_save_dxf(drawing, popup->save_filename);
+                            ASSERT(success);
+                        }
+                        state.enter_mode = EnterMode::None;
+                        messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
                     } else {
                         messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
                     }
