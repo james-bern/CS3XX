@@ -38,8 +38,11 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             // TODO (Felipe): snap square
             result = before;
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
-            if (state.click_modifier == ClickModifier::Center) {
+            DXFFindClosestEntityResult closest_entity_info = {};
+
+            if (state.click_modifier == ClickModifier::Center || state.click_modifier == ClickModifier::Quad) {
                 real min_squared_distance = HUGE_VAL;
+                Entity *temp_entity = NULL;
                 _for_each_entity_ {
                     if (entity->type == EntityType::Line) {
                         continue;
@@ -48,86 +51,63 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         real squared_distance = squared_distance_point_dxf_arc_entity(before, arc);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
-                            result = arc->center;
+                            temp_entity = entity;
                         }
                     }
                 }
-            } else if (state.click_modifier == ClickModifier::Middle) {
-                real min_squared_distance = HUGE_VAL;
-                _for_each_entity_ {
-                    real squared_distance = squared_distance_point_entity(before, entity);
-                    if (squared_distance < min_squared_distance) {
-                        min_squared_distance = squared_distance;
-                        result = entity_get_middle(entity);
-                    }
+                if (!ARE_EQUAL(min_squared_distance, HUGE_VAL)) {
+                    closest_entity_info.success = true;
+                    closest_entity_info.closest_entity = temp_entity;
+                } else {
+                    closest_entity_info.success = false;
                 }
-            } else if (state.click_modifier == ClickModifier::End) {
-                real min_squared_distance = HUGE_VAL;
-                _for_each_entity_ {
-                    vec2 p[2];
-                    entity_get_start_and_end_points(entity, &p[0], &p[1]);
-                    for_(d, 2) {
-                        real squared_distance = squaredDistance(before, p[d]);
-                        if (squared_distance < min_squared_distance) {
-                            min_squared_distance = squared_distance;
-                            result = p[d];
+            } else {
+                closest_entity_info = dxf_find_closest_entity(&drawing->entities, before);
+            }
+            
+            if (closest_entity_info.success) {
+                Entity *closest_entity = closest_entity_info.closest_entity;
+                if (state.click_modifier == ClickModifier::Center) {
+                    result = closest_entity->arc.center;
+                } else if (state.click_modifier == ClickModifier::Middle) {
+                    result = entity_get_middle(closest_entity);
+                } else if (state.click_modifier == ClickModifier::End) { // this one is a little custom
+                    real min_squared_distance = HUGE_VAL;
+                    _for_each_entity_ {
+                        vec2 p[2];
+                        entity_get_start_and_end_points(entity, &p[0], &p[1]);
+                        for_(d, 2) {
+                            real squared_distance = squaredDistance(before, p[d]);
+                            if (squared_distance < min_squared_distance) {
+                                min_squared_distance = squared_distance;
+                                result = p[d];
+                            }
                         }
                     }
-                }
-            } else if (state.click_modifier == ClickModifier::Perpendicular) { // layout also does a divide which can be added if wanted
-                real min_squared_distance = HUGE_VAL;
-                vec2 click_one = two_click_command->first_click;
-                Entity* closest_entity = NULL;
-                _for_each_entity_ {
-                    real squared_distance = squared_distance_point_entity(before, entity);
-                    if (squared_distance < min_squared_distance) {
-                        min_squared_distance = squared_distance;
-                        closest_entity = entity;
+                } else if (state.click_modifier == ClickModifier::Perpendicular) { // layout also does a divide which can be added if wanted
+                    vec2 click_one = two_click_command->first_click;
+                    if (closest_entity->type == EntityType::Line) {
+                        vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
+                        vec2 a_to_p = click_one - closest_entity->line.start;
+                        real t = dot(a_to_p, a_to_b) / dot(a_to_b, a_to_b);
+                        result = closest_entity->line.start + t * a_to_b; 
+                    } else if (closest_entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
+                        vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
+                        result = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
                     }
-                }
-
-                if (closest_entity == NULL) {
-                } else if (closest_entity->type == EntityType::Line) {
-                    vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
-                    vec2 a_to_p = click_one - closest_entity->line.start;
-                    real t = dot(a_to_p, a_to_b) / dot(a_to_b, a_to_b);
-                    result = closest_entity->line.start + t * a_to_b; 
-                } else if (closest_entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
-                    vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
-                    result = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
-                }
-            } else if (state.click_modifier == ClickModifier::Quad) {
-                real min_squared_distance = HUGE_VAL;
-
-                // TODO: find_closest_entity( ,...)
-                Entity *closest_entity = NULL;
-                _for_each_entity_ {
-                    if (entity->type == EntityType::Line) continue;
-                    ASSERT(entity->type == EntityType::Arc);
-                    ArcEntity *arc = &entity->arc;
-                    real squared_distance = squared_distance_point_dxf_arc_entity(before, arc);
-                    if (squared_distance < min_squared_distance) {
-                        min_squared_distance = squared_distance;
-                        closest_entity = entity;
-                    }
-                }
-                if (closest_entity) {
+                } else if (state.click_modifier == ClickModifier::Quad) {
                     ArcEntity *arc = &closest_entity->arc;
                     real angle; {
                         angle = LINEAR_REMAP(angle_from_0_TAU(arc->center, before), 0.0f, TAU, 0.0f, 4.0f);
                         angle = (ROUND(angle) / 4.0f) * TAU;
                     }
                     result = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, angle);
-                    // float theta = ATAN2(before - center);
-                    // result = theta < PI * -3 / 4 ? V2(center.x + radius, center.y) :
-                    //          theta < PI * -1 / 4 ? V2(center.x, center.y + radius) :
-                    //          theta < PI *  1 / 4 ? V2(center.x - radius, center.y) :
-                    //          theta < PI *  3 / 4 ? V2(center.x, center.y - radius) :
-                    //          V2(center.x + radius, center.y);
                 }
             }
         }
     }
+
+
     return result;
 }
 
@@ -182,3 +162,5 @@ bool _SELECT_OR_DESELECT_COLOR() {
     bool B = (state.click_modifier == ClickModifier::Color);
     return A && B;
 }
+
+

@@ -122,6 +122,42 @@ struct Cookbook {
         }
     };
 
+    // DOES NOT EXTEND LINE
+    void divide_entity_at_point(Entity *entity, vec2 point) {
+        bool delete_flag = false;
+        if (entity->type == EntityType::Line) {
+            LineEntity line = entity->line;
+            if (ARE_EQUAL(distance(point, line.start), distance(point, line.end))) {
+                if (distance(line.start, point) > TINY_VAL) {
+                    buffer_add_line(line.start, point, entity->is_selected, entity->color_code);
+                    delete_flag = true;
+                }
+                if (distance(point, line.end) > TINY_VAL) {
+                    buffer_add_line(point, line.end, entity->is_selected, entity->color_code);
+                    delete_flag = true;
+                }
+            }
+        } else { ASSERT(entity->type == EntityType::Arc);
+            ArcEntity arc = entity->arc;
+            real angle = DEG(ATAN2(point - arc.center));
+            if (ARE_EQUAL(distance(point, arc.center), arc.radius) && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
+                if (!ARE_EQUAL(arc.start_angle_in_degrees, angle)) {
+                    buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, angle);
+                    delete_flag = true;
+                }
+                if (!ARE_EQUAL(arc.end_angle_in_degrees, angle)) {
+                    buffer_add_arc(arc.center, arc.radius, angle, arc.end_angle_in_degrees);
+                    delete_flag = true;
+                }
+
+            }
+        }
+        if (delete_flag) {
+            buffer_delete_entity(entity);
+        }
+    }
+
+
     ///////////
     // SCARY //
     ///////////
