@@ -43,10 +43,10 @@ void script_process(String string) {
                 i = next_i;
             }
             if (is_instabaked) {
-                freshly_baked_event_process(instabaked_event);
+                history_process_event(instabaked_event);
             } else {
                 Event freshly_baked_event = bake_event(_raw_event);
-                freshly_baked_event_process(freshly_baked_event);
+                history_process_event(freshly_baked_event);
             }
         } else {
             RawEvent raw_event = {};
@@ -79,7 +79,7 @@ void script_process(String string) {
             }
             control = false;
             Event freshly_baked_event = bake_event(raw_event);
-            freshly_baked_event_process(freshly_baked_event);
+            history_process_event(freshly_baked_event);
         }
     }
 }

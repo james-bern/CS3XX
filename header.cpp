@@ -340,6 +340,8 @@ struct PreviewState {
     bbox2 feature_plane;
     real extrude_in_length;
     real extrude_out_length;
+    real revolve_in_angle;
+    real revolve_out_angle;
     vec3 tubes_color;
     vec3 feature_plane_color;
     real feature_plane_offset;
@@ -1499,7 +1501,7 @@ Mesh wrapper_manifold(
         }
         ManifoldCrossSection *cross_section; {
             cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
-            cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
+            // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
 
             if (revolve) {
                 manifold_cross_section_translate(cross_section, cross_section, -dxf_axis_base_point.x, -dxf_axis_base_point.y);
@@ -1528,6 +1530,7 @@ Mesh wrapper_manifold(
                 manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
                 manifold_B = manifold_translate(manifold_B, manifold_B, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
             }
+            manifold_B = manifold_translate(manifold_B, manifold_B, -dxf_origin.x, -dxf_origin.y, 0.0f);
             manifold_B = manifold_transform(manifold_B, manifold_B,
                     M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
                     M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),

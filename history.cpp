@@ -2,7 +2,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event); 
 
 #ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 //
-void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(Event standard_event) { _standard_event_process_NOTE_RECURSIVE(standard_event); }
+void history_process_event(Event standard_event) { _standard_event_process_NOTE_RECURSIVE(standard_event); }
 void history_undo() { messagef("[DEBUG] history disabled"); }
 void history_redo() { messagef("[DEBUG] history disabled"); }
 void history_debug_draw() { gui_printf("[DEBUG] history disabled"); }
@@ -66,7 +66,7 @@ void PUSH_UNDO_CLEAR_REDO(Event standard_event) {
     }
 }
 
-void history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(Event standard_event) {
+void history_process_event(Event standard_event) {
     StandardEventProcessResult tmp = _standard_event_process_NOTE_RECURSIVE(standard_event);
     standard_event.record_me = tmp.record_me;
     standard_event.checkpoint_me = tmp.checkpoint_me;

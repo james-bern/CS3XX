@@ -26,10 +26,16 @@
 char *startup_script = "";
 #if 0
 run_before_main {
+    // revolve development
     startup_script = 
-        "cz8\n"
-        "samz16\n"
-        "bz4\t4\n"
+        "y"
+        "cz10\n"
+        "sa[10\n"
+        // "Zx-5\n"
+        "y"
+        "samzx5\n"
+        // "Ax5\nx5\t5\n"
+        "sa]\n"
         ;
 };
 #endif
@@ -148,7 +154,7 @@ int main() {
         dummy.type = EventType::Key;
         dummy.key_event.subtype = KeyEventSubtype::Hotkey;
         dummy.key_event.key = DUMMY_HOTKEY;
-        freshly_baked_event_process(dummy);
+        history_process_event(dummy);
     };
 
 
@@ -204,7 +210,7 @@ int main() {
                     while (raw_event_queue.length) {
                         RawEvent raw_event = queue_dequeue(&raw_event_queue);
                         Event freshly_baked_event = bake_event(raw_event);
-                        freshly_baked_event_process(freshly_baked_event);
+                        history_process_event(freshly_baked_event);
                     }
                 }
             }

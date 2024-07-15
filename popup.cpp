@@ -1,3 +1,5 @@
+// TODO: could allow user to supply non-zero starting values (this is probably a good idea -- unless it's really just used for revolveadd)
+
 void POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER() {
     uint d = popup->active_cell_index;
     if (popup->cell_type[d] == CellType::Real) {
@@ -64,6 +66,7 @@ void POPUP_SET_ACTIVE_CELL_INDEX(uint new_active_cell_index) {
 };
 
 // TODO: consider adding type-checking (NOTE: maybe hard?)
+// FORNOW: returns whether it just loaded up
 void popup_popup(
         String title, ToolboxGroup group,
         bool zero_on_load_up,
@@ -104,7 +107,9 @@ void popup_popup(
 
     if (popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 != _name0.data) {
         popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = _name0.data;
-        if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
+        if (zero_on_load_up) {
+            POPUP_CLEAR_ALL_VALUES_TO_ZERO();
+        }
         popup->active_cell_index = 0;
         POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
         popup->cursor = popup->active_cell_buffer.length;

@@ -118,9 +118,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     EnterMode enter_mode = EnterMode::None
                     ) -> bool {
 
-                // TODO: gray out irrelevant buttons (snaps)
-
-
                 bool special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch = (other._please_suppress_drawing_popup_popup && (group == ToolboxGroup::Snap));
                 bool draw_tool = name;
 
@@ -233,6 +230,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EnterMode prev_enter_mode = state.enter_mode;
             { // magic_magic
 
+                { // undo
+                    bool hotkey_CTRL_Z = magic_magic(1,0,'Z');
+                    bool button_undo = magic_magic(0,0,'U',"Undo");
+                    if (hotkey_CTRL_Z || button_undo) {
+                        result.record_me = false;
+                        other._please_suppress_drawing_popup_popup = true;
+                        history_undo();
+                    }
+                }
+
+                { // redo
+                    bool hotkey_CTRL_SHIFT_Y = magic_magic(1,1,'Y');
+                    bool button_redo = magic_magic(0,1,'U',"Redo");
+                    if (hotkey_CTRL_SHIFT_Y || button_redo) {
+                        result.record_me = false;
+                        // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
+                        other._please_suppress_drawing_popup_popup = true;
+                        history_redo();
+                    }
+                }
+
+                SEPERATOR(ToolboxGroup::Drawing);
+
                 if (magic_magic(0,0,'S',"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
@@ -255,7 +275,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
                 { // 'C'
                     bool hotkey_C = magic_magic(0,0,'C');
-                    bool button_circle = magic_magic(0,0,'C',"Circle",true,ToolboxGroup::Drawing,ClickMode::Circle);
+                    bool button_circle = magic_magic(0,0,
+                            (!click_mode_SNAP_ELIGIBLE()) ? 'C' : '\0'
+                            ,"Circle",true,ToolboxGroup::Drawing,ClickMode::Circle);
                     {
                         if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Connected)) {
                             if (hotkey_C) {
@@ -303,13 +325,36 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
+                { // TODO: 'Q'
+                    bool hotkey_Q      = magic_magic(0,0,'Q');
+                    if (click_mode_SNAP_ELIGIBLE()) {
+                        bool button_quad = magic_magic(0,0,'Q',"Quad",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad);
+                        if (hotkey_Q || button_quad) {
+                            hotkey_Q = false;
+                            result.record_me = false;
+                            state.click_modifier = ClickModifier::Quad;
+                        }
+                    } else {
+                        if (hotkey_Q) {
+                            if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::None)) {
+                                state.click_modifier = ClickModifier::Color;
+                            } else {
+                                state.click_mode = ClickMode::Color;
+                                state.click_modifier = ClickModifier::None;
+                            }
+                        }
+                    }
+                }
+
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
 
                 { // 'M'
                     bool hotkey_M      = magic_magic(0,0,'M');
-                    bool button_move   = magic_magic(0,0,'M',"Move",true,ToolboxGroup::Drawing,ClickMode::Move);
+                    bool button_move   = magic_magic(0,0,
+                            (!click_mode_SNAP_ELIGIBLE()) ? 'M' : '\0',
+                            "Move",true,ToolboxGroup::Drawing,ClickMode::Move);
                     {
                         if (click_mode_SNAP_ELIGIBLE()) {
                             bool button_middle = magic_magic(0,0,'M',"Middle",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle);
@@ -374,6 +419,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     two_click_command->awaiting_second_click = false;
                 }
 
+                SEPERATOR(ToolboxGroup::Drawing);
+                SEPERATOR(ToolboxGroup::Drawing);
+                SEPERATOR(ToolboxGroup::Drawing);
+
                 ////////////////////////////////////////////////////////////////////////////////
 
                 if (click_mode_SNAP_ELIGIBLE()) {
@@ -430,9 +479,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
                 if (magic_magic(0,0,']', "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
                     state.enter_mode = EnterMode::RevolveAdd;
+                    preview->revolve_in_angle = 0; // FORNOW
+                    preview->revolve_out_angle = 0; // FORNOW
                 }
                 if (magic_magic(0,1,']', "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
                     state.enter_mode = EnterMode::RevolveCut;
+                    preview->revolve_in_angle = 0; // FORNOW
+                    preview->revolve_out_angle = 0; // FORNOW
                 }
                 SEPERATOR(ToolboxGroup::Mesh);
                 if (magic_magic(0,0,'N', "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
@@ -563,17 +616,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(0,0,'Q')) {
-                    if (click_mode_SNAP_ELIGIBLE()) {
-                        result.record_me = false;
-                        state.click_modifier = ClickModifier::Quad;
-                    } else if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::None)) {
-                        state.click_modifier = ClickModifier::Color;
-                    } else {
-                        state.click_mode = ClickMode::Color;
-                        state.click_modifier = ClickModifier::None;
-                    }
-                }
 
 
 
@@ -2086,11 +2128,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.enter_mode == EnterMode::RevolveAdd) {
+                char *prev = popup->_FORNOW_active_popup_unique_ID__FORNOW_name0;
                 popup_popup(STRING("RevolveAdd"), ToolboxGroup::Mesh,
                         true,
-                        CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle,
-                        CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle
+                        CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle,
+                        CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle
                         );
+                if (prev != popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) { // HACKHACKHACK
+                    popup->revolve_add_out_angle = 360;
+                    POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+                    popup->cursor = popup->active_cell_buffer.length;
+                    popup->selection_cursor = 0;
+                }
                 if (gui_key_enter) {
                     if (!dxf_anything_selected) {
                         messagef(omax.orange, "RevolveAdd: selection empty");
@@ -2330,32 +2379,34 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     return result;
 }
 
-void freshly_baked_event_process(Event freshly_baked_event) {
-    bool undo;
-    bool redo;
-    {
-        undo = false;
-        redo = false;
-        if (freshly_baked_event.type == EventType::Key) {
-            KeyEvent *key_event = &freshly_baked_event.key_event;
-            auto key_lambda = [key_event](uint key, bool control = false, bool shift = false) -> bool {
-                return _key_lambda(key_event, key, control, shift);
-            };
-            if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
-                undo = (key_lambda('Z', true) || key_lambda('U'));
-                redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
-            }
-        }
-    }
+#if 0
+void history_process_event(Event freshly_baked_event) {
+    // bool undo;
+    // bool redo;
+    // {
+    //     undo = false;
+    //     redo = false;
+    //     if (freshly_baked_event.type == EventType::Key) {
+    //         KeyEvent *key_event = &freshly_baked_event.key_event;
+    //         auto key_lambda = [key_event](uint key, bool control = false, bool shift = false) -> bool {
+    //             return _key_lambda(key_event, key, control, shift);
+    //         };
+    //         if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
+    //             undo = (key_lambda('Z', true) || key_lambda('U'));
+    //             redo = (key_lambda('Y', true) || key_lambda('Z', true, true) || key_lambda('U', false, true));
+    //         }
+    //     }
+    // }
 
-    if (undo) {
-        other._please_suppress_drawing_popup_popup = true;
-        history_undo();
-    } else if (redo) {
-        _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
-        other._please_suppress_drawing_popup_popup = true;
-        history_redo();
-    } else {
-        history_process_and_potentially_record_checkpoint_and_or_snapshot_standard_fresh_user_event(freshly_baked_event);
-    }
+    // if (undo) {
+    //     other._please_suppress_drawing_popup_popup = true;
+    //     history_undo();
+    // } else if (redo) {
+    //     _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
+    //     other._please_suppress_drawing_popup_popup = true;
+    //     history_redo();
+    // } else {
+    history_process_event(freshly_baked_event);
+    // }
 }
+#endif
