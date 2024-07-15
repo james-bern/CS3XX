@@ -1265,8 +1265,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         // 3. ?????
                                         // 4, perfect fillet
 
-
-                                        messagef(omax.red, "TODO: line-arc fillet");\
                                         Entity *EntL = E->type == EntityType::Line ? E : F;
                                         Entity *EntA  = E->type == EntityType::Arc  ? E : F;
 
@@ -1299,8 +1297,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             // in cases where the radius is massive weird stuff happens
                                             // thats on the user though, or at least for now
                                             bool all_fillets_valid = intersection.point_is_on_line_segment;
-
-                                            messagef(omax.orange, "wowowowow\n");
 
                                                                     // if click is inside the circle when both work
                                             // TODO: better check for this as a line outside of arc still says outside
@@ -1387,28 +1383,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         }
                                         
                                     } else { // TODO: put an assert here
-                                        messagef(omax.red, "TODO: arc-arc fillet");
-
                                         ArcEntity arc_a = E->arc;
                                         ArcEntity arc_b = F->arc;
                                         real fillet_radius = popup->fillet_radius;
+                                        real _other_fillet_radius = fillet_radius + (fillet_radius == 0 ? 1 : 0);
 
                                         bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
                                         bool fillet_inside_arc_b = distance(arc_b.center, *second_click) < arc_b.radius;
                                         
                                         ArcEntity new_arc_a = arc_a;
-                                        new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * fillet_radius;
+                                        new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * _other_fillet_radius;
                                         
                                         ArcEntity new_arc_b = arc_b;
-                                        new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * fillet_radius;
+                                        new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * _other_fillet_radius;
                                         
 
                                         ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, second_click);
                                         
                                         if (!fillet_point.no_possible_intersection) {
                                             vec2 fillet_center = fillet_point.point;
-                                            vec2 arc_a_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
-                                            vec2 arc_b_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
+                                            vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
+                                            vec2 arc_b_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
                                             real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
                                             real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
 
@@ -1419,40 +1414,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                 fillet_arc_b_theta = fillet_arc_a_theta;
                                                 fillet_arc_a_theta = temp;
                                             }
-                                            Entity fillet_arc = cookbook._make_arc(fillet_center, fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta));
+                                            Entity fillet_arc = cookbook._make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta)); // if this is changed to fillet_radius it breaks, dont ask me why
                                             if (fillet_radius > TINY_VAL) {
                                                 cookbook._buffer_add_entity(fillet_arc);
                                             }
 
                                             real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
                                             real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
+                                            if (fillet_radius == 0) {
+                                                ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, second_click);
+                                                divide_theta_a = zero_intersect.theta_a;
+                                                divide_theta_b = zero_intersect.theta_b;
+                                            }
 
                                             vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
                                             real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
                                             real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
-                                            real offset_a = DEG(ATAN2(*second_click - arc_a.center)); 
-                                            real offset_b = DEG(ATAN2(*second_click - middle_angle_vec)); 
-                                            messagef(omax.orange, "%f", offset_a);
-                                            if (ARE_EQUAL(divide_theta_a, fillet_middle_arc_a)) {
-                                                if (ANGLE_IS_BETWEEN_CCW_DEGREES(offset_a, divide_theta_a, divide_theta_a + 180.0f)) {
-                                                    fillet_middle_arc_a -= 1.0f;
-                                                } else {
-                                                    fillet_middle_arc_a += 1.0f;
-                                                }
-                                            }
-                                            if (ARE_EQUAL(divide_theta_b, fillet_middle_arc_b)) {
-                                                if (ANGLE_IS_BETWEEN_CCW_DEGREES(offset_b, divide_theta_b, divide_theta_b + 180.0f)) {
-                                                    fillet_middle_arc_b -= 1.0f;
-                                                } else {
-                                                    fillet_middle_arc_b += 1.0f;
-                                                }
-                                            }
-                                            if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                                            if ((fillet_radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
                                                 E->arc.start_angle_in_degrees = divide_theta_a;
                                             } else {
                                                 E->arc.end_angle_in_degrees = divide_theta_a;
                                             }
-                                            if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                                            if ((fillet_radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
                                                 F->arc.start_angle_in_degrees = divide_theta_b;
                                             } else {
                                                 F->arc.end_angle_in_degrees = divide_theta_b;
