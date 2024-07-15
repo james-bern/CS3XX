@@ -1581,7 +1581,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
 
-                        List<Entity*> selected_entities;
+                        List<Entity*> selected_entities = {};
 
                         _for_each_selected_entity_ {
                             if (entity->type == EntityType::Line) {
