@@ -157,6 +157,271 @@ struct Cookbook {
         }
     }
 
+    void fillet_two_entities_from_point(Entity *E, Entity *F, vec2 *second_click) {
+        if (E == F) {
+            messagef(omax.orange, "Fillet: clicked same entity twice");
+        } else {
+            real radius = popup->fillet_radius;
+            if ((E->type == EntityType::Line) && (F->type == EntityType::Line)) {
+                vec2 a = E->line.start;
+                vec2 b = E->line.end;
+                vec2 c = F->line.start;
+                vec2 d = F->line.end;
+
+                LineLineXResult _p = line_line_intersection(a, b, c, d);
+                if (!_p.lines_are_parallel) {
+                    vec2 p = _p.point;
+
+                    //  a -- b   p          s -- t-.  
+                    //                              - 
+                    //           d    =>             t
+                    //     m     |             m     |
+                    //           c                   s
+
+                    //         d                              
+                    //         |                              
+                    //         |                              
+                    //  a ---- p ---- b   =>   s - t.         
+                    //         |                     -t       
+                    //    m    |                 m    |       
+                    //         c                      s       
+
+                    vec2 m = *second_click; 
+
+                    vec2 e_ab = normalized(b - a);
+                    vec2 e_cd = normalized(d - c);
+
+                    bool keep_a, keep_c; {
+                        vec2 vector_p_m_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (m - p);
+                        keep_a = (vector_p_m_in_edge_basis.x < 0.0f);
+                        keep_c = (vector_p_m_in_edge_basis.y < 0.0f);
+                    }
+
+                    vec2 s_ab = (keep_a) ? a : b;
+                    vec2 s_cd = (keep_c) ? c : d;
+                    real half_angle; {
+                        real angle = get_three_point_angle(s_ab, p, s_cd); // FORNOW TODO consider using burkardt's special interior version
+                        if (angle > PI) angle = TAU - angle;
+                        half_angle = angle / 2;
+                    }
+                    real length = radius / TAN(half_angle);
+                    vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
+                    vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
+
+                    LineLineXResult _center = line_line_intersection(t_ab, t_ab + perpendicularTo(e_ab), t_cd, t_cd + perpendicularTo(e_cd));
+                    if (!_center.lines_are_parallel) {
+                        vec2 center = _center.point;
+
+                        buffer_delete_entity(E);
+                        buffer_delete_entity(F);
+                        buffer_add_line(s_ab, t_ab, false, E->color_code);
+                        buffer_add_line(s_cd, t_cd, false, F->color_code);
+
+                        real theta_ab_in_degrees = DEG(angle_from_0_TAU(center, t_ab));
+                        real theta_cd_in_degrees = DEG(angle_from_0_TAU(center, t_cd));
+
+                        if (!IS_ZERO(radius)) {
+                            if (get_three_point_angle(t_ab, center, t_cd) > PI) {
+                                // FORNOW TODO consider swap
+                                real tmp = theta_ab_in_degrees;
+                                theta_ab_in_degrees = theta_cd_in_degrees;
+                                theta_cd_in_degrees = tmp;
+                            }
+
+                            // TODO: consider tabbing to create chamfer
+
+                            buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees, false, E->color_code);
+                        }
+                    }
+                }
+            } else if ((E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line)) {
+                // general idea
+                // 1. find what quadrant the click is in
+                // 2. use that to get the intersect between line and circle
+                // 3. ?????
+                // 4, perfect fillet
+
+                Entity *EntL = E->type == EntityType::Line ? E : F;
+                Entity *EntA  = E->type == EntityType::Arc  ? E : F;
+
+                LineEntity line = EntL->line;
+                ArcEntity arc = EntA->arc;
+                real fillet_radius = popup->fillet_radius;
+
+                // get closest intersection point
+                // in current version both points can always work
+                // this is only checking for the 
+                LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, second_click);
+
+                messagef(omax.green, "%d\n", intersection.no_possible_intersection);
+                if (!intersection.no_possible_intersection) {
+                    // Now have to decide which of the 4 possible fillets to do
+                    // This currently only depends on the line as the arc can  
+                    //   wrap both directions
+                    // Check to see if one predicted by click position works otherwise
+                    //   fillet from opposite side (inside/outside) of circle
+                    //
+                    //           \
+                    //        B   \   A
+                    //            |
+                    //      ------|------
+                    //            /
+                    //        C  /   D
+                    //      
+
+                    // in this case we can do any fillet
+                    // in cases where the radius is massive weird stuff happens
+                    // thats on the user though, or at least for now
+                    bool all_fillets_valid = intersection.point_is_on_line_segment;
+
+                                            // if click is inside the circle when both work
+                    // TODO: better check for this as a line outside of arc still says outside
+                    bool fillet_inside_circle = (all_fillets_valid && distance(*second_click, arc.center) < arc.radius) ||
+                                            // or if the line is inside the circle
+                                            // if it was far away on the other side it would instead snap to the other intersect
+                                         (distance(line.start, arc.center) < arc.radius);
+                    
+                    bool start_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)) > 0;
+                    bool end_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end)) > 0;
+                    if (!(start_inside_circle ^ end_inside_circle)) {
+                        fillet_inside_circle = end_inside_circle;
+                    }
+                   
+                    vec2 line_vector = line.end - line.start;
+                    bool line_left = cross(line_vector, *second_click - line.start) < 0;
+                    vec2 line_adjust = fillet_radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
+                    LineEntity new_line;
+                    new_line.start = line.start + line_adjust; 
+                    new_line.end = line.end + line_adjust; 
+
+                    ArcEntity new_arc = arc;
+                    new_arc.radius += fillet_radius * (fillet_inside_circle ? -1 : 1);
+
+                    LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, second_click);
+
+                    vec2 fillet_center = fillet_point.point;
+                    vec2 line_fillet_intersect = fillet_center - line_adjust;
+                    vec2 arc_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
+                    real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
+                    real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
+
+                    if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
+                        real temp = fillet_line_theta;
+                        fillet_line_theta = fillet_arc_theta;
+                        fillet_arc_theta = temp;
+                    }
+
+                    Entity fillet_arc = _make_arc(fillet_center, fillet_radius, DEG(fillet_arc_theta), DEG(fillet_line_theta));
+                    if (fillet_radius > TINY_VAL) {
+                        _buffer_add_entity(fillet_arc);
+                    }
+                    // TODO: MAKE THIS WORK FOR 0 RADIUS FILLETS
+                    bool end_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0);
+                    bool start_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.start - intersection.point)) > 0);
+                    bool extend_start;
+                    if (end_in_direction ^ start_in_direction) {
+                        extend_start = end_in_direction;
+                    } else {
+                        if (distance(intersection.point, line.end) > distance(intersection.point, line.start)) {
+                            extend_start = true;
+                        } else {
+                            extend_start = false;
+                        }
+                    }
+                    if (fillet_radius == 0 && (end_inside_circle != start_inside_circle)) {
+                        extend_start = fillet_inside_circle != start_inside_circle;
+                    }
+                    if (extend_start) {
+                        EntL->line.start = line_fillet_intersect;
+                    } else {
+                        EntL->line.end = line_fillet_intersect;
+                    }
+
+                    real divide_theta = DEG(ATAN2(fillet_center - arc.center));
+                    real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+
+                    // kinda weird but checks if divide theta > theta where line was tangent
+                    real offset = DEG(ATAN2(*second_click - arc.center)); 
+                    vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+                    real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
+                    if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
+                        if (ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f)) {
+                            fillet_middle_arc -= 1.0f;
+                        } else {
+                            fillet_middle_arc += 1.0f;
+                        }
+                    }
+                    if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
+                        EntA->arc.start_angle_in_degrees = divide_theta;
+                    } else {
+                        EntA->arc.end_angle_in_degrees = divide_theta;
+                    }
+                }
+                
+            } else { // TODO: put an assert here
+                ArcEntity arc_a = E->arc;
+                ArcEntity arc_b = F->arc;
+                real fillet_radius = popup->fillet_radius;
+                real _other_fillet_radius = fillet_radius + (fillet_radius == 0 ? 1 : 0);
+
+                bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
+                bool fillet_inside_arc_b = distance(arc_b.center, *second_click) < arc_b.radius;
+                
+                ArcEntity new_arc_a = arc_a;
+                new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * _other_fillet_radius;
+                
+                ArcEntity new_arc_b = arc_b;
+                new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * _other_fillet_radius;
+                
+
+                ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, second_click);
+                
+                if (!fillet_point.no_possible_intersection) {
+                    vec2 fillet_center = fillet_point.point;
+                    vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
+                    vec2 arc_b_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
+                    real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
+                    real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
+
+                    // a swap so the fillet goes the right way
+                    // (smallest angle
+                    if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
+                        real temp = fillet_arc_b_theta;
+                        fillet_arc_b_theta = fillet_arc_a_theta;
+                        fillet_arc_a_theta = temp;
+                    }
+                    Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta)); // if this is changed to fillet_radius it breaks, dont ask me why
+                    if (fillet_radius > TINY_VAL) {
+                        _buffer_add_entity(fillet_arc);
+                    }
+
+                    real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
+                    real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
+                    if (fillet_radius == 0) {
+                        ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, second_click);
+                        divide_theta_a = zero_intersect.theta_a;
+                        divide_theta_b = zero_intersect.theta_b;
+                    }
+
+                    vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+                    real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
+                    real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
+                    if ((fillet_radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                        E->arc.start_angle_in_degrees = divide_theta_a;
+                    } else {
+                        E->arc.end_angle_in_degrees = divide_theta_a;
+                    }
+                    if ((fillet_radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                        F->arc.start_angle_in_degrees = divide_theta_b;
+                    } else {
+                        F->arc.end_angle_in_degrees = divide_theta_b;
+
+                    }
+                }
+            }
+        }
+    }
+
 
     ///////////
     // SCARY //

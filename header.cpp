@@ -41,6 +41,7 @@ enum class ClickMode {
     Move,
     Origin,
     Polygon,
+    PowerFillet,
     Rotate,
     RotateCopy,
     Select,
