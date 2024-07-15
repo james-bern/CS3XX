@@ -1184,7 +1184,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
-                                cookbook.fillet_two_entities_from_point(E, F, second_click);
+                                cookbook.fillet_two_entities_from_point(E, F, second_click, popup->fillet_radius);
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
                             if (IS_ZERO(norm(*first_click - *second_click))) {
@@ -1582,6 +1582,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::None;
 
                         List<Entity*> selected_entities = {};
+                        selected_entities._capacity = 0;
 
                         _for_each_selected_entity_ {
                             if (entity->type == EntityType::Line) {
@@ -1594,8 +1595,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
 
                         qsort(selected_entities.array, selected_entities.length, sizeof(Entity*), [](const void *a, const void *b) -> int {
-                            real a_angle = ATAN2(entity_get_middle((Entity *)a));
-                            real b_angle = ATAN2(entity_get_middle((Entity *)b)); 
+                            real a_angle = ATAN2(entity_get_middle(*(Entity **)a)); // why not Enity *? idk but it crashes otherwise
+                            real b_angle = ATAN2(entity_get_middle(*(Entity **)b)); 
                             if (a_angle < b_angle) {
                                 return 1;
                             } else if (b_angle > a_angle) {
@@ -1603,19 +1604,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             return 0;
                         }); // no this is not evil 
-
                         for_(i, selected_entities.length) {
                             Entity *entity = selected_entities.array[i];
                             if (entity->type == EntityType::Line) {
                                 entity->line.start += *mouse;
                                 entity->line.end += *mouse;
-                            } else {
+                            } else { ASSERT(entity->type == EntityType::Arc);
                                 entity->arc.center += *mouse;
                             }
                         }
 
                         for_(i, selected_entities.length) {
-                            cookbook.fillet_two_entities_from_point(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], mouse);
+                            cookbook.fillet_two_entities_from_point(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], mouse, popup->fillet_radius);
                         }
 
                     } else if (state.click_mode == ClickMode::MirrorX) {
@@ -2132,6 +2132,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.click_mode == ClickMode::Fillet) {
                 popup_popup(STRING("Fillet"), ToolboxGroup::Drawing,
+                        false,
+                        CellType::Real, STRING("radius"), &popup->fillet_radius);
+            } else if (state.click_mode == ClickMode::PowerFillet) {
+                popup_popup(STRING("PowerFillet"), ToolboxGroup::Drawing,
                         false,
                         CellType::Real, STRING("radius"), &popup->fillet_radius);
             }

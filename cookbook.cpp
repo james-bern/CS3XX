@@ -157,11 +157,10 @@ struct Cookbook {
         }
     }
 
-    void fillet_two_entities_from_point(Entity *E, Entity *F, vec2 *second_click) {
+    void fillet_two_entities_from_point(Entity *E, Entity *F, vec2 *second_click, real fillet_radius) {
         if (E == F) {
             messagef(omax.orange, "Fillet: clicked same entity twice");
         } else {
-            real radius = popup->fillet_radius;
             if ((E->type == EntityType::Line) && (F->type == EntityType::Line)) {
                 vec2 a = E->line.start;
                 vec2 b = E->line.end;
@@ -204,7 +203,7 @@ struct Cookbook {
                         if (angle > PI) angle = TAU - angle;
                         half_angle = angle / 2;
                     }
-                    real length = radius / TAN(half_angle);
+                    real length = fillet_radius / TAN(half_angle);
                     vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
                     vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
@@ -212,15 +211,16 @@ struct Cookbook {
                     if (!_center.lines_are_parallel) {
                         vec2 center = _center.point;
 
-                        buffer_delete_entity(E);
-                        buffer_delete_entity(F);
-                        buffer_add_line(s_ab, t_ab, false, E->color_code);
-                        buffer_add_line(s_cd, t_cd, false, F->color_code);
+                        if (keep_a) { E->line.end = t_ab; }
+                        else        { E->line.start = t_ab; }
 
+                        if (keep_c) { F->line.end = t_cd; }
+                        else        { F->line.start = t_cd; }
+                        
                         real theta_ab_in_degrees = DEG(angle_from_0_TAU(center, t_ab));
                         real theta_cd_in_degrees = DEG(angle_from_0_TAU(center, t_cd));
 
-                        if (!IS_ZERO(radius)) {
+                        if (!IS_ZERO(fillet_radius)) {
                             if (get_three_point_angle(t_ab, center, t_cd) > PI) {
                                 // FORNOW TODO consider swap
                                 real tmp = theta_ab_in_degrees;
@@ -230,7 +230,7 @@ struct Cookbook {
 
                             // TODO: consider tabbing to create chamfer
 
-                            buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees, false, E->color_code);
+                            buffer_add_arc(center, fillet_radius, theta_ab_in_degrees, theta_cd_in_degrees, false, E->color_code);
                         }
                     }
                 }
@@ -246,7 +246,6 @@ struct Cookbook {
 
                 LineEntity line = EntL->line;
                 ArcEntity arc = EntA->arc;
-                real fillet_radius = popup->fillet_radius;
 
                 // get closest intersection point
                 // in current version both points can always work
@@ -276,10 +275,8 @@ struct Cookbook {
 
                                             // if click is inside the circle when both work
                     // TODO: better check for this as a line outside of arc still says outside
-                    bool fillet_inside_circle = (all_fillets_valid && distance(*second_click, arc.center) < arc.radius) ||
-                                            // or if the line is inside the circle
-                                            // if it was far away on the other side it would instead snap to the other intersect
-                                         (distance(line.start, arc.center) < arc.radius);
+                    real distance_second_click_center = distance(*second_click, arc.center);
+                    bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
                     
                     bool start_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)) > 0;
                     bool end_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end)) > 0;
@@ -361,7 +358,6 @@ struct Cookbook {
             } else { // TODO: put an assert here
                 ArcEntity arc_a = E->arc;
                 ArcEntity arc_b = F->arc;
-                real fillet_radius = popup->fillet_radius;
                 real _other_fillet_radius = fillet_radius + (fillet_radius == 0 ? 1 : 0);
 
                 bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
