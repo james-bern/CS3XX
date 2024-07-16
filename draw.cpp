@@ -140,7 +140,7 @@ void conversation_draw() {
     }
 
     // preview
-    vec2 mouse = magic_snap(mouse_World_2D, true);
+    vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position;
 
     {
         vec2 target_preview_mouse = mouse;

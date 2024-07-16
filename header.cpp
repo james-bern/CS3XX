@@ -186,8 +186,14 @@ struct RawEvent {
     RawMouseEvent raw_mouse_event;
 };
 
-struct MouseEventDrawing {
+struct MagicSnapResult {
     vec2 mouse_position;
+    bool snapped;
+    Entity *entity_snapped_to;
+};
+
+struct MouseEventDrawing {
+    MagicSnapResult snap_result;
 };
 
 struct MouseEventMesh {

@@ -17,8 +17,9 @@ real get_x_divider_drawing_mesh_Pixel() {
     return LINEAR_REMAP(other.x_divider_drawing_mesh_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
 }
 
-vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
-    vec2 result = before;
+MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
+    MagicSnapResult result = {};
+    result.mouse_position = before;
     {
         if (
                 click_mode_15_DEG_ELIGIBLE()
@@ -30,13 +31,13 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             real norm_r = norm(r);
             real factor = 360 / 15 / TAU;
             real theta = roundf(ATAN2(r) * factor) / factor;
-            result = a + norm_r * e_theta(theta);
+            result.mouse_position = a + norm_r * e_theta(theta);
         } else if (
                 (state.click_mode == ClickMode::Box)
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             // TODO (Felipe): snap square
-            result = before;
+            result.mouse_position = before;
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
@@ -66,11 +67,15 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
             }
             
             if (closest_entity_info.success) {
+                
                 Entity *closest_entity = closest_entity_info.closest_entity;
+                result.entity_snapped_to = closest_entity;
                 if (state.click_modifier == ClickModifier::Center) {
-                    result = closest_entity->arc.center;
+                    result.mouse_position = closest_entity->arc.center;
+                    result.snapped = true;
                 } else if (state.click_modifier == ClickModifier::Middle) {
-                    result = entity_get_middle(closest_entity);
+                    result.mouse_position = entity_get_middle(closest_entity);
+                    result.snapped = true;
                 } else if (state.click_modifier == ClickModifier::End) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     _for_each_entity_ {
@@ -80,7 +85,9 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                             real squared_distance = squaredDistance(before, p[d]);
                             if (squared_distance < min_squared_distance) {
                                 min_squared_distance = squared_distance;
-                                result = p[d];
+                                result.mouse_position = p[d];
+                                result.entity_snapped_to = entity;
+                                result.snapped = true;
                             }
                         }
                     }
@@ -90,10 +97,12 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
                         vec2 a_to_p = click_one - closest_entity->line.start;
                         real t = dot(a_to_p, a_to_b) / dot(a_to_b, a_to_b);
-                        result = closest_entity->line.start + t * a_to_b; 
+                        result.mouse_position = closest_entity->line.start + t * a_to_b; 
+                        result.snapped = true;
                     } else if (closest_entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
                         vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
-                        result = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        result.mouse_position = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        result.snapped = true;
                     }
                 } else if (state.click_modifier == ClickModifier::Quad) {
                     ArcEntity *arc = &closest_entity->arc;
@@ -101,7 +110,8 @@ vec2 magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = fa
                         angle = LINEAR_REMAP(angle_from_0_TAU(arc->center, before), 0.0f, TAU, 0.0f, 4.0f);
                         angle = (ROUND(angle) / 4.0f) * TAU;
                     }
-                    result = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, angle);
+                    result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, angle);
+                    result.snapped = true;
                 }
             }
         }

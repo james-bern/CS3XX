@@ -914,7 +914,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (state.click_mode == ClickMode::Measure) result.record_me = false;
             if (mouse_event->mouse_held) result.record_me = false;
 
-            vec2 *mouse = &mouse_event_drawing->mouse_position;
+            MagicSnapResult snap_result = mouse_event_drawing->snap_result;
+            vec2 *mouse = &snap_result.mouse_position;
+        
+            if (snap_result.snapped) {
+                //messagef(omax.red, "SNAPPEEDD");
+                //snap_result.entity_snapped_to->color_code = ColorCode::Quality4;
+                //cookbook.buffer_add_line(V2(0, 0), *mouse);
+                cookbook.divide_entity_at_point(snap_result.entity_snapped_to, *mouse);
+            }
 
             bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
 
@@ -939,7 +947,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             // fornow window wonky case
             if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes scand qc
                 result.record_me = false;
-                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
+                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
                     if (state.click_modifier != ClickModifier::Connected) {
@@ -1105,7 +1113,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (click_mode_TWO_CLICK_COMMAND) {
 
                     if (!two_click_command->awaiting_second_click) {
-                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->mouse_position);
+                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                         bool first_click_accepted; {
                             bool first_click_must_acquire_entity = (
                                     0 ||
@@ -1120,7 +1128,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                         if (first_click_accepted) {
                             two_click_command->awaiting_second_click = true;
-                            two_click_command->first_click = mouse_event_drawing->mouse_position;
+                            two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
                             two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
                             if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
                             { // bump bumps cursor bump cursor bumps

@@ -129,7 +129,8 @@ struct Cookbook {
         bool delete_flag = false;
         if (entity->type == EntityType::Line) {
             LineEntity line = entity->line;
-            if (ARE_EQUAL(distance(point, line.start), distance(point, line.end))) {
+            //messagef(omax.orange, "%f", distance(point, line.start) - distance(point, line.
+            if (ARE_EQUAL(distance(point, line.start) + distance(point, line.end), distance(line.start, line.end))) {
                 if (distance(line.start, point) > TINY_VAL) {
                     buffer_add_line(line.start, point, entity->is_selected, entity->color_code);
                     delete_flag = true;
