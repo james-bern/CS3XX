@@ -652,7 +652,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.record_me = false;
                     state.enter_mode = EnterMode::Save;
                     other.awaiting_confirmation = false;
-                    waiting_on_hotkey = false;
                 }
 
                 if (magic_magic(keybinds.RESIZE)) { 
