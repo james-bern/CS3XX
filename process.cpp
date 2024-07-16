@@ -27,7 +27,6 @@ StandardEventProcessResult standard_event_process(Event event) {
 }
 #endif
 
-
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
@@ -107,9 +106,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool hotkey_recognized = false;
             auto magic_magic = [&](
-                    bool control,
-                    bool shift,
-                    uint key,
+                    Keybind keybind,
                     char *name = NULL,
                     bool hotkey_label_only = false,
                     ToolboxGroup group = ToolboxGroup::Drawing,
@@ -117,6 +114,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     ClickModifier click_modifier = ClickModifier::None,
                     EnterMode enter_mode = EnterMode::None
                     ) -> bool {
+
+                bool control = keybind.modifiers & MOD_CTRL;
+                bool shift = keybind.modifiers & MOD_SHIFT;
+                bool alt = keybind.modifiers & MOD_ALT;
+                uint key = (uint)keybind.key;
+
+                if (alt) {}
 
                 bool special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch = (other._please_suppress_drawing_popup_popup && (group == ToolboxGroup::Snap));
                 bool draw_tool = name;
@@ -231,9 +235,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             { // magic_magic
 
                 { // undo
-                    bool hotkey_CTRL_Z = magic_magic(1,0,'Z');
-                    bool button_undo = magic_magic(0,0,'U',"Undo");
-                    if (hotkey_CTRL_Z || button_undo) {
+                    bool hotkey_undo_alternate = magic_magic(keybinds.UNDO_ALTERNATE);
+                    bool button_undo = magic_magic(keybinds.UNDO,"Undo");
+                    if (hotkey_undo_alternate || button_undo) {
                         result.record_me = false;
                         other._please_suppress_drawing_popup_popup = true;
                         history_undo();
@@ -241,9 +245,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // redo
-                    bool hotkey_CTRL_SHIFT_Y = magic_magic(1,1,'Y');
-                    bool button_redo = magic_magic(0,1,'U',"Redo");
-                    if (hotkey_CTRL_SHIFT_Y || button_redo) {
+                    bool hotkey_redo_alternate = magic_magic(keybinds.REDO_ALTERNATE);
+                    bool button_redo = magic_magic(keybinds.REDO, "Redo");
+                    if (hotkey_redo_alternate || button_redo) {
                         result.record_me = false;
                         // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
                         other._please_suppress_drawing_popup_popup = true;
@@ -253,7 +257,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(0,0,'S',"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
+                if (magic_magic(keybinds.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
                         state.click_modifier = ClickModifier::None;
@@ -261,22 +265,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         state.click_modifier = ClickModifier::Selected;
                     }
                 }
-                if (magic_magic(0,0,'D',"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
+                if (magic_magic(keybinds.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(0,0,'L',"Line",false,ToolboxGroup::Drawing,ClickMode::Line)) {
+                if (magic_magic(keybinds.LINE,"Line",false,ToolboxGroup::Drawing,ClickMode::Line)) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 { // 'C'
-                    bool hotkey_C = magic_magic(0,0,'C');
-                    bool button_circle = magic_magic(0,0,
-                            (!click_mode_SNAP_ELIGIBLE()) ? 'C' : '\0'
+                    bool hotkey_C = magic_magic(keybinds.CIRCLE); //TODO: CHANGE CHANGE CHANGE
+                    bool button_circle = magic_magic(
+                            (!click_mode_SNAP_ELIGIBLE()) ? keybinds.CIRCLE : KEYBIND(0, 0)
                             ,"Circle",true,ToolboxGroup::Drawing,ClickMode::Circle);
                     {
                         if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Connected)) {
@@ -286,7 +290,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
                         if (click_mode_SNAP_ELIGIBLE()) {
-                            bool button_center = magic_magic(0,0,'C',"Center",true,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center);
+                            bool button_center = magic_magic(keybinds.CENTER,"Center",true,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center);
                             if (hotkey_C || button_center) {
                                 hotkey_C = false;
                                 result.record_me = false;
@@ -300,17 +304,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-                if (magic_magic(0,0,'B',"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
+                if (magic_magic(keybinds.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 { // 'P'
-                    bool hotkey_P = magic_magic(0,0,'P');
-                    bool button_polygon = magic_magic(0,0,'P',"Polygon",true,ToolboxGroup::Drawing,ClickMode::Polygon);
+                    bool hotkey_P = magic_magic(keybinds.POLYGON); // TODO TODO TODO change
+                    bool button_polygon = magic_magic(keybinds.POLYGON,"Polygon",true,ToolboxGroup::Drawing,ClickMode::Polygon);
                     {
                         if (click_mode_SNAP_ELIGIBLE()) {
-                            bool button_perpendiular = magic_magic(0,0,'P',"Perpendicular",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular);
+                            bool button_perpendiular = magic_magic(keybinds.PERPENDICULAR,"Perpendicular",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular);
                             if (hotkey_P || button_perpendiular) {
                                 hotkey_P = false;
                                 result.record_me = false;
@@ -326,9 +330,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // TODO: 'Q'
-                    bool hotkey_Q      = magic_magic(0,0,'Q');
+                    bool hotkey_Q      = magic_magic(keybinds.QUAD); // TODO TODO CHANGE
                     if (click_mode_SNAP_ELIGIBLE()) {
-                        bool button_quad = magic_magic(0,0,'Q',"Quad",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad);
+                        bool button_quad = magic_magic(keybinds.QUAD,"Quad",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad);
                         if (hotkey_Q || button_quad) {
                             hotkey_Q = false;
                             result.record_me = false;
@@ -351,13 +355,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                 { // 'M'
-                    bool hotkey_M      = magic_magic(0,0,'M');
-                    bool button_move   = magic_magic(0,0,
-                            (!click_mode_SNAP_ELIGIBLE()) ? 'M' : '\0',
+                    bool hotkey_M      = magic_magic(keybinds.MOVE); // TODO TODO CHANGE
+                    bool button_move   = magic_magic(
+                            (!click_mode_SNAP_ELIGIBLE()) ? keybinds.MOVE : KEYBIND(0, 0),
                             "Move",true,ToolboxGroup::Drawing,ClickMode::Move);
                     {
                         if (click_mode_SNAP_ELIGIBLE()) {
-                            bool button_middle = magic_magic(0,0,'M',"Middle",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle);
+                            bool button_middle = magic_magic(keybinds.MIDDLE,"Middle",true,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle);
                             if (hotkey_M || button_middle) {
                                 hotkey_M = false;
                                 state.click_modifier = ClickModifier::Middle;
@@ -371,7 +375,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 }
-                if (magic_magic(0,0,'R',"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
+                if (magic_magic(keybinds.ROTATE,"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -379,12 +383,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(0,0,'O',"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy)) {
+                if (magic_magic(keybinds.LINEAR_COPY,"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy)) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
-                if (magic_magic(0,1,'R',"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
+                if (magic_magic(keybinds.ROTATE_COPY,"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -393,20 +397,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 SEPERATOR(ToolboxGroup::Drawing);
 
 
-                if (magic_magic(0,0,'F',"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
+                if (magic_magic(keybinds.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     state.click_mode = ClickMode::Fillet;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
                 }
                 
-                if (magic_magic(0,1,'F')){
+                if (magic_magic(keybinds.POWER_FILLET,"PowerFillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     state.click_mode = ClickMode::PowerFillet;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                 }
 
-                if (magic_magic(0,0,'I',"TwoClickDivide",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
+                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"TwoClickDivide",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
                     state.click_mode = ClickMode::TwoClickDivide;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
@@ -415,14 +419,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(0,1,'Z',"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin)) {
+                if (magic_magic(keybinds.ORIGIN,"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin)) {
                     state.click_mode = ClickMode::Origin;
                     state.click_modifier = ClickModifier::None;
                 }
-                if (magic_magic(0,1,'A',"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis)) {
-                    state.click_mode = ClickMode::Axis;
-                    state.click_modifier = ClickModifier::None;
-                    two_click_command->awaiting_second_click = false;
+                if (magic_magic(keybinds.AXIS,"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis)) {
+                    if (!click_mode_SELECT_OR_DESELECT()) {
+                        state.click_mode = ClickMode::Axis;
+                        state.click_modifier = ClickModifier::None;
+                        two_click_command->awaiting_second_click = false;
+                    }
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -432,14 +438,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 ////////////////////////////////////////////////////////////////////////////////
 
                 if (click_mode_SNAP_ELIGIBLE()) {
-                    if (magic_magic(0,0,'E',"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
+                    if (magic_magic(keybinds.END,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::End;
                     }
                 }
 
                 if (click_mode_SNAP_ELIGIBLE()) {
-                    if (magic_magic(0,0,'X',"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
+                    if (magic_magic(keybinds.XY,"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
                         if (state.click_mode != ClickMode::None) {
                             state.click_modifier = ClickModifier::XY;
                         }
@@ -447,7 +453,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 if (click_mode_SNAP_ELIGIBLE()) {
-                    if (magic_magic(0,0,'Z',"Zero",false,ToolboxGroup::Snap)) {
+                    if (magic_magic(keybinds.ORIGIN,"Zero",false,ToolboxGroup::Snap)) {
                         Event equivalent = {};
                         equivalent.type = EventType::Mouse;
                         equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
@@ -458,7 +464,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 ////////////////////////////////////////////////////////////////////////////////
 
-                if (magic_magic(0,0,'Y',"Plane",false,ToolboxGroup::Mesh)) {
+                if (magic_magic(keybinds.CYCLE_FEATURE_PLANE,"Plane",false,ToolboxGroup::Mesh)) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
                     result.checkpoint_me = true;
                     other.time_since_plane_selected = 0.0f;
@@ -473,28 +479,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
                 SEPERATOR(ToolboxGroup::Mesh);
-                if (magic_magic(0,0,'[',"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
+                if (magic_magic(keybinds.EXTRUDE_ADD,"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
                     state.enter_mode = EnterMode::ExtrudeAdd;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
                 }
-                if (magic_magic(0,1,'[', "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
+                if (magic_magic(keybinds.EXTRUDE_CUT, "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
                     state.enter_mode = EnterMode::ExtrudeCut;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
                 }
-                if (magic_magic(0,0,']', "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
+                if (magic_magic(keybinds.REVOLVE_ADD, "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
                     state.enter_mode = EnterMode::RevolveAdd;
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
                 }
-                if (magic_magic(0,1,']', "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
+                if (magic_magic(keybinds.REVOLVE_CUT, "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
                     state.enter_mode = EnterMode::RevolveCut;
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
                 }
                 SEPERATOR(ToolboxGroup::Mesh);
-                if (magic_magic(0,0,'N', "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
+                if (magic_magic(keybinds.NUDGE_PLANE, "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
                     if (feature_plane->is_active) {
                         state.enter_mode = EnterMode::NudgePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
@@ -507,17 +513,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                 bool hotkey_0123456789;
-                uint digit;
+                uint digit = 0;
                 {
                     {
                         hotkey_0123456789 = false;
-                        for_(color, 10) {
-                            if (magic_magic(0,0,'0' + color)) {
-                                hotkey_0123456789 = true;
-                                digit = color;
-                                break;
-                            }
-                        }
+                        //for_(color, 10) {
+                            //if (magic_magic(0,0,'0' + color)) { // TODO TODO
+                                //hotkey_0123456789 = true;
+                                //digit = color;
+                                //break;
+                            //}
+                        //}
                     }
                 }
                 if (hotkey_0123456789) {
@@ -542,7 +548,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(0,0,'A')) {
+                if (magic_magic(keybinds.AXIS)) { // TODO TODO what is this
                     if (click_mode_SELECT_OR_DESELECT()) {
                         result.checkpoint_me = true;
                         cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
@@ -551,32 +557,32 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(1,0,'C')) {
+                if (magic_magic(keybinds.TWO_EDGE_CIRCLE)) {
                     state.click_mode = ClickMode::TwoEdgeCircle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
 
-                if (magic_magic(0,1,'D')) {
+                if (magic_magic(keybinds.DIVIDE_NEAREST)) {
                     state.click_mode = ClickMode::DivideNearest;
                     state.click_modifier = ClickModifier::None;
                 }
 
 
 
-                if (magic_magic(0,0,'G')) {
+                if (magic_magic(keybinds.TOGGLE_GRID)) {
                     result.record_me = false;
                     other.hide_grid = !other.hide_grid;
                 }
 
-                if (magic_magic(0,0,'H')) {
+                if (magic_magic(keybinds.PRINT_HISTORY)) {
                     result.record_me = false;
                     history_printf_script();
                 }
 
 
-                if (magic_magic(0,0,'K')) { 
+                if (magic_magic(keybinds.TOGGLE_EVENT_STACK)) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
                     result.record_me = false;
@@ -585,20 +591,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(0,1,'M')) {
+                if (magic_magic(keybinds.MEASURE)) {
                     result.record_me = false;
                     state.click_mode = ClickMode::Measure;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
-                if (magic_magic(1,1,'M')) {
+                if (magic_magic(keybinds.MIRROR_LINE)) {
                     state.click_mode = ClickMode::MirrorLine;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
 
-                if (magic_magic(1,0,'N')) {
+                if (magic_magic(keybinds.CLEAR_DRAWING)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     list_free_AND_zero(&drawing->entities);
@@ -606,7 +612,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     messagef(omax.green, "ResetDXF");
                 }
 
-                if (magic_magic(1,1,'N')) {
+                if (magic_magic(keybinds.CLEAR_MESH)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     mesh_free_AND_zero(mesh);
@@ -615,7 +621,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(1,0,'O')) {
+                if (magic_magic(keybinds.LOAD_FILE)) {
                     state.enter_mode = EnterMode::Load;
                 }
 
@@ -626,12 +632,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(1,0,'S')) {
+                if (magic_magic(keybinds.SAVE)) {
                     result.record_me = false;
                     state.enter_mode = EnterMode::Save;
                 }
 
-                if (magic_magic(0,1,'S')) {  // this is also doing precalculations because otherwise
+                if (magic_magic(keybinds.RESIZE)) {  // this is also doing precalculations because otherwise
                                              // it would be done every frame
                     state.enter_mode = EnterMode::Size;
                     //vec2 center;
@@ -639,7 +645,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     //  float minX = HUGE_VAL, minY = HUGE_VAL, maxX = -HUGE_VAL, maxY = -HUGE_VAL;
                 }
 
-                if (magic_magic(0,0,'W')) {
+                if (magic_magic(keybinds.WINDOW_SELECT)) {
                     // click_mode_SELECT_OR_DESELECT() ??
                     if ((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect)) {
                         state.click_modifier = ClickModifier::Window;
@@ -648,37 +654,37 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(0,1,'X')) {
+                if (magic_magic(keybinds.MIRROR_X)) {
                     state.click_mode = ClickMode::MirrorX;
                     state.click_modifier = ClickModifier::None;
                 }
 
-                if (magic_magic(1,1,'X')) {
+                if (magic_magic(keybinds.DRAWING_FRAME)) {
                     result.record_me = false;
                     init_camera_drawing();
                     init_camera_mesh();
                 }
 
 
-                if (magic_magic(0,1,'Y')) {
+                if (magic_magic(keybinds.MIRROR_Y)) {
                     state.click_mode = ClickMode::MirrorY;
                     state.click_modifier = ClickModifier::None;
                 }
 
 
 
-                if (magic_magic(0,0,' ')) {
+                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_2D)) {
                     state.click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
                     return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
                 }
 
-                if (magic_magic(0,1,' ')) {
+                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_3D)) {
                     return _standard_event_process_NOTE_RECURSIVE(state.shift_space_bar_event);
                 }
 
 
 
-                if (magic_magic(0,0,'.')) { 
+                if (magic_magic(keybinds.TOGGLE_DRAWING_DETAILS)) { 
                     result.record_me = false;
                     other.show_details = !other.show_details;
                     { // messagef
@@ -700,18 +706,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(0,0,';')) {
+                if (magic_magic(keybinds.TOGGLE_FEATURE_PLANE)) {
                     result.checkpoint_me = true;
                     if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
                 }
 
-                if (magic_magic(0,0,'\'')) {
+                if (magic_magic(keybinds.ZOOM_3D_CAMERA)) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                 }
 
-                if (magic_magic(0,0,GLFW_KEY_BACKSPACE) || magic_magic(0,0,GLFW_KEY_DELETE)) {
+                if (magic_magic(keybinds.DELETE_SELECTED) || magic_magic(keybinds.DELETE_SELECTED_ALTERNATE)) {
                     // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
@@ -723,19 +729,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(0,1,'/')) {
+                if (magic_magic(keybinds.HELP_MENU)) {
                     result.record_me = false;
                     other.show_help = !other.show_help;
                 }
 
-                if (magic_magic(0,0,GLFW_KEY_ESCAPE)) {
+                if (magic_magic(keybinds.EXIT_COMMAND)) {
                     state.enter_mode = EnterMode::None;
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
                     state.click_color_code = ColorCode::Traverse;
                 }
 
-                if (magic_magic(0,0,GLFW_KEY_TAB)) { // FORNOW
+                if (magic_magic(keybinds.TOGGLE_LIGHT_MODE)) { // FORNOW
                     result.record_me = false;
                     {
                         vec3 tmp = omax.light_gray;
@@ -754,22 +760,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(0,1,GLFW_KEY_TAB)) { // FORNOW
+                if (magic_magic(keybinds.TOGGLE_BUTTONS)) { // FORNOW
                     result.record_me = false;
                     other.hide_toolbox = !other.hide_toolbox;
                 }
 
 
 
-                if (magic_magic(0,0,GLFW_KEY_ENTER)) { // FORNOW
+                if (magic_magic(keybinds.EXECUTE_COMMAND)) { // FORNOW
                     result.record_me = false;
                 }
 
-                if (magic_magic(0,0,DUMMY_HOTKEY)) { // FORNOW
+                if (magic_magic(KEYBIND(DUMMY_HOTKEY, 0))) { // FORNOW
                     result.record_me = false;
                 }
 
-                if (magic_magic(0,0,'\0')) { // FORNOW
+                if (magic_magic(KEYBIND(0, 0))) { // FORNOW
                     ;
                 }
 

@@ -106,6 +106,7 @@ Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
 
+#include "keybinds.cpp"
 #include "boolean.cpp"
 #include "misc.cpp"
 #include "draw.cpp"
@@ -118,6 +119,8 @@ PreviewState *preview = &other.preview;
 #include "button.cpp"
 #include "process.cpp"
 #include "script.cpp"
+
+extern Keybinds keybinds;
 
 int main() {
     { // init
@@ -140,6 +143,8 @@ int main() {
             }
         }
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+        keybinds = init_keybinds();
     }
 
     #ifdef SHIP
