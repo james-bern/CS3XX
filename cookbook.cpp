@@ -280,7 +280,6 @@ struct Cookbook {
                     real distance_second_click_center = distance(*second_click, arc.center);
                     bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
 
-
                     real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
                     real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
                     bool start_inside_circle = start_val > -TINY_VAL;
