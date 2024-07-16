@@ -44,6 +44,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     }
     bool value_to_write_to_selection_mask = (state.click_mode == ClickMode::Select);
 
+
     StandardEventProcessResult result = {};
 
     Cookbook cookbook = make_Cookbook(event, &result, skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack);
@@ -629,6 +630,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(1,0,'S')) {
                     result.record_me = false;
                     state.enter_mode = EnterMode::Save;
+                    other.awaiting_confirmation = false;
                 }
 
                 if (magic_magic(0,1,'S')) {  // this is also doing precalculations because otherwise
@@ -1814,31 +1816,49 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (state.enter_mode == EnterMode::Save) {
                 result.record_me = false;
-                popup_popup(STRING("Save"), ToolboxGroup::Drawing,
+                if (other.awaiting_confirmation) {
+                    popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Drawing, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
+                } else {
+                    popup_popup(STRING("Save"), ToolboxGroup::Drawing,
                         false,
                         CellType::String, STRING("filename"), &popup->save_filename);
+                }
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->save_filename)) {
-                        messagef(omax.pink, "FORNOW Save: overwriting \"%s\" without asking", popup->save_filename.data);
+                        
+                        if (other.awaiting_confirmation) {
+                            messagef(omax.pink, "Overwrote \"%s\"", popup->save_filename.data);
+                            if (popup->save_confirmation.data[0] == 'y') {
+                                other.awaiting_confirmation = false;
+                            } else {
+                                state.enter_mode = EnterMode::None;
+                                messagef(omax.red, "SAVE ABORTED");
+                            }
+                        } else {
+                            messagef(omax.pink, "WARNING \"%s\" already exists", popup->save_filename.data);
+                            other.awaiting_confirmation = true;
+                        }
                     }
 
-                    if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
-                        { // conversation_stl_save
-                            bool success = mesh_save_stl(mesh, popup->save_filename);
-                            ASSERT(success);
+
+                    if (!other.awaiting_confirmation) {
+                        if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
+                            { // conversation_stl_save
+                                bool success = mesh_save_stl(mesh, popup->save_filename);
+                                ASSERT(success);
+                            }
+                            state.enter_mode = EnterMode::None;
+                            messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
+                        } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
+                            {
+                                bool success = drawing_save_dxf(drawing, popup->save_filename);
+                                ASSERT(success);
+                            }
+                            state.enter_mode = EnterMode::None;
+                            messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
+                        } else {
+                            messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
                         }
-                        state.enter_mode = EnterMode::None;
-                        messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
-                    } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
-                        messagef(omax.pink, "TODO: SaveDXF");
-                        {
-                            bool success = drawing_save_dxf(drawing, popup->save_filename);
-                            ASSERT(success);
-                        }
-                        state.enter_mode = EnterMode::None;
-                        messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
-                    } else {
-                        messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
                     }
                 }
             } else if (state.enter_mode == EnterMode::Size) {

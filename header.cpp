@@ -320,6 +320,7 @@ struct PopupState {
     real scale_factor;
     _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(save_confirmation, POPUP_CELL_LENGTH);
 };
 
 struct ToolboxState {
@@ -368,6 +369,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_help;
     bool show_event_stack;
     bool hide_toolbox;
+
+    bool awaiting_confirmation;
 
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL;
