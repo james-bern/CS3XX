@@ -218,7 +218,7 @@ struct Cookbook {
 
                         if (keep_c) { F->line.end = t_cd; }
                         else        { F->line.start = t_cd; }
-                        
+
                         real theta_ab_in_degrees = DEG(angle_from_0_TAU(center, t_ab));
                         real theta_cd_in_degrees = DEG(angle_from_0_TAU(center, t_cd));
 
@@ -274,11 +274,11 @@ struct Cookbook {
                     // thats on the user though, or at least for now
                     bool all_fillets_valid = intersection.point_is_on_line_segment;
 
-                                            // if click is inside the circle when both work
+                    // if click is inside the circle when both work
                     // TODO: better check for this as a line outside of arc still says outside
                     real distance_second_click_center = distance(*second_click, arc.center);
                     bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
-                    
+
 
                     real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
                     real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
@@ -293,7 +293,7 @@ struct Cookbook {
                     if (!(start_inside_circle ^ (end_inside_circle ))) {
                         fillet_inside_circle = end_inside_circle ;
                     }
-                   
+
                     vec2 line_vector = line.end - line.start;
                     bool line_left = cross(line_vector, *second_click - line.start) < 0;
                     vec2 line_adjust = fillet_radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
@@ -359,16 +359,15 @@ struct Cookbook {
                         }
                     }
                     if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001) || ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001))) {
-                    //messagef(omax.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
-                    if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
-                        EntA->arc.start_angle_in_degrees = divide_theta;
-                    } else {
-                        EntA->arc.end_angle_in_degrees = divide_theta;
+                        //messagef(omax.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
+                        if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
+                            EntA->arc.start_angle_in_degrees = divide_theta;
+                        } else {
+                            EntA->arc.end_angle_in_degrees = divide_theta;
+                        }
                     }
-                    messagef(omax.red, "%f %f", EntA->arc.start_angle_in_degrees, EntA->arc.end_angle_in_degrees);
                 }
-                }
-                
+
             } else { // TODO: put an assert here
                 ArcEntity arc_a = E->arc;
                 ArcEntity arc_b = F->arc;
@@ -376,16 +375,16 @@ struct Cookbook {
 
                 bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
                 bool fillet_inside_arc_b = distance(arc_b.center, *second_click) < arc_b.radius;
-                
+
                 ArcEntity new_arc_a = arc_a;
                 new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * _other_fillet_radius;
-                
+
                 ArcEntity new_arc_b = arc_b;
                 new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * _other_fillet_radius;
-                
+
 
                 ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, second_click);
-                
+
                 if (!fillet_point.no_possible_intersection) {
                     vec2 fillet_center = fillet_point.point;
                     vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
