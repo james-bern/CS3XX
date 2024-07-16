@@ -187,7 +187,8 @@ Keybinds init_keybinds() {
     while (fgets(line, sizeof(line), file)) {
         char key[32];
         char value[32];
-        if (sscanf(line, "%31[^=]=%31s", key, value) == 2) {
+        if (line[0] == '#') {
+        } else if (sscanf(line, "%31[^=]=%31s", key, value) == 2) {
             if (strcmp(key, "PREVIOUS_HOT_KEY_2D") == 0) init_keybinds.PREVIOUS_HOT_KEY_2D = parse_keybind(value);
             else if (strcmp(key, "PREVIOUS_HOT_KEY_3D") == 0) init_keybinds.PREVIOUS_HOT_KEY_3D = parse_keybind(value);
             else if (strcmp(key, "DELETE_SELECTED") == 0) init_keybinds.DELETE_SELECTED = parse_keybind(value); // TODO
