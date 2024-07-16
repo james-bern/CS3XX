@@ -104,6 +104,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = click_mode_SNAP_ELIGIBLE();
 
+            bool hungry_for_hotkey = true;
             bool hotkey_recognized = false;
             auto magic_magic = [&](
                     Keybind keybind,
@@ -217,6 +218,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (key_event->_name_of_spoofing_button) result |= (name == key_event->_name_of_spoofing_button);
                 if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift);
 
+                result &= hungry_for_hotkey;
+
+                if (result) hungry_for_hotkey = false;
+
                 #if 0
                 // canned logic 
                 if (result) {
@@ -229,55 +234,54 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 return result;
             };
 
-            bool waiting_on_hotkey = true;
  
             ClickMode prev_click_mode = state.click_mode;
             EnterMode prev_enter_mode = state.enter_mode;
             { // magic_magic
 
                 if (click_mode_SNAP_ELIGIBLE()) {
-                    if (magic_magic(keybinds.END,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.END,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::End;
-                        waiting_on_hotkey = false;
+                        
                     }
 
-                    if (magic_magic(keybinds.XY,"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.XY,"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
                         if (state.click_mode != ClickMode::None) {
                             state.click_modifier = ClickModifier::XY;
-                            waiting_on_hotkey = false;
+                            
                         }
                     }
 
-                    if (magic_magic(keybinds.CENTER,"Center",false,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.CENTER,"Center",false,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Center;
-                        waiting_on_hotkey = false;
+                        
                     }
                     
-                    if (magic_magic(keybinds.MIDDLE,"Middle",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.MIDDLE,"Middle",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Middle;
-                        waiting_on_hotkey = false;
+                        
                     }
 
-                    if (magic_magic(keybinds.PERPENDICULAR,"Perpendicular",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.PERPENDICULAR,"Perpendicular",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Perpendicular;
-                        waiting_on_hotkey = false;
+                        
                     }
 
-                    if (magic_magic(keybinds.QUAD,"Quad",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.QUAD,"Quad",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Quad;
-                        waiting_on_hotkey = false;
+                        
                     }
 
-                    if (magic_magic(keybinds.ZERO,"Zero",false,ToolboxGroup::Snap) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.ZERO,"Zero",false,ToolboxGroup::Snap)) {
                         Event equivalent = {};
                         equivalent.type = EventType::Mouse;
                         equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
-                        waiting_on_hotkey = false;
+                        
                         // .mouse_position = {};
                         return _standard_event_process_NOTE_RECURSIVE(equivalent);
                     }
@@ -285,175 +289,175 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 SEPERATOR(ToolboxGroup::Drawing);
 
 
-                if (click_mode_SELECT_OR_DESELECT() && waiting_on_hotkey) {
-                    if (magic_magic(keybinds.SELECT_ALL) && waiting_on_hotkey) { 
+                if (click_mode_SELECT_OR_DESELECT()) {
+                    if (magic_magic(keybinds.SELECT_ALL)) { 
                         result.checkpoint_me = true;
                         cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
-                        waiting_on_hotkey = false;
+                        
                     }
 
-                    if (magic_magic(keybinds.CONNECTED) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.SELECT_CONNECTED)) {
                         state.click_modifier = ClickModifier::Connected;
-                        waiting_on_hotkey = false;
+                        
                     }
 
-                    if (magic_magic(keybinds.COLOR) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.COLOR)) {
                         state.click_mode = ClickMode::Color;
                         state.click_modifier = ClickModifier::None;
-                        waiting_on_hotkey = false;
+                        
                     }
                     
-                    if (magic_magic(keybinds.WINDOW_SELECT) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.SELECT_WINDOW)) {
                         state.click_modifier = ClickModifier::Window;
                         two_click_command->awaiting_second_click = false;
-                        waiting_on_hotkey = false;
+                        
                     }
                 }
 
                 { // undo
                     bool hotkey_undo_alternate = magic_magic(keybinds.UNDO_ALTERNATE);
                     bool button_undo = magic_magic(keybinds.UNDO,"Undo");
-                    if ((hotkey_undo_alternate || button_undo) && waiting_on_hotkey) {
+                    if ((hotkey_undo_alternate || button_undo)) {
                         result.record_me = false;
                         other._please_suppress_drawing_popup_popup = true;
                         history_undo();
-                        waiting_on_hotkey = false;
+                        
                     }
                 }
 
                 { // redo
                     bool hotkey_redo_alternate = magic_magic(keybinds.REDO_ALTERNATE);
                     bool button_redo = magic_magic(keybinds.REDO, "Redo");
-                    if ((hotkey_redo_alternate || button_redo) && waiting_on_hotkey) {
+                    if ((hotkey_redo_alternate || button_redo)) {
                         result.record_me = false;
                         // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
                         other._please_suppress_drawing_popup_popup = true;
                         history_redo();
-                        waiting_on_hotkey = false;
+                        
                     }
                 }
 
-                if (magic_magic(keybinds.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select) && waiting_on_hotkey) { // TODO
+                if (magic_magic(keybinds.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
                         state.click_modifier = ClickModifier::None;
-                        waiting_on_hotkey = false;
+                        
                     } else {
                         state.click_modifier = ClickModifier::Selected;
-                        waiting_on_hotkey = false;
+                        
                     }
                 }
 
-                if (magic_magic(keybinds.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.LINE,"Line",false,ToolboxGroup::Drawing,ClickMode::Line) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.LINE,"Line",false,ToolboxGroup::Drawing,ClickMode::Line)) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.CIRCLE, "Circle",false,ToolboxGroup::Drawing,ClickMode::Circle) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.CIRCLE, "Circle",false,ToolboxGroup::Drawing,ClickMode::Circle)) {
                     state.click_mode = ClickMode::Circle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
 
                 }
 
-                if (magic_magic(keybinds.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
                     state.click_mode = ClickMode::Polygon;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
 
-                if (magic_magic(keybinds.MOVE,"Move",false,ToolboxGroup::Drawing,ClickMode::Move) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.MOVE,"Move",false,ToolboxGroup::Drawing,ClickMode::Move)) {
                     state.click_mode = ClickMode::Move;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
-                if (magic_magic(keybinds.ROTATE,"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.ROTATE,"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.LINEAR_COPY,"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.LINEAR_COPY,"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy)) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.ROTATE_COPY,"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.ROTATE_COPY,"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
 
-                if (magic_magic(keybinds.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     state.click_mode = ClickMode::Fillet;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
                 
-                if (magic_magic(keybinds.POWER_FILLET,"PowerFillet",false,ToolboxGroup::Drawing,ClickMode::PowerFillet) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.POWER_FILLET,"PowerFillet",false,ToolboxGroup::Drawing,ClickMode::PowerFillet)) {
                     state.click_mode = ClickMode::PowerFillet;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"TwoClickDivide",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"TwoClickDivide",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
                     state.click_mode = ClickMode::TwoClickDivide;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.CHANGE_ORIGIN,"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.CHANGE_ORIGIN,"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin)) {
                     state.click_mode = ClickMode::Origin;
                     state.click_modifier = ClickModifier::None;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.AXIS,"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.AXIS,"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis)) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 } 
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -465,7 +469,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 ////////////////////////////////////////////////////////////////////////////////
 
-                if (magic_magic(keybinds.CYCLE_FEATURE_PLANE,"Plane",false,ToolboxGroup::Mesh) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.CYCLE_FEATURE_PLANE,"Plane",false,ToolboxGroup::Mesh)) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
                     result.checkpoint_me = true;
                     other.time_since_plane_selected = 0.0f;
@@ -478,49 +482,49 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->signed_distance_to_world_origin = 0.0f;
                         feature_plane->normal = { 0.0f, 1.0f, 0.0f };
                     }
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 SEPERATOR(ToolboxGroup::Mesh);
 
-                if (magic_magic(keybinds.EXTRUDE_ADD,"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.EXTRUDE_ADD,"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
                     state.enter_mode = EnterMode::ExtrudeAdd;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.EXTRUDE_CUT, "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.EXTRUDE_CUT, "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
                     state.enter_mode = EnterMode::ExtrudeCut;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.REVOLVE_ADD, "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.REVOLVE_ADD, "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
                     state.enter_mode = EnterMode::RevolveAdd;
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.REVOLVE_CUT, "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.REVOLVE_CUT, "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
                     state.enter_mode = EnterMode::RevolveCut;
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 SEPERATOR(ToolboxGroup::Mesh);
 
-                if (magic_magic(keybinds.NUDGE_PLANE, "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.NUDGE_PLANE, "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
                     if (feature_plane->is_active) {
                         state.enter_mode = EnterMode::NudgePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
                         messagef(omax.orange, "NudgePlane: no feature plane selected");
                     }
-                    waiting_on_hotkey = false;
+                    
                 }
 
                 ////////////////////////////////////////////////////////////////////////////////
@@ -562,78 +566,78 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(keybinds.TWO_EDGE_CIRCLE) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.TWO_EDGE_CIRCLE)) {
                     state.click_mode = ClickMode::TwoEdgeCircle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
 
-                if (magic_magic(keybinds.DIVIDE_NEAREST) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.DIVIDE_NEAREST)) {
                     state.click_mode = ClickMode::DivideNearest;
                     state.click_modifier = ClickModifier::None;
-                    waiting_on_hotkey = false;
+                    
                 }
 
 
 
-                if (magic_magic(keybinds.TOGGLE_GRID) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.TOGGLE_GRID)) {
                     result.record_me = false;
                     other.hide_grid = !other.hide_grid;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.PRINT_HISTORY) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.PRINT_HISTORY)) {
                     result.record_me = false;
                     history_printf_script();
-                    waiting_on_hotkey = false;
+                    
                 }
 
 
-                if (magic_magic(keybinds.TOGGLE_EVENT_STACK) && waiting_on_hotkey) { 
+                if (magic_magic(keybinds.TOGGLE_EVENT_STACK)) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
                     result.record_me = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.MEASURE) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.MEASURE)) {
                     result.record_me = false;
                     state.click_mode = ClickMode::Measure;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
-                if (magic_magic(keybinds.MIRROR_LINE) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.MIRROR_LINE)) {
                     state.click_mode = ClickMode::MirrorLine;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
 
-                if (magic_magic(keybinds.CLEAR_DRAWING) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.CLEAR_DRAWING)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     list_free_AND_zero(&drawing->entities);
                     *drawing = {};
                     messagef(omax.green, "ResetDXF");
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.CLEAR_MESH) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.CLEAR_MESH)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     mesh_free_AND_zero(mesh);
                     *feature_plane = {};
                     messagef(omax.green, "ResetSTL");
-                    waiting_on_hotkey = false;
+                    
                 }
 
 
-                if (magic_magic(keybinds.LOAD_FILE) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.LOAD_FILE)) {
                     state.enter_mode = EnterMode::Load;
-                    waiting_on_hotkey = false;
+                    
                 }
 
 
@@ -643,51 +647,51 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.SAVE) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.SAVE)) {
                     result.record_me = false;
                     state.enter_mode = EnterMode::Save;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.RESIZE) && waiting_on_hotkey) { 
+                if (magic_magic(keybinds.RESIZE)) { 
                     state.enter_mode = EnterMode::Size;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.MIRROR_X) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.MIRROR_X)) {
                     state.click_mode = ClickMode::MirrorX;
                     state.click_modifier = ClickModifier::None;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.DRAWING_FRAME) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.DRAWING_FRAME)) {
                     result.record_me = false;
                     init_camera_drawing();
                     init_camera_mesh();
-                    waiting_on_hotkey = false;
+                    
                 }
 
 
-                if (magic_magic(keybinds.MIRROR_Y) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.MIRROR_Y)) {
                     state.click_mode = ClickMode::MirrorY;
                     state.click_modifier = ClickModifier::None;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_2D) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_2D)) {
                     state.click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
-                    waiting_on_hotkey = false;
+                    
                     return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
                 }
 
-                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_3D) && waiting_on_hotkey) {
-                    waiting_on_hotkey = false;
+                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_3D)) {
+                    
                     return _standard_event_process_NOTE_RECURSIVE(state.shift_space_bar_event);
                 }
 
 
 
-                if (magic_magic(keybinds.TOGGLE_DRAWING_DETAILS) && waiting_on_hotkey) { 
+                if (magic_magic(keybinds.TOGGLE_DRAWING_DETAILS)) { 
                     result.record_me = false;
                     other.show_details = !other.show_details;
                     { // messagef
@@ -707,23 +711,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         messagef(omax.cyan,"Mesh has %d triangles", mesh->num_triangles);
                         messagef(omax.cyan,"Drawing has %d elements = %d lines + %d arcs", drawing->entities.length, num_lines, num_arcs);
                     }
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.TOGGLE_FEATURE_PLANE) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.TOGGLE_FEATURE_PLANE)) {
                     result.checkpoint_me = true;
                     if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.ZOOM_3D_CAMERA) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.ZOOM_3D_CAMERA)) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if ((magic_magic(keybinds.DELETE_SELECTED) || magic_magic(keybinds.DELETE_SELECTED_ALTERNATE)) && waiting_on_hotkey) {
+                if ((magic_magic(keybinds.DELETE_SELECTED) || magic_magic(keybinds.DELETE_SELECTED_ALTERNATE))) {
                     // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
@@ -733,24 +737,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             cookbook._delete_entity(i);
                         }
                     }
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.HELP_MENU) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.HELP_MENU)) {
                     result.record_me = false;
                     other.show_help = !other.show_help;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.EXIT_COMMAND) && waiting_on_hotkey) {
+                if (magic_magic(keybinds.EXIT_COMMAND)) {
                     state.enter_mode = EnterMode::None;
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
                     state.click_color_code = ColorCode::Traverse;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.TOGGLE_LIGHT_MODE) && waiting_on_hotkey) { // FORNOW
+                if (magic_magic(keybinds.TOGGLE_LIGHT_MODE)) { // FORNOW
                     result.record_me = false;
                     {
                         vec3 tmp = omax.light_gray;
@@ -767,29 +771,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         omax.yellow = omax.dark_yellow;
                         omax.dark_yellow = tmp;
                     }
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(keybinds.TOGGLE_BUTTONS) && waiting_on_hotkey) { // FORNOW
+                if (magic_magic(keybinds.TOGGLE_BUTTONS)) { // FORNOW
                     result.record_me = false;
                     other.hide_toolbox = !other.hide_toolbox;
-                    waiting_on_hotkey = false;
+                    
                 }
 
 
 
-                if (magic_magic(keybinds.EXECUTE_COMMAND) && waiting_on_hotkey) { // FORNOW
+                if (magic_magic(keybinds.EXECUTE_COMMAND)) { // FORNOW
                     result.record_me = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(KEYBIND(DUMMY_HOTKEY, 0)) && waiting_on_hotkey) { // FORNOW
+                if (magic_magic(KEYBIND(DUMMY_HOTKEY, 0))) { // FORNOW
                     result.record_me = false;
-                    waiting_on_hotkey = false;
+                    
                 }
 
-                if (magic_magic(KEYBIND(0, 0)) && waiting_on_hotkey) { // FORNOW
-                    waiting_on_hotkey = false;
+                if (magic_magic(KEYBIND(0, 0))) { // FORNOW
+                   ; 
                 }
 
                 if (!hotkey_recognized) {
@@ -812,8 +816,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             bool shift = key_event->shift;
             bool control = key_event->control;
 
+            auto keybind_pressed = [key, shift, control](Keybind keybind) -> bool {
+                bool keybind_shift = keybind.modifiers & MOD_SHIFT;
+                bool keybind_control = keybind.modifiers & MOD_CTRL;
+
+                if (false && key == GLFW_KEY_TAB) {
+                    messagef(omax.red, "key: %d %d", key, keybind.key);
+                    messagef(omax.red, "shift: %d %d", control, keybind_control);
+                    messagef(omax.red, "ctrl: %d %d", shift, keybind_shift);
+                }
+                if (key == keybind.key && shift == keybind_shift && control == keybind_control) {
+                    return true;
+                }
+
+                return false;
+            };
+
             bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
-            if (key == GLFW_KEY_TAB) {
+            if (keybind_pressed(keybinds.NEXT_POPUP_BAR)) {
                 _tab_hack_so_aliases_not_introduced_too_far_up = true;
                 uint new_active_cell_index; {
                     // FORNOW

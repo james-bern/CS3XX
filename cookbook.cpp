@@ -278,10 +278,16 @@ struct Cookbook {
                     real distance_second_click_center = distance(*second_click, arc.center);
                     bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
                     
-                    bool start_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)) > 0;
-                    bool end_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end)) > 0;
-                    if (!(start_inside_circle ^ end_inside_circle)) {
-                        fillet_inside_circle = end_inside_circle;
+                    if (IS_ZERO(distance(line.start, intersection.point))) {
+                    }
+
+                    real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
+                    real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
+                    bool start_inside_circle = start_val > -TINY_VAL;
+                    bool end_inside_circle = end_val > -TINY_VAL;
+                    messagef(omax.red, "%f %f", start_val, end_val);
+                    if (!(start_inside_circle ^ (end_inside_circle || start_inside_circle))) {
+                        fillet_inside_circle = end_inside_circle || start_inside_circle;
                     }
                    
                     vec2 line_vector = line.end - line.start;
