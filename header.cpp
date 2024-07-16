@@ -395,6 +395,9 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     real time_since_plane_deselected;
     real time_since_going_inside;
 
+    String currently_open_stl;
+    String currently_open_dxf;
+
     PreviewState preview;
 
 };

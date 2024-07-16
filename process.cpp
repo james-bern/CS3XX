@@ -1795,6 +1795,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             state.enter_mode = EnterMode::None;
                             messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
+                            other.currently_open_dxf = popup->load_filename;
                         } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
                             result.record_me = true;
                             result.checkpoint_me = true;
@@ -1807,6 +1808,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             state.enter_mode = EnterMode::None;
                             messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
+                            other.currently_open_stl = popup->load_filename;
                         } else {
                             messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->load_filename.data);
                         }
@@ -1825,8 +1827,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
                 if (gui_key_enter) {
                     if (FILE_EXISTS(popup->save_filename)) {
-                        
-                        if (other.awaiting_confirmation) {
+                        if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
+                        } else if (other.awaiting_confirmation) {
                             messagef(omax.pink, "Overwrote \"%s\"", popup->save_filename.data);
                             if (popup->save_confirmation.data[0] == 'y') {
                                 other.awaiting_confirmation = false;

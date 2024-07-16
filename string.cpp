@@ -33,6 +33,15 @@ bool string_matches_suffix(String string, char *prefix) {
     return string_matches_suffix(string, STRING(prefix));
 }
 
+bool string_equal(String string1, String string2) {
+    if (string1.length != string2.length) return false;
+
+    for_(i, string1.length) {
+        if (string1.data[i] != string2.data[i]) return false;
+    }
+    return true;
+}
+
 real strtof(String string) { // FORNOW
     static char cstring[4096];
     memset(cstring, 0, sizeof(cstring));
