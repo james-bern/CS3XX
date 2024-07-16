@@ -81,6 +81,7 @@ struct Keybinds {
     Keybind ROTATE;
     Keybind ROTATE_COPY;
     Keybind SAVE;
+    Keybind SAVE_AS;
     Keybind SELECT;
     Keybind TOGGLE_BUTTONS;
     Keybind TOGGLE_DRAWING_DETAILS;
@@ -167,6 +168,7 @@ Keybinds default_values() {
     SET_DEFAULT(ROTATE, 'R', 0b000); 
     SET_DEFAULT(ROTATE_COPY, 'R', 0b010); 
     SET_DEFAULT(SAVE, 'S', 0b001); 
+    SET_DEFAULT(SAVE_AS, 'S', 0b011); 
     SET_DEFAULT(SELECT, 'S', 0b000); 
     SET_DEFAULT(TOGGLE_BUTTONS, TAB, 0b010); 
     SET_DEFAULT(TOGGLE_DRAWING_DETAILS, '.', 0b000); 
@@ -316,6 +318,7 @@ Keybinds init_keybinds() {
             ELIF(ROTATE);
             ELIF(ROTATE_COPY);
             ELIF(SAVE);
+            ELIF(SAVE_AS);
             ELIF(SELECT);
             ELIF(TOGGLE_BUTTONS);
             ELIF(TOGGLE_DRAWING_DETAILS);
