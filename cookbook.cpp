@@ -1,3 +1,5 @@
+
+
 struct Cookbook {
     Event event;
     StandardEventProcessResult *result;
@@ -252,7 +254,6 @@ struct Cookbook {
                 // this is only checking for the 
                 LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, second_click);
 
-                messagef(omax.green, "%d\n", intersection.no_possible_intersection);
                 if (!intersection.no_possible_intersection) {
                     // Now have to decide which of the 4 possible fillets to do
                     // This currently only depends on the line as the arc can  
@@ -278,10 +279,19 @@ struct Cookbook {
                     real distance_second_click_center = distance(*second_click, arc.center);
                     bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
                     
-                    bool start_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)) > 0;
-                    bool end_inside_circle = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end)) > 0;
-                    if (!(start_inside_circle ^ end_inside_circle)) {
-                        fillet_inside_circle = end_inside_circle;
+
+                    real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
+                    real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
+                    bool start_inside_circle = start_val > -TINY_VAL;
+                    bool end_inside_circle = end_val > -TINY_VAL;
+                    if (abs(distance(intersection.point, line.start)) < 0.001f) {
+                        start_inside_circle = end_inside_circle;
+                    }
+                    if (abs(distance(intersection.point, line.end)) < 0.001f) {
+                        end_inside_circle = start_inside_circle;
+                    }
+                    if (!(start_inside_circle ^ (end_inside_circle ))) {
+                        fillet_inside_circle = end_inside_circle ;
                     }
                    
                     vec2 line_vector = line.end - line.start;
@@ -348,11 +358,15 @@ struct Cookbook {
                             fillet_middle_arc += 1.0f;
                         }
                     }
+                    if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001) || ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001))) {
+                    //messagef(omax.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
                     if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
                         EntA->arc.start_angle_in_degrees = divide_theta;
                     } else {
                         EntA->arc.end_angle_in_degrees = divide_theta;
                     }
+                    messagef(omax.red, "%f %f", EntA->arc.start_angle_in_degrees, EntA->arc.end_angle_in_degrees);
+                }
                 }
                 
             } else { // TODO: put an assert here
