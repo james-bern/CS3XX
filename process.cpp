@@ -273,7 +273,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         waiting_on_hotkey = false;
                     }
 
-                    if (magic_magic(keybinds.ORIGIN,"Zero",false,ToolboxGroup::Snap) && waiting_on_hotkey) {
+                    if (magic_magic(keybinds.ZERO,"Zero",false,ToolboxGroup::Snap) && waiting_on_hotkey) {
                         Event equivalent = {};
                         equivalent.type = EventType::Mouse;
                         equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;

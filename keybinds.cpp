@@ -73,7 +73,7 @@ struct Keybinds {
     Keybind MIRROR_Y;
     Keybind MIRROR_LINE;
     Keybind CYCLE_FEATURE_PLANE;
-    Keybind ORIGIN;
+    Keybind ZERO;
     Keybind CHANGE_ORIGIN;
     Keybind SELECT_ALL;
 };
@@ -144,7 +144,7 @@ Keybinds default_values() {
     default_keybinds.MIRROR_Y = { 'Y', 0b010 };
     default_keybinds.MIRROR_LINE = { 'M', 0b011 };
     default_keybinds.CYCLE_FEATURE_PLANE = { 'Y', 0b000 };
-    default_keybinds.ORIGIN = { 'Z', 0b000 };
+    default_keybinds.ZERO = { 'Z', 0b000 };
     default_keybinds.CHANGE_ORIGIN = { 'Z', 0b010 };
     default_keybinds.SELECT_ALL = { 'A', 0b000 };
 
@@ -250,7 +250,7 @@ Keybinds init_keybinds() {
             else if (strcmp(key, "MIRROR_Y") == 0) init_keybinds.MIRROR_Y = parse_keybind(value);
             else if (strcmp(key, "MIRROR_LINE") == 0) init_keybinds.MIRROR_LINE = parse_keybind(value);
             else if (strcmp(key, "CYCLE_FEATURE_PLANE") == 0) init_keybinds.CYCLE_FEATURE_PLANE = parse_keybind(value);
-            else if (strcmp(key, "ORIGIN") == 0) init_keybinds.ORIGIN = parse_keybind(value);
+            else if (strcmp(key, "ZERO") == 0) init_keybinds.ZERO = parse_keybind(value);
             else if (strcmp(key, "CHANGE_ORIGIN") == 0) init_keybinds.CHANGE_ORIGIN = parse_keybind(value);
             else if (strcmp(key, "SELECT_ALL") == 0) init_keybinds.SELECT_ALL = parse_keybind(value);
         }
