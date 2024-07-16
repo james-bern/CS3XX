@@ -236,29 +236,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EnterMode prev_enter_mode = state.enter_mode;
             { // magic_magic
 
-                { // undo
-                    bool hotkey_undo_alternate = magic_magic(keybinds.UNDO_ALTERNATE);
-                    bool button_undo = magic_magic(keybinds.UNDO,"Undo");
-                    if ((hotkey_undo_alternate || button_undo) && waiting_on_hotkey) {
-                        result.record_me = false;
-                        other._please_suppress_drawing_popup_popup = true;
-                        history_undo();
-                        waiting_on_hotkey = false;
-                    }
-                }
-
-                { // redo
-                    bool hotkey_redo_alternate = magic_magic(keybinds.REDO_ALTERNATE);
-                    bool button_redo = magic_magic(keybinds.REDO, "Redo");
-                    if ((hotkey_redo_alternate || button_redo) && waiting_on_hotkey) {
-                        result.record_me = false;
-                        // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
-                        other._please_suppress_drawing_popup_popup = true;
-                        history_redo();
-                        waiting_on_hotkey = false;
-                    }
-                }
-
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(keybinds.END,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End) && waiting_on_hotkey) {
                         result.record_me = false;
@@ -308,21 +285,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select) && waiting_on_hotkey) { // TODO
-                    if (state.click_mode != ClickMode::Color) {
-                        state.click_mode = ClickMode::Select;
-                        state.click_modifier = ClickModifier::None;
-                        waiting_on_hotkey = false;
-                    } else {
-                        state.click_modifier = ClickModifier::Selected;
-                        waiting_on_hotkey = false;
-                    }
-                }
-                if (magic_magic(keybinds.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect) && waiting_on_hotkey) {
-                    state.click_mode = ClickMode::Deselect;
-                    state.click_modifier = ClickModifier::None;
-                    waiting_on_hotkey = false;
-                }
 
                 if (click_mode_SELECT_OR_DESELECT() && waiting_on_hotkey) {
                     if (magic_magic(keybinds.SELECT_ALL) && waiting_on_hotkey) { 
@@ -351,6 +313,45 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
+                { // undo
+                    bool hotkey_undo_alternate = magic_magic(keybinds.UNDO_ALTERNATE);
+                    bool button_undo = magic_magic(keybinds.UNDO,"Undo");
+                    if ((hotkey_undo_alternate || button_undo) && waiting_on_hotkey) {
+                        result.record_me = false;
+                        other._please_suppress_drawing_popup_popup = true;
+                        history_undo();
+                        waiting_on_hotkey = false;
+                    }
+                }
+
+                { // redo
+                    bool hotkey_redo_alternate = magic_magic(keybinds.REDO_ALTERNATE);
+                    bool button_redo = magic_magic(keybinds.REDO, "Redo");
+                    if ((hotkey_redo_alternate || button_redo) && waiting_on_hotkey) {
+                        result.record_me = false;
+                        // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
+                        other._please_suppress_drawing_popup_popup = true;
+                        history_redo();
+                        waiting_on_hotkey = false;
+                    }
+                }
+
+                if (magic_magic(keybinds.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select) && waiting_on_hotkey) { // TODO
+                    if (state.click_mode != ClickMode::Color) {
+                        state.click_mode = ClickMode::Select;
+                        state.click_modifier = ClickModifier::None;
+                        waiting_on_hotkey = false;
+                    } else {
+                        state.click_modifier = ClickModifier::Selected;
+                        waiting_on_hotkey = false;
+                    }
+                }
+
+                if (magic_magic(keybinds.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect) && waiting_on_hotkey) {
+                    state.click_mode = ClickMode::Deselect;
+                    state.click_modifier = ClickModifier::None;
+                    waiting_on_hotkey = false;
+                }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
