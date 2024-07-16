@@ -75,6 +75,7 @@ struct Keybinds {
     Keybind CYCLE_FEATURE_PLANE;
     Keybind ORIGIN;
     Keybind CHANGE_ORIGIN;
+    Keybind SELECT_ALL;
 };
 
 Keybinds keybinds;
@@ -145,6 +146,7 @@ Keybinds default_values() {
     default_keybinds.CYCLE_FEATURE_PLANE = { 'Y', 0b000 };
     default_keybinds.ORIGIN = { 'Z', 0b000 };
     default_keybinds.CHANGE_ORIGIN = { 'Z', 0b010 };
+    default_keybinds.SELECT_ALL = { 'A', 0b000 };
 
     return default_keybinds;
 }
@@ -249,6 +251,7 @@ Keybinds init_keybinds() {
             else if (strcmp(key, "CYCLE_FEATURE_PLANE") == 0) init_keybinds.CYCLE_FEATURE_PLANE = parse_keybind(value);
             else if (strcmp(key, "ORIGIN") == 0) init_keybinds.ORIGIN = parse_keybind(value);
             else if (strcmp(key, "CHANGE_ORIGIN") == 0) init_keybinds.CHANGE_ORIGIN = parse_keybind(value);
+            else if (strcmp(key, "SELECT_ALL") == 0) init_keybinds.SELECT_ALL = parse_keybind(value);
         }
     }
 
