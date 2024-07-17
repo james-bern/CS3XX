@@ -9,6 +9,7 @@ enum class EnterMode {
     RevolveAdd,
     RevolveCut,
     Save,
+    SaveAs,
     Size,
 };
 

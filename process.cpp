@@ -654,6 +654,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     other.awaiting_confirmation = false;
                 }
 
+                if (magic_magic(keybinds.SAVE_AS)) {
+                    result.record_me = false;
+                    state.enter_mode = EnterMode::SaveAs;
+                    other.awaiting_confirmation = false;
+                }
+
                 if (magic_magic(keybinds.RESIZE)) { 
                     state.enter_mode = EnterMode::Size;
                     
@@ -1854,7 +1860,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
                     }
                 }
-            } else if (state.enter_mode == EnterMode::Save) {
+            } else if (state.enter_mode == EnterMode::Save || state.enter_mode == EnterMode::SaveAs) {
+                if (state.enter_mode == EnterMode::Save) {
+                    if (true) {}
+                }
                 result.record_me = false;
                 if (other.awaiting_confirmation) {
                     popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Drawing, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
