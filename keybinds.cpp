@@ -68,6 +68,7 @@ struct Keybinds {
     Keybind MOVE;
     Keybind NEXT_POPUP_BAR;
     Keybind NUDGE_PLANE;
+    Keybind OFFSET;
     Keybind POLYGON;
     Keybind POWER_FILLET;
     Keybind PREVIOUS_HOT_KEY_2D;
@@ -165,6 +166,7 @@ Keybinds default_values() {
     SET_DEFAULT(MIRROR_Y, 'Y', 0b010); 
     SET_DEFAULT(MOVE, 'M', 0b000); 
     SET_DEFAULT(NUDGE_PLANE, 'N', 0b000); 
+    SET_DEFAULT(OFFSET, 'J', 0b000); 
     SET_DEFAULT(POLYGON, 'P', 0b000); 
     SET_DEFAULT(POWER_FILLET, 'F', 0b010); 
     SET_DEFAULT(PREVIOUS_HOT_KEY_2D, ' ', 0b000); 
@@ -324,6 +326,7 @@ Keybinds init_keybinds() {
             ELIF(MOVE);
             ELIF(NEXT_POPUP_BAR);
             ELIF(NUDGE_PLANE);
+            ELIF(OFFSET);
             ELIF(POLYGON);
             ELIF(POWER_FILLET);
             ELIF(PREVIOUS_HOT_KEY_2D);

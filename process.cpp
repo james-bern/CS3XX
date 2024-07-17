@@ -1760,7 +1760,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     vec2 end_point = entity_get_end_point(entity);
                                     vec2 perp_end = perpendicularTo(end_point - arc->center);
                                     vec2 perp_start = perpendicularTo(start_point - arc->center);
-                                    LineLineXResult sector_result = burkardt_line_line_intersection(end_point,
+                                    LineLineXResult sector_result = line_line_intersection(end_point,
                                                                                          end_point + perp_end,
                                                                                          start_point,
                                                                                          start_point + perp_start);
@@ -2268,8 +2268,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (state.click_mode == ClickMode::Offset) {
-                popup_popup(false,
-                        CellType::Real, STRING("offset_size"), &popup->offset_size);
+                popup_popup(STRING("Offset"), ToolboxGroup::Drawing,
+                        false,
+                        CellType::Real, STRING("distance"), &popup->offset_size);
             } else if (state.click_mode == ClickMode::Fillet) {
                 popup_popup(STRING("Fillet"), ToolboxGroup::Drawing,
                         false,

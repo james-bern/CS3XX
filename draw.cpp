@@ -698,8 +698,10 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::LinearCopy)     ? "LinearCopy"      :
                 (state.click_mode == ClickMode::Measure)        ? "Measure"         :
                 (state.click_mode == ClickMode::Move)           ? "Move"            :
+                (state.click_mode == ClickMode::Offset)         ? "Offset"          :
                 (state.click_mode == ClickMode::Origin)         ? "Origin"          :
                 (state.click_mode == ClickMode::Polygon)        ? "Polygon"         :
+                (state.click_mode == ClickMode::PowerFillet)    ? "PowerFillet"     :
                 (state.click_mode == ClickMode::Select)         ? "Select"          :
                 (state.click_mode == ClickMode::Rotate)         ? "Rotate"          :
                 (state.click_mode == ClickMode::RotateCopy)     ? "RotateCopy"      :
@@ -816,6 +818,7 @@ void conversation_draw() {
         PRINT_KEYBIND(&pen2, MOVE);
         PRINT_KEYBIND(&pen2, NEXT_POPUP_BAR);
         PRINT_KEYBIND(&pen2, NUDGE_PLANE);
+        PRINT_KEYBIND(&pen2, OFFSET);
         PRINT_KEYBIND(&pen2, POLYGON);
         PRINT_KEYBIND(&pen2, POWER_FILLET);
         PRINT_KEYBIND(&pen2, PREVIOUS_HOT_KEY_2D);
