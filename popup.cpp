@@ -19,7 +19,7 @@ void popup_popup(
     //     messagef(omax.pink, "NOTE: popup_popup() can be called multiple times per popup per frame");
     // };
 
-    popup->_popup_actually_called_this_event = true;
+    popup->tags.register_call_to_popup_popup(group);
 
     CellType popup_cell_type[POPUP_MAX_NUM_CELLS];
     String popup_name[POPUP_MAX_NUM_CELLS];
@@ -123,10 +123,26 @@ void popup_popup(
 
     bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup);
 
-    bool group_is_active = (group == popup->active_toolbox_group);
+    if (popup->tags.get(group) != _name0.data) {
+        popup->tags.set(group, _name0.data);
+        popup->tags.focus_group = group;
+        { // load up
+            if (zero_on_load_up) {
+                POPUP_CLEAR_ALL_VALUES_TO_ZERO();
+            }
+            popup->active_cell_index = 0;
+            POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+            popup->cursor = popup->active_cell_buffer.length;
+            popup->selection_cursor = 0;
+            popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
+        }
+    }
 
+    bool group_is_active = (group == popup->tags.focus_group);
 
-
+    if (group_is_active) {
+        POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
+    }
     if (group_is_active) { // event handling
         Event *event = &global_event_being_processed;
         if (event->type == EventType::Key) {
@@ -281,24 +297,6 @@ void popup_popup(
     }
 
 
-    // LOADING UP ///////////////////////////////////////////////////
-
-    if (group_is_active) {
-        if (popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 != _name0.data) {
-            popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = _name0.data;
-            if (zero_on_load_up) {
-                POPUP_CLEAR_ALL_VALUES_TO_ZERO();
-            }
-            popup->active_cell_index = 0;
-            POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
-            popup->cursor = popup->active_cell_buffer.length;
-            popup->selection_cursor = 0;
-            popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
-        }
-
-        POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
-    }
-
     /////////////////////////////////////////////
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
@@ -308,7 +306,7 @@ void popup_popup(
     vec3 lighter_gray;
     vec3 darker_gray;
     {
-        if (group == popup->active_toolbox_group) {
+        if (group_is_active) {
             accent_color = get_accent_color(group);
             lighter_gray = omax.white;
             darker_gray = omax.light_gray;

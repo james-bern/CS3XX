@@ -256,27 +256,72 @@ struct TwoClickCommandState {
     Entity *entity_closest_to_first_click;
 };
 
+
+struct PopupTags {
+    ToolboxGroup focus_group; // <--
+    char *_name0_tag_by_group[uint(ToolboxGroup::NUMBER_OF)];
+    bool _popup_popup_called_this_process[uint(ToolboxGroup::NUMBER_OF)]; // FORNOW
+
+    char *get(ToolboxGroup group) {
+        return _name0_tag_by_group[uint(group)];
+    }
+
+    void set(ToolboxGroup group, char *RHS) {
+        _name0_tag_by_group[uint(group)] = RHS;
+    }
+
+    void begin_popup_popup_block() {
+        memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));
+    }
+
+    void register_call_to_popup_popup(ToolboxGroup group) {
+        _popup_popup_called_this_process[uint(group)] = true;
+    }
+
+    void end_popup_popup_block() {
+        // if not called, clear tag to zero
+        for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
+            if (!_popup_popup_called_this_process[i]) {
+                _name0_tag_by_group[i] = NULL;
+            }
+        }
+
+        // compare tags, if focus_group's tag is now None, change the focus group
+        // (TODO: fall down the precedence heirarchy; FORNOW: setting to None)
+        if (focus_group != ToolboxGroup::None) {
+            if (get(focus_group) == NULL) {
+                focus_group = ToolboxGroup::None;
+            }
+        }
+    }
+
+};
+
+
 #define POPUP_MAX_NUM_CELLS 5
 #define POPUP_CELL_LENGTH 256
 struct PopupState {
     _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
-    ToolboxGroup active_toolbox_group = ToolboxGroup::Drawing;
+    PopupTags tags;
+
+
+    bool a_popup_from_this_group_was_already_called_this_frame[uint(ToolboxGroup::NUMBER_OF)];
+    // TODO bool process_already_ran_this_frame_dont_draw_anymore_popups;
+
     uint active_cell_index;
     uint cursor;
     uint selection_cursor;
 
     CellType _type_of_active_cell;
-    char *_FORNOW_active_popup_unique_ID__FORNOW_name0;
+    // char *_FORNOW_active_popup_unique_ID__FORNOW_name0;
 
-    bool _popup_actually_called_this_event; // FORNOW
 
     bool _FORNOW_info_mouse_is_hovering;
     uint info_hover_cell_index;
     uint info_hover_cell_cursor;
     uint info_active_cell_cursor;
 
-    bool a_popup_from_this_group_was_already_called_this_frame[uint(ToolboxGroup::NUMBER_OF)];
 
 
     // TODO: move this information into popup
