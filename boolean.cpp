@@ -2,6 +2,7 @@ bool click_mode_SNAP_ELIGIBLE() {
     return 0
         || (state.click_mode == ClickMode::Axis)
         || (state.click_mode == ClickMode::Box)
+        || (state.click_mode == ClickMode::CenteredBox)
         || (state.click_mode == ClickMode::Circle)
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::LinearCopy)

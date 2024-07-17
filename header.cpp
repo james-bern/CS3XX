@@ -28,6 +28,7 @@ enum class ClickMode {
     None,
     Axis,
     Box,
+    CenteredBox,
     Circle,
     Color,
     Deselect,

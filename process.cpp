@@ -381,6 +381,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
+                if (magic_magic(keybinds.CENTERED_BOX,"CenteredBox",false,ToolboxGroup::Drawing,ClickMode::CenteredBox)) {
+                    state.click_mode = ClickMode::CenteredBox;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
+
+                }
+
+
                 if (magic_magic(keybinds.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
                     state.click_mode = ClickMode::Polygon;
                     state.click_modifier = ClickModifier::None;
@@ -984,6 +992,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             bool click_mode_TWO_CLICK_COMMAND = 0 ||
                 (state.click_mode == ClickMode::Axis) ||
                 (state.click_mode == ClickMode::Box) ||
+                (state.click_mode == ClickMode::CenteredBox) ||
                 (state.click_mode == ClickMode::Circle) ||
                 (state.click_mode == ClickMode::Fillet) ||
                 (state.click_mode == ClickMode::Line) ||
@@ -1236,6 +1245,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(*first_click,  other_corner_B);
                                 cookbook.buffer_add_line(*second_click, other_corner_A);
                                 cookbook.buffer_add_line(*second_click, other_corner_B);
+                            }
+                        } else if (state.click_mode == ClickMode::CenteredBox) {
+                            if (IS_ZERO(ABS(first_click->x - second_click->x))) {
+                                messagef(omax.orange, "Box: must have non-zero width ");
+                            } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
+                                messagef(omax.orange, "Box: must have non-zero height");
+                            } else {
+                                // two_click_command->awaiting_second_click = false;
+                                result.checkpoint_me = true;
+                                state.click_mode = ClickMode::None;
+                                state.click_modifier = ClickModifier::None;
+                                vec2 one_corner = *second_click;
+                                vec2 center = *first_click;
+                                real other_y = 2 * center.y - one_corner.y;
+                                real other_x = 2 * center.x - one_corner.x;
+                                cookbook.buffer_add_line(one_corner, V2(one_corner.x, other_y));
+                                cookbook.buffer_add_line(V2(one_corner.x, other_y),  V2(other_x, other_y));
+                                cookbook.buffer_add_line(V2(other_x, other_y), V2(other_x, one_corner.y));
+                                cookbook.buffer_add_line(V2(other_x, one_corner.y), one_corner);
                             }
                         } else if (state.click_mode == ClickMode::Fillet) {
                             result.checkpoint_me = true;
@@ -2159,6 +2187,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("height"), &popup->box_height);
                     if (gui_key_enter) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
+                    }
+                }
+            } else if (state.click_mode == ClickMode::CenteredBox) {
+                if (two_click_command->awaiting_second_click) {
+                    popup_popup(STRING("CenteredBox"), ToolboxGroup::Drawing,
+                            true,
+                            CellType::Real, STRING("width"), &popup->box_width,
+                            CellType::Real, STRING("height"), &popup->box_height);
+                    if (gui_key_enter) {
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width / 2.0f, first_click->y + popup->box_height / 2.0f));
                     }
                 }
             } else if (state.click_mode == ClickMode::Move) {

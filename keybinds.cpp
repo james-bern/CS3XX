@@ -11,6 +11,19 @@ struct Keybind {
     unsigned char modifiers;    // 00000    0    0    0
 };                              //         ALT SHIFT CTRL
 
+
+/////////// TODO TODO TODO /////////////
+//                                    // 
+//    PROCESS FOR ADDING A KEYBIND    //
+//      1. add it in struct           //
+//      2. set default value          //
+//      3. set custom keybinding      //
+//      4. add to help menu           //
+//                                    //
+////////////////////////////////////////
+
+
+
 struct Keybinds {
 
     //////////////////////////////////////////
@@ -42,6 +55,7 @@ struct Keybinds {
 
     Keybind AXIS;
     Keybind BOX;
+    Keybind CENTERED_BOX;
     Keybind CHANGE_ORIGIN;
     Keybind CIRCLE;
     Keybind CLEAR_DRAWING;
@@ -143,6 +157,7 @@ Keybinds default_values() {
 
     SET_DEFAULT(AXIS, 'A', 0b000); 
     SET_DEFAULT(BOX, 'B', 0b000); 
+    SET_DEFAULT(CENTERED_BOX, 'B', 0b010); 
     SET_DEFAULT(CHANGE_ORIGIN, 'Z', 0b010); 
     SET_DEFAULT(CIRCLE, 'C', 0b000); 
     SET_DEFAULT(CLEAR_DRAWING, 'N', 0b001); 
@@ -301,6 +316,7 @@ Keybinds init_keybinds() {
 
             ELIF(AXIS);
             ELIF(BOX);
+            ELIF(CENTERED_BOX);
             ELIF(CHANGE_ORIGIN);
             ELIF(CIRCLE);
             ELIF(CLEAR_DRAWING);

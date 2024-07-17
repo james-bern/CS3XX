@@ -334,6 +334,19 @@ void conversation_draw() {
                     eso_vertex(first_click->x, mouse.y);
                     eso_end();
                 }
+                if (state.click_mode == ClickMode::CenteredBox) {                
+                    vec2 one_corner = mouse;
+                    vec2 center = *first_click;
+                    real other_y = 2 * center.y - one_corner.y;
+                    real other_x = 2 * center.x - one_corner.x;
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(basic.cyan);
+                    eso_vertex(one_corner);
+                    eso_vertex(V2(one_corner.x, other_y));
+                    eso_vertex(V2(other_x, other_y));
+                    eso_vertex(V2(other_x, one_corner.y));
+                    eso_end();
+                }
                 if (state.click_mode == ClickMode::Measure) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
@@ -690,6 +703,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::None)           ? ""                :
                 (state.click_mode == ClickMode::Axis)           ? "Axis"            :
                 (state.click_mode == ClickMode::Box)            ? "Box"             :
+                (state.click_mode == ClickMode::CenteredBox)    ? "CenteredBox"     :
                 (state.click_mode == ClickMode::Circle)         ? "Circle"          :
                 (state.click_mode == ClickMode::Color)          ? "Color"           :
                 (state.click_mode == ClickMode::Deselect)       ? "Deselect"        :
