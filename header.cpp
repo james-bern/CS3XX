@@ -287,10 +287,17 @@ struct PopupTags {
         }
 
         // compare tags, if focus_group's tag is now None, change the focus group
-        // (TODO: fall down the precedence heirarchy; FORNOW: setting to None)
+        // (TODO: stack; FORNOW: fall down the precedence heirarchy)
         if (focus_group != ToolboxGroup::None) {
             if (get(focus_group) == NULL) {
                 focus_group = ToolboxGroup::None;
+                for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
+                    ToolboxGroup group = ToolboxGroup(i);
+                    if (get(group) != NULL) {
+                        focus_group = group;
+                        // break; // INTENTIONAL TO COMMENT OUT (sloppy reversal of precedence heirarchy)
+                    }
+                }
             }
         }
     }

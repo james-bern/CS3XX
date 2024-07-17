@@ -471,6 +471,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(0,0,'X',"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
+                        popup->tags.focus_group = ToolboxGroup::Snap;
                         if (state.click_mode != ClickMode::None) {
                             state.click_modifier = ClickModifier::XY;
                         }
@@ -759,10 +760,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     if (magic_magic(0,0,GLFW_KEY_ESCAPE)) {
-                        state.enter_mode = EnterMode::None;
-                        state.click_mode = ClickMode::None;
-                        state.click_modifier = ClickModifier::None;
-                        state.click_color_code = ColorCode::Traverse;
+                        do_once { messagef(omax.orange, "ESCAPE maybe sus."); };
+                        if (popup->tags.focus_group == ToolboxGroup::Drawing) {
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            state.click_color_code = ColorCode::Traverse;
+                        } else if (popup->tags.focus_group == ToolboxGroup::Mesh) {
+                            state.enter_mode = EnterMode::None;
+                        } else if (popup->tags.focus_group == ToolboxGroup::Snap) {
+                            state.click_modifier = ClickModifier::None;
+                        } else {
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            state.click_color_code = ColorCode::Traverse;
+                            state.enter_mode = EnterMode::None;
+                        }
                     }
 
                     if (magic_magic(1,1,'H')) { // FORNOW
@@ -787,6 +799,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (magic_magic(0,1,GLFW_KEY_TAB)) { // FORNOW
                         result.record_me = false;
                         other.hide_toolbox = !other.hide_toolbox;
+                    }
+                    
+                    do_once { messagef(omax.orange, "CTRL+TAB to cycle through popups"); };
+                    if (magic_magic(1,0,GLFW_KEY_TAB)) { // FORNOW
+                        messagef(omax.green,
+                                "asdf");
                     }
 
 
@@ -1868,26 +1886,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         popup->tags.begin_popup_popup_block();
 
         { // popup_popup
-            bool gui_key_enter; {
-                gui_key_enter = false;
+            bool _gui_key_enter; {
+                _gui_key_enter = false;
                 if (event.type == EventType::Key) {
                     KeyEvent *key_event = &event.key_event;
                     if (key_event->subtype == KeyEventSubtype::Popup) {
-                        gui_key_enter = (key_event->key == GLFW_KEY_ENTER);
+                        _gui_key_enter = (key_event->key == GLFW_KEY_ENTER);
                     }
                 }
             }
+
+            auto gui_key_enter = [&](ToolboxGroup group) {
+                return (_gui_key_enter && (group == popup->tags.focus_group));
+            };
+
 
 
             { // Snap
                 if (state.click_modifier == ClickModifier::XY) {
                     // sus calling this a modifier but okay; make sure it's first or else bad bad
-                    popup->tags.focus_group = ToolboxGroup::Snap;
                     popup_popup(STRING("XY"), ToolboxGroup::Snap,
                             true,
                             CellType::Real, STRING("x"), &popup->x_coordinate,
                             CellType::Real, STRING("y"), &popup->y_coordinate);
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Snap)) {
                         state.click_modifier = ClickModifier::None;
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
                     }
@@ -1906,7 +1928,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 CellType::Real, STRING("diameter"), &popup->circle_diameter,
                                 CellType::Real, STRING("radius"), &popup->circle_radius,
                                 CellType::Real, STRING("circumference"), &popup->circle_circumference);
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
                         } else {
                             if (prev_circle_diameter != popup->circle_diameter) {
@@ -1936,7 +1958,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 CellType::Real, STRING("dx"), &popup->line_run,
                                 CellType::Real, STRING("dy"), &popup->line_rise
                                 );
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
                         } else {
                             if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
@@ -1954,7 +1976,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 true,
                                 CellType::Real, STRING("width"), &popup->box_width,
                                 CellType::Real, STRING("height"), &popup->box_height);
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
                         }
                     }
@@ -1971,7 +1993,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 CellType::Real, STRING("angle"), &popup->move_angle,
                                 CellType::Real, STRING("dx"), &popup->move_run,
                                 CellType::Real, STRING("dy"), &popup->move_rise);
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
                         } else {
                             if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
@@ -1989,7 +2011,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 true,
                                 CellType::Real, STRING("angle"), &popup->rotate_angle
                                 );
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(*first_click + e_theta(RAD(popup->rotate_angle))));
                         }
                     }
@@ -2002,7 +2024,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
                                 CellType::Real, STRING("angle"), &popup->rotate_copy_angle
                                 );
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
                         } else {
                             if (prev_rotate_copy_angle_in_degrees != popup->rotate_copy_angle) {
@@ -2025,7 +2047,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 CellType::Real, STRING("angle"), &popup->linear_copy_angle,
                                 CellType::Real, STRING("dx"), &popup->linear_copy_run,
                                 CellType::Real, STRING("dy"), &popup->linear_copy_rise);
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->linear_copy_run, first_click->y + popup->linear_copy_rise));
                         } else {
                             if ((prev_linear_copy_length != popup->linear_copy_length) || (prev_linear_copy_angle != popup->linear_copy_angle)) {
@@ -2049,7 +2071,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner,
                                 CellType::Real, STRING("distance_to_side"), &popup->polygon_distance_to_side,
                                 CellType::Real, STRING("side_length"), &popup->polygon_side_length);
-                        if (gui_key_enter) {
+                        if (gui_key_enter(ToolboxGroup::Drawing)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
                         } else {
                             if (prev_polygon_distance_to_corner != popup->polygon_distance_to_corner) {
@@ -2076,7 +2098,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup_popup(STRING("Load"), ToolboxGroup::Drawing,
                             false,
                             CellType::String, STRING("filename"), &popup->load_filename);
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (FILE_EXISTS(popup->load_filename)) {
                             if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
                                 result.record_me = true;
@@ -2121,7 +2143,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup_popup(STRING("Save"), ToolboxGroup::Drawing,
                             false,
                             CellType::String, STRING("filename"), &popup->save_filename);
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (FILE_EXISTS(popup->save_filename)) {
                             messagef(omax.pink, "FORNOW Save: overwriting \"%s\" without asking", popup->save_filename.data);
                         }
@@ -2144,7 +2166,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup_popup(STRING("Size"), ToolboxGroup::Drawing,
                             false,
                             CellType::Real, STRING("scale factor"), &popup->scale_factor);
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!IS_ZERO(popup->scale_factor)) {
                             bbox2 bbox = entities_get_bbox(&drawing->entities, true);
                             vec2 bbox_center = AVG(bbox.min, bbox.max);
@@ -2166,7 +2188,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup_popup(STRING("ExtrudeAdd"), ToolboxGroup::Mesh,
                             true,
                             CellType::Real, STRING("out_length"), &popup->extrude_add_out_length,
-                            CellType::Real, STRING("in_length"),  &popup->extrude_add_in_length); if (gui_key_enter) {
+                            CellType::Real, STRING("in_length"),  &popup->extrude_add_in_length);
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!dxf_anything_selected) {
                             messagef(omax.orange, "ExtrudeAdd: selection empty");
                         } else if (!feature_plane->is_active) {
@@ -2187,7 +2210,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             true,
                             CellType::Real, STRING("in_length"), &popup->extrude_cut_in_length,
                             CellType::Real, STRING("out_length"), &popup->extrude_cut_out_length);
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!dxf_anything_selected) {
                             messagef(omax.orange, "ExtrudeCut: selection empty");
                         } else if (!feature_plane->is_active) {
@@ -2211,7 +2234,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle,
                             CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle
                             );
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!dxf_anything_selected) {
                             messagef(omax.orange, "RevolveAdd: selection empty");
                         } else if (!feature_plane->is_active) {
@@ -2227,7 +2250,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("in_angle"), &popup->revolve_cut_in_angle,
                             CellType::Real, STRING("out_angle"), &popup->revolve_cut_out_angle
                             );
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!dxf_anything_selected) {
                             messagef(omax.orange, "RevolveCut: selection empty");
                         } else if (!feature_plane->is_active) {
@@ -2243,7 +2266,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup_popup(STRING("NudgePlane"), ToolboxGroup::Mesh,
                             true,
                             CellType::Real, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
-                    if (gui_key_enter) {
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
                         result.record_me = true;
                         result.checkpoint_me = true;
                         feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
