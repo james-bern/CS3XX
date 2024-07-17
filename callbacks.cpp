@@ -14,6 +14,8 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     }
     if (key == GLFW_KEY_LEFT_SHIFT) return;
     if (key == GLFW_KEY_RIGHT_SHIFT) return;
+    if (key == GLFW_KEY_LEFT_ALT) return;
+    if (key == GLFW_KEY_RIGHT_ALT) return;
     if (key == GLFW_KEY_LEFT_CONTROL) return;
     if (key == GLFW_KEY_RIGHT_CONTROL) return;
     if (key == GLFW_KEY_LEFT_SUPER) return;
