@@ -309,7 +309,6 @@ Keybinds init_keybinds() {
             ELIF(DESELECT);
             ELIF(DIVIDE_NEAREST);
             ELIF(DRAWING_FRAME);
-            ELIF(EXECUTE_COMMAND);
             ELIF(EXIT_COMMAND);
             ELIF(EXTRUDE_ADD);
             ELIF(EXTRUDE_CUT);
