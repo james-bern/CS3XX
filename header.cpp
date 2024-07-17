@@ -101,6 +101,7 @@ enum class MouseEventSubtype {
     Drawing,
     Mesh,
     Popup,
+    ToolboxButton,
 };
 
 enum class ColorCode {
@@ -200,6 +201,10 @@ struct MouseEventPopup {
     uint cursor;
 };
 
+struct MouseEventToolboxButton {
+    char *name;
+};
+
 struct MouseEvent {
     MouseEventSubtype subtype;
 
@@ -209,6 +214,7 @@ struct MouseEvent {
     MouseEventDrawing mouse_event_drawing;
     MouseEventMesh mouse_event_mesh;
     MouseEventPopup mouse_event_popup;
+    MouseEventToolboxButton mouse_event_toolbox_button;
 };
 
 struct KeyEvent {
@@ -217,7 +223,6 @@ struct KeyEvent {
     uint key;
     bool control;
     bool shift;
-    char *_name_of_spoofing_button;
 };
 
 struct Event {
@@ -1629,6 +1634,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
         else if (key_event->key == GLFW_KEY_PAGE_DOWN) _key = "PAGE_DOWN";
         else if (key_event->key == GLFW_KEY_HOME) _key = "HOME";
         else if (key_event->key == GLFW_KEY_END) _key = "END";
+        else if (key_event->key == DUMMY_HOTKEY) _key = "DUMMY";
         else {
             _key_buffer[0] = (char) key_event->key;
             _key_buffer[1] = '\0';

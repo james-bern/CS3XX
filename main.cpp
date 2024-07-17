@@ -21,6 +21,8 @@
 // TODO: memcmp to see if should record
 // TODO: timer to see if should snapshot
 
+#define DUMMY_HOTKEY 9999
+
 #include "playground.cpp"
 
 char *startup_script = "";
@@ -99,7 +101,6 @@ run_before_main {
 #include "manifoldc.h"
 #include "header.cpp"
 
-#define DUMMY_HOTKEY 9999
 
 // (global) state
 WorldState_ChangesToThisMustBeRecorded_state state;

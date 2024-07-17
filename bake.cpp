@@ -104,10 +104,9 @@ Event bake_event(RawEvent raw_event) {
             } else if (raw_mouse_event->pane == Pane::Toolbox) {
                 // FORNOW: hack hack hack
                 event = {};
-                event.type = EventType::Key;
-                KeyEvent *key_event = &event.key_event;
-                key_event->subtype = KeyEventSubtype::Hotkey;
-                key_event->_name_of_spoofing_button = toolbox->hot_name;
+                event.type = EventType::Mouse;
+                event.mouse_event.subtype = MouseEventSubtype::ToolboxButton;
+                event.mouse_event.mouse_event_toolbox_button.name = toolbox->hot_name;
             } else { ASSERT(raw_mouse_event->pane == Pane::DrawingMeshSeparator);
                 event = {};
             }

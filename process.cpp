@@ -1,3 +1,5 @@
+// TODO: MouseEventSubtype::ToolboxButton
+
 // TODO: multiple popups
 
 // TODO: sc broken on 10mm side length polygon
@@ -70,9 +72,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     //       it probably could have been (though i maybe recall the graphics get messed up
     //       if you reorder things) so popup hits first
     //       (as is, we bake MouseEventPopup based on popups from last frame)
-    if (event.type == EventType::Key) {
+    bool is_toolbox_button_mouse_event =
+        (event.type == EventType::Mouse)
+        && (event.mouse_event.subtype == MouseEventSubtype::ToolboxButton);
+
+    if ((event.type == EventType::Key) || is_toolbox_button_mouse_event) {
         KeyEvent *key_event = &event.key_event;
-        if (key_event->subtype == KeyEventSubtype::Hotkey) {
+        if ((key_event->subtype == KeyEventSubtype::Hotkey) || is_toolbox_button_mouse_event) {
             result.record_me = true;
 
             *toolbox = {};
@@ -213,18 +219,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     hotkey_recognized |= _key_lambda(key_event, key, control, shift);
                 }
 
-                bool result = false;
-                if (key_event->_name_of_spoofing_button) result |= (name == key_event->_name_of_spoofing_button);
-                if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift);
 
-                #if 0
-                // canned logic 
-                if (result) {
+                bool result; {
+                    result = false;
+                    if (is_toolbox_button_mouse_event) {
+                        result |= (name == event.mouse_event.mouse_event_toolbox_button.name);
+                    } else {
+                        if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift);
+                    }
+                }
+
+                // canned logic
+                if (result && (key != DUMMY_HOTKEY) && name) { // FORNOW
+                    // ASSERT(name); // ???
+                    messagef(get_accent_color(group), "%s", name);
+                    // NOTE: this path is insufficient; lxz (or even just [l)
+                    popup->active_toolbox_group = group;
+                    #if 0
                     if (click_mode != ClickMode::None) { ASSERT(group == ToolboxGroup::Drawing); state.click_mode = click_mode; }
                     if (click_mode_SNAP_ELIGIBLE() && (click_modifier != ClickModifier::None)) { ASSERT(group == ToolboxGroup::Snap); state.click_modifier = click_modifier; }
                     if (enter_mode != EnterMode::None) { ASSERT(group == ToolboxGroup::Mesh); state.enter_mode = enter_mode; }
+                    #endif
                 }
-                #endif
 
                 return result;
             };
@@ -389,14 +405,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(0,0,'F',"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     state.click_mode = ClickMode::Fillet;
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
                 if (magic_magic(0,0,'I',"Divide2",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
                     state.click_mode = ClickMode::TwoClickDivide;
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -505,7 +519,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
                 }
+
                 SEPERATOR(ToolboxGroup::Mesh);
+
                 if (magic_magic(0,0,'N', "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
                     if (feature_plane->is_active) {
                         state.enter_mode = EnterMode::NudgePlane;
