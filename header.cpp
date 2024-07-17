@@ -40,6 +40,7 @@ enum class ClickMode {
     MirrorX,
     MirrorY,
     Move,
+    Offset,
     Origin,
     Polygon,
     PowerFillet,
@@ -310,6 +311,7 @@ struct PopupState {
     real linear_copy_rise;
     uint linear_copy_num_additional_copies;
     uint polygon_num_sides = 6;
+    real offset_size;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
     real polygon_side_length;
