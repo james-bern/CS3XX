@@ -257,47 +257,39 @@ struct TwoClickCommandState {
 };
 
 
-struct PopupTags {
-    ToolboxGroup focus_group; // <--
-    char *_name0_tag_by_group[uint(ToolboxGroup::NUMBER_OF)];
-    bool _popup_popup_called_this_process[uint(ToolboxGroup::NUMBER_OF)]; // FORNOW
+struct PopupManager {
 
-    char *get(ToolboxGroup group) {
-        return _name0_tag_by_group[uint(group)];
-    }
+    char *tags[uint(ToolboxGroup::NUMBER_OF)];
+    //
+    char *get_tag(ToolboxGroup group) { return tags[uint(group)]; }
+    void set_tag(ToolboxGroup group, char *_name0) { tags[uint(group)] = _name0; }
 
-    void set(ToolboxGroup group, char *RHS) {
-        _name0_tag_by_group[uint(group)] = RHS;
-    }
+    bool _popup_popup_called_this_process[uint(ToolboxGroup::NUMBER_OF)];
+    bool focus_group_was_set_manually;
+    ToolboxGroup focus_group;
 
-    void begin_popup_popup_block() {
+    //////////
+
+    void begin_process() {
+        focus_group_was_set_manually = false;
+
         memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));
+    }
+
+    void set_focus_group(ToolboxGroup new_focus_group) {
+        focus_group_was_set_manually = true;
+        focus_group = new_focus_group;
     }
 
     void register_call_to_popup_popup(ToolboxGroup group) {
         _popup_popup_called_this_process[uint(group)] = true;
     }
 
-    void end_popup_popup_block() {
+    void end_process() {
         // if not called, clear tag to zero
         for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
             if (!_popup_popup_called_this_process[i]) {
-                _name0_tag_by_group[i] = NULL;
-            }
-        }
-
-        // compare tags, if focus_group's tag is now None, change the focus group
-        // (TODO: stack; FORNOW: fall down the precedence heirarchy)
-        if (focus_group != ToolboxGroup::None) {
-            if (get(focus_group) == NULL) {
-                focus_group = ToolboxGroup::None;
-                for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
-                    ToolboxGroup group = ToolboxGroup(i);
-                    if (get(group) != NULL) {
-                        focus_group = group;
-                        // break; // INTENTIONAL TO COMMENT OUT (sloppy reversal of precedence heirarchy)
-                    }
-                }
+                tags[i] = NULL;
             }
         }
     }
@@ -310,7 +302,7 @@ struct PopupTags {
 struct PopupState {
     _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
-    PopupTags tags;
+    PopupManager manager;
 
 
     bool a_popup_from_this_group_was_already_called_this_frame[uint(ToolboxGroup::NUMBER_OF)];

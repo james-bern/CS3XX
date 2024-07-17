@@ -13,13 +13,7 @@ void popup_popup(
         CellType _cell_type4 = CellType::None, String _name4 = {}, void *_value4 = NULL
         ) {
 
-    // do_once {
-    //     messagef(omax.pink, "      multiple events result in increased opacity of the selection box");
-    //     messagef(omax.pink, "      to observe this, click and drag on a cell");
-    //     messagef(omax.pink, "NOTE: popup_popup() can be called multiple times per popup per frame");
-    // };
-
-    popup->tags.register_call_to_popup_popup(group);
+    popup->manager.register_call_to_popup_popup(group);
 
     CellType popup_cell_type[POPUP_MAX_NUM_CELLS];
     String popup_name[POPUP_MAX_NUM_CELLS];
@@ -123,13 +117,19 @@ void popup_popup(
 
     bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup);
 
-    if (popup->tags.get(group) != _name0.data) {
-        popup->tags.set(group, _name0.data);
-        popup->tags.focus_group = group;
-        { // load up
-            if (zero_on_load_up) {
-                POPUP_CLEAR_ALL_VALUES_TO_ZERO();
-            }
+    { // load up
+        bool tag_corresponding_to_group_was_changed = (popup->manager.get_tag(group) != _name0.data);
+        bool tag_corresponding_to_focus_group_became_NULL = (popup->manager.focus_group != ToolboxGroup::None) && (popup->manager.get_tag(popup->manager.focus_group) == NULL);
+        bool focus_group_was_manually_set_to_this_group = (popup->manager.focus_group_was_set_manually && (group == popup->manager.focus_group));
+        bool common = (focus_group_was_manually_set_to_this_group || tag_corresponding_to_group_was_changed || tag_corresponding_to_focus_group_became_NULL);
+
+        if (tag_corresponding_to_group_was_changed) {
+            popup->manager.set_tag(group, _name0.data);
+            if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
+        }
+
+        if (common) {
+            popup->manager.focus_group = group;
             popup->active_cell_index = 0;
             POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
             popup->cursor = popup->active_cell_buffer.length;
@@ -138,169 +138,167 @@ void popup_popup(
         }
     }
 
-    bool group_is_active = (group == popup->tags.focus_group);
+    bool group_is_active = (group == popup->manager.focus_group);
 
     if (group_is_active) {
-        POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
-    }
-    if (group_is_active) { // event handling
-        Event *event = &global_event_being_processed;
-        if (event->type == EventType::Key) {
-            KeyEvent *key_event = &event->key_event;
-            if (key_event->subtype == KeyEventSubtype::Popup) {
+        { // event handling
+            Event *event = &global_event_being_processed;
+            if (event->type == EventType::Key) {
+                KeyEvent *key_event = &event->key_event;
+                if (key_event->subtype == KeyEventSubtype::Popup) {
 
-                other.time_since_cursor_start = 0.0; // FORNOW
+                    other.time_since_cursor_start = 0.0; // FORNOW
 
-                uint key = key_event->key;
-                bool shift = key_event->shift;
-                bool control = key_event->control;
+                    uint key = key_event->key;
+                    bool shift = key_event->shift;
+                    bool control = key_event->control;
 
-                bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
-                if (key == GLFW_KEY_TAB) {
-                    _tab_hack_so_aliases_not_introduced_too_far_up = true;
-                    uint new_active_cell_index; {
-                        // FORNOW
-                        if (!shift) {
-                            new_active_cell_index = (popup->active_cell_index + 1) % popup_num_cells;
-                        } else {
-                            if (popup->active_cell_index != 0) {
-                                new_active_cell_index = popup->active_cell_index - 1;
+                    bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
+                    if (key == GLFW_KEY_TAB) {
+                        _tab_hack_so_aliases_not_introduced_too_far_up = true;
+                        uint new_active_cell_index; {
+                            // FORNOW
+                            if (!shift) {
+                                new_active_cell_index = (popup->active_cell_index + 1) % popup_num_cells;
                             } else {
-                                new_active_cell_index = popup_num_cells - 1;
+                                if (popup->active_cell_index != 0) {
+                                    new_active_cell_index = popup->active_cell_index - 1;
+                                } else {
+                                    new_active_cell_index = popup_num_cells - 1;
+                                }
                             }
                         }
+                        POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
                     }
-                    POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
-                }
 
-                uint left_cursor = MIN(popup->cursor, popup->selection_cursor);
-                uint right_cursor = MAX(popup->cursor, popup->selection_cursor);
+                    uint left_cursor = MIN(popup->cursor, popup->selection_cursor);
+                    uint right_cursor = MAX(popup->cursor, popup->selection_cursor);
 
-                if (_tab_hack_so_aliases_not_introduced_too_far_up) {
-                } else if (control && (key == 'A')) {
-                    popup->cursor = popup->active_cell_buffer.length;
-                    popup->selection_cursor = 0;
-                } else if (key == GLFW_KEY_LEFT) {
-                    if (!shift && !control) {
-                        if (POPUP_SELECTION_NOT_ACTIVE()) {
+                    if (_tab_hack_so_aliases_not_introduced_too_far_up) {
+                    } else if (control && (key == 'A')) {
+                        popup->cursor = popup->active_cell_buffer.length;
+                        popup->selection_cursor = 0;
+                    } else if (key == GLFW_KEY_LEFT) {
+                        if (!shift && !control) {
+                            if (POPUP_SELECTION_NOT_ACTIVE()) {
+                                if (popup->cursor > 0) --popup->cursor;
+                            } else {
+                                popup->cursor = left_cursor;
+                            }
+                            popup->selection_cursor = popup->cursor;
+                        } else if (shift && !control) {
+                            if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
                             if (popup->cursor > 0) --popup->cursor;
+                        } else if (control && !shift) {
+                            popup->selection_cursor = popup->cursor = 0;
+                        } else { ASSERT(shift && control);
+                            popup->selection_cursor = 0;
+                        }
+                    } else if (key == GLFW_KEY_RIGHT) {
+                        if (!shift && !control) {
+                            if (POPUP_SELECTION_NOT_ACTIVE()) {
+                                if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
+                            } else {
+                                popup->cursor = MAX(popup->cursor, popup->selection_cursor);
+                            }
+                            popup->selection_cursor = popup->cursor;
+                        } else if (shift && !control) {
+                            if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
+                            if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
+                        } else if (control && !shift) {
+                            popup->selection_cursor = popup->cursor = popup->active_cell_buffer.length;
+                        } else { ASSERT(shift && control);
+                            popup->selection_cursor = popup->active_cell_buffer.length;
+                        }
+                    } else if (key == GLFW_KEY_BACKSPACE) {
+                        // * * * *|* * * * 
+                        if (POPUP_SELECTION_NOT_ACTIVE()) {
+                            if (popup->cursor > 0) {
+                                memmove(&popup->active_cell_buffer.data[popup->cursor - 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
+                                --popup->active_cell_buffer.length;
+                                --popup->cursor;
+                            }
                         } else {
+                            // * * * * * * * * * * * * * * * *
+                            // * * * * * * * - - - - - - - - -
+                            //    L                 R 
+
+                            // * * * * * * * * * * * * * * * *
+                            // * * * * * * * * * * * * - - - -
+                            //    L       R                   
+                            memmove(&popup->active_cell_buffer.data[left_cursor], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                            popup->active_cell_buffer.length -= (right_cursor - left_cursor);
                             popup->cursor = left_cursor;
                         }
                         popup->selection_cursor = popup->cursor;
-                    } else if (shift && !control) {
-                        if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
-                        if (popup->cursor > 0) --popup->cursor;
-                    } else if (control && !shift) {
-                        popup->selection_cursor = popup->cursor = 0;
-                    } else { ASSERT(shift && control);
-                        popup->selection_cursor = 0;
-                    }
-                } else if (key == GLFW_KEY_RIGHT) {
-                    if (!shift && !control) {
-                        if (POPUP_SELECTION_NOT_ACTIVE()) {
-                            if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
-                        } else {
-                            popup->cursor = MAX(popup->cursor, popup->selection_cursor);
-                        }
-                        popup->selection_cursor = popup->cursor;
-                    } else if (shift && !control) {
-                        if (POPUP_SELECTION_NOT_ACTIVE()) popup->selection_cursor = popup->cursor;
-                        if (popup->cursor < popup->active_cell_buffer.length) ++popup->cursor;
-                    } else if (control && !shift) {
-                        popup->selection_cursor = popup->cursor = popup->active_cell_buffer.length;
-                    } else { ASSERT(shift && control);
-                        popup->selection_cursor = popup->active_cell_buffer.length;
-                    }
-                } else if (key == GLFW_KEY_BACKSPACE) {
-                    // * * * *|* * * * 
-                    if (POPUP_SELECTION_NOT_ACTIVE()) {
-                        if (popup->cursor > 0) {
-                            memmove(&popup->active_cell_buffer.data[popup->cursor - 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor);
-                            --popup->active_cell_buffer.length;
-                            --popup->cursor;
-                        }
+                    } else if (key == GLFW_KEY_ENTER) {
+                        ;
                     } else {
-                        // * * * * * * * * * * * * * * * *
-                        // * * * * * * * - - - - - - - - -
-                        //    L                 R 
+                        // TODO: strip char_equivalent into function
 
-                        // * * * * * * * * * * * * * * * *
-                        // * * * * * * * * * * * * - - - -
-                        //    L       R                   
-                        memmove(&popup->active_cell_buffer.data[left_cursor], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                        popup->active_cell_buffer.length -= (right_cursor - left_cursor);
-                        popup->cursor = left_cursor;
-                    }
-                    popup->selection_cursor = popup->cursor;
-                } else if (key == GLFW_KEY_ENTER) {
-                    ;
-                } else {
-                    // TODO: strip char_equivalent into function
+                        bool key_is_alpha = ('A' <= key) && (key <= 'Z');
 
-                    bool key_is_alpha = ('A' <= key) && (key <= 'Z');
-
-                    char char_equivalent; {
-                        char_equivalent = (char) key;
-                        if (!shift && key_is_alpha) {
-                            char_equivalent = 'a' + (char_equivalent - 'A');
+                        char char_equivalent; {
+                            char_equivalent = (char) key;
+                            if (!shift && key_is_alpha) {
+                                char_equivalent = 'a' + (char_equivalent - 'A');
+                            }
                         }
-                    }
-                    if (POPUP_SELECTION_NOT_ACTIVE()) {
-                        if (popup->cursor < POPUP_CELL_LENGTH) {
-                            memmove(&popup->active_cell_buffer.data[popup->cursor + 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
+                        if (POPUP_SELECTION_NOT_ACTIVE()) {
+                            if (popup->cursor < POPUP_CELL_LENGTH) {
+                                memmove(&popup->active_cell_buffer.data[popup->cursor + 1], &popup->active_cell_buffer.data[popup->cursor], POPUP_CELL_LENGTH - popup->cursor - 1);
+                                popup->active_cell_buffer.data[popup->cursor] = char_equivalent;
+                                ++popup->cursor;
+                                ++popup->active_cell_buffer.length;
+                            }
+                        } else {
+                            memmove(&popup->active_cell_buffer.data[left_cursor + 1], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
+                            popup->active_cell_buffer.length -= (right_cursor - left_cursor);
+                            popup->cursor = left_cursor;
                             popup->active_cell_buffer.data[popup->cursor] = char_equivalent;
                             ++popup->cursor;
                             ++popup->active_cell_buffer.length;
                         }
-                    } else {
-                        memmove(&popup->active_cell_buffer.data[left_cursor + 1], &popup->active_cell_buffer.data[right_cursor], POPUP_CELL_LENGTH - right_cursor);
-                        popup->active_cell_buffer.length -= (right_cursor - left_cursor);
-                        popup->cursor = left_cursor;
-                        popup->active_cell_buffer.data[popup->cursor] = char_equivalent;
-                        ++popup->cursor;
-                        ++popup->active_cell_buffer.length;
-                    }
-                    popup->selection_cursor = popup->cursor;
-                }
-
-                // FORNOW: keeping null-termination around for messagef?
-                popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0';
-            }
-        } else if (event->type == EventType::Mouse) {
-            MouseEvent *mouse_event = &event->mouse_event;
-            if (mouse_event->subtype == MouseEventSubtype::Popup) {
-                MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-
-                other.time_since_cursor_start = 0.0f;
-
-                if (!mouse_event->mouse_held) { // press
-                    if (popup->active_cell_index != mouse_event_popup->cell_index) { // switch cell
-                        POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_popup->cell_index);
-                        popup->cursor = mouse_event_popup->cursor;
                         popup->selection_cursor = popup->cursor;
-                    } else {
-                        bool double_click = (POPUP_SELECTION_NOT_ACTIVE()) && (popup->cursor == mouse_event_popup->cursor);
-                        if (double_click) {
-                            popup->cursor = popup->active_cell_buffer.length;
-                            popup->selection_cursor = 0;
-                        } else { // move
+                    }
+
+                    // FORNOW: keeping null-termination around for messagef?
+                    popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0';
+                }
+            } else if (event->type == EventType::Mouse) {
+                MouseEvent *mouse_event = &event->mouse_event;
+                if (mouse_event->subtype == MouseEventSubtype::Popup) {
+                    MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
+
+                    other.time_since_cursor_start = 0.0f;
+
+                    if (!mouse_event->mouse_held) { // press
+                        if (popup->active_cell_index != mouse_event_popup->cell_index) { // switch cell
+                            POPUP_SET_ACTIVE_CELL_INDEX(mouse_event_popup->cell_index);
                             popup->cursor = mouse_event_popup->cursor;
                             popup->selection_cursor = popup->cursor;
+                        } else {
+                            bool double_click = (POPUP_SELECTION_NOT_ACTIVE()) && (popup->cursor == mouse_event_popup->cursor);
+                            if (double_click) {
+                                popup->cursor = popup->active_cell_buffer.length;
+                                popup->selection_cursor = 0;
+                            } else { // move
+                                popup->cursor = mouse_event_popup->cursor;
+                                popup->selection_cursor = popup->cursor;
+                            }
                         }
+                    } else { // drag
+                        popup->selection_cursor = mouse_event_popup->cursor;
                     }
-                } else { // drag
-                    popup->selection_cursor = mouse_event_popup->cursor;
                 }
             }
         }
+        POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
     }
-
 
     /////////////////////////////////////////////
     // drawing (and stuff computed while drawing)
     /////////////////////////////////////////////
-
 
     vec3 accent_color;
     vec3 lighter_gray;
@@ -370,7 +368,7 @@ void popup_popup(
                 x_field_left = pen.get_x_Pixel() - (pen.font_height_Pixel / 12.0f);
 
                 { // field 
-                    if (d == popup->active_cell_index) {
+                    if (d_is_active_cell_index) {
                         field = popup->active_cell_buffer;
                     } else {
                         if (popup_cell_type[d] == CellType::Real) {
