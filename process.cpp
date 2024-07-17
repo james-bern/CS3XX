@@ -193,7 +193,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         eso_end();
                     }
 
-                    KeyEvent tmp = { {}, key, control, shift };
+                    KeyEvent tmp = { {}, key, control, shift, alt };
                     pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
                     easy_text_drawf(pen, name);
                     pen2->offset_Pixel.y = pen->offset_Pixel.y;
@@ -212,12 +212,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 // TODO: this should store whether we're hovering in toolbox as well as the event that will be generated if we click
 
                 if (!hotkey_label_only) {
-                    hotkey_recognized |= _key_lambda(key_event, key, control, shift);
+                    hotkey_recognized |= _key_lambda(key_event, key, control, shift, alt);
                 }
 
                 bool result = false;
                 if (key_event->_name_of_spoofing_button) result |= (name == key_event->_name_of_spoofing_button);
-                if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift);
+                if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift, alt);
 
                 result &= hungry_for_hotkey;
 
@@ -805,7 +805,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 if (!hotkey_recognized) {
-                    messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->key);
+                    messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
                     result.record_me = false;
                 }
 
@@ -823,17 +823,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             uint key = key_event->key;
             bool shift = key_event->shift;
             bool control = key_event->control;
+            bool alt = key_event->alt;
 
-            auto keybind_pressed = [key, shift, control](Keybind keybind) -> bool {
+            auto keybind_pressed = [key, shift, control, alt](Keybind keybind) -> bool {
                 bool keybind_shift = keybind.modifiers & MOD_SHIFT;
                 bool keybind_control = keybind.modifiers & MOD_CTRL;
+                bool keybind_alt = keybind.modifiers & MOD_ALT;
 
                 if (false && key == GLFW_KEY_TAB) {
                     messagef(omax.red, "key: %d %d", key, keybind.key);
                     messagef(omax.red, "shift: %d %d", control, keybind_control);
                     messagef(omax.red, "ctrl: %d %d", shift, keybind_shift);
+                    messagef(omax.red, "alt: %d %d", alt, keybind_alt);
                 }
-                if (key == keybind.key && shift == keybind_shift && control == keybind_control) {
+                if (key == keybind.key && shift == keybind_shift && control == keybind_control && alt == keybind_alt) {
                     return true;
                 }
 

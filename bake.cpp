@@ -62,6 +62,7 @@ Event bake_event(RawEvent raw_event) {
         key_event->key = raw_key_event->key;
         key_event->control = raw_key_event->control;
         key_event->shift = raw_key_event->shift;
+        key_event->alt = raw_key_event->alt;
         key_event->subtype = classify_baked_subtype_of_raw_key_event(raw_key_event); // NOTE: must come last
     } else { ASSERT(raw_event.type == EventType::Mouse);
         RawMouseEvent *raw_mouse_event = &raw_event.raw_mouse_event;

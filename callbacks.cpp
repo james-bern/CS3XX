@@ -3,6 +3,7 @@ Queue<RawEvent> raw_event_queue;
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     bool control = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
     bool shift = (mods & GLFW_MOD_SHIFT);
+    bool alt = (mods & GLFW_MOD_ALT);
 
     if (key == GLFW_KEY_LEFT_SHIFT) {
         if (action == GLFW_PRESS) {
@@ -40,6 +41,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
                 raw_key_event->key = key;
                 raw_key_event->control = control;
                 raw_key_event->shift = shift;
+                raw_key_event->alt = alt;
             }
             queue_enqueue(&raw_event_queue, raw_event);
         }

@@ -172,6 +172,7 @@ struct RawKeyEvent {
     uint key;
     bool control;
     bool shift;
+    bool alt;
 };
 
 struct RawMouseEvent {
@@ -224,6 +225,7 @@ struct KeyEvent {
     uint key;
     bool control;
     bool shift;
+    bool alt;
     char *_name_of_spoofing_button;
 };
 
@@ -1503,12 +1505,13 @@ void stl_load(String filename, Mesh *mesh) {
 // key_lambda //////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift = false) {
+bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift = false, bool alt = false) {
     ASSERT(!(('a' <= key) && (key <= 'z')));
     bool key_match = (key_event->key == key);
     bool super_match = ((key_event->control && control) || (!key_event->control && !control)); // * bool
     bool shift_match = ((key_event->shift && shift) || (!key_event->shift && !shift)); // * bool
-    return (key_match && super_match && shift_match);
+    bool alt_match = ((key_event->alt && alt) || (!key_event->alt && !alt)); // * bool
+    return (key_match && super_match && shift_match && alt_match);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1688,6 +1691,14 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
         }
     }
 
+    char *_alt_plus; {
+        if (!key_event->alt) {
+            _alt_plus = "";
+        } else {
+            _alt_plus = "ALT+";
+        }
+    }
+
     char _key_buffer[2];
     char *_key; {
         if (0) ;
@@ -1713,7 +1724,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
         }
     }
 
-    sprintf(buffer, "%s%s%s", _ctrl_plus, _shift_plus, _key);
+    sprintf(buffer, "%s%s%s%s", _ctrl_plus, _shift_plus, _alt_plus, _key);
     return buffer;
 }
 
