@@ -271,12 +271,17 @@ struct PopupManager {
     //////////
 
     void begin_process() {
+        // // NOTE: end of previous call to process
+        // -- (so we don't also need an end_process())
+        for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
+            if (!_popup_popup_called_this_process[i]) tags[i] = NULL;
+        }
+        // // NOTE: beginning of this call to process
         focus_group_was_set_manually = false;
-
         memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));
     }
 
-    void set_focus_group(ToolboxGroup new_focus_group) {
+    void manually_set_focus_group(ToolboxGroup new_focus_group) {
         focus_group_was_set_manually = true;
         focus_group = new_focus_group;
     }
@@ -284,16 +289,6 @@ struct PopupManager {
     void register_call_to_popup_popup(ToolboxGroup group) {
         _popup_popup_called_this_process[uint(group)] = true;
     }
-
-    void end_process() {
-        // if not called, clear tag to zero
-        for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
-            if (!_popup_popup_called_this_process[i]) {
-                tags[i] = NULL;
-            }
-        }
-    }
-
 };
 
 

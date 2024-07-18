@@ -1,6 +1,9 @@
+// the way the popup mouse handling works is very contrived and scary (and i think the/a source of the segfaults)
+// currently: popup_popup broadcasts its most recent state elsewhere (is_hovering, PLUS--and this the problem--all sorts of hover varaibles); i think these can get dirty
+// TODO: just broadcast is_hovering so we don't have to rely on scary synchronization
+// (MouseEventPopup should just have a position in pixel coordinates)
+
 // TODO: could allow user to supply non-zero starting values (this is probably a good idea -- unless it's really just used for revolveadd)
-
-
 // TODO: consider adding type-checking (NOTE: maybe hard?)
 // FORNOW: returns whether it just loaded up
 void popup_popup(
@@ -42,7 +45,6 @@ void popup_popup(
             ASSERT(popup_num_cells);
         }
     }
-
 
     auto POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER = [&]() -> void {
         uint d = popup->active_cell_index;
@@ -112,18 +114,14 @@ void popup_popup(
     };
 
 
-    bool dont_draw_because_already_called = popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)];
-    popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)] = true;
-
-    bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup);
 
     { // load up
-        bool tag_corresponding_to_group_was_changed = (popup->manager.get_tag(group) != _name0.data);
+        bool tag_corresponding_to_this_group_was_changed = (popup->manager.get_tag(group) != _name0.data);
         bool tag_corresponding_to_focus_group_became_NULL = (popup->manager.focus_group != ToolboxGroup::None) && (popup->manager.get_tag(popup->manager.focus_group) == NULL);
         bool focus_group_was_manually_set_to_this_group = (popup->manager.focus_group_was_set_manually && (group == popup->manager.focus_group));
-        bool common = (focus_group_was_manually_set_to_this_group || tag_corresponding_to_group_was_changed || tag_corresponding_to_focus_group_became_NULL);
+        bool common = (focus_group_was_manually_set_to_this_group || tag_corresponding_to_this_group_was_changed || tag_corresponding_to_focus_group_became_NULL);
 
-        if (tag_corresponding_to_group_was_changed) {
+        if (tag_corresponding_to_this_group_was_changed) {
             popup->manager.set_tag(group, _name0.data);
             if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
         }
@@ -138,9 +136,8 @@ void popup_popup(
         }
     }
 
-    bool group_is_active = (group == popup->manager.focus_group);
-
-    if (group_is_active) {
+    bool is_focused = (group == popup->manager.focus_group);
+    if (is_focused) {
         { // event handling
             Event *event = &global_event_being_processed;
             if (event->type == EventType::Key) {
@@ -296,55 +293,52 @@ void popup_popup(
         POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE(); // FORNOW: do every frame
     }
 
-    /////////////////////////////////////////////
-    // drawing (and stuff computed while drawing)
-    /////////////////////////////////////////////
+    bool dont_draw_because_already_called = popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)];
+    popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)] = true;
+    bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup);
 
-    vec3 accent_color;
-    vec3 lighter_gray;
-    vec3 darker_gray;
-    {
-        if (group_is_active) {
-            accent_color = get_accent_color(group);
-            lighter_gray = omax.white;
-            darker_gray = omax.light_gray;
-        } else {
-            accent_color = omax.gray;
-            lighter_gray = omax.dark_gray;
-            darker_gray = omax.dark_gray;
-        }
-    }
-
-    EasyTextPen pen = { V2(96.0f, 12.0f), 22.0f, AVG(lighter_gray, accent_color) };
-    if (group == ToolboxGroup::Mesh) {
-        pen.origin_Pixel.x += get_x_divider_drawing_mesh_Pixel();
-    } else if (group == ToolboxGroup::Snap) {
-        // pen.origin_Pixel.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
-        pen.origin_Pixel.y += 128.0f;
-    }
     if (!dont_draw) {
+        if (is_focused) { // reset info_*
+            popup->_FORNOW_info_mouse_is_hovering = false;
+            popup->info_hover_cell_index = uint(-1);
+            popup->info_hover_cell_cursor = uint(-1);
+            // TODO: popup->info_hover_cell_group = uint(-1);
+            popup->info_active_cell_cursor = uint(-1);
+        }
+
+        vec3 accent_color;
+        vec3 lighter_gray;
+        vec3 darker_gray;
+        {
+            if (is_focused) {
+                accent_color = get_accent_color(group);
+                lighter_gray = omax.white;
+                darker_gray = omax.light_gray;
+            } else {
+                accent_color = omax.gray;
+                lighter_gray = omax.dark_gray;
+                darker_gray = omax.dark_gray;
+            }
+        }
+
+        EasyTextPen pen = { V2(96.0f, 12.0f), 22.0f, AVG(lighter_gray, accent_color) };
+        if (group == ToolboxGroup::Mesh) {
+            pen.origin_Pixel.x += get_x_divider_drawing_mesh_Pixel();
+        } else if (group == ToolboxGroup::Snap) {
+            // pen.origin_Pixel.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
+            pen.origin_Pixel.y += 128.0f;
+        }
         easy_text_draw(&pen, title);
         pen.origin_Pixel.x += pen.offset_Pixel.x + 12.0f;
         pen.offset_Pixel.x = 0.0f;
         pen.origin_Pixel.y += 2.5f; // FORNOW
         pen.font_height_Pixel = 18.0f;
-    }
 
-
-    if (group_is_active) { // reset info_*
-        popup->_FORNOW_info_mouse_is_hovering = false;
-        popup->info_hover_cell_index = uint(-1);
-        popup->info_hover_cell_cursor = uint(-1);
-        // TODO: popup->info_hover_cell_group = uint(-1);
-        popup->info_active_cell_cursor = uint(-1);
-    }
-
-    {
         for_(d, popup_num_cells) {
             bool d_is_active_cell_index;
             {
                 d_is_active_cell_index = true;
-                d_is_active_cell_index &= group_is_active;
+                d_is_active_cell_index &= is_focused;
                 d_is_active_cell_index &= (d == popup->active_cell_index);
             }
 
@@ -360,10 +354,8 @@ void popup_popup(
                 y_top = pen.get_y_Pixel();
                 y_bottom = y_top + (0.8f * pen.font_height_Pixel);
 
-                if (!dont_draw) {
-                    easy_text_draw(&pen, popup_name[d]);
-                    easy_text_drawf(&pen, ": ");
-                }
+                easy_text_draw(&pen, popup_name[d]);
+                easy_text_drawf(&pen, ": ");
 
                 x_field_left = pen.get_x_Pixel() - (pen.font_height_Pixel / 12.0f);
 
@@ -388,50 +380,50 @@ void popup_popup(
                     }
                 }
 
-                if (!dont_draw) easy_text_draw(&pen, field);
+                easy_text_draw(&pen, field);
 
                 x_field_right = pen.get_x_Pixel();
                 field_bbox = { x_field_left, y_top, x_field_right, y_bottom };
             }
 
-            if (group_is_active) { // *_cell_cursor (where the cursor is / _will_ be)
-                uint d_cell_cursor; {
-                    // FORNOW: O(n)
-                    d_cell_cursor = 0;
-                    String slice = field;
-                    slice.length = 1;
-                    real x_char_middle = x_field_left;
-                    real half_char_width_prev = 0.0f;
-                    for_(i, field.length) {
-                        x_char_middle += half_char_width_prev;
-                        {
-                            half_char_width_prev = 0.5f * _easy_text_dx(&pen, slice);
-                            ++slice.data;
+            {
+                if (is_focused) { // *_cell_cursor (where the cursor is / _will_ be)
+                    uint d_cell_cursor; {
+                        // FORNOW: O(n)
+                        d_cell_cursor = 0;
+                        String slice = field;
+                        slice.length = 1;
+                        real x_char_middle = x_field_left;
+                        real half_char_width_prev = 0.0f;
+                        for_(i, field.length) {
+                            x_char_middle += half_char_width_prev;
+                            {
+                                half_char_width_prev = 0.5f * _easy_text_dx(&pen, slice);
+                                ++slice.data;
+                            }
+                            x_char_middle += half_char_width_prev;
+
+                            real x_mouse = other.mouse_Pixel.x;
+                            if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
                         }
-                        x_char_middle += half_char_width_prev;
+                    }
 
-                        real x_mouse = other.mouse_Pixel.x;
-                        if (x_mouse > x_char_middle) d_cell_cursor = i + 1;
+                    { // popup->info_hover_cell_*
+                        if (bbox_contains(field_bbox, other.mouse_Pixel)) {
+                            popup->_FORNOW_info_mouse_is_hovering = true;
+                            popup->info_hover_cell_index = d;
+                            popup->info_hover_cell_cursor = d_cell_cursor;
+                        }
+                    }
+
+                    { // popup->info_active_cell_cursor
+                        if (d == popup->active_cell_index) {
+                            popup->info_active_cell_cursor = d_cell_cursor;
+                        }
                     }
                 }
 
-                { // popup->info_hover_cell_*
-                    if (bbox_contains(field_bbox, other.mouse_Pixel)) {
-                        popup->_FORNOW_info_mouse_is_hovering = true;
-                        popup->info_hover_cell_index = d;
-                        popup->info_hover_cell_cursor = d_cell_cursor;
-                    }
-                }
-
-                { // popup->info_active_cell_cursor
-                    if (d == popup->active_cell_index) {
-                        popup->info_active_cell_cursor = d_cell_cursor;
-                    }
-                }
-            }
-
-            if (group_is_active) {
-                if (!dont_draw) { // draw cursor selection_bbox hover_bbox
+                if (is_focused) { // draw cursor selection_bbox hover_bbox
                     if (d_is_active_cell_index) { // draw cursor selection_bbox
                         if (POPUP_SELECTION_NOT_ACTIVE()) { // draw cursor
                             real x_cursor; {
@@ -476,10 +468,9 @@ void popup_popup(
                             eso_end();
                         }
                     }
-
                 }
+                easy_text_drawf(&pen, "\n");
             }
-            if (!dont_draw) easy_text_drawf(&pen, "\n");
         }
     }
 };

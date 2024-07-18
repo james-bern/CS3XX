@@ -408,7 +408,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                 if (magic_magic(0,0,'F',"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
-                    popup->manager.set_focus_group(ToolboxGroup::Drawing);
+                    popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
                     state.click_mode = ClickMode::Fillet;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -472,7 +472,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(0,0,'X',"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
-                        popup->manager.set_focus_group(ToolboxGroup::Snap);
+                        popup->manager.manually_set_focus_group(ToolboxGroup::Snap);
                         if (state.click_mode != ClickMode::None) {
                             state.click_modifier = ClickModifier::XY;
                         }
@@ -507,25 +507,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
                 SEPERATOR(ToolboxGroup::Mesh);
                 if (magic_magic(0,0,'[',"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
-                    popup->manager.set_focus_group(ToolboxGroup::Mesh);
+                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::ExtrudeAdd;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
                 }
                 if (magic_magic(0,1,'[', "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
-                    popup->manager.set_focus_group(ToolboxGroup::Mesh);
+                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::ExtrudeCut;
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
                 }
                 if (magic_magic(0,0,']', "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
-                    popup->manager.set_focus_group(ToolboxGroup::Mesh);
+                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::RevolveAdd;
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
                 }
                 if (magic_magic(0,1,']', "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
-                    popup->manager.set_focus_group(ToolboxGroup::Mesh);
+                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::RevolveCut;
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
@@ -535,7 +535,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(0,0,'N', "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
                     if (feature_plane->is_active) {
-                        popup->manager.set_focus_group(ToolboxGroup::Mesh);
+                        popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                         state.enter_mode = EnterMode::NudgePlane;
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
@@ -2271,7 +2271,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         }
     }
 
-    popup->manager.end_process();
+    // popup->manager.end_process();
     global_event_being_processed = {};
     return result;
 }
