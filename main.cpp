@@ -30,7 +30,9 @@ char *startup_script = "";
 #if 1 // multi-popup
 run_before_main {
     startup_script = 
-        "lzx["
+        // "f123["
+        // "f123[456"
+        "lz12\t34x56\t78[98\t76"
         ;
 };
 #endif
