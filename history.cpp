@@ -201,7 +201,8 @@ void history_debug_draw() {
                     sprintf(message, "[MOUSE_MESH] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);
                 } else if (mouse_event->subtype == MouseEventSubtype::Popup) {
                     MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-                    sprintf(message, "[MOUSE_POPUP] %d %d", mouse_event_popup->cell_index, mouse_event_popup->cursor);
+                    FORNOW_UNUSED(mouse_event_popup);
+                    sprintf(message, "[MOUSE_POPUP]");
                 } else { ASSERT(mouse_event->subtype == MouseEventSubtype::ToolboxButton);
                     MouseEventToolboxButton *mouse_event_toolbox_button = &mouse_event->mouse_event_toolbox_button;
                     sprintf(message, "[TOOLBOX_BUTTON] %s", mouse_event_toolbox_button->name);

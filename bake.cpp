@@ -93,6 +93,8 @@ Event bake_event(RawEvent raw_event) {
                 mouse_event->subtype = MouseEventSubtype::Popup;
 
                 MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
+                FORNOW_UNUSED(mouse_event_popup);
+                #if 0
                 bool mouse_event_is_press = (!mouse_event->mouse_held);
                 if (mouse_event_is_press) {
                     mouse_event_popup->cell_index = popup->info_hover_cell_index; 
@@ -101,6 +103,7 @@ Event bake_event(RawEvent raw_event) {
                     mouse_event_popup->cell_index = popup->active_cell_index; // hmm...
                     mouse_event_popup->cursor = popup->info_active_cell_cursor;
                 }
+                #endif
             } else if (raw_mouse_event->pane == Pane::Toolbox) {
                 // FORNOW: hack hack hack
                 event = {};

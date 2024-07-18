@@ -119,7 +119,9 @@ Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
 
-Event global_event_being_processed; // TODO: just pass the event to popup_popup i think
+// FORNOW
+Event event_passed_to_popups;
+bool already_processed_event_passed_to_popups;
 
 #include "boolean.cpp"
 #include "misc.cpp"

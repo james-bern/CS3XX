@@ -197,7 +197,7 @@ struct MouseEventMesh {
 };
 
 struct MouseEventPopup {
-    char *tag;
+    // char *tag;
     // uint cell_index;
     // uint cursor;
 };
@@ -313,9 +313,9 @@ struct PopupState {
 
 
     bool _FORNOW_info_mouse_is_hovering;
-    uint info_hover_cell_index;
-    uint info_hover_cell_cursor;
-    uint info_active_cell_cursor;
+    // uint info_hover_cell_index;
+    // uint info_hover_cell_cursor;
+    // uint info_active_cell_cursor;
 
 
 

@@ -35,7 +35,8 @@ StandardEventProcessResult standard_event_process(Event event) {
 
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     popup->manager.begin_process();
-    global_event_being_processed = event;
+    event_passed_to_popups = event;
+    already_processed_event_passed_to_popups = false;
 
 
     void history_printf_script(); // FORNOW forward declaration
@@ -1879,6 +1880,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         ASSERT(popup->selection_cursor <= POPUP_CELL_LENGTH);
     }
 
+    popup->_FORNOW_info_mouse_is_hovering = false; // FORNOW
+
     { // popup_popup
         bool _gui_key_enter; {
             _gui_key_enter = false;
@@ -2272,7 +2275,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     }
 
     // popup->manager.end_process();
-    global_event_being_processed = {};
+    event_passed_to_popups = {};
+    already_processed_event_passed_to_popups = false;
     return result;
 }
 
