@@ -26,6 +26,7 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
         is_consumable_by_popup |= key_is_enter;
         is_consumable_by_popup |= key_is_nav;
         is_consumable_by_popup |= key_is_ctrl_a;
+        is_consumable_by_popup |= (key == '='); // just for testing
         if (popup->_type_of_active_cell == CellType::Real) {
             is_consumable_by_popup |= key_is_hyphen;
             is_consumable_by_popup |= key_is_period;

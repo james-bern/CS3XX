@@ -317,7 +317,7 @@ void popup_popup(
         #if 1
 
         if (event->type == EventType::Key) {
-            if (is_focused) { // TODO: CTRL+TAB
+            if (is_focused) {
                 already_processed_event_passed_to_popups = true; // FORNOW; TODO:
                 KeyEvent *key_event = &event->key_event;
                 if (key_event->subtype == KeyEventSubtype::Popup) {
@@ -329,21 +329,39 @@ void popup_popup(
                     bool control = key_event->control;
 
                     bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
-                    if (key == GLFW_KEY_TAB) {
+                    if (key == GLFW_KEY_TAB || key == '=') {
                         _tab_hack_so_aliases_not_introduced_too_far_up = true;
-                        uint new_active_cell_index; {
-                            // FORNOW
-                            if (!shift) {
-                                new_active_cell_index = (popup->active_cell_index + 1) % popup_num_cells;
-                            } else {
-                                if (popup->active_cell_index != 0) {
-                                    new_active_cell_index = popup->active_cell_index - 1;
+                        if (!control) {
+                            uint new_active_cell_index; {
+                                // FORNOW
+                                if (!shift) {
+                                    new_active_cell_index = (popup->active_cell_index + 1) % popup_num_cells;
                                 } else {
-                                    new_active_cell_index = popup_num_cells - 1;
+                                    if (popup->active_cell_index != 0) {
+                                        new_active_cell_index = popup->active_cell_index - 1;
+                                    } else {
+                                        new_active_cell_index = popup_num_cells - 1;
+                                    }
                                 }
                             }
+                            POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
+                        } else { // CTRL + TAB
+                            ToolboxGroup new_group = group;
+                            do {
+                                if (!shift) {
+                                    new_group = ToolboxGroup(uint(new_group) - 1);
+                                    if (new_group == ToolboxGroup::None) {
+                                        new_group = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
+                                    }
+                                } else {
+                                    new_group = ToolboxGroup(uint(new_group) + 1);
+                                    if (new_group == ToolboxGroup::NUMBER_OF) {
+                                        new_group = ToolboxGroup(uint(ToolboxGroup::None) + 1);
+                                    }
+                                }
+                            } while (popup->manager.get_tag(new_group) == NULL);
+                            popup->manager.manually_set_focus_group(new_group);
                         }
-                        POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
                     }
 
                     uint left_cursor = MIN(popup->cursor, popup->selection_cursor);
@@ -501,16 +519,11 @@ void popup_popup(
         if (common) {
             popup->manager.focus_group = group;
             popup->active_cell_index = 0;
-            if (special_case_click_on_inactive_popup) {
-                popup->active_cell_index = popup_info_hover_cell_index;
-            }
+            if (special_case_click_on_inactive_popup) popup->active_cell_index = popup_info_hover_cell_index;
             POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
             popup->cursor = popup->active_cell_buffer.length;
             popup->selection_cursor = 0;
-            if (special_case_click_on_inactive_popup) {
-                popup->cursor = popup_info_hover_cell_cursor;
-                popup->selection_cursor = popup->cursor;
-            }
+            if (special_case_click_on_inactive_popup) { popup->cursor = popup_info_hover_cell_cursor; popup->selection_cursor = popup->cursor; }
             popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
         }
     }
