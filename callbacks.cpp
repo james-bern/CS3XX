@@ -3,7 +3,7 @@ Queue<RawEvent> raw_event_queue;
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     bool control = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
     bool shift = (mods & GLFW_MOD_SHIFT);
-    
+
     if (key == GLFW_KEY_LEFT_SHIFT) {
         if (action == GLFW_PRESS) {
             other.shift_held = true;
@@ -67,7 +67,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             other.hot_pane = Pane::Toolbox;
         } else if (
                 1
-                && (popup->manager.focus_group != ToolboxGroup::None)
+                && (popup->tags.focus_group != ToolboxGroup::None)
                 && (popup->_FORNOW_info_mouse_is_hovering)
                 ) {
             other.hot_pane = Pane::Popup;
