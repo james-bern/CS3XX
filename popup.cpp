@@ -346,6 +346,7 @@ void popup_popup(
                             }
                             POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
                         } else { // CTRL + TAB
+                            // NOTE: perhaps the wrong popup is handling this (to match the click logic, it should be the one that we're jumping TO, not from)
                             ToolboxGroup new_group = group;
                             do {
                                 if (!shift) {
