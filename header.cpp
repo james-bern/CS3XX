@@ -197,8 +197,9 @@ struct MouseEventMesh {
 };
 
 struct MouseEventPopup {
-    uint cell_index;
-    uint cursor;
+    char *tag;
+    // uint cell_index;
+    // uint cursor;
 };
 
 struct MouseEventToolboxButton {
