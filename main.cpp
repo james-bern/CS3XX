@@ -63,11 +63,13 @@ run_before_main {
                      "1<m2d 30 15>0<esc>" // TODO: comment
                      "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
                      "{3\n" // TODO: comment
-                     "sczZm<m2d -50 0>]\n" // TODO: comment
-                     // "^n" // TODO: comment
-                     // "cx30\t30\n3.4\n" // TODO: comment
-                     // "saXzYzXzsa[1\n" // TODO: comment
-                     // "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n" // TODO: comment
+                     "sczZm<m2d -50 0>" // TODO: comment
+                     "sczAm<m2d -50 0><m2d -15 5>" // TODO: comment
+                     "]360\n"
+                     "^n" // TODO: comment
+                     "cx30\t30\n3.4\n" // TODO: comment
+                     "saXzYzXzsa[1\n" // TODO: comment
+                     "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n" // TODO: comment
                      // "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
                      // "^n" // TODO: comment
                      // "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
