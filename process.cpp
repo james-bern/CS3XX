@@ -126,9 +126,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 bool control = keybind.modifiers & MOD_CTRL;
                 bool shift = keybind.modifiers & MOD_SHIFT;
                 bool alt = keybind.modifiers & MOD_ALT;
-                uint key = (uint)keybind.key;
+                uint key = keybind.key;
 
-                if (alt) {}
+                FORNOW_UNUSED(alt);
 
                 bool special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch = (other._please_suppress_drawing_popup_popup && (group == ToolboxGroup::Snap));
                 bool draw_tool = name;
@@ -152,7 +152,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         pen = &mesh_pen;
                         pen2 = &mesh_pen2;
                     }
-                    real w = (horz) ? 80.0f : 96.0f;
+                    real w = 64.0f;
 
                     real y = pen->get_y_Pixel();
                     bbox2 bbox = { pen->origin_Pixel.x, y - 2, pen->origin_Pixel.x + w, y + h };
@@ -379,14 +379,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
+                if (magic_magic(keybinds.BOX,"CornerBox",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
 
                 }
 
-                if (magic_magic(keybinds.CENTERED_BOX,"CenteredBox",false,ToolboxGroup::Drawing,ClickMode::CenteredBox)) {
+                if (magic_magic(keybinds.CENTERED_BOX,"CenterBox",false,ToolboxGroup::Drawing,ClickMode::CenteredBox)) {
                     state.click_mode = ClickMode::CenteredBox;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -452,7 +452,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"TwoClickDivide",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
+                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
                     state.click_mode = ClickMode::TwoClickDivide;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;

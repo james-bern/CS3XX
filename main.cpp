@@ -51,7 +51,7 @@ run_before_main {
         ;
 };
 #endif
-#if 0 
+#if 1 
 run_before_main {
     startup_script = "cz0123456789";
     startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
@@ -141,6 +141,7 @@ int main() {
     { // init
         init_camera_drawing();
         init_camera_mesh();
+        keybinds = init_keybinds();
         script_process(STRING(startup_script));
         { // callbacks
             glfwSetKeyCallback(glfw_window, callback_key);
@@ -158,8 +159,6 @@ int main() {
             }
         }
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-        keybinds = init_keybinds();
     }
 
     #ifdef SHIP
