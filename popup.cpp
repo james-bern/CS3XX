@@ -122,6 +122,7 @@ void popup_popup(
     bool dont_draw_because_already_called = popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)]; // this is for dragging the mouse and not having the transparent rectangles flicker
     popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)] = true;
     bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
+    FORNOW_UNUSED(dont_draw);
     bool is_focused = (group == popup->manager.focus_group);
 
     vec3 raw_accent_color;

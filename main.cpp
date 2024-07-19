@@ -21,8 +21,6 @@
 // TODO: memcmp to see if should record
 // TODO: timer to see if should snapshot
 
-#define DUMMY_HOTKEY 9999
-
 #include "playground.cpp"
 
 char *startup_script = "";
@@ -38,8 +36,9 @@ run_before_main {
 };
 #endif
 
-#if 0 // revolve
+#if 0
 run_before_main {
+    // revolve development
     startup_script = 
         "y"
         "cz10\n"
@@ -52,8 +51,7 @@ run_before_main {
         ;
 };
 #endif
-
-#if 0 // kitchen_sink
+#if 0 
 run_before_main {
     startup_script = "cz0123456789";
     startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
@@ -89,11 +87,11 @@ run_before_main {
                      ".." // TODO: comment
                      "pz\t5\n" // (Nathan) Polygon
                      "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                                                                          // "^N^ob:wug.drawing\nysa"
+                     "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
+                     "^N^ob:wug.drawing\nysa"
                      ;
 };
 #endif
-
 #ifdef SHIP
 run_before_main {
     startup_script = "";
@@ -104,6 +102,7 @@ run_before_main {
 #include "manifoldc.h"
 #include "header.cpp"
 
+#define DUMMY_HOTKEY 9999
 
 // (global) state
 WorldState_ChangesToThisMustBeRecorded_state state;
@@ -124,6 +123,7 @@ PreviewState *preview = &other.preview;
 Event event_passed_to_popups;
 bool already_processed_event_passed_to_popups;
 
+#include "keybinds.cpp"
 #include "boolean.cpp"
 #include "misc.cpp"
 #include "draw.cpp"
@@ -158,6 +158,8 @@ int main() {
             }
         }
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+        keybinds = init_keybinds();
     }
 
     #ifdef SHIP
@@ -191,9 +193,6 @@ int main() {
         other._please_suppress_drawing_popup_popup = false;
         other._please_suppress_drawing_toolbox = false;
 
-
-        memset(popup->a_popup_from_this_group_was_already_called_this_frame, 0, sizeof(popup->a_popup_from_this_group_was_already_called_this_frame));
-
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
             { // time_since
@@ -219,8 +218,8 @@ int main() {
                 }
             }
 
-            void _messages_draw(); // forward declaration
-            _messages_draw();
+    void _messages_draw(); // forward declaration
+    _messages_draw();
 
             { // events
                 {

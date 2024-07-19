@@ -140,7 +140,7 @@ void conversation_draw() {
     }
 
     // preview
-    vec2 mouse = magic_snap(mouse_World_2D, true);
+    vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position;
 
     {
         vec2 target_preview_mouse = mouse;
@@ -221,7 +221,7 @@ void conversation_draw() {
         {
             if (!other.hide_grid) { // grid 2D grid 2d grid // jim wtf are these supposed to mean
                 eso_begin(PV_2D, SOUP_LINES);
-                eso_color(AVG(omax.black, omax.dark_gray));
+                eso_color(omax.dark_gray);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
                     eso_vertex(tmp, 0.0f);
@@ -231,7 +231,7 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(PV_2D, SOUP_LINE_LOOP);
-                eso_color(AVG(omax.black, omax.dark_gray));
+                eso_color(omax.dark_gray);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -245,7 +245,7 @@ void conversation_draw() {
                 eso_begin(PV_2D, SOUP_LINES); {
                     // axis
                     eso_stipple(true);
-                    eso_color(AVG(omax.black, omax.dark_gray));
+                    eso_color(omax.dark_gray);
                     if (state.click_mode == ClickMode::Axis) {
                         eso_color(omax.cyan);
                     } else if (state.enter_mode == EnterMode::RevolveAdd) {
@@ -332,6 +332,19 @@ void conversation_draw() {
                     eso_vertex(mouse.x, first_click->y);
                     eso_vertex(mouse.x, mouse.y);
                     eso_vertex(first_click->x, mouse.y);
+                    eso_end();
+                }
+                if (state.click_mode == ClickMode::CenteredBox) {                
+                    vec2 one_corner = mouse;
+                    vec2 center = *first_click;
+                    real other_y = 2 * center.y - one_corner.y;
+                    real other_x = 2 * center.x - one_corner.x;
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(basic.cyan);
+                    eso_vertex(one_corner);
+                    eso_vertex(V2(one_corner.x, other_y));
+                    eso_vertex(V2(other_x, other_y));
+                    eso_vertex(V2(other_x, one_corner.y));
                     eso_end();
                 }
                 if (state.click_mode == ClickMode::Measure) {
@@ -569,7 +582,7 @@ void conversation_draw() {
                 }
                 mat4 transform = PVM1 * M0;
                 eso_begin(transform, SOUP_LINES);
-                eso_color(AVG(omax.black, omax.dark_gray));
+                eso_color(omax.dark_gray);
                 eso_size(1.0f);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
@@ -580,7 +593,7 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(transform, SOUP_LINE_LOOP);
-                eso_color(AVG(omax.black, omax.dark_gray));
+                eso_color(omax.dark_gray);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -690,6 +703,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::None)           ? ""                :
                 (state.click_mode == ClickMode::Axis)           ? "Axis"            :
                 (state.click_mode == ClickMode::Box)            ? "Box"             :
+                (state.click_mode == ClickMode::CenteredBox)    ? "CenteredBox"     :
                 (state.click_mode == ClickMode::Circle)         ? "Circle"          :
                 (state.click_mode == ClickMode::Color)          ? "Color"           :
                 (state.click_mode == ClickMode::Deselect)       ? "Deselect"        :
@@ -698,8 +712,10 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::LinearCopy)     ? "LinearCopy"      :
                 (state.click_mode == ClickMode::Measure)        ? "Measure"         :
                 (state.click_mode == ClickMode::Move)           ? "Move"            :
+                (state.click_mode == ClickMode::Offset)         ? "Offset"          :
                 (state.click_mode == ClickMode::Origin)         ? "Origin"          :
                 (state.click_mode == ClickMode::Polygon)        ? "Polygon"         :
+                (state.click_mode == ClickMode::PowerFillet)    ? "PowerFillet"     :
                 (state.click_mode == ClickMode::Select)         ? "Select"          :
                 (state.click_mode == ClickMode::Rotate)         ? "Rotate"          :
                 (state.click_mode == ClickMode::RotateCopy)     ? "RotateCopy"      :
@@ -733,65 +749,6 @@ void conversation_draw() {
 
 
     if (other.show_help) {
-        char * help1 = R""(
-        Spacebar - Previous hot key
-           Shift - Previous hot key on 3D 
-        Backspace - Delete selected
-        Del - Delete selected
-        Esc - Exit to default click settings
-        Tab - light/dark mode
-            - newline when entering coordinates
-        Enter - Execute command
-        [ - ExtrudeAdd
-            Shift - ExtrudeCut
-        ] - RevolveAdd
-            Shift - RevolveCut
-        . - Show drawing details
-        ; - Deactivate feature plane
-        ' - zoom in/zoom out 3D camera
-        ? - Help Menu
-        A - Axis
-        B - Box
-        C - Circle, Center, Connected
-            Shift - TwoEdgeCircle
-        D - Deselect
-            Shift - DivideNearest
-        E - End
-        F - Fillet
-        G - Hide Grid
-        H - Print history // NOT IMPLEMENTED
-        I -
-        J - )"";
-
-        char *help2 = R""(
-        K - Show Event Stack
-        L - Line
-        M - Move, Middle
-           Shift - Measure
-        N - Nudge Feature Plane
-           Control - Clear Drawing
-           Control + Shift - Clear Mesh
-        O - 
-            Control - Load File
-        P - Polygon
-        Q - Color
-        R - 
-        S - Select
-            Shift - Resize selected
-            Control - Save
-        T -
-        U -
-        V -
-        W - Window (use with select or deselect)
-        X - XY ( choose a point)
-            Shift - MirrorX 
-            Control + Shift - Drawing Frame
-        Y - Feature Plane, Change between feature planes
-            Shift - MirrorY  
-        Z - Origin
-            Shift - Change Origin
-        )"";
-
         eso_begin(M4_Identity(), SOUP_QUADS); {
             eso_overlay(true);
             eso_color(omax.black, 0.7f);
@@ -800,12 +757,118 @@ void conversation_draw() {
             eso_vertex( 1.0f,  1.0f);
             eso_vertex( 1.0f, -1.0f);
         } eso_end();
+        
+        auto keybind_to_string = [](Keybind keybind) -> char* {
+            
+            bool control = keybind.modifiers & MOD_CTRL;
+            bool shift = keybind.modifiers & MOD_SHIFT;
+            bool alt = keybind.modifiers & MOD_ALT;
+            KeyEvent tmp = { {}, keybind.key, control, shift, alt }; 
 
-        EasyTextPen pen1 = { V2(-24.0f, 16.0f), 16.0f, omax.white, true}; // FORNOW
+            return key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp);
+        };
+        EasyTextPen pen1 = { V2(25.0f, 16.0f), 16.0f, omax.white, true}; // FORNOW
+        #define PRINT_KEYBIND(PEN, NAME) \
+            easy_text_drawf(PEN, "  %s: %s", #NAME, \
+            keybind_to_string(keybinds.NAME));
         EasyTextPen pen2 = pen1;
-        pen2.origin_Pixel.x += 350.0f;
-        easy_text_drawf(&pen1, "%s", help1); 
-        easy_text_drawf(&pen2, "%s", help2);     
+        pen2.origin_Pixel.x += 450.0f;
+    
+
+        //////////////////////////////////////////
+        //////  SNAP COMMANDS  ///////////////////
+        //////////////////////////////////////////
+
+        easy_text_drawf(&pen1, "SNAP COMMANDS\n");
+        PRINT_KEYBIND(&pen1, CENTER);
+        PRINT_KEYBIND(&pen1, END);
+        PRINT_KEYBIND(&pen1, MIDDLE);
+        PRINT_KEYBIND(&pen1, PERPENDICULAR);
+        PRINT_KEYBIND(&pen1, QUAD);
+        PRINT_KEYBIND(&pen1, XY);
+        PRINT_KEYBIND(&pen1, ZERO);
+
+
+        //////////////////////////////////////////
+        //////  SELECT COMMANDS  /////////////////
+        //////////////////////////////////////////
+
+        easy_text_drawf(&pen1, "\nSELECT COMMANDS\n");
+        PRINT_KEYBIND(&pen1, COLOR);
+        PRINT_KEYBIND(&pen1, SELECT_CONNECTED);
+        PRINT_KEYBIND(&pen1, SELECT_ALL);
+        PRINT_KEYBIND(&pen1, SELECT_WINDOW);
+
+
+        //////////////////////////////////////////
+        //////  OTHER COMMANDS  //////////////////
+        //////////////////////////////////////////
+
+        easy_text_drawf(&pen1, "\nOTHER COMMANDS\n");
+        PRINT_KEYBIND(&pen1, AXIS);
+        PRINT_KEYBIND(&pen1, BOX);
+        PRINT_KEYBIND(&pen1, CHANGE_ORIGIN);
+        PRINT_KEYBIND(&pen1, CIRCLE);
+        PRINT_KEYBIND(&pen1, CLEAR_DRAWING);
+        PRINT_KEYBIND(&pen1, CLEAR_MESH);
+        PRINT_KEYBIND(&pen1, CYCLE_FEATURE_PLANE);
+        PRINT_KEYBIND(&pen1, DELETE_SELECTED); // TODO
+        PRINT_KEYBIND(&pen1, DELETE_SELECTED_ALTERNATE); //TODO
+        PRINT_KEYBIND(&pen1, DESELECT);
+        PRINT_KEYBIND(&pen1, DIVIDE_NEAREST);
+        PRINT_KEYBIND(&pen1, DRAWING_FRAME);
+        PRINT_KEYBIND(&pen1, EXIT_COMMAND); // TODO
+        PRINT_KEYBIND(&pen1, EXTRUDE_ADD);
+        PRINT_KEYBIND(&pen1, EXTRUDE_CUT);
+        PRINT_KEYBIND(&pen1, FILLET);
+        PRINT_KEYBIND(&pen1, HELP_MENU);
+        PRINT_KEYBIND(&pen1, LINE);
+        PRINT_KEYBIND(&pen1, LINEAR_COPY);
+        PRINT_KEYBIND(&pen1, LOAD_FILE);
+        PRINT_KEYBIND(&pen1, MEASURE);
+        PRINT_KEYBIND(&pen1, MIRROR_LINE);
+        PRINT_KEYBIND(&pen1, MIRROR_X);
+        PRINT_KEYBIND(&pen1, MIRROR_Y);
+        PRINT_KEYBIND(&pen2, MOVE);
+        PRINT_KEYBIND(&pen2, NEXT_POPUP_BAR);
+        PRINT_KEYBIND(&pen2, NUDGE_PLANE);
+        PRINT_KEYBIND(&pen2, OFFSET);
+        PRINT_KEYBIND(&pen2, POLYGON);
+        PRINT_KEYBIND(&pen2, POWER_FILLET);
+        PRINT_KEYBIND(&pen2, PREVIOUS_HOT_KEY_2D);
+        PRINT_KEYBIND(&pen2, PREVIOUS_HOT_KEY_3D);
+        PRINT_KEYBIND(&pen2, PRINT_HISTORY);
+        PRINT_KEYBIND(&pen2, QUALITY_0);
+        PRINT_KEYBIND(&pen2, QUALITY_1);
+        PRINT_KEYBIND(&pen2, QUALITY_2);
+        PRINT_KEYBIND(&pen2, QUALITY_3);
+        PRINT_KEYBIND(&pen2, QUALITY_4);
+        PRINT_KEYBIND(&pen2, QUALITY_5);
+        PRINT_KEYBIND(&pen2, QUALITY_6);
+        PRINT_KEYBIND(&pen2, QUALITY_7);
+        PRINT_KEYBIND(&pen2, QUALITY_8);
+        PRINT_KEYBIND(&pen2, QUALITY_9);
+        PRINT_KEYBIND(&pen2, REDO);
+        PRINT_KEYBIND(&pen2, REDO_ALTERNATE);
+        PRINT_KEYBIND(&pen2, RESIZE);
+        PRINT_KEYBIND(&pen2, REVOLVE_ADD);
+        PRINT_KEYBIND(&pen2, REVOLVE_CUT);
+        PRINT_KEYBIND(&pen2, ROTATE);
+        PRINT_KEYBIND(&pen2, ROTATE_COPY);
+        PRINT_KEYBIND(&pen2, SAVE);
+        PRINT_KEYBIND(&pen2, SAVE_AS);
+        PRINT_KEYBIND(&pen2, SELECT);
+        PRINT_KEYBIND(&pen2, TOGGLE_BUTTONS);
+        PRINT_KEYBIND(&pen2, TOGGLE_DRAWING_DETAILS);
+        PRINT_KEYBIND(&pen2, TOGGLE_EVENT_STACK);
+        PRINT_KEYBIND(&pen2, TOGGLE_FEATURE_PLANE);
+        PRINT_KEYBIND(&pen2, TOGGLE_GRID);
+        PRINT_KEYBIND(&pen2, TOGGLE_LIGHT_MODE);
+        PRINT_KEYBIND(&pen2, TWO_CLICK_DIVIDE);
+        PRINT_KEYBIND(&pen2, TWO_EDGE_CIRCLE);
+        PRINT_KEYBIND(&pen2, UNDO);
+        PRINT_KEYBIND(&pen2, UNDO_ALTERNATE);
+        PRINT_KEYBIND(&pen2, ZOOM_3D_CAMERA);
     }
 
     if (other.show_event_stack) history_debug_draw();

@@ -190,22 +190,23 @@ void history_debug_draw() {
                         boxed = "[KEY_POPUP]";
                     }
                 }
-                sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
+                if (!key_event->_name_of_spoofing_button) {
+                    sprintf(message, "%s %s", boxed, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event));
+                } else {
+                    boxed = "[BUTTON]"; // FORNOW
+                    sprintf(message, "%s %s", boxed, key_event->_name_of_spoofing_button);
+                }
             } else { ASSERT(event.type == EventType::Mouse);
                 MouseEvent *mouse_event = &event.mouse_event;
                 if (mouse_event->subtype == MouseEventSubtype::Drawing) {
                     MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
-                    sprintf(message, "[MOUSE_DRAWING] %g %g", mouse_event_drawing->mouse_position.x, mouse_event_drawing->mouse_position.y);
+                    sprintf(message, "[MOUSE_DRAWING] %g %g", mouse_event_drawing->snap_result.mouse_position.x, mouse_event_drawing->snap_result.mouse_position.y);
                 } else if (mouse_event->subtype == MouseEventSubtype::Mesh) {
                     MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
                     sprintf(message, "[MOUSE_MESH] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);
-                } else if (mouse_event->subtype == MouseEventSubtype::Popup) {
+                } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
                     MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-                    FORNOW_UNUSED(mouse_event_popup);
-                    sprintf(message, "[MOUSE_POPUP]");
-                } else { ASSERT(mouse_event->subtype == MouseEventSubtype::ToolboxButton);
-                    MouseEventToolboxButton *mouse_event_toolbox_button = &mouse_event->mouse_event_toolbox_button;
-                    sprintf(message, "[TOOLBOX_BUTTON] %s", mouse_event_toolbox_button->name);
+                    sprintf(message, "[MOUSE_POPUP] %d %d", mouse_event_popup->cell_index, mouse_event_popup->cursor);
                 }
             }
         }
