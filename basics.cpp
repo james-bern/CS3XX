@@ -147,6 +147,13 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 #else
 #pragma message("ERROR: INVALID OPERATING SYSTEM")
 #endif
+// DEBUGGER
+#ifdef OPERATING_SYSTEM_APPLE
+#include <signal.h>
+#define DEBUGBREAK() raise(SIGTRAP)
+#elif defined(OPERATING_SYSTEM_WINDOWS)
+#define DEBUGBREAK() __debugbreak()
+#endif
 // SLEEP
 #ifdef OPERATING_SYSTEM_APPLE
 #include <unistd.h>

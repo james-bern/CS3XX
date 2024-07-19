@@ -51,44 +51,42 @@ run_before_main {
         ;
 };
 #endif
-#if 1 
+#if 1 // kitchen sink
 run_before_main {
-    startup_script = "cz0123456789";
-    startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
     startup_script = \
-                     "cz10\n" // TODO: comment
-                     "cz\t10\n" // TODO: comment
-                     "bzx30\t30\n" // TODO: comment
-                     "ysadc<m2d 0 0>" // TODO: comment
-                     "[5\t15\n" // TODO: comment
+                     "cz10\n" // circle
+                     "cz\t10\n" // bigger circle
+                     "bzx30\t30\n" // box
+                     "ysadcz" // TODO: comment
+                     "[5\t15\n" // extrude
                      "sc<m2d 0 30>qs3" // TODO: comment
                      "1<m2d 30 15>0<esc>" // TODO: comment
                      "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
                      "{3\n" // TODO: comment
-                     "sczZm<m2d -50 0>]\n" // TODO: comment
-                     "^n" // TODO: comment
-                     "cx30\t30\n3.4\n" // TODO: comment
-                     "saXzYzXzsa[1\n" // TODO: comment
-                     "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n" // TODO: comment
-                     "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
-                     "^n" // TODO: comment
-                     "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
-                     "n25\n" // TODO: comment
-                     "sa[1\n" // TODO: comment
-                     "n0\n" // TODO: comment
-                     "^n" // TODO: comment
-                     "cz8\n" // TODO: comment
-                     "<m3d 1 100 -1 0 -1 0>" // TODO: comment
-                     "sa{100\n" // TODO: comment
-                     ";" // TODO: comment
-                     "^odemo.dxf\n" // TODO: comment
-                     "^signore.stl\n" // TODO: comment
-                     "^oignore.stl\n" // TODO: comment
-                     ".." // TODO: comment
-                     "pz\t5\n" // (Nathan) Polygon
-                     "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                     "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
-                     "^N^ob:wug.drawing\nysa"
+                     // "sczZm<m2d -50 0>]\n" // TODO: comment
+                     // "^n" // TODO: comment
+                     // "cx30\t30\n3.4\n" // TODO: comment
+                     // "saXzYzXzsa[1\n" // TODO: comment
+                     // "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n" // TODO: comment
+                     // "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
+                     // "^n" // TODO: comment
+                     // "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
+                     // "n25\n" // TODO: comment
+                     // "sa[1\n" // TODO: comment
+                     // "n0\n" // TODO: comment
+                     // "^n" // TODO: comment
+                     // "cz8\n" // TODO: comment
+                     // "<m3d 1 100 -1 0 -1 0>" // TODO: comment
+                     // "sa{100\n" // TODO: comment
+                     // ";" // TODO: comment
+                     // "^odemo.dxf\n" // TODO: comment
+                     // "^signore.stl\n" // TODO: comment
+                     // "^oignore.stl\n" // TODO: comment
+                     // ".." // TODO: comment
+                     // "pz\t5\n" // (Nathan) Polygon
+                     // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
+                     // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
+                     // "^N^ob:wug.drawing\nysa"
                      ;
 };
 #endif
@@ -191,6 +189,8 @@ int main() {
 
         other._please_suppress_drawing_popup_popup = false;
         other._please_suppress_drawing_toolbox = false;
+
+        memset(popup->a_popup_from_this_group_was_already_called_this_frame, 0, sizeof(popup->a_popup_from_this_group_was_already_called_this_frame));
 
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update

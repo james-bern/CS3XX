@@ -112,7 +112,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = click_mode_SNAP_ELIGIBLE();
 
-            bool hotkey_recognized = false;
+            bool hotkey_consumed_by_magic_magic = false;
             auto magic_magic = [&](
                     Keybind keybind,
                     char *name = NULL,
@@ -122,6 +122,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     ClickModifier click_modifier = ClickModifier::None,
                     EnterMode enter_mode = EnterMode::None
                     ) -> bool {
+
 
                 bool control = keybind.modifiers & MOD_CTRL;
                 bool shift = keybind.modifiers & MOD_SHIFT;
@@ -217,27 +218,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 // TODO: ScriptEvent
                 // TODO: this should store whether we're hovering in toolbox as well as the event that will be generated if we click
 
-                if (!hotkey_label_only) {
-                    hotkey_recognized |= _key_lambda(key_event, key, control, shift, alt);
-                }
-
+                if (hotkey_consumed_by_magic_magic) return false;
+                        
                 bool result; {
                     result = false;
                     if (is_toolbox_button_mouse_event) {
                         result |= (name == event.mouse_event.mouse_event_toolbox_button.name);
                     } else {
-                        if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift);
+                        if (!hotkey_label_only) {
+                            bool tmp = _key_lambda(key_event, key, control, shift);
+                            result |= tmp;
+                            hotkey_consumed_by_magic_magic |= tmp;
+                        }
                     }
                 }
-
-                #if 0
-                // canned logic 
-                if (result) {
-                    if (click_mode != ClickMode::None) { ASSERT(group == ToolboxGroup::Drawing); state.click_mode = click_mode; }
-                    if (click_mode_SNAP_ELIGIBLE() && (click_modifier != ClickModifier::None)) { ASSERT(group == ToolboxGroup::Snap); state.click_modifier = click_modifier; }
-                    if (enter_mode != EnterMode::None) { ASSERT(group == ToolboxGroup::Mesh); state.enter_mode = enter_mode; }
-                }
-                #endif
 
                 return result;
             };
@@ -246,6 +240,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             ClickMode prev_click_mode = state.click_mode;
             EnterMode prev_enter_mode = state.enter_mode;
             { // magic_magic
+
+                // NOTE: ordered by priority
+
+                if (click_mode_SELECT_OR_DESELECT()) {
+                    if (magic_magic(keybinds.SELECT_ALL)) { 
+                        result.checkpoint_me = true;
+                        cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
+                        state.click_mode = ClickMode::None;
+                        state.click_modifier = ClickModifier::None;
+                    }
+
+                    if (magic_magic(keybinds.SELECT_CONNECTED)) {
+                        state.click_modifier = ClickModifier::Connected;
+                    }
+
+                    if (magic_magic(keybinds.COLOR)) {
+                        state.click_modifier = ClickModifier::Color;
+                    }
+
+                    if (magic_magic(keybinds.SELECT_WINDOW)) {
+                        state.click_modifier = ClickModifier::Window;
+                        two_click_command->awaiting_second_click = false;
+                    }
+                }
 
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(keybinds.END,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
@@ -271,7 +289,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
-                    if (magic_magic(keybinds.PERPENDICULAR,"Perpendicular",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular)) {
+                    if (magic_magic(keybinds.PERPENDICULAR,"Perp",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Perpendicular;
 
@@ -292,35 +310,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         return _standard_event_process_NOTE_RECURSIVE(equivalent);
                     }
                 }
-                SEPERATOR(ToolboxGroup::Drawing);
 
-
-                if (click_mode_SELECT_OR_DESELECT()) {
-                    if (magic_magic(keybinds.SELECT_ALL)) { 
-                        result.checkpoint_me = true;
-                        cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
-                        state.click_mode = ClickMode::None;
-                        state.click_modifier = ClickModifier::None;
-
-                    }
-
-                    if (magic_magic(keybinds.SELECT_CONNECTED)) {
-                        state.click_modifier = ClickModifier::Connected;
-
-                    }
-
-                    if (magic_magic(keybinds.COLOR)) {
-                        state.click_mode = ClickMode::Color;
-                        state.click_modifier = ClickModifier::None;
-
-                    }
-
-                    if (magic_magic(keybinds.SELECT_WINDOW)) {
-                        state.click_modifier = ClickModifier::Window;
-                        two_click_command->awaiting_second_click = false;
-
-                    }
-                }
+                ///
 
                 { // undo
                     bool hotkey_undo_alternate = magic_magic(keybinds.UNDO_ALTERNATE);
@@ -345,6 +336,53 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
+
+
+                { // color
+                    if (magic_magic(keybinds.COLOR)) {
+                        state.click_mode = ClickMode::Color;
+                        state.click_modifier = ClickModifier::None;
+                    }
+
+                    bool hotkey_quality;
+                    uint digit = 0;
+                    Keybind *qualities[] = { &keybinds.QUALITY_0, &keybinds.QUALITY_1, &keybinds.QUALITY_2, &keybinds.QUALITY_3, &keybinds.QUALITY_4, &keybinds.QUALITY_5, &keybinds.QUALITY_6, &keybinds.QUALITY_7, &keybinds.QUALITY_8, &keybinds.QUALITY_9 };
+                    {
+                        hotkey_quality = false;
+                        for_(color, 10) {
+                            if (magic_magic(*qualities[color])) {
+                                hotkey_quality = true;
+                                digit = color;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (hotkey_quality) {
+                        if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Color)) { // [sd]q0
+                            _for_each_entity_ {
+                                uint i = uint(entity->color_code);
+                                if (i != digit) continue;
+                                cookbook.entity_set_is_selected(entity, value_to_write_to_selection_mask);
+                            }
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                        } else if ((state.click_mode == ClickMode::Color) && (state.click_modifier == ClickModifier::Selected)) { // qs0
+                            _for_each_selected_entity_ cookbook.entity_set_color(entity, ColorCode(digit));
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            _for_each_entity_ entity->is_selected = false;
+                        } else { // 0
+                            result.record_me = true;
+                            state.click_mode = ClickMode::Color;
+                            state.click_modifier = ClickModifier::None;
+                            state.click_color_code = ColorCode(digit);
+                        }
+                    }
+                }
+
+
+                //
                 if (magic_magic(keybinds.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
@@ -550,42 +588,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 ////////////////////////////////////////////////////////////////////////////////
 
 
-                bool hotkey_quality;
-                uint digit = 0;
-                Keybind *qualities[10] = { &keybinds.QUALITY_0, &keybinds.QUALITY_1, &keybinds.QUALITY_2, &keybinds.QUALITY_3, &keybinds.QUALITY_4, &keybinds.QUALITY_5, &keybinds.QUALITY_6, &keybinds.QUALITY_7, &keybinds.QUALITY_8, &keybinds.QUALITY_9 };
-                {
-                    hotkey_quality = false;
-                    for_(color, 10) {
-                        if (magic_magic(*qualities[color])) {
-                            hotkey_quality = true;
-                            digit = color;
-                            break;
-                        }
-                    }
-                }
-                #undef CHECK_COLOR
-
-                if (hotkey_quality) {
-                    if (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Color)) { // [sd]q0
-                        _for_each_entity_ {
-                            uint i = uint(entity->color_code);
-                            if (i != digit) continue;
-                            cookbook.entity_set_is_selected(entity, value_to_write_to_selection_mask);
-                        }
-                        state.click_mode = ClickMode::None;
-                        state.click_modifier = ClickModifier::None;
-                    } else if ((state.click_mode == ClickMode::Color) && (state.click_modifier == ClickModifier::Selected)) { // qs0
-                        _for_each_selected_entity_ cookbook.entity_set_color(entity, ColorCode(digit));
-                        state.click_mode = ClickMode::None;
-                        state.click_modifier = ClickModifier::None;
-                        _for_each_entity_ entity->is_selected = false;
-                    } else { // 0
-                        result.record_me = true;
-                        state.click_mode = ClickMode::Color;
-                        state.click_modifier = ClickModifier::None;
-                        state.click_color_code = ColorCode(digit);
-                    }
-                }
 
                 if (magic_magic(keybinds.TWO_EDGE_CIRCLE)) {
                     state.click_mode = ClickMode::TwoEdgeCircle;
@@ -827,9 +829,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     ; 
                 }
 
-                if (!hotkey_recognized) {
-                    messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
-                    result.record_me = false;
+                if (key_event->subtype == KeyEventSubtype::Hotkey) {
+                    if (!hotkey_consumed_by_magic_magic) {
+                        messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
+                        result.record_me = false;
+                    }
                 }
 
 
@@ -883,7 +887,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT; // fornow wonky case
 
             // fornow window wonky case
-            if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes scand qc
+            if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes sc and qc
                 result.record_me = false;
                 DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                 if (dxf_find_closest_entity_result.success) {

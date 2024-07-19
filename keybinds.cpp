@@ -155,7 +155,7 @@ Keybinds default_values() {
     //////  OTHER COMMANDS  //////////////////
     //////////////////////////////////////////
 
-    SET_DEFAULT(AXIS, 'A', 0b000); 
+    SET_DEFAULT(AXIS, 'A', 0b001); 
     SET_DEFAULT(BOX, 'B', 0b000); 
     SET_DEFAULT(CENTERED_BOX, 'B', 0b001); 
     SET_DEFAULT(CHANGE_ORIGIN, 'Z', 0b001); 
