@@ -82,13 +82,13 @@ run_before_main {
                      "sa{100\n" // TODO: comment
                      ";" // TODO: comment
                      "^odemo.dxf\n" // TODO: comment
-                     // "^signore.stl\ny\n" // TODO: comment
-                     // "^oignore.stl\n" // TODO: comment
-                     // ".." // TODO: comment
-                     // "pz\t5\n" // (Nathan) Polygon
-                     // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                     // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
-                     // "^N^ob:wug.drawing\nysa"
+                                    // "^signore.stl\ny\n" // TODO: comment
+                                    // "^oignore.stl\n" // TODO: comment
+                                    // ".." // TODO: comment
+                                    // "pz\t5\n" // (Nathan) Polygon
+                                    // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
+                                    // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
+                                    // "^N^ob:wug.drawing\nysa"
                      ;
 };
 #endif
@@ -219,8 +219,8 @@ int main() {
                 }
             }
 
-    void _messages_draw(); // forward declaration
-    _messages_draw();
+            void _messages_draw(); // forward declaration
+            _messages_draw();
 
             { // events
                 {
