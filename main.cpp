@@ -24,6 +24,18 @@
 #include "playground.cpp"
 
 char *startup_script = "";
+
+#if 1 // multi-popup
+run_before_main {
+    startup_script = 
+        // "f123["
+        // "f123[456"
+        "lz12\t34x56\t78[98\t76"
+        // "lzx["
+        ;
+};
+#endif
+
 #if 0
 run_before_main {
     // revolve development
@@ -107,6 +119,10 @@ Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
 
+// FORNOW
+Event event_passed_to_popups;
+bool already_processed_event_passed_to_popups;
+
 #include "keybinds.cpp"
 #include "boolean.cpp"
 #include "misc.cpp"
@@ -120,8 +136,6 @@ PreviewState *preview = &other.preview;
 #include "button.cpp"
 #include "process.cpp"
 #include "script.cpp"
-
-extern Keybinds keybinds;
 
 int main() {
     { // init
