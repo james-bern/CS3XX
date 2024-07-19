@@ -53,7 +53,6 @@ void _messages_draw() {
     real font_height_Pixel = 16.0f;
     uint i_0 = (_message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : _message_index - 1;
 
-    uint num_drawn = 0;
     uint lines_drawn = 1;
     auto draw_lambda = [&](uint message_index) {
         Message *message = &messages[message_index];
