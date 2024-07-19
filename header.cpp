@@ -20,6 +20,7 @@ enum class ToolboxGroup {
     Drawing,
     Snap,
     Mesh,
+    NUMBER_OF,
 };
 
 
@@ -104,6 +105,7 @@ enum class MouseEventSubtype {
     Drawing,
     Mesh,
     Popup,
+    ToolboxButton,
 };
 
 enum class ColorCode {
@@ -206,8 +208,13 @@ struct MouseEventMesh {
 };
 
 struct MouseEventPopup {
-    uint cell_index;
-    uint cursor;
+    // char *tag;
+    // uint cell_index;
+    // uint cursor;
+};
+
+struct MouseEventToolboxButton {
+    char *name;
 };
 
 struct MouseEvent {
@@ -219,6 +226,7 @@ struct MouseEvent {
     MouseEventDrawing mouse_event_drawing;
     MouseEventMesh mouse_event_mesh;
     MouseEventPopup mouse_event_popup;
+    MouseEventToolboxButton mouse_event_toolbox_button;
 };
 
 struct KeyEvent {
@@ -262,28 +270,73 @@ struct TwoClickCommandState {
     Entity *entity_closest_to_first_click;
 };
 
+
+struct PopupManager {
+
+    char *tags[uint(ToolboxGroup::NUMBER_OF)];
+    //
+    char *get_tag(ToolboxGroup group) { return tags[uint(group)]; }
+    void set_tag(ToolboxGroup group, char *_name0) { tags[uint(group)] = _name0; }
+
+    bool _popup_popup_called_this_process[uint(ToolboxGroup::NUMBER_OF)];
+    bool focus_group_was_set_manually;
+    ToolboxGroup focus_group;
+
+    //////////
+
+    void begin_process() {
+        // // NOTE: end of previous call to process
+        // -- (so we don't also need an end_process())
+        for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
+            if (!_popup_popup_called_this_process[i]) tags[i] = NULL;
+        }
+        // // NOTE: beginning of this call to process
+        focus_group_was_set_manually = false;
+        memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));
+    }
+
+    void manually_set_focus_group(ToolboxGroup new_focus_group) {
+        focus_group_was_set_manually = true;
+        focus_group = new_focus_group;
+    }
+
+    void register_call_to_popup_popup(ToolboxGroup group) {
+        _popup_popup_called_this_process[uint(group)] = true;
+    }
+};
+
+
 #define POPUP_MAX_NUM_CELLS 5
 #define POPUP_CELL_LENGTH 256
 struct PopupState {
     _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
+    PopupManager manager;
+
+
+    bool a_popup_from_this_group_was_already_called_this_frame[uint(ToolboxGroup::NUMBER_OF)];
+    // TODO bool process_already_ran_this_frame_dont_draw_anymore_popups;
+
     uint active_cell_index;
     uint cursor;
     uint selection_cursor;
 
-    CellType cell_type[POPUP_MAX_NUM_CELLS];
-    String name[POPUP_MAX_NUM_CELLS];
-    void *value[POPUP_MAX_NUM_CELLS];
-    uint num_cells;
-
     CellType _type_of_active_cell;
-    char *_FORNOW_active_popup_unique_ID__FORNOW_name0;
-    bool _popup_actually_called_this_event; // FORNOW
+    // char *_FORNOW_active_popup_unique_ID__FORNOW_name0;
+
 
     bool _FORNOW_info_mouse_is_hovering;
-    uint info_hover_cell_index;
-    uint info_hover_cell_cursor;
-    uint info_active_cell_cursor;
+    // uint info_hover_cell_index;
+    // uint info_hover_cell_cursor;
+    // uint info_active_cell_cursor;
+
+
+
+    // TODO: move this information into popup
+    // TODO (before that): move handling of popup key and mouse into popup_popup()
+    //                     TODO: does this idea make sense??
+
+
 
     real extrude_add_out_length;
     real extrude_add_in_length;
@@ -1720,6 +1773,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
         else if (key_event->key == GLFW_KEY_PAGE_DOWN) _key = "PAGE_DOWN";
         else if (key_event->key == GLFW_KEY_HOME) _key = "HOME";
         else if (key_event->key == GLFW_KEY_END) _key = "END";
+        else if (key_event->key == DUMMY_HOTKEY) _key = "DUMMY";
         else {
             _key_buffer[0] = (char) key_event->key;
             _key_buffer[1] = '\0';

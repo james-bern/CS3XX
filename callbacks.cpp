@@ -22,12 +22,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (key == GLFW_KEY_RIGHT_SUPER) return;
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
         // FORNOW: i guess okay to handle these here?
-        bool toggle_pause; {
-            toggle_pause = false;
-            if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
-                toggle_pause = ((key == 'P') && (control) && (shift));
-            }
-        }
+        bool toggle_pause = ((key == 'P') && (control) && (shift));
         bool step = (other.paused) && ((key == '.') && (!control) && (!shift));
         bool quit = ((key == 'Q') && (control) && (!shift));
         if (toggle_pause) {
@@ -76,9 +71,9 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             other.hot_pane = Pane::Toolbox;
         } else if (
                 1
-                && (popup->_FORNOW_active_popup_unique_ID__FORNOW_name0)
+                && (popup->manager.focus_group != ToolboxGroup::None)
                 && (popup->_FORNOW_info_mouse_is_hovering)
-           ) {
+                ) {
             other.hot_pane = Pane::Popup;
         } else if (x_mouse_Pixel < x_divider_drawing_mesh_Pixel - eps) {
             other.hot_pane = Pane::Drawing;
@@ -135,7 +130,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // moving cameras
-        // mouse_left_drag_pane
+      // mouse_left_drag_pane
         if (other.mouse_left_drag_pane == Pane::Mesh) {
             real fac = 2.0f;
             camera_mesh->euler_angles.y -= fac * delta_mouse_OpenGL.x;

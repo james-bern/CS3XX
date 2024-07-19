@@ -141,7 +141,7 @@ else
         -L./opengl   \
         -L./burkardt \
         -lglfw3 \
-        -framework Cocoa -framework OpenGL -framework IOKit \
+        -framework Cocoa -framework OpenGL -framework IOKit -framework QuartzCore \
         -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
         $ARCH \
         # -mmacosx-version-min=13.5 \

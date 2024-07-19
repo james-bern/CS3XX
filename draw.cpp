@@ -221,7 +221,7 @@ void conversation_draw() {
         {
             if (!other.hide_grid) { // grid 2D grid 2d grid // jim wtf are these supposed to mean
                 eso_begin(PV_2D, SOUP_LINES);
-                eso_color(omax.dark_gray);
+                eso_color(AVG(omax.black, omax.dark_gray));
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
                     eso_vertex(tmp, 0.0f);
@@ -231,7 +231,7 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(PV_2D, SOUP_LINE_LOOP);
-                eso_color(omax.dark_gray);
+                eso_color(AVG(omax.black, omax.dark_gray));
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -245,7 +245,7 @@ void conversation_draw() {
                 eso_begin(PV_2D, SOUP_LINES); {
                     // axis
                     eso_stipple(true);
-                    eso_color(omax.dark_gray);
+                    eso_color(AVG(omax.black, omax.dark_gray));
                     if (state.click_mode == ClickMode::Axis) {
                         eso_color(omax.cyan);
                     } else if (state.enter_mode == EnterMode::RevolveAdd) {
@@ -582,7 +582,7 @@ void conversation_draw() {
                 }
                 mat4 transform = PVM1 * M0;
                 eso_begin(transform, SOUP_LINES);
-                eso_color(omax.dark_gray);
+                eso_color(AVG(omax.black, omax.dark_gray));
                 eso_size(1.0f);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
@@ -593,7 +593,7 @@ void conversation_draw() {
                 }
                 eso_end();
                 eso_begin(transform, SOUP_LINE_LOOP);
-                eso_color(omax.dark_gray);
+                eso_color(AVG(omax.black, omax.dark_gray));
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);

@@ -76,7 +76,7 @@ void _messages_draw() {
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
-            text_draw(other.OpenGL_from_Pixel, message->string, V2(x, message->y), V4(color, alpha), font_height_Pixel);
+            text_draw(other.OpenGL_from_Pixel * M4_Translation(0.0f, 256.0f), message->string, V2(x, message->y), V4(color, alpha), font_height_Pixel);
         }
     };
 
