@@ -219,7 +219,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 // TODO: this should store whether we're hovering in toolbox as well as the event that will be generated if we click
 
                 if (hotkey_consumed_by_magic_magic) return false;
-                        
+
                 bool result; {
                     result = false;
                     if (is_toolbox_button_mouse_event) {
@@ -780,11 +780,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 if (magic_magic(keybinds.EXIT_COMMAND)) {
-                    state.enter_mode = EnterMode::None;
-                    state.click_mode = ClickMode::None;
-                    state.click_modifier = ClickModifier::None;
-                    state.click_color_code = ColorCode::Traverse;
-
+                    do_once { messagef(omax.orange, "ESCAPE maybe sus."); };
+                    if (popup->manager.focus_group == ToolboxGroup::Drawing) {
+                        state.click_mode = ClickMode::None;
+                        state.click_modifier = ClickModifier::None;
+                        state.click_color_code = ColorCode::Traverse;
+                    } else if (popup->manager.focus_group == ToolboxGroup::Mesh) {
+                        state.enter_mode = EnterMode::None;
+                    } else if (popup->manager.focus_group == ToolboxGroup::Snap) {
+                        state.click_modifier = ClickModifier::None;
+                    } else {
+                        state.click_mode = ClickMode::None;
+                        state.click_modifier = ClickModifier::None;
+                        state.click_color_code = ColorCode::Traverse;
+                        state.enter_mode = EnterMode::None;
+                    }
                 }
 
                 if (magic_magic(keybinds.TOGGLE_LIGHT_MODE)) { // FORNOW
