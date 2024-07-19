@@ -1773,7 +1773,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
 
-            { // Drawing
+            { // click_mode
                 vec2 *first_click = &two_click_command->first_click;
                 if (state.click_mode == ClickMode::Circle) {
                     if (two_click_command->awaiting_second_click) {
@@ -1966,14 +1966,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             false,
                             CellType::Real, STRING("radius"), &popup->fillet_radius);
                 }
+
             }
 
-            { // Mesh
+            { // enter_mode
                 if (state.enter_mode == EnterMode::Load) {
                     popup_popup(STRING("Load"), ToolboxGroup::Drawing,
                             false,
                             CellType::String, STRING("filename"), &popup->load_filename);
-                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                    if (gui_key_enter(ToolboxGroup::Drawing)) {
                         if (FILE_EXISTS(popup->load_filename)) {
                             if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
                                 result.record_me = true;
@@ -2027,7 +2028,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 false,
                                 CellType::String, STRING("filename"), &popup->save_filename);
                     }
-                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                    if (gui_key_enter(ToolboxGroup::Drawing)) {
                         if (FILE_EXISTS(popup->save_filename)) {
                             if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
                             } else if (other.awaiting_confirmation) {

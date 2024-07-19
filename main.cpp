@@ -70,19 +70,19 @@ run_before_main {
                      "cx30\t30\n3.4\n" // TODO: comment
                      "saXzYzXzsa[1\n" // TODO: comment
                      "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n" // TODO: comment
-                     // "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
-                     // "^n" // TODO: comment
-                     // "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
-                     // "n25\n" // TODO: comment
-                     // "sa[1\n" // TODO: comment
-                     // "n0\n" // TODO: comment
-                     // "^n" // TODO: comment
-                     // "cz8\n" // TODO: comment
-                     // "<m3d 1 100 -1 0 -1 0>" // TODO: comment
-                     // "sa{100\n" // TODO: comment
-                     // ";" // TODO: comment
-                     // "^odemo.dxf\n" // TODO: comment
-                     // "^signore.stl\n" // TODO: comment
+                     "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
+                     "^n" // TODO: comment
+                     "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
+                     "n25\n" // TODO: comment
+                     "sa[1\n" // TODO: comment
+                     "n0\n" // TODO: comment
+                     "^n" // TODO: comment
+                     "cz8\n" // TODO: comment
+                     "<m3d 1 100 -1 0 -1 0>" // TODO: comment
+                     "sa{100\n" // TODO: comment
+                     ";" // TODO: comment
+                     "^odemo.dxf\n" // TODO: comment
+                     // "^signore.stl\ny\n" // TODO: comment
                      // "^oignore.stl\n" // TODO: comment
                      // ".." // TODO: comment
                      // "pz\t5\n" // (Nathan) Polygon
