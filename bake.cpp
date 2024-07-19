@@ -1,5 +1,5 @@
 KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_event) {
-    if (popup->manager.focus_group == ToolboxGroup::None) return KeyEventSubtype::Hotkey;
+    if (popup->tags.focus_group == ToolboxGroup::None) return KeyEventSubtype::Hotkey;
 
     uint key = raw_key_event->key;
     bool control = raw_key_event->control;
