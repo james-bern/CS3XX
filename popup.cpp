@@ -1,3 +1,5 @@
+
+// other.time_since_cursor_start = 0.0; // FORNOW
 // other.time_since_cursor_start = 0.0f;
 // the way the popup mouse handling works is very contrived and scary (and i think the/a source of the segfaults)
 // currently: popup_popup broadcasts its most recent state elsewhere (is_hovering, PLUS--and this the problem--all sorts of hover varaibles); i think these can get dirty
@@ -47,6 +49,7 @@ void popup_popup(
         }
     }
 
+
     auto POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER = [&]() -> void {
         uint d = popup->active_cell_index;
         if (popup_cell_type[d] == CellType::Real) {
@@ -62,8 +65,25 @@ void popup_popup(
             popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0'; // FORNOW: ease of reading in debugger
         }
     };
+    auto POPUP_CLEAR_ALL_VALUES_TO_ZERO = [&]() -> void {
+        for_(d, popup_num_cells) {
+            if (!popup_name[d].data) continue;
+            if (popup_cell_type[d] == CellType::Real) {
+                real *value_d_as_real_ptr = (real *)(popup_value[d]);
+                *value_d_as_real_ptr = 0.0f;
+            } else if (popup_cell_type[d] == CellType::Uint) {
+                uint *value_d_as_uint_ptr = (uint *)(popup_value[d]);
+                *value_d_as_uint_ptr = 0;
+            } else { ASSERT(popup_cell_type[d] == CellType::String);
+                String *value_d_as_String_ptr = (String *)(popup_value[d]);
+                value_d_as_String_ptr->length = 0;
+                value_d_as_String_ptr->data[value_d_as_String_ptr->length] = '\0'; // FORNOW: ease of reading in debugger
+            }
+        }
+    };
 
-    auto POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE = [&]() -> void {
+
+    auto POPUP_SYNC_ACTIVE_CELL_BUFFER = [&]() -> void {
         uint d = popup->active_cell_index;
         if (popup_cell_type[d] == CellType::Real) {
             real *value_d_as_real_ptr = (real *)(popup_value[d]);
@@ -85,28 +105,12 @@ void popup_popup(
         }
     };
 
-    auto POPUP_CLEAR_ALL_VALUES_TO_ZERO = [&]() -> void {
-        for_(d, popup_num_cells) {
-            if (!popup_name[d].data) continue;
-            if (popup_cell_type[d] == CellType::Real) {
-                real *value_d_as_real_ptr = (real *)(popup_value[d]);
-                *value_d_as_real_ptr = 0.0f;
-            } else if (popup_cell_type[d] == CellType::Uint) {
-                uint *value_d_as_uint_ptr = (uint *)(popup_value[d]);
-                *value_d_as_uint_ptr = 0;
-            } else { ASSERT(popup_cell_type[d] == CellType::String);
-                String *value_d_as_String_ptr = (String *)(popup_value[d]);
-                value_d_as_String_ptr->length = 0;
-                value_d_as_String_ptr->data[value_d_as_String_ptr->length] = '\0'; // FORNOW: ease of reading in debugger
-            }
-        }
-    };
 
     auto POPUP_SELECTION_NOT_ACTIVE = [&]() -> bool {
         return (popup->selection_cursor == popup->cursor);
     };
 
-    auto POPUP_SET_ACTIVE_CELL_INDEX = [&](int new_active_cell_index) -> void{
+    auto POPUP_SET_ACTIVE_CELL_INDEX = [&](int new_active_cell_index) -> void {
         popup->active_cell_index = new_active_cell_index;
         POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
         popup->cursor = popup->active_cell_buffer.length;
@@ -114,9 +118,10 @@ void popup_popup(
         popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
     };
 
-    bool dont_draw_because_already_called = popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)];
+
+    bool dont_draw_because_already_called = popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)]; // this is for dragging the mouse and not having the transparent rectangles flicker
     popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)] = true;
-    bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup);
+    bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
     bool is_focused = (group == popup->manager.focus_group);
 
     vec3 raw_accent_color;
@@ -318,11 +323,8 @@ void popup_popup(
 
         if (event->type == EventType::Key) {
             if (is_focused) {
-                already_processed_event_passed_to_popups = true; // FORNOW; TODO: CTRL+TAB should be handled by the next popup in the series
                 KeyEvent *key_event = &event->key_event;
                 if (key_event->subtype == KeyEventSubtype::Popup) {
-
-                    other.time_since_cursor_start = 0.0; // FORNOW
 
                     uint key = key_event->key;
                     bool shift = key_event->shift;
@@ -332,6 +334,8 @@ void popup_popup(
                     if (key == GLFW_KEY_TAB || key == '=') {
                         _tab_hack_so_aliases_not_introduced_too_far_up = true;
                         if (!control) {
+                            already_processed_event_passed_to_popups = true; // FORNOW; TODO: CTRL+TAB should be handled by the next popup in the series
+
                             uint new_active_cell_index; {
                                 // FORNOW
                                 if (!shift) {
@@ -345,23 +349,6 @@ void popup_popup(
                                 }
                             }
                             POPUP_SET_ACTIVE_CELL_INDEX(new_active_cell_index);
-                        } else { // CTRL + TAB
-                            // NOTE: perhaps the wrong popup is handling this (to match the click logic, it should be the one that we're jumping TO, not from)
-                            ToolboxGroup new_group = group;
-                            do {
-                                if (!shift) {
-                                    new_group = ToolboxGroup(uint(new_group) - 1);
-                                    if (new_group == ToolboxGroup::None) {
-                                        new_group = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
-                                    }
-                                } else {
-                                    new_group = ToolboxGroup(uint(new_group) + 1);
-                                    if (new_group == ToolboxGroup::NUMBER_OF) {
-                                        new_group = ToolboxGroup(uint(ToolboxGroup::None) + 1);
-                                    }
-                                }
-                            } while (popup->manager.get_tag(new_group) == NULL);
-                            popup->manager.manually_set_focus_group(new_group);
                         }
                     }
 
@@ -459,6 +446,26 @@ void popup_popup(
                     // FORNOW: keeping null-termination around for messagef?
                     popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0';
                 }
+            } else { // CTRL+TAB
+
+                /*
+                // NOTE: perhaps the wrong popup is handling this (to match the click logic, it should be the one that we're jumping TO, not from)
+                ToolboxGroup new_group = group;
+                do {
+                    if (!shift) {
+                        new_group = ToolboxGroup(uint(new_group) - 1);
+                        if (new_group == ToolboxGroup::None) {
+                            new_group = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
+                        }
+                    } else {
+                        new_group = ToolboxGroup(uint(new_group) + 1);
+                        if (new_group == ToolboxGroup::NUMBER_OF) {
+                            new_group = ToolboxGroup(uint(ToolboxGroup::None) + 1);
+                        }
+                    }
+                } while (popup->manager.get_tag(new_group) == NULL);
+                popup->manager.manually_set_focus_group(new_group);
+                */
             }
         }
 
@@ -468,6 +475,7 @@ void popup_popup(
 
             MouseEvent *mouse_event = &event->mouse_event;
             if (mouse_event->subtype == MouseEventSubtype::Popup) {
+
                 MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
                 FORNOW_UNUSED(mouse_event_popup); // FORNOW we're just using other.mouse_Pixel
 
@@ -529,5 +537,5 @@ void popup_popup(
         }
     }
 
-    if (is_focused) POPUP_WRITE_ACTIVE_CELL_BUFFER_INTO_CORRESPONDING_VALUE();
+    if (is_focused) POPUP_SYNC_ACTIVE_CELL_BUFFER();
 };
