@@ -287,6 +287,7 @@ struct PopupManager {
         for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
             if (!_popup_popup_called_this_process[i]) tags[i] = NULL;
         }
+        if (get_tag(focus_group) == NULL) focus_group = ToolboxGroup::None; // FORNOW
         // // NOTE: beginning of this call to process
         focus_group_was_set_manually = false;
         memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));

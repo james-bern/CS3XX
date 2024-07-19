@@ -63,7 +63,7 @@ run_before_main {
                      "1<m2d 30 15>0<esc>" // TODO: comment
                      "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
                      "{3\n" // TODO: comment
-                     // "sczZm<m2d -50 0>]\n" // TODO: comment
+                     "sczZm<m2d -50 0>]\n" // TODO: comment
                      // "^n" // TODO: comment
                      // "cx30\t30\n3.4\n" // TODO: comment
                      // "saXzYzXzsa[1\n" // TODO: comment
