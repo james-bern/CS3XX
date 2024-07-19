@@ -271,7 +271,7 @@ void popup_popup(
                         real sint = SIN(other.time_since_cursor_start * 7);
                         real alpha = 0.5f + 0.5f * sint;
                         eso_begin(other.OpenGL_from_Pixel, SOUP_LINES);
-                        eso_size(1.0f + 1.0f * sint);
+                        eso_size(1.5f + 1.5f * sint);
                         SIN(other.time_since_cursor_start * 7);
                         eso_color(accent_color, alpha);
                         eso_vertex(x_cursor, y_top);
@@ -315,11 +315,6 @@ void popup_popup(
     bool special_case_click_on_inactive_popup = false;
     if (!already_processed_event_passed_to_popups) { // event handling
         Event *event = &event_passed_to_popups;
-
-        // TODO: find where the event mouse is
-
-
-        #if 1
 
         if (event->type == EventType::Key) {
             if (is_focused) {
@@ -452,36 +447,38 @@ void popup_popup(
                 if (key_event->subtype == KeyEventSubtype::Popup) {
                     uint key = key_event->key;
                     bool control = key_event->control;
+                    bool shift = key_event->shift;
                     if (control && (key == GLFW_KEY_TAB)) {
-                        messagef(omax.green, "CTRL+TAB");
+                        ToolboxGroup next_grouop = popup->manager.focus_group;
+                        do {
+                            if (!shift) {
+                                next_grouop = ToolboxGroup(uint(next_grouop) - 1);
+                                if (next_grouop == ToolboxGroup::None) {
+                                    next_grouop = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
+                                }
+                            } else {
+                                next_grouop = ToolboxGroup(uint(next_grouop) + 1);
+                                if (next_grouop == ToolboxGroup::NUMBER_OF) {
+                                    next_grouop = ToolboxGroup(uint(ToolboxGroup::None) + 1);
+                                }
+                            }
+                        } while (popup->manager.get_tag(next_grouop) == NULL);
+
+                        if (next_grouop == group) {
+                            already_processed_event_passed_to_popups = true;
+                            popup->manager.manually_set_focus_group(group);
+                        }
                     }
                 }
 
                 /*
                 // NOTE: perhaps the wrong popup is handling this (to match the click logic, it should be the one that we're jumping TO, not from)
-                ToolboxGroup new_group = group;
-                do {
-                if (!shift) {
-                new_group = ToolboxGroup(uint(new_group) - 1);
-                if (new_group == ToolboxGroup::None) {
-                new_group = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
-                }
-                } else {
-                new_group = ToolboxGroup(uint(new_group) + 1);
-                if (new_group == ToolboxGroup::NUMBER_OF) {
-                new_group = ToolboxGroup(uint(ToolboxGroup::None) + 1);
-                }
-                }
-                } while (popup->manager.get_tag(new_group) == NULL);
-                popup->manager.manually_set_focus_group(new_group);
                 */
             }
         }
 
 
         if (event->type == EventType::Mouse) {
-
-
             MouseEvent *mouse_event = &event->mouse_event;
             if (mouse_event->subtype == MouseEventSubtype::Popup) {
 
@@ -520,7 +517,6 @@ void popup_popup(
                 }
             }
         }
-        #endif
     }
 
     { // load up
