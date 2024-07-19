@@ -1,5 +1,5 @@
 KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_event) {
-    if (popup->manager.focus_group == ToolboxGroup::None) return KeyEventSubtype::Hotkey;
+    if (!popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) return KeyEventSubtype::Hotkey;
 
     uint key = raw_key_event->key;
     bool control = raw_key_event->control;
@@ -26,7 +26,6 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
         is_consumable_by_popup |= key_is_enter;
         is_consumable_by_popup |= key_is_nav;
         is_consumable_by_popup |= key_is_ctrl_a;
-        is_consumable_by_popup |= (key == '='); // just for testing
         if (popup->_type_of_active_cell == CellType::Real) {
             is_consumable_by_popup |= key_is_hyphen;
             is_consumable_by_popup |= key_is_period;
@@ -95,8 +94,6 @@ Event bake_event(RawEvent raw_event) {
                 mouse_event->subtype = MouseEventSubtype::Popup;
 
                 MouseEventPopup *mouse_event_popup = &mouse_event->mouse_event_popup;
-                FORNOW_UNUSED(mouse_event_popup);
-                #if 0
                 bool mouse_event_is_press = (!mouse_event->mouse_held);
                 if (mouse_event_is_press) {
                     mouse_event_popup->cell_index = popup->info_hover_cell_index; 
@@ -105,13 +102,13 @@ Event bake_event(RawEvent raw_event) {
                     mouse_event_popup->cell_index = popup->active_cell_index; // hmm...
                     mouse_event_popup->cursor = popup->info_active_cell_cursor;
                 }
-                #endif
             } else if (raw_mouse_event->pane == Pane::Toolbox) {
                 // FORNOW: hack hack hack
                 event = {};
-                event.type = EventType::Mouse;
-                event.mouse_event.subtype = MouseEventSubtype::ToolboxButton;
-                event.mouse_event.mouse_event_toolbox_button.name = toolbox->hot_name;
+                event.type = EventType::Key;
+                KeyEvent *key_event = &event.key_event;
+                key_event->subtype = KeyEventSubtype::Hotkey;
+                key_event->_name_of_spoofing_button = toolbox->hot_name;
             } else { ASSERT(raw_mouse_event->pane == Pane::DrawingMeshSeparator);
                 event = {};
             }
