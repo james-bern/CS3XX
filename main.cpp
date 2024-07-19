@@ -238,6 +238,7 @@ int main() {
 
             _messages_update();
         } else {
+            _messages_draw();
             SEND_DUMMY();
             ;
         }
