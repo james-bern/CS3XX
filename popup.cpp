@@ -331,7 +331,7 @@ void popup_popup(
                     bool control = key_event->control;
 
                     bool _tab_hack_so_aliases_not_introduced_too_far_up = false;
-                    if (key == GLFW_KEY_TAB || key == '=') {
+                    if (key == GLFW_KEY_TAB) {
                         _tab_hack_so_aliases_not_introduced_too_far_up = true;
                         if (!control) {
                             already_processed_event_passed_to_popups = true; // FORNOW; TODO: CTRL+TAB should be handled by the next popup in the series
@@ -448,21 +448,30 @@ void popup_popup(
                 }
             } else { // CTRL+TAB
 
+                KeyEvent *key_event = &event->key_event;
+                if (key_event->subtype == KeyEventSubtype::Popup) {
+                    uint key = key_event->key;
+                    bool control = key_event->control;
+                    if (control && (key == GLFW_KEY_TAB)) {
+                        messagef(omax.green, "CTRL+TAB");
+                    }
+                }
+
                 /*
                 // NOTE: perhaps the wrong popup is handling this (to match the click logic, it should be the one that we're jumping TO, not from)
                 ToolboxGroup new_group = group;
                 do {
-                    if (!shift) {
-                        new_group = ToolboxGroup(uint(new_group) - 1);
-                        if (new_group == ToolboxGroup::None) {
-                            new_group = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
-                        }
-                    } else {
-                        new_group = ToolboxGroup(uint(new_group) + 1);
-                        if (new_group == ToolboxGroup::NUMBER_OF) {
-                            new_group = ToolboxGroup(uint(ToolboxGroup::None) + 1);
-                        }
-                    }
+                if (!shift) {
+                new_group = ToolboxGroup(uint(new_group) - 1);
+                if (new_group == ToolboxGroup::None) {
+                new_group = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
+                }
+                } else {
+                new_group = ToolboxGroup(uint(new_group) + 1);
+                if (new_group == ToolboxGroup::NUMBER_OF) {
+                new_group = ToolboxGroup(uint(ToolboxGroup::None) + 1);
+                }
+                }
                 } while (popup->manager.get_tag(new_group) == NULL);
                 popup->manager.manually_set_focus_group(new_group);
                 */
