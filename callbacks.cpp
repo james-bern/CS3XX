@@ -67,7 +67,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             other.hot_pane = Pane::Toolbox;
         } else if (
                 1
-                && (popup->tags.focus_group != ToolboxGroup::None)
+                && (popup->manager.focus_group != ToolboxGroup::None)
                 && (popup->_FORNOW_info_mouse_is_hovering)
                 ) {
             other.hot_pane = Pane::Popup;
