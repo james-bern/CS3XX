@@ -741,8 +741,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         }
-                        messagef(omax.cyan,"Mesh has %d triangles", mesh->num_triangles);
-                        messagef(omax.cyan,"Drawing has %d elements = %d lines + %d arcs", drawing->entities.length, num_lines, num_arcs);
+                        messagef(omax.cyan,"Drawing has %d elements = %d lines + %d arcs\nMesh has %d triangles",
+                                drawing->entities.length, num_lines, num_arcs, mesh->num_triangles);
                     }
 
                 }
