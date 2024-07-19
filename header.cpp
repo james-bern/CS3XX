@@ -105,6 +105,7 @@ enum class MouseEventSubtype {
     Drawing,
     Mesh,
     Popup,
+    ToolboxButton,
 };
 
 enum class ColorCode {
@@ -211,6 +212,10 @@ struct MouseEventPopup {
     uint cursor;
 };
 
+struct MouseEventToolboxButton {
+    char *name;
+};
+
 struct MouseEvent {
     MouseEventSubtype subtype;
 
@@ -220,6 +225,7 @@ struct MouseEvent {
     MouseEventDrawing mouse_event_drawing;
     MouseEventMesh mouse_event_mesh;
     MouseEventPopup mouse_event_popup;
+    MouseEventToolboxButton mouse_event_toolbox_button;
 };
 
 struct KeyEvent {
@@ -742,16 +748,16 @@ bool drawing_save_dxf(Drawing *drawing, String filename) {
     fprintf(file, "0\nENDSEC\n");
     // Write TABLES section
     fprintf(file, "0\nSECTION\n2\nTABLES\n");
-    
+
     // LTYPE table
     fprintf(file, "0\nTABLE\n2\nLTYPE\n70\n1\n0\nLTYPE\n2\nCONTINUOUS\n70\n64\n3\nSolid line\n72\n65\n73\n0\n40\n0.0\n0\nENDTAB\n");
-    
+
     // LAYER table
     fprintf(file, "0\nTABLE\n2\nLAYER\n70\n1\n0\nLAYER\n2\n0\n70\n64\n62\n7\n6\nCONTINUOUS\n0\nENDTAB\n");
-    
+
     // STYLE table
     fprintf(file, "0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nSTANDARD\n70\n0\n40\n0.0\n41\n1.0\n50\n0.0\n71\n0\n42\n0.2\n3\ntxt\n4\n\n0\nENDTAB\n");
-    
+
     fprintf(file, "0\nENDSEC\n");
 
     // Write ENTITIES section
@@ -1702,7 +1708,7 @@ Mesh wrapper_manifold(
     return result;
 }
 
-char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) {
+char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) { // inline
     static char buffer[256];
 
     char *_ctrl_plus; {

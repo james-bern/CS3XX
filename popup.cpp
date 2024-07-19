@@ -443,13 +443,13 @@ void popup_popup(
                     popup->active_cell_buffer.data[popup->active_cell_buffer.length] = '\0';
                 }
             } else { // CTRL+TAB
-
                 KeyEvent *key_event = &event->key_event;
                 if (key_event->subtype == KeyEventSubtype::Popup) {
                     uint key = key_event->key;
                     bool control = key_event->control;
                     bool shift = key_event->shift;
                     if (control && (key == GLFW_KEY_TAB)) {
+                        messagef(omax.pink, "asdf");
                         ToolboxGroup next_grouop = popup->manager.focus_group;
                         do {
                             if (!shift) {
@@ -471,10 +471,6 @@ void popup_popup(
                         }
                     }
                 }
-
-                /*
-                // NOTE: perhaps the wrong popup is handling this (to match the click logic, it should be the one that we're jumping TO, not from)
-                */
             }
         }
 

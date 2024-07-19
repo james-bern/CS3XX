@@ -69,9 +69,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     //       it probably could have been (though i maybe recall the graphics get messed up
     //       if you reorder things) so popup hits first
     //       (as is, we bake MouseEventPopup based on popups from last frame)
-    if (event.type == EventType::Key) {
+    bool is_toolbox_button_mouse_event =
+        (event.type == EventType::Mouse)
+        && (event.mouse_event.subtype == MouseEventSubtype::ToolboxButton);
+
+    if ((event.type == EventType::Key) || is_toolbox_button_mouse_event) {
         KeyEvent *key_event = &event.key_event;
-        if (key_event->subtype == KeyEventSubtype::Hotkey) {
+        if ((key_event->subtype == KeyEventSubtype::Hotkey) || is_toolbox_button_mouse_event) {
             result.record_me = true;
 
             *toolbox = {};
@@ -108,7 +112,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = click_mode_SNAP_ELIGIBLE();
 
-            bool hungry_for_hotkey = true;
             bool hotkey_recognized = false;
             auto magic_magic = [&](
                     Keybind keybind,
@@ -218,13 +221,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     hotkey_recognized |= _key_lambda(key_event, key, control, shift, alt);
                 }
 
-                bool result = false;
-                if (key_event->_name_of_spoofing_button) result |= (name == key_event->_name_of_spoofing_button);
-                if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift, alt);
-
-                result &= hungry_for_hotkey;
-
-                if (result) hungry_for_hotkey = false;
+                bool result; {
+                    result = false;
+                    if (is_toolbox_button_mouse_event) {
+                        result |= (name == event.mouse_event.mouse_event_toolbox_button.name);
+                    } else {
+                        if (!hotkey_label_only) result |= _key_lambda(key_event, key, control, shift);
+                    }
+                }
 
                 #if 0
                 // canned logic 
