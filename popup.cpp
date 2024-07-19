@@ -318,7 +318,7 @@ void popup_popup(
 
         if (event->type == EventType::Key) {
             if (is_focused) {
-                already_processed_event_passed_to_popups = true; // FORNOW; TODO:
+                already_processed_event_passed_to_popups = true; // FORNOW; TODO: CTRL+TAB should be handled by the next popup in the series
                 KeyEvent *key_event = &event->key_event;
                 if (key_event->subtype == KeyEventSubtype::Popup) {
 
