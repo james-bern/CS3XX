@@ -58,15 +58,6 @@ run_before_main {
     }
 };
 
-void gl_scissor_TODO_CHECK_ARGS(double x, double y, double dx, double dy) {
-    real factor = _window_macbook_retina_fixer__VERY_MYSTERIOUS;
-    glScissor(uint(factor * x), uint(factor * y), uint(factor * dx), uint(factor * dy));
-}
-#ifdef glScissor
-#undef glScissor
-#endif
-#define glScissor RETINA_BREAKS_THIS_FUNCTION_USE_gl_scissor_WRAPPER
-
 
 vec2 window_get_size_Pixel() {
     ASSERT(glfw_window);
@@ -78,6 +69,23 @@ vec2 window_get_size_Pixel() {
 }
 real window_get_width_Pixel() { return window_get_size_Pixel().x; }
 real window_get_height_Pixel() { return window_get_size_Pixel().y; }
+
+
+void gl_scissor_Pixel(double x, double y, double dx, double dy) {
+    // y_Pixel_upper_left -> y_Scissor_upper_left -> y_Scissor_lower_left
+    y = window_get_height_Pixel() - y - dy;
+    real factor = _window_macbook_retina_fixer__VERY_MYSTERIOUS;
+    glScissor(uint(factor * x), uint(factor * y), uint(factor * dx), uint(factor * dy));
+}
+void gl_scissor_Pixel(bbox2 bbox) {
+    gl_scissor_Pixel(bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+}
+#ifdef glScissor
+#undef glScissor
+#endif
+#define glScissor RETINA_BREAKS_THIS_FUNCTION_USE_gl_scissor_WRAPPER
+
+
 
 real window_get_aspect() {
     vec2 size = window_get_size_Pixel();

@@ -187,7 +187,7 @@ void conversation_draw() {
         eso_color(
                 dragging ? omax.light_gray
                 : hovering ? omax.white
-                : omax.dark_gray);
+                : omax.gray);
         eso_vertex(other.x_divider_drawing_mesh_OpenGL,  1.0f);
         eso_vertex(other.x_divider_drawing_mesh_OpenGL, -1.0f);
         eso_end();
@@ -209,7 +209,7 @@ void conversation_draw() {
         real click_theta = ATAN2(click_vector);
 
         glEnable(GL_SCISSOR_TEST);
-        gl_scissor_TODO_CHECK_ARGS(0, 0, x_divider_drawing_mesh_Pixel, window_height);
+        gl_scissor_Pixel(0, 0, x_divider_drawing_mesh_Pixel, window_height);
 
         {
             #if 0
@@ -457,7 +457,7 @@ void conversation_draw() {
     { // 3D draw 3D 3d draw 3d
         {
             glEnable(GL_SCISSOR_TEST);
-            gl_scissor_TODO_CHECK_ARGS(x_divider_drawing_mesh_Pixel, 0, window_width - x_divider_drawing_mesh_Pixel, window_height);
+            gl_scissor_Pixel(x_divider_drawing_mesh_Pixel, 0, window_width - x_divider_drawing_mesh_Pixel, window_height);
         }
 
 

@@ -176,6 +176,7 @@ int main() {
         history_process_event(dummy);
     };
 
+    void _messages_draw(); // forward declaration
 
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
@@ -219,8 +220,6 @@ int main() {
                 }
             }
 
-            void _messages_draw(); // forward declaration
-            _messages_draw();
 
             { // events
                 {
@@ -238,13 +237,16 @@ int main() {
 
             _messages_update();
         } else {
-            _messages_draw();
             SEND_DUMMY();
             ;
         }
 
         { // draw
             conversation_draw();
+        }
+
+        {
+            _messages_draw();
         }
 
         if (frame++ == 1) glfwShowWindow(glfw_window);

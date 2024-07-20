@@ -688,7 +688,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(keybinds.RESIZE)) { 
                     state.enter_mode = EnterMode::Size;
-
                 }
 
                 if (magic_magic(keybinds.MIRROR_X)) {
