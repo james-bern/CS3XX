@@ -336,7 +336,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-
+                SEPERATOR(ToolboxGroup::Drawing);
 
                 { // color
                     if (magic_magic(keybinds.COLOR)) {

@@ -25,7 +25,7 @@ void messagef(vec3 color, char *format, ...) {
     message->base_color = color;
     message->time_remaining = MESSAGE_MAX_TIME;
     _message_index = (_message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
-    message->y = 0.0f;
+    message->y = -8.0f; // FORNOW
 
     // Count the number of newlines in the message
     message->height = 1;
@@ -103,6 +103,8 @@ void _messages_draw() {
             if (i == i_0) break;
         }
     }
+    
+    // TODO: stencil test to the transition in beautiful
     bbox2 inflated_bbox = bbox_inflate(bbox, epsilon / 2); 
     glDisable(GL_SCISSOR_TEST);
     eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
