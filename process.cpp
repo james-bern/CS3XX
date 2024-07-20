@@ -123,7 +123,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     EnterMode enter_mode = EnterMode::None
                     ) -> bool {
 
-
                 bool control = keybind.modifiers & MOD_CTRL;
                 bool shift = keybind.modifiers & MOD_SHIFT;
                 bool alt = keybind.modifiers & MOD_ALT;
@@ -387,17 +386,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
                         state.click_modifier = ClickModifier::None;
-
                     } else {
                         state.click_modifier = ClickModifier::Selected;
-
                     }
                 }
 
                 if (magic_magic(keybinds.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
-
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -406,7 +402,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
 
                 if (magic_magic(keybinds.CIRCLE,"Circle",false,ToolboxGroup::Drawing,ClickMode::Circle)) {
@@ -415,19 +410,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     two_click_command->awaiting_second_click = false;
                 }
 
-
                 if (magic_magic(keybinds.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
 
                 if (magic_magic(keybinds.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
                     state.click_mode = ClickMode::Polygon;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -442,7 +434,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::CenteredBox;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
 
 
@@ -454,14 +445,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Move;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
+
                 if (magic_magic(keybinds.ROTATE,"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
+
                 if (magic_magic(keybinds.RESIZE,"Scale",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::Size)) { 
                     state.enter_mode = EnterMode::Size;
                 }
@@ -472,14 +463,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
 
                 if (magic_magic(keybinds.ROTATE_COPY,"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -496,6 +485,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
+                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
+                    state.click_mode = ClickMode::TwoClickDivide;
+                    state.click_modifier = ClickModifier::None;
+                    state.enter_mode = EnterMode::None;
+                    two_click_command->awaiting_second_click = false;
+                }
+
+                SEPERATOR(ToolboxGroup::Drawing);
 
                 if (magic_magic(keybinds.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
@@ -505,9 +502,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     two_click_command->awaiting_second_click = false;
                 }
 
-
-                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
-                    state.click_mode = ClickMode::TwoClickDivide;
+                if (magic_magic({'G'},"DogEar",false,ToolboxGroup::Drawing,ClickMode::DogEar)) {
+                    popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
+                    state.click_mode = ClickMode::DogEar;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
@@ -1149,7 +1146,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
-                                cookbook.fillet_two_entities_from_point(E, F, average_click, popup->fillet_radius);
+                                cookbook.attempt_fillet(E, F, average_click, popup->fillet_radius);
+                            }
+                        } else if (state.click_mode == ClickMode::DogEar) {
+                            result.checkpoint_me = true;
+
+                            state.click_modifier = ClickModifier::None;
+                            two_click_command->awaiting_second_click = false;
+                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
+                            if (_F.success) {
+                                Entity *E = two_click_command->entity_closest_to_first_click;
+                                Entity *F = _F.closest_entity;
+                                cookbook.attempt_dogear(E, F, average_click, popup->fillet_radius);
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
                             if (clicks_are_same) {
@@ -1584,7 +1592,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
 
                         for_(i, selected_entities.length) {
-                            cookbook.fillet_two_entities_from_point(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
+                            cookbook.attempt_fillet(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
                         }
                     } else if (state.click_mode == ClickMode::MirrorX) {
                         result.checkpoint_me = true;
@@ -1748,12 +1756,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // sus calling this a modifier but okay; make sure it's first or else bad bad
                     popup_popup(STRING("XY"), ToolboxGroup::Snap,
                             true,
-                            CellType::Real, STRING("x"), &popup->x_coordinate,
-                            CellType::Real, STRING("y"), &popup->y_coordinate);
+                            CellType::Real, STRING("x"), &popup->xy_x_coordinate,
+                            CellType::Real, STRING("y"), &popup->xy_y_coordinate);
                     if (gui_key_enter(ToolboxGroup::Snap)) {
                         // popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                         state.click_modifier = ClickModifier::None;
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->x_coordinate, popup->y_coordinate));
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->xy_x_coordinate, popup->xy_y_coordinate));
                     }
                 }
             }
@@ -1946,6 +1954,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup_popup(STRING("Fillet"), ToolboxGroup::Drawing,
                             false,
                             CellType::Real, STRING("radius"), &popup->fillet_radius);
+                } else if (state.click_mode == ClickMode::DogEar) {
+                    popup_popup(STRING("DogEar"), ToolboxGroup::Drawing,
+                            false,
+                            CellType::Real, STRING("radius"), &popup->dogear_radius);
                 } else if (state.click_mode == ClickMode::PowerFillet) {
                     popup_popup(STRING("PowerFillet"), ToolboxGroup::Drawing,
                             false,

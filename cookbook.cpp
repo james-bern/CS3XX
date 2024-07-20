@@ -160,7 +160,7 @@ struct Cookbook {
         }
     }
 
-    void fillet_two_entities_from_point(Entity *E, Entity *F, vec2 second_click, real fillet_radius) {
+    void attempt_fillet(Entity *E, Entity *F, vec2 reference_point, real radius) {
         if (E == F) {
             messagef(omax.orange, "Fillet: clicked same entity twice");
         } else {
@@ -188,7 +188,7 @@ struct Cookbook {
                     //    m    |                 m    |       
                     //         c                      s       
 
-                    vec2 m = second_click; 
+                    vec2 m = reference_point; 
 
                     vec2 e_ab = normalized(b - a);
                     vec2 e_cd = normalized(d - c);
@@ -206,7 +206,7 @@ struct Cookbook {
                         if (angle > PI) angle = TAU - angle;
                         half_angle = angle / 2;
                     }
-                    real length = fillet_radius / TAN(half_angle);
+                    real length = radius / TAN(half_angle);
                     vec2 t_ab = p + (keep_a ? -1 : 1) * length * e_ab;
                     vec2 t_cd = p + (keep_c ? -1 : 1) * length * e_cd;
 
@@ -223,7 +223,7 @@ struct Cookbook {
                         real theta_ab_in_degrees = DEG(angle_from_0_TAU(center, t_ab));
                         real theta_cd_in_degrees = DEG(angle_from_0_TAU(center, t_cd));
 
-                        if (!IS_ZERO(fillet_radius)) {
+                        if (!IS_ZERO(radius)) {
                             if (get_three_point_angle(t_ab, center, t_cd) > PI) {
                                 // FORNOW TODO consider swap
                                 real tmp = theta_ab_in_degrees;
@@ -233,7 +233,7 @@ struct Cookbook {
 
                             // TODO: consider tabbing to create chamfer
 
-                            buffer_add_arc(center, fillet_radius, theta_ab_in_degrees, theta_cd_in_degrees, false, E->color_code);
+                            buffer_add_arc(center, radius, theta_ab_in_degrees, theta_cd_in_degrees, false, E->color_code);
                         }
                     }
                 }
@@ -253,7 +253,7 @@ struct Cookbook {
                 // get closest intersection point
                 // in current version both points can always work
                 // this is only checking for the 
-                LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, second_click);
+                LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, reference_point);
 
                 if (!intersection.no_possible_intersection) {
                     // Now have to decide which of the 4 possible fillets to do
@@ -277,7 +277,7 @@ struct Cookbook {
 
                     // if click is inside the circle when both work
                     // TODO: better check for this as a line outside of arc still says outside
-                    real distance_second_click_center = distance(second_click, arc.center);
+                    real distance_second_click_center = distance(reference_point, arc.center);
                     bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
 
                     real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
@@ -295,20 +295,20 @@ struct Cookbook {
                     }
 
                     vec2 line_vector = line.end - line.start;
-                    bool line_left = cross(line_vector, second_click - line.start) < 0;
-                    vec2 line_adjust = fillet_radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
+                    bool line_left = cross(line_vector, reference_point - line.start) < 0;
+                    vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
                     LineEntity new_line;
                     new_line.start = line.start + line_adjust; 
                     new_line.end = line.end + line_adjust; 
 
                     ArcEntity new_arc = arc;
-                    new_arc.radius += fillet_radius * (fillet_inside_circle ? -1 : 1);
+                    new_arc.radius += radius * (fillet_inside_circle ? -1 : 1);
 
-                    LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, second_click);
+                    LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, reference_point);
 
                     vec2 fillet_center = fillet_point.point;
                     vec2 line_fillet_intersect = fillet_center - line_adjust;
-                    vec2 arc_fillet_intersect = fillet_center - fillet_radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
+                    vec2 arc_fillet_intersect = fillet_center - radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
                     real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
                     real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
 
@@ -318,8 +318,8 @@ struct Cookbook {
                         fillet_arc_theta = temp;
                     }
 
-                    Entity fillet_arc = _make_arc(fillet_center, fillet_radius, DEG(fillet_arc_theta), DEG(fillet_line_theta));
-                    if (fillet_radius > TINY_VAL) {
+                    Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta));
+                    if (radius > TINY_VAL) {
                         _buffer_add_entity(fillet_arc);
                     }
                     // TODO: MAKE THIS WORK FOR 0 RADIUS FILLETS
@@ -335,7 +335,7 @@ struct Cookbook {
                             extend_start = false;
                         }
                     }
-                    if (fillet_radius == 0 && (end_inside_circle != start_inside_circle)) {
+                    if (radius == 0 && (end_inside_circle != start_inside_circle)) {
                         extend_start = fillet_inside_circle != start_inside_circle;
                     }
                     if (extend_start) {
@@ -348,7 +348,7 @@ struct Cookbook {
                     real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
 
                     // kinda weird but checks if divide theta > theta where line was tangent
-                    real offset = DEG(ATAN2(second_click - arc.center)); 
+                    real offset = DEG(ATAN2(reference_point - arc.center)); 
                     vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
                     real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
                     if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
@@ -371,10 +371,10 @@ struct Cookbook {
             } else { // TODO: put an assert here
                 ArcEntity arc_a = E->arc;
                 ArcEntity arc_b = F->arc;
-                real _other_fillet_radius = fillet_radius + (fillet_radius == 0 ? 1 : 0);
+                real _other_fillet_radius = radius + (radius == 0 ? 1 : 0);
 
-                bool fillet_inside_arc_a = distance(arc_a.center, second_click) < arc_a.radius;
-                bool fillet_inside_arc_b = distance(arc_b.center, second_click) < arc_b.radius;
+                bool fillet_inside_arc_a = distance(arc_a.center, reference_point) < arc_a.radius;
+                bool fillet_inside_arc_b = distance(arc_b.center, reference_point) < arc_b.radius;
 
                 ArcEntity new_arc_a = arc_a;
                 new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * _other_fillet_radius;
@@ -383,7 +383,7 @@ struct Cookbook {
                 new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * _other_fillet_radius;
 
 
-                ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, second_click);
+                ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, reference_point);
 
                 if (!fillet_point.no_possible_intersection) {
                     vec2 fillet_center = fillet_point.point;
@@ -399,15 +399,15 @@ struct Cookbook {
                         fillet_arc_b_theta = fillet_arc_a_theta;
                         fillet_arc_a_theta = temp;
                     }
-                    Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta)); // if this is changed to fillet_radius it breaks, dont ask me why
-                    if (fillet_radius > TINY_VAL) {
+                    Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta)); // if this is changed to radius it breaks, dont ask me why
+                    if (radius > TINY_VAL) {
                         _buffer_add_entity(fillet_arc);
                     }
 
                     real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
                     real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
-                    if (fillet_radius == 0) {
-                        ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, second_click);
+                    if (radius == 0) {
+                        ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, reference_point);
                         divide_theta_a = zero_intersect.theta_a;
                         divide_theta_b = zero_intersect.theta_b;
                     }
@@ -415,12 +415,12 @@ struct Cookbook {
                     vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
                     real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
                     real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
-                    if ((fillet_radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                    if ((radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
                         E->arc.start_angle_in_degrees = divide_theta_a;
                     } else {
                         E->arc.end_angle_in_degrees = divide_theta_a;
                     }
-                    if ((fillet_radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                    if ((radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
                         F->arc.start_angle_in_degrees = divide_theta_b;
                     } else {
                         F->arc.end_angle_in_degrees = divide_theta_b;
@@ -428,6 +428,15 @@ struct Cookbook {
                     }
                 }
             }
+        }
+    }
+
+    void attempt_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
+        if (E == F) {
+            messagef(omax.orange, "DogEar: clicked same entity twice");
+        } else {
+            FORNOW_UNUSED(reference_point);
+            FORNOW_UNUSED(radius);
         }
     }
 

@@ -25,46 +25,52 @@
 
 char *startup_script = "";
 
-#if 1 // multi-popup
+#if 0 // multi-popup
 run_before_main {
     startup_script = 
         // "f123["
         // "f123[456"
-        "lz12\t34x56\t78[98\t76"
+        // "lz12\t34x56\t78[98\t76"
         // "lzx["
         ;
 };
 #endif
 
-#if 0
+#if 0 // revolve development
 run_before_main {
-    // revolve development
-    startup_script = 
-        "y"
-        "cz10\n"
-        "sa[10\n"
-        // "Zx-5\n"
-        "y"
-        "samzx5\n"
-        // "Ax5\nx5\t5\n"
-        "sa]\n"
-        ;
+    startup_script = \
+                     "y"
+                     "cz10\n"
+                     "sa[10\n"
+                     // "Zx-5\n"
+                     "y"
+                     "samzx5\n"
+                     // "Ax5\nx5\t5\n"
+                     "sa]\n"
+                     ; };
+#endif
+
+#if 1 // dogear
+run_before_main {
+    startup_script = \
+                     "Bz20\t10\n";
 };
 #endif
+
 #if 1 // kitchen sink
 run_before_main {
     startup_script = \
                      "cz10\n" // circle
                      "cz\t10\n" // bigger circle
                      "bzx30\t30\n" // box
-                     "ysadcz" // TODO: comment
+                     "ysadc<m2d 0 0>" // TODO: comment
                      "[5\t15\n" // extrude
                      "sc<m2d 0 30>qs3" // TODO: comment
                      "1<m2d 30 15>0<esc>" // TODO: comment
                      "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
                      "{3\n" // TODO: comment
-                     "sczZm<m2d -50 0>" // TODO: comment
-                     "sczAm<m2d -50 0><m2d -15 5>" // TODO: comment
+                     "sc<m2d 0 0>Zm<m2d -50 0>" // TODO: comment
+                     "sc<m2d 0 0>Am<m2d -50 0><m2d -15 5>" // TODO: comment
                      "]360\n"
                      "^n" // TODO: comment
                      "cx30\t30\n3.4\n" // TODO: comment

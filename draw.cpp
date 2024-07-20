@@ -449,6 +449,14 @@ void conversation_draw() {
                         eso_end();
                     }
                 }
+                if (state.click_mode == ClickMode::DogEar) {
+                    if (two_click_command->awaiting_second_click) {
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(basic.cyan);
+                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        eso_end();
+                    }
+                }
             }
         }
         glDisable(GL_SCISSOR_TEST);
@@ -707,6 +715,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Circle)         ? "Circle"          :
                 (state.click_mode == ClickMode::Color)          ? "Color"           :
                 (state.click_mode == ClickMode::Deselect)       ? "Deselect"        :
+                (state.click_mode == ClickMode::DogEar)         ? "DogEar"          :
                 (state.click_mode == ClickMode::Fillet)         ? "Fillet"          :
                 (state.click_mode == ClickMode::Line)           ? "Line"            :
                 (state.click_mode == ClickMode::LinearCopy)     ? "LinearCopy"      :

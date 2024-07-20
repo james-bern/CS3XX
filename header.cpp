@@ -35,6 +35,7 @@ enum class ClickMode {
     Deselect,
     DivideNearest,
     Fillet,
+    DogEar,
     Line,
     LinearCopy,
     Measure,
@@ -327,10 +328,11 @@ struct PopupState {
     real circle_radius;
     real circle_circumference;
     real fillet_radius;
+    real dogear_radius;
     real box_width;
     real box_height;
-    real x_coordinate;
-    real y_coordinate;
+    real xy_x_coordinate;
+    real xy_y_coordinate;
     real feature_plane_nudge;
     real line_length;
     real line_angle;

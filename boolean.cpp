@@ -4,7 +4,6 @@ bool click_mode_SNAP_ELIGIBLE() {
         || (state.click_mode == ClickMode::Box)
         || (state.click_mode == ClickMode::CenteredBox)
         || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::Deselect)
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::LinearCopy)
         || (state.click_mode == ClickMode::Measure)
@@ -14,8 +13,7 @@ bool click_mode_SNAP_ELIGIBLE() {
         || (state.click_mode == ClickMode::Move)
         || (state.click_mode == ClickMode::Origin)
         || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::Select)
-        || (state.click_mode == ClickMode::RotateCopy)
+        || (state.click_mode == ClickMode::Rotate)
         || (state.click_mode == ClickMode::RotateCopy)
         || (state.click_mode == ClickMode::TwoEdgeCircle)
         ;
@@ -77,6 +75,7 @@ bool click_mode_TWO_CLICK_COMMAND() {
         (state.click_mode == ClickMode::CenteredBox) ||
         (state.click_mode == ClickMode::Circle) ||
         (state.click_mode == ClickMode::Fillet) ||
+        (state.click_mode == ClickMode::DogEar) ||
         (state.click_mode == ClickMode::Line) ||
         (state.click_mode == ClickMode::LinearCopy) ||
         (state.click_mode == ClickMode::Measure) ||
