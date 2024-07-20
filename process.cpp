@@ -870,10 +870,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             vec2 *mouse = &snap_result.mouse_position;
 
             if (snap_result.snapped) {
-                //messagef(omax.red, "SNAPPEEDD");
+                do_once { messagef(omax.red, "FORNOW: divide_entity_at_point(...) is disabled (so Jim can dev other stuff)\n"
+                        "line " XSTR(__LINE__) " of process.cpp"); };
                 //snap_result.entity_snapped_to->color_code = ColorCode::Quality4;
                 //cookbook.buffer_add_line(V2(0, 0), *mouse);
-                cookbook.divide_entity_at_point(snap_result.entity_snapped_to, *mouse);
+                // cookbook.divide_entity_at_point(snap_result.entity_snapped_to, *mouse);
             }
 
 
