@@ -879,26 +879,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 cookbook.divide_entity_at_point(snap_result.entity_snapped_to, *mouse);
             }
 
-            bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT = (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
-
-            // TODO: move to misc.cpp; TODO: rename misc.cpp -> bool.cpp?
-            bool click_mode_TWO_CLICK_COMMAND = 0 ||
-                (state.click_mode == ClickMode::Axis) ||
-                (state.click_mode == ClickMode::Box) ||
-                (state.click_mode == ClickMode::CenteredBox) ||
-                (state.click_mode == ClickMode::Circle) ||
-                (state.click_mode == ClickMode::Fillet) ||
-                (state.click_mode == ClickMode::Line) ||
-                (state.click_mode == ClickMode::LinearCopy) ||
-                (state.click_mode == ClickMode::Measure) ||
-                (state.click_mode == ClickMode::MirrorLine) ||
-                (state.click_mode == ClickMode::Move) ||
-                (state.click_mode == ClickMode::Polygon) ||
-                (state.click_mode == ClickMode::Rotate) ||
-                (state.click_mode == ClickMode::RotateCopy) ||
-                (state.click_mode == ClickMode::TwoEdgeCircle) ||
-                (state.click_mode == ClickMode::TwoClickDivide) ||
-                click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT; // fornow wonky case
 
             // fornow window wonky case
             if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes sc and qc
@@ -1066,7 +1046,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (!mouse_event->mouse_held) {
-                if (click_mode_TWO_CLICK_COMMAND) {
+                if (click_mode_TWO_CLICK_COMMAND()) {
                     if (!two_click_command->awaiting_second_click) {
                         DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                         bool first_click_accepted; {
@@ -1505,7 +1485,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             );
                                 }
                             }
-                        } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
+                        } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT()) {
                             two_click_command->awaiting_second_click = false;
                             bbox2 window = {
                                 MIN(first_click.x, second_click.x),

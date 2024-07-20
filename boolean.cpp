@@ -62,6 +62,34 @@ bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
         ;
 }
 
+bool click_mode_SELECT_OR_DESELECT() {
+    return ((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect));
+}
+
+bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT() {
+    return (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
+}
+
+bool click_mode_TWO_CLICK_COMMAND() {
+    return 0 ||
+        (state.click_mode == ClickMode::Axis) ||
+        (state.click_mode == ClickMode::Box) ||
+        (state.click_mode == ClickMode::CenteredBox) ||
+        (state.click_mode == ClickMode::Circle) ||
+        (state.click_mode == ClickMode::Fillet) ||
+        (state.click_mode == ClickMode::Line) ||
+        (state.click_mode == ClickMode::LinearCopy) ||
+        (state.click_mode == ClickMode::Measure) ||
+        (state.click_mode == ClickMode::MirrorLine) ||
+        (state.click_mode == ClickMode::Move) ||
+        (state.click_mode == ClickMode::Polygon) ||
+        (state.click_mode == ClickMode::Rotate) ||
+        (state.click_mode == ClickMode::RotateCopy) ||
+        (state.click_mode == ClickMode::TwoEdgeCircle) ||
+        (state.click_mode == ClickMode::TwoClickDivide) ||
+        click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT(); // fornow wonky case
+}
+
 bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
         || (state.enter_mode == EnterMode::ExtrudeAdd)
@@ -70,4 +98,14 @@ bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (state.enter_mode == EnterMode::RevolveCut)
         || (state.enter_mode == EnterMode::NudgePlane)
         ;
+}
+
+bool _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
+    return ((click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Window)) || (state.click_mode == ClickMode::Color));
+}
+
+bool _SELECT_OR_DESELECT_COLOR() {
+    bool A = click_mode_SELECT_OR_DESELECT();
+    bool B = (state.click_modifier == ClickModifier::Color);
+    return A && B;
 }
