@@ -25,7 +25,7 @@ void messagef(vec3 color, char *format, ...) {
     message->base_color = color;
     message->time_remaining = MESSAGE_MAX_TIME;
     _message_index = (_message_index + 1) % MESSAGE_MAX_NUM_MESSAGES;
-    message->y = -8.0f; // FORNOW
+    message->y = 0.0f;//-16.0f; // FORNOW
 
     // Count the number of newlines in the message
     message->height = 1;

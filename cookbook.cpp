@@ -160,7 +160,7 @@ struct Cookbook {
         }
     }
 
-    void fillet_two_entities_from_point(Entity *E, Entity *F, vec2 *second_click, real fillet_radius) {
+    void fillet_two_entities_from_point(Entity *E, Entity *F, vec2 second_click, real fillet_radius) {
         if (E == F) {
             messagef(omax.orange, "Fillet: clicked same entity twice");
         } else {
@@ -188,7 +188,7 @@ struct Cookbook {
                     //    m    |                 m    |       
                     //         c                      s       
 
-                    vec2 m = *second_click; 
+                    vec2 m = second_click; 
 
                     vec2 e_ab = normalized(b - a);
                     vec2 e_cd = normalized(d - c);
@@ -277,7 +277,7 @@ struct Cookbook {
 
                     // if click is inside the circle when both work
                     // TODO: better check for this as a line outside of arc still says outside
-                    real distance_second_click_center = distance(*second_click, arc.center);
+                    real distance_second_click_center = distance(second_click, arc.center);
                     bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
 
                     real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
@@ -295,7 +295,7 @@ struct Cookbook {
                     }
 
                     vec2 line_vector = line.end - line.start;
-                    bool line_left = cross(line_vector, *second_click - line.start) < 0;
+                    bool line_left = cross(line_vector, second_click - line.start) < 0;
                     vec2 line_adjust = fillet_radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
                     LineEntity new_line;
                     new_line.start = line.start + line_adjust; 
@@ -348,7 +348,7 @@ struct Cookbook {
                     real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
 
                     // kinda weird but checks if divide theta > theta where line was tangent
-                    real offset = DEG(ATAN2(*second_click - arc.center)); 
+                    real offset = DEG(ATAN2(second_click - arc.center)); 
                     vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
                     real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
                     if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
@@ -373,8 +373,8 @@ struct Cookbook {
                 ArcEntity arc_b = F->arc;
                 real _other_fillet_radius = fillet_radius + (fillet_radius == 0 ? 1 : 0);
 
-                bool fillet_inside_arc_a = distance(arc_a.center, *second_click) < arc_a.radius;
-                bool fillet_inside_arc_b = distance(arc_b.center, *second_click) < arc_b.radius;
+                bool fillet_inside_arc_a = distance(arc_a.center, second_click) < arc_a.radius;
+                bool fillet_inside_arc_b = distance(arc_b.center, second_click) < arc_b.radius;
 
                 ArcEntity new_arc_a = arc_a;
                 new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * _other_fillet_radius;

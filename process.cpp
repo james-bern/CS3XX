@@ -409,19 +409,33 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.CIRCLE, "Circle",false,ToolboxGroup::Drawing,ClickMode::Circle)) {
+                if (magic_magic(keybinds.CIRCLE,"Circle",false,ToolboxGroup::Drawing,ClickMode::Circle)) {
                     state.click_mode = ClickMode::Circle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
-
                 }
 
-                if (magic_magic(keybinds.BOX,"CornerBox",false,ToolboxGroup::Drawing,ClickMode::Box)) {
+
+                if (magic_magic(keybinds.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
 
+                }
+
+                if (magic_magic(keybinds.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
+                    state.click_mode = ClickMode::Polygon;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
+
+                }
+
+                SEPERATOR(ToolboxGroup::Drawing);
+
+                if (magic_magic(keybinds.TWO_EDGE_CIRCLE,"DiamCircle",false,ToolboxGroup::Drawing,ClickMode::TwoEdgeCircle)) {
+                    state.click_mode = ClickMode::TwoEdgeCircle;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
                 }
 
                 if (magic_magic(keybinds.CENTERED_BOX,"CenterBox",false,ToolboxGroup::Drawing,ClickMode::CenteredBox)) {
@@ -432,12 +446,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(keybinds.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
-                    state.click_mode = ClickMode::Polygon;
-                    state.click_modifier = ClickModifier::None;
-                    two_click_command->awaiting_second_click = false;
-
-                }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
@@ -453,6 +461,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
 
+                }
+                if (magic_magic(keybinds.RESIZE,"Scale",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::Size)) { 
+                    state.enter_mode = EnterMode::Size;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -473,6 +484,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
+                if (magic_magic(keybinds.MIRROR_X,"XMirror",false,ToolboxGroup::Drawing,ClickMode::MirrorX)) {
+                    state.click_mode = ClickMode::MirrorX;
+                    state.click_modifier = ClickModifier::None;
+                }
+
+                if (magic_magic(keybinds.MIRROR_Y,"YMirror",false,ToolboxGroup::Drawing,ClickMode::MirrorY)) {
+                    state.click_mode = ClickMode::MirrorY;
+                    state.click_modifier = ClickModifier::None;
+                }
+
+                SEPERATOR(ToolboxGroup::Drawing);
+
 
                 if (magic_magic(keybinds.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
@@ -480,22 +503,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
-
                 }
 
-                if (magic_magic(keybinds.POWER_FILLET,"PowerFillet",false,ToolboxGroup::Drawing,ClickMode::PowerFillet)) {
-                    state.click_mode = ClickMode::PowerFillet;
-                    state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
-
-                }
 
                 if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
                     state.click_mode = ClickMode::TwoClickDivide;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
+                }
 
+                SEPERATOR(ToolboxGroup::Drawing);
+
+                if (magic_magic(keybinds.POWER_FILLET,"PowerFillet",false,ToolboxGroup::Drawing,ClickMode::PowerFillet)) {
+                    state.click_mode = ClickMode::PowerFillet;
+                    state.click_modifier = ClickModifier::None;
+                    state.enter_mode = EnterMode::None;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -503,17 +526,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(keybinds.CHANGE_ORIGIN,"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin)) {
                     state.click_mode = ClickMode::Origin;
                     state.click_modifier = ClickModifier::None;
-
                 }
 
                 if (magic_magic(keybinds.AXIS,"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis)) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
-
                 } 
 
                 SEPERATOR(ToolboxGroup::Drawing);
+
+                if (magic_magic(keybinds.MEASURE,"Measure",false,ToolboxGroup::Drawing,ClickMode::Measure)) {
+                    result.record_me = false;
+                    state.click_mode = ClickMode::Measure;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
+                }
+
                 SEPERATOR(ToolboxGroup::Drawing);
                 SEPERATOR(ToolboxGroup::Drawing);
 
@@ -589,11 +618,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.TWO_EDGE_CIRCLE)) {
-                    state.click_mode = ClickMode::TwoEdgeCircle;
-                    state.click_modifier = ClickModifier::None;
-                    two_click_command->awaiting_second_click = false;
-                }
 
 
                 if (magic_magic(keybinds.DIVIDE_NEAREST)) {
@@ -628,13 +652,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.MEASURE)) {
-                    result.record_me = false;
-                    state.click_mode = ClickMode::Measure;
-                    state.click_modifier = ClickModifier::None;
-                    two_click_command->awaiting_second_click = false;
 
-                }
                 if (magic_magic(keybinds.MIRROR_LINE)) {
                     state.click_mode = ClickMode::MirrorLine;
                     state.click_modifier = ClickModifier::None;
@@ -686,15 +704,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     other.awaiting_confirmation = false;
                 }
 
-                if (magic_magic(keybinds.RESIZE)) { 
-                    state.enter_mode = EnterMode::Size;
-                }
 
-                if (magic_magic(keybinds.MIRROR_X)) {
-                    state.click_mode = ClickMode::MirrorX;
-                    state.click_modifier = ClickModifier::None;
-
-                }
 
                 if (magic_magic(keybinds.DRAWING_FRAME)) {
                     result.record_me = false;
@@ -704,11 +714,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(keybinds.MIRROR_Y)) {
-                    state.click_mode = ClickMode::MirrorY;
-                    state.click_modifier = ClickModifier::None;
-
-                }
 
                 if (magic_magic(keybinds.PREVIOUS_HOT_KEY_2D)) {
                     state.click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
@@ -1062,7 +1067,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             } else if (!mouse_event->mouse_held) {
                 if (click_mode_TWO_CLICK_COMMAND) {
-
                     if (!two_click_command->awaiting_second_click) {
                         DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                         bool first_click_accepted; {
@@ -1104,10 +1108,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
                     } else {
-                        vec2 *first_click = &two_click_command->first_click;
-                        vec2 *second_click = mouse;
-                        vec2 click_vector = (*second_click - *first_click);
-                        real click_theta = angle_from_0_TAU(*first_click, *second_click);
+                        vec2 first_click = two_click_command->first_click;
+                        vec2 second_click = *mouse;
+                        vec2 click_vector = (second_click - first_click);
+                        vec2 average_click = AVG(first_click, second_click);
+                        real click_theta = angle_from_0_TAU(first_click, second_click);
+                        real clicks_are_same = IS_ZERO(click_vector);
+                        real length_click_vector = norm(click_vector);
 
                         if (0) {
                         } else if (state.click_mode == ClickMode::Axis) {
@@ -1115,37 +1122,37 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            drawing->axis_base_point = *first_click;
+                            drawing->axis_base_point = first_click;
                             drawing->axis_angle_from_y = (-PI / 2) + click_theta;
                         } else if (state.click_mode == ClickMode::Box) {
-                            if (IS_ZERO(ABS(first_click->x - second_click->x))) {
+                            if (IS_ZERO(ABS(first_click.x - second_click.x))) {
                                 messagef(omax.orange, "Box: must have non-zero width ");
-                            } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
+                            } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
                                 messagef(omax.orange, "Box: must have non-zero height");
                             } else {
                                 // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
-                                vec2 other_corner_A = { first_click->x, second_click->y };
-                                vec2 other_corner_B = { second_click->x, first_click->y };
-                                cookbook.buffer_add_line(*first_click,  other_corner_A);
-                                cookbook.buffer_add_line(*first_click,  other_corner_B);
-                                cookbook.buffer_add_line(*second_click, other_corner_A);
-                                cookbook.buffer_add_line(*second_click, other_corner_B);
+                                vec2 other_corner_A = { first_click.x, second_click.y };
+                                vec2 other_corner_B = { second_click.x, first_click.y };
+                                cookbook.buffer_add_line(first_click,  other_corner_A);
+                                cookbook.buffer_add_line(first_click,  other_corner_B);
+                                cookbook.buffer_add_line(second_click, other_corner_A);
+                                cookbook.buffer_add_line(second_click, other_corner_B);
                             }
                         } else if (state.click_mode == ClickMode::CenteredBox) {
-                            if (IS_ZERO(ABS(first_click->x - second_click->x))) {
+                            if (IS_ZERO(ABS(first_click.x - second_click.x))) {
                                 messagef(omax.orange, "Box: must have non-zero width ");
-                            } else if (IS_ZERO(ABS(first_click->y - second_click->y))) {
+                            } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
                                 messagef(omax.orange, "Box: must have non-zero height");
                             } else {
                                 // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
-                                vec2 one_corner = *second_click;
-                                vec2 center = *first_click;
+                                vec2 one_corner = second_click;
+                                vec2 center = first_click;
                                 real other_y = 2 * center.y - one_corner.y;
                                 real other_x = 2 * center.x - one_corner.x;
                                 cookbook.buffer_add_line(one_corner, V2(one_corner.x, other_y));
@@ -1158,14 +1165,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             state.click_modifier = ClickModifier::None;
                             two_click_command->awaiting_second_click = false;
-                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, *second_click);
+                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
-                                cookbook.fillet_two_entities_from_point(E, F, second_click, popup->fillet_radius);
+                                cookbook.fillet_two_entities_from_point(E, F, average_click, popup->fillet_radius);
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
-                            if (IS_ZERO(norm(*first_click - *second_click))) {
+                            if (clicks_are_same) {
                                 messagef(omax.orange, "Circle: must have non-zero diameter");
                             } else {
                                 two_click_command->awaiting_second_click = false;
@@ -1174,23 +1181,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 state.click_modifier = ClickModifier::None;
                                 real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                                real r = norm(*second_click - *first_click);
-                                cookbook.buffer_add_arc(*first_click, r, theta_a_in_degrees, theta_b_in_degrees);
-                                cookbook.buffer_add_arc(*first_click, r, theta_b_in_degrees, theta_a_in_degrees);
+                                real r = length_click_vector;
+                                cookbook.buffer_add_arc(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
+                                cookbook.buffer_add_arc(first_click, r, theta_b_in_degrees, theta_a_in_degrees);
                                 // messagef(omax.green, "Circle");
                             }
                         } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
-                            if (IS_ZERO(norm(*first_click - *second_click))) {
+                            if (clicks_are_same) {
                                 messagef(omax.orange, "TwoEdgeCircle: must have non-zero diameter");
                             } else {
                                 // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
-                                vec2 center = (*second_click + *first_click) / 2;
-                                real theta_a_in_degrees = DEG(ATAN2(*second_click - center));
+                                vec2 center = average_click;
+                                real theta_a_in_degrees = DEG(ATAN2(second_click - center));
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                                real radius = norm(*second_click - *first_click) / 2;
+                                real radius = length_click_vector / 2;
                                 cookbook.buffer_add_arc(center, radius, theta_a_in_degrees, theta_b_in_degrees);
                                 cookbook.buffer_add_arc(center, radius, theta_b_in_degrees, theta_a_in_degrees);
                                 // messagef(omax.green, "Circle");
@@ -1202,7 +1209,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // two_click_command->awaiting_second_click = false;
 
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
-                            DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, *second_click);
+                            DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, second_click);
                             if (closest_result_two.success) {
                                 Entity *closest_entity_two = closest_result_two.closest_entity;
                                 if (closest_entity_one == closest_entity_two) {
@@ -1247,8 +1254,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         real theta_b = 0;
 
                                         if (p1Works) {
-                                            real click_to_p1 = distance(arc_x_arc_result.point1, *second_click);
-                                            real click_to_p2 = distance(arc_x_arc_result.point2, *second_click);
+                                            real click_to_p1 = distance(arc_x_arc_result.point1, second_click);
+                                            real click_to_p2 = distance(arc_x_arc_result.point2, second_click);
                                             if (p2Works && click_to_p2 < click_to_p1) { 
                                                 theta_a = arc_x_arc_result.theta_2a;
                                                 theta_b = arc_x_arc_result.theta_2b;
@@ -1303,8 +1310,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         bool cutArc = false;
 
                                         if (p1Works) {
-                                            real click_to_p1 = distance(line_x_arc_result.point1, *second_click);
-                                            real click_to_p2 = distance(line_x_arc_result.point2, *second_click);
+                                            real click_to_p1 = distance(line_x_arc_result.point1, second_click);
+                                            real click_to_p2 = distance(line_x_arc_result.point2, second_click);
                                             if (p2Works && click_to_p2 < click_to_p1) { 
                                                 intersect = line_x_arc_result.point2;
                                                 theta = line_x_arc_result.theta_2;
@@ -1346,13 +1353,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
-                            cookbook.buffer_add_line(*first_click, *second_click);
+                            cookbook.buffer_add_line(first_click, second_click);
                         } else if (state.click_mode == ClickMode::Measure) {
                             // two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
                             real angle = DEG(click_theta);
-                            real length = norm(*second_click - *first_click);
+                            real length = length_click_vector;
                             messagef(omax.cyan, "Angle is %gdeg.", angle);
                             messagef(omax.cyan, "Length is %gmm.", length);
                         } else if (state.click_mode == ClickMode::MirrorLine) {
@@ -1365,11 +1372,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real theta_in_degrees = DEG(theta);
 
                             auto Q = [theta, first_click](vec2 p) {
-                                p -= *first_click;
+                                p -= first_click;
                                 p = rotated(p, -theta);
                                 p = cwiseProduct(V2(1, -1), p);
                                 p = rotated(p, theta);
-                                p += *first_click;
+                                p += first_click;
                                 return p;
                             };
 
@@ -1395,11 +1402,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             _for_each_selected_entity_ {
                                 if (entity->type == EntityType::Line) {
                                     LineEntity *line = &entity->line;
-                                    line->start = rotated_about(line->start, *first_click, click_theta);
-                                    line->end = rotated_about(line->end, *first_click, click_theta);
+                                    line->start = rotated_about(line->start, first_click, click_theta);
+                                    line->end = rotated_about(line->end, first_click, click_theta);
                                 } else { ASSERT(entity->type == EntityType::Arc);
                                     ArcEntity *arc = &entity->arc;
-                                    arc->center = rotated_about(arc->center, *first_click, click_theta);
+                                    arc->center = rotated_about(arc->center, first_click, click_theta);
                                     arc->start_angle_in_degrees = DEG(click_theta) + arc->start_angle_in_degrees;
                                     arc->end_angle_in_degrees = DEG(click_theta) + arc->end_angle_in_degrees;
                                 }
@@ -1421,11 +1428,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     Entity new_entity = oldEntity;
                                     if (entity->type == EntityType::Line) {
                                         LineEntity *line = &new_entity.line;
-                                        line->start = rotated_about(line->start, *first_click, theta_rad);
-                                        line->end = rotated_about(line->end, *first_click, theta_rad);
+                                        line->start = rotated_about(line->start, first_click, theta_rad);
+                                        line->end = rotated_about(line->end, first_click, theta_rad);
                                     } else { ASSERT(entity->type == EntityType::Arc);
                                         ArcEntity *arc = &new_entity.arc;
-                                        arc->center = rotated_about(arc->center, *first_click, theta_rad);
+                                        arc->center = rotated_about(arc->center, first_click, theta_rad);
                                         arc->start_angle_in_degrees = theta_deg + arc->start_angle_in_degrees;
                                         arc->end_angle_in_degrees = theta_deg + arc->end_angle_in_degrees;
                                     }
@@ -1476,7 +1483,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             _for_each_selected_entity_ entity->is_selected = false;
                         } else if (state.click_mode == ClickMode::Polygon) {
                             uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
-                            if (IS_ZERO(norm(*first_click - *second_click))) {
+                            if (clicks_are_same) {
                                 messagef(omax.orange, "Polygon: must have non-zero size");
                             } else {
                                 // two_click_command->awaiting_second_click = false;
@@ -1484,14 +1491,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
                                 real delta_theta = TAU / polygon_num_sides;
-                                vec2 center = *first_click;
-                                vec2 vertex_0 = *second_click;
+                                vec2 center = first_click;
+                                vec2 vertex_0 = second_click;
                                 real radius = distance(center, vertex_0);
                                 real theta_0 = ATAN2(vertex_0 - center);
                                 // cookbook.buffer_add_line(center, vertex_0); // center line (so sayeth LAYOUT)
                                 for_(i, polygon_num_sides) {
                                     real theta_i = theta_0 + (i * delta_theta);
-                                    real theta_ip1 = theta_i + delta_theta;
+                                    real theta_ip1 = theta_0 + ((i + 1) * delta_theta);
                                     cookbook.buffer_add_line(
                                             get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i),
                                             get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1)
@@ -1501,10 +1508,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT) {
                             two_click_command->awaiting_second_click = false;
                             bbox2 window = {
-                                MIN(first_click->x, second_click->x),
-                                MIN(first_click->y, second_click->y),
-                                MAX(first_click->x, second_click->x),
-                                MAX(first_click->y, second_click->y)
+                                MIN(first_click.x, second_click.x),
+                                MIN(first_click.y, second_click.y),
+                                MAX(first_click.x, second_click.x),
+                                MAX(first_click.y, second_click.y)
                             };
                             _for_each_entity_ {
                                 if (bbox_contains(window, entity_get_bbox(entity))) {
@@ -1597,9 +1604,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
 
                         for_(i, selected_entities.length) {
-                            cookbook.fillet_two_entities_from_point(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], mouse, popup->fillet_radius);
+                            cookbook.fillet_two_entities_from_point(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
                         }
-
                     } else if (state.click_mode == ClickMode::MirrorX) {
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;

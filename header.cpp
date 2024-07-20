@@ -1917,10 +1917,10 @@ struct ArcArcXClosestResult {
     bool no_possible_intersection;
 };
 
-ArcArcXClosestResult arc_arc_intersection_closest(ArcEntity *arc_a, ArcEntity *arc_b, vec2 *point) {
+ArcArcXClosestResult arc_arc_intersection_closest(ArcEntity *arc_a, ArcEntity *arc_b, vec2 point) {
     ArcArcXClosestResult result;
     ArcArcXResult two_point_result = arc_arc_intersection(arc_a, arc_b);
-    if (distance(*point, two_point_result.point1) < distance(*point, two_point_result.point2)) {
+    if (distance(point, two_point_result.point1) < distance(point, two_point_result.point2)) {
         result.point = two_point_result.point1;
         result.theta_a = two_point_result.theta_1a;
         result.theta_b = two_point_result.theta_1b;
@@ -1946,10 +1946,10 @@ struct LineArcXClosestResult {
     bool no_possible_intersection;
 };
 
-LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity *arc, vec2 *point) {
+LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity *arc, vec2 point) {
     LineArcXClosestResult result;
     LineArcXResult two_point_result = line_arc_intersection(line, arc);
-    if (distance(*point, two_point_result.point1) < distance(*point, two_point_result.point2)) {
+    if (distance(point, two_point_result.point1) < distance(point, two_point_result.point2)) {
         result.point = two_point_result.point1;
         result.theta = two_point_result.theta_1;
         result.t = two_point_result.t1;
