@@ -243,9 +243,6 @@ int main() {
 
         { // draw
             conversation_draw();
-        }
-
-        {
             _messages_draw();
         }
 
