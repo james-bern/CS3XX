@@ -168,9 +168,9 @@ struct Cookbook {
 
         if ((E->type == EntityType::Line) && (F->type == EntityType::Line)) {
             //  a -- b   x          a -- B-.  
-            //                            , - 
-            //           d    =>         X   D
-            //     p     |             p     |
+            //                           |  - 
+            //           d    =>         X - D
+            //    p      |            p      |
             //           c                   c
 
             vec2 a;
@@ -241,22 +241,24 @@ struct Cookbook {
                 X = _X.point;
             }
 
-            { // lines
-                *b_ptr = B;
-                *d_ptr = D;
-            }
-
-            if (!IS_ZERO(radius)) { // arc
-                real theta_B_in_degrees;
-                real theta_D_in_degrees;
-                {
-                    theta_B_in_degrees = DEG(angle_from_0_TAU(X, B));
-                    theta_D_in_degrees = DEG(angle_from_0_TAU(X, D));
-                    if (get_three_point_angle(B, X, D) > PI) {
-                        SWAP(&theta_B_in_degrees, &theta_D_in_degrees);
-                    }
+            { // entities
+                { // lines
+                    *b_ptr = B;
+                    *d_ptr = D;
                 }
-                buffer_add_arc(X, radius, theta_B_in_degrees, theta_D_in_degrees, false, E->color_code);
+
+                if (!IS_ZERO(radius)) { // arc
+                    real theta_B_in_degrees;
+                    real theta_D_in_degrees;
+                    {
+                        theta_B_in_degrees = DEG(angle_from_0_TAU(X, B));
+                        theta_D_in_degrees = DEG(angle_from_0_TAU(X, D));
+                        if (get_three_point_angle(B, X, D) > PI) {
+                            SWAP(&theta_B_in_degrees, &theta_D_in_degrees);
+                        }
+                    }
+                    buffer_add_arc(X, radius, theta_B_in_degrees, theta_D_in_degrees, false, E->color_code);
+                }
             }
         } else if ((E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line)) {
             // general idea
@@ -388,7 +390,6 @@ struct Cookbook {
                     }
                 }
             }
-
         } else { // TODO: put an assert here
             ArcEntity arc_a = E->arc;
             ArcEntity arc_b = F->arc;

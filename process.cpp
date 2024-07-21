@@ -1339,10 +1339,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         } else if (state.click_mode == ClickMode::Line) {
                             // two_click_command->awaiting_second_click = false;
-                            result.checkpoint_me = true;
-                            state.click_mode = ClickMode::None;
-                            state.click_modifier = ClickModifier::None;
-                            cookbook.buffer_add_line(first_click, second_click);
+                            if (clicks_are_same) {
+                                messagef(omax.orange, "Line: must have non-zero length");
+                            } else {
+                                result.checkpoint_me = true;
+                                state.click_mode = ClickMode::None;
+                                state.click_modifier = ClickModifier::None;
+                                cookbook.buffer_add_line(first_click, second_click);
+                            }
                         } else if (state.click_mode == ClickMode::Measure) {
                             // two_click_command->awaiting_second_click = false;
                             state.click_mode = ClickMode::None;
