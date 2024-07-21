@@ -173,12 +173,12 @@ struct Cookbook {
             //    p      |            p      |
             //           c                   c
 
+            vec2 p = reference_point;
             vec2 a;
             vec2 b;
             vec2 c;
             vec2 d;
             vec2 x;
-            vec2 p = reference_point;
             vec2 e_ab;
             vec2 e_cd;
             vec2 *b_ptr;
@@ -390,7 +390,7 @@ struct Cookbook {
                     }
                 }
             }
-        } else { // TODO: put an assert here
+        } else { ASSERT(E->type == EntityType::Arc && F->type == EntityType::Arc);
             ArcEntity arc_a = E->arc;
             ArcEntity arc_b = F->arc;
             real _other_fillet_radius = radius + (radius == 0 ? 1 : 0);
