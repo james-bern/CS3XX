@@ -2,7 +2,6 @@ KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_eve
     if (popup->manager.focus_group == ToolboxGroup::None) return KeyEventSubtype::Hotkey;
 
     uint key = raw_key_event->key;
-    if (key == '9') DEBUGBREAK();
     bool control = raw_key_event->control;
     // bool shift = raw_key_event->shift;
 
