@@ -169,6 +169,12 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 #include <windows.h>
 #define IS_NAN(x) 
 #endif
+// SWAP
+template <typename T> void SWAP(T *a, T *b) {
+    T tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
 
 run_before_main {
     setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf

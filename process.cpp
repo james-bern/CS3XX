@@ -1158,7 +1158,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
-                                cookbook.attempt_dogear(E, F, average_click, popup->fillet_radius);
+                                cookbook.attempt_dogear(E, F, average_click, popup->dogear_radius);
                             }
                         } else if (state.click_mode == ClickMode::Circle) {
                             if (clicks_are_same) {
@@ -1555,6 +1555,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }          
                         }
                     } else if (state.click_mode == ClickMode::PowerFillet) {
+                        do_once { messagef(omax.red, "(Jim) i maybe broke this by messing with fillet\nlet's take a look together :)"); };
                         result.checkpoint_me = true;
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;

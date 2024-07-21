@@ -51,10 +51,17 @@ run_before_main {
                      ; };
 #endif
 
-#if 1 // dogear
+#if 1 // fillet
 run_before_main {
     startup_script = \
-                     "Bz20\t10\n";
+                     "Bz40\t20\nf5<m2d 15 10><m2d 20 5>";
+};
+#endif
+
+#if 0 // dogear
+run_before_main {
+    startup_script = \
+                     "Bz40\t20\ng5<m2d 15 10><m2d 20 5>";
 };
 #endif
 
