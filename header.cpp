@@ -528,6 +528,12 @@ real WRAP_TO_0_TAU_INTERVAL(real theta) {
     return theta;
 }
 
+real _WRAP_TO_0_360_INTERVAL(real theta_in_degrees) {
+    theta_in_degrees = fmod(theta_in_degrees, 360.0f);
+    if (theta_in_degrees < 0.0) theta_in_degrees += 360.0f;
+    return theta_in_degrees;
+}
+
 bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
     return (WRAP_TO_0_TAU_INTERVAL(t - a) < WRAP_TO_0_TAU_INTERVAL(t - b));
 }

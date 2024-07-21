@@ -166,7 +166,10 @@ struct Cookbook {
             return;
         }
 
-        if ((E->type == EntityType::Line) && (F->type == EntityType::Line)) {
+        bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
+        bool is_line_arc_or_arc_line = (E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line);
+        bool is_arc_arc = (E->type == EntityType::Arc && F->type == EntityType::Arc);
+        if (is_line_line) {
             //  a -- b   x          a -- B-.  
             //                           |  - 
             //           d    =>         X - D
@@ -260,7 +263,7 @@ struct Cookbook {
                     buffer_add_arc(X, radius, theta_B_in_degrees, theta_D_in_degrees, false, E->color_code);
                 }
             }
-        } else if ((E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line)) {
+        } else if (is_line_arc_or_arc_line) {
             // general idea
             // 1. find what quadrant the click is in
             // 2. use that to get the intersect between line and circle
@@ -320,7 +323,7 @@ struct Cookbook {
                 vec2 line_vector = line.end - line.start;
                 bool line_left = cross(line_vector, reference_point - line.start) < 0;
                 vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
-                LineEntity new_line;
+                LineEntity new_line; // ! color, etc. undefined
                 new_line.start = line.start + line_adjust; 
                 new_line.end = line.end + line_adjust; 
 
@@ -390,7 +393,7 @@ struct Cookbook {
                     }
                 }
             }
-        } else { ASSERT(E->type == EntityType::Arc && F->type == EntityType::Arc);
+        } else { ASSERT(is_arc_arc);
             ArcEntity arc_a = E->arc;
             ArcEntity arc_b = F->arc;
             real _other_fillet_radius = radius + (radius == 0 ? 1 : 0);
@@ -458,13 +461,117 @@ struct Cookbook {
             return;
         }
 
+        if (IS_ZERO(radius)) {
+            messagef(omax.orange, "DogEar: FORNOW: must have non-zero radius");
+            return;
+        }
+
         bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
         if (!is_line_line) {
             messagef(omax.orange, "DogEar: only line-line is supported");
             return;
         }
 
-        // TODO
+        //                                    ,--.
+        //  a -- b      x          a -- b    e     x
+        //                                  :   y  :
+        //                                  ,      f
+        //                   =>              +.__.'
+        //    p         d            p             d
+        //              |                          |
+        //              c                          c
+
+        // FORNOW: this block is repeated from fillet
+        vec2 p = reference_point;
+        vec2 a;
+        vec2 b;
+        vec2 c;
+        vec2 d;
+        vec2 x;
+        vec2 e_ab;
+        vec2 e_cd;
+        // vec2 *b_ptr;
+        // vec2 *d_ptr;
+        {
+            a     =  E->line.start;
+            b     =  E->line.end;
+            // b_ptr = &E->line.end;
+            c     =  F->line.start;
+            d     =  F->line.end;
+            // d_ptr = &F->line.end;
+
+            LineLineXResult _x = line_line_intersection(a, b, c, d);
+            if (_x.lines_are_parallel) {
+                messagef(omax.orange, "Fillet: lines are parallel");
+                return;
+            }
+            x = _x.point;
+
+            e_ab = normalized(b - a);
+            e_cd = normalized(d - c);
+
+            bool swap_ab, swap_cd; {
+                vec2 v_xp_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (p - x);
+                swap_ab = (v_xp_in_edge_basis.x > 0.0f);
+                swap_cd = (v_xp_in_edge_basis.y > 0.0f);
+            }
+
+            if (swap_ab) {
+                SWAP(&a, &b);
+                e_ab *= -1;
+                // b_ptr = &E->line.start;
+            }
+
+            if (swap_cd) {
+                SWAP(&c, &d);
+                e_cd *= -1;
+                // d_ptr = &F->line.start;
+            }
+        }
+
+        vec2 y;
+        vec2 e_xy;
+        real theta_yx_in_degrees;
+        {
+            e_xy = -normalized(e_ab + e_cd);
+            y = x + radius * e_xy;
+            theta_yx_in_degrees = DEG(ATAN2(-e_xy));
+        }
+
+        Entity G = _make_arc(y, radius, theta_yx_in_degrees - 180.0f, theta_yx_in_degrees + 180.0f, false, E->color_code);
+
+        vec2 e;
+        vec2 f;
+        {
+            // FORNOW: sloppy (use of a, c is wrong i think)
+            LineArcXClosestResult _e = line_arc_intersection_closest(&E->line, &G.arc, a);
+            ASSERT(!_e.no_possible_intersection);
+            e = _e.point;
+            LineArcXClosestResult _f = line_arc_intersection_closest(&F->line, &G.arc, c);
+            ASSERT(!_f.no_possible_intersection);
+            f = _f.point;
+        }
+
+        attempt_fillet(E, &G, e + (e - y), radius);
+        attempt_fillet(F, &G, f + (f - y), radius);
+
+        #if 0
+        // // single arc version
+        _buffer_add_entity(G);
+        #else
+        // // split arc version
+        Entity G1;
+        Entity G2;
+        {
+            G1 = G;
+            G2 = G;
+            real half_theta_in_degrees =  0.5f * _WRAP_TO_0_360_INTERVAL(G.arc.end_angle_in_degrees - G.arc.start_angle_in_degrees);
+            G1.arc.end_angle_in_degrees -= half_theta_in_degrees;
+            G2.arc.start_angle_in_degrees = G1.arc.end_angle_in_degrees;
+        }
+        _buffer_add_entity(G1);
+        _buffer_add_entity(G2);
+        #endif
     }
 
 

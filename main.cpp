@@ -51,14 +51,14 @@ run_before_main {
                      ; };
 #endif
 
-#if 1 // fillet
+#if 0 // fillet
 run_before_main {
     startup_script = \
                      "Bz40\t20\nf5<m2d 15 10><m2d 20 5>";
 };
 #endif
 
-#if 0 // dogear
+#if 1 // dogear
 run_before_main {
     startup_script = \
                      "Bz40\t20\ng5<m2d 15 10><m2d 20 5>";
@@ -178,6 +178,7 @@ int main() {
     #ifdef SHIP
     messagef(omax.green, "press ? for help");
     #endif
+    messagef(omax.red, "TODO: add to github alpha todo's: Intersection snap");
 
     auto SEND_DUMMY = [&]() {
         // "process" dummy event to draw popups and buttons

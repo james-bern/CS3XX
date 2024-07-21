@@ -89,6 +89,14 @@ bool click_mode_TWO_CLICK_COMMAND() {
         click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT(); // fornow wonky case
 }
 
+bool first_click_must_acquire_entity() {
+    return 0 ||
+        (state.click_mode == ClickMode::DogEar) ||
+        (state.click_mode == ClickMode::Fillet) ||
+        (state.click_mode == ClickMode::TwoClickDivide)
+        ;
+}
+
 bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
         || (state.enter_mode == EnterMode::ExtrudeAdd)

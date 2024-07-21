@@ -494,6 +494,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
+                if (magic_magic(keybinds.OFFSET,"Offset",false,ToolboxGroup::Drawing,ClickMode::Offset)) {
+                    popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
+                    state.click_mode = ClickMode::Offset;
+                    state.click_modifier = ClickModifier::None;
+                    state.enter_mode = EnterMode::None;
+                }
+
                 if (magic_magic(keybinds.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
                     state.click_mode = ClickMode::Fillet;
@@ -1048,12 +1055,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (!two_click_command->awaiting_second_click) {
                         DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                         bool first_click_accepted; {
-                            bool first_click_must_acquire_entity = (
-                                    0 ||
-                                    (state.click_mode == ClickMode::Fillet) ||
-                                    (state.click_mode == ClickMode::TwoClickDivide)
-                                    );
-                            if (!first_click_must_acquire_entity) {
+                            if (!first_click_must_acquire_entity()) {
                                 first_click_accepted = true;
                             } else {
                                 first_click_accepted = find_nearest_result.success;
