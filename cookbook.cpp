@@ -170,7 +170,7 @@ struct Cookbook {
             //  a -- b   x          a -- B-.  
             //                            , - 
             //           d    =>         X   D
-            //     m     |             m     |
+            //     p     |             p     |
             //           c                   c
 
             vec2 a;
@@ -178,7 +178,7 @@ struct Cookbook {
             vec2 c;
             vec2 d;
             vec2 x;
-            vec2 m = reference_point;
+            vec2 p = reference_point;
             vec2 e_ab;
             vec2 e_cd;
             vec2 *b_ptr;
@@ -202,9 +202,9 @@ struct Cookbook {
                 e_cd = normalized(d - c);
 
                 bool swap_ab, swap_cd; {
-                    vec2 vector_p_m_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (m - x);
-                    swap_ab = (vector_p_m_in_edge_basis.x > 0.0f);
-                    swap_cd = (vector_p_m_in_edge_basis.y > 0.0f);
+                    vec2 v_xp_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (p - x);
+                    swap_ab = (v_xp_in_edge_basis.x > 0.0f);
+                    swap_cd = (v_xp_in_edge_basis.y > 0.0f);
                 }
 
                 if (swap_ab) {
