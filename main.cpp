@@ -186,7 +186,18 @@ int main() {
     #ifdef SHIP
     messagef(omax.green, "press ? for help");
     #endif
-    messagef(omax.red, "TODO: add to github alpha todo's: Intersection snap");
+    messagef(omax.red, "TODO: Intersection snap");
+    messagef(omax.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
+    messagef(omax.red, "TODO: Save/Load need buttons");
+    messagef(omax.red, "TODO: Camera clip planes still jacked (including ortho)");
+    messagef(omax.red, "TODO: Camera hotkeys ;, ' need buttons");
+    messagef(omax.red, "TODO: Rezoom camera needs button");
+    messagef(omax.red, "TODO: Beatiful button presses");
+    messagef(omax.red, "TODO: config needs inches vs. mm");
+    messagef(omax.red, "TODO: config needs bool to hide gui");
+    messagef(omax.red, "TODO: Select/deselect snaps");
+    messagef(omax.red, "TODO: Push power fillet to beta");
+    messagef(omax.red, "TODO: Push power offset (shell) to beta");
 
     auto SEND_DUMMY = [&]() {
         // "process" dummy event to draw popups and buttons
@@ -207,6 +218,7 @@ int main() {
         // SLEEP(1000);
         glfwSwapBuffers(glfw_window);
         glFinish(); // 69363856
+        // SLEEP(1);
         glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         eso_size(1.5f);

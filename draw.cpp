@@ -717,7 +717,7 @@ void conversation_draw() {
                         next = NULL;
                     }
                 } else if (drag_none_and_hot_toolbox || drag_toolbox) {
-                        next = other.cursors.hand;
+                    next = other.cursors.hand;
                 } else {
                     next = NULL;
                 }
@@ -728,7 +728,10 @@ void conversation_draw() {
             }
         }
 
-        real alpha = (drag_none_and_hot_drawing) ? 1.0f : 0.5f;
+        {
+            real target = (drag_none_and_hot_drawing) ? 1.0f : 0.0f;
+            JUICEIT_EASYTWEEN(&preview->cursor_subtext_alpha, target);
+        }
         vec3 color; {
             color = omax.white;
             if ((state.click_mode == ClickMode::Color) && (state.click_modifier != ClickModifier::Selected)) {
@@ -778,7 +781,14 @@ void conversation_draw() {
                 (state.click_modifier == ClickModifier::XY)             ? "XY"              :
                 "???MODIFIER???");
 
-        EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - alpha };
+        { // spoof callback_cursor_position
+            double xpos, ypos;
+            glfwGetCursorPos(glfw_window, &xpos, &ypos);
+            void callback_cursor_position(GLFWwindow *, double xpos, double ypos);
+            callback_cursor_position(NULL, xpos, ypos);
+        }
+
+        EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - preview->cursor_subtext_alpha };
         easy_text_draw(&pen, string_click_mode);
         easy_text_draw(&pen, string_click_modifier);
     }

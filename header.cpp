@@ -397,6 +397,7 @@ struct PreviewState {
     real feature_plane_offset;
     vec2 drawing_origin;
     vec2 mouse;
+    real cursor_subtext_alpha;
 };
 
 struct Cursors {
