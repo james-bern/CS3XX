@@ -455,6 +455,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(keybinds.RESIZE,"Scale",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::Size)) { 
                     state.enter_mode = EnterMode::Size;
+                    state.click_mode = ClickMode::None;
+                    state.click_modifier = ClickModifier::None;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -790,9 +792,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(keybinds.EXIT_COMMAND)) {
                     do_once { messagef(omax.orange, "ESCAPE maybe sus."); };
                     if (popup->manager.focus_group == ToolboxGroup::Drawing) {
-                        state.click_mode = ClickMode::None;
-                        state.click_modifier = ClickModifier::None;
-                        state.click_color_code = ColorCode::Traverse;
+                        if (state.click_mode != ClickMode::None) {
+                            state.click_mode = ClickMode::None;
+                            state.click_modifier = ClickModifier::None;
+                            state.click_color_code = ColorCode::Traverse;
+                        } else {
+                            // Size, Load, Save...
+                            state.enter_mode = EnterMode::None;
+                        }
                     } else if (popup->manager.focus_group == ToolboxGroup::Mesh) {
                         state.enter_mode = EnterMode::None;
                     } else if (popup->manager.focus_group == ToolboxGroup::Snap) {

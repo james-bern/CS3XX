@@ -78,7 +78,7 @@ enum class Pane {
     Drawing,
     Mesh,
     Popup,
-    DrawingMeshSeparator,
+    Separator,
     Toolbox,
 };
 
@@ -399,9 +399,20 @@ struct PreviewState {
     vec2 mouse;
 };
 
+struct Cursors {
+    // pass NULL to glfwSetCursor to go back to the arrow
+    GLFWcursor *curr;
+    GLFWcursor *crosshair;
+    GLFWcursor *ibeam;
+    GLFWcursor *hresize;
+    GLFWcursor *hand;
+};
+
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
+
+    Cursors cursors;
 
     Camera camera_drawing;
     Camera camera_mesh;
@@ -449,6 +460,9 @@ struct StandardEventProcessResult {
     bool checkpoint_me;
     bool snapshot_me;
 };
+
+//////////////////////////////////
+
 
 ////////////////////////////////////////
 // colors //////////////////////////////

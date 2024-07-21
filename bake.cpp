@@ -98,7 +98,7 @@ Event bake_event(RawEvent raw_event) {
                 mouse_event->subtype = MouseEventSubtype::ToolboxButton;
                 MouseEventToolboxButton *mouse_event_toolbox_button = &mouse_event->mouse_event_toolbox_button;
                 mouse_event_toolbox_button->name = toolbox->hot_name;
-            } else { ASSERT(raw_mouse_event->pane == Pane::DrawingMeshSeparator);
+            } else { ASSERT(raw_mouse_event->pane == Pane::Separator);
                 event = {};
             }
         }

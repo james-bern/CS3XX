@@ -167,12 +167,20 @@ int main() {
             { // NOTE: patch first frame mouse position issue
                 other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
-                double xpos, ypos;
-                glfwGetCursorPos(glfw_window, &xpos, &ypos);
-                callback_cursor_position(NULL, xpos, ypos);
+                { // spoof callback_cursor_position
+                    double xpos, ypos;
+                    glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                    callback_cursor_position(NULL, xpos, ypos);
+                }
             }
         }
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        { // cursors_init();
+            other.cursors.crosshair = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+            other.cursors.ibeam = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+            other.cursors.hresize = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+            other.cursors.hand = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+        }
     }
 
     #ifdef SHIP
@@ -197,8 +205,8 @@ int main() {
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
         // SLEEP(1000);
-        glfwPollEvents();
         glfwSwapBuffers(glfw_window);
+        glFinish(); // 69363856
         glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         eso_size(1.5f);
@@ -237,6 +245,8 @@ int main() {
 
 
             { // events
+                glfwPollEvents();
+
                 {
                     SEND_DUMMY();
                 }
@@ -254,6 +264,12 @@ int main() {
         } else {
             SEND_DUMMY();
             ;
+        }
+
+        { // spoof callback_cursor_position
+            double xpos, ypos;
+            glfwGetCursorPos(glfw_window, &xpos, &ypos);
+            callback_cursor_position(NULL, xpos, ypos);
         }
 
         { // draw
