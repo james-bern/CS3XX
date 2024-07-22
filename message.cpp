@@ -1,6 +1,6 @@
 #define MESSAGE_MAX_LENGTH 256
 #define MESSAGE_MAX_NUM_MESSAGES 64
-#define MESSAGE_MAX_TIME 6.0f
+#define MESSAGE_MAX_TIME 16.0f
 
 struct Message {
     _STRING_CALLOC(string, MESSAGE_MAX_LENGTH);
@@ -78,7 +78,7 @@ void _messages_draw() {
         }
 
         vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, omax.yellow, message->base_color);
-        color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME - FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
+        color = CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
 
         real y_target = lines_drawn * font_height_Pixel;
         lines_drawn += message->height;

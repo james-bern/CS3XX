@@ -92,7 +92,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             }
                         }
                     }
-                } else if (state.click_modifier == ClickModifier::Perpendicular) { // layout also does a divide which can be added if wanted
+                } else if (state.click_modifier == ClickModifier::Perp) { // layout also does a divide which can be added if wanted
                     vec2 click_one = two_click_command->first_click;
                     if (closest_entity->type == EntityType::Line) {
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;

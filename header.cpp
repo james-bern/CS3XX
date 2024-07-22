@@ -5,12 +5,14 @@ enum class EnterMode {
     ExtrudeAdd,
     ExtrudeCut,
     NudgePlane,
-    Load,
     RevolveAdd,
     RevolveCut,
-    Save,
-    SaveAs,
     Size,
+
+    OpenDXF,
+    OpenSTL,
+    SaveDXF,
+    SaveSTL,
 };
 
 
@@ -40,8 +42,8 @@ enum class ClickMode {
     LinearCopy,
     Measure,
     MirrorLine,
-    MirrorX,
-    MirrorY,
+    XMirror,
+    YMirror,
     Move,
     Offset,
     Origin,
@@ -50,8 +52,8 @@ enum class ClickMode {
     Rotate,
     RotateCopy,
     Select,
-    TwoEdgeCircle,
-    TwoClickDivide,
+    DiamCircle,
+    Divide2,
 };
 
 enum class ClickModifier {
@@ -61,7 +63,7 @@ enum class ClickModifier {
     Connected,
     End,
     Middle,
-    Perpendicular,
+    Perp,
     Quad,
     Selected,
     Window,
@@ -474,7 +476,6 @@ struct {
     #if 1
     vec3 red = RGB255(255, 0, 0);
     vec3 orange = RGB255(204, 136, 1);
-    vec3 yellow = RGB255(255, 255, 0);
     vec3 green = RGB255(83, 255,  85);
     vec3 blue = RGB255(0, 85, 255);
     vec3 purple = RGB255(170, 1, 255);
@@ -482,7 +483,6 @@ struct {
     #else
     vec3 red = monokai.red;
     vec3 orange = monokai.orange;
-    vec3 yellow = monokai.yellow;
     vec3 green = monokai.green;
     vec3 blue = monokai.blue;
     vec3 purple = monokai.purple;
@@ -490,7 +490,9 @@ struct {
     #endif
     vec3 cyan = RGB255(0, 255, 255);
     vec3 magenta = RGB255(255, 0, 255);
+    vec3 yellow = RGB255(255, 255, 0);
     vec3 black = RGB255(0, 0, 0);
+
     vec3 dark_gray = RGB255(50, 50, 50);
     vec3 gray = RGB255(152, 152, 152);
     vec3 light_gray = RGB255(205, 205, 205);

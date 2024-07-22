@@ -8,14 +8,14 @@ bool click_mode_SNAP_ELIGIBLE() {
         || (state.click_mode == ClickMode::LinearCopy)
         || (state.click_mode == ClickMode::Measure)
         || (state.click_mode == ClickMode::MirrorLine)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
+        || (state.click_mode == ClickMode::XMirror)
+        || (state.click_mode == ClickMode::YMirror)
         || (state.click_mode == ClickMode::Move)
         || (state.click_mode == ClickMode::Origin)
         || (state.click_mode == ClickMode::Polygon)
         || (state.click_mode == ClickMode::Rotate)
         || (state.click_mode == ClickMode::RotateCopy)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
+        || (state.click_mode == ClickMode::DiamCircle)
         ;
 }
 
@@ -28,14 +28,14 @@ bool click_mode_15_DEG_ELIGIBLE() {
         || (state.click_mode == ClickMode::LinearCopy)
         || (state.click_mode == ClickMode::Measure)
         || (state.click_mode == ClickMode::MirrorLine)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
+        || (state.click_mode == ClickMode::XMirror)
+        || (state.click_mode == ClickMode::YMirror)
         || (state.click_mode == ClickMode::Move)
         || (state.click_mode == ClickMode::Origin)
         || (state.click_mode == ClickMode::Polygon)
         || (state.click_mode == ClickMode::Rotate)
         || (state.click_mode == ClickMode::RotateCopy)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
+        || (state.click_mode == ClickMode::DiamCircle)
         ;
 }
 
@@ -48,15 +48,15 @@ bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::Measure)
         || (state.click_mode == ClickMode::MirrorLine)
-        || (state.click_mode == ClickMode::MirrorX)
-        || (state.click_mode == ClickMode::MirrorY)
+        || (state.click_mode == ClickMode::XMirror)
+        || (state.click_mode == ClickMode::YMirror)
         || (state.click_mode == ClickMode::Move)
         || (state.click_mode == ClickMode::Origin)
         || (state.click_mode == ClickMode::Polygon)
         || (state.click_mode == ClickMode::Rotate)
         || (state.click_mode == ClickMode::RotateCopy)
-        || (state.click_mode == ClickMode::TwoClickDivide)
-        || (state.click_mode == ClickMode::TwoEdgeCircle)
+        || (state.click_mode == ClickMode::Divide2)
+        || (state.click_mode == ClickMode::DiamCircle)
         ;
 }
 
@@ -84,8 +84,8 @@ bool click_mode_TWO_CLICK_COMMAND() {
         (state.click_mode == ClickMode::Polygon) ||
         (state.click_mode == ClickMode::Rotate) ||
         (state.click_mode == ClickMode::RotateCopy) ||
-        (state.click_mode == ClickMode::TwoEdgeCircle) ||
-        (state.click_mode == ClickMode::TwoClickDivide) ||
+        (state.click_mode == ClickMode::DiamCircle) ||
+        (state.click_mode == ClickMode::Divide2) ||
         click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT(); // fornow wonky case
 }
 
@@ -93,7 +93,7 @@ bool first_click_must_acquire_entity() {
     return 0 ||
         (state.click_mode == ClickMode::DogEar) ||
         (state.click_mode == ClickMode::Fillet) ||
-        (state.click_mode == ClickMode::TwoClickDivide)
+        (state.click_mode == ClickMode::Divide2)
         ;
 }
 

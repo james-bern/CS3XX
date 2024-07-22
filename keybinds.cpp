@@ -6,6 +6,8 @@
 #define ESCAPE GLFW_KEY_ESCAPE
 #define TAB GLFW_KEY_TAB
 
+// TODO: switch from UPPER_SNAKE_CASE to UpperCamelCase (there is gonna a fast vim method probably)
+
 #define OUTER \
     /*//////////////////////////////*/ \
     /*///////  SNAP COMMANDS ///////*/ \
@@ -53,7 +55,6 @@
     INNER(HELP_MENU, '/', 0b010);  \
     INNER(LINE, 'L', 0b000);  \
     INNER(LINEAR_COPY, 'O', 0b000);  \
-    INNER(LOAD_FILE, 'O', 0b010);  \
     INNER(MEASURE, 'M', 0b001);  \
     INNER(MIRROR_LINE, 'M', 0b011);  \
     INNER(MIRROR_X, 'X', 0b001);  \
@@ -61,6 +62,8 @@
     INNER(MOVE, 'M', 0b000);  \
     INNER(NUDGE_PLANE, 'N', 0b000);  \
     INNER(OFFSET, 'H', 0b000);  \
+    INNER(OPEN_DRAWING, 'O', 0b010);  \
+    INNER(OPEN_MESH, 'O', 0b011);  \
     INNER(POLYGON, 'P', 0b000);  \
     INNER(POWER_FILLET, 'F', 0b001);  \
     INNER(PREVIOUS_HOT_KEY_2D, ' ', 0b000);  \
@@ -84,15 +87,15 @@
     INNER(REVOLVE_CUT, ']', 0b001);  \
     INNER(ROTATE, 'R', 0b000);  \
     INNER(ROTATE_COPY, 'R', 0b001);  \
-    INNER(SAVE, 'S', 0b010);  \
-    INNER(SAVE_AS, 'S', 0b011);  \
+    INNER(SAVE_DRAWING, 'S', 0b010);  \
+    INNER(SAVE_MESH, 'S', 0b011);  \
     INNER(SELECT, 'S', 0b000);  \
     INNER(TOGGLE_BUTTONS, TAB, 0b001);  \
     INNER(TOGGLE_DRAWING_DETAILS, '.', 0b000);  \
     INNER(TOGGLE_EVENT_STACK, 'K', 0b000);  \
     INNER(TOGGLE_FEATURE_PLANE, ';', 0b000);  \
     INNER(TOGGLE_GRID, 'G', 0b000);  \
-    INNER(TOGGLE_LIGHT_MODE, TAB, 0b000);  \
+    INNER(TOGGLE_LIGHT_MODE, 'L', 0b011);  \
     INNER(TWO_CLICK_DIVIDE, 'I', 0b000);  \
     INNER(TWO_EDGE_CIRCLE, 'C', 0b001);  \
     INNER(UNDO, 'U', 0b000);  \

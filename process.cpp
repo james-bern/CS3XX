@@ -288,9 +288,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
-                    if (magic_magic(keybinds.PERPENDICULAR,"Perp",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perpendicular)) {
+                    if (magic_magic(keybinds.PERPENDICULAR,"Perp",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perp)) {
                         result.record_me = false;
-                        state.click_modifier = ClickModifier::Perpendicular;
+                        state.click_modifier = ClickModifier::Perp;
 
                     }
 
@@ -311,6 +311,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 ///
+                if (magic_magic(keybinds.OPEN_DRAWING,"OpenDXF",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::OpenDXF)) {
+                    state.click_mode = ClickMode::None;
+                    state.click_modifier = ClickModifier::None;
+                    state.enter_mode = EnterMode::OpenDXF;
+                }
+
+                if (magic_magic(keybinds.SAVE_DRAWING,"SaveDXF",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::SaveDXF)) {
+                    result.record_me = false; // TODO
+                    other.awaiting_confirmation = false; // TODO
+
+                    state.click_mode = ClickMode::None;
+                    state.click_modifier = ClickModifier::None;
+                    state.enter_mode = EnterMode::SaveDXF;
+
+                }
+
+                SEPERATOR(ToolboxGroup::Drawing);
+                SEPERATOR(ToolboxGroup::Drawing);
 
                 { // undo
                     bool hotkey_undo_alternate = magic_magic(keybinds.UNDO_ALTERNATE);
@@ -424,8 +442,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.TWO_EDGE_CIRCLE,"DiamCircle",false,ToolboxGroup::Drawing,ClickMode::TwoEdgeCircle)) {
-                    state.click_mode = ClickMode::TwoEdgeCircle;
+                if (magic_magic(keybinds.TWO_EDGE_CIRCLE,"DiamCircle",false,ToolboxGroup::Drawing,ClickMode::DiamCircle)) {
+                    state.click_mode = ClickMode::DiamCircle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
@@ -475,20 +493,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.MIRROR_X,"XMirror",false,ToolboxGroup::Drawing,ClickMode::MirrorX)) {
-                    state.click_mode = ClickMode::MirrorX;
+                if (magic_magic(keybinds.MIRROR_X,"XMirror",false,ToolboxGroup::Drawing,ClickMode::XMirror)) {
+                    state.click_mode = ClickMode::XMirror;
                     state.click_modifier = ClickModifier::None;
                 }
 
-                if (magic_magic(keybinds.MIRROR_Y,"YMirror",false,ToolboxGroup::Drawing,ClickMode::MirrorY)) {
-                    state.click_mode = ClickMode::MirrorY;
+                if (magic_magic(keybinds.MIRROR_Y,"YMirror",false,ToolboxGroup::Drawing,ClickMode::YMirror)) {
+                    state.click_mode = ClickMode::YMirror;
                     state.click_modifier = ClickModifier::None;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::TwoClickDivide)) {
-                    state.click_mode = ClickMode::TwoClickDivide;
+                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::Divide2)) {
+                    state.click_mode = ClickMode::Divide2;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
@@ -556,6 +574,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                 ////////////////////////////////////////////////////////////////////////////////
+
+                if (magic_magic(keybinds.OPEN_MESH,"OpenSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::OpenSTL)) {
+                    state.enter_mode = EnterMode::OpenSTL;
+                }
+
+                if (magic_magic(keybinds.SAVE_MESH,"SaveSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::SaveSTL)) {
+                    result.record_me = false; // TODO
+                    other.awaiting_confirmation = false; // TODO
+
+                    state.enter_mode = EnterMode::SaveSTL;
+                }
+
+                SEPERATOR(ToolboxGroup::Mesh);
+                SEPERATOR(ToolboxGroup::Mesh);
 
                 if (magic_magic(keybinds.CYCLE_FEATURE_PLANE,"Plane",false,ToolboxGroup::Mesh)) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
@@ -686,10 +718,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(keybinds.LOAD_FILE)) {
-                    state.enter_mode = EnterMode::Load;
-
-                }
 
 
 
@@ -698,17 +726,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.SAVE)) {
-                    result.record_me = false;
-                    state.enter_mode = EnterMode::Save;
-                    other.awaiting_confirmation = false;
-                }
-
-                if (magic_magic(keybinds.SAVE_AS)) {
-                    result.record_me = false;
-                    state.enter_mode = EnterMode::SaveAs;
-                    other.awaiting_confirmation = false;
-                }
 
 
 
@@ -1188,7 +1205,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     cookbook.buffer_add_arc(first_click, r, theta_b_in_degrees, theta_a_in_degrees);
                                     // messagef(omax.green, "Circle");
                                 }
-                            } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
+                            } else if (state.click_mode == ClickMode::DiamCircle) {
                                 if (clicks_are_same) {
                                     messagef(omax.orange, "TwoEdgeCircle: must have non-zero diameter");
                                 } else {
@@ -1204,7 +1221,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     cookbook.buffer_add_arc(center, radius, theta_b_in_degrees, theta_a_in_degrees);
                                     // messagef(omax.green, "Circle");
                                 }
-                            } else if (state.click_mode == ClickMode::TwoClickDivide) { // TODO: make sure no 0 length shenanigans
+                            } else if (state.click_mode == ClickMode::Divide2) { // TODO: make sure no 0 length shenanigans
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;
                                 state.click_modifier = ClickModifier::None;
@@ -1419,31 +1436,34 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             } else if (state.click_mode == ClickMode::RotateCopy) {
                                 // two_click_command->awaiting_second_click = false;
-                                result.checkpoint_me = true;
-                                state.click_mode = ClickMode::None;
-                                state.click_modifier = ClickModifier::None;
+                                if (popup->rotate_copy_num_total_copies < 2) {
+                                    messagef(omax.orange, "RotateCopy: must have at least 2 total copies");
+                                } else {
+                                    result.checkpoint_me = true;
+                                    state.click_mode = ClickMode::None;
+                                    state.click_modifier = ClickModifier::None;
 
-                                uint num_total_copies = popup->rotate_copy_num_total_copies;
-                                real theta_deg = popup->rotate_copy_angle;
-                                if (IS_ZERO(theta_deg)) theta_deg = 180.0f;
-                                real theta_rad = RAD(theta_deg);
+                                    real theta_deg = popup->rotate_copy_angle;
+                                    if (IS_ZERO(theta_deg)) theta_deg = 180.0f;
+                                    real theta_rad = RAD(theta_deg);
 
-                                _for_each_selected_entity_ {
-                                    Entity oldEntity = *entity;
-                                    for_(j, num_total_copies - 1) {
-                                        Entity new_entity = oldEntity;
-                                        if (entity->type == EntityType::Line) {
-                                            LineEntity *line = &new_entity.line;
-                                            line->start = rotated_about(line->start, first_click, theta_rad);
-                                            line->end = rotated_about(line->end, first_click, theta_rad);
-                                        } else { ASSERT(entity->type == EntityType::Arc);
-                                            ArcEntity *arc = &new_entity.arc;
-                                            arc->center = rotated_about(arc->center, first_click, theta_rad);
-                                            arc->start_angle_in_degrees = theta_deg + arc->start_angle_in_degrees;
-                                            arc->end_angle_in_degrees = theta_deg + arc->end_angle_in_degrees;
+                                    _for_each_selected_entity_ {
+                                        Entity oldEntity = *entity;
+                                        for_(j, popup->rotate_copy_num_total_copies - 1) {
+                                            Entity new_entity = oldEntity;
+                                            if (entity->type == EntityType::Line) {
+                                                LineEntity *line = &new_entity.line;
+                                                line->start = rotated_about(line->start, first_click, theta_rad);
+                                                line->end = rotated_about(line->end, first_click, theta_rad);
+                                            } else { ASSERT(entity->type == EntityType::Arc);
+                                                ArcEntity *arc = &new_entity.arc;
+                                                arc->center = rotated_about(arc->center, first_click, theta_rad);
+                                                arc->start_angle_in_degrees = theta_deg + arc->start_angle_in_degrees;
+                                                arc->end_angle_in_degrees = theta_deg + arc->end_angle_in_degrees;
+                                            }
+                                            cookbook._buffer_add_entity(new_entity);
+                                            oldEntity = new_entity;
                                         }
-                                        cookbook._buffer_add_entity(new_entity);
-                                        oldEntity = new_entity;
                                     }
                                 }
                             } else if (state.click_mode == ClickMode::Move) {
@@ -1614,7 +1634,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             for_(i, selected_entities.length) {
                                 cookbook.attempt_fillet(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
                             }
-                        } else if (state.click_mode == ClickMode::MirrorX) {
+                        } else if (state.click_mode == ClickMode::XMirror) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
@@ -1639,7 +1659,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                                 entity->is_selected = false;
                             }
-                        } else if (state.click_mode == ClickMode::MirrorY) {
+                        } else if (state.click_mode == ClickMode::YMirror) {
                             result.checkpoint_me = true;
                             state.click_mode = ClickMode::None;
                             state.click_modifier = ClickModifier::None;
@@ -1813,7 +1833,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         }
-                    } else if (state.click_mode == ClickMode::TwoEdgeCircle) {
+                    } else if (state.click_mode == ClickMode::DiamCircle) {
                         ;
                     } else if (state.click_mode == ClickMode::Line) {
                         if (two_click_command->awaiting_second_click) {
@@ -1987,8 +2007,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // enter_mode
-                    if (state.enter_mode == EnterMode::Load) {
-                        popup_popup(STRING("Load"), ToolboxGroup::Drawing,
+                    if (0) {
+                    } else if (state.enter_mode == EnterMode::OpenDXF) {
+                        popup_popup(STRING("OpenDXF"), ToolboxGroup::Drawing,
                                 false,
                                 CellType::String, STRING("filename"), &popup->load_filename);
                         if (gui_key_enter(ToolboxGroup::Drawing)) {
@@ -2033,19 +2054,115 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::Save || state.enter_mode == EnterMode::SaveAs) {
-                        if (state.enter_mode == EnterMode::Save) {
+                    } else if (state.enter_mode == EnterMode::SaveDXF) {
+                        if (state.enter_mode == EnterMode::SaveDXF) {
                             if (true) {}
                         }
                         result.record_me = false;
                         if (other.awaiting_confirmation) {
                             popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Drawing, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
                         } else {
-                            popup_popup(STRING("Save"), ToolboxGroup::Drawing,
+                            popup_popup(STRING("SaveDXF"), ToolboxGroup::Drawing,
                                     false,
                                     CellType::String, STRING("filename"), &popup->save_filename);
                         }
                         if (gui_key_enter(ToolboxGroup::Drawing)) {
+                            if (FILE_EXISTS(popup->save_filename)) {
+                                if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
+                                } else if (other.awaiting_confirmation) {
+                                    messagef(omax.pink, "Overwrote \"%s\"", popup->save_filename.data);
+                                    if (popup->save_confirmation.data[0] == 'y') {
+                                        other.awaiting_confirmation = false;
+                                    } else {
+                                        state.enter_mode = EnterMode::None;
+                                        messagef(omax.red, "SAVE ABORTED");
+                                    }
+                                } else {
+                                    messagef(omax.pink, "WARNING \"%s\" already exists", popup->save_filename.data);
+                                    other.awaiting_confirmation = true;
+                                }
+                            }
+
+
+                            if (!other.awaiting_confirmation) {
+                                if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
+                                    { // conversation_stl_save
+                                        bool success = mesh_save_stl(mesh, popup->save_filename);
+                                        ASSERT(success);
+                                    }
+                                    state.enter_mode = EnterMode::None;
+                                    messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
+                                } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
+                                    {
+                                        bool success = drawing_save_dxf(drawing, popup->save_filename);
+                                        ASSERT(success);
+                                    }
+                                    state.enter_mode = EnterMode::None;
+                                    messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
+                                } else {
+                                    messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
+                                }
+                            }
+                        }
+                    } else if (state.enter_mode == EnterMode::OpenSTL) {
+                        popup_popup(STRING("OpenSTL"), ToolboxGroup::Mesh,
+                                false,
+                                CellType::String, STRING("filename"), &popup->load_filename);
+                        if (gui_key_enter(ToolboxGroup::Mesh)) {
+                            if (FILE_EXISTS(popup->load_filename)) {
+                                if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
+                                    result.record_me = true;
+                                    result.checkpoint_me = true;
+                                    result.snapshot_me = true;
+
+                                    { // conversation_dxf_load
+                                        ASSERT(FILE_EXISTS(popup->load_filename));
+
+                                        list_free_AND_zero(&drawing->entities);
+
+                                        entities_load(popup->load_filename, &drawing->entities);
+
+                                        if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
+                                            init_camera_drawing();
+                                            drawing->origin = {};
+                                        }
+                                    }
+                                    state.enter_mode = EnterMode::None;
+                                    messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
+                                    other.currently_open_dxf = popup->load_filename;
+                                } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
+                                    result.record_me = true;
+                                    result.checkpoint_me = true;
+                                    result.snapshot_me = true;
+                                    { // conversation_stl_load(...)
+                                        ASSERT(FILE_EXISTS(popup->load_filename));
+                                        // ?
+                                        stl_load(popup->load_filename, mesh);
+                                        init_camera_mesh();
+                                    }
+                                    state.enter_mode = EnterMode::None;
+                                    messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
+                                    other.currently_open_stl = popup->load_filename;
+                                } else {
+                                    messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->load_filename.data);
+                                }
+                            } else {
+                                messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
+                            }
+                        }
+                    } else if (state.enter_mode == EnterMode::SaveSTL) {
+                        if (state.enter_mode == EnterMode::SaveSTL) {
+                            if (true) {}
+                        }
+                        result.record_me = false;
+                        if (other.awaiting_confirmation) {
+                            popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Mesh, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
+                        } else {
+                            popup_popup(STRING("SaveSTL"), ToolboxGroup::Mesh,
+                                    false,
+                                    CellType::String, STRING("filename"), &popup->save_filename);
+                        }
+                        if (gui_key_enter(ToolboxGroup::Mesh)) {
                             if (FILE_EXISTS(popup->save_filename)) {
                                 if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
                                 } else if (other.awaiting_confirmation) {

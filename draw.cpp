@@ -389,7 +389,7 @@ void conversation_draw() {
                     }
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::TwoEdgeCircle) {
+                if (state.click_mode == ClickMode::DiamCircle) {
                     vec2 edge_one = two_click_command->first_click;
                     vec2 edge_two = mouse;
                     vec2 center = (edge_one + edge_two) / 2;
@@ -408,7 +408,7 @@ void conversation_draw() {
                     eso_vertex(edge_two);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::TwoClickDivide) {
+                if (state.click_mode == ClickMode::Divide2) {
                     if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(basic.cyan);
@@ -741,6 +741,8 @@ void conversation_draw() {
             }
         }
 
+        // TODO: somehow macro this
+
         String string_click_mode = STRING(
                 (state.click_mode == ClickMode::None)           ? ""                :
                 (state.click_mode == ClickMode::Axis)           ? "Axis"            :
@@ -763,10 +765,10 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Rotate)         ? "Rotate"          :
                 (state.click_mode == ClickMode::RotateCopy)     ? "RotateCopy"      :
                 (state.click_mode == ClickMode::MirrorLine)     ? "MirrorLine"      :
-                (state.click_mode == ClickMode::MirrorX)        ? "MirrorX"         :
-                (state.click_mode == ClickMode::MirrorY)        ? "MirrorY"         :
-                (state.click_mode == ClickMode::TwoEdgeCircle)  ? "TwoEdgeCircle"   :
-                (state.click_mode == ClickMode::TwoClickDivide) ? "TwoClickDivide"  :
+                (state.click_mode == ClickMode::XMirror)        ? "XMirror"         :
+                (state.click_mode == ClickMode::YMirror)        ? "YMirror"         :
+                (state.click_mode == ClickMode::DiamCircle)     ? "DiamCircle"   :
+                (state.click_mode == ClickMode::Divide2)        ? "Divide2"  :
                 "???MODE???");
 
         String string_click_modifier = STRING(
@@ -776,7 +778,7 @@ void conversation_draw() {
                 (state.click_modifier == ClickModifier::End)            ? "End"             :
                 (state.click_modifier == ClickModifier::Color)          ? "Color"           :
                 (state.click_modifier == ClickModifier::Middle)         ? "Middle"          :
-                (state.click_modifier == ClickModifier::Perpendicular)  ? "Perpendicular"   :
+                (state.click_modifier == ClickModifier::Perp)           ? "Perp"   :
                 (state.click_modifier == ClickModifier::Quad)           ? "Quad"            :
                 (state.click_modifier == ClickModifier::Selected)       ? "Selected"        :
                 (state.click_modifier == ClickModifier::Window)         ? "Window"          :
@@ -874,7 +876,6 @@ void conversation_draw() {
         PRINT_KEYBIND(&pen1, HELP_MENU);
         PRINT_KEYBIND(&pen1, LINE);
         PRINT_KEYBIND(&pen1, LINEAR_COPY);
-        PRINT_KEYBIND(&pen1, LOAD_FILE);
         PRINT_KEYBIND(&pen1, MEASURE);
         PRINT_KEYBIND(&pen1, MIRROR_LINE);
         PRINT_KEYBIND(&pen1, MIRROR_X);
@@ -883,6 +884,8 @@ void conversation_draw() {
         PRINT_KEYBIND(&pen2, NEXT_POPUP_BAR);
         PRINT_KEYBIND(&pen2, NUDGE_PLANE);
         PRINT_KEYBIND(&pen2, OFFSET);
+        PRINT_KEYBIND(&pen1, OPEN_DRAWING);
+        PRINT_KEYBIND(&pen1, OPEN_MESH);
         PRINT_KEYBIND(&pen2, POLYGON);
         PRINT_KEYBIND(&pen2, POWER_FILLET);
         PRINT_KEYBIND(&pen2, PREVIOUS_HOT_KEY_2D);
@@ -905,8 +908,8 @@ void conversation_draw() {
         PRINT_KEYBIND(&pen2, REVOLVE_CUT);
         PRINT_KEYBIND(&pen2, ROTATE);
         PRINT_KEYBIND(&pen2, ROTATE_COPY);
-        PRINT_KEYBIND(&pen2, SAVE);
-        PRINT_KEYBIND(&pen2, SAVE_AS);
+        PRINT_KEYBIND(&pen2, SAVE_DRAWING);
+        PRINT_KEYBIND(&pen2, SAVE_MESH);
         PRINT_KEYBIND(&pen2, SELECT);
         PRINT_KEYBIND(&pen2, TOGGLE_BUTTONS);
         PRINT_KEYBIND(&pen2, TOGGLE_DRAWING_DETAILS);
