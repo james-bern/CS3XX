@@ -265,6 +265,11 @@ struct Cookbook {
                     buffer_add_arc(X, radius, theta_B_in_degrees, theta_D_in_degrees, false, E->color_code);
                 }
             }
+
+            { // aesthetics
+                E->preview_color = get_color(ColorCode::Emphasis);
+                F->preview_color = get_color(ColorCode::Emphasis);
+            }
         } else if (is_line_arc_or_arc_line) {
             // general idea
             // 1. find what quadrant the click is in
