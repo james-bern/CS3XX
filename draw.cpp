@@ -284,10 +284,12 @@ void conversation_draw() {
                         eso_vertex(*first_click);
                     }
 
+                    // entities 2D entities 2d entities
+                    // drawing 2D drawing 2d drawing
                     _for_each_entity_ {
                         if (entity->is_selected && (rotating || moving)) continue;
-                        ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
-                        eso_color(get_color(color_code));
+                        eso_color(entity->preview_color);
+                        eso_size(1.5f);
                         eso_entity__SOUP_LINES(entity);
                     }
                 } eso_end();
@@ -729,8 +731,8 @@ void conversation_draw() {
         }
 
         {
-            real target = (drag_none_and_hot_drawing) ? 1.0f : 0.0f;
-            JUICEIT_EASYTWEEN(&preview->cursor_subtext_alpha, target);
+            real target = (drag_none_and_hot_drawing || drag_drawing) ? 1.0f : 0.0f;
+            JUICEIT_EASYTWEEN(&preview->cursor_subtext_alpha, target, 2.0f);
         }
         vec3 color; {
             color = omax.white;

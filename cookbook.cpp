@@ -11,6 +11,7 @@ struct Cookbook {
     Entity _make_line(vec2 start, vec2 end, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
         Entity entity = {};
         entity.type = EntityType::Line;
+        entity.preview_color = get_color(ColorCode::Emphasis);
         LineEntity *line = &entity.line;
         line->start = start;
         line->end = end;
@@ -22,6 +23,7 @@ struct Cookbook {
     Entity _make_arc(vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
         Entity entity = {};
         entity.type = EntityType::Arc;
+        entity.preview_color = get_color(ColorCode::Emphasis);
         ArcEntity *arc = &entity.arc;
         arc->center = center;
         arc->radius = radius;

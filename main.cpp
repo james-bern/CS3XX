@@ -198,6 +198,7 @@ int main() {
     messagef(omax.red, "TODO: Select/deselect snaps");
     messagef(omax.red, "TODO: Push power fillet to beta");
     messagef(omax.red, "TODO: Push power offset (shell) to beta");
+    messagef(omax.red, "TODO: Save/Load DXF broken for some arcs if you load\n      and save the dxf in LAYOUT in the middle.");
 
     auto SEND_DUMMY = [&]() {
         // "process" dummy event to draw popups and buttons
@@ -215,10 +216,10 @@ int main() {
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
-        // SLEEP(1000);
+        // SLEEP(100);
         glfwSwapBuffers(glfw_window);
         glFinish(); // 69363856
-        // SLEEP(1);
+                    // SLEEP(1);
         glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         eso_size(1.5f);
@@ -253,16 +254,18 @@ int main() {
                 } else {
                     other.time_since_going_inside += dt;
                 }
+
+                _for_each_entity_ {
+                    vec3 target_color = get_color((entity->is_selected) ? ColorCode::Selection : entity->color_code);
+                    if (entity->is_selected) target_color = CLAMPED_LERP(3.0f * entity->time_since_is_selected_changed - 0.1, AVG(omax.white, target_color), target_color);
+                    JUICEIT_EASYTWEEN(&entity->preview_color, target_color, 3.0f);
+                }
             }
 
 
             { // events
+                SEND_DUMMY();
                 glfwPollEvents();
-
-                {
-                    SEND_DUMMY();
-                }
-
                 if (raw_event_queue.length) {
                     while (raw_event_queue.length) {
                         RawEvent raw_event = queue_dequeue(&raw_event_queue);
@@ -275,13 +278,8 @@ int main() {
             _messages_update();
         } else {
             SEND_DUMMY();
+            glfwPollEvents();
             ;
-        }
-
-        { // spoof callback_cursor_position
-            double xpos, ypos;
-            glfwGetCursorPos(glfw_window, &xpos, &ypos);
-            callback_cursor_position(NULL, xpos, ypos);
         }
 
         { // draw
