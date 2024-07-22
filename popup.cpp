@@ -449,7 +449,6 @@ void popup_popup(
                     bool control = key_event->control;
                     bool shift = key_event->shift;
                     if (control && (key == GLFW_KEY_TAB)) {
-                        messagef(omax.pink, "asdf");
                         ToolboxGroup next_grouop = popup->manager.focus_group;
                         do {
                             if (!shift) {
