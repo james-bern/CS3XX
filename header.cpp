@@ -9,6 +9,7 @@ enum class EnterMode {
     RevolveAdd,
     RevolveCut,
     Save,
+    SaveAs,
     Size,
 };
 
@@ -19,6 +20,7 @@ enum class ToolboxGroup {
     Drawing,
     Snap,
     Mesh,
+    NUMBER_OF,
 };
 
 
@@ -27,11 +29,13 @@ enum class ClickMode {
     None,
     Axis,
     Box,
+    CenteredBox,
     Circle,
     Color,
     Deselect,
     DivideNearest,
     Fillet,
+    DogEar,
     Line,
     LinearCopy,
     Measure,
@@ -39,6 +43,7 @@ enum class ClickMode {
     MirrorX,
     MirrorY,
     Move,
+    Offset,
     Origin,
     Polygon,
     PowerFillet,
@@ -73,7 +78,7 @@ enum class Pane {
     Drawing,
     Mesh,
     Popup,
-    DrawingMeshSeparator,
+    Separator,
     Toolbox,
 };
 
@@ -101,6 +106,7 @@ enum class MouseEventSubtype {
     Drawing,
     Mesh,
     Popup,
+    ToolboxButton,
 };
 
 enum class ColorCode {
@@ -147,6 +153,7 @@ struct Entity {
 
     ColorCode color_code;
     bool is_selected;
+    vec3 preview_color;
     real time_since_is_selected_changed;
 
     LineEntity line;
@@ -171,6 +178,7 @@ struct RawKeyEvent {
     uint key;
     bool control;
     bool shift;
+    bool alt;
 };
 
 struct RawMouseEvent {
@@ -206,6 +214,10 @@ struct MouseEventPopup {
     uint cursor;
 };
 
+struct MouseEventToolboxButton {
+    char *name;
+};
+
 struct MouseEvent {
     MouseEventSubtype subtype;
 
@@ -215,6 +227,7 @@ struct MouseEvent {
     MouseEventDrawing mouse_event_drawing;
     MouseEventMesh mouse_event_mesh;
     MouseEventPopup mouse_event_popup;
+    MouseEventToolboxButton mouse_event_toolbox_button;
 };
 
 struct KeyEvent {
@@ -223,6 +236,7 @@ struct KeyEvent {
     uint key;
     bool control;
     bool shift;
+    bool alt;
     char *_name_of_spoofing_button;
 };
 
@@ -257,28 +271,55 @@ struct TwoClickCommandState {
     Entity *entity_closest_to_first_click;
 };
 
+struct PopupManager {
+    char *tags[uint(ToolboxGroup::NUMBER_OF)];
+    //
+    char *get_tag(ToolboxGroup group) { return tags[uint(group)]; }
+    void set_tag(ToolboxGroup group, char *_name0) { tags[uint(group)] = _name0; }
+
+    bool _popup_popup_called_this_process[uint(ToolboxGroup::NUMBER_OF)];
+    bool focus_group_was_set_manually;
+    ToolboxGroup focus_group;
+
+    //////////
+
+    void begin_process() {
+        // // NOTE: end of previous call to process
+        // -- (so we don't also need an end_process())
+        for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
+            if (!_popup_popup_called_this_process[i]) tags[i] = NULL;
+        }
+        if (get_tag(focus_group) == NULL) focus_group = ToolboxGroup::None; // FORNOW
+        // // NOTE: beginning of this call to process
+        focus_group_was_set_manually = false;
+        memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));
+    }
+
+    void manually_set_focus_group(ToolboxGroup new_focus_group) {
+        focus_group_was_set_manually = true;
+        focus_group = new_focus_group;
+    }
+
+    void register_call_to_popup_popup(ToolboxGroup group) {
+        _popup_popup_called_this_process[uint(group)] = true;
+    }
+};
+
 #define POPUP_MAX_NUM_CELLS 5
 #define POPUP_CELL_LENGTH 256
 struct PopupState {
     _STRING_CALLOC(active_cell_buffer, POPUP_CELL_LENGTH);
 
+    PopupManager manager;
+    bool a_popup_from_this_group_was_already_called_this_frame[uint(ToolboxGroup::NUMBER_OF)];
+
     uint active_cell_index;
     uint cursor;
     uint selection_cursor;
 
-    CellType cell_type[POPUP_MAX_NUM_CELLS];
-    String name[POPUP_MAX_NUM_CELLS];
-    void *value[POPUP_MAX_NUM_CELLS];
-    uint num_cells;
-
     CellType _type_of_active_cell;
-    char *_FORNOW_active_popup_unique_ID__FORNOW_name0;
-    bool _popup_actually_called_this_event; // FORNOW
 
     bool _FORNOW_info_mouse_is_hovering;
-    uint info_hover_cell_index;
-    uint info_hover_cell_cursor;
-    uint info_active_cell_cursor;
 
     real extrude_add_out_length;
     real extrude_add_in_length;
@@ -288,10 +329,11 @@ struct PopupState {
     real circle_radius;
     real circle_circumference;
     real fillet_radius;
+    real dogear_radius;
     real box_width;
     real box_height;
-    real x_coordinate;
-    real y_coordinate;
+    real xy_x_coordinate;
+    real xy_y_coordinate;
     real feature_plane_nudge;
     real line_length;
     real line_angle;
@@ -307,6 +349,7 @@ struct PopupState {
     real linear_copy_rise;
     uint linear_copy_num_additional_copies;
     uint polygon_num_sides = 6;
+    real offset_size;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
     real polygon_side_length;
@@ -355,11 +398,23 @@ struct PreviewState {
     real feature_plane_offset;
     vec2 drawing_origin;
     vec2 mouse;
+    real cursor_subtext_alpha;
+};
+
+struct Cursors {
+    // pass NULL to glfwSetCursor to go back to the arrow
+    GLFWcursor *curr;
+    GLFWcursor *crosshair;
+    GLFWcursor *ibeam;
+    GLFWcursor *hresize;
+    GLFWcursor *hand;
 };
 
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
+
+    Cursors cursors;
 
     Camera camera_drawing;
     Camera camera_mesh;
@@ -408,20 +463,33 @@ struct StandardEventProcessResult {
     bool snapshot_me;
 };
 
+//////////////////////////////////
+
+
 ////////////////////////////////////////
 // colors //////////////////////////////
 ////////////////////////////////////////
 
 struct {
+    #if 1
     vec3 red = RGB255(255, 0, 0);
-    vec3 yellow = RGB255(255, 255, 0);
     vec3 orange = RGB255(204, 136, 1);
+    vec3 yellow = RGB255(255, 255, 0);
     vec3 green = RGB255(83, 255,  85);
-    vec3 cyan = RGB255(0, 255, 255);
     vec3 blue = RGB255(0, 85, 255);
     vec3 purple = RGB255(170, 1, 255);
-    vec3 magenta = RGB255(255, 0, 255);
     vec3 pink = RGB255(238, 0, 119);
+    #else
+    vec3 red = monokai.red;
+    vec3 orange = monokai.orange;
+    vec3 yellow = monokai.yellow;
+    vec3 green = monokai.green;
+    vec3 blue = monokai.blue;
+    vec3 purple = monokai.purple;
+    vec3 pink = basic.magenta;
+    #endif
+    vec3 cyan = RGB255(0, 255, 255);
+    vec3 magenta = RGB255(255, 0, 255);
     vec3 black = RGB255(0, 0, 0);
     vec3 dark_gray = RGB255(50, 50, 50);
     vec3 gray = RGB255(152, 152, 152);
@@ -463,7 +531,7 @@ vec3 get_accent_color(ToolboxGroup group) {
 ////////////////////////////////////////
 
 void messagef(vec3 color, char *format, ...);
-template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
+template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier = 1.0f);
 
 ////////////////////////////////////////
 // Config-Tweaks ///////////////////////
@@ -484,6 +552,12 @@ real WRAP_TO_0_TAU_INTERVAL(real theta) {
     theta = fmod(theta, TAU);
     if (theta < 0.0) theta += TAU;
     return theta;
+}
+
+real _WRAP_TO_0_360_INTERVAL(real theta_in_degrees) {
+    theta_in_degrees = fmod(theta_in_degrees, 360.0f);
+    if (theta_in_degrees < 0.0) theta_in_degrees += 360.0f;
+    return theta_in_degrees;
 }
 
 bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
@@ -709,16 +783,16 @@ bool drawing_save_dxf(Drawing *drawing, String filename) {
     fprintf(file, "0\nENDSEC\n");
     // Write TABLES section
     fprintf(file, "0\nSECTION\n2\nTABLES\n");
-    
+
     // LTYPE table
     fprintf(file, "0\nTABLE\n2\nLTYPE\n70\n1\n0\nLTYPE\n2\nCONTINUOUS\n70\n64\n3\nSolid line\n72\n65\n73\n0\n40\n0.0\n0\nENDTAB\n");
-    
+
     // LAYER table
     fprintf(file, "0\nTABLE\n2\nLAYER\n70\n1\n0\nLAYER\n2\n0\n70\n64\n62\n7\n6\nCONTINUOUS\n0\nENDTAB\n");
-    
+
     // STYLE table
     fprintf(file, "0\nTABLE\n2\nSTYLE\n70\n1\n0\nSTYLE\n2\nSTANDARD\n70\n0\n40\n0.0\n41\n1.0\n50\n0.0\n71\n0\n42\n0.2\n3\ntxt\n4\n\n0\nENDTAB\n");
-    
+
     fprintf(file, "0\nENDSEC\n");
 
     // Write ENTITIES section
@@ -1502,12 +1576,13 @@ void stl_load(String filename, Mesh *mesh) {
 // key_lambda //////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift = false) {
+bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift = false, bool alt = false) {
     ASSERT(!(('a' <= key) && (key <= 'z')));
     bool key_match = (key_event->key == key);
     bool super_match = ((key_event->control && control) || (!key_event->control && !control)); // * bool
     bool shift_match = ((key_event->shift && shift) || (!key_event->shift && !shift)); // * bool
-    return (key_match && super_match && shift_match);
+    bool alt_match = ((key_event->alt && alt) || (!key_event->alt && !alt)); // * bool
+    return (key_match && super_match && shift_match && alt_match);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1668,7 +1743,7 @@ Mesh wrapper_manifold(
     return result;
 }
 
-char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) {
+char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) { // inline
     static char buffer[256];
 
     char *_ctrl_plus; {
@@ -1684,6 +1759,14 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
             _shift_plus = "";
         } else {
             _shift_plus = "SHIFT+";
+        }
+    }
+
+    char *_alt_plus; {
+        if (!key_event->alt) {
+            _alt_plus = "";
+        } else {
+            _alt_plus = "ALT+";
         }
     }
 
@@ -1712,7 +1795,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
         }
     }
 
-    sprintf(buffer, "%s%s%s", _ctrl_plus, _shift_plus, _key);
+    sprintf(buffer, "%s%s%s%s", _ctrl_plus, _shift_plus, _alt_plus, _key);
     return buffer;
 }
 
@@ -1868,10 +1951,10 @@ struct ArcArcXClosestResult {
     bool no_possible_intersection;
 };
 
-ArcArcXClosestResult arc_arc_intersection_closest(ArcEntity *arc_a, ArcEntity *arc_b, vec2 *point) {
+ArcArcXClosestResult arc_arc_intersection_closest(ArcEntity *arc_a, ArcEntity *arc_b, vec2 point) {
     ArcArcXClosestResult result;
     ArcArcXResult two_point_result = arc_arc_intersection(arc_a, arc_b);
-    if (distance(*point, two_point_result.point1) < distance(*point, two_point_result.point2)) {
+    if (distance(point, two_point_result.point1) < distance(point, two_point_result.point2)) {
         result.point = two_point_result.point1;
         result.theta_a = two_point_result.theta_1a;
         result.theta_b = two_point_result.theta_1b;
@@ -1897,10 +1980,10 @@ struct LineArcXClosestResult {
     bool no_possible_intersection;
 };
 
-LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity *arc, vec2 *point) {
+LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity *arc, vec2 point) {
     LineArcXClosestResult result;
     LineArcXResult two_point_result = line_arc_intersection(line, arc);
-    if (distance(*point, two_point_result.point1) < distance(*point, two_point_result.point2)) {
+    if (distance(point, two_point_result.point1) < distance(point, two_point_result.point2)) {
         result.point = two_point_result.point1;
         result.theta = two_point_result.theta_1;
         result.t = two_point_result.t1;

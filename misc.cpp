@@ -5,8 +5,9 @@
 
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected) 
 
-template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
-    real f = 0.1f;
+template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
+    real f = multiplier * 0.1f;
+    if (IS_ZERO(multiplier)) f = 1.0f;
     if (!other.paused) *a += f * (b - *a);
 }
 
@@ -159,18 +160,6 @@ void init_camera_mesh() {
     // camera_mesh->pre_nudge_World = fac * (V2(0.5f) + 0.5f * AVG(B.min, B.max));
 }
 
-bool click_mode_SELECT_OR_DESELECT() {
-    return ((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect));
-}
 
-bool _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
-    return ((click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Window)) || (state.click_mode == ClickMode::Color));
-}
-
-bool _SELECT_OR_DESELECT_COLOR() {
-    bool A = click_mode_SELECT_OR_DESELECT();
-    bool B = (state.click_modifier == ClickModifier::Color);
-    return A && B;
-}
 
 

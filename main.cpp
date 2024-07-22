@@ -1,3 +1,4 @@
+
 // TODO (Jim): cookbook_delete should throw a warning if you're trying to delete the same entity twice (run a O(n) pass on the sorted list)
 // TODO (Jim): fillet
 // TODO (Jim): power fillet
@@ -24,36 +25,61 @@
 #include "playground.cpp"
 
 char *startup_script = "";
-#if 0
+
+#if 0 // multi-popup
 run_before_main {
-    // revolve development
     startup_script = 
-        "y"
-        "cz10\n"
-        "sa[10\n"
-        // "Zx-5\n"
-        "y"
-        "samzx5\n"
-        // "Ax5\nx5\t5\n"
-        "sa]\n"
+        // "f123["
+        // "f123[456"
+        // "lz12\t34x56\t78[98\t76"
+        // "lzx["
         ;
 };
 #endif
-#if 0 
+
+#if 0 // revolve
 run_before_main {
-    startup_script = "cz0123456789";
-    startup_script = "^osplash.drawing\nysc<m2d 20 20><m2d 16 16><m2d 16 -16><m2d -16 -16><m2d -16 16>[50\n<m3d 0 100 0 0 -1 0><m2d 0 17.5>{47\nc<m2d 16 -16>\t\t100\nsc<m2d 32 -16><m3d 74 132 113 -0.4 -0.6 -0.7>{60\n^oomax.drawing\nsq0sq1y[3\n";
     startup_script = \
-                     "cz10\n" // TODO: comment
-                     "cz\t10\n" // TODO: comment
-                     "bzx30\t30\n" // TODO: comment
+                     "y"
+                     "cz10\n"
+                     "sa[10\n"
+                     // "Zx-5\n"
+                     "y"
+                     "samzx5\n"
+                     // "Ax5\nx5\t5\n"
+                     "sa]\n"
+                     ; };
+#endif
+
+#if 0 // fillet
+run_before_main {
+    startup_script = \
+                     "Bz40\t20\nf5<m2d 15 10><m2d 20 5>";
+};
+#endif
+
+#if 1 // dogear
+run_before_main {
+    startup_script = \
+                     "Bz40\t20\ng5<m2d 15 10><m2d 20 5>";
+};
+#endif
+
+#if 0 // kitchen sink
+run_before_main {
+    startup_script = \
+                     "cz10\n" // circle
+                     "cz\t10\n" // bigger circle
+                     "bzx30\t30\n" // box
                      "ysadc<m2d 0 0>" // TODO: comment
-                     "[5\t15\n" // TODO: comment
+                     "[5\t15\n" // extrude
                      "sc<m2d 0 30>qs3" // TODO: comment
                      "1<m2d 30 15>0<esc>" // TODO: comment
                      "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
                      "{3\n" // TODO: comment
-                     "sczZm<m2d -50 0>]\n" // TODO: comment
+                     "sc<m2d 0 0>Zm<m2d -50 0>" // TODO: comment
+                     "sc<m2d 0 0>Am<m2d -50 0><m2d -15 5>" // TODO: comment
+                     "]360\n"
                      "^n" // TODO: comment
                      "cx30\t30\n3.4\n" // TODO: comment
                      "saXzYzXzsa[1\n" // TODO: comment
@@ -70,12 +96,13 @@ run_before_main {
                      "sa{100\n" // TODO: comment
                      ";" // TODO: comment
                      "^odemo.dxf\n" // TODO: comment
-                     "^signore.stl\n" // TODO: comment
-                     "^oignore.stl\n" // TODO: comment
-                     ".." // TODO: comment
-                     "pz\t5\n" // (Nathan) Polygon
-                     "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                                                                          // "^N^ob:wug.drawing\nysa"
+                                    // "^signore.stl\ny\n" // TODO: comment
+                                    // "^oignore.stl\n" // TODO: comment
+                                    // ".." // TODO: comment
+                                    // "pz\t5\n" // (Nathan) Polygon
+                                    // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
+                                    // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
+                                    // "^N^ob:wug.drawing\nysa"
                      ;
 };
 #endif
@@ -106,6 +133,11 @@ Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;
 
+// FORNOW
+Event event_passed_to_popups;
+bool already_processed_event_passed_to_popups;
+
+#include "keybinds.cpp"
 #include "boolean.cpp"
 #include "misc.cpp"
 #include "draw.cpp"
@@ -123,6 +155,7 @@ int main() {
     { // init
         init_camera_drawing();
         init_camera_mesh();
+        keybinds = init_keybinds();
         script_process(STRING(startup_script));
         { // callbacks
             glfwSetKeyCallback(glfw_window, callback_key);
@@ -134,17 +167,38 @@ int main() {
             { // NOTE: patch first frame mouse position issue
                 other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 
-                double xpos, ypos;
-                glfwGetCursorPos(glfw_window, &xpos, &ypos);
-                callback_cursor_position(NULL, xpos, ypos);
+                { // spoof callback_cursor_position
+                    double xpos, ypos;
+                    glfwGetCursorPos(glfw_window, &xpos, &ypos);
+                    callback_cursor_position(NULL, xpos, ypos);
+                }
             }
         }
         // glfwSetInputMode(glfw_window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        { // cursors_init();
+            other.cursors.crosshair = glfwCreateStandardCursor(GLFW_CROSSHAIR_CURSOR);
+            other.cursors.ibeam = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+            other.cursors.hresize = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+            other.cursors.hand = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
+        }
     }
 
     #ifdef SHIP
     messagef(omax.green, "press ? for help");
     #endif
+    messagef(omax.red, "TODO: Intersection snap");
+    messagef(omax.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
+    messagef(omax.red, "TODO: Save/Load need buttons");
+    messagef(omax.red, "TODO: Camera clip planes still jacked (including ortho)");
+    messagef(omax.red, "TODO: Camera hotkeys ;, ' need buttons");
+    messagef(omax.red, "TODO: Rezoom camera needs button");
+    messagef(omax.red, "TODO: Beatiful button presses");
+    messagef(omax.red, "TODO: config needs inches vs. mm");
+    messagef(omax.red, "TODO: config needs bool to hide gui");
+    messagef(omax.red, "TODO: Select/deselect snaps");
+    messagef(omax.red, "TODO: Push power fillet to beta");
+    messagef(omax.red, "TODO: Push power offset (shell) to beta");
+    messagef(omax.red, "TODO: Save/Load DXF broken for some arcs if you load\n      and save the dxf in LAYOUT in the middle.");
 
     auto SEND_DUMMY = [&]() {
         // "process" dummy event to draw popups and buttons
@@ -157,13 +211,15 @@ int main() {
         history_process_event(dummy);
     };
 
+    void _messages_draw(); // forward declaration
 
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
-        // SLEEP(1000);
-        glfwPollEvents();
+        // SLEEP(100);
         glfwSwapBuffers(glfw_window);
+        glFinish(); // 69363856
+                    // SLEEP(1);
         glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         eso_size(1.5f);
@@ -172,6 +228,8 @@ int main() {
 
         other._please_suppress_drawing_popup_popup = false;
         other._please_suppress_drawing_toolbox = false;
+
+        memset(popup->a_popup_from_this_group_was_already_called_this_frame, 0, sizeof(popup->a_popup_from_this_group_was_already_called_this_frame));
 
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
@@ -196,16 +254,18 @@ int main() {
                 } else {
                     other.time_since_going_inside += dt;
                 }
+
+                _for_each_entity_ {
+                    vec3 target_color = get_color((entity->is_selected) ? ColorCode::Selection : entity->color_code);
+                    if (entity->is_selected) target_color = CLAMPED_LERP(3.0f * entity->time_since_is_selected_changed - 0.1, AVG(omax.white, target_color), target_color);
+                    JUICEIT_EASYTWEEN(&entity->preview_color, target_color, 3.0f);
+                }
             }
 
-    void _messages_draw(); // forward declaration
-    _messages_draw();
 
             { // events
-                {
-                    SEND_DUMMY();
-                }
-
+                SEND_DUMMY();
+                glfwPollEvents();
                 if (raw_event_queue.length) {
                     while (raw_event_queue.length) {
                         RawEvent raw_event = queue_dequeue(&raw_event_queue);
@@ -218,11 +278,13 @@ int main() {
             _messages_update();
         } else {
             SEND_DUMMY();
+            glfwPollEvents();
             ;
         }
 
         { // draw
             conversation_draw();
+            _messages_draw();
         }
 
         if (frame++ == 1) glfwShowWindow(glfw_window);

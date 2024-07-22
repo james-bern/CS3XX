@@ -3,6 +3,7 @@ Queue<RawEvent> raw_event_queue;
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     bool control = (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER));
     bool shift = (mods & GLFW_MOD_SHIFT);
+    bool alt = (mods & GLFW_MOD_ALT);
 
     if (key == GLFW_KEY_LEFT_SHIFT) {
         if (action == GLFW_PRESS) {
@@ -13,18 +14,15 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     }
     if (key == GLFW_KEY_LEFT_SHIFT) return;
     if (key == GLFW_KEY_RIGHT_SHIFT) return;
+    if (key == GLFW_KEY_LEFT_ALT) return;
+    if (key == GLFW_KEY_RIGHT_ALT) return;
     if (key == GLFW_KEY_LEFT_CONTROL) return;
     if (key == GLFW_KEY_RIGHT_CONTROL) return;
     if (key == GLFW_KEY_LEFT_SUPER) return;
     if (key == GLFW_KEY_RIGHT_SUPER) return;
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
         // FORNOW: i guess okay to handle these here?
-        bool toggle_pause; {
-            toggle_pause = false;
-            if (!((popup->_FORNOW_active_popup_unique_ID__FORNOW_name0) && (popup->cell_type[popup->active_cell_index] == CellType::String))) { // FORNOW
-                toggle_pause = ((key == 'P') && (control) && (shift));
-            }
-        }
+        bool toggle_pause = ((key == 'P') && (control) && (shift));
         bool step = (other.paused) && ((key == '.') && (!control) && (!shift));
         bool quit = ((key == 'Q') && (control) && (!shift));
         if (toggle_pause) {
@@ -40,6 +38,7 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
                 raw_key_event->key = key;
                 raw_key_event->control = control;
                 raw_key_event->shift = shift;
+                raw_key_event->alt = alt;
             }
             queue_enqueue(&raw_event_queue, raw_event);
         }
@@ -72,14 +71,14 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             other.hot_pane = Pane::Toolbox;
         } else if (
                 1
-                && (popup->_FORNOW_active_popup_unique_ID__FORNOW_name0)
+                && (popup->manager.focus_group != ToolboxGroup::None)
                 && (popup->_FORNOW_info_mouse_is_hovering)
            ) {
             other.hot_pane = Pane::Popup;
         } else if (x_mouse_Pixel < x_divider_drawing_mesh_Pixel - eps) {
             other.hot_pane = Pane::Drawing;
         } else if (x_mouse_Pixel < x_divider_drawing_mesh_Pixel + eps) {
-            other.hot_pane = Pane::DrawingMeshSeparator;
+            other.hot_pane = Pane::Separator;
         } else {
             other.hot_pane = Pane::Mesh;
         }
@@ -103,7 +102,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // dragging drawing mesh divider
-        if (other.mouse_left_drag_pane == Pane::DrawingMeshSeparator) {
+        if (other.mouse_left_drag_pane == Pane::Separator) {
             real prev_x_divider_drawing_mesh_OpenGL = other.x_divider_drawing_mesh_OpenGL;
             real prev_x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
             other.x_divider_drawing_mesh_OpenGL = CLAMP(LINEAR_REMAP(real(xpos), 0.0f, window_get_width_Pixel(), -1.0f, 1.0f), -0.9975f, 0.9975f); // *

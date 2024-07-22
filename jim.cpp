@@ -3,7 +3,7 @@
 int main() {
     real t = 0.0f;
     while (begin_frame(NULL)) {
-        t += 0.033f;
+        t += 0.0167;
         eso_begin(OpenGL_from_Pixel, SOUP_LINE_STRIP); {
             eso_stipple(true);
             eso_color(basic.red);

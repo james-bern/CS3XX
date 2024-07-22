@@ -147,6 +147,13 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 #else
 #pragma message("ERROR: INVALID OPERATING SYSTEM")
 #endif
+// DEBUGGER
+#ifdef OPERATING_SYSTEM_APPLE
+#include <signal.h>
+#define DEBUGBREAK() raise(SIGTRAP)
+#elif defined(OPERATING_SYSTEM_WINDOWS)
+#define DEBUGBREAK() __debugbreak()
+#endif
 // SLEEP
 #ifdef OPERATING_SYSTEM_APPLE
 #include <unistd.h>
@@ -162,6 +169,12 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 #include <windows.h>
 #define IS_NAN(x) 
 #endif
+// SWAP
+template <typename T> void SWAP(T *a, T *b) {
+    T tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
 
 run_before_main {
     setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf

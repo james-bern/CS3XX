@@ -32,6 +32,14 @@ tuD bool bbox_contains(bboxD A, bboxD other) {
     return true;
 }
 
+tuD bboxD bbox_inflate(bboxD A, real epsilon) {
+    for_(d, D) {
+        A.min[d] -= epsilon;
+        A.max[d] += epsilon;
+    }
+    return A;
+}
+
 // // add
 tuDb &operator += (bboxD &A, vecD p) {
     for_(d, D) {
