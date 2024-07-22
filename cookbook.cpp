@@ -180,31 +180,27 @@ struct Cookbook {
 
             vec2 p = reference_point;
             vec2 a;
-            vec2 b;
+            vec2 *b_ptr;
             vec2 c;
-            vec2 d;
+            vec2 *d_ptr;
             vec2 x;
             vec2 e_ab;
             vec2 e_cd;
-            vec2 *b_ptr;
-            vec2 *d_ptr;
             {
                 a     =  E->line.start;
-                b     =  E->line.end;
                 b_ptr = &E->line.end;
                 c     =  F->line.start;
-                d     =  F->line.end;
                 d_ptr = &F->line.end;
 
-                LineLineXResult _x = line_line_intersection(a, b, c, d);
+                LineLineXResult _x = line_line_intersection(a, *b_ptr, c, *d_ptr);
                 if (_x.lines_are_parallel) {
                     messagef(omax.orange, "Fillet: lines are parallel");
                     return;
                 }
                 x = _x.point;
 
-                e_ab = normalized(b - a);
-                e_cd = normalized(d - c);
+                e_ab = normalized(*b_ptr - a);
+                e_cd = normalized(*d_ptr - c);
 
                 bool swap_ab, swap_cd; {
                     vec2 v_xp_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (p - x);
@@ -213,32 +209,34 @@ struct Cookbook {
                 }
 
                 if (swap_ab) {
-                    SWAP(&a, &b);
+                    {
+                        a = *b_ptr;
+                        b_ptr = &E->line.start;
+                    }
                     e_ab *= -1;
-                    b_ptr = &E->line.start;
                 }
 
                 if (swap_cd) {
-                    SWAP(&c, &d);
+                    {
+                        c = *d_ptr;
+                        d_ptr = &F->line.start;
+                    }
                     e_cd *= -1;
-                    d_ptr = &F->line.start;
                 }
             }
 
-            vec2 B;
-            vec2 D;
-            {
+            { // overwrite b, d
                 real L; {
                     real full_angle = get_three_point_angle(a, x, c);
                     if (full_angle > PI) full_angle = TAU - full_angle;
                     L = radius / TAN(full_angle / 2);
                 }
-                B = x - (L * e_ab);
-                D = x - (L * e_cd);
+                *b_ptr = x - (L * e_ab);
+                *d_ptr = x - (L * e_cd);
             }
 
             vec2 X; {
-                LineLineXResult _X = line_line_intersection(B, B + perpendicularTo(e_ab), D, D + perpendicularTo(e_cd));
+                LineLineXResult _X = line_line_intersection(*b_ptr, *b_ptr + perpendicularTo(e_ab), *d_ptr, *d_ptr + perpendicularTo(e_cd));
                 if (_X.lines_are_parallel) {
                     messagef(omax.orange, "Fillet: ???");
                     return;
@@ -246,24 +244,17 @@ struct Cookbook {
                 X = _X.point;
             }
 
-            { // entities
-                { // lines
-                    *b_ptr = B;
-                    *d_ptr = D;
-                }
-
-                if (!IS_ZERO(radius)) { // arc
-                    real theta_B_in_degrees;
-                    real theta_D_in_degrees;
-                    {
-                        theta_B_in_degrees = DEG(angle_from_0_TAU(X, B));
-                        theta_D_in_degrees = DEG(angle_from_0_TAU(X, D));
-                        if (get_three_point_angle(B, X, D) > PI) {
-                            SWAP(&theta_B_in_degrees, &theta_D_in_degrees);
-                        }
+            if (!IS_ZERO(radius)) { // arc
+                real theta_b_in_degrees;
+                real theta_d_in_degrees;
+                {
+                    theta_b_in_degrees = DEG(angle_from_0_TAU(X, *b_ptr));
+                    theta_d_in_degrees = DEG(angle_from_0_TAU(X, *d_ptr));
+                    if (get_three_point_angle(*b_ptr, X, *d_ptr) > PI) {
+                        SWAP(&theta_b_in_degrees, &theta_d_in_degrees);
                     }
-                    buffer_add_arc(X, radius, theta_B_in_degrees, theta_D_in_degrees, false, E->color_code);
                 }
+                buffer_add_arc(X, radius, theta_b_in_degrees, theta_d_in_degrees, false, E->color_code);
             }
 
             { // aesthetics
