@@ -180,8 +180,8 @@ void conversation_draw() {
     }
 
     { // drawing mesh panes
-        bool dragging = (other.mouse_left_drag_pane == Pane::DrawingMeshSeparator);
-        bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::DrawingMeshSeparator));
+        bool dragging = (other.mouse_left_drag_pane == Pane::Separator);
+        bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
         eso_begin(M4_Identity(), SOUP_LINES);
         // eso_overlay(true);
         eso_color(
@@ -284,10 +284,12 @@ void conversation_draw() {
                         eso_vertex(*first_click);
                     }
 
+                    // entities 2D entities 2d entities
+                    // drawing 2D drawing 2d drawing
                     _for_each_entity_ {
                         if (entity->is_selected && (rotating || moving)) continue;
-                        ColorCode color_code = (!entity->is_selected) ? entity->color_code : ColorCode::Selection;
-                        eso_color(get_color(color_code));
+                        eso_color(entity->preview_color);
+                        eso_size(1.5f);
                         eso_entity__SOUP_LINES(entity);
                     }
                 } eso_end();
@@ -690,22 +692,54 @@ void conversation_draw() {
 
     { // cursor
 
-        if (0) { // cursor
-            eso_begin(other.OpenGL_from_Pixel, SOUP_TRIANGLES);
-            eso_color(omax.white);
-            eso_vertex(other.mouse_Pixel);
-            eso_vertex(other.mouse_Pixel + V2(12.0f, 10.0f));
-            eso_vertex(other.mouse_Pixel + V2(6.0f, 16.0f));
-            eso_end();
+        bool drag_none = (other.mouse_left_drag_pane == Pane::None);
+        bool drag_drawing = (other.mouse_left_drag_pane == Pane::Drawing);
+        bool drag_popup = (other.mouse_left_drag_pane == Pane::Popup);
+        bool drag_separator = (other.mouse_left_drag_pane == Pane::Separator);
+        bool drag_toolbox = (other.mouse_left_drag_pane == Pane::Toolbox);
+        bool hot_popup = (other.hot_pane == Pane::Popup);
+        bool hot_drawing = (other.hot_pane == Pane::Drawing);
+        bool hot_separator = (other.hot_pane == Pane::Separator);
+        bool hot_toolbox = (other.hot_pane == Pane::Toolbox);
+        bool drag_none_and_hot_popup = (drag_none && hot_popup);
+        bool drag_none_and_hot_separator = (drag_none && hot_separator);
+        bool drag_none_and_hot_drawing = (drag_none && hot_drawing);
+        bool drag_none_and_hot_toolbox = (drag_none && hot_toolbox);
+
+        {
+            GLFWcursor *next; {
+                if (drag_none_and_hot_popup || drag_popup) {
+                    next = other.cursors.ibeam;
+                } else if (drag_none_and_hot_separator || drag_separator) {
+                    next = other.cursors.hresize;
+                } else if (drag_none_and_hot_drawing || drag_drawing) {
+                    if (click_mode_SNAP_ELIGIBLE()) {
+                        next = other.cursors.crosshair;
+                    } else {
+                        next = NULL;
+                    }
+                } else if (drag_none_and_hot_toolbox || drag_toolbox) {
+                    next = other.cursors.hand;
+                } else {
+                    next = NULL;
+                }
+            }
+            if (other.cursors.curr != next) {
+                other.cursors.curr = next;
+                glfwSetCursor(glfw_window, next);
+            }
         }
 
+        {
+            real target = (drag_none_and_hot_drawing || drag_drawing) ? 1.0f : 0.0f;
+            JUICEIT_EASYTWEEN(&preview->cursor_subtext_alpha, target, 2.0f);
+        }
         vec3 color; {
             color = omax.white;
             if ((state.click_mode == ClickMode::Color) && (state.click_modifier != ClickModifier::Selected)) {
                 color = get_color(state.click_color_code);
             }
         }
-        real alpha = ((other.hot_pane == Pane::Drawing) && (other.mouse_left_drag_pane == Pane::None)) ? 1.0f : 0.5f;
 
         String string_click_mode = STRING(
                 (state.click_mode == ClickMode::None)           ? ""                :
@@ -749,7 +783,14 @@ void conversation_draw() {
                 (state.click_modifier == ClickModifier::XY)             ? "XY"              :
                 "???MODIFIER???");
 
-        EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - alpha };
+        { // spoof callback_cursor_position
+            double xpos, ypos;
+            glfwGetCursorPos(glfw_window, &xpos, &ypos);
+            void callback_cursor_position(GLFWwindow *, double xpos, double ypos);
+            callback_cursor_position(NULL, xpos, ypos);
+        }
+
+        EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - preview->cursor_subtext_alpha };
         easy_text_draw(&pen, string_click_mode);
         easy_text_draw(&pen, string_click_modifier);
     }
@@ -766,9 +807,9 @@ void conversation_draw() {
             eso_vertex( 1.0f,  1.0f);
             eso_vertex( 1.0f, -1.0f);
         } eso_end();
-        
+
         auto keybind_to_string = [](Keybind keybind) -> char* {
-            
+
             bool control = keybind.modifiers & MOD_CTRL;
             bool shift = keybind.modifiers & MOD_SHIFT;
             bool alt = keybind.modifiers & MOD_ALT;
@@ -778,11 +819,11 @@ void conversation_draw() {
         };
         EasyTextPen pen1 = { V2(25.0f, 16.0f), 16.0f, omax.white, true}; // FORNOW
         #define PRINT_KEYBIND(PEN, NAME) \
-            easy_text_drawf(PEN, "  %s: %s", #NAME, \
-            keybind_to_string(keybinds.NAME));
+        easy_text_drawf(PEN, "  %s: %s", #NAME, \
+                keybind_to_string(keybinds.NAME));
         EasyTextPen pen2 = pen1;
         pen2.origin_Pixel.x += 450.0f;
-    
+
 
         //////////////////////////////////////////
         //////  SNAP COMMANDS  ///////////////////

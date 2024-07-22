@@ -5,8 +5,9 @@
 
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected) 
 
-template <typename T> void JUICEIT_EASYTWEEN(T *a, T b) {
-    real f = 0.1f;
+template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
+    real f = multiplier * 0.1f;
+    if (IS_ZERO(multiplier)) f = 1.0f;
     if (!other.paused) *a += f * (b - *a);
 }
 

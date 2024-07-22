@@ -78,7 +78,7 @@ enum class Pane {
     Drawing,
     Mesh,
     Popup,
-    DrawingMeshSeparator,
+    Separator,
     Toolbox,
 };
 
@@ -153,6 +153,7 @@ struct Entity {
 
     ColorCode color_code;
     bool is_selected;
+    vec3 preview_color;
     real time_since_is_selected_changed;
 
     LineEntity line;
@@ -397,11 +398,23 @@ struct PreviewState {
     real feature_plane_offset;
     vec2 drawing_origin;
     vec2 mouse;
+    real cursor_subtext_alpha;
+};
+
+struct Cursors {
+    // pass NULL to glfwSetCursor to go back to the arrow
+    GLFWcursor *curr;
+    GLFWcursor *crosshair;
+    GLFWcursor *ibeam;
+    GLFWcursor *hresize;
+    GLFWcursor *hand;
 };
 
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
+
+    Cursors cursors;
 
     Camera camera_drawing;
     Camera camera_mesh;
@@ -450,20 +463,33 @@ struct StandardEventProcessResult {
     bool snapshot_me;
 };
 
+//////////////////////////////////
+
+
 ////////////////////////////////////////
 // colors //////////////////////////////
 ////////////////////////////////////////
 
 struct {
+    #if 1
     vec3 red = RGB255(255, 0, 0);
-    vec3 yellow = RGB255(255, 255, 0);
     vec3 orange = RGB255(204, 136, 1);
+    vec3 yellow = RGB255(255, 255, 0);
     vec3 green = RGB255(83, 255,  85);
-    vec3 cyan = RGB255(0, 255, 255);
     vec3 blue = RGB255(0, 85, 255);
     vec3 purple = RGB255(170, 1, 255);
-    vec3 magenta = RGB255(255, 0, 255);
     vec3 pink = RGB255(238, 0, 119);
+    #else
+    vec3 red = monokai.red;
+    vec3 orange = monokai.orange;
+    vec3 yellow = monokai.yellow;
+    vec3 green = monokai.green;
+    vec3 blue = monokai.blue;
+    vec3 purple = monokai.purple;
+    vec3 pink = basic.magenta;
+    #endif
+    vec3 cyan = RGB255(0, 255, 255);
+    vec3 magenta = RGB255(255, 0, 255);
     vec3 black = RGB255(0, 0, 0);
     vec3 dark_gray = RGB255(50, 50, 50);
     vec3 gray = RGB255(152, 152, 152);
@@ -505,7 +531,7 @@ vec3 get_accent_color(ToolboxGroup group) {
 ////////////////////////////////////////
 
 void messagef(vec3 color, char *format, ...);
-template <typename T> void JUICEIT_EASYTWEEN(T *a, T b);
+template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier = 1.0f);
 
 ////////////////////////////////////////
 // Config-Tweaks ///////////////////////
@@ -526,6 +552,12 @@ real WRAP_TO_0_TAU_INTERVAL(real theta) {
     theta = fmod(theta, TAU);
     if (theta < 0.0) theta += TAU;
     return theta;
+}
+
+real _WRAP_TO_0_360_INTERVAL(real theta_in_degrees) {
+    theta_in_degrees = fmod(theta_in_degrees, 360.0f);
+    if (theta_in_degrees < 0.0) theta_in_degrees += 360.0f;
+    return theta_in_degrees;
 }
 
 bool ANGLE_IS_BETWEEN_CCW(real t, real a, real b) {
