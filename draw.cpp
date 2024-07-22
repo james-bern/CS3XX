@@ -810,9 +810,9 @@ void conversation_draw() {
 
         auto keybind_to_string = [](Keybind keybind) -> char* {
 
-            bool control = keybind.modifiers & MOD_CTRL;
-            bool shift = keybind.modifiers & MOD_SHIFT;
-            bool alt = keybind.modifiers & MOD_ALT;
+            bool control = keybind.mods & MOD_CTRL;
+            bool shift = keybind.mods & MOD_SHIFT;
+            bool alt = keybind.mods & MOD_ALT;
             KeyEvent tmp = { {}, keybind.key, control, shift, alt }; 
 
             return key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp);

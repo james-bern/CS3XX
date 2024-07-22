@@ -84,7 +84,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             EasyTextPen drawing_pen = { V2(padding, padding), 12.0f, omax.white, true };
             EasyTextPen drawing_pen2 = drawing_pen;
-            drawing_pen2.font_height_Pixel = 9.0f;
+            drawing_pen2.font_height_Pixel = 12.0f;
             drawing_pen2.color = omax.light_gray;
 
             real h = drawing_pen.font_height_Pixel + drawing_pen2.font_height_Pixel;
@@ -123,9 +123,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     EnterMode enter_mode = EnterMode::None
                     ) -> bool {
 
-                bool control = keybind.modifiers & MOD_CTRL;
-                bool shift = keybind.modifiers & MOD_SHIFT;
-                bool alt = keybind.modifiers & MOD_ALT;
+                bool control = keybind.mods & MOD_CTRL;
+                bool shift = keybind.mods & MOD_SHIFT;
+                bool alt = keybind.mods & MOD_ALT;
                 uint key = keybind.key;
 
                 FORNOW_UNUSED(alt);

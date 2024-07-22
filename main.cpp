@@ -155,7 +155,6 @@ int main() {
     { // init
         init_camera_drawing();
         init_camera_mesh();
-        keybinds = init_keybinds();
         script_process(STRING(startup_script));
         { // callbacks
             glfwSetKeyCallback(glfw_window, callback_key);
@@ -186,6 +185,7 @@ int main() {
     #ifdef SHIP
     messagef(omax.green, "press ? for help");
     #endif
+    /*
     messagef(omax.red, "TODO: Intersection snap");
     messagef(omax.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
     messagef(omax.red, "TODO: Save/Load need buttons");
@@ -199,6 +199,7 @@ int main() {
     messagef(omax.red, "TODO: Push power fillet to beta");
     messagef(omax.red, "TODO: Push power offset (shell) to beta");
     messagef(omax.red, "TODO: Save/Load DXF broken for some arcs if you load\n      and save the dxf in LAYOUT in the middle.");
+    */
 
     auto SEND_DUMMY = [&]() {
         // "process" dummy event to draw popups and buttons

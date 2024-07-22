@@ -74,3 +74,11 @@ bool FILE_EXISTS(String filename) {
     fclose(file);
     return true;
 }
+
+bool FGETS(String *line, uint LINE_MAX_LENGTH, FILE *file) {
+    ASSERT(line);
+    ASSERT(file);
+    bool result = fgets(line->data, LINE_MAX_LENGTH, file);
+    line->length = strlen(line->data);
+    return result;
+}
