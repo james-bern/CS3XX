@@ -16,9 +16,11 @@ struct Command {
 #define COMMANDS_OUTER \
     COMMANDS_INNER(Center, 'C', 0b000); \
     COMMANDS_INNER(End, 'E', 0b000);  \
+    COMMANDS_INNER(Intersect, 'I', 0b000);  \
     COMMANDS_INNER(Middle, 'M', 0b000);  \
     COMMANDS_INNER(Perp, 'P', 0b000);  \
     COMMANDS_INNER(Quad, 'Q', 0b000);  \
+    COMMANDS_INNER(Tangent, 'T', 0b000);  \
     COMMANDS_INNER(XY, 'X', 0b000);  \
     COMMANDS_INNER(Zero, 'Z', 0b000);  \
     \

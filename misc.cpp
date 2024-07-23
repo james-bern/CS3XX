@@ -66,9 +66,9 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
             } else {
                 closest_entity_info = dxf_find_closest_entity(&drawing->entities, before);
             }
-            
+
             if (closest_entity_info.success) {
-                
+
                 Entity *closest_entity = closest_entity_info.closest_entity;
                 result.entity_snapped_to = closest_entity;
                 if (state.click_modifier == ClickModifier::Center) {
@@ -90,6 +90,26 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                                 result.entity_snapped_to = entity;
                                 result.snapped = true;
                             }
+                        }
+                    }
+                } else if (state.click_modifier == ClickModifier::Intersect) { // this one is a little custom
+                    real min_squared_distance = HUGE_VAL;
+                    Entity *temp_entity = NULL;
+                    _for_each_entity_ {
+                        real squared_distance = squared_distance_point_entity(before, entity);
+                        if (squared_distance < min_squared_distance && entity != closest_entity) {
+                            min_squared_distance = squared_distance;
+                            temp_entity = entity;
+                        }
+                    }
+                    if (temp_entity != NULL) {
+                        ClosestIntersectionResult res = closest_intersection(closest_entity, temp_entity, before);
+                        if (!res.no_possible_intersection) {
+                            messagef(omax.orange, "wowowo");
+                            result.mouse_position = res.point;
+                            result.entity_snapped_to = closest_entity; //TODO TODO TODO
+                            result.entity_snapped_to_2 = temp_entity;
+                            result.snapped = true;
                         }
                     }
                 } else if (state.click_modifier == ClickModifier::Perp) { // layout also does a divide which can be added if wanted

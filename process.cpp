@@ -271,6 +271,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
+                    if (magic_magic(commands.Intersect,"Intersect",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Intersect)) {
+                        result.record_me = false;
+                        state.click_modifier = ClickModifier::Intersect;
+
+                    }
+
                     if (magic_magic(commands.XY,"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
                         popup->manager.manually_set_focus_group(ToolboxGroup::Snap);
                         state.click_modifier = ClickModifier::XY;
@@ -300,6 +306,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
+                    if (magic_magic(commands.Tangent,"Tangent",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Tangent)) {
+                        result.record_me = false;
+                        state.click_modifier = ClickModifier::Tangent;
+
+                    }
                     if (magic_magic(commands.Zero,"Zero",false,ToolboxGroup::Snap)) {
                         Event equivalent = {};
                         equivalent.type = EventType::Mouse;

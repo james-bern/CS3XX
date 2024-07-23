@@ -62,10 +62,12 @@ enum class ClickModifier {
     Color,
     Connected,
     End,
+    Intersect,
     Middle,
     Perp,
     Quad,
     Selected,
+    Tangent,
     Window,
     XY,
 };
@@ -200,6 +202,8 @@ struct MagicSnapResult {
     vec2 mouse_position;
     bool snapped;
     Entity *entity_snapped_to;
+    Entity *entity_snapped_to_2;
+    bool tan_snap_first_click;
 };
 
 struct MouseEventDrawing {
@@ -1621,7 +1625,7 @@ LineArcXResult line_arc_intersection(LineEntity *line, ArcEntity *arc) {
 
 
     if (d < 0) {                // no intersect
-        result.no_possible_intersection = false; // can we exit early???
+        result.no_possible_intersection = true; // can we exit early???
     } else {                    // two intersects
         result.t1 = (-b + SQRT(d)) / (2 * a); 
         result.t2 = (-b - SQRT(d)) / (2 * a); 
@@ -1698,6 +1702,26 @@ LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity 
     }
     result.no_possible_intersection = two_point_result.no_possible_intersection;
     return result;
+}
+
+struct ClosestIntersectionResult {
+    vec2 point;
+    bool no_possible_intersection;
+};
+
+ClosestIntersectionResult closest_intersection(Entity *A, Entity *B, vec2 point) {
+    if (A->type == EntityType::Line && B->type == EntityType::Line) {
+        LineLineXResult res = line_line_intersection(&A->line, &B->line);
+        return { res.point, res.lines_are_parallel}; 
+    } else if (A->type == EntityType::Arc && B->type == EntityType::Arc) {
+        ArcArcXClosestResult res = arc_arc_intersection_closest(&A->arc, &B->arc, point);
+        return { res.point, res.no_possible_intersection };
+    } else {
+        LineArcXClosestResult res; 
+        if (A->type == EntityType::Line) res = line_arc_intersection_closest(&A->line, &B->arc, point);
+        else res = line_arc_intersection_closest(&B->line, &A->arc, point);
+        return { res.point, res.no_possible_intersection };
+    }
 }
 
 real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
