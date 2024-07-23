@@ -104,7 +104,7 @@ struct Command {
 
 #define CONFIG_OUTER \
     CONFIG_INNER(HIDE_GUI, false);  \
-    CONFIG_INNER(USING_INCHES, false);
+    CONFIG_INNER(usingInches, false);
 
 
 ////////////////////////////////////////////////////////////////////////////////
