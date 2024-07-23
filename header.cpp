@@ -537,7 +537,7 @@ vec3 get_accent_color(ToolboxGroup group) {
     if (group == ToolboxGroup::Drawing) {
         result = LERP(0.2f, omax.cyan, omax.blue);
     } else if (group == ToolboxGroup::Snap) {
-        result = omax.pink;
+        result = omax.purple;
     } else if (group == ToolboxGroup::Mesh) {
         result = omax.orange;
     } else { ASSERT(group == ToolboxGroup::None);

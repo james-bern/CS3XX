@@ -928,7 +928,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else {
                             #if 1 // TODO: consider just using the O(n*m) algorithm here instead
 
-                            #define GRID_CELL_WIDTH 0.001f
+                            #define GRID_CELL_WIDTH 0.003f
 
                             auto scalar_bucket = [&](real a) -> real {
                                 return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
