@@ -871,6 +871,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.record_me = false;
                 }
 
+                if (magic_magic(KEYBIND(TAB, MOD_CTRL + MOD_SHIFT))) { // FORNOW
+                    result.record_me = false;
+                }
+
+
                 if (magic_magic(KEYBIND(0, 0))) { // FORNOW
                     ; 
                 }
