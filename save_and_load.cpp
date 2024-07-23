@@ -172,8 +172,8 @@ bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
             fprintf(file, "20\n%.6f\n", entity->arc.center.y);
             fprintf(file, "30\n0.0\n");  // Z coordinate (2D)
             fprintf(file, "40\n%.6f\n", entity->arc.radius);
-            fprintf(file, "50\n%.6f\n", entity->arc.start_angle_in_degrees);
-            fprintf(file, "51\n%.6f\n", entity->arc.end_angle_in_degrees);
+            fprintf(file, "50\n%.6f\n", _WRAP_TO_0_360_INTERVAL(entity->arc.start_angle_in_degrees));
+            fprintf(file, "51\n%.6f\n", _WRAP_TO_0_360_INTERVAL(entity->arc.end_angle_in_degrees));
         }
     }
 

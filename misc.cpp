@@ -105,13 +105,12 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     if (temp_entity != NULL) {
                         ClosestIntersectionResult res = closest_intersection(closest_entity, temp_entity, before);
                         if (!res.no_possible_intersection) {
-                            messagef(omax.orange, "wowowo");
                             result.mouse_position = res.point;
                             result.entity_snapped_to = closest_entity; //TODO TODO TODO
                             result.entity_snapped_to_2 = temp_entity;
                             result.snapped = true;
-                        }
-                    }
+                        } else messagef(omax.orange, "no intersection found");
+                    } else messagef(omax.orange, "no intersection found");
                 } else if (state.click_modifier == ClickModifier::Perp) { // layout also does a divide which can be added if wanted
                     vec2 click_one = two_click_command->first_click;
                     if (closest_entity->type == EntityType::Line) {
