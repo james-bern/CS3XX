@@ -58,7 +58,7 @@ run_before_main {
 };
 #endif
 
-#if 1 // dogear
+#if 0 // dogear
 run_before_main {
     startup_script = \
                      "Bz40\t20\ng5<m2d 15 10><m2d 20 5>";

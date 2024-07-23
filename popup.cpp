@@ -449,22 +449,22 @@ void popup_popup(
                     bool control = key_event->control;
                     bool shift = key_event->shift;
                     if (control && (key == GLFW_KEY_TAB)) {
-                        ToolboxGroup next_grouop = popup->manager.focus_group;
+                        ToolboxGroup next_group = popup->manager.focus_group;
                         do {
                             if (!shift) {
-                                next_grouop = ToolboxGroup(uint(next_grouop) - 1);
-                                if (next_grouop == ToolboxGroup::None) {
-                                    next_grouop = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
+                                next_group = ToolboxGroup(uint(next_group) - 1);
+                                if (next_group == ToolboxGroup::None) {
+                                    next_group = ToolboxGroup(uint(ToolboxGroup::NUMBER_OF) - 1);
                                 }
                             } else {
-                                next_grouop = ToolboxGroup(uint(next_grouop) + 1);
-                                if (next_grouop == ToolboxGroup::NUMBER_OF) {
-                                    next_grouop = ToolboxGroup(uint(ToolboxGroup::None) + 1);
+                                next_group = ToolboxGroup(uint(next_group) + 1);
+                                if (next_group == ToolboxGroup::NUMBER_OF) {
+                                    next_group = ToolboxGroup(uint(ToolboxGroup::None) + 1);
                                 }
                             }
-                        } while (popup->manager.get_tag(next_grouop) == NULL);
+                        } while (popup->manager.get_tag(next_group) == NULL);
 
-                        if (next_grouop == group) {
+                        if (next_group == group) {
                             already_processed_event_passed_to_popups = true;
                             popup->manager.manually_set_focus_group(group);
                         }

@@ -291,10 +291,28 @@ struct PopupManager {
         for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
             if (!_popup_popup_called_this_process[i]) tags[i] = NULL;
         }
-        if (get_tag(focus_group) == NULL) focus_group = ToolboxGroup::None; // FORNOW
         // // NOTE: beginning of this call to process
         focus_group_was_set_manually = false;
         memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));
+
+        // <esc>
+        if (focus_group != ToolboxGroup::None) {
+            if (get_tag(focus_group) == NULL) {
+                uint old_group = uint(focus_group);
+                focus_group = ToolboxGroup::None;
+                uint new_group = old_group;
+                for (uint i = 0; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
+                    --new_group;
+                    if (new_group == 0) {
+                        new_group = uint(ToolboxGroup::NUMBER_OF) - 1;
+                    }
+                    if (get_tag(ToolboxGroup(new_group)) != NULL) {
+                        focus_group = ToolboxGroup(new_group);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     void manually_set_focus_group(ToolboxGroup new_focus_group) {
