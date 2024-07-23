@@ -832,24 +832,24 @@ void conversation_draw() {
         //////////////////////////////////////////
 
         easy_text_drawf(&pen1, "SNAP COMMANDS\n");
-        PRINT_COMMAND(&pen1, CENTER);
-        PRINT_COMMAND(&pen1, END);
-        PRINT_COMMAND(&pen1, MIDDLE);
-        PRINT_COMMAND(&pen1, PERPENDICULAR);
-        PRINT_COMMAND(&pen1, QUAD);
+        PRINT_COMMAND(&pen1, Center);
+        PRINT_COMMAND(&pen1, End);
+        PRINT_COMMAND(&pen1, Middle);
+        PRINT_COMMAND(&pen1, Perp);
+        PRINT_COMMAND(&pen1, Quad);
         PRINT_COMMAND(&pen1, XY);
-        PRINT_COMMAND(&pen1, ZERO);
+        PRINT_COMMAND(&pen1, Zero);
 
 
         //////////////////////////////////////////
-        //////  SELECT COMMANDS  /////////////////
+        //////  Select COMMANDS  /////////////////
         //////////////////////////////////////////
 
         easy_text_drawf(&pen1, "\nSELECT COMMANDS\n");
-        PRINT_COMMAND(&pen1, COLOR);
-        PRINT_COMMAND(&pen1, SELECT_CONNECTED);
-        PRINT_COMMAND(&pen1, SELECT_ALL);
-        PRINT_COMMAND(&pen1, SELECT_WINDOW);
+        PRINT_COMMAND(&pen1, Color);
+        PRINT_COMMAND(&pen1, Connected);
+        PRINT_COMMAND(&pen1, All);
+        PRINT_COMMAND(&pen1, Window);
 
 
         //////////////////////////////////////////
@@ -857,69 +857,69 @@ void conversation_draw() {
         //////////////////////////////////////////
 
         easy_text_drawf(&pen1, "\nOTHER COMMANDS\n");
-        PRINT_COMMAND(&pen1, AXIS);
-        PRINT_COMMAND(&pen1, BOX);
-        PRINT_COMMAND(&pen1, CHANGE_ORIGIN);
-        PRINT_COMMAND(&pen1, CIRCLE);
-        PRINT_COMMAND(&pen1, CLEAR_DRAWING);
-        PRINT_COMMAND(&pen1, CLEAR_MESH);
-        PRINT_COMMAND(&pen1, CYCLE_FEATURE_PLANE);
+        PRINT_COMMAND(&pen1, Axis);
+        PRINT_COMMAND(&pen1, Box);
+        PRINT_COMMAND(&pen1, Origin);
+        PRINT_COMMAND(&pen1, Circle);
+        PRINT_COMMAND(&pen1, ClearDrawing);
+        PRINT_COMMAND(&pen1, ClearMesh);
+        PRINT_COMMAND(&pen1, Plane);
         PRINT_COMMAND(&pen1, DELETE_SELECTED); // TODO
         PRINT_COMMAND(&pen1, DELETE_SELECTED_ALTERNATE); //TODO
-        PRINT_COMMAND(&pen1, DESELECT);
+        PRINT_COMMAND(&pen1, Deselect);
         PRINT_COMMAND(&pen1, DIVIDE_NEAREST);
-        PRINT_COMMAND(&pen1, DRAWING_FRAME);
+        PRINT_COMMAND(&pen1, ZoomDrawing);
         PRINT_COMMAND(&pen1, EXIT_COMMAND); // TODO
-        PRINT_COMMAND(&pen1, EXTRUDE_ADD);
-        PRINT_COMMAND(&pen1, EXTRUDE_CUT);
-        PRINT_COMMAND(&pen1, FILLET);
+        PRINT_COMMAND(&pen1, ExtrudeAdd);
+        PRINT_COMMAND(&pen1, ExtrudeCut);
+        PRINT_COMMAND(&pen1, Fillet);
         PRINT_COMMAND(&pen1, HELP_MENU);
-        PRINT_COMMAND(&pen1, LINE);
-        PRINT_COMMAND(&pen1, LINEAR_COPY);
-        PRINT_COMMAND(&pen1, MEASURE);
+        PRINT_COMMAND(&pen1, Line);
+        PRINT_COMMAND(&pen1, Copy);
+        PRINT_COMMAND(&pen1, Measure);
         PRINT_COMMAND(&pen1, MIRROR_LINE);
-        PRINT_COMMAND(&pen1, MIRROR_X);
-        PRINT_COMMAND(&pen1, MIRROR_Y);
-        PRINT_COMMAND(&pen2, MOVE);
+        PRINT_COMMAND(&pen1, XMirror);
+        PRINT_COMMAND(&pen1, YMirror);
+        PRINT_COMMAND(&pen2, Move);
         PRINT_COMMAND(&pen2, NEXT_POPUP_BAR);
-        PRINT_COMMAND(&pen2, NUDGE_PLANE);
-        PRINT_COMMAND(&pen2, OFFSET);
-        PRINT_COMMAND(&pen1, OPEN_DRAWING);
-        PRINT_COMMAND(&pen1, OPEN_MESH);
-        PRINT_COMMAND(&pen2, POLYGON);
+        PRINT_COMMAND(&pen2, NudgePlane);
+        PRINT_COMMAND(&pen2, Offset);
+        PRINT_COMMAND(&pen1, OpenDXF);
+        PRINT_COMMAND(&pen1, OpenSTL);
+        PRINT_COMMAND(&pen2, Polygon);
         PRINT_COMMAND(&pen2, POWER_FILLET);
         PRINT_COMMAND(&pen2, PREVIOUS_HOT_KEY_2D);
         PRINT_COMMAND(&pen2, PREVIOUS_HOT_KEY_3D);
         PRINT_COMMAND(&pen2, PRINT_HISTORY);
-        PRINT_COMMAND(&pen2, QUALITY_0);
-        PRINT_COMMAND(&pen2, QUALITY_1);
-        PRINT_COMMAND(&pen2, QUALITY_2);
-        PRINT_COMMAND(&pen2, QUALITY_3);
-        PRINT_COMMAND(&pen2, QUALITY_4);
-        PRINT_COMMAND(&pen2, QUALITY_5);
-        PRINT_COMMAND(&pen2, QUALITY_6);
-        PRINT_COMMAND(&pen2, QUALITY_7);
-        PRINT_COMMAND(&pen2, QUALITY_8);
-        PRINT_COMMAND(&pen2, QUALITY_9);
-        PRINT_COMMAND(&pen2, REDO);
+        PRINT_COMMAND(&pen2, Color0);
+        PRINT_COMMAND(&pen2, Color1);
+        PRINT_COMMAND(&pen2, Color2);
+        PRINT_COMMAND(&pen2, Color3);
+        PRINT_COMMAND(&pen2, Color4);
+        PRINT_COMMAND(&pen2, Color5);
+        PRINT_COMMAND(&pen2, Color6);
+        PRINT_COMMAND(&pen2, Color7);
+        PRINT_COMMAND(&pen2, Color8);
+        PRINT_COMMAND(&pen2, Color9);
+        PRINT_COMMAND(&pen2, Redo);
         PRINT_COMMAND(&pen2, REDO_ALTERNATE);
-        PRINT_COMMAND(&pen2, RESIZE);
-        PRINT_COMMAND(&pen2, REVOLVE_ADD);
-        PRINT_COMMAND(&pen2, REVOLVE_CUT);
-        PRINT_COMMAND(&pen2, ROTATE);
-        PRINT_COMMAND(&pen2, ROTATE_COPY);
-        PRINT_COMMAND(&pen2, SAVE_DRAWING);
-        PRINT_COMMAND(&pen2, SAVE_MESH);
-        PRINT_COMMAND(&pen2, SELECT);
+        PRINT_COMMAND(&pen2, Scale);
+        PRINT_COMMAND(&pen2, RevolveAdd);
+        PRINT_COMMAND(&pen2, RevolveCut);
+        PRINT_COMMAND(&pen2, Rotate);
+        PRINT_COMMAND(&pen2, RCopy);
+        PRINT_COMMAND(&pen2, SaveDXF);
+        PRINT_COMMAND(&pen2, SaveSTL);
+        PRINT_COMMAND(&pen2, Select);
         PRINT_COMMAND(&pen2, TOGGLE_BUTTONS);
         PRINT_COMMAND(&pen2, TOGGLE_DRAWING_DETAILS);
         PRINT_COMMAND(&pen2, TOGGLE_EVENT_STACK);
         PRINT_COMMAND(&pen2, TOGGLE_FEATURE_PLANE);
         PRINT_COMMAND(&pen2, TOGGLE_GRID);
         PRINT_COMMAND(&pen2, TOGGLE_LIGHT_MODE);
-        PRINT_COMMAND(&pen2, TWO_CLICK_DIVIDE);
-        PRINT_COMMAND(&pen2, TWO_EDGE_CIRCLE);
-        PRINT_COMMAND(&pen2, UNDO);
+        PRINT_COMMAND(&pen2, Divide2);
+        PRINT_COMMAND(&pen2, DiamCircle);
+        PRINT_COMMAND(&pen2, Undo);
         PRINT_COMMAND(&pen2, UNDO_ALTERNATE);
         PRINT_COMMAND(&pen2, ZOOM_3D_CAMERA);
     }

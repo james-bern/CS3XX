@@ -76,7 +76,7 @@
 
 // // things i feel weird/uncomfy about
 // i have a type variable and substructs in Entity and Event so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
-// i have some repetition (grug say hmmm...) HotkeyUserEvent and GUIKeyUserEvent are the same thing... popup MOVE and popup LINE are the same thing...
+// i have some repetition (grug say hmmm...) HotkeyUserEvent and GUIKeyUserEvent are the same thing... popup Move and popup Line are the same thing...
 
 // // misc
 // if order doesn't matter, go with alphabetical
@@ -137,12 +137,12 @@
 // // TODO: good undergrad tasks
 // TODO: fast picking (something like a BVH)--need arena (mesh should have its own arena)
 // TODO: popup_popup real popup automatically parse formulas
-// TODO: ROTATE
+// TODO: Rotate
 // TODO: COPY
 // TODO: SCALE
-// TODO: OFFSET
-// TODO: shell (OFFSET CONNECTED)
-// TODO: FILLET CONNECTED (super fillet 'F')
+// TODO: Offset
+// TODO: shell (Offset CONNECTED)
+// TODO: Fillet CONNECTED (super fillet 'F')
 // TODO: perpendicular snap
 // TODO: quad snap
 // TODO: LAYOUT polygon

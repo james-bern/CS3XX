@@ -718,7 +718,7 @@ void entities_load(String filename, List<Entity> *entities) {
         static _STRING_CALLOC(line_from_file, MAX_LINE_LENGTH);
         while (string_read_line_from_file(&line_from_file, MAX_LINE_LENGTH, file)) {
             if (mode == PARSE_NONE) {
-                if (string_matches_prefix(line_from_file, STRING("LINE"))) {
+                if (string_matches_prefix(line_from_file, STRING("Line"))) {
                     mode = PARSE_LINE;
                     code_is_hot = false;
                     entity = {};
@@ -1807,7 +1807,7 @@ char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event)
         else if (key_event->key == GLFW_KEY_PAGE_UP) _key = "PAGE_UP";
         else if (key_event->key == GLFW_KEY_PAGE_DOWN) _key = "PAGE_DOWN";
         else if (key_event->key == GLFW_KEY_HOME) _key = "HOME";
-        else if (key_event->key == GLFW_KEY_END) _key = "END";
+        else if (key_event->key == GLFW_KEY_END) _key = "End";
         else {
             _key_buffer[0] = (char) key_event->key;
             _key_buffer[1] = '\0';
