@@ -186,8 +186,6 @@ int main() {
     #ifdef SHIP
     messagef(omax.green, "press ? for help");
     #endif
-    messagef(omax.red, "TODO: OpenDXF, SaveDXF, and Scale are special\nand should be treated as such\n(they are enter modes that show up in the drawing toolbox)");
-    messagef(omax.red, "TODO: sc needs work (see sc.dxf)");
     /*
     messagef(omax.red, "TODO: Intersection snap");
     messagef(omax.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
