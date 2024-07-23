@@ -8,107 +8,111 @@
 
 // TODO: switch from UPPER_SNAKE_CASE to UpperCamelCase (there is gonna a fast vim method probably)
 
-#define OUTER \
+#define KEYBINDS_OUTER \
     /*//////////////////////////////*/ \
     /*///////  SNAP COMMANDS ///////*/ \
     /*//////////////////////////////*/ \
     \
-    INNER(CENTER, 'C', 0b000); \
-    INNER(END, 'E', 0b000);  \
-    INNER(MIDDLE, 'M', 0b000);  \
-    INNER(PERPENDICULAR, 'P', 0b000);  \
-    INNER(QUAD, 'Q', 0b000);  \
-    INNER(XY, 'X', 0b000);  \
-    INNER(ZERO, 'Z', 0b000);  \
+    KEYBINDS_INNER(CENTER, 'C', 0b000); \
+    KEYBINDS_INNER(END, 'E', 0b000);  \
+    KEYBINDS_INNER(MIDDLE, 'M', 0b000);  \
+    KEYBINDS_INNER(PERPENDICULAR, 'P', 0b000);  \
+    KEYBINDS_INNER(QUAD, 'Q', 0b000);  \
+    KEYBINDS_INNER(XY, 'X', 0b000);  \
+    KEYBINDS_INNER(ZERO, 'Z', 0b000);  \
     \
     \
     /*//////////////////////////////*/ \
     /*//////  SELECT COMMANDS //////*/ \
     /*//////////////////////////////*/ \
     \
-    INNER(COLOR, 'Q', 0b000);  \
-    INNER(SELECT_ALL, 'A', 0b000);  \
-    INNER(SELECT_CONNECTED, 'C', 0b000);  \
-    INNER(SELECT_WINDOW, 'W', 0b000);  \
+    KEYBINDS_INNER(COLOR, 'Q', 0b000);  \
+    KEYBINDS_INNER(SELECT_ALL, 'A', 0b000);  \
+    KEYBINDS_INNER(SELECT_CONNECTED, 'C', 0b000);  \
+    KEYBINDS_INNER(SELECT_WINDOW, 'W', 0b000);  \
     \
     \
     /*//////////////////////////////*/ \
     /*//////  OTHER COMMANDS ///////*/ \
     /*//////////////////////////////*/ \
     \
-    INNER(AXIS, 'A', 0b001);  \
-    INNER(BOX, 'B', 0b000);  \
-    INNER(CENTERED_BOX, 'B', 0b001);  \
-    INNER(CHANGE_ORIGIN, 'Z', 0b001);  \
-    INNER(CIRCLE, 'C', 0b000);  \
-    INNER(CLEAR_DRAWING, 'N', 0b010);  \
-    INNER(CLEAR_MESH, 'N', 0b011);  \
-    INNER(CYCLE_FEATURE_PLANE, 'Y', 0b000);  \
-    INNER(DELETE_SELECTED, DELETE, 0b000 );  \
-    INNER(DELETE_SELECTED_ALTERNATE, BACKSPACE, 0b000 );  \
-    INNER(DESELECT, 'D', 0b000);  \
-    INNER(DIVIDE_NEAREST, 'D', 0b001);  \
-    INNER(DRAWING_FRAME, 'X', 0b011);  \
-    INNER(EXTRUDE_ADD, '[', 0b000);  \
-    INNER(EXTRUDE_CUT, '[', 0b001);  \
-    INNER(FILLET, 'F', 0b000);  \
-    INNER(HELP_MENU, '/', 0b010);  \
-    INNER(LINE, 'L', 0b000);  \
-    INNER(LINEAR_COPY, 'O', 0b000);  \
-    INNER(MEASURE, 'M', 0b001);  \
-    INNER(MIRROR_LINE, 'M', 0b011);  \
-    INNER(MIRROR_X, 'X', 0b001);  \
-    INNER(MIRROR_Y, 'Y', 0b001);  \
-    INNER(MOVE, 'M', 0b000);  \
-    INNER(NUDGE_PLANE, 'N', 0b000);  \
-    INNER(OFFSET, 'H', 0b000);  \
-    INNER(OPEN_DRAWING, 'O', 0b010);  \
-    INNER(OPEN_MESH, 'O', 0b011);  \
-    INNER(POLYGON, 'P', 0b000);  \
-    INNER(POWER_FILLET, 'F', 0b001);  \
-    INNER(PREVIOUS_HOT_KEY_2D, ' ', 0b000);  \
-    INNER(PREVIOUS_HOT_KEY_3D, ' ', 0b001);  \
-    INNER(PRINT_HISTORY, 'H', 0b010);  \
-    INNER(QUALITY_0, '0', 0b00); \
-    INNER(QUALITY_1, '1', 0b00); \
-    INNER(QUALITY_2, '2', 0b00); \
-    INNER(QUALITY_3, '3', 0b00); \
-    INNER(QUALITY_4, '4', 0b00); \
-    INNER(QUALITY_5, '5', 0b00); \
-    INNER(QUALITY_6, '6', 0b00); \
-    INNER(QUALITY_7, '7', 0b00); \
-    INNER(QUALITY_8, '8', 0b00); \
-    INNER(QUALITY_9, '9', 0b00); \
-    INNER(REDO, 'U', 0b001);  \
-    INNER(REDO_ALTERNATE, 'Y', 0b010);  \
-    /* INNER(REDO_ALTERNATE_ALTERNATE, 'Z', 0b011);  */ \
-    INNER(RESIZE, 'S', 0b001);  \
-    INNER(REVOLVE_ADD, ']', 0b000);  \
-    INNER(REVOLVE_CUT, ']', 0b001);  \
-    INNER(ROTATE, 'R', 0b000);  \
-    INNER(ROTATE_COPY, 'R', 0b001);  \
-    INNER(SAVE_DRAWING, 'S', 0b010);  \
-    INNER(SAVE_MESH, 'S', 0b011);  \
-    INNER(SELECT, 'S', 0b000);  \
-    INNER(TOGGLE_BUTTONS, TAB, 0b001);  \
-    INNER(TOGGLE_DRAWING_DETAILS, '.', 0b000);  \
-    INNER(TOGGLE_EVENT_STACK, 'K', 0b000);  \
-    INNER(TOGGLE_FEATURE_PLANE, ';', 0b000);  \
-    INNER(TOGGLE_GRID, 'G', 0b000);  \
-    INNER(TOGGLE_LIGHT_MODE, 'L', 0b011);  \
-    INNER(TWO_CLICK_DIVIDE, 'I', 0b000);  \
-    INNER(TWO_EDGE_CIRCLE, 'C', 0b001);  \
-    INNER(UNDO, 'U', 0b000);  \
-    INNER(UNDO_ALTERNATE, 'Z', 0b010);  \
-    INNER(ZOOM_3D_CAMERA, '\'', 0b000);  \
+    KEYBINDS_INNER(AXIS, 'A', 0b001);  \
+    KEYBINDS_INNER(BOX, 'B', 0b000);  \
+    KEYBINDS_INNER(CENTERED_BOX, 'B', 0b001);  \
+    KEYBINDS_INNER(CHANGE_ORIGIN, 'Z', 0b001);  \
+    KEYBINDS_INNER(CIRCLE, 'C', 0b000);  \
+    KEYBINDS_INNER(CLEAR_DRAWING, 'N', 0b010);  \
+    KEYBINDS_INNER(CLEAR_MESH, 'N', 0b011);  \
+    KEYBINDS_INNER(CYCLE_FEATURE_PLANE, 'Y', 0b000);  \
+    KEYBINDS_INNER(DELETE_SELECTED, DELETE, 0b000 );  \
+    KEYBINDS_INNER(DELETE_SELECTED_ALTERNATE, BACKSPACE, 0b000 );  \
+    KEYBINDS_INNER(DESELECT, 'D', 0b000);  \
+    KEYBINDS_INNER(DIVIDE_NEAREST, 'D', 0b001);  \
+    KEYBINDS_INNER(DRAWING_FRAME, 'X', 0b011);  \
+    KEYBINDS_INNER(EXTRUDE_ADD, '[', 0b000);  \
+    KEYBINDS_INNER(EXTRUDE_CUT, '[', 0b001);  \
+    KEYBINDS_INNER(FILLET, 'F', 0b000);  \
+    KEYBINDS_INNER(HELP_MENU, '/', 0b010);  \
+    KEYBINDS_INNER(LINE, 'L', 0b000);  \
+    KEYBINDS_INNER(LINEAR_COPY, 'O', 0b000);  \
+    KEYBINDS_INNER(MEASURE, 'M', 0b001);  \
+    KEYBINDS_INNER(MIRROR_LINE, 'M', 0b011);  \
+    KEYBINDS_INNER(MIRROR_X, 'X', 0b001);  \
+    KEYBINDS_INNER(MIRROR_Y, 'Y', 0b001);  \
+    KEYBINDS_INNER(MOVE, 'M', 0b000);  \
+    KEYBINDS_INNER(NUDGE_PLANE, 'N', 0b000);  \
+    KEYBINDS_INNER(OFFSET, 'H', 0b000);  \
+    KEYBINDS_INNER(OPEN_DRAWING, 'O', 0b010);  \
+    KEYBINDS_INNER(OPEN_MESH, 'O', 0b011);  \
+    KEYBINDS_INNER(POLYGON, 'P', 0b000);  \
+    KEYBINDS_INNER(POWER_FILLET, 'F', 0b001);  \
+    KEYBINDS_INNER(PREVIOUS_HOT_KEY_2D, ' ', 0b000);  \
+    KEYBINDS_INNER(PREVIOUS_HOT_KEY_3D, ' ', 0b001);  \
+    KEYBINDS_INNER(PRINT_HISTORY, 'H', 0b010);  \
+    KEYBINDS_INNER(QUALITY_0, '0', 0b00); \
+    KEYBINDS_INNER(QUALITY_1, '1', 0b00); \
+    KEYBINDS_INNER(QUALITY_2, '2', 0b00); \
+    KEYBINDS_INNER(QUALITY_3, '3', 0b00); \
+    KEYBINDS_INNER(QUALITY_4, '4', 0b00); \
+    KEYBINDS_INNER(QUALITY_5, '5', 0b00); \
+    KEYBINDS_INNER(QUALITY_6, '6', 0b00); \
+    KEYBINDS_INNER(QUALITY_7, '7', 0b00); \
+    KEYBINDS_INNER(QUALITY_8, '8', 0b00); \
+    KEYBINDS_INNER(QUALITY_9, '9', 0b00); \
+    KEYBINDS_INNER(REDO, 'U', 0b001);  \
+    KEYBINDS_INNER(REDO_ALTERNATE, 'Y', 0b010);  \
+    /* KEYBINDS_INNER(REDO_ALTERNATE_ALTERNATE, 'Z', 0b011);  */ \
+    KEYBINDS_INNER(RESIZE, 'S', 0b001);  \
+    KEYBINDS_INNER(REVOLVE_ADD, ']', 0b000);  \
+    KEYBINDS_INNER(REVOLVE_CUT, ']', 0b001);  \
+    KEYBINDS_INNER(ROTATE, 'R', 0b000);  \
+    KEYBINDS_INNER(ROTATE_COPY, 'R', 0b001);  \
+    KEYBINDS_INNER(SAVE_DRAWING, 'S', 0b010);  \
+    KEYBINDS_INNER(SAVE_MESH, 'S', 0b011);  \
+    KEYBINDS_INNER(SELECT, 'S', 0b000);  \
+    KEYBINDS_INNER(TOGGLE_BUTTONS, TAB, 0b001);  \
+    KEYBINDS_INNER(TOGGLE_DRAWING_DETAILS, '.', 0b000);  \
+    KEYBINDS_INNER(TOGGLE_EVENT_STACK, 'K', 0b000);  \
+    KEYBINDS_INNER(TOGGLE_FEATURE_PLANE, ';', 0b000);  \
+    KEYBINDS_INNER(TOGGLE_GRID, 'G', 0b000);  \
+    KEYBINDS_INNER(TOGGLE_LIGHT_MODE, 'L', 0b011);  \
+    KEYBINDS_INNER(TWO_CLICK_DIVIDE, 'I', 0b000);  \
+    KEYBINDS_INNER(TWO_EDGE_CIRCLE, 'C', 0b001);  \
+    KEYBINDS_INNER(UNDO, 'U', 0b000);  \
+    KEYBINDS_INNER(UNDO_ALTERNATE, 'Z', 0b010);  \
+    KEYBINDS_INNER(ZOOM_3D_CAMERA, '\'', 0b000);  \
     \
     /*//////////////////////////////*/ \
     /*/////  NOT SUPPORTED  ////////*/ \
     /*//////////////////////////////*/ \
     \
-    INNER(NEXT_POPUP_BAR, TAB, 0b000 );/* secretly actually supported but scary */ \
-    INNER(EXECUTE_COMMAND, '\n', 0b000 );/* should be glfw_key_enter */ \
-    INNER(EXIT_COMMAND, ESCAPE, 0b000 );/* TODO */
+    KEYBINDS_INNER(NEXT_POPUP_BAR, TAB, 0b000 );/* secretly actually supported but scary */ \
+    KEYBINDS_INNER(EXECUTE_COMMAND, '\n', 0b000 );/* should be glfw_key_enter */ \
+    KEYBINDS_INNER(EXIT_COMMAND, ESCAPE, 0b000 );/* TODO */
+
+#define CONFIG_OUTER \
+    CONFIG_INNER(HIDE_GUI, false);  \
+    CONFIG_INNER(USING_INCHES, false);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,22 +124,41 @@
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+struct {
+    #define CONFIG_INNER(NAME, VALUE) \
+    real NAME = VALUE
+
+    CONFIG_OUTER;
+
+    #undef CONFIG_INNER
+} config;
 
 struct Keybind {
     uint key;
     unsigned char mods;
 };
 
-struct Keybinds {
-    #define INNER(NAME, CHAR, CODE) \
+struct {
+    #define KEYBINDS_INNER(NAME, CHAR, CODE) \
     Keybind NAME = { CHAR, CODE };
 
-    OUTER;
+    KEYBINDS_OUTER;
 
-    #undef INNER
-};
+    #undef KEYBINDS_INNER
+} keybinds;
 
-Keybinds keybinds;
+
+
+real parse_config(String str) {
+    if (0) {
+    } else if (string_matches_prefix(str, "F")) {
+        return 0;
+    } else if (string_matches_prefix(str, "T")) {
+        return 1;
+    } else {
+        return strtol(str.data, NULL, 0); 
+    }
+}
 
 uint parse_key(String str) {
     if (0) {
@@ -206,16 +229,30 @@ run_before_main {
                 //DEBUGBREAK();
             }
             if (is_valid) {
-                if (string_matches_prefix(command_name, "LINE")) keybinds.LINE = parse_keybind(keybind_string);
-                #define INNER(NAME, _CHAR, _CODE) \
+                #define KEYBINDS_INNER(NAME, _CHAR, _CODE) \
                 else if (string_matches_prefix(command_name, STR(NAME))) keybinds.NAME = parse_keybind(keybind_string)
 
                 if (0);
-                OUTER;
+                KEYBINDS_OUTER;
 
                 #undef INNER
+
+                
+                #define CONFIG_INNER(NAME, _VALUE) \
+                else if (string_matches_prefix(command_name, STR(NAME))) config.NAME = parse_config(keybind_string)
+
+                if (0);
+                CONFIG_OUTER;
+
+                #undef CONFIG_OUTER
             }
         }
+    }
+    
+
+    // config stuff
+    {
+        other.hide_toolbox = config.HIDE_GUI;
     }
 };
 #undef OUTER
