@@ -126,7 +126,7 @@ struct Cookbook {
         }
     };
 
-    // DOES NOT EXTEND LINE
+    // DOES NOT EXTEND Line
     void divide_entity_at_point(Entity *entity, vec2 point) {
         bool delete_flag = false;
         if (entity->type == EntityType::Line) {
