@@ -137,7 +137,7 @@ PreviewState *preview = &other.preview;
 Event event_passed_to_popups;
 bool already_processed_event_passed_to_popups;
 
-#include "keybinds.cpp"
+#include "commands.cpp"
 #include "boolean.cpp"
 #include "misc.cpp"
 #include "draw.cpp"

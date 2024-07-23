@@ -114,7 +114,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool hotkey_consumed_by_magic_magic = false;
             auto magic_magic = [&](
-                    Keybind keybind,
+                    Command command,
                     char *name = NULL,
                     bool hotkey_label_only = false,
                     ToolboxGroup group = ToolboxGroup::Drawing,
@@ -123,10 +123,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     EnterMode enter_mode = EnterMode::None
                     ) -> bool {
 
-                bool control = keybind.mods & MOD_CTRL;
-                bool shift = keybind.mods & MOD_SHIFT;
-                bool alt = keybind.mods & MOD_ALT;
-                uint key = keybind.key;
+                bool control = command.mods & MOD_CTRL;
+                bool shift = command.mods & MOD_SHIFT;
+                bool alt = command.mods & MOD_ALT;
+                uint key = command.key;
 
                 FORNOW_UNUSED(alt);
 
@@ -243,64 +243,64 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 // NOTE: ordered by priority
 
                 if (click_mode_SELECT_OR_DESELECT()) {
-                    if (magic_magic(keybinds.SELECT_ALL)) { 
+                    if (magic_magic(commands.SELECT_ALL)) { 
                         result.checkpoint_me = true;
                         cookbook.set_is_selected_for_all_entities(state.click_mode == ClickMode::Select);
                         state.click_mode = ClickMode::None;
                         state.click_modifier = ClickModifier::None;
                     }
 
-                    if (magic_magic(keybinds.SELECT_CONNECTED)) {
+                    if (magic_magic(commands.SELECT_CONNECTED)) {
                         state.click_modifier = ClickModifier::Connected;
                     }
 
-                    if (magic_magic(keybinds.COLOR)) {
+                    if (magic_magic(commands.COLOR)) {
                         state.click_modifier = ClickModifier::Color;
                     }
 
-                    if (magic_magic(keybinds.SELECT_WINDOW)) {
+                    if (magic_magic(commands.SELECT_WINDOW)) {
                         state.click_modifier = ClickModifier::Window;
                         two_click_command->awaiting_second_click = false;
                     }
                 }
 
                 if (click_mode_SNAP_ELIGIBLE()) {
-                    if (magic_magic(keybinds.END,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
+                    if (magic_magic(commands.END,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::End;
 
                     }
 
-                    if (magic_magic(keybinds.XY,"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
+                    if (magic_magic(commands.XY,"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
                         popup->manager.manually_set_focus_group(ToolboxGroup::Snap);
                         state.click_modifier = ClickModifier::XY;
                     }
 
-                    if (magic_magic(keybinds.CENTER,"Center",false,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center)) {
+                    if (magic_magic(commands.CENTER,"Center",false,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Center;
 
                     }
 
-                    if (magic_magic(keybinds.MIDDLE,"Middle",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle)) {
+                    if (magic_magic(commands.MIDDLE,"Middle",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Middle;
 
                     }
 
-                    if (magic_magic(keybinds.PERPENDICULAR,"Perp",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perp)) {
+                    if (magic_magic(commands.PERPENDICULAR,"Perp",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perp)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Perp;
 
                     }
 
-                    if (magic_magic(keybinds.QUAD,"Quad",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad)) {
+                    if (magic_magic(commands.QUAD,"Quad",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad)) {
                         result.record_me = false;
                         state.click_modifier = ClickModifier::Quad;
 
                     }
 
-                    if (magic_magic(keybinds.ZERO,"Zero",false,ToolboxGroup::Snap)) {
+                    if (magic_magic(commands.ZERO,"Zero",false,ToolboxGroup::Snap)) {
                         Event equivalent = {};
                         equivalent.type = EventType::Mouse;
                         equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
@@ -311,13 +311,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 ///
-                if (magic_magic(keybinds.OPEN_DRAWING,"OpenDXF",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::OpenDXF)) {
+                if (magic_magic(commands.OPEN_DRAWING,"OpenDXF",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::OpenDXF)) {
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::OpenDXF;
                 }
 
-                if (magic_magic(keybinds.SAVE_DRAWING,"SaveDXF",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::SaveDXF)) {
+                if (magic_magic(commands.SAVE_DRAWING,"SaveDXF",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::SaveDXF)) {
                     result.record_me = false; // TODO
                     other.awaiting_confirmation = false; // TODO
 
@@ -331,8 +331,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 SEPERATOR(ToolboxGroup::Drawing);
 
                 { // undo
-                    bool hotkey_undo_alternate = magic_magic(keybinds.UNDO_ALTERNATE);
-                    bool button_undo = magic_magic(keybinds.UNDO,"Undo");
+                    bool hotkey_undo_alternate = magic_magic(commands.UNDO_ALTERNATE);
+                    bool button_undo = magic_magic(commands.UNDO,"Undo");
                     if ((hotkey_undo_alternate || button_undo)) {
                         result.record_me = false;
                         other._please_suppress_drawing_popup_popup = true;
@@ -342,8 +342,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // redo
-                    bool hotkey_redo_alternate = magic_magic(keybinds.REDO_ALTERNATE);
-                    bool button_redo = magic_magic(keybinds.REDO, "Redo");
+                    bool hotkey_redo_alternate = magic_magic(commands.REDO_ALTERNATE);
+                    bool button_redo = magic_magic(commands.REDO, "Redo");
                     if ((hotkey_redo_alternate || button_redo)) {
                         result.record_me = false;
                         // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
@@ -356,14 +356,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 SEPERATOR(ToolboxGroup::Drawing);
 
                 { // color
-                    if (magic_magic(keybinds.COLOR)) {
+                    if (magic_magic(commands.COLOR)) {
                         state.click_mode = ClickMode::Color;
                         state.click_modifier = ClickModifier::None;
                     }
 
                     bool hotkey_quality;
                     uint digit = 0;
-                    Keybind *qualities[] = { &keybinds.QUALITY_0, &keybinds.QUALITY_1, &keybinds.QUALITY_2, &keybinds.QUALITY_3, &keybinds.QUALITY_4, &keybinds.QUALITY_5, &keybinds.QUALITY_6, &keybinds.QUALITY_7, &keybinds.QUALITY_8, &keybinds.QUALITY_9 };
+                    Command *qualities[] = { &commands.QUALITY_0, &commands.QUALITY_1, &commands.QUALITY_2, &commands.QUALITY_3, &commands.QUALITY_4, &commands.QUALITY_5, &commands.QUALITY_6, &commands.QUALITY_7, &commands.QUALITY_8, &commands.QUALITY_9 };
                     {
                         hotkey_quality = false;
                         for_(color, 10) {
@@ -400,7 +400,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                 //
-                if (magic_magic(keybinds.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
+                if (magic_magic(commands.SELECT,"Select",false,ToolboxGroup::Drawing,ClickMode::Select)) { // TODO
                     if (state.click_mode != ClickMode::Color) {
                         state.click_mode = ClickMode::Select;
                         state.click_modifier = ClickModifier::None;
@@ -409,32 +409,32 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(keybinds.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
+                if (magic_magic(commands.DESELECT,"Deselect",false,ToolboxGroup::Drawing,ClickMode::Deselect)) {
                     state.click_mode = ClickMode::Deselect;
                     state.click_modifier = ClickModifier::None;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.LINE,"Line",false,ToolboxGroup::Drawing,ClickMode::Line)) {
+                if (magic_magic(commands.LINE,"Line",false,ToolboxGroup::Drawing,ClickMode::Line)) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(keybinds.CIRCLE,"Circle",false,ToolboxGroup::Drawing,ClickMode::Circle)) {
+                if (magic_magic(commands.CIRCLE,"Circle",false,ToolboxGroup::Drawing,ClickMode::Circle)) {
                     state.click_mode = ClickMode::Circle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(keybinds.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
+                if (magic_magic(commands.BOX,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(keybinds.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
+                if (magic_magic(commands.POLYGON,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
                     state.click_mode = ClickMode::Polygon;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -442,13 +442,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.TWO_EDGE_CIRCLE,"DiamCircle",false,ToolboxGroup::Drawing,ClickMode::DiamCircle)) {
+                if (magic_magic(commands.TWO_EDGE_CIRCLE,"DiamCircle",false,ToolboxGroup::Drawing,ClickMode::DiamCircle)) {
                     state.click_mode = ClickMode::DiamCircle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(keybinds.CENTERED_BOX,"CenterBox",false,ToolboxGroup::Drawing,ClickMode::CenteredBox)) {
+                if (magic_magic(commands.CENTERED_BOX,"CenterBox",false,ToolboxGroup::Drawing,ClickMode::CenteredBox)) {
                     state.click_mode = ClickMode::CenteredBox;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -459,19 +459,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 SEPERATOR(ToolboxGroup::Drawing);
 
 
-                if (magic_magic(keybinds.MOVE,"Move",false,ToolboxGroup::Drawing,ClickMode::Move)) {
+                if (magic_magic(commands.MOVE,"Move",false,ToolboxGroup::Drawing,ClickMode::Move)) {
                     state.click_mode = ClickMode::Move;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(keybinds.ROTATE,"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
+                if (magic_magic(commands.ROTATE,"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(keybinds.RESIZE,"Scale",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::Size)) { 
+                if (magic_magic(commands.RESIZE,"Scale",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::Size)) { 
                     state.enter_mode = EnterMode::Size;
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
@@ -479,13 +479,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.LINEAR_COPY,"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy)) {
+                if (magic_magic(commands.LINEAR_COPY,"LinearCopy",false,ToolboxGroup::Drawing,ClickMode::LinearCopy)) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
                 }
 
-                if (magic_magic(keybinds.ROTATE_COPY,"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
+                if (magic_magic(commands.ROTATE_COPY,"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -493,19 +493,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.MIRROR_X,"XMirror",false,ToolboxGroup::Drawing,ClickMode::XMirror)) {
+                if (magic_magic(commands.MIRROR_X,"XMirror",false,ToolboxGroup::Drawing,ClickMode::XMirror)) {
                     state.click_mode = ClickMode::XMirror;
                     state.click_modifier = ClickModifier::None;
                 }
 
-                if (magic_magic(keybinds.MIRROR_Y,"YMirror",false,ToolboxGroup::Drawing,ClickMode::YMirror)) {
+                if (magic_magic(commands.MIRROR_Y,"YMirror",false,ToolboxGroup::Drawing,ClickMode::YMirror)) {
                     state.click_mode = ClickMode::YMirror;
                     state.click_modifier = ClickModifier::None;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::Divide2)) {
+                if (magic_magic(commands.TWO_CLICK_DIVIDE,"Divide2",false,ToolboxGroup::Drawing,ClickMode::Divide2)) {
                     state.click_mode = ClickMode::Divide2;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
@@ -514,14 +514,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.OFFSET,"Offset",false,ToolboxGroup::Drawing,ClickMode::Offset)) {
+                if (magic_magic(commands.OFFSET,"Offset",false,ToolboxGroup::Drawing,ClickMode::Offset)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
                     state.click_mode = ClickMode::Offset;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                 }
 
-                if (magic_magic(keybinds.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
+                if (magic_magic(commands.FILLET,"Fillet",false,ToolboxGroup::Drawing,ClickMode::Fillet)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Drawing);
                     state.click_mode = ClickMode::Fillet;
                     state.click_modifier = ClickModifier::None;
@@ -539,7 +539,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 // SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.POWER_FILLET)) {// ,"PowerFillet",false,ToolboxGroup::Drawing,ClickMode::PowerFillet)) {
+                if (magic_magic(commands.POWER_FILLET)) {// ,"PowerFillet",false,ToolboxGroup::Drawing,ClickMode::PowerFillet)) {
                     state.click_mode = ClickMode::PowerFillet;
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
@@ -547,12 +547,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.CHANGE_ORIGIN,"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin)) {
+                if (magic_magic(commands.CHANGE_ORIGIN,"Origin",false,ToolboxGroup::Drawing,ClickMode::Origin)) {
                     state.click_mode = ClickMode::Origin;
                     state.click_modifier = ClickModifier::None;
                 }
 
-                if (magic_magic(keybinds.AXIS,"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis)) {
+                if (magic_magic(commands.AXIS,"Axis",false,ToolboxGroup::Drawing,ClickMode::Axis)) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -560,7 +560,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Drawing);
 
-                if (magic_magic(keybinds.MEASURE,"Measure",false,ToolboxGroup::Drawing,ClickMode::Measure)) {
+                if (magic_magic(commands.MEASURE,"Measure",false,ToolboxGroup::Drawing,ClickMode::Measure)) {
                     result.record_me = false;
                     state.click_mode = ClickMode::Measure;
                     state.click_modifier = ClickModifier::None;
@@ -575,11 +575,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 ////////////////////////////////////////////////////////////////////////////////
 
-                if (magic_magic(keybinds.OPEN_MESH,"OpenSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::OpenSTL)) {
+                if (magic_magic(commands.OPEN_MESH,"OpenSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::OpenSTL)) {
                     state.enter_mode = EnterMode::OpenSTL;
                 }
 
-                if (magic_magic(keybinds.SAVE_MESH,"SaveSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::SaveSTL)) {
+                if (magic_magic(commands.SAVE_MESH,"SaveSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::SaveSTL)) {
                     result.record_me = false; // TODO
                     other.awaiting_confirmation = false; // TODO
 
@@ -589,7 +589,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 SEPERATOR(ToolboxGroup::Mesh);
                 SEPERATOR(ToolboxGroup::Mesh);
 
-                if (magic_magic(keybinds.CYCLE_FEATURE_PLANE,"Plane",false,ToolboxGroup::Mesh)) {
+                if (magic_magic(commands.CYCLE_FEATURE_PLANE,"Plane",false,ToolboxGroup::Mesh)) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
                     result.checkpoint_me = true;
                     other.time_since_plane_selected = 0.0f;
@@ -607,7 +607,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Mesh);
 
-                if (magic_magic(keybinds.EXTRUDE_ADD,"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
+                if (magic_magic(commands.EXTRUDE_ADD,"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::ExtrudeAdd;
                     preview->extrude_in_length = 0; // FORNOW
@@ -615,7 +615,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.EXTRUDE_CUT, "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
+                if (magic_magic(commands.EXTRUDE_CUT, "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::ExtrudeCut;
                     preview->extrude_in_length = 0; // FORNOW
@@ -623,7 +623,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.REVOLVE_ADD, "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
+                if (magic_magic(commands.REVOLVE_ADD, "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::RevolveAdd;
                     preview->revolve_in_angle = 0; // FORNOW
@@ -631,7 +631,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.REVOLVE_CUT, "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
+                if (magic_magic(commands.REVOLVE_CUT, "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     state.enter_mode = EnterMode::RevolveCut;
                     preview->revolve_in_angle = 0; // FORNOW
@@ -641,7 +641,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 SEPERATOR(ToolboxGroup::Mesh);
 
-                if (magic_magic(keybinds.NUDGE_PLANE, "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
+                if (magic_magic(commands.NUDGE_PLANE, "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     if (feature_plane->is_active) {
                         state.enter_mode = EnterMode::NudgePlane;
@@ -658,7 +658,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.DIVIDE_NEAREST)) {
+                if (magic_magic(commands.DIVIDE_NEAREST)) {
                     state.click_mode = ClickMode::DivideNearest;
                     state.click_modifier = ClickModifier::None;
 
@@ -666,24 +666,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.TOGGLE_GRID)) {
+                if (magic_magic(commands.TOGGLE_GRID)) {
                     result.record_me = false;
                     other.hide_grid = !other.hide_grid;
 
                 }
 
-                if (magic_magic(keybinds.PRINT_HISTORY)) {
+                if (magic_magic(commands.PRINT_HISTORY)) {
                     result.record_me = false;
                     history_printf_script();
 
                 }
 
-                if (magic_magic(keybinds.OFFSET)) {
+                if (magic_magic(commands.OFFSET)) {
                     state.click_mode = ClickMode::Offset;
                     state.click_modifier = ClickModifier::None;
                 }
 
-                if (magic_magic(keybinds.TOGGLE_EVENT_STACK)) { 
+                if (magic_magic(commands.TOGGLE_EVENT_STACK)) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
                     result.record_me = false;
@@ -691,7 +691,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(keybinds.MIRROR_LINE)) {
+                if (magic_magic(commands.MIRROR_LINE)) {
                     state.click_mode = ClickMode::MirrorLine;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
@@ -699,7 +699,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(keybinds.CLEAR_DRAWING)) {
+                if (magic_magic(commands.CLEAR_DRAWING)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     list_free_AND_zero(&drawing->entities);
@@ -708,7 +708,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.CLEAR_MESH)) {
+                if (magic_magic(commands.CLEAR_MESH)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     mesh_free_AND_zero(mesh);
@@ -729,7 +729,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.DRAWING_FRAME)) {
+                if (magic_magic(commands.DRAWING_FRAME)) {
                     result.record_me = false;
                     init_camera_drawing();
                     init_camera_mesh();
@@ -738,20 +738,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_2D)) {
+                if (magic_magic(commands.PREVIOUS_HOT_KEY_2D)) {
                     state.click_mode = ClickMode::None; // FORNOW: patching space space doing CIRCLE CENTER
 
                     return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
                 }
 
-                if (magic_magic(keybinds.PREVIOUS_HOT_KEY_3D)) {
+                if (magic_magic(commands.PREVIOUS_HOT_KEY_3D)) {
 
                     return _standard_event_process_NOTE_RECURSIVE(state.shift_space_bar_event);
                 }
 
 
 
-                if (magic_magic(keybinds.TOGGLE_DRAWING_DETAILS)) { 
+                if (magic_magic(commands.TOGGLE_DRAWING_DETAILS)) { 
                     result.record_me = false;
                     other.show_details = !other.show_details;
                     { // messagef
@@ -774,20 +774,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.TOGGLE_FEATURE_PLANE)) {
+                if (magic_magic(commands.TOGGLE_FEATURE_PLANE)) {
                     result.checkpoint_me = true;
                     if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
 
                 }
 
-                if (magic_magic(keybinds.ZOOM_3D_CAMERA)) {
+                if (magic_magic(commands.ZOOM_3D_CAMERA)) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
 
                 }
 
-                if ((magic_magic(keybinds.DELETE_SELECTED) || magic_magic(keybinds.DELETE_SELECTED_ALTERNATE))) {
+                if ((magic_magic(commands.DELETE_SELECTED) || magic_magic(commands.DELETE_SELECTED_ALTERNATE))) {
                     // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
                     state.click_mode = ClickMode::None;
                     state.click_modifier = ClickModifier::None;
@@ -800,13 +800,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.HELP_MENU)) {
+                if (magic_magic(commands.HELP_MENU)) {
                     result.record_me = false;
                     other.show_help = !other.show_help;
 
                 }
 
-                if (magic_magic(keybinds.EXIT_COMMAND)) {
+                if (magic_magic(commands.EXIT_COMMAND)) {
                     do_once { messagef(omax.orange, "ESCAPE maybe sus."); };
                     if (popup->manager.focus_group == ToolboxGroup::Drawing) {
                         if (state.click_mode != ClickMode::None) {
@@ -829,7 +829,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                if (magic_magic(keybinds.TOGGLE_LIGHT_MODE)) { // FORNOW
+                if (magic_magic(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
                     result.record_me = false;
                     {
                         vec3 tmp = omax.light_gray;
@@ -849,7 +849,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(keybinds.TOGGLE_BUTTONS)) { // FORNOW
+                if (magic_magic(commands.TOGGLE_BUTTONS)) { // FORNOW
                     result.record_me = false;
                     other.hide_toolbox = !other.hide_toolbox;
 
@@ -857,26 +857,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(keybinds.EXECUTE_COMMAND)) { // FORNOW
+                if (magic_magic(commands.EXECUTE_COMMAND)) { // FORNOW
                     result.record_me = false;
 
                 }
 
-                if (magic_magic(KEYBIND(DUMMY_HOTKEY, 0))) { // FORNOW
+                if (magic_magic(COMMAND(DUMMY_HOTKEY, 0))) { // FORNOW
                     result.record_me = false;
 
                 }
 
-                if (magic_magic(KEYBIND(TAB, MOD_CTRL))) { // FORNOW
+                if (magic_magic(COMMAND(TAB, MOD_CTRL))) { // FORNOW
                     result.record_me = false;
                 }
 
-                if (magic_magic(KEYBIND(TAB, MOD_CTRL + MOD_SHIFT))) { // FORNOW
+                if (magic_magic(COMMAND(TAB, MOD_CTRL + MOD_SHIFT))) { // FORNOW
                     result.record_me = false;
                 }
 
 
-                if (magic_magic(KEYBIND(0, 0))) { // FORNOW
+                if (magic_magic(COMMAND(0, 0))) { // FORNOW
                     ; 
                 }
 
