@@ -180,6 +180,7 @@ int main() {
             other.cursors.hresize = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
             other.cursors.hand = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
         }
+
     }
 
     #ifdef SHIP
