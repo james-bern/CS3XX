@@ -26,6 +26,34 @@
 
 char *startup_script = "";
 
+#if 1 // divide
+run_before_main {
+    startup_script = 
+        "cz10\n"
+        "s<m2d 0 -10>\b"
+        "lzm<m2d 0 10>"
+        "uuuuuuuuuu"
+        "UUUUUUUUUU"
+        "uuuuuuuuuu"
+        "UUUUUUUUUU"
+        "uuuuuuuuuu"
+        "UUUUUUUUUU"
+        ;
+    #if 0
+        "bz10\t10\n"
+        "lm<m2d 5 0>m<m2d 5 10>"
+        "lm<m2d 0 5>m<m2d 10 5>"
+        "sa\b"
+        "uuuuuuuuuu"
+        "UUUUUUUUUU"
+        "uuuuuuuuuu"
+        "UUUUUUUUUU"
+        "uuuuuuuuuu"
+        "UUUUUUUUUU"
+    #endif
+};
+#endif
+
 #if 0 // multi-popup
 run_before_main {
     startup_script = 
@@ -137,10 +165,11 @@ PreviewState *preview = &other.preview;
 Event event_passed_to_popups;
 bool already_processed_event_passed_to_popups;
 
-#include "commands.cpp"
 #include "boolean.cpp"
 #include "misc.cpp"
+#include "commands.cpp"
 #include "draw.cpp"
+#include "save_and_load.cpp"
 #include "message.cpp"
 #include "popup.cpp"
 #include "history.cpp"

@@ -776,11 +776,13 @@ void conversation_draw() {
                 (state.click_modifier == ClickModifier::Center)         ? "Center"          :
                 (state.click_modifier == ClickModifier::Connected)      ? "Connected"       :
                 (state.click_modifier == ClickModifier::End)            ? "End"             :
+                (state.click_modifier == ClickModifier::Intersect)      ? "Intersect"       :
                 (state.click_modifier == ClickModifier::Color)          ? "Color"           :
                 (state.click_modifier == ClickModifier::Middle)         ? "Middle"          :
-                (state.click_modifier == ClickModifier::Perp)           ? "Perp"   :
+                (state.click_modifier == ClickModifier::Perp)           ? "Perp"            :
                 (state.click_modifier == ClickModifier::Quad)           ? "Quad"            :
                 (state.click_modifier == ClickModifier::Selected)       ? "Selected"        :
+                (state.click_modifier == ClickModifier::Tangent)        ? "Tangent"         :
                 (state.click_modifier == ClickModifier::Window)         ? "Window"          :
                 (state.click_modifier == ClickModifier::XY)             ? "XY"              :
                 "???MODIFIER???");
