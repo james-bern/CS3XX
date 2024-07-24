@@ -355,7 +355,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 { // redo
                     bool hotkey_redo_alternate = magic_magic(commands.REDO_ALTERNATE);
                     bool button_redo = magic_magic(commands.Redo, "Redo");
-                    if ((hotkey_redo_alternate || button_redo)) {
+                    bool hotkey_redo_alternate_alternate = magic_magic(commands.REDO_ALTERNATE_ALTERNATE);
+                    if ((hotkey_redo_alternate || button_redo | hotkey_redo_alternate_alternate)) {
                         result.record_me = false;
                         // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
                         other._please_suppress_drawing_popup_popup = true;
