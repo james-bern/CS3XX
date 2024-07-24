@@ -915,7 +915,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 MagicSnapResult snap_result = mouse_event_drawing->snap_result;
                 vec2 *mouse = &snap_result.mouse_position;
 
-                if (snap_result.snapped) {
+                if (snap_result.snapped && ( 
+                            (state.click_mode == ClickMode::Box)
+                            || (state.click_mode == ClickMode::CenteredBox)
+                            || (state.click_mode == ClickMode::Circle)
+                            || (state.click_mode == ClickMode::Line)
+                            || (state.click_mode == ClickMode::Polygon)
+                            || (state.click_mode == ClickMode::DiamCircle))) {
                     ASSERT(snap_result.entity_index_snapped_to >= 0);
                     ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
                     cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
