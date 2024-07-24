@@ -131,8 +131,6 @@ struct Cookbook {
     // DOES NOT EXTEND Line
     void divide_entity_at_point(uint entity_index, vec2 point) {
         Entity *entity = &drawing->entities.array[entity_index];
-        messagef(omax.red, "ASDF");
-        pprint(point);
         bool delete_flag = false;
         if (entity->type == EntityType::Line) {
             LineEntity line = entity->line;
@@ -140,24 +138,24 @@ struct Cookbook {
             bool point_is_on_line = ARE_EQUAL(distance(point, line.start) + distance(point, line.end), distance(line.start, line.end)); // FORNOW
             if (point_is_on_line) {
                 if (distance(line.start, point) > TINY_VAL) {
-                    buffer_add_line(line.start, point, entity->is_selected, entity->color_code);
+                    buffer_add_line(line.start, point, false, entity->color_code);
                     delete_flag = true;
                 }
                 if (distance(point, line.end) > TINY_VAL) {
-                    buffer_add_line(point, line.end, entity->is_selected, entity->color_code);
+                    buffer_add_line(point, line.end, false, entity->color_code);
                     delete_flag = true;
                 }
             }
         } else { ASSERT(entity->type == EntityType::Arc);
             ArcEntity arc = entity->arc;
             real angle = DEG(ATAN2(point - arc.center));
-            if (ARE_EQUAL(distance(point, arc.center), arc.radius) && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
+            if (abs(distance(point, arc.center) - arc.radius) < 0.001 && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
                 if (!ARE_EQUAL(arc.start_angle_in_degrees, angle)) {
-                    buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, angle);
+                    buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, angle, false, entity->color_code);
                     delete_flag = true;
                 }
                 if (!ARE_EQUAL(arc.end_angle_in_degrees, angle)) {
-                    buffer_add_arc(arc.center, arc.radius, angle, arc.end_angle_in_degrees);
+                    buffer_add_arc(arc.center, arc.radius, angle, arc.end_angle_in_degrees, false, entity->color_code);
                     delete_flag = true;
                 }
 
