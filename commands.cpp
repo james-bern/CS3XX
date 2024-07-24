@@ -22,7 +22,7 @@ struct Command {
     COMMANDS_INNER(Middle,      'M', 0b000); \
     COMMANDS_INNER(Perp,        'P', 0b000); \
     COMMANDS_INNER(Quad,        'Q', 0b000); \
-    OMMANDS_INNER(Tangent,      'T', 0b000); \
+    COMMANDS_INNER(Tangent,     'T', 0b000); \
     COMMANDS_INNER(XY,          'X', 0b000); \
     COMMANDS_INNER(Zero,        'Z', 0b000); \
     \
