@@ -266,13 +266,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(commands.End,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
-                        result.record_me = false;
                         state.click_modifier = ClickModifier::End;
 
                     }
 
                     if (magic_magic(commands.Intersect,"Intersect",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Intersect)) {
-                        result.record_me = false;
                         state.click_modifier = ClickModifier::Intersect;
 
                     }
@@ -283,31 +281,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     if (magic_magic(commands.Center,"Center",false,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center)) {
-                        result.record_me = false;
                         state.click_modifier = ClickModifier::Center;
 
                     }
 
                     if (magic_magic(commands.Middle,"Middle",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle)) {
-                        result.record_me = false;
                         state.click_modifier = ClickModifier::Middle;
 
                     }
 
                     if (magic_magic(commands.Perp,"Perp",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perp)) {
-                        result.record_me = false;
                         state.click_modifier = ClickModifier::Perp;
 
                     }
 
                     if (magic_magic(commands.Quad,"Quad",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad)) {
-                        result.record_me = false;
                         state.click_modifier = ClickModifier::Quad;
 
                     }
 
                     if (magic_magic(commands.Tangent,"Tangent",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Tangent)) {
-                        result.record_me = false;
                         state.click_modifier = ClickModifier::Tangent;
 
                     }
@@ -922,11 +915,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 vec2 *mouse = &snap_result.mouse_position;
 
                 if (snap_result.snapped) {
-                    do_once { messagef(omax.red, "FORNOW: divide_entity_at_point(...) is disabled (so Jim can dev other stuff)\n"
-                            "line " XSTR(__LINE__) " of process.cpp"); };
-                    //snap_result.entity_snapped_to->color_code = ColorCode::Quality4;
-                    //cookbook.buffer_add_line(V2(0, 0), *mouse);
-                    // cookbook.divide_entity_at_point(snap_result.entity_snapped_to, *mouse);
+                    cookbook.divide_entity_at_point(snap_result.entity_snapped_to, *mouse);
                 }
 
 

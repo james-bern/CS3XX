@@ -19,14 +19,16 @@ void script_process(String string) {
                 {
                     char *tag = &string.data[i + 1];
                     if (strncmp(tag, "m2d", TAG_LENGTH) == 0) {
+                        // NOTE: user of this api specified click in pre-snapped world coordinates
+                        //       (as opposed to [pre-snapped] pixel coordinates, which is what bake_event takes)
+                        // FORNOW
                         char *params = &string.data[i + 1 + TAG_LENGTH];
                         vec2 p; {
                             sscanf(params, "%f %f", &p.x, &p.y);
-                            // NOTE: user of this api specified click in pre-snapped world coordinates
-                            //       (as opposed to [pre-snapped] pixel coordinates, which is what bake_event takes)
-                            p = magic_snap(p).mouse_position;
                         }
-                        instabaked_event = make_mouse_event_2D(p);
+                        MagicSnapResult snap_result = magic_snap(p);
+                        instabaked_event = make_mouse_event_2D(snap_result.mouse_position);
+                        instabaked_event.mouse_event.mouse_event_drawing.snap_result = snap_result;
                     } else if (strncmp(tag, "m3d", TAG_LENGTH) == 0) {
                         char *params = &string.data[i + 1 + TAG_LENGTH];
                         vec3 mouse_ray_origin;

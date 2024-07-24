@@ -1,0 +1,10 @@
+clear drawing
+clear mesh
+zoom drawing
+zoom mesh
+mirror line
+offset
+colors
+zoom 3d camera
+
+

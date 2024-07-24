@@ -128,11 +128,14 @@ struct Cookbook {
 
     // DOES NOT EXTEND Line
     void divide_entity_at_point(Entity *entity, vec2 point) {
+        messagef(omax.red, "ASDF");
+        pprint(point);
         bool delete_flag = false;
         if (entity->type == EntityType::Line) {
             LineEntity line = entity->line;
-            //messagef(omax.orange, "%f", distance(point, line.start) - distance(point, line.
-            if (ARE_EQUAL(distance(point, line.start) + distance(point, line.end), distance(line.start, line.end))) {
+            // messagef(omax.orange, "%f", distance(point, line.start) - distance(point, line.
+            bool point_is_on_line = ARE_EQUAL(distance(point, line.start) + distance(point, line.end), distance(line.start, line.end)); // FORNOW
+            if (point_is_on_line) {
                 if (distance(line.start, point) > TINY_VAL) {
                     buffer_add_line(line.start, point, entity->is_selected, entity->color_code);
                     delete_flag = true;
