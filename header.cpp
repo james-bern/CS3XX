@@ -201,8 +201,8 @@ struct RawEvent {
 struct MagicSnapResult {
     vec2 mouse_position;
     bool snapped;
-    Entity *entity_snapped_to;
-    Entity *entity_snapped_to_2;
+    uint entity_index_snapped_to;
+    uint entity_index_snapped_to_2;
     bool tan_snap_first_click;
 };
 

@@ -70,7 +70,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
             if (closest_entity_info.success) {
 
                 Entity *closest_entity = closest_entity_info.closest_entity;
-                result.entity_snapped_to = closest_entity;
+                result.entity_index_snapped_to = uint(closest_entity_info.closest_entity - drawing->entities.array); //TODO TODO TODO
                 if (state.click_modifier == ClickModifier::Center) {
                     result.mouse_position = closest_entity->arc.center;
                     result.snapped = true;
@@ -87,7 +87,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             if (squared_distance < min_squared_distance) {
                                 min_squared_distance = squared_distance;
                                 result.mouse_position = p[d];
-                                result.entity_snapped_to = entity;
+                                result.entity_index_snapped_to = entity - drawing->entities.array;
                                 result.snapped = true;
                             }
                         }
@@ -106,8 +106,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         ClosestIntersectionResult res = closest_intersection(closest_entity, temp_entity, before);
                         if (!res.no_possible_intersection) {
                             result.mouse_position = res.point;
-                            result.entity_snapped_to = closest_entity; //TODO TODO TODO
-                            result.entity_snapped_to_2 = temp_entity;
+                            result.entity_index_snapped_to = closest_entity_info.closest_entity - drawing->entities.array; //TODO TODO TODO
+                            result.entity_index_snapped_to_2 = temp_entity - drawing->entities.array;
                             result.snapped = true;
                         } else messagef(omax.orange, "no intersection found");
                     } else messagef(omax.orange, "no intersection found");

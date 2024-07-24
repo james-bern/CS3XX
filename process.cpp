@@ -916,7 +916,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 vec2 *mouse = &snap_result.mouse_position;
 
                 if (snap_result.snapped) {
-                    cookbook.divide_entity_at_point(snap_result.entity_snapped_to, *mouse);
+                    ASSERT(snap_result.entity_index_snapped_to >= 0);
+                    ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
+                    cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
                 }
 
 

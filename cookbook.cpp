@@ -129,7 +129,8 @@ struct Cookbook {
     };
 
     // DOES NOT EXTEND Line
-    void divide_entity_at_point(Entity *entity, vec2 point) {
+    void divide_entity_at_point(uint entity_index, vec2 point) {
+        Entity *entity = &drawing->entities.array[entity_index];
         messagef(omax.red, "ASDF");
         pprint(point);
         bool delete_flag = false;
@@ -163,7 +164,7 @@ struct Cookbook {
             }
         }
         if (delete_flag) {
-            buffer_delete_entity(entity);
+            _buffer_delete_entity_DEPRECATED_INDEX_VERSION(entity_index);
         }
     }
 
