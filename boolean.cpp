@@ -7,7 +7,7 @@ bool click_mode_SNAP_ELIGIBLE() {
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::LinearCopy)
         || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::MirrorLine)
+        || (state.click_mode == ClickMode::Mirror2)
         || (state.click_mode == ClickMode::XMirror)
         || (state.click_mode == ClickMode::YMirror)
         || (state.click_mode == ClickMode::Move)
@@ -27,7 +27,7 @@ bool click_mode_15_DEG_ELIGIBLE() {
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::LinearCopy)
         || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::MirrorLine)
+        || (state.click_mode == ClickMode::Mirror2)
         || (state.click_mode == ClickMode::XMirror)
         || (state.click_mode == ClickMode::YMirror)
         || (state.click_mode == ClickMode::Move)
@@ -47,7 +47,7 @@ bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (state.click_mode == ClickMode::Fillet)
         || (state.click_mode == ClickMode::Line)
         || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::MirrorLine)
+        || (state.click_mode == ClickMode::Mirror2)
         || (state.click_mode == ClickMode::XMirror)
         || (state.click_mode == ClickMode::YMirror)
         || (state.click_mode == ClickMode::Move)
@@ -79,7 +79,7 @@ bool click_mode_TWO_CLICK_COMMAND() {
         (state.click_mode == ClickMode::Line) ||
         (state.click_mode == ClickMode::LinearCopy) ||
         (state.click_mode == ClickMode::Measure) ||
-        (state.click_mode == ClickMode::MirrorLine) ||
+        (state.click_mode == ClickMode::Mirror2) ||
         (state.click_mode == ClickMode::Move) ||
         (state.click_mode == ClickMode::Polygon) ||
         (state.click_mode == ClickMode::Rotate) ||

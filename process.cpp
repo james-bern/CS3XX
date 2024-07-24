@@ -503,6 +503,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                 }
 
+                if (magic_magic(commands.Mirror2,"Mirror2",false,ToolboxGroup::Drawing,ClickMode::Mirror2)) {
+                    state.click_mode = ClickMode::Mirror2;
+                    state.click_modifier = ClickModifier::None;
+                    two_click_command->awaiting_second_click = false;
+
+                }
+
                 SEPERATOR(ToolboxGroup::Drawing);
 
                 if (magic_magic(commands.Divide2,"Divide2",false,ToolboxGroup::Drawing,ClickMode::Divide2)) {
@@ -691,12 +698,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                if (magic_magic(commands.MIRROR_LINE)) {
-                    state.click_mode = ClickMode::MirrorLine;
-                    state.click_modifier = ClickModifier::None;
-                    two_click_command->awaiting_second_click = false;
-
-                }
 
 
                 if (magic_magic(commands.ClearDrawing)) {
@@ -781,7 +782,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(commands.ZOOM_3D_CAMERA)) {
+                if (magic_magic(commands.ZoomMesh)) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
 
@@ -1390,7 +1391,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 real length = length_click_vector;
                                 messagef(omax.cyan, "Angle is %gdeg.", angle);
                                 messagef(omax.cyan, "Length is %gmm.", length);
-                            } else if (state.click_mode == ClickMode::MirrorLine) {
+                            } else if (state.click_mode == ClickMode::Mirror2) {
                                 // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 state.click_mode = ClickMode::None;

@@ -41,7 +41,7 @@ enum class ClickMode {
     Line,
     LinearCopy,
     Measure,
-    MirrorLine,
+    Mirror2,
     XMirror,
     YMirror,
     Move,

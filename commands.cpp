@@ -10,72 +10,73 @@
 
 struct Command {
     uint key;
-    unsigned char mods;
+    u8 mods;
+
+    String name;
 };
 
 #define COMMANDS_OUTER \
-    COMMANDS_INNER(Center, 'C', 0b000); \
-    COMMANDS_INNER(End, 'E', 0b000);  \
-    COMMANDS_INNER(Middle, 'M', 0b000);  \
-    COMMANDS_INNER(Perp, 'P', 0b000);  \
-    COMMANDS_INNER(Quad, 'Q', 0b000);  \
-    COMMANDS_INNER(XY, 'X', 0b000);  \
-    COMMANDS_INNER(Zero, 'Z', 0b000);  \
+    COMMANDS_INNER(Center,      'C', 0b000); \
+    COMMANDS_INNER(End,         'E', 0b000); \
+    COMMANDS_INNER(Middle,      'M', 0b000); \
+    COMMANDS_INNER(Perp,        'P', 0b000); \
+    COMMANDS_INNER(Quad,        'Q', 0b000); \
+    COMMANDS_INNER(XY,          'X', 0b000); \
+    COMMANDS_INNER(Zero,        'Z', 0b000); \
     \
-    COMMANDS_INNER(Color, 'Q', 0b000);  \
-    COMMANDS_INNER(All, 'A', 0b000);  \
-    COMMANDS_INNER(Connected, 'C', 0b000);  \
-    COMMANDS_INNER(Window, 'W', 0b000);  \
+    COMMANDS_INNER(All,         'A', 0b000); \
+    COMMANDS_INNER(Color,       'Q', 0b000); \
+    COMMANDS_INNER(Connected,   'C', 0b000); \
+    COMMANDS_INNER(Window,      'W', 0b000); \
     \
-    COMMANDS_INNER(Axis, 'A', 0b001);  \
-    COMMANDS_INNER(Box, 'B', 0b000);  \
-    COMMANDS_INNER(CenteredBox, 'B', 0b001);  \
-    COMMANDS_INNER(Origin, 'Z', 0b001);  \
-    COMMANDS_INNER(Circle, 'C', 0b000);  \
-    COMMANDS_INNER(ClearDrawing, 'N', 0b010);  \
-    COMMANDS_INNER(ClearMesh, 'N', 0b011);  \
-    COMMANDS_INNER(Plane, 'Y', 0b000);  \
-    COMMANDS_INNER(Deselect, 'D', 0b000);  \
-    COMMANDS_INNER(ZoomDrawing, 'X', 0b011);  \
-    COMMANDS_INNER(ZoomMesh, '\0', 0b000);  \
-    COMMANDS_INNER(ExtrudeAdd, '[', 0b000);  \
-    COMMANDS_INNER(ExtrudeCut, '[', 0b001);  \
-    COMMANDS_INNER(Fillet, 'F', 0b000);  \
-    COMMANDS_INNER(Line, 'L', 0b000);  \
-    COMMANDS_INNER(Copy, 'O', 0b000);  \
-    COMMANDS_INNER(Measure, 'M', 0b001);  \
-    COMMANDS_INNER(MIRROR_LINE, 'M', 0b011);  \
-    COMMANDS_INNER(XMirror, 'X', 0b001);  \
-    COMMANDS_INNER(YMirror, 'Y', 0b001);  \
-    COMMANDS_INNER(Move, 'M', 0b000);  \
-    COMMANDS_INNER(NudgePlane, 'N', 0b000);  \
-    COMMANDS_INNER(Offset, 'H', 0b000);  \
-    COMMANDS_INNER(OpenDXF, 'O', 0b010);  \
-    COMMANDS_INNER(OpenSTL, 'O', 0b011);  \
-    COMMANDS_INNER(Polygon, 'P', 0b000);  \
-    COMMANDS_INNER(Color0, '0', 0b00); \
-    COMMANDS_INNER(Color1, '1', 0b00); \
-    COMMANDS_INNER(Color2, '2', 0b00); \
-    COMMANDS_INNER(Color3, '3', 0b00); \
-    COMMANDS_INNER(Color4, '4', 0b00); \
-    COMMANDS_INNER(Color5, '5', 0b00); \
-    COMMANDS_INNER(Color6, '6', 0b00); \
-    COMMANDS_INNER(Color7, '7', 0b00); \
-    COMMANDS_INNER(Color8, '8', 0b00); \
-    COMMANDS_INNER(Color9, '9', 0b00); \
-    COMMANDS_INNER(Scale, 'S', 0b001);  \
-    COMMANDS_INNER(RevolveAdd, ']', 0b000);  \
-    COMMANDS_INNER(RevolveCut, ']', 0b001);  \
-    COMMANDS_INNER(Rotate, 'R', 0b000);  \
-    COMMANDS_INNER(RCopy, 'R', 0b001);  \
-    COMMANDS_INNER(SaveDXF, 'S', 0b010);  \
-    COMMANDS_INNER(SaveSTL, 'S', 0b011);  \
-    COMMANDS_INNER(Select, 'S', 0b000);  \
-    COMMANDS_INNER(Divide2, 'I', 0b000);  \
-    COMMANDS_INNER(DiamCircle, 'C', 0b010);  \
-    COMMANDS_INNER(Undo, 'U', 0b000);  \
-    COMMANDS_INNER(Redo, 'U', 0b001);  \
-    COMMANDS_INNER(ZOOM_3D_CAMERA, '\'', 0b000);  \
+    COMMANDS_INNER(Axis,        'A', 0b001); \
+    COMMANDS_INNER(Box,         'B', 0b000); \
+    COMMANDS_INNER(CenteredBox, 'B', 0b001); \
+    COMMANDS_INNER(Circle,      'C', 0b000); \
+    COMMANDS_INNER(ClearDrawing,'N', 0b010); \
+    COMMANDS_INNER(ClearMesh,   'N', 0b011); \
+    COMMANDS_INNER(Color0,      '0', 0b000); \
+    COMMANDS_INNER(Color1,      '1', 0b000); \
+    COMMANDS_INNER(Color2,      '2', 0b000); \
+    COMMANDS_INNER(Color3,      '3', 0b000); \
+    COMMANDS_INNER(Color4,      '4', 0b000); \
+    COMMANDS_INNER(Color5,      '5', 0b000); \
+    COMMANDS_INNER(Color6,      '6', 0b000); \
+    COMMANDS_INNER(Color7,      '7', 0b000); \
+    COMMANDS_INNER(Color8,      '8', 0b000); \
+    COMMANDS_INNER(Color9,      '9', 0b000); \
+    COMMANDS_INNER(Copy,        'O', 0b000); \
+    COMMANDS_INNER(Deselect,    'D', 0b000); \
+    COMMANDS_INNER(DiamCircle,  'C', 0b010); \
+    COMMANDS_INNER(Divide2,     'I', 0b000); \
+    COMMANDS_INNER(ExtrudeAdd,  '[', 0b000); \
+    COMMANDS_INNER(ExtrudeCut,  '[', 0b001); \
+    COMMANDS_INNER(Fillet,      'F', 0b000); \
+    COMMANDS_INNER(Line,        'L', 0b000); \
+    COMMANDS_INNER(Measure,     'M', 0b001); \
+    COMMANDS_INNER(Mirror2,     'M', 0b011); \
+    COMMANDS_INNER(Move,        'M', 0b000); \
+    COMMANDS_INNER(NudgePlane,  'N', 0b000); \
+    COMMANDS_INNER(Offset,      'H', 0b000); \
+    COMMANDS_INNER(OpenDXF,     'O', 0b010); \
+    COMMANDS_INNER(OpenSTL,     'O', 0b011); \
+    COMMANDS_INNER(Origin,      'Z', 0b001); \
+    COMMANDS_INNER(Plane,       'Y', 0b000); \
+    COMMANDS_INNER(Polygon,     'P', 0b000); \
+    COMMANDS_INNER(RCopy,       'R', 0b001); \
+    COMMANDS_INNER(Redo,        'U', 0b001); \
+    COMMANDS_INNER(RevolveAdd,  ']', 0b000); \
+    COMMANDS_INNER(RevolveCut,  ']', 0b001); \
+    COMMANDS_INNER(Rotate,      'R', 0b000); \
+    COMMANDS_INNER(SaveDXF,     'S', 0b010); \
+    COMMANDS_INNER(SaveSTL,     'S', 0b011); \
+    COMMANDS_INNER(Scale,       'S', 0b001); \
+    COMMANDS_INNER(Select,      'S', 0b000); \
+    COMMANDS_INNER(Undo,        'U', 0b000); \
+    COMMANDS_INNER(XMirror,     'X', 0b001); \
+    COMMANDS_INNER(YMirror,     'Y', 0b001); \
+    COMMANDS_INNER(ZoomDrawing, 'X', 0b011); \
+    COMMANDS_INNER(ZoomMesh,      0, 0b000); \
     \
     \
     \
@@ -112,6 +113,19 @@ struct Command {
     COMMANDS_INNER(EXECUTE_COMMAND, '\n', 0b000 );/* should be glfw_key_enter */ \
     COMMANDS_INNER(EXIT_COMMAND, ESCAPE, 0b000 );/* TODO */
 
+struct {
+    #define COMMANDS_INNER(NAME, CHAR, CODE) \
+    Command NAME = { CHAR, CODE };
+
+    COMMANDS_OUTER;
+
+    #undef COMMANDS_INNER
+} commands;
+
+
+
+
+
 #define CONFIG_OUTER \
     CONFIG_INNER(HIDE_GUI, false);  \
     CONFIG_INNER(USING_INCHES, false);
@@ -136,14 +150,6 @@ struct {
 } config;
 
 
-struct {
-    #define COMMANDS_INNER(NAME, CHAR, CODE) \
-    Command NAME = { CHAR, CODE };
-
-    COMMANDS_OUTER;
-
-    #undef COMMANDS_INNER
-} commands;
 
 
 

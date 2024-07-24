@@ -356,7 +356,7 @@ void conversation_draw() {
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::MirrorLine) {
+                if (state.click_mode == ClickMode::Mirror2) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
@@ -764,7 +764,7 @@ void conversation_draw() {
                 (state.click_mode == ClickMode::Select)         ? "Select"          :
                 (state.click_mode == ClickMode::Rotate)         ? "Rotate"          :
                 (state.click_mode == ClickMode::RotateCopy)     ? "RotateCopy"      :
-                (state.click_mode == ClickMode::MirrorLine)     ? "MirrorLine"      :
+                (state.click_mode == ClickMode::Mirror2)     ? "Mirror2"      :
                 (state.click_mode == ClickMode::XMirror)        ? "XMirror"         :
                 (state.click_mode == ClickMode::YMirror)        ? "YMirror"         :
                 (state.click_mode == ClickMode::DiamCircle)     ? "DiamCircle"   :
@@ -800,6 +800,7 @@ void conversation_draw() {
     void history_debug_draw(); // forward declaration
 
 
+    #if 0
     if (other.show_help) {
         eso_begin(M4_Identity(), SOUP_QUADS); {
             eso_overlay(true);
@@ -877,7 +878,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen1, Line);
         PRINT_COMMAND(&pen1, Copy);
         PRINT_COMMAND(&pen1, Measure);
-        PRINT_COMMAND(&pen1, MIRROR_LINE);
+        PRINT_COMMAND(&pen1, Mirror2);
         PRINT_COMMAND(&pen1, XMirror);
         PRINT_COMMAND(&pen1, YMirror);
         PRINT_COMMAND(&pen2, Move);
@@ -921,8 +922,9 @@ void conversation_draw() {
         PRINT_COMMAND(&pen2, DiamCircle);
         PRINT_COMMAND(&pen2, Undo);
         PRINT_COMMAND(&pen2, UNDO_ALTERNATE);
-        PRINT_COMMAND(&pen2, ZOOM_3D_CAMERA);
+        PRINT_COMMAND(&pen2, ZoomMesh);
     }
+    #endif
 
     if (other.show_event_stack) history_debug_draw();
 
