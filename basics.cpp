@@ -10,6 +10,7 @@
 typedef uint32_t uint;
 typedef float real;
 typedef uint8_t u8;
+typedef uint64_t u64;
 // vecD
 template <uint D> struct Vector;
 typedef Vector<2> vec2;

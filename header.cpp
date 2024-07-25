@@ -1,5 +1,28 @@
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
+
+enum class ToolboxGroup {
+    None,
+    Draw,
+    Snap,
+    Mesh,
+    NUMBER_OF,
+};
+
+#define COMMAND_FLAG_ (1 << 00)
+struct Command {
+    struct {
+        uint key;
+        u8 mods;
+    } shortcut;
+
+    ToolboxGroup group;
+
+    u64 flags;
+
+    String name;
+};
+
 enum class EnterMode {
     None,
     ExtrudeAdd,
@@ -16,14 +39,6 @@ enum class EnterMode {
 };
 
 
-
-enum class ToolboxGroup {
-    None,
-    Drawing,
-    Snap,
-    Mesh,
-    NUMBER_OF,
-};
 
 
 
@@ -403,9 +418,11 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     ToolboxState toolbox;
 
     ClickMode click_mode;
-    ColorCode click_color_code;
     EnterMode enter_mode;
-    ClickModifier click_modifier; // TODO: split; snaps should be in ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other
+    ClickModifier click_modifier;
+    ColorCode click_color_code;
+
+    const Command *mesh_command;
 
     Event space_bar_event;
     Event shift_space_bar_event;
@@ -537,7 +554,7 @@ vec3 omax_pallete[] = {
 
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
-    if (group == ToolboxGroup::Drawing) {
+    if (group == ToolboxGroup::Draw) {
         result = LERP(0.2f, omax.cyan, omax.blue);
     } else if (group == ToolboxGroup::Snap) {
         result = omax.purple;
