@@ -112,7 +112,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         } else messagef(omax.orange, "no intersection found");
                     } else messagef(omax.orange, "no intersection found");
                 } else if (state.click_modifier == ClickModifier::Perp) { // layout also does a divide which can be added if wanted
-                    vec2 click_one = two_click_command->first_click;
+                    vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
                         vec2 a_to_p = click_one - closest_entity->line.start;
