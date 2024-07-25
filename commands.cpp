@@ -111,6 +111,14 @@
     COMMANDS_INNER(EXECUTE_COMMAND,                 '\n', 0b000, None, 0);/* should be glfw_key_enter */ \
     COMMANDS_INNER(EXIT_COMMAND,                  ESCAPE, 0b000, None, 0);/* TODO */
 
+
+
+
+
+
+
+
+
 struct {
     #define COMMANDS_INNER(NAME, CHAR, CODE, GROUP, FLAGS) \
     Command NAME = { CHAR, CODE, ToolboxGroup::GROUP, FLAGS };
@@ -119,9 +127,6 @@ struct {
 
     #undef COMMANDS_INNER
 } commands;
-
-
-
 
 
 #define CONFIG_OUTER \

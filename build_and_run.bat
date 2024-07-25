@@ -119,7 +119,7 @@ else
         -c $1 \
         -std=c++11 \
         -fno-strict-aliasing \
-        -ferror-limit=256 \
+        -ferror-limit=4096 \
         -mmacosx-version-min=11.0 \
         -O$OPTARG \
         -g -fstandalone-debug \

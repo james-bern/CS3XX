@@ -9,7 +9,7 @@ enum class ToolboxGroup {
     NUMBER_OF,
 };
 
-#define COMMAND_FLAG_ (1 << 00)
+#define CMD_FLAG_ (1 << 00)
 struct Command {
     struct {
         uint key;
@@ -23,6 +23,11 @@ struct Command {
     String name;
 };
 
+
+
+
+
+
 enum class EnterMode {
     None,
     ExtrudeAdd,
@@ -31,17 +36,11 @@ enum class EnterMode {
     RevolveAdd,
     RevolveCut,
     Size,
-
     OpenDXF,
     OpenSTL,
     SaveDXF,
     SaveSTL,
 };
-
-
-
-
-
 enum class ClickMode {
     None,
     Axis,
@@ -70,7 +69,6 @@ enum class ClickMode {
     DiamCircle,
     Divide2,
 };
-
 enum class ClickModifier {
     None,
     Center,
@@ -86,6 +84,7 @@ enum class ClickModifier {
     Window,
     XY,
 };
+
 
 enum class EntityType {
     Arc,
@@ -422,7 +421,7 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     ClickModifier click_modifier;
     ColorCode click_color_code;
 
-    const Command *mesh_command;
+    const Command *click_command;
 
     Event space_bar_event;
     Event shift_space_bar_event;
