@@ -42,7 +42,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
-            if (state.click_modifier == ClickModifier::Center || state.click_modifier == ClickModifier::Quad) {
+            //messagef(omax.green, "%d", two_click_command->tangent_first_click);
+            if (state.click_modifier == ClickModifier::Center || state.click_modifier == ClickModifier::Quad || state.click_modifier == ClickModifier::Tangent) {
                 real min_squared_distance = HUGE_VAL;
                 Entity *temp_entity = NULL;
                 _for_each_entity_ {
@@ -133,6 +134,36 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     }
                     result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, angle);
                     result.snapped = true;
+                } else if (state.click_modifier == ClickModifier::Tangent) {
+
+
+                    if (click_mode_TWO_CLICK_COMMAND() && !two_click_command->awaiting_second_click) {
+                        two_click_command->tangent_first_click = true; 
+                    }
+                    vec2 mouse = before;
+                    if (two_click_command->awaiting_second_click) {
+                        mouse = two_click_command->first_click;
+                    }
+                    if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
+                        mouse = two_click_command->first_click;
+                        messagef(omax.blue, "not implemented as math seems hard");
+                    }
+                    vec2 center = closest_entity->arc.center;
+                    real radius = closest_entity->arc.radius;
+                    real d = distance(center, mouse);
+
+                    if (d > radius) {
+                        real t1 = ATAN2(mouse - center);
+                        real t2 = acos(radius / d);
+                        real theta1 = t1 + t2;
+                        real theta2 = t1 - t2;
+                        vec2 tan1 = { center.x + radius * COS(theta1), center.y + radius * SIN(theta1) };
+                        vec2 tan2 = { center.x + radius * COS(theta2), center.y + radius * SIN(theta2) };
+                        result.mouse_position = distance(mouse, tan1) < distance(mouse, tan2) ? tan1 : tan2;
+                        result.snapped = true;
+                    }
+
+
                 }
             }
         }

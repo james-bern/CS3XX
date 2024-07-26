@@ -142,6 +142,21 @@ void conversation_draw() {
     // preview
     vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position;
 
+    if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
+        //messagef(omax.red, "wowowo");
+        vec2 before = mouse;
+        Entity *closest_entity = two_click_command->entity_closest_to_first_click;
+        vec2 center = closest_entity->arc.center;
+        real radius = closest_entity->arc.radius;
+        real d = distance(center, before);
+
+        if (d > radius) {
+            real t1 = acos(radius / d);
+            real t2 = ATAN2(before - center);
+            real theta = t1 + t2;
+            two_click_command->first_click = { center.x + radius * COS(theta), center.y + radius * SIN(theta) };
+        }
+    }
     {
         vec2 target_preview_mouse = mouse;
         JUICEIT_EASYTWEEN(&preview->mouse, target_preview_mouse);
@@ -346,6 +361,9 @@ void conversation_draw() {
                     eso_vertex(one_corner);
                     eso_vertex(V2(one_corner.x, other_y));
                     eso_vertex(V2(other_x, other_y));
+            if (two_click_command->tangent_first_click) {
+                two_click_command->tangent_first_click = false;
+            }
                     eso_vertex(V2(other_x, one_corner.y));
                     eso_end();
                 }

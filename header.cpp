@@ -276,6 +276,7 @@ struct TwoClickCommandState {
     bool awaiting_second_click;
     vec2 first_click;
     Entity *entity_closest_to_first_click;
+    bool tangent_first_click; // first thing that came to mind might be more elegant solution
 };
 
 struct PopupManager {
@@ -451,6 +452,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool hide_toolbox;
 
     bool awaiting_confirmation;
+    
 
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL;

@@ -261,6 +261,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (magic_magic(commands.Window)) {
                         state.click_modifier = ClickModifier::Window;
                         two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                     }
                 }
 
@@ -302,8 +303,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     if (magic_magic(commands.Tangent,"Tangent",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Tangent)) {
                         state.click_modifier = ClickModifier::Tangent;
-
                     }
+
                     if (magic_magic(commands.Zero,"Zero",false,ToolboxGroup::Snap)) {
                         Event equivalent = {};
                         equivalent.type = EventType::Mouse;
@@ -425,24 +426,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Line;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic(commands.Circle,"Circle",false,ToolboxGroup::Drawing,ClickMode::Circle)) {
                     state.click_mode = ClickMode::Circle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic(commands.Box,"Box",false,ToolboxGroup::Drawing,ClickMode::Box)) {
                     state.click_mode = ClickMode::Box;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic(commands.Polygon,"Polygon",false,ToolboxGroup::Drawing,ClickMode::Polygon)) {
                     state.click_mode = ClickMode::Polygon;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -451,12 +456,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::DiamCircle;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic(commands.CenteredBox,"CenterBox",false,ToolboxGroup::Drawing,ClickMode::CenteredBox)) {
                     state.click_mode = ClickMode::CenteredBox;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
 
@@ -468,12 +475,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Move;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic(commands.Rotate,"Rotate",false,ToolboxGroup::Drawing,ClickMode::Rotate)) {
                     state.click_mode = ClickMode::Rotate;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic(commands.Scale,"Scale",false,ToolboxGroup::Drawing,ClickMode::None,ClickModifier::None,EnterMode::Size)) { 
@@ -488,12 +497,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::LinearCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic(commands.RCopy,"RotateCopy",false,ToolboxGroup::Drawing,ClickMode::RotateCopy)) {
                     state.click_mode = ClickMode::RotateCopy;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -512,6 +523,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Mirror2;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
 
                 }
 
@@ -522,6 +534,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -539,6 +552,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 if (magic_magic({'G'},"DogEar",false,ToolboxGroup::Drawing,ClickMode::DogEar)) {
@@ -547,6 +561,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_modifier = ClickModifier::None;
                     state.enter_mode = EnterMode::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 // SEPERATOR(ToolboxGroup::Drawing);
@@ -568,6 +583,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Axis;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 } 
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -577,6 +593,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     state.click_mode = ClickMode::Measure;
                     state.click_modifier = ClickModifier::None;
                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                 }
 
                 SEPERATOR(ToolboxGroup::Drawing);
@@ -926,6 +943,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
                     cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
                     if (snap_result.split_ent_two) {
+                        messagef(omax.red, "intersec2");
                         cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to_2, *mouse);
                     }
                 }
@@ -1141,6 +1159,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real click_theta = angle_from_0_TAU(first_click, second_click);
                             real clicks_are_same = IS_ZERO(click_vector);
                             real length_click_vector = norm(click_vector);
+                            if (two_click_command->tangent_first_click) {
+                                two_click_command->tangent_first_click = false;
+                            }
 
                             if (0) {
                             } else if (state.click_mode == ClickMode::Axis) {
@@ -1191,6 +1212,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                 state.click_modifier = ClickModifier::None;
                                 two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                                 DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
                                 if (_F.success) {
                                     Entity *E = two_click_command->entity_closest_to_first_click;
@@ -1202,6 +1224,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                 state.click_modifier = ClickModifier::None;
                                 two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                                 DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
                                 if (_F.success) {
                                     Entity *E = two_click_command->entity_closest_to_first_click;
@@ -1213,6 +1236,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     messagef(omax.orange, "Circle: must have non-zero diameter");
                                 } else {
                                     two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                                     result.checkpoint_me = true;
                                     state.click_mode = ClickMode::None;
                                     state.click_modifier = ClickModifier::None;
@@ -1552,6 +1576,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT()) {
                                 two_click_command->awaiting_second_click = false;
+                                two_click_command->tangent_first_click = false;
                                 bbox2 window = {
                                     MIN(first_click.x, second_click.x),
                                     MIN(first_click.y, second_click.y),
