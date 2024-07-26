@@ -34,7 +34,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
             real theta = roundf(ATAN2(r) * factor) / factor;
             result.mouse_position = a + norm_r * e_theta(theta);
         } else if (
-                (state.click_mode == ClickMode::Box)
+                (state_Draw_command_is_(Box))
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             // TODO (Felipe): snap square

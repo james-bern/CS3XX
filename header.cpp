@@ -23,7 +23,12 @@ struct Command {
     String name;
 };
 
+bool command_equals(Command A, Command B) {
+    return (A.name.data == B.name.data);
+}
 
+#define state_Draw_command_is_(Name) command_equals(state.Draw_command, commands.Name)
+#define set_Draw_command(Name) state.Draw_command = commands.Name
 
 
 
@@ -53,7 +58,7 @@ enum class ClickMode {
     Fillet,
     DogEar,
     Line,
-    LinearCopy,
+    Copy,
     Measure,
     Mirror2,
     XMirror,
@@ -64,7 +69,7 @@ enum class ClickMode {
     Polygon,
     PowerFillet,
     Rotate,
-    RotateCopy,
+    RCopy,
     Select,
     DiamCircle,
     Divide2,
@@ -416,12 +421,12 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     PopupState popup;
     ToolboxState toolbox;
 
-    ClickMode click_mode;
+    ClickMode _click_mode;
     EnterMode enter_mode;
     ClickModifier click_modifier;
     ColorCode click_color_code;
 
-    const Command *click_command;
+    Command Draw_command;
 
     Event space_bar_event;
     Event shift_space_bar_event;

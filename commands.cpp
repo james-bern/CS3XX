@@ -10,6 +10,8 @@
 
 
 #define COMMANDS_OUTER \
+    COMMANDS_INNER(None,          0,     0, None, 0); \
+    \
     COMMANDS_INNER(Center,      'C', 0b000, Snap, 0); \
     COMMANDS_INNER(End,         'E', 0b000, Snap, 0); \
     COMMANDS_INNER(Intersect,   'I', 0b000, Snap, 0); \
@@ -22,6 +24,7 @@
     \
     COMMANDS_INNER(Axis,        'A', 0b001, Draw, 0); \
     COMMANDS_INNER(Box,         'B', 0b000, Draw, 0); \
+    COMMANDS_INNER(Color,       'Q', 0b000, Draw, 0); \
     COMMANDS_INNER(CenteredBox, 'B', 0b001, Draw, 0); \
     COMMANDS_INNER(Circle,      'C', 0b000, Draw, 0); \
     COMMANDS_INNER(ClearDrawing,'N', 0b010, Draw, 0); \
@@ -30,6 +33,7 @@
     COMMANDS_INNER(DiamCircle,  'C', 0b010, Draw, 0); \
     COMMANDS_INNER(Divide2,     'I', 0b000, Draw, 0); \
     COMMANDS_INNER(Fillet,      'F', 0b000, Draw, 0); \
+    COMMANDS_INNER(DogEar,      'G', 0b000, Draw, 0); \
     COMMANDS_INNER(Line,        'L', 0b000, Draw, 0); \
     COMMANDS_INNER(Measure,     'M', 0b001, Draw, 0); \
     COMMANDS_INNER(Mirror2,     'M', 0b011, Draw, 0); \
@@ -62,7 +66,6 @@
     \
     \
     COMMANDS_INNER(All,         'A', 0b000, None, 0); \
-    COMMANDS_INNER(Color,       'Q', 0b000, None, 0); \
     COMMANDS_INNER(Connected,   'C', 0b000, None, 0); \
     COMMANDS_INNER(Window,      'W', 0b000, None, 0); \
     \
@@ -102,9 +105,9 @@
     COMMANDS_INNER(PREVIOUS_HOT_KEY_2D,              ' ', 0b000, None, 0);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_3D,              ' ', 0b001, None, 0);  \
     COMMANDS_INNER(PRINT_HISTORY,                    'H', 0b010, None, 0);  \
-    COMMANDS_INNER(POWER_FILLET,                     'F', 0b001, None, 0);  \
+    COMMANDS_INNER(PowerFillet,                      'F', 0b001, None, 0);  \
     COMMANDS_INNER(HELP_MENU,                        '/', 0b010, None, 0);  \
-    COMMANDS_INNER(DIVIDE_NEAREST,                   'X', 0b000, None, 0);  \
+    COMMANDS_INNER(DivideNearest,                    'X', 0b000, None, 0);  \
     COMMANDS_INNER(DELETE_SELECTED,               DELETE, 0b000, None, 0);  \
     COMMANDS_INNER(DELETE_SELECTED_ALTERNATE,  BACKSPACE, 0b000, None, 0);  \
     COMMANDS_INNER(NEXT_POPUP_BAR,                  TAB,  0b000, None, 0);/* secretly supported but scary */ \
@@ -121,7 +124,7 @@
 
 struct {
     #define COMMANDS_INNER(NAME, CHAR, CODE, GROUP, FLAGS) \
-    Command NAME = { CHAR, CODE, ToolboxGroup::GROUP, FLAGS };
+    Command NAME = { CHAR, CODE, ToolboxGroup::GROUP, FLAGS, STRING(STR(NAME)) };
 
     COMMANDS_OUTER;
 
