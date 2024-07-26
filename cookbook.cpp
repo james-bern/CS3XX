@@ -135,7 +135,7 @@ struct Cookbook {
         if (entity->type == EntityType::Line) {
             LineEntity line = entity->line;
             // messagef(omax.orange, "%f", distance(point, line.start) - distance(point, line.
-            bool point_is_on_line = ARE_EQUAL(distance(point, line.start) + distance(point, line.end), distance(line.start, line.end)); // FORNOW
+            bool point_is_on_line = 0.001 > ABS(distance(point, line.start) + distance(point, line.end) - distance(line.start, line.end)); // FORNOW
             if (point_is_on_line) {
                 if (distance(line.start, point) > TINY_VAL) {
                     buffer_add_line(line.start, point, false, entity->color_code);
