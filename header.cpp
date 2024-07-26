@@ -204,6 +204,7 @@ struct MagicSnapResult {
     uint entity_index_snapped_to;
     uint entity_index_snapped_to_2;
     bool tan_snap_first_click;
+    bool split_ent_two;
 };
 
 struct MouseEventDrawing {

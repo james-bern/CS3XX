@@ -109,6 +109,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             result.entity_index_snapped_to = closest_entity_info.closest_entity - drawing->entities.array; //TODO TODO TODO
                             result.entity_index_snapped_to_2 = temp_entity - drawing->entities.array;
                             result.snapped = true;
+                            result.split_ent_two = true;
                         } else messagef(omax.orange, "no intersection found");
                     } else messagef(omax.orange, "no intersection found");
                 } else if (state.click_modifier == ClickModifier::Perp) { // layout also does a divide which can be added if wanted
