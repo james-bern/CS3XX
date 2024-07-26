@@ -141,6 +141,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 bool draw_tool = name.data;
 
                 if (!other.hide_toolbox
+                        && (group != ToolboxGroup::None)
                         && draw_tool
                         && !special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch
                         && ((group != ToolboxGroup::Snap) || special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch)

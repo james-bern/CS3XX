@@ -743,33 +743,8 @@ void conversation_draw() {
 
         // TODO: somehow macro this
 
-        String string_click_mode = STRING(
-                (state_Draw_command_is_(None))           ? ""                :
-                (state_Draw_command_is_(Axis))           ? "Axis"            :
-                (state_Draw_command_is_(Box))            ? "Box"             :
-                (state_Draw_command_is_(CenteredBox))    ? "CenteredBox"     :
-                (state_Draw_command_is_(Circle))         ? "Circle"          :
-                (state_Draw_command_is_(Color))          ? "Color"           :
-                (state_Draw_command_is_(Deselect))       ? "Deselect"        :
-                (state_Draw_command_is_(DogEar))         ? "DogEar"          :
-                (state_Draw_command_is_(Fillet))         ? "Fillet"          :
-                (state_Draw_command_is_(Line))           ? "Line"            :
-                (state_Draw_command_is_(Copy))     ? "Copy"      :
-                (state_Draw_command_is_(Measure))        ? "Measure"         :
-                (state_Draw_command_is_(Move))           ? "Move"            :
-                (state_Draw_command_is_(Offset))         ? "Offset"          :
-                (state_Draw_command_is_(Origin))         ? "Origin"          :
-                (state_Draw_command_is_(Polygon))        ? "Polygon"         :
-                (state_Draw_command_is_(PowerFillet))    ? "PowerFillet"     :
-                (state_Draw_command_is_(Select))         ? "Select"          :
-                (state_Draw_command_is_(Rotate))         ? "Rotate"          :
-                (state_Draw_command_is_(RCopy))     ? "RCopy"      :
-                (state_Draw_command_is_(Mirror2))     ? "Mirror2"      :
-                (state_Draw_command_is_(XMirror))        ? "XMirror"         :
-                (state_Draw_command_is_(YMirror))        ? "YMirror"         :
-                (state_Draw_command_is_(DiamCircle))     ? "DiamCircle"   :
-                (state_Draw_command_is_(Divide2))        ? "Divide2"  :
-                "???MODE???");
+        String STRING_EMPTY_STRING = {};
+        String string_click_mode = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
 
         String string_click_modifier = STRING(
                 (state.click_modifier == ClickModifier::None)           ? ""                :

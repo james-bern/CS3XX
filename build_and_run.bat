@@ -133,13 +133,11 @@ else
         -Wno-write-strings \
         -I./manifold \
         -I./opengl   \
-        -I./burkardt \
 
     clang++ \
         -g -o executable $(basename $1 .cpp).o \
         -L./manifold \
         -L./opengl   \
-        -L./burkardt \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit -framework QuartzCore \
         -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
