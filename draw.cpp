@@ -325,7 +325,7 @@ void conversation_draw() {
             if (two_click_command->awaiting_second_click) {
                 if (
                         0
-                        || (state.click_modifier == ClickModifier::Window)
+                        || (state_Snap_command_is_(Window))
                         || (state_Draw_command_is_(Box))
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
@@ -734,12 +734,13 @@ void conversation_draw() {
             real target = (drag_none_and_hot_drawing || drag_drawing) ? 1.0f : 0.0f;
             JUICEIT_EASYTWEEN(&preview->cursor_subtext_alpha, target, 2.0f);
         }
-        vec3 color; {
-            color = omax.white;
-            if ((state_Draw_command_is_(Color)) && (state.click_modifier != ClickModifier::Selected)) {
-                color = get_color(state.click_color_code);
-            }
-        }
+        vec3 color = omax.white;
+        // {
+        //     color = omax.white;
+        //     if ((state_Draw_command_is_(Color)) && (state.click_modifier != ClickModifier::Selected)) {
+        //         color = get_color(state.click_color_code);
+        //     }
+        // }
 
         // TODO: somehow macro this
 
@@ -787,7 +788,7 @@ void conversation_draw() {
         easy_text_drawf(PEN, "  %s: %s", #NAME, \
                 command_to_string(commands.NAME));
         EasyTextPen pen2 = pen1;
-        pen2.origin_Pixel.x += 450.0f;
+        pen2.origin.x += 450.0f;
 
 
         //////////////////////////////////////////

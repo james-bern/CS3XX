@@ -12,6 +12,9 @@
 #define COMMANDS_OUTER \
     COMMANDS_INNER(None,          0,     0, None, 0); \
     \
+    COMMANDS_INNER(Undo,        'U', 0b000, Both, 0); \
+    COMMANDS_INNER(Redo,        'U', 0b001, Both, 0); \
+    \
     COMMANDS_INNER(Center,      'C', 0b000, Snap, 0); \
     COMMANDS_INNER(End,         'E', 0b000, Snap, 0); \
     COMMANDS_INNER(Intersect,   'I', 0b000, Snap, 0); \
@@ -43,12 +46,10 @@
     COMMANDS_INNER(Origin,      'Z', 0b001, Draw, 0); \
     COMMANDS_INNER(Polygon,     'P', 0b000, Draw, 0); \
     COMMANDS_INNER(RCopy,       'R', 0b001, Draw, 0); \
-    COMMANDS_INNER(Redo,        'U', 0b001, Draw, 0); \
     COMMANDS_INNER(Rotate,      'R', 0b000, Draw, 0); \
     COMMANDS_INNER(SaveDXF,     'S', 0b010, Draw, 0); \
     COMMANDS_INNER(Scale,       'S', 0b001, Draw, 0); \
     COMMANDS_INNER(Select,      'S', 0b000, Draw, 0); \
-    COMMANDS_INNER(Undo,        'U', 0b000, Draw, 0); \
     COMMANDS_INNER(XMirror,     'X', 0b001, Draw, 0); \
     COMMANDS_INNER(YMirror,     'Y', 0b001, Draw, 0); \
     COMMANDS_INNER(ZoomDrawing, 'X', 0b011, Draw, 0); \
@@ -65,20 +66,21 @@
     COMMANDS_INNER(ZoomMesh,      0, 0b000, Mesh, 0); \
     \
     \
-    COMMANDS_INNER(All,         'A', 0b000, None, 0); \
-    COMMANDS_INNER(Connected,   'C', 0b000, None, 0); \
-    COMMANDS_INNER(Window,      'W', 0b000, None, 0); \
+    COMMANDS_INNER(All,         'A', 0b000, Xsel, 0); \
+    COMMANDS_INNER(Connected,   'C', 0b000, Xsel, 0); \
+    COMMANDS_INNER(Window,      'W', 0b000, Xsel, 0); \
     \
-    COMMANDS_INNER(Color0,      '0', 0b000, None, 0); \
-    COMMANDS_INNER(Color1,      '1', 0b000, None, 0); \
-    COMMANDS_INNER(Color2,      '2', 0b000, None, 0); \
-    COMMANDS_INNER(Color3,      '3', 0b000, None, 0); \
-    COMMANDS_INNER(Color4,      '4', 0b000, None, 0); \
-    COMMANDS_INNER(Color5,      '5', 0b000, None, 0); \
-    COMMANDS_INNER(Color6,      '6', 0b000, None, 0); \
-    COMMANDS_INNER(Color7,      '7', 0b000, None, 0); \
-    COMMANDS_INNER(Color8,      '8', 0b000, None, 0); \
-    COMMANDS_INNER(Color9,      '9', 0b000, None, 0); \
+    COMMANDS_INNER(Selected,    'S', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color0,      '0', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color1,      '1', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color2,      '2', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color3,      '3', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color4,      '4', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color5,      '5', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color6,      '6', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color7,      '7', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color8,      '8', 0b000, Colo, 0); \
+    COMMANDS_INNER(Color9,      '9', 0b000, Colo, 0); \
     \
     \
     \

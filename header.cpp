@@ -1,11 +1,13 @@
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
-
 enum class ToolboxGroup {
     None,
     Draw,
     Snap,
     Mesh,
+    Xsel, // Select
+    Colo, // Color
+    Both, // DrawingAndMesh
     NUMBER_OF,
 };
 
@@ -31,70 +33,29 @@ bool command_equals(Command A, Command B) {
 #define state_Draw_command_is_(Name) command_equals(state.Draw_command, commands.Name)
 #define state_Mesh_command_is_(Name) command_equals(state.Mesh_command, commands.Name)
 #define state_Snap_command_is_(Name) command_equals(state.Snap_command, commands.Name)
+#define state_Xsel_command_is_(Name) command_equals(state.Xsel_command, commands.Name)
+#define state_Colo_command_is_(Name) command_equals(state.Colo_command, commands.Name)
 
-#define set_Draw_command(Name) state.Draw_command = commands.Name
-#define set_Mesh_command(Name) state.Mesh_command = commands.Name
-#define set_Snap_command(Name) state.Snap_command = commands.Name
+#define set_state_Draw_command(Name) state.Draw_command = commands.Name
+#define set_state_Mesh_command(Name) state.Mesh_command = commands.Name
+#define set_state_Snap_command(Name) state.Snap_command = commands.Name
+#define set_state_Xsel_command(Name) state.Xsel_command = commands.Name
+#define set_state_Colo_command(Name) state.Colo_command = commands.Name
 
 
 #include "commands.cpp"
 
-
-enum class EnterMode {
-    None,
-    ExtrudeAdd,
-    ExtrudeCut,
-    NudgePlane,
-    RevolveAdd,
-    RevolveCut,
-    Size,
-    OpenDXF,
-    OpenSTL,
-    SaveDXF,
-    SaveSTL,
-};
-enum class ClickMode {
-    None,
-    Axis,
-    Box,
-    CenteredBox,
-    Circle,
-    Color,
-    Deselect,
-    DivideNearest,
-    Fillet,
-    DogEar,
-    Line,
-    Copy,
-    Measure,
-    Mirror2,
-    XMirror,
-    YMirror,
-    Move,
-    Offset,
-    Origin,
-    Polygon,
-    PowerFillet,
-    Rotate,
-    RCopy,
-    Select,
-    DiamCircle,
-    Divide2,
-};
-enum class ClickModifier {
-    None,
-    Center,
-    Color,
-    Connected,
-    End,
-    Intersect,
-    Middle,
-    Perp,
-    Quad,
-    Selected,
-    Tangent,
-    Window,
-    XY,
+Command commands_Color[] = { 
+    commands.Color0,
+    commands.Color1,
+    commands.Color2,
+    commands.Color3,
+    commands.Color4,
+    commands.Color5,
+    commands.Color6,
+    commands.Color7,
+    commands.Color8,
+    commands.Color9
 };
 
 
@@ -428,14 +389,11 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     PopupState popup;
     ToolboxState toolbox;
 
-    ClickMode _click_mode;
-    EnterMode _enter_mode;
-    ClickModifier _click_modifier;
-    ColorCode click_color_code;
-
     Command Draw_command;
     Command Mesh_command;
     Command Snap_command;
+    Command Xsel_command;
+    Command Colo_command;
 
     Event space_bar_event;
     Event shift_space_bar_event;
@@ -569,9 +527,15 @@ vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
     if (group == ToolboxGroup::Draw) {
         result = LERP(0.2f, omax.cyan, omax.blue);
+    } else if (group == ToolboxGroup::Both) {
+        result = AVG(omax.blue, omax.green);
+    } else if (group == ToolboxGroup::Mesh) {
+        result = omax.green;
     } else if (group == ToolboxGroup::Snap) {
         result = omax.purple;
-    } else if (group == ToolboxGroup::Mesh) {
+    } else if (group == ToolboxGroup::Xsel) {
+        result = omax.yellow;
+    } else if (group == ToolboxGroup::Colo) {
         result = omax.orange;
     } else { ASSERT(group == ToolboxGroup::None);
         result = omax.yellow;

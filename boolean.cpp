@@ -65,7 +65,7 @@ bool click_mode_SELECT_OR_DESELECT() {
 }
 
 bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT() {
-    return (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
+    return (click_mode_SELECT_OR_DESELECT() && (state_Snap_command_is_(Window)));
 }
 
 bool click_mode_TWO_CLICK_COMMAND() {
@@ -108,11 +108,13 @@ bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
 }
 
 bool _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
-    return ((click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Window)) || (state_Draw_command_is_(Color)));
+    return (
+            ((!state_Xsel_command_is_(Window)) && click_mode_SELECT_OR_DESELECT())
+            || (state_Draw_command_is_(Color)));
 }
 
 bool _SELECT_OR_DESELECT_COLOR() {
     bool A = click_mode_SELECT_OR_DESELECT();
-    bool B = (state.click_modifier == ClickModifier::Color);
+    bool B = (state_Snap_command_is_(Color));
     return A && B;
 }

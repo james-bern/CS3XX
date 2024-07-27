@@ -162,7 +162,7 @@ run_before_main {
 };
 #endif
 
-#if 1 // kitchen sink
+#if 0 // kitchen sink
 run_before_main {
     startup_script = \
                      "cz10\n" // circle

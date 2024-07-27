@@ -535,7 +535,7 @@ int main() {
             {
                 real y_top = pen.get_position_Pixel().y - 4.0f;
                 real y_bottom = y_top + 24.0f; // FORNOW
-                real x_left = pen.origin_Pixel.x;
+                real x_left = pen.origin.x;
                 real dx = field_spacing;
                 real x_right = x_left + (object->num_fields * dx);
                 eso_begin(OpenGL_from_Pixel, SOUP_LINES, true);
