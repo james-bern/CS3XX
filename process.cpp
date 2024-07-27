@@ -104,26 +104,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             Mesh_pen.origin.x = window_get_width_Pixel() - (w + padding);
             Mesh_pen2.origin = Mesh_pen.origin;
 
-            auto SEPERATOR = [&](ToolboxGroup group) {
-                real eps = 8;
-                if (group == ToolboxGroup::Draw) {
-                    Draw_pen.offset_Pixel.y += eps;
-                } else if (group == ToolboxGroup::Snap) {
-                    messagef(omax.red, "horrifying stuff with Snap pen origin/offset");
-                } else if (group == ToolboxGroup::Mesh) {
-                    Mesh_pen.offset_Pixel.y += eps;
-                } else { ASSERT(group == ToolboxGroup::Both);
-                    Both_pen.offset_Pixel.y += eps;
-                }
-            };
 
-            bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = click_mode_SNAP_ELIGIBLE();
+            bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = (state.Draw_command.flags & SNAPPER);
 
             // TODO: have the non-toggle-able buttons a different color (like before)
             Map<Shortcut, bool> shortcut_already_checked = {};
             defer { map_free_and_zero(&shortcut_already_checked); };
             bool hotkey_consumed_by_magic_magic = false;
-            auto magic_magic = [&](Command command, bool hide_button = false) -> bool {
+            ToolboxGroup most_recent_group_for_SEPERATOR = ToolboxGroup::None;
+            auto GUIBUTTON = [&](Command command, bool hide_button = false) -> bool {
+                most_recent_group_for_SEPERATOR = command.group;
                 bool dont_draw_shortcut;
                 if (!map_get(&shortcut_already_checked, command.shortcut, false)) {
                     map_put(&shortcut_already_checked, command.shortcut, true);
@@ -136,6 +126,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 real w = 80.0f;
                 ToolboxGroup group = command.group;
                 bool is_mode = command.is_mode;
+                u64 flags = command.flags;
                 String name = command.name;
 
                 bool control = command.shortcut.mods & MOD_CTRL;
@@ -271,8 +262,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 // canned logic
                 if (result) {
+                    if (flags & TWO_CLICK) {
+                        ASSERT(is_mode);
+                        ASSERT(group == ToolboxGroup::Draw);
+                        two_click_command->awaiting_second_click = false;
+                    }
+                    if (flags & FOCUS_THEIF) {
+                        popup->manager.manually_set_focus_group(group);
+                    }
                     if (is_mode) {
-                        if (group == ToolboxGroup::Draw) {
+                        if (0) {
+                        } else if (group == ToolboxGroup::Draw) {
                             state.Draw_command = command;
                             state.Snap_command = commands.None;
                         } else if (group == ToolboxGroup::Snap) {
@@ -290,16 +290,31 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 return result;
             };
 
+            auto SEPERATOR = [&]() {
+                ToolboxGroup group = most_recent_group_for_SEPERATOR;
+                ASSERT(group != ToolboxGroup::None);
+
+                real eps = 8;
+                if (group == ToolboxGroup::Draw) {
+                    Draw_pen.offset_Pixel.y += eps;
+                } else if (group == ToolboxGroup::Snap) {
+                    messagef(omax.red, "horrifying stuff with Snap pen origin/offset");
+                } else if (group == ToolboxGroup::Mesh) {
+                    Mesh_pen.offset_Pixel.y += eps;
+                } else { ASSERT(group == ToolboxGroup::Both);
+                    Both_pen.offset_Pixel.y += eps;
+                }
+            };
 
             Command prev_Draw_command = state.Draw_command;
             Command prev_Mesh_command = state.Mesh_command;
-            { // magic_magic
+            { // GUIBUTTON
 
                 // NOTE: ordered by priority
 
                 { // Both
                     { // Escape
-                        if (magic_magic(commands.Escape)) {
+                        if (GUIBUTTON(commands.Escape)) {
                             do_once { messagef(omax.orange, "ESCAPE maybe sus."); };
                             if (popup->manager.focus_group == ToolboxGroup::Draw) {
                                 if (!state_Draw_command_is_(None)) {
@@ -324,11 +339,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
 
-                    SEPERATOR(ToolboxGroup::Both);
+                    SEPERATOR();
 
                     { // undo
-                        bool hotkey_undo_alternate = magic_magic(commands.UNDO_ALTERNATE);
-                        bool button_undo = magic_magic(commands.Undo);
+                        bool hotkey_undo_alternate = GUIBUTTON(commands.UNDO_ALTERNATE);
+                        bool button_undo = GUIBUTTON(commands.Undo);
                         if ((hotkey_undo_alternate || button_undo)) {
                             result.record_me = false;
                             other._please_suppress_drawing_popup_popup = true;
@@ -338,9 +353,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     { // redo
-                        bool hotkey_redo_alternate = magic_magic(commands.REDO_ALTERNATE);
-                        bool button_redo = magic_magic(commands.Redo);
-                        bool hotkey_redo_alternate_alternate = magic_magic(commands.REDO_ALTERNATE_ALTERNATE);
+                        bool hotkey_redo_alternate = GUIBUTTON(commands.REDO_ALTERNATE);
+                        bool button_redo = GUIBUTTON(commands.Redo);
+                        bool hotkey_redo_alternate_alternate = GUIBUTTON(commands.REDO_ALTERNATE_ALTERNATE);
                         if ((hotkey_redo_alternate || button_redo | hotkey_redo_alternate_alternate)) {
                             result.record_me = false;
                             // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
@@ -354,7 +369,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 { // Colo
                     { // Selected
                         if (state_Draw_command_is_(Color)) {
-                            if (magic_magic(commands.Selected)) { 
+                            if (GUIBUTTON(commands.Selected)) { 
                                 set_state_Colo_command(Selected);
                             }
                         }
@@ -370,7 +385,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             {
                                 hotkey_quality = false;
                                 for_(color, 10) {
-                                    if (magic_magic(commands_Color[color], hide_buttons)) {
+                                    if (GUIBUTTON(commands_Color[color], hide_buttons)) {
                                         hotkey_quality = true;
                                         digit = color;
                                         break;
@@ -405,31 +420,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 { // Xsel
                     if (click_mode_SELECT_OR_DESELECT()) {
-                        if (magic_magic(commands.All)) { 
+                        if (GUIBUTTON(commands.All)) { 
                             result.checkpoint_me = true;
                             cookbook.set_is_selected_for_all_entities(state_Draw_command_is_(Select));
                             set_state_Draw_command(None);
                             set_state_Xsel_command(None);
                         }
-                        magic_magic(commands.Connected);
-                        if (magic_magic(commands.Window)) {
-                            two_click_command->awaiting_second_click = false;
-                        }
-                        magic_magic(commands.ByColor);
+                        GUIBUTTON(commands.Connected);
+                        GUIBUTTON(commands.Window);
+                        GUIBUTTON(commands.ByColor);
                     }
                 }
 
                 { // Snap 
-                    if (click_mode_SNAP_ELIGIBLE()) {
-                        magic_magic(commands.Center);
-                        magic_magic(commands.End);
-                        magic_magic(commands.Intersect);
-                        magic_magic(commands.Middle);
-                        magic_magic(commands.Perp);
-                        magic_magic(commands.Quad);
-                        magic_magic(commands.Tangent);
-                        magic_magic(commands.XY);
-                        if (magic_magic(commands.Zero)) {
+                    if (state.Draw_command.flags & SNAPPER) {
+                        GUIBUTTON(commands.Center);
+                        GUIBUTTON(commands.End);
+                        GUIBUTTON(commands.Intersect);
+                        GUIBUTTON(commands.Middle);
+                        GUIBUTTON(commands.Perp);
+                        GUIBUTTON(commands.Quad);
+                        GUIBUTTON(commands.Tangent);
+                        GUIBUTTON(commands.XY);
+                        if (GUIBUTTON(commands.Zero)) {
                             Event equivalent = {};
                             equivalent.type = EventType::Mouse;
                             equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
@@ -441,144 +454,66 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // Draw
-                    magic_magic(commands.OpenDXF);
-
-                    if (magic_magic(commands.SaveDXF)) {
+                    GUIBUTTON(commands.OpenDXF);
+                    if (GUIBUTTON(commands.SaveDXF)) {
                         result.record_me = false; // TODO
                         other.awaiting_confirmation = false; // TODO
                     }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-
-                    magic_magic(commands.Select);
-                    magic_magic(commands.Deselect);
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.Line)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.Circle)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.Box)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.Polygon)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.DiamCircle)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.CenteredBox)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-
-                    if (magic_magic(commands.Move)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.Rotate)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    magic_magic(commands.Scale);
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.Copy)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.RCopy)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    magic_magic(commands.XMirror);
-                    magic_magic(commands.YMirror);
-
-                    if (magic_magic(commands.Mirror2)) {
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.Fillet)) {
-                        popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
-                        set_state_Mesh_command(None);
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.DogEar)) {
-                        popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
-                        set_state_Mesh_command(None);
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    if (magic_magic(commands.Offset)) {
-                        popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
-                        set_state_Mesh_command(None);
-                    }
-
-                    if (magic_magic(commands.Divide2)) {
-                        set_state_Mesh_command(None);
-                        two_click_command->awaiting_second_click = false;
-                    }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    magic_magic(commands.Origin);
-                    if (magic_magic(commands.Axis)) {
-                        two_click_command->awaiting_second_click = false;
-                    } 
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.Measure)) {
+                    SEPERATOR();
+                    GUIBUTTON(commands.Select);
+                    GUIBUTTON(commands.Deselect);
+                    SEPERATOR();
+                    GUIBUTTON(commands.Line);
+                    GUIBUTTON(commands.Circle);
+                    GUIBUTTON(commands.Box);
+                    GUIBUTTON(commands.Polygon);
+                    SEPERATOR();
+                    GUIBUTTON(commands.DiamCircle);
+                    GUIBUTTON(commands.CenteredBox);
+                    SEPERATOR();
+                    GUIBUTTON(commands.Move);
+                    GUIBUTTON(commands.Rotate);
+                    GUIBUTTON(commands.Scale);
+                    SEPERATOR();
+                    GUIBUTTON(commands.Copy);
+                    GUIBUTTON(commands.RCopy);
+                    SEPERATOR();
+                    GUIBUTTON(commands.XMirror);
+                    GUIBUTTON(commands.YMirror);
+                    GUIBUTTON(commands.Mirror2);
+                    SEPERATOR();
+                    GUIBUTTON(commands.Fillet);
+                    GUIBUTTON(commands.DogEar);
+                    GUIBUTTON(commands.Offset);
+                    GUIBUTTON(commands.Divide2);
+                    SEPERATOR();
+                    GUIBUTTON(commands.Origin);
+                    GUIBUTTON(commands.Axis);
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.Measure)) {
                         result.record_me = false;
-                        two_click_command->awaiting_second_click = false;
                     }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.Color)) {
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.Color)) {
                         set_state_Colo_command(Color0);
                     }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.ClearDrawing)) {
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.ClearDrawing)) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
                         messagef(omax.green, "ResetDXF");
                     }
-
-                    if (magic_magic(commands.ZoomDrawing)) {
+                    if (GUIBUTTON(commands.ZoomDrawing)) {
                         result.record_me = false;
                         init_camera_drawing();
                         init_camera_mesh();
                     }
-
-                    SEPERATOR(ToolboxGroup::Draw);
-                    SEPERATOR(ToolboxGroup::Draw);
-                    SEPERATOR(ToolboxGroup::Draw);
-
-                    if (magic_magic(commands.PowerFillet)) {
+                    SEPERATOR();
+                    SEPERATOR();
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.PowerFillet)) {
                         set_state_Draw_command(PowerFillet);
                         set_state_Snap_command(None);
                         set_state_Mesh_command(None);
@@ -587,21 +522,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 ////////////////////////////////////////////////////////////////////////////////
 
-                if (magic_magic(commands.OpenSTL)) {
-                    set_state_Mesh_command(OpenSTL);
-                }
-
-                if (magic_magic(commands.SaveSTL)) {
+                GUIBUTTON(commands.OpenSTL);
+                if (GUIBUTTON(commands.SaveSTL)) {
                     result.record_me = false; // TODO
                     other.awaiting_confirmation = false; // TODO
-
-                    set_state_Mesh_command(SaveSTL);
                 }
-
-                SEPERATOR(ToolboxGroup::Mesh);
-                SEPERATOR(ToolboxGroup::Mesh);
-
-                if (magic_magic(commands.Plane)) {
+                SEPERATOR();
+                SEPERATOR();
+                if (GUIBUTTON(commands.Plane)) {
                     // TODO: 'Y' remembers last terminal choice of plane for next time
                     result.checkpoint_me = true;
                     other.time_since_plane_selected = 0.0f;
@@ -614,40 +542,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->signed_distance_to_world_origin = 0.0f;
                         feature_plane->normal = { 0.0f, 1.0f, 0.0f };
                     }
-
                 }
-
-                SEPERATOR(ToolboxGroup::Mesh);
-
-                if (magic_magic(commands.ExtrudeAdd)) {
-                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    preview->extrude_in_length = 0; // FORNOW
-                    preview->extrude_out_length = 0; // FORNOW
-
-                }
-
-                if (magic_magic(commands.ExtrudeCut)) {
-                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
+                SEPERATOR();
+                if (GUIBUTTON(commands.ExtrudeAdd)) {
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
                 }
-
-                if (magic_magic(commands.RevolveAdd)) {
-                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
+                if (GUIBUTTON(commands.ExtrudeCut)) {
+                    preview->extrude_in_length = 0; // FORNOW
+                    preview->extrude_out_length = 0; // FORNOW
+                }
+                if (GUIBUTTON(commands.RevolveAdd)) {
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
                 }
-
-                if (magic_magic(commands.RevolveCut)) {
-                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
+                if (GUIBUTTON(commands.RevolveCut)) {
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
                 }
-
-                SEPERATOR(ToolboxGroup::Mesh);
-
-                if (magic_magic(commands.NudgePlane)) {
-                    popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
+                SEPERATOR();
+                if (GUIBUTTON(commands.NudgePlane)) {
                     if (feature_plane->is_active) {
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
@@ -655,10 +569,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         set_state_Mesh_command(None); // FORNOW
                     }
                 }
-
-                SEPERATOR(ToolboxGroup::Mesh);
-
-                if (magic_magic(commands.ClearMesh)) {
+                SEPERATOR();
+                if (GUIBUTTON(commands.ClearMesh)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     mesh_free_AND_zero(mesh);
@@ -666,8 +578,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     messagef(omax.green, "ResetSTL");
 
                 }
-
-                if (magic_magic(commands.ZoomMesh)) {
+                if (GUIBUTTON(commands.ZoomMesh)) {
                     result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
 
@@ -679,7 +590,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(commands.DivideNearest)) {
+                if (GUIBUTTON(commands.DivideNearest)) {
                     set_state_Draw_command(DivideNearest);
                     set_state_Snap_command(None);
 
@@ -687,19 +598,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(commands.TOGGLE_GRID)) {
+                if (GUIBUTTON(commands.TOGGLE_GRID)) {
                     result.record_me = false;
                     other.hide_grid = !other.hide_grid;
 
                 }
 
-                if (magic_magic(commands.PRINT_HISTORY)) {
+                if (GUIBUTTON(commands.PRINT_HISTORY)) {
                     result.record_me = false;
                     history_printf_script();
 
                 }
 
-                if (magic_magic(commands.TOGGLE_EVENT_STACK)) { 
+                if (GUIBUTTON(commands.TOGGLE_EVENT_STACK)) { 
                     result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
                     result.record_me = false;
@@ -724,20 +635,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(commands.PREVIOUS_HOT_KEY_2D)) {
+                if (GUIBUTTON(commands.PREVIOUS_HOT_KEY_2D)) {
                     set_state_Draw_command(None); // FORNOW: patching space space doing Circle Center
 
                     return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
                 }
 
-                if (magic_magic(commands.PREVIOUS_HOT_KEY_3D)) {
+                if (GUIBUTTON(commands.PREVIOUS_HOT_KEY_3D)) {
 
                     return _standard_event_process_NOTE_RECURSIVE(state.shift_space_bar_event);
                 }
 
 
 
-                if (magic_magic(commands.TOGGLE_DRAWING_DETAILS)) { 
+                if (GUIBUTTON(commands.TOGGLE_DRAWING_DETAILS)) { 
                     result.record_me = false;
                     other.show_details = !other.show_details;
                     { // messagef
@@ -760,14 +671,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(commands.TOGGLE_FEATURE_PLANE)) {
+                if (GUIBUTTON(commands.TOGGLE_FEATURE_PLANE)) {
                     result.checkpoint_me = true;
                     if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
 
                 }
 
-                if ((magic_magic(commands.DELETE_SELECTED) || magic_magic(commands.DELETE_SELECTED_ALTERNATE))) {
+                if ((GUIBUTTON(commands.DELETE_SELECTED) || GUIBUTTON(commands.DELETE_SELECTED_ALTERNATE))) {
                     // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
                     set_state_Draw_command(None);
                     set_state_Snap_command(None);
@@ -780,14 +691,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(commands.HELP_MENU)) {
+                if (GUIBUTTON(commands.HELP_MENU)) {
                     result.record_me = false;
                     other.show_help = !other.show_help;
 
                 }
 
 
-                if (magic_magic(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
+                if (GUIBUTTON(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
                     result.record_me = false;
                     {
                         vec3 tmp = omax.light_gray;
@@ -807,7 +718,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (magic_magic(commands.TOGGLE_BUTTONS)) { // FORNOW
+                if (GUIBUTTON(commands.TOGGLE_BUTTONS)) { // FORNOW
                     result.record_me = false;
                     other.hide_toolbox = !other.hide_toolbox;
 
@@ -815,26 +726,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                if (magic_magic(commands.EXECUTE_COMMAND)) { // FORNOW
+                if (GUIBUTTON(commands.EXECUTE_COMMAND)) { // FORNOW
                     result.record_me = false;
 
                 }
 
-                if (magic_magic(COMMAND(DUMMY_HOTKEY, 0))) { // FORNOW
+                if (GUIBUTTON(COMMAND(DUMMY_HOTKEY, 0))) { // FORNOW
                     result.record_me = false;
 
                 }
 
-                if (magic_magic(COMMAND(TAB, MOD_CTRL))) { // FORNOW
+                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL))) { // FORNOW
                     result.record_me = false;
                 }
 
-                if (magic_magic(COMMAND(TAB, MOD_CTRL + MOD_SHIFT))) { // FORNOW
+                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL + MOD_SHIFT))) { // FORNOW
                     result.record_me = false;
                 }
 
 
-                if (magic_magic(COMMAND(0, 0))) { // FORNOW
+                if (GUIBUTTON(COMMAND(0, 0))) { // FORNOW
                     ; 
                 }
 
@@ -1054,7 +965,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (!mouse_event->mouse_held) {
-                if (click_mode_TWO_CLICK_COMMAND()) {
+                if (state.Draw_command.flags & TWO_CLICK) {
                     if (!two_click_command->awaiting_second_click) {
                         DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                         bool first_click_accepted; {

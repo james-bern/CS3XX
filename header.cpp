@@ -21,6 +21,7 @@ struct Command {
     Shortcut shortcut;
     ToolboxGroup group;
     bool is_mode;
+    u64 flags;
     String name;
 };
 

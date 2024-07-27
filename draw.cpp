@@ -713,7 +713,7 @@ void conversation_draw() {
                 } else if (drag_none_and_hot_separator || drag_separator) {
                     next = other.cursors.hresize;
                 } else if (drag_none_and_hot_drawing || drag_drawing) {
-                    if (click_mode_SNAP_ELIGIBLE()) {
+                    if (state.Draw_command.flags & SNAPPER) {
                         next = other.cursors.crosshair;
                     } else {
                         next = NULL;

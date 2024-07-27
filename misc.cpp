@@ -22,8 +22,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
     MagicSnapResult result = {};
     result.mouse_position = before;
     {
-        if (
-                click_mode_15_DEG_ELIGIBLE()
+        if (1
+                && (state.Draw_command.flags & SHIFT_15)
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             vec2 a = two_click_command->first_click;

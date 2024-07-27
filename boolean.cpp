@@ -1,44 +1,3 @@
-bool click_mode_SNAP_ELIGIBLE() {
-    return 0
-        || (state_Draw_command_is_(Axis))
-        || (state_Draw_command_is_(Box))
-        || (state_Draw_command_is_(CenteredBox))
-        || (state_Draw_command_is_(Circle))
-        || (state_Draw_command_is_(Line))
-        || (state_Draw_command_is_(Copy))
-        || (state_Draw_command_is_(Measure))
-        || (state_Draw_command_is_(Mirror2))
-        || (state_Draw_command_is_(XMirror))
-        || (state_Draw_command_is_(YMirror))
-        || (state_Draw_command_is_(Move))
-        || (state_Draw_command_is_(Origin))
-        || (state_Draw_command_is_(Polygon))
-        || (state_Draw_command_is_(Rotate))
-        || (state_Draw_command_is_(RCopy))
-        || (state_Draw_command_is_(DiamCircle))
-        ;
-}
-
-bool click_mode_15_DEG_ELIGIBLE() {
-    return 0
-        || (state_Draw_command_is_(Axis))
-        || (state_Draw_command_is_(Box))
-        || (state_Draw_command_is_(Circle))
-        || (state_Draw_command_is_(Line))
-        || (state_Draw_command_is_(Copy))
-        || (state_Draw_command_is_(Measure))
-        || (state_Draw_command_is_(Mirror2))
-        || (state_Draw_command_is_(XMirror))
-        || (state_Draw_command_is_(YMirror))
-        || (state_Draw_command_is_(Move))
-        || (state_Draw_command_is_(Origin))
-        || (state_Draw_command_is_(Polygon))
-        || (state_Draw_command_is_(Rotate))
-        || (state_Draw_command_is_(RCopy))
-        || (state_Draw_command_is_(DiamCircle))
-        ;
-}
-
 bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
         || (state_Draw_command_is_(Axis))
@@ -68,26 +27,6 @@ bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT() {
     return (click_mode_SELECT_OR_DESELECT() && (state_Snap_command_is_(Window)));
 }
 
-bool click_mode_TWO_CLICK_COMMAND() {
-    return 0 ||
-        (state_Draw_command_is_(Axis)) ||
-        (state_Draw_command_is_(Box)) ||
-        (state_Draw_command_is_(CenteredBox)) ||
-        (state_Draw_command_is_(Circle)) ||
-        (state_Draw_command_is_(Fillet)) ||
-        (state_Draw_command_is_(DogEar)) ||
-        (state_Draw_command_is_(Line)) ||
-        (state_Draw_command_is_(Copy)) ||
-        (state_Draw_command_is_(Measure)) ||
-        (state_Draw_command_is_(Mirror2)) ||
-        (state_Draw_command_is_(Move)) ||
-        (state_Draw_command_is_(Polygon)) ||
-        (state_Draw_command_is_(Rotate)) ||
-        (state_Draw_command_is_(RCopy)) ||
-        (state_Draw_command_is_(DiamCircle)) ||
-        (state_Draw_command_is_(Divide2)) ||
-        click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT(); // fornow wonky case
-}
 
 bool first_click_must_acquire_entity() {
     return 0 ||
