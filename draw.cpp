@@ -838,7 +838,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen1, Deselect);
         PRINT_COMMAND(&pen1, DIVIDE_NEAREST);
         PRINT_COMMAND(&pen1, ZoomDrawing);
-        PRINT_COMMAND(&pen1, EXIT_COMMAND); // TODO
+        PRINT_COMMAND(&pen1, Escape); // TODO
         PRINT_COMMAND(&pen1, ExtrudeAdd);
         PRINT_COMMAND(&pen1, ExtrudeCut);
         PRINT_COMMAND(&pen1, Fillet);

@@ -14,6 +14,7 @@
     \
     COMMANDS_INNER(Undo,        'U', 0b000, Both, 0); \
     COMMANDS_INNER(Redo,        'U', 0b001, Both, 0); \
+    COMMANDS_INNER(Escape,   ESCAPE, 0b000, Both, 0); \
     \
     COMMANDS_INNER(Center,      'C', 0b000, Snap, 0); \
     COMMANDS_INNER(End,         'E', 0b000, Snap, 0); \
@@ -115,7 +116,6 @@
     COMMANDS_INNER(DELETE_SELECTED_ALTERNATE,  BACKSPACE, 0b000, None, 0);  \
     COMMANDS_INNER(NEXT_POPUP_BAR,                  TAB,  0b000, None, 0);/* secretly supported but scary */ \
     COMMANDS_INNER(EXECUTE_COMMAND,                 '\n', 0b000, None, 0);/* should be glfw_key_enter */ \
-    COMMANDS_INNER(EXIT_COMMAND,                  ESCAPE, 0b000, None, 0);/* TODO */
 
 
 

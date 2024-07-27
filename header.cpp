@@ -11,17 +11,16 @@ enum class ToolboxGroup {
     NUMBER_OF,
 };
 
-#define CMD_FLAG_ (1 << 00)
-struct Command {
-    struct {
+struct Shortcut {
         uint key;
         u8 mods;
-    } shortcut;
+};
 
+#define CMD_FLAG_ (1 << 00)
+struct Command {
+    Shortcut shortcut;
     ToolboxGroup group;
-
     u64 flags;
-
     String name;
 };
 
