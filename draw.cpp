@@ -745,8 +745,13 @@ void conversation_draw() {
         // TODO: somehow macro this
 
         String STRING_EMPTY_STRING = {};
-        String Draw_string = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
-        String Snap_string = (state_Snap_command_is_(None)) ? STRING_EMPTY_STRING : state.Snap_command.name;
+        String Top_string = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
+        String Bot_string; {
+            if (0) ;
+            else if (!state_Snap_command_is_(None)) Bot_string = state.Snap_command.name;
+            else if (!state_Xsel_command_is_(None)) Bot_string = state.Xsel_command.name;
+            else Bot_string = STRING("");
+        }
 
         { // spoof callback_cursor_position
             double xpos, ypos;
@@ -756,8 +761,8 @@ void conversation_draw() {
         }
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - preview->cursor_subtext_alpha };
-        easy_text_draw(&pen, Draw_string);
-        easy_text_draw(&pen, Snap_string);
+        easy_text_draw(&pen, Top_string);
+        easy_text_draw(&pen, Bot_string);
     }
 
     void history_debug_draw(); // forward declaration

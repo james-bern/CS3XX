@@ -69,6 +69,7 @@
     COMMANDS_INNER(All,         'A', 0b000, Xsel, 0); \
     COMMANDS_INNER(Connected,   'C', 0b000, Xsel, 0); \
     COMMANDS_INNER(Window,      'W', 0b000, Xsel, 0); \
+    COMMANDS_INNER(ByColor,     'Q', 0b000, Xsel, 0); \
     \
     COMMANDS_INNER(Selected,    'S', 0b000, Colo, 0); \
     COMMANDS_INNER(Color0,      '0', 0b000, Colo, 0); \

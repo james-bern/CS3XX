@@ -518,7 +518,7 @@ vec3 omax_pallete[] = {
     omax.purple,
     omax.blue,
     omax.gray,
-    basic.magenta,
+    omax.white, // TODO: what is this
     omax.cyan,
     omax.orange,
 };
@@ -526,19 +526,19 @@ vec3 omax_pallete[] = {
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = LERP(0.2f, omax.cyan, omax.blue);
+        result = omax.cyan;
     } else if (group == ToolboxGroup::Both) {
-        result = AVG(omax.blue, omax.green);
+        result = omax.light_gray;
     } else if (group == ToolboxGroup::Mesh) {
         result = omax.green;
     } else if (group == ToolboxGroup::Snap) {
-        result = omax.purple;
+        result = omax.red;
     } else if (group == ToolboxGroup::Xsel) {
         result = omax.yellow;
     } else if (group == ToolboxGroup::Colo) {
-        result = omax.orange;
-    } else { ASSERT(group == ToolboxGroup::None);
         result = omax.yellow;
+    } else { ASSERT(group == ToolboxGroup::None);
+        result = {};
     }
     return result;
 }
