@@ -80,7 +80,7 @@
     \
     COMMANDS_INNER(All,         'A', 0b000, Xsel, 0, 0); \
     COMMANDS_INNER(Connected,   'C', 0b000, Xsel, 1, 0); \
-    COMMANDS_INNER(Window,      'W', 0b000, Xsel, 1, 0); \
+    COMMANDS_INNER(Window,      'W', 0b000, Xsel, 1, 0 | TWO_CLICK); \
     COMMANDS_INNER(ByColor,     'Q', 0b000, Xsel, 1, 0); \
     \
     COMMANDS_INNER(Selected,    'S', 0b000, Colo, 1, 0); \

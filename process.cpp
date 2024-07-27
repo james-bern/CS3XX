@@ -264,7 +264,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (result) {
                     if (flags & TWO_CLICK) {
                         ASSERT(is_mode);
-                        ASSERT(group == ToolboxGroup::Draw);
                         two_click_command->awaiting_second_click = false;
                     }
                     if (flags & FOCUS_THEIF) {
