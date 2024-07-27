@@ -20,7 +20,7 @@ struct Shortcut {
 struct Command {
     Shortcut shortcut;
     ToolboxGroup group;
-    u64 flags;
+    bool is_mode;
     String name;
 };
 

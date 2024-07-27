@@ -56,19 +56,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     };
 
 
-    // NOTE: we can put other buttons in there at will (select all, etc.)
-    //       we are NOT going to use a general-purpose retained-mode gui lib like layout
-    // NEW IDEA (the old one won't work because of how we record history):
-    //          ((we have to bake the correct event type--really can't depend on window, etc., very fragile))
-    //          let's let the dummy event pass through the key events and draw everything
-    //          then, like with popup, we'll bake based on which bkey_lambda is hot hot hot
-    // IDEA (hacky but may work): if buttons are enabled, we'll attempt to steal any Mouse
-    //                            event and press buttons with its mouse_Pixel field
-    //                            if this works, we consume the event (regardless of pane)
-    // TODO: should popup have worked this same way?
-    //       it probably could have been (though i maybe recall the graphics get messed up
-    //       if you reorder things) so popup hits first
-    //       (as is, we bake MouseEventPopup based on popups from last frame)
     bool is_toolbox_button_mouse_event =
         (event.type == EventType::Mouse)
         && (event.mouse_event.subtype == MouseEventSubtype::ToolboxButton);
@@ -132,12 +119,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = click_mode_SNAP_ELIGIBLE();
 
-            // TODO: have the non-toggle-able boxes a different color (like before)
+            // TODO: have the non-toggle-able buttons a different color (like before)
             Map<Shortcut, bool> shortcut_already_checked = {};
             defer { map_free_and_zero(&shortcut_already_checked); };
             bool hotkey_consumed_by_magic_magic = false;
             auto magic_magic = [&](Command command, bool hide_button = false) -> bool {
-
                 bool dont_draw_shortcut;
                 if (!map_get(&shortcut_already_checked, command.shortcut, false)) {
                     map_put(&shortcut_already_checked, command.shortcut, true);
@@ -149,6 +135,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 real w = 80.0f;
                 ToolboxGroup group = command.group;
+                bool is_mode = command.is_mode;
                 String name = command.name;
 
                 bool control = command.shortcut.mods & MOD_CTRL;
@@ -210,27 +197,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             for_(i, 10) if (command_equals(command, commands_Color[i])) { accent_color = get_color(ColorCode(i)); break; }
                         }
 
-                        bool can_toggle = true; // FORNOW
+                        bool can_toggle = is_mode;
                         bool toggled;
                         {
-                            can_toggle = false;
                             toggled = false;
-                            if (0) {
-                            } else if (group == ToolboxGroup::Draw) {
-                                can_toggle = true;
-                                toggled = command_equals(state.Draw_command, command);
-                            } else if (group == ToolboxGroup::Snap) {
-                                can_toggle = true;
-                                toggled = command_equals(state.Snap_command, command);
-                            } else if (group == ToolboxGroup::Mesh) {
-                                can_toggle = true;
-                                toggled = command_equals(state.Mesh_command, command);
-                            } else if (group == ToolboxGroup::Colo) {
-                                can_toggle = true;
-                                toggled = command_equals(state.Colo_command, command);
-                            } else if (group == ToolboxGroup::Xsel) {
-                                can_toggle = true;
-                                toggled = command_equals(state.Xsel_command, command);
+                            if (can_toggle) {
+                                {
+                                    toggled = false;
+                                    if (0) {
+                                    } else if (group == ToolboxGroup::Draw) {
+                                        toggled = command_equals(state.Draw_command, command);
+                                    } else if (group == ToolboxGroup::Snap) {
+                                        toggled = command_equals(state.Snap_command, command);
+                                    } else if (group == ToolboxGroup::Mesh) {
+                                        toggled = command_equals(state.Mesh_command, command);
+                                    } else if (group == ToolboxGroup::Colo) {
+                                        toggled = command_equals(state.Colo_command, command);
+                                    } else if (group == ToolboxGroup::Xsel) {
+                                        toggled = command_equals(state.Xsel_command, command);
+                                    }
+                                }
                             }
                         }
 
@@ -280,6 +266,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         bool tmp = _key_lambda(key_event, key, control, shift);
                         result |= tmp;
                         hotkey_consumed_by_magic_magic |= tmp;
+                    }
+                }
+
+                // canned logic
+                if (result) {
+                    if (is_mode) {
+                        if (group == ToolboxGroup::Draw) {
+                            state.Draw_command = command;
+                            state.Snap_command = commands.None;
+                        } else if (group == ToolboxGroup::Snap) {
+                            state.Snap_command = command;
+                        } else if (group == ToolboxGroup::Mesh) {
+                            state.Mesh_command = command;
+                        } else if (group == ToolboxGroup::Xsel) {
+                            state.Xsel_command = command;
+                        } else if (group == ToolboxGroup::Colo) {
+                        } else { ASSERT(0);
+                        }
                     }
                 }
 
@@ -407,58 +411,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Draw_command(None);
                             set_state_Xsel_command(None);
                         }
-
-                        if (magic_magic(commands.Connected)) {
-                            set_state_Xsel_command(Connected);
-                        }
-
-                        if (magic_magic(commands.ByColor)) {
-                            set_state_Xsel_command(ByColor);
-                        }
-
+                        magic_magic(commands.Connected);
                         if (magic_magic(commands.Window)) {
-                            set_state_Xsel_command(Window);
                             two_click_command->awaiting_second_click = false;
                         }
+                        magic_magic(commands.ByColor);
                     }
                 }
 
                 { // Snap 
                     if (click_mode_SNAP_ELIGIBLE()) {
-                        if (magic_magic(commands.Center)) {
-                            set_state_Snap_command(Center);
-                        }
-
-                        if (magic_magic(commands.End)) {
-                            set_state_Snap_command(End);
-                        }
-
-                        if (magic_magic(commands.Intersect)) {
-                            set_state_Snap_command(Intersect);
-                        }
-
-                        if (magic_magic(commands.Middle)) {
-                            set_state_Snap_command(Middle);
-                        }
-
-                        if (magic_magic(commands.Perp)) {
-                            set_state_Snap_command(Perp);
-                        }
-
-                        if (magic_magic(commands.Quad)) {
-                            set_state_Snap_command(Quad);
-                        }
-
-                        if (magic_magic(commands.Tangent)) {
-                            set_state_Snap_command(Tangent);
-
-                        }
-
-                        if (magic_magic(commands.XY)) {
-                            popup->manager.manually_set_focus_group(ToolboxGroup::Snap);
-                            set_state_Snap_command(XY);
-                        }
-
+                        magic_magic(commands.Center);
+                        magic_magic(commands.End);
+                        magic_magic(commands.Intersect);
+                        magic_magic(commands.Middle);
+                        magic_magic(commands.Perp);
+                        magic_magic(commands.Quad);
+                        magic_magic(commands.Tangent);
+                        magic_magic(commands.XY);
                         if (magic_magic(commands.Zero)) {
                             Event equivalent = {};
                             equivalent.type = EventType::Mouse;
@@ -471,70 +441,44 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // Draw
-                    if (magic_magic(commands.OpenDXF)) {
-                        set_state_Draw_command(OpenDXF);
-                        set_state_Snap_command(None);
-                    }
+                    magic_magic(commands.OpenDXF);
 
                     if (magic_magic(commands.SaveDXF)) {
                         result.record_me = false; // TODO
                         other.awaiting_confirmation = false; // TODO
-
-                        set_state_Draw_command(SaveDXF);
-                        set_state_Snap_command(None);
-
                     }
 
                     SEPERATOR(ToolboxGroup::Draw);
 
 
-                    if (magic_magic(commands.Select)) {
-                        set_state_Draw_command(Select);
-                        set_state_Snap_command(None);
-                    }
-
-                    if (magic_magic(commands.Deselect)) {
-                        set_state_Draw_command(Deselect);
-                        set_state_Snap_command(None);
-                    }
+                    magic_magic(commands.Select);
+                    magic_magic(commands.Deselect);
 
                     SEPERATOR(ToolboxGroup::Draw);
 
                     if (magic_magic(commands.Line)) {
-                        set_state_Draw_command(Line);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.Circle)) {
-                        set_state_Draw_command(Circle);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.Box)) {
-                        set_state_Draw_command(Box);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.Polygon)) {
-                        set_state_Draw_command(Polygon);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     SEPERATOR(ToolboxGroup::Draw);
 
                     if (magic_magic(commands.DiamCircle)) {
-                        set_state_Draw_command(DiamCircle);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.CenteredBox)) {
-                        set_state_Draw_command(CenteredBox);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
@@ -542,52 +486,31 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                     if (magic_magic(commands.Move)) {
-                        set_state_Draw_command(Move);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.Rotate)) {
-                        set_state_Draw_command(Rotate);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
-                    if (magic_magic(commands.Scale)) { 
-                        set_state_Mesh_command(Scale);
-                        set_state_Draw_command(None);
-                        set_state_Snap_command(None);
-                    }
+                    magic_magic(commands.Scale);
 
                     SEPERATOR(ToolboxGroup::Draw);
 
                     if (magic_magic(commands.Copy)) {
-                        set_state_Draw_command(Copy);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.RCopy)) {
-                        set_state_Draw_command(RCopy);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     SEPERATOR(ToolboxGroup::Draw);
 
-                    if (magic_magic(commands.XMirror)) {
-                        set_state_Draw_command(XMirror);
-                        set_state_Snap_command(None);
-                    }
-
-                    if (magic_magic(commands.YMirror)) {
-                        set_state_Draw_command(YMirror);
-                        set_state_Snap_command(None);
-                    }
+                    magic_magic(commands.XMirror);
+                    magic_magic(commands.YMirror);
 
                     if (magic_magic(commands.Mirror2)) {
-                        set_state_Draw_command(Mirror2);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
@@ -595,44 +518,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     if (magic_magic(commands.Fillet)) {
                         popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
-                        set_state_Draw_command(Fillet);
-                        set_state_Snap_command(None);
                         set_state_Mesh_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.DogEar)) {
                         popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
-                        set_state_Draw_command(DogEar);
-                        set_state_Snap_command(None);
                         set_state_Mesh_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     if (magic_magic(commands.Offset)) {
                         popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
-                        set_state_Draw_command(Offset);
-                        set_state_Snap_command(None);
                         set_state_Mesh_command(None);
                     }
 
                     if (magic_magic(commands.Divide2)) {
-                        set_state_Draw_command(Divide2);
-                        set_state_Snap_command(None);
                         set_state_Mesh_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     SEPERATOR(ToolboxGroup::Draw);
 
-                    if (magic_magic(commands.Origin)) {
-                        set_state_Draw_command(Origin);
-                        set_state_Snap_command(None);
-                    }
-
+                    magic_magic(commands.Origin);
                     if (magic_magic(commands.Axis)) {
-                        set_state_Draw_command(Axis);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     } 
 
@@ -640,17 +549,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     if (magic_magic(commands.Measure)) {
                         result.record_me = false;
-                        set_state_Draw_command(Measure);
-                        set_state_Snap_command(None);
                         two_click_command->awaiting_second_click = false;
                     }
 
                     SEPERATOR(ToolboxGroup::Draw);
 
                     if (magic_magic(commands.Color)) {
-                        set_state_Draw_command(Color);
                         set_state_Colo_command(Color0);
-                        set_state_Snap_command(None);
                     }
 
                     SEPERATOR(ToolboxGroup::Draw);
@@ -661,14 +566,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
                         messagef(omax.green, "ResetDXF");
-
                     }
 
                     if (magic_magic(commands.ZoomDrawing)) {
                         result.record_me = false;
                         init_camera_drawing();
                         init_camera_mesh();
-
                     }
 
                     SEPERATOR(ToolboxGroup::Draw);
@@ -718,7 +621,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(commands.ExtrudeAdd)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    set_state_Mesh_command(ExtrudeAdd);
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
 
@@ -726,26 +628,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(commands.ExtrudeCut)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    set_state_Mesh_command(ExtrudeCut);
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
-
                 }
 
                 if (magic_magic(commands.RevolveAdd)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    set_state_Mesh_command(RevolveAdd);
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
-
                 }
 
                 if (magic_magic(commands.RevolveCut)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    set_state_Mesh_command(RevolveCut);
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
-
                 }
 
                 SEPERATOR(ToolboxGroup::Mesh);
@@ -753,11 +649,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(commands.NudgePlane)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     if (feature_plane->is_active) {
-                        set_state_Mesh_command(NudgePlane);
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
                         messagef(omax.orange, "NudgePlane: no feature plane selected");
+                        set_state_Mesh_command(None); // FORNOW
                     }
+                }
+
+                SEPERATOR(ToolboxGroup::Mesh);
+
+                if (magic_magic(commands.ClearMesh)) {
+                    result.checkpoint_me = true;
+                    result.snapshot_me = true;
+                    mesh_free_AND_zero(mesh);
+                    *feature_plane = {};
+                    messagef(omax.green, "ResetSTL");
+
+                }
+
+                if (magic_magic(commands.ZoomMesh)) {
+                    result.record_me = false;
+                    other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
 
                 }
 
@@ -796,16 +708,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-
-
-                if (magic_magic(commands.ClearMesh)) {
-                    result.checkpoint_me = true;
-                    result.snapshot_me = true;
-                    mesh_free_AND_zero(mesh);
-                    *feature_plane = {};
-                    messagef(omax.green, "ResetSTL");
-
-                }
 
 
 
@@ -862,12 +764,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     result.checkpoint_me = true;
                     if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
-
-                }
-
-                if (magic_magic(commands.ZoomMesh)) {
-                    result.record_me = false;
-                    other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
 
                 }
 
@@ -2104,7 +2000,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         drawing->origin = {};
                                     }
                                 }
-                                set_state_Mesh_command(None);
+                                set_state_Draw_command(None);
                                 messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
                                 other.currently_open_dxf = popup->load_filename;
                             } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
@@ -2128,9 +2024,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Draw_command_is_(SaveDXF)) {
-                    if (state_Mesh_command_is_(SaveDXF)) {
-                        if (true) {}
-                    }
                     result.record_me = false;
                     if (other.awaiting_confirmation) {
                         popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Draw, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
@@ -2177,7 +2070,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
                     }
-                } else if (state_Mesh_command_is_(Scale)) {
+                } else if (state_Draw_command_is_(Scale)) {
                     result.record_me = false;
                     popup_popup(STRING("Size"), ToolboxGroup::Draw,
                             false,
@@ -2198,12 +2091,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         }
-                        set_state_Mesh_command(None);
+                        set_state_Draw_command(None);
                     }
                 }
             }
 
-            { // enter_mode
+            { // Mesh
                 if (0) {
                 } else if (state_Mesh_command_is_(OpenSTL)) {
                     popup_popup(STRING("OpenSTL"), ToolboxGroup::Mesh,
