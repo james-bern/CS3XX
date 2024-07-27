@@ -274,6 +274,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (group == ToolboxGroup::Draw) {
                             state.Draw_command = command;
                             state.Snap_command = commands.None;
+                            state.Xsel_command = commands.None;
+                            state.Colo_command = commands.None;
                         } else if (group == ToolboxGroup::Snap) {
                             state.Snap_command = command;
                         } else if (group == ToolboxGroup::Mesh) {
@@ -376,7 +378,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     { // ColorX
                         bool hide_buttons = !(0
                                 || state_Draw_command_is_(Color)
-                                || ((click_mode_SELECT_OR_DESELECT()) && (state_Xsel_command_is_(ByColor)))
+                                || ((SELECT_OR_DESELECT()) && (state_Xsel_command_is_(ByColor)))
                                 );
                         if (true) {
                             bool hotkey_quality;
@@ -393,7 +395,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
 
                             if (hotkey_quality) {
-                                if (click_mode_SELECT_OR_DESELECT() && (state_Xsel_command_is_(ByColor))) { // [sd]q0
+                                if (SELECT_OR_DESELECT() && (state_Xsel_command_is_(ByColor))) { // [sd]q0
                                     _for_each_entity_ {
                                         uint i = uint(entity->color_code);
                                         if (i != digit) continue;
@@ -418,7 +420,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // Xsel
-                    if (click_mode_SELECT_OR_DESELECT()) {
+                    if (SELECT_OR_DESELECT()) {
                         if (GUIBUTTON(commands.All)) { 
                             result.checkpoint_me = true;
                             cookbook.set_is_selected_for_all_entities(state_Draw_command_is_(Select));
@@ -797,7 +799,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
                     if (!state_Xsel_command_is_(Connected)) {
-                        if (click_mode_SELECT_OR_DESELECT()) {
+                        if (SELECT_OR_DESELECT()) {
                             cookbook.entity_set_is_selected(hot_entity, value_to_write_to_selection_mask);
                         } else {
                             bool found = false;
@@ -964,7 +966,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
             } else if (!mouse_event->mouse_held) {
-                if (state.Draw_command.flags & TWO_CLICK) {
+                if ((state.Draw_command.flags | state.Xsel_command.flags) & TWO_CLICK) { // FORNOW
                     if (!two_click_command->awaiting_second_click) {
                         DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                         bool first_click_accepted; {
@@ -978,7 +980,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = true;
                             two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
                             two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
-                            if (!state_Xsel_command_is_(Window)) set_state_Snap_command(None);
+                            set_state_Snap_command(None);
                             { // bump bumps cursor bump cursor bumps
                                 if (state_Draw_command_is_(Rotate)) {
                                     double xpos, ypos;
@@ -1417,7 +1419,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             );
                                 }
                             }
-                        } else if (click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT()) {
+                        } else if (WINDOW_SELECT_OR_WINDOW_DESELECT()) {
                             two_click_command->awaiting_second_click = false;
                             bbox2 window = {
                                 MIN(first_click.x, second_click.x),

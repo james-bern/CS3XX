@@ -325,7 +325,7 @@ void conversation_draw() {
             if (two_click_command->awaiting_second_click) {
                 if (
                         0
-                        || (state_Snap_command_is_(Window))
+                        || (state_Xsel_command_is_(Window))
                         || (state_Draw_command_is_(Box))
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
