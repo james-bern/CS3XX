@@ -82,7 +82,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             real padding = 12.0f;
 
-            real w = 64.0f;
+            real w = 80.0f;
 
             EasyTextPen Draw_pen = { V2(padding, padding), 12.0f, omax.white, true };
             EasyTextPen Draw_pen2 = Draw_pen;
@@ -261,6 +261,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 // NOTE: ordered by priority
 
+                { // undo
+                    bool hotkey_undo_alternate = magic_magic(commands.UNDO_ALTERNATE);
+                    bool button_undo = magic_magic(commands.Undo);
+                    if ((hotkey_undo_alternate || button_undo)) {
+                        result.record_me = false;
+                        other._please_suppress_drawing_popup_popup = true;
+                        history_undo();
+
+                    }
+                }
+
+                { // redo
+                    bool hotkey_redo_alternate = magic_magic(commands.REDO_ALTERNATE);
+                    bool button_redo = magic_magic(commands.Redo);
+                    bool hotkey_redo_alternate_alternate = magic_magic(commands.REDO_ALTERNATE_ALTERNATE);
+                    if ((hotkey_redo_alternate || button_redo | hotkey_redo_alternate_alternate)) {
+                        result.record_me = false;
+                        // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
+                        other._please_suppress_drawing_popup_popup = true;
+                        history_redo();
+
+                    }
+                }
+
                 if (click_mode_SELECT_OR_DESELECT()) {
                     if (magic_magic(commands.All)) { 
                         result.checkpoint_me = true;
@@ -343,33 +367,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 SEPERATOR(ToolboxGroup::Draw);
-                SEPERATOR(ToolboxGroup::Draw);
 
-                { // undo
-                    bool hotkey_undo_alternate = magic_magic(commands.UNDO_ALTERNATE);
-                    bool button_undo = magic_magic(commands.Undo);
-                    if ((hotkey_undo_alternate || button_undo)) {
-                        result.record_me = false;
-                        other._please_suppress_drawing_popup_popup = true;
-                        history_undo();
 
+                if (magic_magic(commands.Select)) { // TODO
+                    if (!state_Draw_command_is_(Color)) {
+                        set_state_Draw_command(Select);
+                        set_state_Snap_command(None);
+                    } else {
+                        set_state_Snap_command(Selected);
                     }
                 }
 
-                { // redo
-                    bool hotkey_redo_alternate = magic_magic(commands.REDO_ALTERNATE);
-                    bool button_redo = magic_magic(commands.Redo);
-                    bool hotkey_redo_alternate_alternate = magic_magic(commands.REDO_ALTERNATE_ALTERNATE);
-                    if ((hotkey_redo_alternate || button_redo | hotkey_redo_alternate_alternate)) {
-                        result.record_me = false;
-                        // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
-                        other._please_suppress_drawing_popup_popup = true;
-                        history_redo();
-
-                    }
+                if (magic_magic(commands.Deselect)) {
+                    set_state_Draw_command(Deselect);
+                    set_state_Snap_command(None);
                 }
-
-                SEPERATOR(ToolboxGroup::Draw);
 
                 { // color
                     if (magic_magic(commands.Color)) {
@@ -411,22 +423,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.Colo_command = commands_Color[digit];
                         }
                     }
-                }
-
-
-                //
-                if (magic_magic(commands.Select)) { // TODO
-                    if (!state_Draw_command_is_(Color)) {
-                        set_state_Draw_command(Select);
-                        set_state_Snap_command(None);
-                    } else {
-                        set_state_Snap_command(Selected);
-                    }
-                }
-
-                if (magic_magic(commands.Deselect)) {
-                    set_state_Draw_command(Deselect);
-                    set_state_Snap_command(None);
                 }
 
                 SEPERATOR(ToolboxGroup::Draw);
