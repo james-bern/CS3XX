@@ -745,23 +745,7 @@ void conversation_draw() {
 
         String STRING_EMPTY_STRING = {};
         String Draw_string = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
-        String Snap_string = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
-
-        String string_click_modifier = STRING(
-                (state.click_modifier == ClickModifier::None)           ? ""                :
-                (state.click_modifier == ClickModifier::Center)         ? "Center"          :
-                (state.click_modifier == ClickModifier::Connected)      ? "Connected"       :
-                (state.click_modifier == ClickModifier::End)            ? "End"             :
-                (state.click_modifier == ClickModifier::Intersect)      ? "Intersect"       :
-                (state.click_modifier == ClickModifier::Color)          ? "Color"           :
-                (state.click_modifier == ClickModifier::Middle)         ? "Middle"          :
-                (state.click_modifier == ClickModifier::Perp)           ? "Perp"            :
-                (state.click_modifier == ClickModifier::Quad)           ? "Quad"            :
-                (state.click_modifier == ClickModifier::Selected)       ? "Selected"        :
-                (state.click_modifier == ClickModifier::Tangent)        ? "Tangent"         :
-                (state.click_modifier == ClickModifier::Window)         ? "Window"          :
-                (state.click_modifier == ClickModifier::XY)             ? "XY"              :
-                "???MODIFIER???");
+        String Snap_string = (state_Snap_command_is_(None)) ? STRING_EMPTY_STRING : state.Snap_command.name;
 
         { // spoof callback_cursor_position
             double xpos, ypos;

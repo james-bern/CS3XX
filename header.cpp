@@ -30,9 +30,11 @@ bool command_equals(Command A, Command B) {
 
 #define state_Draw_command_is_(Name) command_equals(state.Draw_command, commands.Name)
 #define state_Mesh_command_is_(Name) command_equals(state.Mesh_command, commands.Name)
+#define state_Snap_command_is_(Name) command_equals(state.Snap_command, commands.Name)
 
 #define set_Draw_command(Name) state.Draw_command = commands.Name
 #define set_Mesh_command(Name) state.Mesh_command = commands.Name
+#define set_Snap_command(Name) state.Snap_command = commands.Name
 
 
 #include "commands.cpp"
