@@ -119,13 +119,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     bool _ = false,
                     ToolboxGroup _group = ToolboxGroup::Draw,
                     ClickMode _click_mode = ClickMode::None,
-                    ClickModifier click_modifier = ClickModifier::None,
-                    EnterMode enter_mode = EnterMode::None
+                    ClickModifier _click_modifier = ClickModifier::None,
+                    EnterMode _enter_mode = EnterMode::None
                     ) -> bool {
                 FORNOW_UNUSED(_name);
                 FORNOW_UNUSED(_);
                 FORNOW_UNUSED(_group);
                 FORNOW_UNUSED(_click_mode);
+                FORNOW_UNUSED(_click_modifier);
+                FORNOW_UNUSED(_enter_mode);
 
                 ToolboxGroup group = command.group;
                 String name = command.name;
@@ -189,7 +191,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 toggled = (click_modifier == state.click_modifier);
                             } else if (group == ToolboxGroup::Mesh) {
                                 can_toggle = true;
-                                toggled = (enter_mode == state.enter_mode);
+                                toggled = command_equals(state.Mesh_command, command);
                             }
                         }
 
@@ -243,7 +245,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
             Command prev_Draw_command = state.Draw_command;
-            EnterMode prev_enter_mode = state.enter_mode;
+            Command prev_Mesh_command = state.Mesh_command;
             { // magic_magic
 
                 // NOTE: ordered by priority
@@ -273,12 +275,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (click_mode_SNAP_ELIGIBLE()) {
                     if (magic_magic(commands.End,"End",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::End)) {
                         state.click_modifier = ClickModifier::End;
-
                     }
 
                     if (magic_magic(commands.Intersect,"Intersect",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Intersect)) {
                         state.click_modifier = ClickModifier::Intersect;
-
                     }
 
                     if (magic_magic(commands.XY,"XY",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::XY)) {
@@ -288,22 +288,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     if (magic_magic(commands.Center,"Center",false,ToolboxGroup::Snap,ClickMode::None, ClickModifier::Center)) {
                         state.click_modifier = ClickModifier::Center;
-
                     }
 
                     if (magic_magic(commands.Middle,"Middle",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Middle)) {
                         state.click_modifier = ClickModifier::Middle;
-
                     }
 
                     if (magic_magic(commands.Perp,"Perp",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Perp)) {
                         state.click_modifier = ClickModifier::Perp;
-
                     }
 
                     if (magic_magic(commands.Quad,"Quad",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Quad)) {
                         state.click_modifier = ClickModifier::Quad;
-
                     }
 
                     if (magic_magic(commands.Tangent,"Tangent",false,ToolboxGroup::Snap,ClickMode::None,ClickModifier::Tangent)) {
@@ -322,18 +318,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 ///
                 if (magic_magic(commands.OpenDXF,"OpenDXF",false,ToolboxGroup::Draw,ClickMode::None,ClickModifier::None,EnterMode::OpenDXF)) {
-                    set_Draw_command(None);
+                    set_Draw_command(OpenDXF);
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::OpenDXF;
                 }
 
                 if (magic_magic(commands.SaveDXF,"SaveDXF",false,ToolboxGroup::Draw,ClickMode::None,ClickModifier::None,EnterMode::SaveDXF)) {
                     result.record_me = false; // TODO
                     other.awaiting_confirmation = false; // TODO
 
-                    set_Draw_command(None);
+                    set_Draw_command(SaveDXF);
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::SaveDXF;
 
                 }
 
@@ -483,7 +477,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 if (magic_magic(commands.Scale,"Scale",false,ToolboxGroup::Draw,ClickMode::None,ClickModifier::None,EnterMode::Size)) { 
-                    state.enter_mode = EnterMode::Size;
+                    set_Mesh_command(Scale);
                     set_Draw_command(None);
                     state.click_modifier = ClickModifier::None;
                 }
@@ -526,7 +520,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(commands.Divide2,"Divide2",false,ToolboxGroup::Draw,ClickMode::Divide2)) {
                     set_Draw_command(Divide2);
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
+                    set_Mesh_command(None);
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -536,14 +530,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
                     set_Draw_command(Offset);
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
+                    set_Mesh_command(None);
                 }
 
                 if (magic_magic(commands.Fillet,"Fillet",false,ToolboxGroup::Draw,ClickMode::Fillet)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
                     set_Draw_command(Fillet);
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
+                    set_Mesh_command(None);
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -551,7 +545,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Draw);
                     set_Draw_command(DogEar);
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
+                    set_Mesh_command(None);
                     two_click_command->awaiting_second_click = false;
                 }
 
@@ -560,7 +554,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(commands.PowerFillet)) {// ,"PowerFillet",false,ToolboxGroup::Draw,ClickMode::PowerFillet)) {
                     set_Draw_command(PowerFillet);
                     state.click_modifier = ClickModifier::None;
-                    state.enter_mode = EnterMode::None;
+                    set_Mesh_command(None);
                 }
 
                 SEPERATOR(ToolboxGroup::Draw);
@@ -594,14 +588,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 ////////////////////////////////////////////////////////////////////////////////
 
                 if (magic_magic(commands.OpenSTL,"OpenSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::OpenSTL)) {
-                    state.enter_mode = EnterMode::OpenSTL;
+                    set_Mesh_command(OpenSTL);
                 }
 
                 if (magic_magic(commands.SaveSTL,"SaveSTL",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::SaveSTL)) {
                     result.record_me = false; // TODO
                     other.awaiting_confirmation = false; // TODO
 
-                    state.enter_mode = EnterMode::SaveSTL;
+                    set_Mesh_command(SaveSTL);
                 }
 
                 SEPERATOR(ToolboxGroup::Mesh);
@@ -627,7 +621,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(commands.ExtrudeAdd,"ExtrudeAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeAdd)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    state.enter_mode = EnterMode::ExtrudeAdd;
+                    set_Mesh_command(ExtrudeAdd);
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
 
@@ -635,7 +629,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(commands.ExtrudeCut, "ExtrudeCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::ExtrudeCut)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    state.enter_mode = EnterMode::ExtrudeCut;
+                    set_Mesh_command(ExtrudeCut);
                     preview->extrude_in_length = 0; // FORNOW
                     preview->extrude_out_length = 0; // FORNOW
 
@@ -643,7 +637,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(commands.RevolveAdd, "RevolveAdd",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveAdd)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    state.enter_mode = EnterMode::RevolveAdd;
+                    set_Mesh_command(RevolveAdd);
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
 
@@ -651,7 +645,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (magic_magic(commands.RevolveCut, "RevolveCut",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::RevolveCut)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
-                    state.enter_mode = EnterMode::RevolveCut;
+                    set_Mesh_command(RevolveCut);
                     preview->revolve_in_angle = 0; // FORNOW
                     preview->revolve_out_angle = 0; // FORNOW
 
@@ -662,7 +656,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (magic_magic(commands.NudgePlane, "NudgePlane",false,ToolboxGroup::Mesh,ClickMode::None,ClickModifier::None,EnterMode::NudgePlane)) {
                     popup->manager.manually_set_focus_group(ToolboxGroup::Mesh);
                     if (feature_plane->is_active) {
-                        state.enter_mode = EnterMode::NudgePlane;
+                        set_Mesh_command(NudgePlane);
                         preview->feature_plane_offset = 0.0f; // FORNOW
                     } else {
                         messagef(omax.orange, "NudgePlane: no feature plane selected");
@@ -827,17 +821,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             state.click_color_code = ColorCode::Traverse;
                         } else {
                             // Size, Load, Save...
-                            state.enter_mode = EnterMode::None;
+                            set_Mesh_command(None);
                         }
                     } else if (popup->manager.focus_group == ToolboxGroup::Mesh) {
-                        state.enter_mode = EnterMode::None;
+                        set_Mesh_command(None);
                     } else if (popup->manager.focus_group == ToolboxGroup::Snap) {
                         state.click_modifier = ClickModifier::None;
                     } else {
                         set_Draw_command(None);
                         state.click_modifier = ClickModifier::None;
                         state.click_color_code = ColorCode::Traverse;
-                        state.enter_mode = EnterMode::None;
+                        set_Mesh_command(None);
                     }
                 }
 
@@ -902,7 +896,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
                 bool changed_click_mode = (!command_equals(prev_Draw_command, state.Draw_command));
-                bool changed_enter_mode = (prev_enter_mode != state.enter_mode);
+                bool changed_enter_mode = (!command_equals(prev_Mesh_command, state.Mesh_command));
                 if (changed_click_mode && click_mode_SPACE_BAR_REPEAT_ELIGIBLE()) state.space_bar_event = event;
                 if (changed_enter_mode && enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE()) state.shift_space_bar_event = event;
             } else { ASSERT(key_event->subtype == KeyEventSubtype::Popup);
@@ -2023,13 +2017,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         popup_popup(STRING("PowerFillet"), ToolboxGroup::Draw,
                                 false,
                                 CellType::Real, STRING("radius"), &popup->fillet_radius);
-                    }
-
-                }
-
-                { // enter_mode
-                    if (0) {
-                    } else if (state.enter_mode == EnterMode::OpenDXF) {
+                    } else if (state_Draw_command_is_(OpenDXF)) {
                         popup_popup(STRING("OpenDXF"), ToolboxGroup::Draw,
                                 false,
                                 CellType::String, STRING("filename"), &popup->load_filename);
@@ -2052,7 +2040,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             drawing->origin = {};
                                         }
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
                                     other.currently_open_dxf = popup->load_filename;
                                 } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
@@ -2065,7 +2053,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         stl_load(popup->load_filename, mesh);
                                         init_camera_mesh();
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
                                     other.currently_open_stl = popup->load_filename;
                                 } else {
@@ -2075,8 +2063,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::SaveDXF) {
-                        if (state.enter_mode == EnterMode::SaveDXF) {
+                    } else if (state_Draw_command_is_(SaveDXF)) {
+                        if (state_Mesh_command_is_(SaveDXF)) {
                             if (true) {}
                         }
                         result.record_me = false;
@@ -2095,7 +2083,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     if (popup->save_confirmation.data[0] == 'y') {
                                         other.awaiting_confirmation = false;
                                     } else {
-                                        state.enter_mode = EnterMode::None;
+                                        set_Mesh_command(None);
                                         messagef(omax.red, "SAVE ABORTED");
                                     }
                                 } else {
@@ -2111,21 +2099,49 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         bool success = mesh_save_stl(mesh, popup->save_filename);
                                         ASSERT(success);
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
                                 } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
                                     {
                                         bool success = drawing_save_dxf(drawing, popup->save_filename);
                                         ASSERT(success);
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
                                 } else {
                                     messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
                                 }
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::OpenSTL) {
+                    } else if (state_Mesh_command_is_(Scale)) {
+                        result.record_me = false;
+                        popup_popup(STRING("Size"), ToolboxGroup::Draw,
+                                false,
+                                CellType::Real, STRING("scale factor"), &popup->scale_factor);
+                        if (gui_key_enter(ToolboxGroup::Draw)) {
+                            if (!IS_ZERO(popup->scale_factor)) {
+                                bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                                vec2 bbox_center = AVG(bbox.min, bbox.max);
+                                _for_each_selected_entity_ {
+                                    if (entity->type == EntityType::Line) {
+                                        LineEntity *line = &entity->line;
+                                        line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
+                                        line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
+                                    } else { ASSERT(entity->type == EntityType::Arc);
+                                        ArcEntity *arc = &entity->arc;
+                                        arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
+                                        arc->radius *= popup->scale_factor;
+                                    }
+                                }
+                            }
+                            set_Mesh_command(None);
+                        }
+                    }
+                }
+
+                { // enter_mode
+                    if (0) {
+                    } else if (state_Mesh_command_is_(OpenSTL)) {
                         popup_popup(STRING("OpenSTL"), ToolboxGroup::Mesh,
                                 false,
                                 CellType::String, STRING("filename"), &popup->load_filename);
@@ -2148,7 +2164,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             drawing->origin = {};
                                         }
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
                                     other.currently_open_dxf = popup->load_filename;
                                 } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
@@ -2161,7 +2177,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         stl_load(popup->load_filename, mesh);
                                         init_camera_mesh();
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
                                     other.currently_open_stl = popup->load_filename;
                                 } else {
@@ -2171,8 +2187,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::SaveSTL) {
-                        if (state.enter_mode == EnterMode::SaveSTL) {
+                    } else if (state_Mesh_command_is_(SaveSTL)) {
+                        if (state_Mesh_command_is_(SaveSTL)) {
                             if (true) {}
                         }
                         result.record_me = false;
@@ -2191,7 +2207,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     if (popup->save_confirmation.data[0] == 'y') {
                                         other.awaiting_confirmation = false;
                                     } else {
-                                        state.enter_mode = EnterMode::None;
+                                        set_Mesh_command(None);
                                         messagef(omax.red, "SAVE ABORTED");
                                     }
                                 } else {
@@ -2207,44 +2223,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         bool success = mesh_save_stl(mesh, popup->save_filename);
                                         ASSERT(success);
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
                                 } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
                                     {
                                         bool success = drawing_save_dxf(drawing, popup->save_filename);
                                         ASSERT(success);
                                     }
-                                    state.enter_mode = EnterMode::None;
+                                    set_Mesh_command(None);
                                     messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
                                 } else {
                                     messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
                                 }
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::Size) {
-                        result.record_me = false;
-                        popup_popup(STRING("Size"), ToolboxGroup::Draw,
-                                false,
-                                CellType::Real, STRING("scale factor"), &popup->scale_factor);
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            if (!IS_ZERO(popup->scale_factor)) {
-                                bbox2 bbox = entities_get_bbox(&drawing->entities, true);
-                                vec2 bbox_center = AVG(bbox.min, bbox.max);
-                                _for_each_selected_entity_ {
-                                    if (entity->type == EntityType::Line) {
-                                        LineEntity *line = &entity->line;
-                                        line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
-                                        line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
-                                    } else { ASSERT(entity->type == EntityType::Arc);
-                                        ArcEntity *arc = &entity->arc;
-                                        arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
-                                        arc->radius *= popup->scale_factor;
-                                    }
-                                }
-                            }
-                            state.enter_mode = EnterMode::None;
-                        }
-                    } else if (state.enter_mode == EnterMode::ExtrudeAdd) {
+                    } else if (state_Mesh_command_is_(ExtrudeAdd)) {
                         popup_popup(STRING("ExtrudeAdd"), ToolboxGroup::Mesh,
                                 true,
                                 CellType::Real, STRING("out_length"), &popup->extrude_add_out_length,
@@ -2265,7 +2258,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::ExtrudeCut) {
+                    } else if (state_Mesh_command_is_(ExtrudeCut)) {
                         popup_popup(STRING("ExtrudeCut"), ToolboxGroup::Mesh,
                                 true,
                                 CellType::Real, STRING("in_length"), &popup->extrude_cut_in_length,
@@ -2288,7 +2281,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::RevolveAdd) {
+                    } else if (state_Mesh_command_is_(RevolveAdd)) {
                         popup_popup(STRING("RevolveAdd"), ToolboxGroup::Mesh,
                                 true,
                                 CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle,
@@ -2304,7 +2297,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 messagef(omax.green, "RevolveAdd");
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::RevolveCut) {
+                    } else if (state_Mesh_command_is_(RevolveCut)) {
                         popup_popup(STRING("RevolveCut"), ToolboxGroup::Mesh,
                                 true,
                                 CellType::Real, STRING("in_angle"), &popup->revolve_cut_in_angle,
@@ -2322,7 +2315,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 messagef(omax.green, "RevolveCut");
                             }
                         }
-                    } else if (state.enter_mode == EnterMode::NudgePlane) {
+                    } else if (state_Mesh_command_is_(NudgePlane)) {
                         popup_popup(STRING("NudgePlane"), ToolboxGroup::Mesh,
                                 true,
                                 CellType::Real, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
@@ -2330,7 +2323,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.record_me = true;
                             result.checkpoint_me = true;
                             feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
-                            state.enter_mode = EnterMode::None;
+                            set_Mesh_command(None);
                             messagef(omax.green, "NudgePlane %gmm", popup->feature_plane_nudge);
                         }
                     }

@@ -99,11 +99,11 @@ bool first_click_must_acquire_entity() {
 
 bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
-        || (state.enter_mode == EnterMode::ExtrudeAdd)
-        || (state.enter_mode == EnterMode::ExtrudeCut)
-        || (state.enter_mode == EnterMode::RevolveAdd)
-        || (state.enter_mode == EnterMode::RevolveCut)
-        || (state.enter_mode == EnterMode::NudgePlane)
+        || (state_Mesh_command_is_(ExtrudeAdd))
+        || (state_Mesh_command_is_(ExtrudeCut))
+        || (state_Mesh_command_is_(RevolveAdd))
+        || (state_Mesh_command_is_(RevolveCut))
+        || (state_Mesh_command_is_(NudgePlane))
         ;
 }
 

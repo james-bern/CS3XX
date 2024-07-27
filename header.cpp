@@ -27,10 +27,15 @@ bool command_equals(Command A, Command B) {
     return (A.name.data == B.name.data);
 }
 
+
 #define state_Draw_command_is_(Name) command_equals(state.Draw_command, commands.Name)
+#define state_Mesh_command_is_(Name) command_equals(state.Mesh_command, commands.Name)
+
 #define set_Draw_command(Name) state.Draw_command = commands.Name
+#define set_Mesh_command(Name) state.Mesh_command = commands.Name
 
 
+#include "commands.cpp"
 
 
 enum class EnterMode {
@@ -422,11 +427,13 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     ToolboxState toolbox;
 
     ClickMode _click_mode;
-    EnterMode enter_mode;
-    ClickModifier click_modifier;
+    EnterMode _enter_mode;
+    ClickModifier _click_modifier;
     ColorCode click_color_code;
 
     Command Draw_command;
+    Command Mesh_command;
+    Command Snap_command;
 
     Event space_bar_event;
     Event shift_space_bar_event;
@@ -1338,7 +1345,7 @@ Mesh wrapper_manifold(
         uint *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
         mat4 M_3D_from_2D,
-        EnterMode enter_mode,
+        Command Mesh_command,
         real extrude_out_length,
         real extrude_in_length,
         vec2   dxf_origin,
@@ -1347,10 +1354,10 @@ Mesh wrapper_manifold(
         ) {
 
 
-    bool add = (enter_mode == EnterMode::ExtrudeAdd) || (enter_mode == EnterMode::RevolveAdd);
-    bool cut = (enter_mode == EnterMode::ExtrudeCut) || (enter_mode == EnterMode::RevolveCut);
-    bool extrude = (enter_mode == EnterMode::ExtrudeAdd) || (enter_mode == EnterMode::ExtrudeCut);
-    bool revolve = (enter_mode == EnterMode::RevolveAdd) || (enter_mode == EnterMode::RevolveCut);
+    bool add = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
+    bool cut = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
+    bool extrude = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.ExtrudeCut));
+    bool revolve = (command_equals(Mesh_command, commands.RevolveAdd)) || (command_equals(Mesh_command, commands.RevolveCut));
     ASSERT(add || cut);
     ASSERT(extrude || revolve);
 
@@ -1393,7 +1400,7 @@ Mesh wrapper_manifold(
         }
 
         { // manifold_B
-            if (enter_mode == EnterMode::ExtrudeCut) {
+            if (command_equals(Mesh_command, commands.ExtrudeCut)) {
                 do_once { messagef(omax.pink, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;

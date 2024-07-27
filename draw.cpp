@@ -111,10 +111,10 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
-    bool extruding = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::ExtrudeCut));
-    bool revolving = ((state.enter_mode == EnterMode::RevolveAdd) || (state.enter_mode == EnterMode::RevolveCut));
-    bool adding     = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::RevolveAdd));
-    bool cutting     = ((state.enter_mode == EnterMode::ExtrudeCut) || (state.enter_mode == EnterMode::RevolveCut));
+    bool extruding = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(ExtrudeCut)));
+    bool revolving = ((state_Mesh_command_is_(RevolveAdd)) || (state_Mesh_command_is_(RevolveCut)));
+    bool adding     = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(RevolveAdd)));
+    bool cutting     = ((state_Mesh_command_is_(ExtrudeCut)) || (state_Mesh_command_is_(RevolveCut)));
 
     { // preview->extrude_in_length
         real target = (adding) ? popup->extrude_add_in_length : popup->extrude_cut_in_length;
@@ -135,7 +135,7 @@ void conversation_draw() {
 
     // TODO
     { // preview_feature_plane_offset
-        real target = (state.enter_mode == EnterMode::NudgePlane) ? popup->feature_plane_nudge : 0.0f;
+        real target = (state_Mesh_command_is_(NudgePlane)) ? popup->feature_plane_nudge : 0.0f;
         JUICEIT_EASYTWEEN(&preview->feature_plane_offset, target);
     }
 
@@ -248,9 +248,9 @@ void conversation_draw() {
                     eso_color(omax.dark_gray);
                     if (state_Draw_command_is_(Axis)) {
                         eso_color(omax.cyan);
-                    } else if (state.enter_mode == EnterMode::RevolveAdd) {
+                    } else if (state_Mesh_command_is_(RevolveAdd)) {
                         eso_color(AVG(omax.dark_gray, omax.cyan));
-                    } else if (state.enter_mode == EnterMode::RevolveCut) {
+                    } else if (state_Mesh_command_is_(RevolveCut)) {
                         eso_color(AVG(omax.dark_gray, omax.cyan));
                     } else {
                     }
@@ -475,7 +475,7 @@ void conversation_draw() {
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
             // FORNOW
-            bool moving_stuff = ((state_Draw_command_is_(Origin)) || (state.enter_mode == EnterMode::NudgePlane));
+            bool moving_stuff = ((state_Draw_command_is_(Origin)) || (state_Mesh_command_is_(NudgePlane)));
             vec3 target_preview_tubes_color = (0) ? V3(0)
                 : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
                 : (adding) ? get_color(ColorCode::Traverse)
@@ -512,7 +512,7 @@ void conversation_draw() {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
-                } else if (state.enter_mode == EnterMode::NudgePlane) {
+                } else if (state_Mesh_command_is_(NudgePlane)) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview->feature_plane_offset + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
@@ -661,7 +661,7 @@ void conversation_draw() {
                 mat4 PVM = PV_3D * M_3D_from_2D;
                 vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
-                    if (state.enter_mode == EnterMode::NudgePlane) {
+                    if (state_Mesh_command_is_(NudgePlane)) {
                         PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (state_Draw_command_is_(Origin)) {
@@ -744,7 +744,8 @@ void conversation_draw() {
         // TODO: somehow macro this
 
         String STRING_EMPTY_STRING = {};
-        String string_click_mode = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
+        String Draw_string = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
+        String Snap_string = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
 
         String string_click_modifier = STRING(
                 (state.click_modifier == ClickModifier::None)           ? ""                :
@@ -770,8 +771,8 @@ void conversation_draw() {
         }
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - preview->cursor_subtext_alpha };
-        easy_text_draw(&pen, string_click_mode);
-        easy_text_draw(&pen, string_click_modifier);
+        easy_text_draw(&pen, Draw_string);
+        easy_text_draw(&pen, Snap_string);
     }
 
     void history_debug_draw(); // forward declaration

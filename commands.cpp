@@ -214,7 +214,7 @@ run_before_main {
 
     FILE *file = fopen("conversation.cfg", "r");
     if (!file) {
-        messagef(omax.red, "Failed to open commands file");
+        // messagef(omax.red, "Failed to open commands file");
         return;
     }
     defer { fclose(file); };
@@ -262,7 +262,7 @@ run_before_main {
 
     // config stuff
     {
-        other.hide_toolbox = config.HIDE_GUI;
+        // other.hide_toolbox = config.HIDE_GUI;
     }
 };
 #undef OUTER

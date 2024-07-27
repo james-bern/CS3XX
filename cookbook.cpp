@@ -582,7 +582,7 @@ struct Cookbook {
     ///////////
 
     void manifold_wrapper() {
-        bool add = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::RevolveAdd));
+        bool add = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(RevolveAdd)));
         if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
             result->record_me = true;
             result->snapshot_me = true;
@@ -596,7 +596,7 @@ struct Cookbook {
                         cross_section.num_vertices_in_polygonal_loops,
                         cross_section.polygonal_loops,
                         get_M_3D_from_2D(),
-                        state.enter_mode,
+                        state.Mesh_command,
                         (add) ? popup->extrude_add_out_length : popup->extrude_cut_out_length,
                         (add) ? popup->extrude_add_in_length : popup->extrude_cut_in_length,
                         drawing->origin,
@@ -610,7 +610,7 @@ struct Cookbook {
         }
 
         // reset some stuff
-        state.enter_mode = EnterMode::None;
+        set_Mesh_command(None);
         set_is_selected_for_all_entities(false);
     };
 };

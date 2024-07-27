@@ -162,7 +162,7 @@ run_before_main {
 };
 #endif
 
-#if 0 // kitchen sink
+#if 1 // kitchen sink
 run_before_main {
     startup_script = \
                      "cz10\n" // circle
@@ -181,6 +181,7 @@ run_before_main {
                      "cx30\t30\n3.4\n" // TODO: comment
                      "saXzYzXzsa[1\n" // TODO: comment
                      "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>[\t10\n" // TODO: comment
+                     #if 0
                      "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
                      "^n" // TODO: comment
                      "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
@@ -200,6 +201,7 @@ run_before_main {
                                     // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
                                     // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
                                     // "^N^ob:wug.drawing\nysa"
+                     #endif
                      ;
 };
 #endif
@@ -234,7 +236,6 @@ PreviewState *preview = &other.preview;
 Event event_passed_to_popups;
 bool already_processed_event_passed_to_popups;
 
-#include "commands.cpp"
 #include "boolean.cpp"
 #include "misc.cpp"
 #include "draw.cpp"
@@ -347,8 +348,8 @@ int main() {
                 // time_since_successful_feature = 1.0f;
 
                 bool going_inside = 0
-                    || ((state.enter_mode == EnterMode::ExtrudeAdd) && (popup->extrude_add_in_length > 0.0f))
-                    || (state.enter_mode == EnterMode::ExtrudeCut);
+                    || ((state_Mesh_command_is_(ExtrudeAdd)) && (popup->extrude_add_in_length > 0.0f))
+                    || (state_Mesh_command_is_(ExtrudeCut));
                 if (!going_inside) {
                     other.time_since_going_inside = 0.0f;
                 } else {
