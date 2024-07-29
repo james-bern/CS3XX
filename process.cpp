@@ -809,8 +809,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     found = true;
                                     break;
                                 }
-                                ASSERT(found);
                             }
+                            ASSERT(found);
                         }
                     } else {
                         #if 1 // TODO: consider just using the O(n*m) algorithm here instead
