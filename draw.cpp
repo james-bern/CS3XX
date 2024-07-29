@@ -146,6 +146,7 @@ void conversation_draw() {
         //messagef(omax.red, "wowowo");
         vec2 before = mouse;
         Entity *closest_entity = two_click_command->entity_closest_to_first_click;
+        messagef(omax.orange, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
         vec2 center = closest_entity->arc.center;
         real radius = closest_entity->arc.radius;
         real d = distance(center, before);

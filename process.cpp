@@ -1131,7 +1131,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (first_click_accepted) {
                                 two_click_command->awaiting_second_click = true;
                                 two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
-                                two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
+                                if (!two_click_command->tangent_first_click) {
+                                    two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
+                                }
                                 if (state.click_modifier != ClickModifier::Window) state.click_modifier = ClickModifier::None;
                                 { // bump bumps cursor bump cursor bumps
                                     if (state.click_mode == ClickMode::Rotate) {
