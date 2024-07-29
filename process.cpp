@@ -249,25 +249,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (hotkey_consumed_by_magic_magic) return false;
 
-                bool result; {
-                    result = false;
+                bool inner_result; {
+                    inner_result = false;
                     if (is_toolbox_button_mouse_event) {
-                        result |= (name.data == event.mouse_event.mouse_event_toolbox_button.name);
+                        inner_result |= (name.data == event.mouse_event.mouse_event_toolbox_button.name);
                     } else {
                         bool tmp = _key_lambda(key_event, key, control, shift);
-                        result |= tmp;
+                        inner_result |= tmp;
                         hotkey_consumed_by_magic_magic |= tmp;
                     }
                 }
 
                 // canned logic
-                if (result) {
+                if (inner_result) {
                     if (flags & TWO_CLICK) {
                         ASSERT(is_mode);
                         two_click_command->awaiting_second_click = false;
                     }
                     if (flags & FOCUS_THEIF) {
                         popup->manager.manually_set_focus_group(group);
+                    }
+                    if (flags & NO_RECORD) {
+                        result.record_me = false;
                     }
                     if (is_mode) {
                         if (0) {
@@ -288,7 +291,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-                return result;
+                return inner_result;
             };
 
             auto SEPERATOR = [&]() {
@@ -346,7 +349,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         bool hotkey_undo_alternate = GUIBUTTON(commands.UNDO_ALTERNATE);
                         bool button_undo = GUIBUTTON(commands.Undo);
                         if ((hotkey_undo_alternate || button_undo)) {
-                            result.record_me = false;
                             other._please_suppress_drawing_popup_popup = true;
                             history_undo();
 
@@ -354,11 +356,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     { // redo
-                        bool hotkey_redo_alternate = GUIBUTTON(commands.REDO_ALTERNATE);
                         bool button_redo = GUIBUTTON(commands.Redo);
-                        bool hotkey_redo_alternate_alternate = GUIBUTTON(commands.REDO_ALTERNATE_ALTERNATE);
-                        if ((hotkey_redo_alternate || button_redo | hotkey_redo_alternate_alternate)) {
-                            result.record_me = false;
+                        // bool hotkey_redo_alternate = GUIBUTTON(commands.REDO_ALTERNATE);
+                        // bool hotkey_redo_alternate_alternate = GUIBUTTON(commands.REDO_ALTERNATE_ALTERNATE);
+                        if (button_redo) {
                             // _standard_event_process_NOTE_RECURSIVE({}); // FORNOW (prevent flicker on redo with nothing left to redo)
                             other._please_suppress_drawing_popup_popup = true;
                             history_redo();
@@ -409,7 +410,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     set_state_Colo_command(None);
                                     _for_each_entity_ entity->is_selected = false;
                                 } else { // 0
-                                    result.record_me = true;
                                     set_state_Draw_command(Color);
                                     state.Colo_command = commands_Color[digit];
                                     set_state_Snap_command(None);
@@ -491,9 +491,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Origin);
                     GUIBUTTON(commands.Axis);
                     SEPERATOR();
-                    if (GUIBUTTON(commands.Measure)) {
-                        result.record_me = false;
-                    }
+                    GUIBUTTON(commands.Measure);
                     SEPERATOR();
                     if (GUIBUTTON(commands.Color)) {
                         set_state_Colo_command(Color0);
@@ -525,7 +523,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 GUIBUTTON(commands.OpenSTL);
                 if (GUIBUTTON(commands.SaveSTL)) {
-                    result.record_me = false; // TODO
                     other.awaiting_confirmation = false; // TODO
                 }
                 SEPERATOR();
@@ -580,7 +577,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
                 if (GUIBUTTON(commands.ZoomMesh)) {
-                    result.record_me = false;
                     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
 
                 }
@@ -600,22 +596,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                 if (GUIBUTTON(commands.TOGGLE_GRID)) {
-                    result.record_me = false;
                     other.hide_grid = !other.hide_grid;
 
                 }
 
                 if (GUIBUTTON(commands.PRINT_HISTORY)) {
-                    result.record_me = false;
                     history_printf_script();
 
                 }
 
                 if (GUIBUTTON(commands.TOGGLE_EVENT_STACK)) { 
-                    result.record_me = false;
                     other.show_event_stack = !other.show_event_stack;
-                    result.record_me = false;
-
                 }
 
 
@@ -650,7 +641,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                 if (GUIBUTTON(commands.TOGGLE_DRAWING_DETAILS)) { 
-                    result.record_me = false;
                     other.show_details = !other.show_details;
                     { // messagef
                         uint num_lines;
@@ -673,7 +663,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 if (GUIBUTTON(commands.TOGGLE_FEATURE_PLANE)) {
-                    result.checkpoint_me = true;
                     if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                     feature_plane->is_active = false;
 
@@ -693,14 +682,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 if (GUIBUTTON(commands.HELP_MENU)) {
-                    result.record_me = false;
                     other.show_help = !other.show_help;
 
                 }
 
 
                 if (GUIBUTTON(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
-                    result.record_me = false;
                     {
                         vec3 tmp = omax.light_gray;
                         omax.light_gray = omax.dark_gray;
@@ -720,16 +707,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 if (GUIBUTTON(commands.TOGGLE_BUTTONS)) { // FORNOW
-                    result.record_me = false;
                     other.hide_toolbox = !other.hide_toolbox;
 
                 }
 
 
 
-                if (GUIBUTTON(commands.EXECUTE_COMMAND)) { // FORNOW
+                // ??
+                if (GUIBUTTON(commands.Enter)) { // FORNOW
                     result.record_me = false;
-
                 }
 
                 if (GUIBUTTON(COMMAND(DUMMY_HOTKEY, 0))) { // FORNOW
