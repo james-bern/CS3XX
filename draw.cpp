@@ -288,7 +288,8 @@ void conversation_draw() {
                     // drawing 2D drawing 2d drawing
                     _for_each_entity_ {
                         if (entity->is_selected && (rotating || moving)) continue;
-                        eso_color(entity->preview_color);
+                        // eso_color(entity->preview_color);
+                        eso_color(get_color(entity->color_code));
                         eso_size(1.5f);
                         eso_entity__SOUP_LINES(entity);
                     }
