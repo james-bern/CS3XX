@@ -942,10 +942,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     ASSERT(snap_result.entity_index_snapped_to >= 0);
                     ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
                     cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
-                    if (snap_result.split_ent_two) {
-                        messagef(omax.red, "intersec2");
-                        cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to_2, *mouse);
+                    if (snap_result.split_intersect) {
+                        cookbook.divide_entity_at_point(snap_result.entity_index_intersect, *mouse);
                     }
+                    if (snap_result.split_tangent_2) {
+                        cookbook.divide_entity_at_point(snap_result.entity_index_tangent_2, two_click_command->first_click);
+                    }
+
                 }
 
 

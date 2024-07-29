@@ -202,9 +202,10 @@ struct MagicSnapResult {
     vec2 mouse_position;
     bool snapped;
     uint entity_index_snapped_to;
-    uint entity_index_snapped_to_2;
-    bool tan_snap_first_click;
-    bool split_ent_two;
+    uint entity_index_intersect;
+    uint entity_index_tangent_2;
+    bool split_intersect;
+    bool split_tangent_2;
 };
 
 struct MouseEventDrawing {
