@@ -2057,20 +2057,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (state.enter_mode == EnterMode::OpenDXF) {
                         popup_popup(STRING("OpenDXF"), ToolboxGroup::Drawing,
                                 false,
-                                CellType::String, STRING("filename"), &popup->load_filename);
+                                CellType::String, STRING("filename"), &popup->dxf_load_filename);
                         if (gui_key_enter(ToolboxGroup::Drawing)) {
-                            if (FILE_EXISTS(popup->load_filename)) {
-                                if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
+                            if (FILE_EXISTS(popup->dxf_load_filename)) {
+                                if (string_matches_suffix(popup->dxf_load_filename, STRING(".dxf"))) {
                                     result.record_me = true;
                                     result.checkpoint_me = true;
                                     result.snapshot_me = true;
 
                                     { // conversation_dxf_load
-                                        ASSERT(FILE_EXISTS(popup->load_filename));
+                                        ASSERT(FILE_EXISTS(popup->dxf_load_filename));
 
                                         list_free_AND_zero(&drawing->entities);
 
-                                        entities_load(popup->load_filename, &drawing->entities);
+                                        entities_load(popup->dxf_load_filename, &drawing->entities);
 
                                         if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
                                             init_camera_drawing();
@@ -2078,26 +2078,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         }
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
-                                    other.currently_open_dxf = popup->load_filename;
-                                } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
+                                    messagef(omax.green, "LoadDXF \"%s\"", popup->dxf_load_filename.data);
+                                    other.currently_open_dxf = popup->dxf_load_filename;
+                                } else if (string_matches_suffix(popup->dxf_load_filename, STRING(".stl"))) {
                                     result.record_me = true;
                                     result.checkpoint_me = true;
                                     result.snapshot_me = true;
                                     { // conversation_stl_load(...)
-                                        ASSERT(FILE_EXISTS(popup->load_filename));
+                                        ASSERT(FILE_EXISTS(popup->dxf_load_filename));
                                         // ?
-                                        stl_load(popup->load_filename, mesh);
+                                        stl_load(popup->dxf_load_filename, mesh);
                                         init_camera_mesh();
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
-                                    other.currently_open_stl = popup->load_filename;
+                                    messagef(omax.green, "LoadSTL \"%s\"", popup->dxf_load_filename.data);
+                                    other.currently_open_stl = popup->dxf_load_filename;
                                 } else {
-                                    messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->load_filename.data);
+                                    messagef(omax.orange, "Load: \"%s\" must be *.dxf", popup->dxf_load_filename.data);
                                 }
                             } else {
-                                messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
+                                messagef(omax.orange, "Load: \"%s\" not found", popup->dxf_load_filename.data);
                             }
                         }
                     } else if (state.enter_mode == EnterMode::SaveDXF) {
@@ -2106,67 +2106,67 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                         result.record_me = false;
                         if (other.awaiting_confirmation) {
-                            popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Drawing, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
+                            popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Drawing, false, CellType::String, STRING("(y/n)"), &popup->dxf_save_confirmation);
                         } else {
                             popup_popup(STRING("SaveDXF"), ToolboxGroup::Drawing,
                                     false,
-                                    CellType::String, STRING("filename"), &popup->save_filename);
+                                    CellType::String, STRING("filename"), &popup->dxf_save_filename);
                         }
                         if (gui_key_enter(ToolboxGroup::Drawing)) {
-                            if (FILE_EXISTS(popup->save_filename)) {
-                                if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
+                            if (FILE_EXISTS(popup->dxf_save_filename)) {
+                                if (string_equal(popup->dxf_save_filename, other.currently_open_stl) || string_equal(popup->dxf_save_filename, other.currently_open_dxf)) {
                                 } else if (other.awaiting_confirmation) {
-                                    messagef(omax.pink, "Overwrote \"%s\"", popup->save_filename.data);
-                                    if (popup->save_confirmation.data[0] == 'y') {
+                                    messagef(omax.pink, "Overwrote \"%s\"", popup->dxf_save_filename.data);
+                                    if (popup->dxf_save_confirmation.data[0] == 'y') {
                                         other.awaiting_confirmation = false;
                                     } else {
                                         state.enter_mode = EnterMode::None;
                                         messagef(omax.red, "SAVE ABORTED");
                                     }
                                 } else {
-                                    messagef(omax.pink, "WARNING \"%s\" already exists", popup->save_filename.data);
+                                    messagef(omax.pink, "WARNING \"%s\" already exists", popup->dxf_save_filename.data);
                                     other.awaiting_confirmation = true;
                                 }
                             }
 
 
                             if (!other.awaiting_confirmation) {
-                                if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
+                                if (string_matches_suffix(popup->dxf_save_filename, STRING(".stl"))) {
                                     { // conversation_stl_save
-                                        bool success = mesh_save_stl(mesh, popup->save_filename);
+                                        bool success = mesh_save_stl(mesh, popup->dxf_save_filename);
                                         ASSERT(success);
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
-                                } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
+                                    messagef(omax.green, "SaveSTL \"%s\"", popup->dxf_save_filename.data);
+                                } else if (string_matches_suffix(popup->dxf_save_filename, STRING(".dxf"))) {
                                     {
-                                        bool success = drawing_save_dxf(drawing, popup->save_filename);
+                                        bool success = drawing_save_dxf(drawing, popup->dxf_save_filename);
                                         ASSERT(success);
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
+                                    messagef(omax.green, "SaveDXF \"%s\"", popup->dxf_save_filename.data);
                                 } else {
-                                    messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
+                                    messagef(omax.orange, "Save: \"%s\" must be *.dxf", popup->dxf_save_filename.data);
                                 }
                             }
                         }
                     } else if (state.enter_mode == EnterMode::OpenSTL) {
                         popup_popup(STRING("OpenSTL"), ToolboxGroup::Mesh,
                                 false,
-                                CellType::String, STRING("filename"), &popup->load_filename);
+                                CellType::String, STRING("filename"), &popup->stl_load_filename);
                         if (gui_key_enter(ToolboxGroup::Mesh)) {
-                            if (FILE_EXISTS(popup->load_filename)) {
-                                if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
+                            if (FILE_EXISTS(popup->stl_load_filename)) {
+                                if (string_matches_suffix(popup->stl_load_filename, STRING(".dxf"))) {
                                     result.record_me = true;
                                     result.checkpoint_me = true;
                                     result.snapshot_me = true;
 
                                     { // conversation_dxf_load
-                                        ASSERT(FILE_EXISTS(popup->load_filename));
+                                        ASSERT(FILE_EXISTS(popup->stl_load_filename));
 
                                         list_free_AND_zero(&drawing->entities);
 
-                                        entities_load(popup->load_filename, &drawing->entities);
+                                        entities_load(popup->stl_load_filename, &drawing->entities);
 
                                         if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
                                             init_camera_drawing();
@@ -2174,26 +2174,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         }
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
-                                    other.currently_open_dxf = popup->load_filename;
-                                } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
+                                    messagef(omax.green, "LoadDXF \"%s\"", popup->stl_load_filename.data);
+                                    other.currently_open_dxf = popup->stl_load_filename;
+                                } else if (string_matches_suffix(popup->stl_load_filename, STRING(".stl"))) {
                                     result.record_me = true;
                                     result.checkpoint_me = true;
                                     result.snapshot_me = true;
                                     { // conversation_stl_load(...)
-                                        ASSERT(FILE_EXISTS(popup->load_filename));
+                                        ASSERT(FILE_EXISTS(popup->stl_load_filename));
                                         // ?
-                                        stl_load(popup->load_filename, mesh);
+                                        stl_load(popup->stl_load_filename, mesh);
                                         init_camera_mesh();
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
-                                    other.currently_open_stl = popup->load_filename;
+                                    messagef(omax.green, "LoadSTL \"%s\"", popup->stl_load_filename.data);
+                                    other.currently_open_stl = popup->stl_load_filename;
                                 } else {
-                                    messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->load_filename.data);
+                                    messagef(omax.orange, "Load: \"%s\" must be *.stl", popup->stl_load_filename.data);
                                 }
                             } else {
-                                messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
+                                messagef(omax.orange, "Load: \"%s\" not found", popup->stl_load_filename.data);
                             }
                         }
                     } else if (state.enter_mode == EnterMode::SaveSTL) {
@@ -2202,47 +2202,47 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                         result.record_me = false;
                         if (other.awaiting_confirmation) {
-                            popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Mesh, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
+                            popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Mesh, false, CellType::String, STRING("(y/n)"), &popup->stl_save_confirmation);
                         } else {
                             popup_popup(STRING("SaveSTL"), ToolboxGroup::Mesh,
                                     false,
-                                    CellType::String, STRING("filename"), &popup->save_filename);
+                                    CellType::String, STRING("filename"), &popup->stl_save_filename);
                         }
                         if (gui_key_enter(ToolboxGroup::Mesh)) {
-                            if (FILE_EXISTS(popup->save_filename)) {
-                                if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
+                            if (FILE_EXISTS(popup->stl_save_filename)) {
+                                if (string_equal(popup->stl_save_filename, other.currently_open_stl) || string_equal(popup->stl_save_filename, other.currently_open_stl)) {
                                 } else if (other.awaiting_confirmation) {
-                                    messagef(omax.pink, "Overwrote \"%s\"", popup->save_filename.data);
-                                    if (popup->save_confirmation.data[0] == 'y') {
+                                    messagef(omax.pink, "Overwrote \"%s\"", popup->stl_save_filename.data);
+                                    if (popup->stl_save_confirmation.data[0] == 'y') {
                                         other.awaiting_confirmation = false;
                                     } else {
                                         state.enter_mode = EnterMode::None;
                                         messagef(omax.red, "SAVE ABORTED");
                                     }
                                 } else {
-                                    messagef(omax.pink, "WARNING \"%s\" already exists", popup->save_filename.data);
+                                    messagef(omax.pink, "WARNING \"%s\" already exists", popup->stl_save_filename.data);
                                     other.awaiting_confirmation = true;
                                 }
                             }
 
 
                             if (!other.awaiting_confirmation) {
-                                if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
+                                if (string_matches_suffix(popup->stl_save_filename, STRING(".stl"))) {
                                     { // conversation_stl_save
-                                        bool success = mesh_save_stl(mesh, popup->save_filename);
+                                        bool success = mesh_save_stl(mesh, popup->stl_save_filename);
                                         ASSERT(success);
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
-                                } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
+                                    messagef(omax.green, "SaveSTL \"%s\"", popup->stl_save_filename.data);
+                                } else if (string_matches_suffix(popup->stl_save_filename, STRING(".dxf"))) {
                                     {
-                                        bool success = drawing_save_dxf(drawing, popup->save_filename);
+                                        bool success = drawing_save_dxf(drawing, popup->stl_save_filename);
                                         ASSERT(success);
                                     }
                                     state.enter_mode = EnterMode::None;
-                                    messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
+                                    messagef(omax.green, "SaveDXF \"%s\"", popup->stl_save_filename.data);
                                 } else {
-                                    messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
+                                    messagef(omax.orange, "Save: \"%s\" must be *.stl", popup->stl_save_filename.data);
                                 }
                             }
                         }
