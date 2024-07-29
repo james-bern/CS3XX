@@ -40,7 +40,7 @@
     COMMANDS_INNER(Axis,        'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Box,         'B', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Color,       'Q', 0b000, Draw, 1, 0); \
-    COMMANDS_INNER(CenteredBox, 'B', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
+    COMMANDS_INNER(CenterBox, 'B', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Circle,      'C', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Copy,        'O', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Deselect,    'D', 0b000, Draw, 1, 0); \

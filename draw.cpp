@@ -337,7 +337,7 @@ void conversation_draw() {
                     eso_vertex(first_click->x, mouse.y);
                     eso_end();
                 }
-                if (state_Draw_command_is_(CenteredBox)) {                
+                if (state_Draw_command_is_(CenterBox)) {                
                     vec2 one_corner = mouse;
                     vec2 center = *first_click;
                     real other_y = 2 * center.y - one_corner.y;

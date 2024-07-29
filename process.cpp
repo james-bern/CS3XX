@@ -470,7 +470,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Polygon);
                     SEPERATOR();
                     GUIBUTTON(commands.DiamCircle);
-                    GUIBUTTON(commands.CenteredBox);
+                    GUIBUTTON(commands.CenterBox);
                     SEPERATOR();
                     GUIBUTTON(commands.Move);
                     GUIBUTTON(commands.Rotate);
@@ -781,7 +781,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             if (snap_result.snapped && ( 
                         (state_Draw_command_is_(Box))
-                        || (state_Draw_command_is_(CenteredBox))
+                        || (state_Draw_command_is_(CenterBox))
                         || (state_Draw_command_is_(Circle))
                         || (state_Draw_command_is_(Line))
                         || (state_Draw_command_is_(Polygon))
@@ -1036,7 +1036,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(second_click, other_corner_A);
                                 cookbook.buffer_add_line(second_click, other_corner_B);
                             }
-                        } else if (state_Draw_command_is_(CenteredBox)) {
+                        } else if (state_Draw_command_is_(CenterBox)) {
                             if (IS_ZERO(ABS(first_click.x - second_click.x))) {
                                 messagef(omax.orange, "Box: must have non-zero width ");
                             } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
@@ -1757,9 +1757,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
                         }
                     }
-                } else if (state_Draw_command_is_(CenteredBox)) {
+                } else if (state_Draw_command_is_(CenterBox)) {
                     if (two_click_command->awaiting_second_click) {
-                        popup_popup(STRING("CenteredBox"), ToolboxGroup::Draw,
+                        popup_popup(STRING("CenterBox"), ToolboxGroup::Draw,
                                 true,
                                 CellType::Real, STRING("width"), &popup->box_width,
                                 CellType::Real, STRING("height"), &popup->box_height);
