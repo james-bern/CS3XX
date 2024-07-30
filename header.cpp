@@ -307,6 +307,7 @@ struct PopupManager {
     }
 
     void manually_set_focus_group(ToolboxGroup new_focus_group) {
+        // ASSERT(get_tag(new_focus_group)); // TODO: really important to get this assert working
         focus_group_was_set_manually = true;
         focus_group = new_focus_group;
     }

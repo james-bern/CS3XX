@@ -70,7 +70,7 @@
     COMMANDS_INNER(ExtrudeCut,  '[', 0b001, Mesh, 1, 0 | FOCUS_THEIF); \
     COMMANDS_INNER(NudgePlane,  'N', 0b000, Mesh, 1, 0 | FOCUS_THEIF); \
     COMMANDS_INNER(OpenSTL,     'O', 0b011, Mesh, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(Plane,       'Y', 0b000, Mesh, 1, 0 | FOCUS_THEIF); \
+    COMMANDS_INNER(Plane,       'Y', 0b000, Mesh, 0, 0); \
     COMMANDS_INNER(RevolveAdd,  ']', 0b000, Mesh, 1, 0 | FOCUS_THEIF); \
     COMMANDS_INNER(RevolveCut,  ']', 0b001, Mesh, 1, 0 | FOCUS_THEIF); \
     COMMANDS_INNER(SaveSTL,     'S', 0b011, Mesh, 1, 0 | FOCUS_THEIF | NO_RECORD); \
