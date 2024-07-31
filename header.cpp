@@ -376,11 +376,11 @@ struct PopupState {
     uint rotate_copy_num_total_copies;
     real rotate_copy_angle;
     real scale_factor;
-    _STRING_CALLOC(dxf_load_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(stl_load_filename, POPUP_CELL_LENGTH);
-    _STRING_CALLOC(dxf_save_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(stl_save_filename, POPUP_CELL_LENGTH);
-    _STRING_CALLOC(dxf_save_confirmation, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(save_confirmation, POPUP_CELL_LENGTH);
     _STRING_CALLOC(stl_save_confirmation, POPUP_CELL_LENGTH);
 };
 

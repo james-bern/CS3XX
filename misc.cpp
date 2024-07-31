@@ -133,7 +133,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     }
                     result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, angle);
                     result.snapped = true;
-                } else if (state.click_modifier == ClickModifier::Tangent) {
+                } else if (state_Snap_command_is_(Tangent)) {
 
                     vec2 mouse = before;
 
@@ -187,7 +187,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.split_tangent_2 = true;
                         result.entity_index_tangent_2 = two_click_command->entity_closest_to_first_click - drawing->entities.array;
 
-                    } else if (click_mode_TWO_CLICK_COMMAND() && two_click_command->awaiting_second_click) {
+                    } else if (two_click_command->awaiting_second_click) {
                         vec2 center = closest_entity->arc.center;
                         real radius = closest_entity->arc.radius;
                         real d = distance(center, mouse);
