@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+* {
+    box-sizing: border-box;
+}
+
+/*
+
+Downscale original mov
+    ffmpeg -i SpaceSource.mov -vf "scale=1280:720" -c:v prores_ks -profile:v 3 -qscale:v 9 -an SpaceSourceSmall.mov
+
+Replace video black with transparent
+    ffmpeg -i Modern.mp4 -vf "colorkey=0x000000:0.1:0.1,format=yuva420p" -c:v libvpx-vp9 -b:v 2M -auto-alt-ref 0 Modern.webm
+
+Reduce alpha of stars only to 0.35
+    ffmpeg -i SpaceSmall.webm -filter_complex "[0:v]split=2[v1][v2]; [v1]format=gray,geq=lum='p(X,Y)*0.35':a=0[alf]; [v2][alf]alphamerge" -c:v libvpx-vp9 -crf 10 -b:v 0 -an SpaceSmall2.webm
+
+Martins solution for merging transparent video on top of jpeg
+    ffmpeg -i Background.jpg -vcodec libvpx-vp9 -i SpaceOrig.webm -filter_complex "[0:v][1:v]overlay=(main_w-overlay_w)/2:0:format=yuv420" -c:v libx264 -crf 23 -preset veryfast -an SpaceNew.mp4
+ffmpeg -i Background.jpg -vcodec libvpx-vp9 -i SpaceOrig.webm -filter_complex "[0:v][1:v]overlay=(main_w-overlay_w)/2:0,format=yuv420p" -c:v libx264 -crf 23 -preset veryfast -color_primaries bt709 -color_trc bt709 -colorspace bt709 -an SpaceNew.mp4
+
+ */
+
+@font-face {
+  font-family: 'Bladerunner';
+  src: url('Bladerunner.ttf') format('truetype');
+}
+body, html {
+    color: white;
+    /* background-color: #0b0a34; */
+    margin: 0;
+    font-size: min(2vh, 3vw);
+    /* font-family: 'Ubuntu', sans-serif; */
+    font-family: 'Bladerunner', sans-serif;
+    background-image: url('https://wallpapers.com/images/featured/vaporwave-background-sc46wjgt93poi8dk.jpg');
+    background-attachment: fixed;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+}
+
+
+h1, h2, h3, h4 {
+    margin: 0;
+    text-align: center;
+    padding: 0.25rem;
+
+    pointer-events: none; /* Prevents all click, state and cursor options */
+    cursor: default;
+}
+
+.spacer {
+    flex: 1 1 auto;
+}
+
+.header {
+    position: relative;
+    height: 100vh; /* This makes the header full viewport height */
+    display: flex;
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+    overflow: hidden; /* This prevents content from spilling out */
+}
+
+/*.header-background {
+    width: 100%;
+    max-width: 1280px;
+    height: auto;
+}*/
+
+.header-video {
+    max-width: 1280px;
+    position: absolute;
+    top: 0;
+    /* bottom: 0; */
+    left: 0;
+    width: 100%;
+    height: auto;
+    z-index: 1;
+}
+
+.header-title-container {
+    display: flex;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    font-family: 'Bladerunner';
+    text-align: center;
+    padding: 15px 0;
+    z-index: 3;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 3rem;
+}
+
+.signup-top-container {
+    background-color: rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 7.5rem;
+    width: 32%;
+    /* text-align: center; */
+    padding: 1rem;
+    z-index: 3;
+    align-items: center;
+    /* justify-content: center; */
+    border: 1px solid #0b0a3499;
+    margin-left: 34.0%;
+    margin-right: 34.0%;
+    justify-content: space-between;
+    box-shadow: 15px 15px 5px 0px rgba(0,0,0,0.15);
+}
+
+.signup-top-container h3 {
+    color: #ffffff;
+}
+
+.signup-top-container input {
+    font-size: 0.75rem;
+    border-radius: 10px;
+    border-color: #AAA;
+    padding: 10px 20px;
+    width: 15rem;
+}
+
+.signup-top-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    /* padding: 0.5rem; */
+    gap: 0.5rem;
+}
+
+.header-title {
+    font-family: 'Bladerunner', sans-serif;
+    font-size: 2.35rem;
+    color: #FD00FF;
+    margin-right: 3rem;
+    white-space: nowrap;
+}
+
+.voyager {
+    width: 3.5rem;
+    margin-right: 0.25rem;
+    height: auto; /* Maintain aspect ratio */
+    z-index: 8; /* Higher than the YouTube container to ensure it's on top */
+}
+
+.header-subtitle {
+    font-family: 'Bladerunner', sans-serif;
+    position: absolute;
+    top: 2.5rem;
+    width: 100%;
+    text-align: center;
+    /* margin: 0; */
+    margin-top: 1rem;
+    padding: 15px 0;
+    color: #FFFFFF;
+    z-index: 3;
+}
+
+.header-clouds {
+    position: absolute;
+    bottom: -1px;
+    width: 100%;
+    height: auto;
+    display: block;
+    z-index: 2;
+}
+
+.youtube-video-container {
+    position: relative;
+    bottom: -20rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 59.8%; /* You can use percentage to make it responsive */
+    padding-top: 33.6%; /* This percentage is based on a 16:9 aspect ratio */
+    height: 0;
+    z-index: 10;
+    border: 1px solid #0b0a34;
+    box-shadow: 15px 15px 5px 0px rgba(0,0,0,0.15);
+}
+.youtube-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.section {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    gap: 5rem;
+    max-width: 1280px;
+    margin-left: auto; /* Center the div horizontally */
+    margin-right: auto; /* Center the div horizontally */
+}
+
+.section2 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    gap: 1rem;
+    max-width: 1280px;
+    margin-left: auto; /* Center the div horizontally */
+    margin-right: auto; /* Center the div horizontally */
+}
+
+
+.huge-video {
+    width: 90%;
+    box-shadow: 25px 25px 15px 0px rgba(0,0,0,0.25);
+}
+
+.small-video {
+    width: 90%;
+    box-shadow: 15px 15px 15px 0px rgba(1,1,1,0.25);
+}
+
+.section.signup {
+    flex-direction: column;
+    padding: 3rem;
+    gap: 1rem;
+}
+
+.section.signup h2 {
+    margin-bottom: 5px;
+}
+
+.signup-form {
+    display: flex;
+    /* flex-direction: column; */
+    align-items: center;
+    justify-content: space-between;
+}
+
+@media (max-width: 800px) {
+    .signup-form {
+        flex-direction: column;
+        align-items: center;
+    }
+    .signup-form input {
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 80rem) {
+    .section {
+        gap: 1rem;
+    }
+}
+
+input {
+    font-family: 'Bladerunner', sans-serif;
+    font-size: 0.75rem;
+    border-radius: 10px;
+    padding: 10px 20px;
+    width: 450px;
+    margin-right: 0.5rem;
+}
+
+button {
+    font-family: 'Bladerunner', sans-serif;
+    font-size: 0.75rem;
+    border-radius: 10px;
+    padding: 10px 20px;
+    width: 250px;
+    background-color: black;
+    color: white;
+}
+
+.section h1 {
+    margin-bottom: 0.5rem;
+}
+
+.section img {
+    width: 18rem;
+}
+
+.section-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* margin-top: 1rem; */
+    gap: 0.75rem;
+}
+
+.section-inner img {
+    width: 8rem;
+    padding: 0.5rem;
+    border: 1px solid #FFFFFF33;
+    box-shadow: 15px 15px 5px 0px rgba(0,0,0,0.15);
+}
+
+.header-divider {
+    border: 0;
+    height: 7rem;
+    /*background-color: #0b0a34;*/
+    margin: 0 0;
+    max-width: 1280px;
+    margin-left: auto; /* Center the div horizontally */
+    margin-right: auto; /* Center the div horizontally */
+}
+
+.footer-divider {
+    border: 0;
+    height: 1px;
+    background-color: #FFF;
+    margin: 0 0;
+    max-width: 1280px;
+    margin-left: auto; /* Center the div horizontally */
+    margin-right: auto; /* Center the div horizontally */
+}
+
+.section.footer {
+    height: 1rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    gap: 1rem;
+    max-width: 1280px;
+    margin-left: auto; /* Center the div horizontally */
+    margin-right: auto; /* Center the div horizontally */
+    /* justify-content: stretch; */
+}
+
+.section.footer img {
+    width: 8rem;
+}
+
+.socials a {
+    margin: 0 10px;
+}
+
+.voidstar-container {
+    display: flex;
+    align-items: center;
+}
+
+.voidstar-container h4 {
+    margin-left: 5px;
+    font-family: 'Bladerunner', sans-serif;
+}
+
+.section.footer .voidstar img {
+    width: 1.75rem;
+    height: 1.75rem;
+}
+
+.section.footer .socials img {
+    width: 1.0rem;
+    height: 1.0rem;
+}
+
+.desc {
+    width: 12rem;
+    font-size: 1.25rem;
+    text-align: center;
+    pointer-events: none; /* Prevents all click, state and cursor options */
+    cursor: default;
+}
+
+.thankyou {
+    /* font-family: 'Bladerunner', sans-serif; */
+    /* font-size: 1.25rem; */
+    text-align: center;
+    pointer-events: none; /* Prevents all click, state and cursor options */
+    cursor: default;
+}
+
+button {
+    border-top: 2px solid #AAA; /* Light border top */
+    border-left: 2px solid #AAA; /* Light border left */
+    border-bottom: 2px solid #888888; /* Dark border bottom */
+    border-right: 2px solid #888888; /* Dark border right */
+    background-color: #0b0a34;
+    outline: none;
+}
+
+button:active {
+    background-color: #477aaa;
+    border-top: 2px solid #888888; /* Dark border top */
+    border-left: 2px solid #888888; /* Dark border left */
+    border-bottom: 2px solid #AAA; /* Light border bottom */
+    border-right: 2px solid #AAA; /* Light border right */
+}
+
+a:link, a:visited, a:hover, a:active {
+    text-decoration: none;
+}
+
+a:link, a:visited {
+    color: white;
+}
+
+.descColor1 {
+    color: #BBB;
+}
+.descColor2 {
+    color: #DDD;
+}
+
+/* .section:nth-child(1n) { */
+/* 	border-left: 1px solid #0b0a34; */
+/* 	border-right: 1px solid #0b0a34; */
+/* } */
+/*.section:nth-child(2n) {
+    background: #f66cef;
+}
+
+.section2:nth-child(2n) {
+    background: #f66cef;
+}*/
+
+@keyframes fadeInUpAnimation {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.fadeInUpClass {
+    animation: fadeInUpAnimation 0.5s ease-in-out forwards;
+    animation-delay: 0.25s;
+    opacity: 0; /* Start with the text invisible */
+    filter: drop-shadow(1px 1px 1px #4444dd);
+    text-shadow: 
+        0 0 5px #4444dd,
+        0 0 10px #4444dd,
+        0 0 20px #4444dd,
+        0 0 40px #4444dd,
+        0 0 80px #4444dd,
+        0 0 90px #4444dd,
+        0 0 100px #4444dd,
+        0 0 150px #4444dd;
+}
+
+@keyframes fadeInAnimation {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.fadeInClass {
+    animation: fadeInAnimation 0.5s ease-in-out forwards;
+    animation-delay: 0.75s;
+    opacity: 0; /* Start with the text invisible */
+}
+
+        </style>
+
+        <head>
+            <meta charset="UTF-8">
+            <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;700&display=swap" rel="stylesheet">
+            <link href="https://fonts.googleapis.com/css2?family=Playwrite+BE+WAL:wght@100..400&family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+
+            <link rel="icon" type="image/png" href="https://csci.williams.edu/files/shrunk.png">
+
+            <title>Conversation</title>
+            <meta name="description" content="fast, lightweight cad program.">
+            <meta name="keywords" content="cad, free, fast">
+            <meta name="author" content="James Bern">
+        </head>
+
+        <body>
+
+            <div class="title">
+            </div>
+
+            <div class="header">
+
+                <!--<img src="https://wallpapers.com/images/featured/vaporwave-background-sc46wjgt93poi8dk.jpg" class="header-background"/>
+
+                    <img src="https://wallpapers.com/images/featured/vaporwave-background-sc46wjgt93poi8dk.jpg" class="header-clouds"/>-->
+                    <div class="header-title-container">
+                        <img src="https://csci.williams.edu/files/shrunk.png" class="voyager"/>
+                        <h1 class="header-title">Conversation</h1>
+                    </div>
+                    <h4 class="header-subtitle fadeInClass">Lightweight CAD Program</h4>
+
+                    <div id="alpha" class="signup-top-container">
+                        <h3>alpha has been released.<br>Click to download.</h3>
+                        <button id="downloadButtonTop" type = "button" class="subscribeButton">Download</button>
+                        <div id="signup-message-top" class="thankyou" style="display: none;"><h4>Thank you for downloading!</h4></div>
+                    </div>
+
+                    <div class="youtube-video-container">
+                        <iframe class="youtube-video fadeInClass" src="https://www.youtube.com/embed/oSS_mXJJugo" title="Disk Voyager - Demo 2023" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    </div>
+
+            </div>
+
+            <!--<hr class="header-divider">-->
+
+            <div class="section">
+                <div class="section-inner">
+                    <img src="https://media.discordapp.net/attachments/1051282308709228705/1268246037189886024/image.png?ex=66abb9aa&is=66aa682a&hm=b23ffd1bef35662552092c48466bd9ceacc090672ee9a9be4b92c240070f005c&=&format=webp&quality=lossless"/>
+                    <h2 class="animateTag fadeInUpTag">Faster</h2>
+                </div>
+
+                <div class="section-inner">
+                    <img src="https://csci.williams.edu/files/shrunk.png"/>
+                    <h2 class="animateTag fadeInUpTag">Simpler</h2>
+                </div>
+
+                <div class="section-inner">
+                    <img src="https://csci.williams.edu/files/shrunk.png"/>
+                    <h2 class="animateTag fadeInUpTag">Smaller</h2>
+                </div>
+            </div>
+
+            <div class="section2">
+                <h2 class="animateTag fadeInUpTag">Panels & Tabs</h2>
+                <img class="huge-video" src="https://i.makeagif.com/media/2-11-2023/avo4-r.gif" alt="Description of the GIF">
+            </div>
+
+            <div class="section2">
+                <h2 class="animateTag fadeInUpTag">Batch Rename</h2>
+                <img class="huge-video" src="https://64.media.tumblr.com/9c482ecfcda309f629ac69168f2c22c2/tumblr_oh44bi2bp91vj2gx4o1_500.gif" alt="Description of the GIF">
+            </div>
+
+            <div class="section">
+                <div class="section-inner">
+                    <h2 class="animateTag fadeInUpTag">Expand & Filter</h2>
+                    <img class="small-video" src="https://i.gifer.com/origin/8a/8a8734db2d7dff8d61edf90306e0d482_w200.gif" alt="Description of the GIF">
+                </div>
+
+                <div class="section-inner">
+                    <h2 class="animateTag fadeInUpTag">Context Menu</h2>
+                    <img class="small-video" src="https://media.tenor.com/0TiBV8KRJ-YAAAAM/vaporwave-lord-desktop.gif" alt="Description of the GIF">
+                </div>
+            </div>
+
+
+            <div class="section signup">
+                <h2 class="animateTag fadeInUpTag">Download the alpha</h2>
+                <button id="downloadButtonBottom" type="button" class="subscribeButton">Download</button>
+                <div id="signup-message" class="thankyou" style="display: none;"><h2>Thank you for downloading!</h2></div>
+            </div>
+
+            <hr class="footer-divider">
+            <hr class="footer-divider">
+
+            <div class="section footer">
+
+                <div class="voidstar-container">
+                    <a class="voidstar" href="https://voidstarbits.com"><img src="Footer/Voidstar.png" /></a>
+                    <a class="voidstar" href="https://voidstarbits.com"><h4>Voidstar Bits</h4></a>
+                </div>
+
+                <div class="spacer"></div>
+
+                <div class="socials">
+                    <a href="https://discord.gg/PjH9zYadTg"><img src="https://media.discordapp.net/attachments/976601706181844992/1268218832024244327/image.png?ex=66aba053&is=66aa4ed3&hm=c5f68b5826b12a608bd4c2d967f2098a100c84e8d16d7dcc5e39f489f5177ae5&=&format=webp&quality=lossless&width=550&height=302" /></a>
+                    <a href="https://x.com/vkrajacic"><img src="https://csci.williams.edu/files/shrunk.png" /></a>
+                    <a href="https://www.youtube.com/channel/UCSZsgOOTYWadgPR-Ajxn86Q"><img src="https://csci.williams.edu/files/shrunk.png" /></a>
+                    <a href="mailto: contact@voidstarbits.com"><img src="https://csci.williams.edu/files/shrunk.png" /></a>
+                </div>
+
+            </div>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', (event) => {
+                    let observer = new IntersectionObserver((entries, observer) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                if (entry.target.classList.contains('fadeInUpTag')) {
+                                    entry.target.classList.add('fadeInUpClass');
+                                }
+                                else if (entry.target.classList.contains('fadeInTag')) {
+                                    entry.target.classList.add('fadeInClass');
+                                }
+                            }
+                        });
+                    }, { threshold: [0.1] });
+
+                    document.querySelectorAll('.animateTag').forEach(text => {
+                        observer.observe(text);
+                    });
+                });
+
+                downloadButtonTop.addEventListener('click', download);
+                downloadButtonBottom.addEventListener('click', download);
+
+                function download(event) {
+                    const fileUrl = 'https://csci.williams.edu/files/shrunk.png';
+                    const fileName = 'executable'; // Replace with desired file name
+
+                    fetch(fileUrl)
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(blob);
+                            link.download = fileName;
+                            link.click();
+                            URL.revokeObjectURL(link.href);
+                        })
+                        .catch(console.error);
+                }
+            </script>
+
+        </body>
+</html>
