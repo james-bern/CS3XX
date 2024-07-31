@@ -1,118 +1,59 @@
-bool click_mode_SNAP_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::Box)
-        || (state.click_mode == ClickMode::CenteredBox)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::LinearCopy)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Mirror2)
-        || (state.click_mode == ClickMode::XMirror)
-        || (state.click_mode == ClickMode::YMirror)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::Rotate)
-        || (state.click_mode == ClickMode::RotateCopy)
-        || (state.click_mode == ClickMode::DiamCircle)
-        ;
-}
-
-bool click_mode_15_DEG_ELIGIBLE() {
-    return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::Box)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::LinearCopy)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Mirror2)
-        || (state.click_mode == ClickMode::XMirror)
-        || (state.click_mode == ClickMode::YMirror)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::Rotate)
-        || (state.click_mode == ClickMode::RotateCopy)
-        || (state.click_mode == ClickMode::DiamCircle)
-        ;
-}
-
 bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
-        || (state.click_mode == ClickMode::Axis)
-        || (state.click_mode == ClickMode::Box)
-        || (state.click_mode == ClickMode::Circle)
-        || (state.click_mode == ClickMode::Fillet)
-        || (state.click_mode == ClickMode::Line)
-        || (state.click_mode == ClickMode::Measure)
-        || (state.click_mode == ClickMode::Mirror2)
-        || (state.click_mode == ClickMode::XMirror)
-        || (state.click_mode == ClickMode::YMirror)
-        || (state.click_mode == ClickMode::Move)
-        || (state.click_mode == ClickMode::Origin)
-        || (state.click_mode == ClickMode::Polygon)
-        || (state.click_mode == ClickMode::Rotate)
-        || (state.click_mode == ClickMode::RotateCopy)
-        || (state.click_mode == ClickMode::Divide2)
-        || (state.click_mode == ClickMode::DiamCircle)
+        || (state_Draw_command_is_(Box))
+        || (state_Draw_command_is_(Circle))
+        || (state_Draw_command_is_(Fillet))
+        || (state_Draw_command_is_(Line))
+        || (state_Draw_command_is_(Measure))
+        || (state_Draw_command_is_(Mirror2))
+        || (state_Draw_command_is_(XMirror))
+        || (state_Draw_command_is_(YMirror))
+        || (state_Draw_command_is_(Move))
+        || (state_Draw_command_is_(Origin))
+        || (state_Draw_command_is_(Polygon))
+        || (state_Draw_command_is_(Rotate))
+        || (state_Draw_command_is_(RCopy))
+        || (state_Draw_command_is_(Divide2))
+        || (state_Draw_command_is_(DiamCircle))
         ;
 }
 
-bool click_mode_SELECT_OR_DESELECT() {
-    return ((state.click_mode == ClickMode::Select) || (state.click_mode == ClickMode::Deselect));
+bool SELECT_OR_DESELECT() {
+    return ((state_Draw_command_is_(Select)) || (state_Draw_command_is_(Deselect)));
 }
 
-bool click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT() {
-    return (click_mode_SELECT_OR_DESELECT() && (state.click_modifier == ClickModifier::Window));
+bool WINDOW_SELECT_OR_WINDOW_DESELECT() {
+    return (SELECT_OR_DESELECT() && (state_Xsel_command_is_(Window)));
 }
 
-bool click_mode_TWO_CLICK_COMMAND() {
-    return 0 ||
-        (state.click_mode == ClickMode::Axis) ||
-        (state.click_mode == ClickMode::Box) ||
-        (state.click_mode == ClickMode::CenteredBox) ||
-        (state.click_mode == ClickMode::Circle) ||
-        (state.click_mode == ClickMode::Fillet) ||
-        (state.click_mode == ClickMode::DogEar) ||
-        (state.click_mode == ClickMode::Line) ||
-        (state.click_mode == ClickMode::LinearCopy) ||
-        (state.click_mode == ClickMode::Measure) ||
-        (state.click_mode == ClickMode::Mirror2) ||
-        (state.click_mode == ClickMode::Move) ||
-        (state.click_mode == ClickMode::Polygon) ||
-        (state.click_mode == ClickMode::Rotate) ||
-        (state.click_mode == ClickMode::RotateCopy) ||
-        (state.click_mode == ClickMode::DiamCircle) ||
-        (state.click_mode == ClickMode::Divide2) ||
-        click_mode_WINDOW_SELECT_OR_WINDOW_DESELECT(); // fornow wonky case
+bool _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
+    return (
+            ((!state_Xsel_command_is_(Window)) && SELECT_OR_DESELECT())
+            || (state_Draw_command_is_(Color)));
 }
+
+bool _SELECT_OR_DESELECT_COLOR() {
+    bool A = SELECT_OR_DESELECT();
+    bool B = (state_Draw_command_is_(Color));
+    return A && B;
+}
+
 
 bool first_click_must_acquire_entity() {
     return 0 ||
-        (state.click_mode == ClickMode::DogEar) ||
-        (state.click_mode == ClickMode::Fillet) ||
-        (state.click_mode == ClickMode::Divide2)
+        (state_Draw_command_is_(DogEar)) ||
+        (state_Draw_command_is_(Fillet)) ||
+        (state_Draw_command_is_(Divide2))
         ;
 }
 
 bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
-        || (state.enter_mode == EnterMode::ExtrudeAdd)
-        || (state.enter_mode == EnterMode::ExtrudeCut)
-        || (state.enter_mode == EnterMode::RevolveAdd)
-        || (state.enter_mode == EnterMode::RevolveCut)
-        || (state.enter_mode == EnterMode::NudgePlane)
+        || (state_Mesh_command_is_(ExtrudeAdd))
+        || (state_Mesh_command_is_(ExtrudeCut))
+        || (state_Mesh_command_is_(RevolveAdd))
+        || (state_Mesh_command_is_(RevolveCut))
+        || (state_Mesh_command_is_(NudgePlane))
         ;
 }
 
-bool _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
-    return ((click_mode_SELECT_OR_DESELECT() && (state.click_modifier != ClickModifier::Window)) || (state.click_mode == ClickMode::Color));
-}
-
-bool _SELECT_OR_DESELECT_COLOR() {
-    bool A = click_mode_SELECT_OR_DESELECT();
-    bool B = (state.click_modifier == ClickModifier::Color);
-    return A && B;
-}

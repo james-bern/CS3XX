@@ -22,8 +22,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
     MagicSnapResult result = {};
     result.mouse_position = before;
     {
-        if (
-                click_mode_15_DEG_ELIGIBLE()
+        if (1
+                && (state.Draw_command.flags & SHIFT_15)
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             vec2 a = two_click_command->first_click;
@@ -34,7 +34,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
             real theta = roundf(ATAN2(r) * factor) / factor;
             result.mouse_position = a + norm_r * e_theta(theta);
         } else if (
-                (state.click_mode == ClickMode::Box)
+                (state_Draw_command_is_(Box))
                 && (two_click_command->awaiting_second_click)
                 && (other.shift_held)) {
             // TODO (Felipe): snap square
@@ -42,8 +42,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
-            //messagef(omax.green, "%d", two_click_command->tangent_first_click);
-            if (state.click_modifier == ClickModifier::Center || state.click_modifier == ClickModifier::Quad || state.click_modifier == ClickModifier::Tangent) {
+            if (state_Snap_command_is_(Center) || state_Snap_command_is_(Quad) || state_Snap_command_is_(Tangent)) {
                 real min_squared_distance = HUGE_VAL;
                 Entity *temp_entity = NULL;
                 _for_each_entity_ {
@@ -72,13 +71,13 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
 
                 Entity *closest_entity = closest_entity_info.closest_entity;
                 result.entity_index_snapped_to = uint(closest_entity_info.closest_entity - drawing->entities.array); //TODO TODO TODO
-                if (state.click_modifier == ClickModifier::Center) {
+                if (state_Snap_command_is_(Center)) {
                     result.mouse_position = closest_entity->arc.center;
                     result.snapped = true;
-                } else if (state.click_modifier == ClickModifier::Middle) {
+                } else if (state_Snap_command_is_(Middle)) {
                     result.mouse_position = entity_get_middle(closest_entity);
                     result.snapped = true;
-                } else if (state.click_modifier == ClickModifier::End) { // this one is a little custom
+                } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     _for_each_entity_ {
                         vec2 p[2];
@@ -93,7 +92,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             }
                         }
                     }
-                } else if (state.click_modifier == ClickModifier::Intersect) { // this one is a little custom
+                } else if (state_Snap_command_is_(Intersect)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     Entity *temp_entity = NULL;
                     _for_each_entity_ {
@@ -113,7 +112,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             result.split_intersect = true;
                         } else messagef(omax.orange, "no intersection found");
                     } else messagef(omax.orange, "no intersection found");
-                } else if (state.click_modifier == ClickModifier::Perp) { // layout also does a divide which can be added if wanted
+                } else if (state_Snap_command_is_(Perp)) { // layout also does a divide which can be added if wanted
                     vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
@@ -126,7 +125,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.mouse_position = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
                         result.snapped = true;
                     }
-                } else if (state.click_modifier == ClickModifier::Quad) {
+                } else if (state_Snap_command_is_(Quad)) {
                     ArcEntity *arc = &closest_entity->arc;
                     real angle; {
                         angle = LINEAR_REMAP(angle_from_0_TAU(arc->center, before), 0.0f, TAU, 0.0f, 4.0f);

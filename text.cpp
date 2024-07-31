@@ -197,7 +197,7 @@ template <uint D_position, uint D_color> vec2 text_draw(
 ////////////////////////////////////////
 
 struct EasyTextPen {
-    vec2 origin_Pixel;
+    vec2 origin;
     real font_height_Pixel;
     vec3 color;
     bool automatically_append_newline;
@@ -206,10 +206,10 @@ struct EasyTextPen {
     vec2 offset_Pixel;
 
     vec2 get_position_Pixel() {
-        return this->origin_Pixel + this->offset_Pixel;
+        return this->origin + this->offset_Pixel;
     }
-    real get_x_Pixel() { return this->origin_Pixel.x + this->offset_Pixel.x; }
-    real get_y_Pixel() { return this->origin_Pixel.y + this->offset_Pixel.y; }
+    real get_x_Pixel() { return this->origin.x + this->offset_Pixel.x; }
+    real get_y_Pixel() { return this->origin.y + this->offset_Pixel.y; }
 };
 
 void easy_text_draw(EasyTextPen *pen, String string) {

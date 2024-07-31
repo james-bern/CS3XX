@@ -150,15 +150,15 @@ void popup_popup(
         {
             pen = { V2(96.0f, 12.0f), 22.0f, AVG(lighter_gray, accent_color) };
             if (group == ToolboxGroup::Mesh) {
-                pen.origin_Pixel.x += get_x_divider_drawing_mesh_Pixel();
+                pen.origin.x += get_x_divider_drawing_mesh_Pixel();
             } else if (group == ToolboxGroup::Snap) {
-                // pen.origin_Pixel.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
-                pen.origin_Pixel.y += 128.0f;
+                // pen.origin.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
+                pen.origin.y += 128.0f;
             }
             easy_text_draw(&pen, title);
-            pen.origin_Pixel.x += pen.offset_Pixel.x + 12.0f;
+            pen.origin.x += pen.offset_Pixel.x + 12.0f;
             pen.offset_Pixel.x = 0.0f;
-            pen.origin_Pixel.y += 2.5f; // FORNOW
+            pen.origin.y += 2.5f; // FORNOW
             pen.font_height_Pixel = 18.0f;
         }
     }

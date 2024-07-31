@@ -1,76 +1,63 @@
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
 
-enum class EnterMode {
-    None,
-    ExtrudeAdd,
-    ExtrudeCut,
-    NudgePlane,
-    RevolveAdd,
-    RevolveCut,
-    Size,
-
-    OpenDXF,
-    OpenSTL,
-    SaveDXF,
-    SaveSTL,
-};
-
-
-
 enum class ToolboxGroup {
     None,
-    Drawing,
+    Draw,
     Snap,
     Mesh,
+    Xsel, // Select
+    Colo, // Color
+    Both, // DrawingAndMesh
     NUMBER_OF,
 };
 
-
-
-enum class ClickMode {
-    None,
-    Axis,
-    Box,
-    CenteredBox,
-    Circle,
-    Color,
-    Deselect,
-    DivideNearest,
-    Fillet,
-    DogEar,
-    Line,
-    LinearCopy,
-    Measure,
-    Mirror2,
-    XMirror,
-    YMirror,
-    Move,
-    Offset,
-    Origin,
-    Polygon,
-    PowerFillet,
-    Rotate,
-    RotateCopy,
-    Select,
-    DiamCircle,
-    Divide2,
+struct Shortcut {
+        uint key;
+        u8 mods;
 };
 
-enum class ClickModifier {
-    None,
-    Center,
-    Color,
-    Connected,
-    End,
-    Intersect,
-    Middle,
-    Perp,
-    Quad,
-    Selected,
-    Tangent,
-    Window,
-    XY,
+#define CMD_FLAG_ (1 << 00)
+struct Command {
+    Shortcut shortcut;
+    ToolboxGroup group;
+    bool is_mode;
+    u64 flags;
+    String name;
 };
+
+bool command_equals(Command A, Command B) {
+    return (A.name.data == B.name.data);
+}
+
+
+#define state_Draw_command_is_(Name) command_equals(state.Draw_command, commands.Name)
+#define state_Mesh_command_is_(Name) command_equals(state.Mesh_command, commands.Name)
+#define state_Snap_command_is_(Name) command_equals(state.Snap_command, commands.Name)
+#define state_Xsel_command_is_(Name) command_equals(state.Xsel_command, commands.Name)
+#define state_Colo_command_is_(Name) command_equals(state.Colo_command, commands.Name)
+
+#define set_state_Draw_command(Name) state.Draw_command = commands.Name
+#define set_state_Mesh_command(Name) state.Mesh_command = commands.Name
+#define set_state_Snap_command(Name) state.Snap_command = commands.Name
+#define set_state_Xsel_command(Name) state.Xsel_command = commands.Name
+#define set_state_Colo_command(Name) state.Colo_command = commands.Name
+
+
+#include "commands.cpp"
+
+Command commands_Color[] = { 
+    commands.Color0,
+    commands.Color1,
+    commands.Color2,
+    commands.Color3,
+    commands.Color4,
+    commands.Color5,
+    commands.Color6,
+    commands.Color7,
+    commands.Color8,
+    commands.Color9
+};
+
 
 enum class EntityType {
     Arc,
@@ -323,6 +310,7 @@ struct PopupManager {
     }
 
     void manually_set_focus_group(ToolboxGroup new_focus_group) {
+        // ASSERT(get_tag(new_focus_group)); // TODO: really important to get this assert working
         focus_group_was_set_manually = true;
         focus_group = new_focus_group;
     }
@@ -408,10 +396,11 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     PopupState popup;
     ToolboxState toolbox;
 
-    ClickMode click_mode;
-    ColorCode click_color_code;
-    EnterMode enter_mode;
-    ClickModifier click_modifier; // TODO: split; snaps should be in ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other
+    Command Draw_command;
+    Command Mesh_command;
+    Command Snap_command;
+    Command Xsel_command;
+    Command Colo_command;
 
     Event space_bar_event;
     Event shift_space_bar_event;
@@ -537,21 +526,27 @@ vec3 omax_pallete[] = {
     omax.purple,
     omax.blue,
     omax.gray,
-    basic.magenta,
+    omax.white, // TODO: what is this
     omax.cyan,
     omax.orange,
 };
 
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
-    if (group == ToolboxGroup::Drawing) {
-        result = LERP(0.2f, omax.cyan, omax.blue);
-    } else if (group == ToolboxGroup::Snap) {
-        result = omax.purple;
+    if (group == ToolboxGroup::Draw) {
+        result = omax.cyan;
+    } else if (group == ToolboxGroup::Both) {
+        result = omax.light_gray;
     } else if (group == ToolboxGroup::Mesh) {
-        result = omax.orange;
-    } else { ASSERT(group == ToolboxGroup::None);
+        result = omax.green;
+    } else if (group == ToolboxGroup::Snap) {
+        result = omax.red;
+    } else if (group == ToolboxGroup::Xsel) {
         result = omax.yellow;
+    } else if (group == ToolboxGroup::Colo) {
+        result = omax.yellow;
+    } else { ASSERT(group == ToolboxGroup::None);
+        result = {};
     }
     return result;
 }
@@ -1324,7 +1319,7 @@ Mesh wrapper_manifold(
         uint *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
         mat4 M_3D_from_2D,
-        EnterMode enter_mode,
+        Command Mesh_command,
         real extrude_out_length,
         real extrude_in_length,
         vec2   dxf_origin,
@@ -1333,10 +1328,10 @@ Mesh wrapper_manifold(
         ) {
 
 
-    bool add = (enter_mode == EnterMode::ExtrudeAdd) || (enter_mode == EnterMode::RevolveAdd);
-    bool cut = (enter_mode == EnterMode::ExtrudeCut) || (enter_mode == EnterMode::RevolveCut);
-    bool extrude = (enter_mode == EnterMode::ExtrudeAdd) || (enter_mode == EnterMode::ExtrudeCut);
-    bool revolve = (enter_mode == EnterMode::RevolveAdd) || (enter_mode == EnterMode::RevolveCut);
+    bool add = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
+    bool cut = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
+    bool extrude = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.ExtrudeCut));
+    bool revolve = (command_equals(Mesh_command, commands.RevolveAdd)) || (command_equals(Mesh_command, commands.RevolveCut));
     ASSERT(add || cut);
     ASSERT(extrude || revolve);
 
@@ -1379,7 +1374,7 @@ Mesh wrapper_manifold(
         }
 
         { // manifold_B
-            if (enter_mode == EnterMode::ExtrudeCut) {
+            if (command_equals(Mesh_command, commands.ExtrudeCut)) {
                 do_once { messagef(omax.pink, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
                 extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;

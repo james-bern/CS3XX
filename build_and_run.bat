@@ -119,7 +119,7 @@ else
         -c $1 \
         -std=c++11 \
         -fno-strict-aliasing \
-        -ferror-limit=256 \
+        -ferror-limit=4096 \
         -mmacosx-version-min=11.0 \
         -O$OPTARG \
         -g -fstandalone-debug \
@@ -133,13 +133,11 @@ else
         -Wno-write-strings \
         -I./manifold \
         -I./opengl   \
-        -I./burkardt \
 
     clang++ \
         -g -o executable $(basename $1 .cpp).o \
         -L./manifold \
         -L./opengl   \
-        -L./burkardt \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit -framework QuartzCore \
         -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \

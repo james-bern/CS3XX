@@ -111,10 +111,10 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
-    bool extruding = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::ExtrudeCut));
-    bool revolving = ((state.enter_mode == EnterMode::RevolveAdd) || (state.enter_mode == EnterMode::RevolveCut));
-    bool adding     = ((state.enter_mode == EnterMode::ExtrudeAdd) || (state.enter_mode == EnterMode::RevolveAdd));
-    bool cutting     = ((state.enter_mode == EnterMode::ExtrudeCut) || (state.enter_mode == EnterMode::RevolveCut));
+    bool extruding = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(ExtrudeCut)));
+    bool revolving = ((state_Mesh_command_is_(RevolveAdd)) || (state_Mesh_command_is_(RevolveCut)));
+    bool adding     = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(RevolveAdd)));
+    bool cutting     = ((state_Mesh_command_is_(ExtrudeCut)) || (state_Mesh_command_is_(RevolveCut)));
 
     { // preview->extrude_in_length
         real target = (adding) ? popup->extrude_add_in_length : popup->extrude_cut_in_length;
@@ -135,7 +135,7 @@ void conversation_draw() {
 
     // TODO
     { // preview_feature_plane_offset
-        real target = (state.enter_mode == EnterMode::NudgePlane) ? popup->feature_plane_nudge : 0.0f;
+        real target = (state_Mesh_command_is_(NudgePlane)) ? popup->feature_plane_nudge : 0.0f;
         JUICEIT_EASYTWEEN(&preview->feature_plane_offset, target);
     }
 
@@ -163,7 +163,7 @@ void conversation_draw() {
         JUICEIT_EASYTWEEN(&preview->mouse, target_preview_mouse);
     }
 
-    vec2 target_preview_drawing_origin = (state.click_mode != ClickMode::Origin) ? drawing->origin : mouse;
+    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(Origin)) ? drawing->origin : mouse;
     {
         JUICEIT_EASYTWEEN(&preview->drawing_origin, target_preview_drawing_origin);
     }
@@ -172,7 +172,7 @@ void conversation_draw() {
     vec2 preview_dxf_axis_base_point;
     real preview_dxf_axis_angle_from_y;
     {
-        if (state.click_mode != ClickMode::Axis) {
+        if (!state_Draw_command_is_(Axis)) {
             preview_dxf_axis_base_point = drawing->axis_base_point;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else if (!two_click_command->awaiting_second_click) {
@@ -214,9 +214,9 @@ void conversation_draw() {
     bool moving_selected_entities = (
             (two_click_command->awaiting_second_click)
             && (0 
-                || (state.click_mode == ClickMode::Move)
-                || (state.click_mode == ClickMode::Rotate)
-                || (state.click_mode == ClickMode::LinearCopy))
+                || (state_Draw_command_is_(Move))
+                || (state_Draw_command_is_(Rotate))
+                || (state_Draw_command_is_(Copy)))
             ); // TODO: loft up
 
     { // draw 2D draw 2d draw
@@ -262,11 +262,11 @@ void conversation_draw() {
                     // axis
                     eso_stipple(true);
                     eso_color(omax.dark_gray);
-                    if (state.click_mode == ClickMode::Axis) {
+                    if (state_Draw_command_is_(Axis)) {
                         eso_color(omax.cyan);
-                    } else if (state.enter_mode == EnterMode::RevolveAdd) {
+                    } else if (state_Mesh_command_is_(RevolveAdd)) {
                         eso_color(AVG(omax.dark_gray, omax.cyan));
-                    } else if (state.enter_mode == EnterMode::RevolveCut) {
+                    } else if (state_Mesh_command_is_(RevolveCut)) {
                         eso_color(AVG(omax.dark_gray, omax.cyan));
                     } else {
                     }
@@ -286,9 +286,9 @@ void conversation_draw() {
             }
 
             { // entities
-                bool moving = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::Move);
-                bool linear_copying = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::LinearCopy);
-                bool rotating = (two_click_command->awaiting_second_click) && (state.click_mode == ClickMode::Rotate);
+                bool moving = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Move));
+                bool linear_copying = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Copy));
+                bool rotating = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Rotate));
                 bool draw_annotation_line = (moving || rotating || linear_copying);
 
 
@@ -304,7 +304,8 @@ void conversation_draw() {
                     // drawing 2D drawing 2d drawing
                     _for_each_entity_ {
                         if (entity->is_selected && (rotating || moving)) continue;
-                        eso_color(entity->preview_color);
+                        // eso_color(entity->preview_color);
+                        eso_color(get_color(entity->color_code));
                         eso_size(1.5f);
                         eso_entity__SOUP_LINES(entity);
                     }
@@ -341,8 +342,8 @@ void conversation_draw() {
             if (two_click_command->awaiting_second_click) {
                 if (
                         0
-                        || (state.click_modifier == ClickModifier::Window)
-                        || (state.click_mode == ClickMode::Box)
+                        || (state_Xsel_command_is_(Window))
+                        || (state_Draw_command_is_(Box))
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(basic.cyan);
@@ -352,7 +353,7 @@ void conversation_draw() {
                     eso_vertex(first_click->x, mouse.y);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::CenteredBox) {                
+                if (state_Draw_command_is_(CenterBox)) {                
                     vec2 one_corner = mouse;
                     vec2 center = *first_click;
                     real other_y = 2 * center.y - one_corner.y;
@@ -368,35 +369,35 @@ void conversation_draw() {
                     eso_vertex(V2(other_x, one_corner.y));
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Measure) {
+                if (state_Draw_command_is_(Measure)) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Mirror2) {
+                if (state_Draw_command_is_(Mirror2)) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Line) {
+                if (state_Draw_command_is_(Line)) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Rotate) {
+                if (state_Draw_command_is_(Rotate)) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(basic.cyan);
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Circle) {
+                if (state_Draw_command_is_(Circle)) {
                     vec2 center = two_click_command->first_click;
                     vec2 point = mouse;
                     real radius = distance(center, point);
@@ -408,7 +409,7 @@ void conversation_draw() {
                     }
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::DiamCircle) {
+                if (state_Draw_command_is_(DiamCircle)) {
                     vec2 edge_one = two_click_command->first_click;
                     vec2 edge_two = mouse;
                     vec2 center = (edge_one + edge_two) / 2;
@@ -427,7 +428,7 @@ void conversation_draw() {
                     eso_vertex(edge_two);
                     eso_end();
                 }
-                if (state.click_mode == ClickMode::Divide2) {
+                if (state_Draw_command_is_(Divide2)) {
                     if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(basic.cyan);
@@ -435,7 +436,7 @@ void conversation_draw() {
                         eso_end();
                     }
                 }
-                if (state.click_mode == ClickMode::Polygon) {
+                if (state_Draw_command_is_(Polygon)) {
                     uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
                     real delta_theta = TAU / polygon_num_sides;
                     vec2 center = two_click_command->first_click;
@@ -462,7 +463,7 @@ void conversation_draw() {
                         eso_end();
                     }
                 }
-                if (state.click_mode == ClickMode::Fillet) {
+                if (state_Draw_command_is_(Fillet)) {
                     if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(basic.cyan);
@@ -470,7 +471,7 @@ void conversation_draw() {
                         eso_end();
                     }
                 }
-                if (state.click_mode == ClickMode::DogEar) {
+                if (state_Draw_command_is_(DogEar)) {
                     if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(basic.cyan);
@@ -494,7 +495,7 @@ void conversation_draw() {
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
             // FORNOW
-            bool moving_stuff = ((state.click_mode == ClickMode::Origin) || (state.enter_mode == EnterMode::NudgePlane));
+            bool moving_stuff = ((state_Draw_command_is_(Origin)) || (state_Mesh_command_is_(NudgePlane)));
             vec3 target_preview_tubes_color = (0) ? V3(0)
                 : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
                 : (adding) ? get_color(ColorCode::Traverse)
@@ -527,11 +528,11 @@ void conversation_draw() {
                     // M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
                     M_incr = T_a * R_inc * inv_T_a;
                     M = M_3D_from_2D * inv_T_o * T_a * R_0 * inv_T_a;
-                } else if (state.click_mode == ClickMode::Origin) {
+                } else if (state_Draw_command_is_(Origin)) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
-                } else if (state.enter_mode == EnterMode::NudgePlane) {
+                } else if (state_Mesh_command_is_(NudgePlane)) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview->feature_plane_offset + Z_FIGHT_EPS);
                     M_incr = M4_Identity();
@@ -680,10 +681,10 @@ void conversation_draw() {
                 mat4 PVM = PV_3D * M_3D_from_2D;
                 vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
-                    if (state.enter_mode == EnterMode::NudgePlane) {
+                    if (state_Mesh_command_is_(NudgePlane)) {
                         PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
-                    } else if (state.click_mode == ClickMode::Origin) {
+                    } else if (state_Draw_command_is_(Origin)) {
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (moving_selected_entities) {
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
@@ -732,7 +733,7 @@ void conversation_draw() {
                 } else if (drag_none_and_hot_separator || drag_separator) {
                     next = other.cursors.hresize;
                 } else if (drag_none_and_hot_drawing || drag_drawing) {
-                    if (click_mode_SNAP_ELIGIBLE()) {
+                    if (state.Draw_command.flags & SNAPPER) {
                         next = other.cursors.crosshair;
                     } else {
                         next = NULL;
@@ -753,58 +754,24 @@ void conversation_draw() {
             real target = (drag_none_and_hot_drawing || drag_drawing) ? 1.0f : 0.0f;
             JUICEIT_EASYTWEEN(&preview->cursor_subtext_alpha, target, 2.0f);
         }
-        vec3 color; {
-            color = omax.white;
-            if ((state.click_mode == ClickMode::Color) && (state.click_modifier != ClickModifier::Selected)) {
-                color = get_color(state.click_color_code);
-            }
-        }
+        vec3 color = omax.white;
+        // {
+        //     color = omax.white;
+        //     if ((state_Draw_command_is_(Color)) && (state.click_modifier != ClickModifier::Selected)) {
+        //         color = get_color(state.click_color_code);
+        //     }
+        // }
 
         // TODO: somehow macro this
 
-        String string_click_mode = STRING(
-                (state.click_mode == ClickMode::None)           ? ""                :
-                (state.click_mode == ClickMode::Axis)           ? "Axis"            :
-                (state.click_mode == ClickMode::Box)            ? "Box"             :
-                (state.click_mode == ClickMode::CenteredBox)    ? "CenteredBox"     :
-                (state.click_mode == ClickMode::Circle)         ? "Circle"          :
-                (state.click_mode == ClickMode::Color)          ? "Color"           :
-                (state.click_mode == ClickMode::Deselect)       ? "Deselect"        :
-                (state.click_mode == ClickMode::DogEar)         ? "DogEar"          :
-                (state.click_mode == ClickMode::Fillet)         ? "Fillet"          :
-                (state.click_mode == ClickMode::Line)           ? "Line"            :
-                (state.click_mode == ClickMode::LinearCopy)     ? "LinearCopy"      :
-                (state.click_mode == ClickMode::Measure)        ? "Measure"         :
-                (state.click_mode == ClickMode::Move)           ? "Move"            :
-                (state.click_mode == ClickMode::Offset)         ? "Offset"          :
-                (state.click_mode == ClickMode::Origin)         ? "Origin"          :
-                (state.click_mode == ClickMode::Polygon)        ? "Polygon"         :
-                (state.click_mode == ClickMode::PowerFillet)    ? "PowerFillet"     :
-                (state.click_mode == ClickMode::Select)         ? "Select"          :
-                (state.click_mode == ClickMode::Rotate)         ? "Rotate"          :
-                (state.click_mode == ClickMode::RotateCopy)     ? "RotateCopy"      :
-                (state.click_mode == ClickMode::Mirror2)     ? "Mirror2"      :
-                (state.click_mode == ClickMode::XMirror)        ? "XMirror"         :
-                (state.click_mode == ClickMode::YMirror)        ? "YMirror"         :
-                (state.click_mode == ClickMode::DiamCircle)     ? "DiamCircle"   :
-                (state.click_mode == ClickMode::Divide2)        ? "Divide2"  :
-                "???MODE???");
-
-        String string_click_modifier = STRING(
-                (state.click_modifier == ClickModifier::None)           ? ""                :
-                (state.click_modifier == ClickModifier::Center)         ? "Center"          :
-                (state.click_modifier == ClickModifier::Connected)      ? "Connected"       :
-                (state.click_modifier == ClickModifier::End)            ? "End"             :
-                (state.click_modifier == ClickModifier::Intersect)      ? "Intersect"       :
-                (state.click_modifier == ClickModifier::Color)          ? "Color"           :
-                (state.click_modifier == ClickModifier::Middle)         ? "Middle"          :
-                (state.click_modifier == ClickModifier::Perp)           ? "Perp"            :
-                (state.click_modifier == ClickModifier::Quad)           ? "Quad"            :
-                (state.click_modifier == ClickModifier::Selected)       ? "Selected"        :
-                (state.click_modifier == ClickModifier::Tangent)        ? "Tangent"         :
-                (state.click_modifier == ClickModifier::Window)         ? "Window"          :
-                (state.click_modifier == ClickModifier::XY)             ? "XY"              :
-                "???MODIFIER???");
+        String STRING_EMPTY_STRING = {};
+        String Top_string = (state_Draw_command_is_(None)) ? STRING_EMPTY_STRING : state.Draw_command.name;
+        String Bot_string; {
+            if (0) ;
+            else if (!state_Snap_command_is_(None)) Bot_string = state.Snap_command.name;
+            else if (!state_Xsel_command_is_(None)) Bot_string = state.Xsel_command.name;
+            else Bot_string = STRING("");
+        }
 
         { // spoof callback_cursor_position
             double xpos, ypos;
@@ -814,8 +781,8 @@ void conversation_draw() {
         }
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - preview->cursor_subtext_alpha };
-        easy_text_draw(&pen, string_click_mode);
-        easy_text_draw(&pen, string_click_modifier);
+        easy_text_draw(&pen, Top_string);
+        easy_text_draw(&pen, Bot_string);
     }
 
     void history_debug_draw(); // forward declaration
@@ -846,7 +813,7 @@ void conversation_draw() {
         easy_text_drawf(PEN, "  %s: %s", #NAME, \
                 command_to_string(commands.NAME));
         EasyTextPen pen2 = pen1;
-        pen2.origin_Pixel.x += 450.0f;
+        pen2.origin.x += 450.0f;
 
 
         //////////////////////////////////////////
@@ -891,7 +858,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen1, Deselect);
         PRINT_COMMAND(&pen1, DIVIDE_NEAREST);
         PRINT_COMMAND(&pen1, ZoomDrawing);
-        PRINT_COMMAND(&pen1, EXIT_COMMAND); // TODO
+        PRINT_COMMAND(&pen1, Escape); // TODO
         PRINT_COMMAND(&pen1, ExtrudeAdd);
         PRINT_COMMAND(&pen1, ExtrudeCut);
         PRINT_COMMAND(&pen1, Fillet);
