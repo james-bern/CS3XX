@@ -114,12 +114,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             ToolboxGroup most_recent_group_for_SEPERATOR = ToolboxGroup::None;
             auto GUIBUTTON = [&](Command command, bool hide_button = false) -> bool {
                 most_recent_group_for_SEPERATOR = command.group;
-                bool dont_draw_shortcut;
+                bool gray_out_shortcut;
                 if (!map_get(&shortcut_already_checked, command.shortcut, false)) {
                     map_put(&shortcut_already_checked, command.shortcut, true);
-                    dont_draw_shortcut = false;
+                    gray_out_shortcut = false;
                 } else {
-                    dont_draw_shortcut = true;
+                    gray_out_shortcut = true;
                 }
 
 
@@ -181,6 +181,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         toolbox->hot_name = name.data;
                     }
 
+                    vec3 color;
                     {
 
                         vec3 accent_color = get_accent_color(group); 
@@ -211,16 +212,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
 
-                        vec3 base_color = (can_toggle) ? omax.dark_gray : AVG(omax.dark_gray, omax.gray);
+                        vec3 base_color = (can_toggle) ? AVG(omax.black, omax.dark_gray) : omax.dark_gray;
+                        base_color = LERP(0.00f, base_color, accent_color);
+
+                        color = (hovering)
+                            ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(omax.white, accent_color) : accent_color)
+                            : ((toggled) ? accent_color
+                                    : base_color);
 
                         eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
                         eso_overlay(true);
-                        eso_color(
-                                (hovering)
-                                ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(omax.white, accent_color) : accent_color)
-                                : ((toggled) ? AVG(omax.black, accent_color)
-                                    : base_color)
-                                );
+                        eso_color(color);
                         eso_bbox_SOUP_QUADS(bbox);
                         eso_end();
                     }
@@ -230,10 +232,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     easy_text_draw(pen, name);
                     pen2->offset_Pixel.y = pen->offset_Pixel.y;
                     pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
-                    if (!dont_draw_shortcut) {
+                    // if (!gray_out_shortcut) {
+                    //     easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                    // } else {
+                    //     easy_text_drawf(pen2, "");
+                    // }
+                    {
+                        vec3 tmp_pen2_color = pen2->color;
+                        if (gray_out_shortcut) {
+                            pen2->color = LERP(0.8f, tmp_pen2_color, color);
+                        }
                         easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
-                    } else {
-                        easy_text_drawf(pen2, "");
+                        if (gray_out_shortcut) {
+                            pen2->color = tmp_pen2_color;
+                        }
                     }
                     pen->offset_Pixel.y = pen2->offset_Pixel.y + 4;
                     if (horz) {
@@ -265,7 +277,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (flags & TWO_CLICK) {
                         ASSERT(is_mode);
                         two_click_command->awaiting_second_click = false;
-                                two_click_command->tangent_first_click = false;
+                        two_click_command->tangent_first_click = false;
                     }
                     if (flags & FOCUS_THEIF) {
                         popup->manager.manually_set_focus_group(group);
