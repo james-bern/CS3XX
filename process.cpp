@@ -217,8 +217,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         color = (hovering)
                             ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(omax.white, accent_color) : accent_color)
-                            : ((toggled) ? accent_color
-                                    : base_color);
+                            : ((toggled) ? accent_color : base_color);
 
                         eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
                         eso_overlay(true);
@@ -226,6 +225,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         eso_bbox_SOUP_QUADS(bbox);
                         eso_end();
                     }
+
+
+
+
+                        vec3 tmp_pen_color = pen->color;
+                        vec3 tmp_pen2_color = pen2->color;
+                        pen->color = V3(1.0f) - color;
+                        pen2->color = V3(1.0f) - color;
+                        if (gray_out_shortcut) {
+                            pen2->color = LERP(0.8f, tmp_pen2_color, color);
+                        } else {
+                        }
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
                     pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
@@ -237,16 +248,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // } else {
                     //     easy_text_drawf(pen2, "");
                     // }
-                    {
-                        vec3 tmp_pen2_color = pen2->color;
-                        if (gray_out_shortcut) {
-                            pen2->color = LERP(0.8f, tmp_pen2_color, color);
-                        }
                         easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
-                        if (gray_out_shortcut) {
-                            pen2->color = tmp_pen2_color;
-                        }
-                    }
+
+                        pen->color = tmp_pen_color;
+                        pen2->color = tmp_pen2_color;
+
+
+
+
+
                     pen->offset_Pixel.y = pen2->offset_Pixel.y + 4;
                     if (horz) {
                         pen->offset_Pixel = {};
