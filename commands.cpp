@@ -108,15 +108,12 @@
     \
     \
     \
-    COMMANDS_INNER(UNDO_ALTERNATE,                   'Z', 0b010, None, 0, 0);  \
     COMMANDS_INNER(TOGGLE_BUTTONS,                   TAB, 0b001, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_DRAWING_DETAILS,           '.', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_EVENT_STACK,               'K', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_FEATURE_PLANE,             ';', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_LIGHT_MODE,                'L', 0b011, None, 0, 0 | NO_RECORD);  \
-    /*COMMANDS_INNER(REDO_ALTERNATE,                   'Y', 0b010, None, 0, 0); */\
-    /*COMMANDS_INNER(REDO_ALTERNATE_ALTERNATE,         'Z', 0b011, None, 0, 0); */\
     COMMANDS_INNER(PREVIOUS_HOT_KEY_2D,              ' ', 0b000, None, 0, 0);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_3D,              ' ', 0b001, None, 0, 0);  \
     COMMANDS_INNER(PRINT_HISTORY,                    'H', 0b010, None, 0, 0 | NO_RECORD);  \

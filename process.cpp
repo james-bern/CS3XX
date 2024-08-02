@@ -369,9 +369,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     SEPERATOR();
 
                     { // undo
-                        bool hotkey_undo_alternate = GUIBUTTON(commands.UNDO_ALTERNATE);
-                        bool button_undo = GUIBUTTON(commands.Undo);
-                        if ((hotkey_undo_alternate || button_undo)) {
+                        bool button_undo = ;
+                        if (GUIBUTTON(commands.Undo)) {
                             other._please_suppress_drawing_popup_popup = true;
                             history_undo();
 

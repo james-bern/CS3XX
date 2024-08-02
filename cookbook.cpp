@@ -346,7 +346,7 @@ struct Cookbook {
                     fillet_arc_theta = temp;
                 }
 
-                Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta));
+                Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta), false, E->color_code);
                 if (radius > TINY_VAL) {
                     _buffer_add_entity(fillet_arc);
                 }
@@ -426,7 +426,7 @@ struct Cookbook {
                     fillet_arc_b_theta = fillet_arc_a_theta;
                     fillet_arc_a_theta = temp;
                 }
-                Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta)); // if this is changed to radius it breaks, dont ask me why
+                Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta), false, E->color_code); // if this is changed to radius it breaks, dont ask me why
                 if (radius > TINY_VAL) {
                     _buffer_add_entity(fillet_arc);
                 }
