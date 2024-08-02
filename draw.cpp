@@ -305,7 +305,7 @@ void conversation_draw() {
                     _for_each_entity_ {
                         if (entity->is_selected && (rotating || moving)) continue;
                         // eso_color(entity->preview_color);
-                        eso_color(get_color(entity->color_code));
+                        eso_color((entity->is_selected) ? get_color(ColorCode::Selection) : get_color(entity->color_code));
                         eso_size(1.5f);
                         eso_entity__SOUP_LINES(entity);
                     }
