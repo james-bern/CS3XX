@@ -770,6 +770,7 @@ void conversation_draw() {
             if (0) ;
             else if (!state_Snap_command_is_(None)) Bot_string = state.Snap_command.name;
             else if (!state_Xsel_command_is_(None)) Bot_string = state.Xsel_command.name;
+            else if (!state_Colo_command_is_(None)) Bot_string = state.Colo_command.name;
             else Bot_string = STRING("");
         }
 

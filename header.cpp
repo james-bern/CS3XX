@@ -526,7 +526,7 @@ vec3 omax_pallete[] = {
     omax.purple,
     omax.blue,
     omax.gray,
-    omax.white, // TODO: what is this
+    omax.light_gray, // TODO: what is this
     omax.cyan,
     omax.orange,
 };

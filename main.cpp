@@ -22,6 +22,19 @@
 // TODO: memcmp to see if should record
 // TODO: timer to see if should snapshot
 
+#if 1
+#define Color0 Green
+#define Color1 Red
+#define Color2 Pink
+#define Color3 Magenta
+#define Color4 Purple
+#define Color5 Blue
+#define Color6 Gray
+#define Color7 LightGray
+#define Color8 Cyan
+#define Color9 Orange
+#endif
+
 #include "playground.cpp"
 
 char *startup_script = "";

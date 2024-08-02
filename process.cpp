@@ -382,13 +382,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 || state_Draw_command_is_(Color)
                                 || ((SELECT_OR_DESELECT()) && (state_Xsel_command_is_(ByColor)))
                                 );
+                        bool spoof_is_mode_false = state_Draw_command_is_(Color) && state_Colo_command_is_(Selected);
                         if (true) {
                             bool hotkey_quality;
                             uint digit = 0;
                             {
                                 hotkey_quality = false;
                                 for_(color, 10) {
-                                    if (GUIBUTTON(commands_Color[color], hide_buttons)) {
+                                    Command command = commands_Color[color];
+                                    if (spoof_is_mode_false) command.is_mode = false;
+                                    if (GUIBUTTON(command, hide_buttons)) {
                                         hotkey_quality = true;
                                         digit = color;
                                         break;
@@ -785,7 +788,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
-                    if (!state_Xsel_command_is_(Connected)) {
+                    if (!state_Xsel_command_is_(Connected) && !state_Colo_command_is_(Selected)) {
                         if (SELECT_OR_DESELECT()) {
                             cookbook.entity_set_is_selected(hot_entity, value_to_write_to_selection_mask);
                         } else {
