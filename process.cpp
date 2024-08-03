@@ -369,7 +369,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     SEPERATOR();
 
                     { // undo
-                        bool button_undo = ;
                         if (GUIBUTTON(commands.Undo)) {
                             other._please_suppress_drawing_popup_popup = true;
                             history_undo();
