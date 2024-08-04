@@ -6,7 +6,7 @@
 #define ESCAPE GLFW_KEY_ESCAPE
 #define TAB GLFW_KEY_TAB
 
-// TODO: switch from UPPER_SNAKE_CASE to UpperCamelCase (there is gonna a fast vim method probably)
+// TODO: alternate hotkeys setup
 
 // NOTE: FORNOW: FOCUS_THEIF is really the same thing as having a popup (except for two-click commands like Line where the popup doesn't show initially)
 #define TWO_CLICK     (1 << 0)
@@ -128,9 +128,8 @@
 
 
 
-
-
-
+// TODO: tag each command with an ID?--have them part of an enum?
+//       (checking equality based on name.data feels dangerous)
 
 
 struct {

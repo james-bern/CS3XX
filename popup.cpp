@@ -148,9 +148,9 @@ void popup_popup(
             }
         }
         {
-            pen = { V2(96.0f, 12.0f), 22.0f, AVG(lighter_gray, accent_color) };
+            pen = { V2(120.0f, 12.0f), 22.0f, AVG(lighter_gray, accent_color) };
             if (group == ToolboxGroup::Mesh) {
-                pen.origin.x += get_x_divider_drawing_mesh_Pixel();
+                pen.origin.x += get_x_divider_drawing_mesh_Pixel() - 50.0f;
             } else if (group == ToolboxGroup::Snap) {
                 // pen.origin.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
                 pen.origin.y += 128.0f;
