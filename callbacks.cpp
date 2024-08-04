@@ -22,11 +22,14 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
     if (key == GLFW_KEY_RIGHT_SUPER) return;
     if (action == GLFW_PRESS || (action == GLFW_REPEAT)) {
         // FORNOW: i guess okay to handle these here?
-        bool toggle_pause = ((key == 'P') && (control) && (shift));
+        bool toggle_pause = ((key == 'P') && (control) && (!shift));
+        bool toggle_slowmo = ((key == 'P') && (control) && (shift));
         bool step = (other.paused) && ((key == '.') && (!control) && (!shift));
         bool quit = ((key == 'Q') && (control) && (!shift));
         if (toggle_pause) {
             other.paused = !other.paused;
+        } else if (toggle_slowmo) {
+            other.slowmo = !other.slowmo;
         } else if (step) {
             other.stepping_one_frame_while_paused = true;
         } else if (quit) {

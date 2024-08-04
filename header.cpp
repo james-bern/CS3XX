@@ -12,8 +12,8 @@ enum class ToolboxGroup {
 };
 
 struct Shortcut {
-        uint key;
-        u8 mods;
+    uint key;
+    u8 mods;
 };
 
 #define CMD_FLAG_ (1 << 00)
@@ -30,18 +30,19 @@ bool command_equals(Command A, Command B) {
     return (A.name.data == B.name.data);
 }
 
-
+// FORNOW ew
 #define state_Draw_command_is_(Name) command_equals(state.Draw_command, commands.Name)
 #define state_Mesh_command_is_(Name) command_equals(state.Mesh_command, commands.Name)
 #define state_Snap_command_is_(Name) command_equals(state.Snap_command, commands.Name)
 #define state_Xsel_command_is_(Name) command_equals(state.Xsel_command, commands.Name)
 #define state_Colo_command_is_(Name) command_equals(state.Colo_command, commands.Name)
 
-#define set_state_Draw_command(Name) state.Draw_command = commands.Name
-#define set_state_Mesh_command(Name) state.Mesh_command = commands.Name
-#define set_state_Snap_command(Name) state.Snap_command = commands.Name
-#define set_state_Xsel_command(Name) state.Xsel_command = commands.Name
-#define set_state_Colo_command(Name) state.Colo_command = commands.Name
+// FORNOW ew
+#define set_state_Draw_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Draw)); state.Draw_command = commands.Name; } while (0)
+#define set_state_Mesh_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Mesh)); state.Mesh_command = commands.Name; } while (0)
+#define set_state_Snap_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Snap)); state.Snap_command = commands.Name; } while (0)
+#define set_state_Xsel_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Xsel)); state.Xsel_command = commands.Name; } while (0)
+#define set_state_Colo_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Colo)); state.Colo_command = commands.Name; } while (0)
 
 
 #include "commands.cpp"
@@ -445,7 +446,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_event_stack;
     bool hide_toolbox;
 
-    
+
 
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL;
@@ -461,6 +462,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool _please_suppress_drawing_toolbox;
     bool _please_suppress_drawing_toolbox_snaps;
 
+    bool slowmo;
     bool paused;
     bool stepping_one_frame_while_paused;
 

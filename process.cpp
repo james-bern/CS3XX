@@ -232,10 +232,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     vec3 tmp_pen_color = pen->color;
                     vec3 tmp_pen2_color = pen2->color;
                     pen->color = V3(1.0f) - color;
-                    pen2->color = V3(1.0f) - color;
-                    if (gray_out_shortcut) {
-                        pen2->color = LERP(0.8f, tmp_pen2_color, color);
-                    } else {
+                    {
+                        if (gray_out_shortcut) {
+                            pen2->color = LERP(0.8f, pen->color, color);
+                        } else {
+                            pen2->color = LERP(0.2f, pen->color, color);
+                        }
                     }
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
@@ -344,7 +346,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 { // Both
                     { // Escape
                         if (GUIBUTTON(commands.Escape)) {
-                            do_once { messagef(omax.orange, "ESCAPE maybe sus."); };
+                            // do_once { messagef(omax.orange, "ESCAPE maybe sus."); };
                             if (popup->manager.focus_group == ToolboxGroup::Draw) {
                                 if (!state_Draw_command_is_(None)) {
                                     set_state_Draw_command(None);
@@ -374,7 +376,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (GUIBUTTON(commands.Undo)) {
                             other._please_suppress_drawing_popup_popup = true;
                             history_undo();
-
                         }
                     }
 
@@ -484,6 +485,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.OpenDXF);
                     GUIBUTTON(commands.SaveDXF);
                     SEPERATOR();
+                    GUIBUTTON(commands.Measure);
+                    SEPERATOR();
                     GUIBUTTON(commands.Select);
                     GUIBUTTON(commands.Deselect);
                     SEPERATOR();
@@ -492,10 +495,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Box);
                     GUIBUTTON(commands.Polygon);
                     SEPERATOR();
-                    GUIBUTTON(commands.Measure);
-                    SEPERATOR();
-                    if (GUIBUTTON(commands.Color)) set_state_Colo_command(Color0);
-                    SEPERATOR();
                     // GUIBUTTON(commands.DiamCircle);
                     // GUIBUTTON(commands.CenterBox);
                     // SEPERATOR();
@@ -503,27 +502,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Rotate);
                     GUIBUTTON(commands.Scale);
                     SEPERATOR();
+                    if (GUIBUTTON(commands.Color)) set_state_Colo_command(Color0);
+                    SEPERATOR();
                     GUIBUTTON(commands.Copy);
                     GUIBUTTON(commands.RCopy);
                     SEPERATOR();
-                    GUIBUTTON(commands.XMirror);
-                    GUIBUTTON(commands.YMirror);
-                    GUIBUTTON(commands.Mirror2);
+                    GUIBUTTON(commands.MirrorX);
+                    GUIBUTTON(commands.MirrorY);
+                    // GUIBUTTON(commands.Mirror2);
                     SEPERATOR();
                     GUIBUTTON(commands.Fillet);
                     GUIBUTTON(commands.DogEar);
                     GUIBUTTON(commands.Offset);
                     GUIBUTTON(commands.Divide2);
                     SEPERATOR();
-                    GUIBUTTON(commands.Origin);
-                    GUIBUTTON(commands.Axis);
+                    GUIBUTTON(commands.SetOrigin);
+                    GUIBUTTON(commands.SetAxis);
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearDrawing)) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
-                        messagef(omax.green, "ResetDXF");
+                        messagef(omax.green, "ClearDrawing");
                     }
                     if (GUIBUTTON(commands.ZoomDrawing)) {
                         init_camera_drawing();
@@ -585,17 +586,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
                 SEPERATOR();
-                if (GUIBUTTON(commands.ZoomMesh)) {
-                    init_camera_mesh();
-                }
-                SEPERATOR();
                 if (GUIBUTTON(commands.ClearMesh)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
                     mesh_free_AND_zero(mesh);
                     *feature_plane = {};
-                    messagef(omax.green, "ResetSTL");
-
+                    messagef(omax.green, "ClearMesh");
+                }
+                if (GUIBUTTON(commands.ZoomMesh)) {
+                    init_camera_mesh();
                 }
 
                 // if (GUIBUTTON(commands.OrthoCamera)) {
@@ -993,7 +992,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     glfwSetCursorPos(glfw_window, x_new, y_new);
                                     callback_cursor_position(glfw_window, x_new, y_new);
                                 }
-                                if (state_Draw_command_is_(Axis)) {
+                                if (state_Draw_command_is_(SetAxis)) {
                                     double xpos, ypos;
                                     glfwGetCursorPos(glfw_window, &xpos, &ypos);
                                     real theta = (PI / 2) + drawing->axis_angle_from_y;
@@ -1015,7 +1014,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real length_click_vector = norm(click_vector);
 
                         if (0) {
-                        } else if (state_Draw_command_is_(Axis)) {
+                        } else if (state_Draw_command_is_(SetAxis)) {
                             // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1438,7 +1437,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else {
-                    if (state_Draw_command_is_(Origin)) {
+                    if (state_Draw_command_is_(SetOrigin)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
@@ -1524,7 +1523,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         for_(i, selected_entities.length) {
                             cookbook.attempt_fillet(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
                         }
-                    } else if (state_Draw_command_is_(XMirror)) {
+                    } else if (state_Draw_command_is_(MirrorX)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
@@ -1549,7 +1548,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             entity->is_selected = false;
                         }
-                    } else if (state_Draw_command_is_(YMirror)) {
+                    } else if (state_Draw_command_is_(MirrorY)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
@@ -2169,7 +2168,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (state_Mesh_command_is_(NudgePlane)) {
                     POPUP(state.Mesh_command,
                             true,
-                            CellType::Real, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
+                            CellType::Real, STRING("rise"), &popup->feature_plane_nudge);
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
                         result.record_me = true;
                         result.checkpoint_me = true;

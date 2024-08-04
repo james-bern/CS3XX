@@ -1,14 +1,9 @@
+// TODO: LOAD UP MUST HAPPEN FIRST
 
-// other.time_since_cursor_start = 0.0; // FORNOW
-// other.time_since_cursor_start = 0.0f;
-// the way the popup mouse handling works is very contrived and scary (and i think the/a source of the segfaults)
-// currently: POPUP broadcasts its most recent state elsewhere (is_hovering, PLUS--and this the problem--all sorts of hover varaibles); i think these can get dirty
-// TODO: just broadcast is_hovering so we don't have to rely on scary synchronization
-// (MouseEventPopup should just have a position in pixel coordinates)
+// BUG: somehow possible sometimes to type 'b' into ExtrudeAdd
+// BUG: somehow possible sometimes to type 'b' into ExtrudeAdd
 
-// TODO: could allow user to supply non-zero starting values (this is probably a good idea -- unless it's really just used for revolveadd)
 // TODO: consider adding type-checking (NOTE: maybe hard?)
-// FORNOW: returns whether it just loaded up
 void POPUP(
         Command command,
         bool zero_on_load_up,
@@ -119,20 +114,17 @@ void POPUP(
         popup->selection_cursor = 0; // select whole cell
         popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
     };
-
+    bool is_focused = (group == popup->manager.focus_group);
 
     bool dont_draw_because_already_called = popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)]; // this is for dragging the mouse and not having the transparent rectangles flicker
     popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)] = true;
     bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
-    FORNOW_UNUSED(dont_draw);
-    bool is_focused = (group == popup->manager.focus_group);
-
     vec3 raw_accent_color;
     vec3 accent_color;
     vec3 lighter_gray;
     vec3 darker_gray;
     EasyTextPen pen; 
-    {
+    if (!dont_draw) {
         {
             raw_accent_color = get_accent_color(group);
             if (is_focused) {
@@ -157,7 +149,7 @@ void POPUP(
                 // pen.origin.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
                 pen.origin.y += 128.0f;
             }
-            easy_text_draw(&pen, title);
+            if (!dont_draw) easy_text_draw(&pen, title);
             pen.origin.x += pen.offset_Pixel.x + 12.0f;
             pen.offset_Pixel.x = 0.0f;
             pen.origin.y += 2.5f; // FORNOW
@@ -190,8 +182,8 @@ void POPUP(
             y_top = pen.get_y_Pixel();
             y_bottom = y_top + (0.8f * pen.font_height_Pixel);
 
-            easy_text_draw(&pen, popup_name[d]);
-            easy_text_drawf(&pen, ": ");
+            if (!dont_draw) easy_text_draw(&pen, popup_name[d]);
+            if (!dont_draw) easy_text_drawf(&pen, ": ");
 
             x_field_left = pen.get_x_Pixel() - (pen.font_height_Pixel / 12.0f);
 
@@ -216,11 +208,11 @@ void POPUP(
                 }
             }
 
-            easy_text_draw(&pen, field);
+            if (!dont_draw) easy_text_draw(&pen, field);
 
             x_field_right = pen.get_x_Pixel();
 
-            easy_text_drawf(&pen, "\n");
+            if (!dont_draw) easy_text_drawf(&pen, "\n");
 
             field_bbox = { x_field_left, y_top, x_field_right, y_bottom };
         }
@@ -263,7 +255,7 @@ void POPUP(
                 }
             }
 
-            { // draw cursor selection_bbox hover_bbox
+            if (!dont_draw) { // draw cursor selection_bbox hover_bbox
                 if (d_is_active_cell_index) { // draw cursor selection_bbox
                     if (POPUP_SELECTION_NOT_ACTIVE()) { // draw cursor
                         real x_cursor; {
@@ -521,7 +513,11 @@ void POPUP(
         bool tag_corresponding_to_this_group_was_changed = (popup->manager.get_tag(group) != _name0.data);
         bool tag_corresponding_to_focus_group_became_NULL = (popup->manager.focus_group != ToolboxGroup::None) && (popup->manager.get_tag(popup->manager.focus_group) == NULL);
         bool focus_group_was_manually_set_to_this_group = (popup->manager.focus_group_was_set_manually && (group == popup->manager.focus_group));
-        bool common = (focus_group_was_manually_set_to_this_group || tag_corresponding_to_this_group_was_changed || tag_corresponding_to_focus_group_became_NULL);
+        bool common = (0
+                || tag_corresponding_to_this_group_was_changed
+                || tag_corresponding_to_focus_group_became_NULL
+                || focus_group_was_manually_set_to_this_group
+                );
 
         if (tag_corresponding_to_this_group_was_changed) {
             popup->manager.set_tag(group, _name0.data);

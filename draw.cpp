@@ -163,7 +163,7 @@ void conversation_draw() {
         JUICEIT_EASYTWEEN(&preview->mouse, target_preview_mouse);
     }
 
-    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(Origin)) ? drawing->origin : mouse;
+    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(SetOrigin)) ? drawing->origin : mouse;
     {
         JUICEIT_EASYTWEEN(&preview->drawing_origin, target_preview_drawing_origin);
     }
@@ -172,7 +172,7 @@ void conversation_draw() {
     vec2 preview_dxf_axis_base_point;
     real preview_dxf_axis_angle_from_y;
     {
-        if (!state_Draw_command_is_(Axis)) {
+        if (!state_Draw_command_is_(SetAxis)) {
             preview_dxf_axis_base_point = drawing->axis_base_point;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else if (!two_click_command->awaiting_second_click) {
@@ -262,7 +262,7 @@ void conversation_draw() {
                     // axis
                     eso_stipple(true);
                     eso_color(omax.dark_gray);
-                    if (state_Draw_command_is_(Axis)) {
+                    if (state_Draw_command_is_(SetAxis)) {
                         eso_color(omax.cyan);
                     } else if (state_Mesh_command_is_(RevolveAdd)) {
                         eso_color(AVG(omax.dark_gray, omax.cyan));
@@ -363,9 +363,9 @@ void conversation_draw() {
                     eso_vertex(one_corner);
                     eso_vertex(V2(one_corner.x, other_y));
                     eso_vertex(V2(other_x, other_y));
-            if (two_click_command->tangent_first_click) {
-                two_click_command->tangent_first_click = false;
-            }
+                    if (two_click_command->tangent_first_click) {
+                        two_click_command->tangent_first_click = false;
+                    }
                     eso_vertex(V2(other_x, one_corner.y));
                     eso_end();
                 }
@@ -495,7 +495,7 @@ void conversation_draw() {
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
             ;
             // FORNOW
-            bool moving_stuff = ((state_Draw_command_is_(Origin)) || (state_Mesh_command_is_(NudgePlane)));
+            bool moving_stuff = ((state_Draw_command_is_(SetOrigin)) || (state_Mesh_command_is_(NudgePlane)));
             vec3 target_preview_tubes_color = (0) ? V3(0)
                 : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
                 : (adding) ? get_color(ColorCode::Traverse)
@@ -528,7 +528,7 @@ void conversation_draw() {
                     // M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
                     M_incr = T_a * R_inc * inv_T_a;
                     M = M_3D_from_2D * inv_T_o * T_a * R_0 * inv_T_a;
-                } else if (state_Draw_command_is_(Origin)) {
+                } else if (state_Draw_command_is_(SetOrigin)) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
                     M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                     M_incr = M4_Identity();
@@ -684,7 +684,7 @@ void conversation_draw() {
                     if (state_Mesh_command_is_(NudgePlane)) {
                         PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
-                    } else if (state_Draw_command_is_(Origin)) {
+                    } else if (state_Draw_command_is_(SetOrigin)) {
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (moving_selected_entities) {
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
@@ -847,9 +847,9 @@ void conversation_draw() {
         //////////////////////////////////////////
 
         easy_text_drawf(&pen1, "\nOTHER COMMANDS\n");
-        PRINT_COMMAND(&pen1, Axis);
+        PRINT_COMMAND(&pen1, SetAxis);
         PRINT_COMMAND(&pen1, Box);
-        PRINT_COMMAND(&pen1, Origin);
+        PRINT_COMMAND(&pen1, SetOrigin);
         PRINT_COMMAND(&pen1, Circle);
         PRINT_COMMAND(&pen1, ClearDrawing);
         PRINT_COMMAND(&pen1, ClearMesh);
@@ -868,8 +868,8 @@ void conversation_draw() {
         PRINT_COMMAND(&pen1, Copy);
         PRINT_COMMAND(&pen1, Measure);
         PRINT_COMMAND(&pen1, Mirror2);
-        PRINT_COMMAND(&pen1, XMirror);
-        PRINT_COMMAND(&pen1, YMirror);
+        PRINT_COMMAND(&pen1, MirrorX);
+        PRINT_COMMAND(&pen1, MirrorY);
         PRINT_COMMAND(&pen2, Move);
         PRINT_COMMAND(&pen2, NEXT_POPUP_BAR);
         PRINT_COMMAND(&pen2, NudgePlane);
@@ -917,22 +917,35 @@ void conversation_draw() {
 
     if (other.show_event_stack) history_debug_draw();
 
-    if (other.paused) { // pause 
+    { // paused; slowmo
         real x = 12.0f;
         real y = window_get_height_Pixel() - 12.0f;
         real w = 6.0f;
-        real h = -2.5f * w;
-        eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
-        eso_overlay(true);
-        eso_color(omax.green);
-        for_(d, 2) {
-            real o = d * (1.7f * w);
-            eso_vertex(x     + o, y    );
-            eso_vertex(x     + o, y + h);
-            eso_vertex(x + w + o, y + h);
-            eso_vertex(x + w + o, y    );
+        real h = 2.5f * w;
+        if (other.paused) {
+            eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
+            eso_overlay(true);
+            eso_color(omax.green);
+            for_(i, 2) {
+                real o = i * (1.7f * w);
+                eso_vertex(x     + o, y    );
+                eso_vertex(x     + o, y - h);
+                eso_vertex(x + w + o, y - h);
+                eso_vertex(x + w + o, y    );
+            }
+            eso_end();
         }
-        eso_end();
+        if (other.slowmo) {
+            eso_begin(other.OpenGL_from_Pixel, SOUP_TRIANGLES);
+            eso_overlay(true);
+            eso_color(omax.yellow);
+            {
+                eso_vertex(x    , y - h);
+                eso_vertex(x    , y    );
+                eso_vertex(x + h, y    );
+            }
+            eso_end();
+        }
     }
 
 }

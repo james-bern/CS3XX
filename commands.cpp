@@ -27,7 +27,7 @@
     COMMANDS_INNER(XY,              'X', 0b000, Snap, 1, 0 | FOCUS_THEIF); \
     COMMANDS_INNER(Zero,            'Z', 0b000, Snap, 0, 0); \
     \
-    COMMANDS_INNER(Axis,            'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(SetAxis,            'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Box,             'B', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Color,           'Q', 0b000, Draw, 1, 0); \
     COMMANDS_INNER(CenterBox,       'B', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
@@ -44,17 +44,17 @@
     COMMANDS_INNER(Move,            'M', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Offset,          'H', 0b000, Draw, 1, 0 | FOCUS_THEIF); \
     COMMANDS_INNER(OpenDXF,         'O', 0b010, Draw, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(Origin,          'Z', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(SetOrigin,          'Z', 0b001, Draw, 1, 0 | SNAPPER); \
     COMMANDS_INNER(Polygon,         'P', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(RCopy,           'R', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Rotate,          'R', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(SaveDXF,         'S', 0b010, Draw, 1, 0 | FOCUS_THEIF | NO_RECORD); \
     COMMANDS_INNER(Scale,           'S', 0b001, Draw, 1, 0 | NO_RECORD); \
     COMMANDS_INNER(Select,          'S', 0b000, Draw, 1, 0); \
-    COMMANDS_INNER(XMirror,         'X', 0b001, Draw, 1, 0 | SNAPPER); \
-    COMMANDS_INNER(YMirror,         'Y', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(MirrorX,         'X', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(MirrorY,         'Y', 0b001, Draw, 1, 0 | SNAPPER); \
     COMMANDS_INNER(ClearDrawing,    'N', 0b010, Draw, 0, 0); \
-    COMMANDS_INNER(ZoomDrawing,     'X', 0b011, Draw, 0, 0 | NO_RECORD); \
+    COMMANDS_INNER(ZoomDrawing,       0, 0b000, Draw, 0, 0 | NO_RECORD); \
     \
     COMMANDS_INNER(OverwriteDXF,      0, 0b000, Draw, 0, 0); \
     COMMANDS_INNER(OverwriteSTL,      0, 0b000, Mesh, 0, 0); \

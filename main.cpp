@@ -1,3 +1,4 @@
+// TODO (Jim): slow mo keybind
 
 // TODO (Jim): cookbook_delete should throw a warning if you're trying to delete the same entity twice (run a O(n) pass on the sorted list)
 // TODO (Jim): fillet
@@ -175,7 +176,7 @@ run_before_main {
 };
 #endif
 
-#if 0 // kitchen sink
+#if 1 // kitchen sink
 run_before_main {
     startup_script = \
                      "cz10\n" // circle
@@ -330,7 +331,7 @@ int main() {
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
-        // SLEEP(100);
+        if (other.slowmo) SLEEP(100);
         glfwSwapBuffers(glfw_window);
         glFinish(); // 69363856
                     // SLEEP(1);
