@@ -532,7 +532,7 @@ vec3 get_accent_color(ToolboxGroup group) {
     } else if (group == ToolboxGroup::Mesh) {
         result = monokai.purple;
     } else if (group == ToolboxGroup::Snap) {
-        result = monokai.red;
+        result = monokai.green;
     } else if (group == ToolboxGroup::Xsel) {
         result = omax.yellow;
     } else if (group == ToolboxGroup::Colo) {

@@ -543,6 +543,7 @@ void POPUP(
                         }
                     }
                 } else { // drag
+                    do_once { messagef(omax.red, "drag jacked after double click"); };
                     if (IS_FOCUSED()) {
                         already_processed_event_passed_to_popups = true;
                         popup->selection_cursor = popup_info_active_cell_cursor;
