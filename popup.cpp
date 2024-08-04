@@ -1,3 +1,4 @@
+// TODO: drawing before load up is bad bad very bad (we must load up first)
 // TODO: ?? LOAD UP MUST HAPPEN FIRST
 
 // BUG: somehow possible sometimes to type 'b' into ExtrudeAdd
@@ -114,20 +115,59 @@ void POPUP(
         popup->selection_cursor = 0; // select whole cell
         popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
     };
-    bool is_focused = (group == popup->manager.focus_group);
+
+
+
+
+    struct SpecialCaseClickOnInactivePopup {
+        bool special_case_clicked_in;
+        uint popup_info_hover_cell_index;
+        uint popup_info_hover_cell_cursor;
+    };
+    auto LOADUP_LOGIC = [&](SpecialCaseClickOnInactivePopup special_case = {}) { // load up
+        bool tag_corresponding_to_this_group_was_changed = (popup->manager.get_tag(group) != _name0.data);
+        bool tag_corresponding_to_focus_group_became_NULL = (popup->manager.focus_group != ToolboxGroup::None) && (popup->manager.get_tag(popup->manager.focus_group) == NULL);
+        bool focus_group_was_manually_set_to_this_group = (popup->manager.focus_group_was_set_manually && (group == popup->manager.focus_group));
+        bool common = (0
+                || tag_corresponding_to_this_group_was_changed
+                || tag_corresponding_to_focus_group_became_NULL
+                || focus_group_was_manually_set_to_this_group
+                );
+
+        if (tag_corresponding_to_this_group_was_changed) {
+            popup->manager.set_tag(group, _name0.data);
+            if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
+        }
+
+        if (common) {
+            popup->manager.focus_group = group;
+            popup->active_cell_index = 0;
+            if (special_case.special_case_clicked_in) popup->active_cell_index = special_case.popup_info_hover_cell_index;
+            POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
+            popup->cursor = popup->active_cell_buffer.length;
+            popup->selection_cursor = 0;
+            if (special_case.special_case_clicked_in) { popup->cursor = special_case.popup_info_hover_cell_cursor; popup->selection_cursor = popup->cursor; }
+            popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
+        }
+    };
+
+    auto IS_FOCUSED = [&]() { return (group == popup->manager.focus_group); };
+
+    LOADUP_LOGIC();
+    if (IS_FOCUSED()) POPUP_SYNC_ACTIVE_CELL_BUFFER();
+
 
     bool dont_draw_because_already_called = popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)]; // this is for dragging the mouse and not having the transparent rectangles flicker
     popup->a_popup_from_this_group_was_already_called_this_frame[uint(group)] = true;
-    bool dont_draw = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
     vec3 raw_accent_color;
     vec3 accent_color;
     vec3 lighter_gray;
     vec3 darker_gray;
     EasyTextPen pen; 
-    if (!dont_draw) {
+    {
         {
             raw_accent_color = get_accent_color(group);
-            if (is_focused) {
+            if (IS_FOCUSED()) {
                 accent_color = raw_accent_color;
                 lighter_gray = omax.light_gray;
                 darker_gray = omax.gray;
@@ -149,12 +189,13 @@ void POPUP(
                 // pen.origin.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
                 pen.origin.y += 128.0f;
             }
-            if (!dont_draw) easy_text_draw(&pen, title);
+            easy_text_draw(&pen, title);
             pen.origin.x += pen.offset_Pixel.x + 12.0f;
             pen.offset_Pixel.x = 0.0f;
             pen.origin.y += 2.5f; // FORNOW
             pen.font_height_Pixel = 18.0f;
         }
+        pen.ghost_write = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
     }
 
     // FORNOW: HACK: i'm computing all of these based on the current other.mouse_Pixel
@@ -167,7 +208,7 @@ void POPUP(
     for_(d, popup_num_cells) {
         bool d_is_active_cell_index; {
             d_is_active_cell_index = true;
-            d_is_active_cell_index &= is_focused;
+            d_is_active_cell_index &= IS_FOCUSED();
             d_is_active_cell_index &= (d == popup->active_cell_index);
         }
 
@@ -182,8 +223,8 @@ void POPUP(
             y_top = pen.get_y_Pixel();
             y_bottom = y_top + (0.8f * pen.font_height_Pixel);
 
-            if (!dont_draw) easy_text_draw(&pen, popup_name[d]);
-            if (!dont_draw) easy_text_drawf(&pen, ": ");
+            easy_text_draw(&pen, popup_name[d]);
+            easy_text_drawf(&pen, ": ");
 
             x_field_left = pen.get_x_Pixel() - (pen.font_height_Pixel / 12.0f);
 
@@ -208,11 +249,11 @@ void POPUP(
                 }
             }
 
-            if (!dont_draw) easy_text_draw(&pen, field);
+            easy_text_draw(&pen, field);
 
             x_field_right = pen.get_x_Pixel();
 
-            if (!dont_draw) easy_text_drawf(&pen, "\n");
+            easy_text_drawf(&pen, "\n");
 
             field_bbox = { x_field_left, y_top, x_field_right, y_bottom };
         }
@@ -255,7 +296,7 @@ void POPUP(
                 }
             }
 
-            if (!dont_draw) { // draw cursor selection_bbox hover_bbox
+            if (!pen.ghost_write) { // draw cursor selection_bbox hover_bbox
                 if (d_is_active_cell_index) { // draw cursor selection_bbox
                     if (POPUP_SELECTION_NOT_ACTIVE()) { // draw cursor
                         real x_cursor; {
@@ -307,12 +348,13 @@ void POPUP(
         }
     }
 
-    bool special_case_click_on_inactive_popup = false;
+    bool special_case_clicked_in = false;
+    bool special_case_xxx_control_tabbed_in = false;
     if (!already_processed_event_passed_to_popups) { // event handling
         Event *event = &event_passed_to_popups;
 
         if (event->type == EventType::Key) {
-            if (is_focused) {
+            if (IS_FOCUSED()) {
                 KeyEvent *key_event = &event->key_event;
                 if (key_event->subtype == KeyEventSubtype::Popup) {
 
@@ -461,6 +503,7 @@ void POPUP(
                         if (next_group == group) {
                             already_processed_event_passed_to_popups = true;
                             popup->manager.manually_set_focus_group(group);
+                            special_case_xxx_control_tabbed_in = true;
                         }
                     }
                 }
@@ -479,7 +522,7 @@ void POPUP(
                     if (popup_info_is_hovering) {
                         already_processed_event_passed_to_popups = true; // NOTE: does NOT require focus!
 
-                        if (is_focused) {
+                        if (IS_FOCUSED()) {
                             if (popup->active_cell_index == popup_info_hover_cell_index) { // same cell
                                 bool double_click = (POPUP_SELECTION_NOT_ACTIVE()) && (popup->cursor == popup_info_hover_cell_cursor);
                                 if (double_click) { // select all (double click)
@@ -495,12 +538,12 @@ void POPUP(
                                 popup->selection_cursor = popup->cursor;
                             }
                         } else {
-                            special_case_click_on_inactive_popup = true;
+                            special_case_clicked_in = true;
                             popup->manager.manually_set_focus_group(group);
                         }
                     }
                 } else { // drag
-                    if (is_focused) {
+                    if (IS_FOCUSED()) {
                         already_processed_event_passed_to_popups = true;
                         popup->selection_cursor = popup_info_active_cell_cursor;
                     }
@@ -509,32 +552,12 @@ void POPUP(
         }
     }
 
-    { // load up
-        bool tag_corresponding_to_this_group_was_changed = (popup->manager.get_tag(group) != _name0.data);
-        bool tag_corresponding_to_focus_group_became_NULL = (popup->manager.focus_group != ToolboxGroup::None) && (popup->manager.get_tag(popup->manager.focus_group) == NULL);
-        bool focus_group_was_manually_set_to_this_group = (popup->manager.focus_group_was_set_manually && (group == popup->manager.focus_group));
-        bool common = (0
-                || tag_corresponding_to_this_group_was_changed
-                || tag_corresponding_to_focus_group_became_NULL
-                || focus_group_was_manually_set_to_this_group
-                );
-
-        if (tag_corresponding_to_this_group_was_changed) {
-            popup->manager.set_tag(group, _name0.data);
-            if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
-        }
-
-        if (common) {
-            popup->manager.focus_group = group;
-            popup->active_cell_index = 0;
-            if (special_case_click_on_inactive_popup) popup->active_cell_index = popup_info_hover_cell_index;
-            POPUP_LOAD_CORRESPONDING_VALUE_INTO_ACTIVE_CELL_BUFFER();
-            popup->cursor = popup->active_cell_buffer.length;
-            popup->selection_cursor = 0;
-            if (special_case_click_on_inactive_popup) { popup->cursor = popup_info_hover_cell_cursor; popup->selection_cursor = popup->cursor; }
-            popup->_type_of_active_cell = popup_cell_type[popup->active_cell_index];
-        }
+    if (special_case_clicked_in) {
+        LOADUP_LOGIC({ true, popup_info_hover_cell_index, popup_info_hover_cell_cursor });
+    }
+    if (special_case_xxx_control_tabbed_in) {
+        LOADUP_LOGIC();
     }
 
-    if (is_focused) POPUP_SYNC_ACTIVE_CELL_BUFFER();
+    if (IS_FOCUSED()) POPUP_SYNC_ACTIVE_CELL_BUFFER();
 };

@@ -1007,7 +1007,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         }
-                    } else {
+                    } else { // (two_click_command->awaiting_second_click)
                         vec2 first_click = two_click_command->first_click;
                         vec2 second_click = *mouse;
                         vec2 click_vector = (second_click - first_click);
@@ -1018,7 +1018,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         if (0) {
                         } else if (state_Draw_command_is_(SetAxis)) {
-                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1030,7 +1029,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
                                 messagef(omax.orange, "Box: must have non-zero height");
                             } else {
-                                // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
@@ -1047,7 +1045,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
                                 messagef(omax.orange, "Box: must have non-zero height");
                             } else {
-                                // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
@@ -1064,7 +1061,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
 
                             set_state_Snap_command(None);
-                            two_click_command->awaiting_second_click = false;
                             DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
@@ -1075,7 +1071,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
 
                             set_state_Snap_command(None);
-                            two_click_command->awaiting_second_click = false;
                             DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
@@ -1086,7 +1081,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (clicks_are_same) {
                                 messagef(omax.orange, "Circle: must have non-zero diameter");
                             } else {
-                                two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
@@ -1101,7 +1095,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (clicks_are_same) {
                                 messagef(omax.orange, "TwoEdgeCircle: must have non-zero diameter");
                             } else {
-                                // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
@@ -1117,7 +1110,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
-                            // two_click_command->awaiting_second_click = false;
 
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
                             DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, second_click);
@@ -1260,7 +1252,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state_Draw_command_is_(Line)) {
-                            // two_click_command->awaiting_second_click = false;
                             if (clicks_are_same) {
                                 messagef(omax.orange, "Line: must have non-zero length");
                             } else {
@@ -1270,7 +1261,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(first_click, second_click);
                             }
                         } else if (state_Draw_command_is_(Measure)) {
-                            // two_click_command->awaiting_second_click = false;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
                             real angle = DEG(click_theta);
@@ -1278,7 +1268,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(omax.cyan, "Angle is %gdeg.", angle);
                             messagef(omax.cyan, "Length is %gmm.", length);
                         } else if (state_Draw_command_is_(Mirror2)) {
-                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1310,7 +1299,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 entity->is_selected = false;
                             }
                         } else if (state_Draw_command_is_(Rotate)) {
-                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1327,7 +1315,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state_Draw_command_is_(RCopy)) {
-                            // two_click_command->awaiting_second_click = false;
                             if (popup->rotate_copy_num_total_copies < 2) {
                                 messagef(omax.orange, "RCopy: must have at least 2 total copies");
                             } else {
@@ -1359,7 +1346,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state_Draw_command_is_(Move)) {
-                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1374,7 +1360,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (state_Draw_command_is_(Copy)) {
-                            // two_click_command->awaiting_second_click = false;
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1405,7 +1390,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (clicks_are_same) {
                                 messagef(omax.orange, "Polygon: must have non-zero size");
                             } else {
-                                // two_click_command->awaiting_second_click = false;
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
@@ -1425,7 +1409,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
                         } else if (WINDOW_SELECT_OR_WINDOW_DESELECT()) {
-                            two_click_command->awaiting_second_click = false;
+                            set_state_Draw_command(None);
+                            set_state_Xsel_command(None);
                             bbox2 window = {
                                 MIN(first_click.x, second_click.x),
                                 MIN(first_click.y, second_click.y),
