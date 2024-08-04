@@ -405,7 +405,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 || state_Draw_command_is_(Color)
                                 || ((SELECT_OR_DESELECT()) && (state_Xsel_command_is_(ByColor)))
                                 );
-                        bool spoof_is_mode_false = state_Draw_command_is_(Color) && state_Colo_command_is_(Selected);
+                        bool spoof_is_mode_false = 0
+                            || (state_Draw_command_is_(Color) && state_Colo_command_is_(Selected))
+                            || (SELECT_OR_DESELECT() && state_Xsel_command_is_(ByColor))
+                            ;
                         if (true) {
                             bool hotkey_quality;
                             uint digit = 0;
