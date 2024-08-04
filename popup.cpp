@@ -189,13 +189,13 @@ void POPUP(
                 // pen.origin.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
                 pen.origin.y += 128.0f;
             }
+            pen.ghost_write = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
             easy_text_draw(&pen, title);
             pen.origin.x += pen.offset_Pixel.x + 12.0f;
             pen.offset_Pixel.x = 0.0f;
             pen.origin.y += 2.5f; // FORNOW
             pen.font_height_Pixel = 18.0f;
         }
-        pen.ghost_write = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
     }
 
     // FORNOW: HACK: i'm computing all of these based on the current other.mouse_Pixel

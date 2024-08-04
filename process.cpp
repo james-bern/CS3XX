@@ -15,20 +15,19 @@
 
 // XXXX: click modifier belongs in other
 
-#if 0
-// TODO
+StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event);
 StandardEventProcessResult standard_event_process(Event event) {
-    bool global_world_state_changed;
+    // bool global_world_state_changed;
+    popup->manager.begin_process(); // NOTE: this is actually why we *need* this helper
+                                    //       (the auto-recording is just a bonus)
     StandardEventProcessResult result = _standard_event_process_NOTE_RECURSIVE(event);
-    if (global_world_state_changed) {
-        result.record_me = true;
-    }
+    // if (global_world_state_changed) {
+    //     result.record_me = true;
+    // }
     return result;
 }
-#endif
 
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
-    popup->manager.begin_process();
     event_passed_to_popups = event;
     already_processed_event_passed_to_popups = false;
 
@@ -477,8 +476,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             Event equivalent = {};
                             equivalent.type = EventType::Mouse;
                             equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
-
-                            // .mouse_position = {};
                             return _standard_event_process_NOTE_RECURSIVE(equivalent);
                         }
                     }
@@ -731,20 +728,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (GUIBUTTON(commands.TOGGLE_BUTTONS)) { // FORNOW
                     other.hide_toolbox = !other.hide_toolbox;
                 }
-
-
-                // if (!some_GUIBUTTON_triggered) {
-                // }
-
-                #if 0
-                // FORNOW
-                // if (GUIBUTTON(commands.Enter)) result.record_me = false; // ??
-                if (GUIBUTTON(COMMAND(DUMMY_HOTKEY, 0))) result.record_me = false;
-                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL))) result.record_me = false;
-                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL + MOD_SHIFT))) result.record_me = false;
-                if (GUIBUTTON(COMMAND(0, 0))) { ; }
-                #endif
-
 
                 if (key_event->subtype == KeyEventSubtype::Hotkey) { // (not button)
                     if (!hotkey_consumed_by_GUIBUTTON) {
@@ -2169,8 +2152,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         }
     }
 
-    event_passed_to_popups = {}; // FORNOW: probably unnecessary
-    already_processed_event_passed_to_popups = false; // FORNOW: probably unnecessary
+    // event_passed_to_popups = {}; // FORNOW: probably unnecessary
+    // already_processed_event_passed_to_popups = false; // FORNOW: probably unnecessary
     return result;
 }
 

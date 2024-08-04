@@ -137,12 +137,13 @@ run_before_main {
 };
 #endif
 
-#if 0 // multi-popup
+#if 1 // multi-popup
 run_before_main {
     startup_script = 
-        // "f123["
+        // "[lz"
+        // "[10lz"
         // "f123[456"
-        // "lz12\t34x56\t78[98\t76"
+        "lz12\t34x56\t78[98\t76"
         // "lzx["
         ;
 };
@@ -296,8 +297,11 @@ int main() {
 
     }
 
+    messagef(omax.red, "drawing line with xy active crashes popup");
+    messagef(omax.red, "escape transfers active buffer");
+
     #ifdef SHIP
-    messagef(omax.green, "press ? for help");
+    // messagef(omax.green, "press ? for help");
     #endif
     /*
     messagef(omax.red, "TODO: Intersection snap");

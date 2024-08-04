@@ -1,4 +1,15 @@
+////////////////////////////////////////
+// Forward-Declarations ////////////////
+////////////////////////////////////////
+
+void messagef(vec3 color, char *format, ...);
+template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier = 1.0f);
 // TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
+
+
+
+///////////
+
 
 enum class ToolboxGroup {
     None,
@@ -281,6 +292,7 @@ struct PopupManager {
 
     //////////
 
+    // TODO: problem is here (calling being_process interacts poorly with the recursion)
     void begin_process() {
         // // NOTE: end of previous call to process
         // -- (so we don't also need an end_process())
@@ -550,12 +562,6 @@ vec3 get_accent_color(ToolboxGroup group) {
     return result;
 }
 
-////////////////////////////////////////
-// Forward-Declarations ////////////////
-////////////////////////////////////////
-
-void messagef(vec3 color, char *format, ...);
-template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier = 1.0f);
 
 ////////////////////////////////////////
 // Config-Tweaks ///////////////////////

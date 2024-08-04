@@ -1,4 +1,4 @@
-StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event); // forward declaration
+StandardEventProcessResult standard_event_process(Event event); // forward declaration
 
 #ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
 //
@@ -67,7 +67,7 @@ void PUSH_UNDO_CLEAR_REDO(Event standard_event) {
 }
 
 void history_process_event(Event standard_event) {
-    StandardEventProcessResult tmp = _standard_event_process_NOTE_RECURSIVE(standard_event);
+    StandardEventProcessResult tmp = standard_event_process(standard_event);
     standard_event.record_me = tmp.record_me;
     standard_event.checkpoint_me = tmp.checkpoint_me;
     #ifndef DEBUG_HISTORY_DISABLE_SNAPSHOTTING
@@ -112,7 +112,7 @@ void history_undo() {
         }
     }
     other.please_suppress_messagef = true; {
-        for (Event *event = begin; event < one_past_end; ++event) _standard_event_process_NOTE_RECURSIVE(*event);
+        for (Event *event = begin; event < one_past_end; ++event) standard_event_process(*event);
     } other.please_suppress_messagef = false;
 
     messagef(omax.green, "Undo");
@@ -130,7 +130,7 @@ void history_redo() {
             Event *user_event = popped.user_event;
             WorldState_ChangesToThisMustBeRecorded_state *world_state = popped.world_state;
 
-            _standard_event_process_NOTE_RECURSIVE(*user_event);
+            standard_event_process(*user_event);
             if (world_state) {
                 world_state_free_AND_zero(&state);
                 world_state_deep_copy(&state, world_state);
