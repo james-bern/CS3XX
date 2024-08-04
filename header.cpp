@@ -18,11 +18,12 @@ struct Shortcut {
 
 #define CMD_FLAG_ (1 << 00)
 struct Command {
-    Shortcut shortcut;
     ToolboxGroup group;
     bool is_mode;
     u64 flags;
     String name;
+    #define COMMAND_MAX_NUM_SHORTCUTS 4
+    Shortcut shortcuts[COMMAND_MAX_NUM_SHORTCUTS];
 };
 
 bool command_equals(Command A, Command B) {
@@ -376,12 +377,12 @@ struct PopupState {
     uint rotate_copy_num_total_copies;
     real rotate_copy_angle;
     real scale_factor;
-    _STRING_CALLOC(load_filename, POPUP_CELL_LENGTH);
-    _STRING_CALLOC(stl_load_filename, POPUP_CELL_LENGTH);
-    _STRING_CALLOC(save_filename, POPUP_CELL_LENGTH);
-    _STRING_CALLOC(stl_save_filename, POPUP_CELL_LENGTH);
-    _STRING_CALLOC(save_confirmation, POPUP_CELL_LENGTH);
-    _STRING_CALLOC(stl_save_confirmation, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(open_dxf_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(save_dxf_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(overwrite_dxf_yn_buffer, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(open_stl_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(save_stl_filename, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(overwrite_stl_yn_buffer, POPUP_CELL_LENGTH);
 };
 
 struct ToolboxState {
@@ -444,7 +445,6 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_event_stack;
     bool hide_toolbox;
 
-    bool awaiting_confirmation;
     
 
     Pane hot_pane;
@@ -469,9 +469,6 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     real time_since_plane_selected;
     real time_since_plane_deselected;
     real time_since_going_inside;
-
-    String currently_open_stl;
-    String currently_open_dxf;
 
     PreviewState preview;
 

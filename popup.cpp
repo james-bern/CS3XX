@@ -2,15 +2,15 @@
 // other.time_since_cursor_start = 0.0; // FORNOW
 // other.time_since_cursor_start = 0.0f;
 // the way the popup mouse handling works is very contrived and scary (and i think the/a source of the segfaults)
-// currently: popup_popup broadcasts its most recent state elsewhere (is_hovering, PLUS--and this the problem--all sorts of hover varaibles); i think these can get dirty
+// currently: POPUP broadcasts its most recent state elsewhere (is_hovering, PLUS--and this the problem--all sorts of hover varaibles); i think these can get dirty
 // TODO: just broadcast is_hovering so we don't have to rely on scary synchronization
 // (MouseEventPopup should just have a position in pixel coordinates)
 
 // TODO: could allow user to supply non-zero starting values (this is probably a good idea -- unless it's really just used for revolveadd)
 // TODO: consider adding type-checking (NOTE: maybe hard?)
 // FORNOW: returns whether it just loaded up
-void popup_popup(
-        String title, ToolboxGroup group,
+void POPUP(
+        Command command,
         bool zero_on_load_up,
         CellType _cell_type0,                  String _name0,      void *_value0,
         CellType _cell_type1 = CellType::None, String _name1 = {}, void *_value1 = NULL,
@@ -18,6 +18,8 @@ void popup_popup(
         CellType _cell_type3 = CellType::None, String _name3 = {}, void *_value3 = NULL,
         CellType _cell_type4 = CellType::None, String _name4 = {}, void *_value4 = NULL
         ) {
+    String title = command.name;
+    ToolboxGroup group = command.group;
 
     popup->manager.register_call_to_popup_popup(group);
 

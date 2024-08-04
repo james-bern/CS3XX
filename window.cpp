@@ -1,4 +1,5 @@
 // TODO: an fps camera shouldn't be allowed to be ortho
+// TODO: camera should have clip planes as member variables
 
 #ifdef OPERATING_SYSTEM_APPLE
 #define GL_SILENCE_DEPRECATION

@@ -110,13 +110,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             // TODO: have the non-toggle-able buttons a different color (like before)
             Map<Shortcut, bool> shortcut_already_checked = {};
             defer { map_free_and_zero(&shortcut_already_checked); };
-            bool hotkey_consumed_by_magic_magic = false;
+            bool hotkey_consumed_by_GUIBUTTON = false;
             ToolboxGroup most_recent_group_for_SEPERATOR = ToolboxGroup::None;
             auto GUIBUTTON = [&](Command command, bool hide_button = false) -> bool {
                 most_recent_group_for_SEPERATOR = command.group;
                 bool gray_out_shortcut;
-                if (!map_get(&shortcut_already_checked, command.shortcut, false)) {
-                    map_put(&shortcut_already_checked, command.shortcut, true);
+                if (!map_get(&shortcut_already_checked, command.shortcuts[0], false)) {
+                    map_put(&shortcut_already_checked, command.shortcuts[0], true);
                     gray_out_shortcut = false;
                 } else {
                     gray_out_shortcut = true;
@@ -129,10 +129,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 u64 flags = command.flags;
                 String name = command.name;
 
-                bool control = command.shortcut.mods & MOD_CTRL;
-                bool shift = command.shortcut.mods & MOD_SHIFT;
-                bool alt = command.shortcut.mods & MOD_ALT;
-                uint key = command.shortcut.key;
+                bool control = command.shortcuts[0].mods & GLFW_MOD_CONTROL;
+                bool shift = command.shortcuts[0].mods & GLFW_MOD_SHIFT;
+                bool alt = command.shortcuts[0].mods & GLFW_MOD_ALT;
+                uint key = command.shortcuts[0].key;
 
                 bool special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch = (other._please_suppress_drawing_popup_popup && (group == ToolboxGroup::Snap));
                 bool draw_tool = name.data;
@@ -229,14 +229,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                        vec3 tmp_pen_color = pen->color;
-                        vec3 tmp_pen2_color = pen2->color;
-                        pen->color = V3(1.0f) - color;
-                        pen2->color = V3(1.0f) - color;
-                        if (gray_out_shortcut) {
-                            pen2->color = LERP(0.8f, tmp_pen2_color, color);
-                        } else {
-                        }
+                    vec3 tmp_pen_color = pen->color;
+                    vec3 tmp_pen2_color = pen2->color;
+                    pen->color = V3(1.0f) - color;
+                    pen2->color = V3(1.0f) - color;
+                    if (gray_out_shortcut) {
+                        pen2->color = LERP(0.8f, tmp_pen2_color, color);
+                    } else {
+                    }
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
                     pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
@@ -248,10 +248,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // } else {
                     //     easy_text_drawf(pen2, "");
                     // }
-                        easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                    easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
 
-                        pen->color = tmp_pen_color;
-                        pen2->color = tmp_pen2_color;
+                    pen->color = tmp_pen_color;
+                    pen2->color = tmp_pen2_color;
 
 
 
@@ -269,16 +269,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 // TODO: ScriptEvent
                 // TODO: this should store whether we're hovering in toolbox as well as the event that will be generated if we click
 
-                if (hotkey_consumed_by_magic_magic) return false;
+                if (hotkey_consumed_by_GUIBUTTON) return false;
 
                 bool inner_result; {
                     inner_result = false;
                     if (is_toolbox_button_mouse_event) {
                         inner_result |= (name.data == event.mouse_event.mouse_event_toolbox_button.name);
                     } else {
-                        bool tmp = _key_lambda(key_event, key, control, shift);
-                        inner_result |= tmp;
-                        hotkey_consumed_by_magic_magic |= tmp;
+                        for (Shortcut *shortcut = command.shortcuts; shortcut < command.shortcuts + COMMAND_MAX_NUM_SHORTCUTS; ++shortcut) {
+                            bool tmp = _key_lambda(key_event, shortcut->key, (shortcut->mods & GLFW_MOD_CONTROL), (shortcut->mods & GLFW_MOD_SHIFT));
+                            inner_result |= tmp;
+                            hotkey_consumed_by_GUIBUTTON |= tmp;
+                        }
                     }
                 }
 
@@ -480,10 +482,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 { // Draw
                     GUIBUTTON(commands.OpenDXF);
-                    if (GUIBUTTON(commands.SaveDXF)) {
-                        result.record_me = false; // TODO
-                        other.awaiting_confirmation = false; // TODO
-                    }
+                    GUIBUTTON(commands.SaveDXF);
                     SEPERATOR();
                     GUIBUTTON(commands.Select);
                     GUIBUTTON(commands.Deselect);
@@ -493,9 +492,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Box);
                     GUIBUTTON(commands.Polygon);
                     SEPERATOR();
-                    GUIBUTTON(commands.DiamCircle);
-                    GUIBUTTON(commands.CenterBox);
+                    GUIBUTTON(commands.Measure);
                     SEPERATOR();
+                    if (GUIBUTTON(commands.Color)) set_state_Colo_command(Color0);
+                    SEPERATOR();
+                    // GUIBUTTON(commands.DiamCircle);
+                    // GUIBUTTON(commands.CenterBox);
+                    // SEPERATOR();
                     GUIBUTTON(commands.Move);
                     GUIBUTTON(commands.Rotate);
                     GUIBUTTON(commands.Scale);
@@ -515,12 +518,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Origin);
                     GUIBUTTON(commands.Axis);
                     SEPERATOR();
-                    GUIBUTTON(commands.Measure);
-                    SEPERATOR();
-                    if (GUIBUTTON(commands.Color)) {
-                        set_state_Colo_command(Color0);
-                    }
-                    SEPERATOR();
                     if (GUIBUTTON(commands.ClearDrawing)) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
@@ -529,9 +526,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         messagef(omax.green, "ResetDXF");
                     }
                     if (GUIBUTTON(commands.ZoomDrawing)) {
-                        result.record_me = false;
                         init_camera_drawing();
-                        init_camera_mesh();
                     }
                     SEPERATOR();
                     SEPERATOR();
@@ -546,9 +541,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 ////////////////////////////////////////////////////////////////////////////////
 
                 GUIBUTTON(commands.OpenSTL);
-                if (GUIBUTTON(commands.SaveSTL)) {
-                    other.awaiting_confirmation = false; // TODO
-                }
+                GUIBUTTON(commands.SaveSTL);
                 SEPERATOR();
                 SEPERATOR();
                 if (GUIBUTTON(commands.Plane)) {
@@ -592,6 +585,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
                 SEPERATOR();
+                if (GUIBUTTON(commands.ZoomMesh)) {
+                    init_camera_mesh();
+                }
+                SEPERATOR();
                 if (GUIBUTTON(commands.ClearMesh)) {
                     result.checkpoint_me = true;
                     result.snapshot_me = true;
@@ -600,10 +597,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     messagef(omax.green, "ResetSTL");
 
                 }
-                if (GUIBUTTON(commands.ZoomMesh)) {
-                    other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
 
-                }
+                // if (GUIBUTTON(commands.OrthoCamera)) {
+                //     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
+                // }
 
                 ////////////////////////////////////////////////////////////////////////////////
 
@@ -692,7 +689,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if ((GUIBUTTON(commands.DELETE_SELECTED) || GUIBUTTON(commands.DELETE_SELECTED_ALTERNATE))) {
+                if (GUIBUTTON(commands.Delete)) {
                     // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
                     set_state_Draw_command(None);
                     set_state_Snap_command(None);
@@ -702,7 +699,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             cookbook._delete_entity(i);
                         }
                     }
-
                 }
 
                 if (GUIBUTTON(commands.HELP_MENU)) {
@@ -732,38 +728,33 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (GUIBUTTON(commands.TOGGLE_BUTTONS)) { // FORNOW
                     other.hide_toolbox = !other.hide_toolbox;
-
                 }
 
 
+                // if (!some_GUIBUTTON_triggered) {
+                // }
 
-                // ??
-                if (GUIBUTTON(commands.Enter)) { // FORNOW
-                    result.record_me = false;
-                }
-
-                if (GUIBUTTON(COMMAND(DUMMY_HOTKEY, 0))) { // FORNOW
-                    result.record_me = false;
-
-                }
-
-                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL))) { // FORNOW
-                    result.record_me = false;
-                }
-
-                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL + MOD_SHIFT))) { // FORNOW
-                    result.record_me = false;
-                }
+                #if 0
+                // FORNOW
+                // if (GUIBUTTON(commands.Enter)) result.record_me = false; // ??
+                if (GUIBUTTON(COMMAND(DUMMY_HOTKEY, 0))) result.record_me = false;
+                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL))) result.record_me = false;
+                if (GUIBUTTON(COMMAND(TAB, MOD_CTRL + MOD_SHIFT))) result.record_me = false;
+                if (GUIBUTTON(COMMAND(0, 0))) { ; }
+                #endif
 
 
-                if (GUIBUTTON(COMMAND(0, 0))) { // FORNOW
-                    ; 
-                }
-
-                if (key_event->subtype == KeyEventSubtype::Hotkey) {
-                    if (!hotkey_consumed_by_magic_magic) {
-                        messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
+                if (key_event->subtype == KeyEventSubtype::Hotkey) { // (not button)
+                    if (!hotkey_consumed_by_GUIBUTTON) {
                         result.record_me = false;
+                    }
+                    if (1
+                            && !hotkey_consumed_by_GUIBUTTON
+                            && (key_event->key != DUMMY_HOTKEY)
+                            && (key_event->key != 0)
+                            && (key_event->key != 0)
+                       ) {
+                        messagef(omax.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
                     }
                 }
 
@@ -774,7 +765,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (changed_click_mode && click_mode_SPACE_BAR_REPEAT_ELIGIBLE()) state.space_bar_event = event;
             if (changed_enter_mode && enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE()) state.shift_space_bar_event = event;
         } else { ASSERT(key_event->subtype == KeyEventSubtype::Popup);
-            // NOTE: this case has been moved into popup_popup();
+            // NOTE: this case has been moved into POPUP();
             result.record_me = true; // FORNOW
         }
     } else if (event.type == EventType::Mouse) {
@@ -1659,7 +1650,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
         } else { ASSERT(mouse_event->subtype == MouseEventSubtype::Popup);
-            // NOTE: this case has been moved into popup_popup();
+            // NOTE: this case has been moved into POPUP();
             result.record_me = true; // FORNOW
         }
     } else if (event.type == EventType::None) {
@@ -1674,7 +1665,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
     popup->_FORNOW_info_mouse_is_hovering = false; // FORNOW
 
-    { // popup_popup
+    { // POPUP
         bool _gui_key_enter; {
             _gui_key_enter = false;
             if (event.type == EventType::Key) {
@@ -1689,11 +1680,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             return (_gui_key_enter && (group == popup->manager.focus_group));
         };
 
-        { // popup_popup
+        { // POPUP
             { // Snap
                 if (state_Snap_command_is_(XY)) {
                     // sus calling this a modifier but okay; make sure it's first or else bad bad
-                    popup_popup(STRING("XY"), ToolboxGroup::Snap,
+                    POPUP(state.Snap_command,
                             true,
                             CellType::Real, STRING("x"), &popup->xy_x_coordinate,
                             CellType::Real, STRING("y"), &popup->xy_y_coordinate);
@@ -1712,7 +1703,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_circle_diameter = popup->circle_diameter;
                         real prev_circle_radius = popup->circle_radius;
                         real prev_circle_circumference = popup->circle_circumference;
-                        popup_popup(STRING("Circle"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 false,
                                 CellType::Real, STRING("diameter"), &popup->circle_diameter,
                                 CellType::Real, STRING("radius"), &popup->circle_radius,
@@ -1740,13 +1731,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_line_angle  = popup->line_angle;
                         real prev_line_run    = popup->line_run;
                         real prev_line_rise   = popup->line_rise;
-                        popup_popup(STRING("Line"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 true,
                                 CellType::Real, STRING("length"), &popup->line_length,
                                 CellType::Real, STRING("angle"),  &popup->line_angle,
                                 CellType::Real, STRING("run"),    &popup->line_run,
                                 CellType::Real, STRING("rise"),   &popup->line_rise
-                                );
+                             );
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
                         } else {
@@ -1761,7 +1752,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Draw_command_is_(Box)) {
                     if (two_click_command->awaiting_second_click) {
-                        popup_popup(STRING("Box"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 true,
                                 CellType::Real, STRING("width"), &popup->box_width,
                                 CellType::Real, STRING("height"), &popup->box_height);
@@ -1771,7 +1762,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Draw_command_is_(CenterBox)) {
                     if (two_click_command->awaiting_second_click) {
-                        popup_popup(STRING("CenterBox"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 true,
                                 CellType::Real, STRING("width"), &popup->box_width,
                                 CellType::Real, STRING("height"), &popup->box_height);
@@ -1786,7 +1777,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_move_angle = popup->move_angle;
                         real prev_move_run = popup->move_run;
                         real prev_move_rise = popup->move_rise;
-                        popup_popup(STRING("Move"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 true,
                                 CellType::Real, STRING("length"), &popup->move_length,
                                 CellType::Real, STRING("angle"), &popup->move_angle,
@@ -1806,10 +1797,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Draw_command_is_(Rotate)) {
                     if (two_click_command->awaiting_second_click) {
-                        popup_popup(STRING("Rotate"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 true,
                                 CellType::Real, STRING("angle"), &popup->rotate_angle
-                                );
+                             );
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(*first_click + e_theta(RAD(popup->rotate_angle))));
                         }
@@ -1818,11 +1809,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (two_click_command->awaiting_second_click) {
                         real prev_rotate_copy_angle_in_degrees = popup->rotate_copy_angle;
                         uint prev_rotate_copy_num_copies = popup->rotate_copy_num_total_copies;
-                        popup_popup(STRING("RCopy"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 true,
                                 CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
                                 CellType::Real, STRING("angle"), &popup->rotate_copy_angle
-                                );
+                             );
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
                         } else {
@@ -1839,7 +1830,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_linear_copy_angle = popup->linear_copy_angle;
                         real prev_linear_copy_run = popup->linear_copy_run;
                         real prev_linear_copy_rise = popup->linear_copy_rise;
-                        popup_popup(STRING("Copy"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 true,
                                 CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
                                 CellType::Real, STRING("length"), &popup->linear_copy_length,
@@ -1864,7 +1855,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_polygon_distance_to_side = popup->polygon_distance_to_side;
                         real prev_polygon_side_length = popup->polygon_side_length;
                         real theta = PI / popup->polygon_num_sides;
-                        popup_popup(STRING("Polygon"), ToolboxGroup::Draw,
+                        POPUP(state.Draw_command,
                                 false,
                                 CellType::Uint, STRING("num_sides"), &popup->polygon_num_sides, 
                                 CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner,
@@ -1886,38 +1877,38 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Draw_command_is_(Offset)) {
-                    popup_popup(STRING("Offset"), ToolboxGroup::Draw,
+                    POPUP(state.Draw_command,
                             false,
                             CellType::Real, STRING("distance"), &popup->offset_size);
                 } else if (state_Draw_command_is_(Fillet)) {
-                    popup_popup(STRING("Fillet"), ToolboxGroup::Draw,
+                    POPUP(state.Draw_command,
                             false,
                             CellType::Real, STRING("radius"), &popup->fillet_radius);
                 } else if (state_Draw_command_is_(DogEar)) {
-                    popup_popup(STRING("DogEar"), ToolboxGroup::Draw,
+                    POPUP(state.Draw_command,
                             false,
                             CellType::Real, STRING("radius"), &popup->dogear_radius);
                 } else if (state_Draw_command_is_(PowerFillet)) {
-                    popup_popup(STRING("PowerFillet"), ToolboxGroup::Draw,
+                    POPUP(state.Draw_command,
                             false,
                             CellType::Real, STRING("radius"), &popup->fillet_radius);
                 } else if (state_Draw_command_is_(OpenDXF)) {
-                    popup_popup(STRING("OpenDXF"), ToolboxGroup::Draw,
+                    POPUP(state.Draw_command,
                             false,
-                            CellType::String, STRING("filename"), &popup->load_filename);
+                            CellType::String, STRING("filename"), &popup->open_dxf_filename);
                     if (gui_key_enter(ToolboxGroup::Draw)) {
-                        if (FILE_EXISTS(popup->load_filename)) {
-                            if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
+                        if (FILE_EXISTS(popup->open_dxf_filename)) {
+                            if (string_matches_suffix(popup->open_dxf_filename, STRING(".dxf"))) {
                                 result.record_me = true;
                                 result.checkpoint_me = true;
                                 result.snapshot_me = true;
 
                                 { // conversation_dxf_load
-                                    ASSERT(FILE_EXISTS(popup->load_filename));
+                                    ASSERT(FILE_EXISTS(popup->open_dxf_filename));
 
                                     list_free_AND_zero(&drawing->entities);
 
-                                    entities_load(popup->load_filename, &drawing->entities);
+                                    entities_load(popup->open_dxf_filename, &drawing->entities);
 
                                     if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
                                         init_camera_drawing();
@@ -1925,78 +1916,63 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 set_state_Draw_command(None);
-                                messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
-                                other.currently_open_dxf = popup->load_filename;
-                            } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
-                                result.record_me = true;
-                                result.checkpoint_me = true;
-                                result.snapshot_me = true;
-                                { // conversation_stl_load(...)
-                                    ASSERT(FILE_EXISTS(popup->load_filename));
-                                    // ?
-                                    stl_load(popup->load_filename, mesh);
-                                    init_camera_mesh();
-                                }
-                                set_state_Mesh_command(None);
-                                messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
-                                other.currently_open_stl = popup->load_filename;
+                                messagef(omax.green, "OpenDXF \"%s\"", popup->open_dxf_filename.data);
                             } else {
-                                messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->load_filename.data);
+                                messagef(omax.orange, "OpenDXF: \"%s\" must be *.dxf or *.stl", popup->open_dxf_filename.data);
                             }
                         } else {
-                            messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
+                            messagef(omax.orange, "Load: \"%s\" not found", popup->open_dxf_filename.data);
+                        }
+                    }
+                } else if (state_Draw_command_is_(OverwriteDXF)) {
+                    result.record_me = false;
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::String, STRING("confirm (y/n)"), &popup->overwrite_dxf_yn_buffer);
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        if (popup->overwrite_dxf_yn_buffer.data[0] == 'y') {
+                            if (string_matches_suffix(popup->save_dxf_filename, STRING(".dxf"))) {
+                                {
+                                    bool success = drawing_save_dxf(drawing, popup->save_dxf_filename);
+                                    ASSERT(success);
+                                }
+                                set_state_Draw_command(None);
+                                messagef(omax.green, "OverwriteDXF \"%s\"", popup->save_dxf_filename.data);
+                            } else {
+                                messagef(omax.orange, "OverwriteDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
+                            }
+                        } else if (popup->overwrite_dxf_yn_buffer.data[0] == 'n') {
+                            set_state_Draw_command(None);
+                            messagef(omax.orange, "OverwriteDXF declined");
+                        } else {
+                            messagef(omax.orange, "OverwriteDXF confirm with y or n");
                         }
                     }
                 } else if (state_Draw_command_is_(SaveDXF)) {
                     result.record_me = false;
-                    if (other.awaiting_confirmation) {
-                        popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Draw, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
-                    } else {
-                        popup_popup(STRING("SaveDXF"), ToolboxGroup::Draw,
-                                false,
-                                CellType::String, STRING("filename"), &popup->save_filename);
-                    }
+                    POPUP(state.Draw_command,
+                            false,
+                            CellType::String, STRING("filename"), &popup->save_dxf_filename);
                     if (gui_key_enter(ToolboxGroup::Draw)) {
-                        if (FILE_EXISTS(popup->save_filename)) {
-                            if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
-                            } else if (other.awaiting_confirmation) {
-                                messagef(omax.pink, "Overwrote \"%s\"", popup->save_filename.data);
-                                if (popup->save_confirmation.data[0] == 'y') {
-                                    other.awaiting_confirmation = false;
-                                } else {
-                                    set_state_Mesh_command(None);
-                                    messagef(omax.red, "SAVE ABORTED");
-                                }
-                            } else {
-                                messagef(omax.pink, "WARNING \"%s\" already exists", popup->save_filename.data);
-                                other.awaiting_confirmation = true;
-                            }
-                        }
-
-
-                        if (!other.awaiting_confirmation) {
-                            if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
-                                { // conversation_stl_save
-                                    bool success = mesh_save_stl(mesh, popup->save_filename);
-                                    ASSERT(success);
-                                }
-                                set_state_Mesh_command(None);
-                                messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
-                            } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
+                        if (!FILE_EXISTS(popup->save_dxf_filename)) {
+                            if (string_matches_suffix(popup->save_dxf_filename, STRING(".dxf"))) {
+                                set_state_Draw_command(None);
                                 {
-                                    bool success = drawing_save_dxf(drawing, popup->save_filename);
+                                    bool success = drawing_save_dxf(drawing, popup->save_dxf_filename);
                                     ASSERT(success);
                                 }
-                                set_state_Mesh_command(None);
-                                messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
+                                messagef(omax.green, "SaveDXF \"%s\"", popup->save_dxf_filename.data);
                             } else {
-                                messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
+                                messagef(omax.orange, "SaveDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
                             }
+                        } else {
+                            messagef(omax.orange, "SaveDXF \"%s\" already exists", popup->save_dxf_filename.data);
+                            set_state_Draw_command(OverwriteDXF);
                         }
                     }
                 } else if (state_Draw_command_is_(Scale)) {
                     result.record_me = false;
-                    popup_popup(STRING("Size"), ToolboxGroup::Draw,
+                    POPUP(state.Draw_command,
                             false,
                             CellType::Real, STRING("scale factor"), &popup->scale_factor);
                     if (gui_key_enter(ToolboxGroup::Draw)) {
@@ -2023,22 +1999,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             { // Mesh
                 if (0) {
                 } else if (state_Mesh_command_is_(OpenSTL)) {
-                    popup_popup(STRING("OpenSTL"), ToolboxGroup::Mesh,
+                    POPUP(state.Mesh_command,
                             false,
-                            CellType::String, STRING("filename"), &popup->load_filename);
+                            CellType::String, STRING("filename"), &popup->open_stl_filename);
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        if (FILE_EXISTS(popup->load_filename)) {
-                            if (string_matches_suffix(popup->load_filename, STRING(".dxf"))) {
+                        if (FILE_EXISTS(popup->open_stl_filename)) {
+                            if (string_matches_suffix(popup->open_stl_filename, STRING(".dxf"))) {
                                 result.record_me = true;
                                 result.checkpoint_me = true;
                                 result.snapshot_me = true;
 
                                 { // conversation_dxf_load
-                                    ASSERT(FILE_EXISTS(popup->load_filename));
+                                    ASSERT(FILE_EXISTS(popup->open_stl_filename));
 
                                     list_free_AND_zero(&drawing->entities);
 
-                                    entities_load(popup->load_filename, &drawing->entities);
+                                    entities_load(popup->open_stl_filename, &drawing->entities);
 
                                     if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
                                         init_camera_drawing();
@@ -2046,80 +2022,74 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 set_state_Mesh_command(None);
-                                messagef(omax.green, "LoadDXF \"%s\"", popup->load_filename.data);
-                                other.currently_open_dxf = popup->load_filename;
-                            } else if (string_matches_suffix(popup->load_filename, STRING(".stl"))) {
+                                messagef(omax.green, "OpenDXF \"%s\"", popup->open_stl_filename.data);
+                            } else if (string_matches_suffix(popup->open_stl_filename, STRING(".stl"))) {
                                 result.record_me = true;
                                 result.checkpoint_me = true;
                                 result.snapshot_me = true;
                                 { // conversation_stl_load(...)
-                                    ASSERT(FILE_EXISTS(popup->load_filename));
+                                    ASSERT(FILE_EXISTS(popup->open_stl_filename));
                                     // ?
-                                    stl_load(popup->load_filename, mesh);
+                                    stl_load(popup->open_stl_filename, mesh);
                                     init_camera_mesh();
                                 }
                                 set_state_Mesh_command(None);
-                                messagef(omax.green, "LoadSTL \"%s\"", popup->load_filename.data);
-                                other.currently_open_stl = popup->load_filename;
+                                messagef(omax.green, "OpenSTL \"%s\"", popup->open_stl_filename.data);
                             } else {
-                                messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->load_filename.data);
+                                messagef(omax.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->open_stl_filename.data);
                             }
                         } else {
-                            messagef(omax.orange, "Load: \"%s\" not found", popup->load_filename.data);
+                            messagef(omax.orange, "Load: \"%s\" not found", popup->open_stl_filename.data);
+                        }
+                    }
+                } else if (state_Mesh_command_is_(OverwriteSTL)) {
+                    result.record_me = false;
+                    POPUP(state.Mesh_command,
+                            true,
+                            CellType::String, STRING("confirm (y/n)"), &popup->overwrite_stl_yn_buffer);
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                        if (popup->overwrite_stl_yn_buffer.data[0] == 'y') {
+                            if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
+                                {
+                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
+                                    ASSERT(success);
+                                }
+                                set_state_Mesh_command(None);
+                                messagef(omax.green, "OverwriteSTL \"%s\"", popup->save_stl_filename.data);
+                            } else {
+                                messagef(omax.orange, "OverwriteSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
+                            }
+                        } else if (popup->overwrite_stl_yn_buffer.data[0] == 'n') {
+                            set_state_Mesh_command(None);
+                            messagef(omax.orange, "OverwriteSTL declined");
+                        } else {
+                            messagef(omax.orange, "OverwriteSTL confirm with y or n");
                         }
                     }
                 } else if (state_Mesh_command_is_(SaveSTL)) {
-                    if (state_Mesh_command_is_(SaveSTL)) {
-                        if (true) {}
-                    }
                     result.record_me = false;
-                    if (other.awaiting_confirmation) {
-                        popup_popup(STRING("Confirm overwrite"), ToolboxGroup::Mesh, false, CellType::String, STRING("(y/n)"), &popup->save_confirmation);
-                    } else {
-                        popup_popup(STRING("SaveSTL"), ToolboxGroup::Mesh,
-                                false,
-                                CellType::String, STRING("filename"), &popup->save_filename);
-                    }
+                    POPUP(state.Mesh_command,
+                            false,
+                            CellType::String, STRING("filename"), &popup->save_stl_filename);
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        if (FILE_EXISTS(popup->save_filename)) {
-                            if (string_equal(popup->save_filename, other.currently_open_stl) || string_equal(popup->save_filename, other.currently_open_dxf)) {
-                            } else if (other.awaiting_confirmation) {
-                                messagef(omax.pink, "Overwrote \"%s\"", popup->save_filename.data);
-                                if (popup->save_confirmation.data[0] == 'y') {
-                                    other.awaiting_confirmation = false;
-                                } else {
-                                    set_state_Mesh_command(None);
-                                    messagef(omax.red, "SAVE ABORTED");
-                                }
-                            } else {
-                                messagef(omax.pink, "WARNING \"%s\" already exists", popup->save_filename.data);
-                                other.awaiting_confirmation = true;
-                            }
-                        }
-
-
-                        if (!other.awaiting_confirmation) {
-                            if (string_matches_suffix(popup->save_filename, STRING(".stl"))) {
-                                { // conversation_stl_save
-                                    bool success = mesh_save_stl(mesh, popup->save_filename);
-                                    ASSERT(success);
-                                }
+                        if (!FILE_EXISTS(popup->save_stl_filename)) {
+                            if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
                                 set_state_Mesh_command(None);
-                                messagef(omax.green, "SaveSTL \"%s\"", popup->save_filename.data);
-                            } else if (string_matches_suffix(popup->save_filename, STRING(".dxf"))) {
                                 {
-                                    bool success = drawing_save_dxf(drawing, popup->save_filename);
+                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
-                                set_state_Mesh_command(None);
-                                messagef(omax.green, "SaveDXF \"%s\"", popup->save_filename.data);
+                                messagef(omax.green, "SaveSTL \"%s\"", popup->save_stl_filename.data);
                             } else {
-                                messagef(omax.orange, "Save: \"%s\" must be *.stl (TODO: .dxf)", popup->save_filename.data);
+                                messagef(omax.orange, "SaveSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
                             }
+                        } else {
+                            messagef(omax.orange, "SaveSTL \"%s\" already exists", popup->save_stl_filename.data);
+                            set_state_Mesh_command(OverwriteSTL);
                         }
                     }
                 } else if (state_Mesh_command_is_(ExtrudeAdd)) {
-                    popup_popup(STRING("ExtrudeAdd"), ToolboxGroup::Mesh,
+                    POPUP(state.Mesh_command,
                             true,
                             CellType::Real, STRING("out_length"), &popup->extrude_add_out_length,
                             CellType::Real, STRING("in_length"),  &popup->extrude_add_in_length);
@@ -2140,7 +2110,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Mesh_command_is_(ExtrudeCut)) {
-                    popup_popup(STRING("ExtrudeCut"), ToolboxGroup::Mesh,
+                    POPUP(state.Mesh_command,
                             true,
                             CellType::Real, STRING("in_length"), &popup->extrude_cut_in_length,
                             CellType::Real, STRING("out_length"), &popup->extrude_cut_out_length);
@@ -2163,11 +2133,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Mesh_command_is_(RevolveAdd)) {
-                    popup_popup(STRING("RevolveAdd"), ToolboxGroup::Mesh,
+                    POPUP(state.Mesh_command,
                             true,
                             CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle,
                             CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle
-                            );
+                         );
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!dxf_anything_selected) {
                             messagef(omax.orange, "RevolveAdd: selection empty");
@@ -2179,11 +2149,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Mesh_command_is_(RevolveCut)) {
-                    popup_popup(STRING("RevolveCut"), ToolboxGroup::Mesh,
+                    POPUP(state.Mesh_command,
                             true,
                             CellType::Real, STRING("in_angle"), &popup->revolve_cut_in_angle,
                             CellType::Real, STRING("out_angle"), &popup->revolve_cut_out_angle
-                            );
+                         );
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!dxf_anything_selected) {
                             messagef(omax.orange, "RevolveCut: selection empty");
@@ -2197,7 +2167,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Mesh_command_is_(NudgePlane)) {
-                    popup_popup(STRING("NudgePlane"), ToolboxGroup::Mesh,
+                    POPUP(state.Mesh_command,
                             true,
                             CellType::Real, STRING("feature_plane_nudge"), &popup->feature_plane_nudge);
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
