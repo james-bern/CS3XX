@@ -297,7 +297,7 @@ int main() {
 
     }
 
-    messagef(omax.red, "drawing line with xy active crashes popup");
+    messagef(omax.red, "BUG: click on last field of Line then click to draw line");
     messagef(omax.red, "escape transfers active buffer");
 
     #ifdef SHIP
