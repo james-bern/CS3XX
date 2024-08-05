@@ -482,16 +482,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // Draw
-                    GUIBUTTON(commands.OpenDXF);
-                    GUIBUTTON(commands.SaveDXF);
-                    SEPERATOR();
-                    GUIBUTTON(commands.Measure);
-                    SEPERATOR();
-                    GUIBUTTON(commands.Line);
-                    GUIBUTTON(commands.Circle);
-                    GUIBUTTON(commands.Box);
-                    GUIBUTTON(commands.Polygon);
-                    SEPERATOR();
                     GUIBUTTON(commands.Select);
                     GUIBUTTON(commands.Deselect);
                     SEPERATOR();
@@ -507,14 +497,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                     SEPERATOR();
+                    if (GUIBUTTON(commands.Color)) set_state_Colo_command(Color0);
+                    SEPERATOR();
+                    GUIBUTTON(commands.Line);
+                    GUIBUTTON(commands.Circle);
+                    GUIBUTTON(commands.Box);
+                    GUIBUTTON(commands.Polygon);
+                    SEPERATOR();
                     // GUIBUTTON(commands.DiamCircle);
                     // GUIBUTTON(commands.CenterBox);
                     // SEPERATOR();
+                    GUIBUTTON(commands.Measure);
+                    SEPERATOR();
                     GUIBUTTON(commands.Move);
                     GUIBUTTON(commands.Rotate);
                     GUIBUTTON(commands.Scale);
-                    SEPERATOR();
-                    if (GUIBUTTON(commands.Color)) set_state_Colo_command(Color0);
                     SEPERATOR();
                     GUIBUTTON(commands.Copy);
                     GUIBUTTON(commands.RCopy);
@@ -542,6 +539,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         init_camera_drawing();
                     }
                     SEPERATOR();
+                    GUIBUTTON(commands.OpenDXF);
+                    GUIBUTTON(commands.SaveDXF);
+                    SEPERATOR();
                     SEPERATOR();
                     SEPERATOR();
                     if (GUIBUTTON(commands.PowerFillet)) {
@@ -552,10 +552,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // Mesh
-                    GUIBUTTON(commands.OpenSTL);
-                    GUIBUTTON(commands.SaveSTL);
-                    SEPERATOR();
-                    SEPERATOR();
                     if (GUIBUTTON(commands.Plane)) {
                         // TODO: 'Y' remembers last terminal choice of plane for next time
                         result.checkpoint_me = true;
@@ -579,6 +575,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         preview->extrude_in_length = 0; // FORNOW
                         preview->extrude_out_length = 0; // FORNOW
                     }
+                    SEPERATOR();
                     if (GUIBUTTON(commands.RevolveAdd)) {
                         preview->revolve_in_angle = 0; // FORNOW
                         preview->revolve_out_angle = 0; // FORNOW
@@ -607,6 +604,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ZoomMesh)) {
                         init_camera_mesh();
                     }
+                    SEPERATOR();
+                    SEPERATOR();
+                    GUIBUTTON(commands.OpenSTL);
+                    GUIBUTTON(commands.SaveSTL);
                 }
 
 
@@ -1701,10 +1702,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_line_rise   = popup->line_rise;
                         POPUP(state.Draw_command,
                                 true,
+                                CellType::Real, STRING("run (dx)"),    &popup->line_run,
+                                CellType::Real, STRING("rise (dy)"),   &popup->line_rise,
                                 CellType::Real, STRING("length"), &popup->line_length,
-                                CellType::Real, STRING("angle"),  &popup->line_angle,
-                                CellType::Real, STRING("run"),    &popup->line_run,
-                                CellType::Real, STRING("rise"),   &popup->line_rise
+                                CellType::Real, STRING("angle"),  &popup->line_angle
                              );
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
@@ -1747,10 +1748,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_move_rise = popup->move_rise;
                         POPUP(state.Draw_command,
                                 true,
+                                CellType::Real, STRING("run (dx)"), &popup->move_run,
+                                CellType::Real, STRING("rise (dy)"), &popup->move_rise,
                                 CellType::Real, STRING("length"), &popup->move_length,
-                                CellType::Real, STRING("angle"), &popup->move_angle,
-                                CellType::Real, STRING("run"), &popup->move_run,
-                                CellType::Real, STRING("rise"), &popup->move_rise);
+                                CellType::Real, STRING("angle"), &popup->move_angle
+                             );
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
                         } else {
@@ -1801,10 +1803,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         POPUP(state.Draw_command,
                                 true,
                                 CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
+                                CellType::Real, STRING("run (dx)"), &popup->linear_copy_run,
+                                CellType::Real, STRING("rise (dy)"), &popup->linear_copy_rise,
                                 CellType::Real, STRING("length"), &popup->linear_copy_length,
-                                CellType::Real, STRING("angle"), &popup->linear_copy_angle,
-                                CellType::Real, STRING("run"), &popup->linear_copy_run,
-                                CellType::Real, STRING("rise"), &popup->linear_copy_rise);
+                                CellType::Real, STRING("angle"), &popup->linear_copy_angle
+                             );
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->linear_copy_run, first_click->y + popup->linear_copy_rise));
                         } else {

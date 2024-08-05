@@ -531,7 +531,7 @@ vec3 omax_pallete[] = {
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = omax.blue;
+        result = omax.cyan;
     } else if (group == ToolboxGroup::Both) {
         result = monokai.orange;
     } else if (group == ToolboxGroup::Mesh) {
