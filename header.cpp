@@ -189,6 +189,8 @@ struct RawMouseEvent {
     Pane pane;
     vec2 mouse_Pixel;
     bool mouse_held;
+    bool mouse_double_click;
+    bool mouse_double_click_held;
 };
 
 struct RawEvent {
@@ -231,6 +233,8 @@ struct MouseEvent {
 
     vec2 mouse_Pixel;
     bool mouse_held;
+    bool mouse_double_click;
+    bool mouse_double_click_held;
 
     MouseEventDrawing mouse_event_drawing;
     MouseEventMesh mouse_event_mesh;
@@ -439,12 +443,13 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_event_stack;
     bool hide_toolbox;
 
-
-
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL;
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
+
+    long timestamp_mouse_left_click;
+    bool mouse_double_left_click_held;
 
     bool shift_held;
     vec2 mouse_OpenGL;

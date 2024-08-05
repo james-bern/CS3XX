@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <utility>
 #include <time.h>
+#include <chrono>
 
 // // types
 // basic types
@@ -176,9 +177,13 @@ template <typename T> void SWAP(T *a, T *b) {
     *a = *b;
     *b = tmp;
 }
-
-run_before_main {
-    setvbuf(stdout, NULL, _IONBF, 0); // don't buffer printf
-    srand((unsigned int) time(NULL));
-};
-
+// MILLIS
+long MILLIS() {
+    using namespace std::chrono;
+    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    return (long) ms.count();
+}
+// don't buffer printf
+run_before_main { setvbuf(stdout, NULL, _IONBF, 0); };
+// seed random number generator
+run_before_main { srand((unsigned int) time(NULL)); };

@@ -76,7 +76,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
                 1
                 && (popup->manager.focus_group != ToolboxGroup::None)
                 && (popup->_FORNOW_info_mouse_is_hovering)
-           ) {
+                ) {
             other.hot_pane = Pane::Popup;
         } else if (x_mouse_Pixel < x_divider_drawing_mesh_Pixel - eps) {
             other.hot_pane = Pane::Drawing;
@@ -99,6 +99,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
                 raw_mouse_event->pane = other.mouse_left_drag_pane;
                 raw_mouse_event->mouse_Pixel = other.mouse_Pixel;
                 raw_mouse_event->mouse_held = true;
+                raw_mouse_event->mouse_double_click_held = other.mouse_double_left_click_held;
             }
             queue_enqueue(&raw_event_queue, raw_event);
         }
@@ -133,7 +134,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
     }
 
     { // moving cameras
-        // mouse_left_drag_pane
+      // mouse_left_drag_pane
         if (other.mouse_left_drag_pane == Pane::Mesh) {
             real fac = 2.0f;
             camera_mesh->euler_angles.y -= fac * delta_mouse_OpenGL.x;
@@ -154,6 +155,21 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
     if (button == GLFW_MOUSE_BUTTON_LEFT) {
+
+        bool double_left_click;
+        { // double_left_click, other.mouse_double_left_click_held
+            double_left_click = false;
+            long new_timestamp = MILLIS();
+            long delta = new_timestamp - other.timestamp_mouse_left_click;
+            // messagef(omax.blue, "%ld - %ld = %ld", new_timestamp, other.timestamp_mouse_left_click, delta);
+            if (delta < 128.0L) {
+                other.mouse_double_left_click_held = true;
+                double_left_click = true;
+            }
+            other.timestamp_mouse_left_click = new_timestamp;
+        }
+
+        // NOTE: GLFW_HELD (not a real thing) is in callback_cursor_position
         if (action == GLFW_PRESS) {
             other.mouse_left_drag_pane = other.hot_pane;
             RawEvent raw_event; {
@@ -162,10 +178,12 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
                 RawMouseEvent *raw_mouse_event = &raw_event.raw_mouse_event;
                 raw_mouse_event->pane = other.hot_pane;
                 raw_mouse_event->mouse_Pixel = other.mouse_Pixel;
+                raw_mouse_event->mouse_double_click = double_left_click;
             }
             queue_enqueue(&raw_event_queue, raw_event);
         } else { ASSERT(action == GLFW_RELEASE);
             other.mouse_left_drag_pane = Pane::None;
+            other.mouse_double_left_click_held = false;
         }
     } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
         if (action == GLFW_PRESS) {

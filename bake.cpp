@@ -71,6 +71,8 @@ Event bake_event(RawEvent raw_event) {
         MouseEvent *mouse_event = &event.mouse_event;
         mouse_event->mouse_Pixel = raw_mouse_event->mouse_Pixel;
         mouse_event->mouse_held = raw_mouse_event->mouse_held;
+        mouse_event->mouse_double_click = raw_mouse_event->mouse_double_click;
+        mouse_event->mouse_double_click_held = raw_mouse_event->mouse_double_click_held;
         {
             if (raw_mouse_event->pane == Pane::Drawing) {
                 mat4 World_2D_from_OpenGL = inverse(camera_drawing->get_PV());

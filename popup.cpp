@@ -524,8 +524,7 @@ void POPUP(
 
                         if (IS_FOCUSED()) {
                             if (popup->active_cell_index == popup_info_hover_cell_index) { // same cell
-                                bool double_click = (POPUP_SELECTION_NOT_ACTIVE()) && (popup->cursor == popup_info_hover_cell_cursor);
-                                if (double_click) { // select all (double click)
+                                if (mouse_event->mouse_double_click) { // select all (double click)
                                     popup->cursor = popup->active_cell_buffer.length;
                                     popup->selection_cursor = 0;
                                 } else { // move
@@ -542,8 +541,7 @@ void POPUP(
                             popup->manager.manually_set_focus_group(group);
                         }
                     }
-                } else { // drag
-                    do_once { messagef(omax.red, "drag jacked after double click"); };
+                } else if (!mouse_event->mouse_double_click_held) { // drag
                     if (IS_FOCUSED()) {
                         already_processed_event_passed_to_popups = true;
                         popup->selection_cursor = popup_info_active_cell_cursor;
