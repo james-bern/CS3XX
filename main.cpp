@@ -137,7 +137,7 @@ run_before_main {
 };
 #endif
 
-#if 1 // multi-popup
+#if 0 // multi-popup
 run_before_main {
     startup_script = 
         // "[lz"
@@ -298,6 +298,8 @@ int main() {
     }
 
 
+    messagef(omax.red, "TODO: delete/backspace seems broken (getting eaten by phantom popup?)");
+    messagef(omax.red, "TODO: after opening a dxf, can't use hotkeys (getting eaten by phantom popup?)");
     #ifdef SHIP
     // messagef(omax.green, "press ? for help");
     #endif

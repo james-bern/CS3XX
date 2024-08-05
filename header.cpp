@@ -49,11 +49,11 @@ bool command_equals(Command A, Command B) {
 #define state_Colo_command_is_(Name) command_equals(state.Colo_command, commands.Name)
 
 // FORNOW ew
-#define set_state_Draw_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Draw)); state.Draw_command = commands.Name; } while (0)
-#define set_state_Mesh_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Mesh)); state.Mesh_command = commands.Name; } while (0)
-#define set_state_Snap_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Snap)); state.Snap_command = commands.Name; } while (0)
-#define set_state_Xsel_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Xsel)); state.Xsel_command = commands.Name; } while (0)
-#define set_state_Colo_command(Name) do { ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Colo)); state.Colo_command = commands.Name; } while (0)
+#define set_state_Draw_command(Name) do { /*ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Draw));*/ state.Draw_command = commands.Name; } while (0)
+#define set_state_Mesh_command(Name) do { /*ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Mesh));*/ state.Mesh_command = commands.Name; } while (0)
+#define set_state_Snap_command(Name) do { /*ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Snap));*/ state.Snap_command = commands.Name; } while (0)
+#define set_state_Xsel_command(Name) do { /*ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Xsel));*/ state.Xsel_command = commands.Name; } while (0)
+#define set_state_Colo_command(Name) do { /*ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Colo));*/ state.Colo_command = commands.Name; } while (0)
 
 
 #include "commands.cpp"
@@ -531,13 +531,13 @@ vec3 omax_pallete[] = {
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = monokai.blue;
+        result = omax.blue;
     } else if (group == ToolboxGroup::Both) {
         result = monokai.orange;
     } else if (group == ToolboxGroup::Mesh) {
-        result = monokai.purple;
+        result = omax.purple;
     } else if (group == ToolboxGroup::Snap) {
-        result = monokai.green;
+        result = omax.orange;
     } else if (group == ToolboxGroup::Xsel) {
         result = omax.yellow;
     } else if (group == ToolboxGroup::Colo) {

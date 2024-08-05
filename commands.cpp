@@ -56,8 +56,9 @@
     COMMANDS_INNER(ClearDrawing,    'N', 0b010, Draw, 0, 0); \
     COMMANDS_INNER(ZoomDrawing,       0, 0b000, Draw, 0, 0 | NO_RECORD); \
     \
-    COMMANDS_INNER(OverwriteDXF,      0, 0b000, Draw, 0, 0); \
-    COMMANDS_INNER(OverwriteSTL,      0, 0b000, Mesh, 0, 0); \
+    COMMANDS_INNER(Delete,               GLFW_KEY_DELETE, 0b000, Draw, 0, 0, GLFW_KEY_BACKSPACE, 0b000);  \
+    COMMANDS_INNER(OverwriteDXF,                       0, 0b000, Draw, 0, 0); \
+    COMMANDS_INNER(OverwriteSTL,                       0, 0b000, Mesh, 0, 0); \
     \
     COMMANDS_INNER(ExtrudeAdd,      '[', 0b000, Mesh, 1, 0 | FOCUS_THEIF); \
     COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THEIF); \
@@ -113,7 +114,6 @@
     COMMANDS_INNER(PowerFillet,                      'F', 0b001, None, 0, 0);  \
     COMMANDS_INNER(HELP_MENU,                        '/', 0b010, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(DivideNearest,                    'X', 0b000, None, 0, 0);  \
-    COMMANDS_INNER(Delete,                     GLFW_KEY_DELETE, 0b000, None, 0, 0,  GLFW_KEY_BACKSPACE, 0b000);  \
     // COMMANDS_INNER(NEXT_POPUP_BAR,                  TAB,  0b000, None, 0, 0);/* secretly supported but scary */ \
 
 

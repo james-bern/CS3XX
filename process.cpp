@@ -487,13 +487,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     SEPERATOR();
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
-                    GUIBUTTON(commands.Select);
-                    GUIBUTTON(commands.Deselect);
-                    SEPERATOR();
                     GUIBUTTON(commands.Line);
                     GUIBUTTON(commands.Circle);
                     GUIBUTTON(commands.Box);
                     GUIBUTTON(commands.Polygon);
+                    SEPERATOR();
+                    GUIBUTTON(commands.Select);
+                    GUIBUTTON(commands.Deselect);
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.Delete)) {
+                        // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
+                        set_state_Draw_command(None);
+                        set_state_Snap_command(None);
+
+                        for (int i = drawing->entities.length - 1; i >= 0; --i) {
+                            if (drawing->entities.array[i].is_selected) {
+                                cookbook._delete_entity(i);
+                            }
+                        }
+                    }
                     SEPERATOR();
                     // GUIBUTTON(commands.DiamCircle);
                     // GUIBUTTON(commands.CenterBox);
@@ -539,73 +551,70 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
+                { // Mesh
+                    GUIBUTTON(commands.OpenSTL);
+                    GUIBUTTON(commands.SaveSTL);
+                    SEPERATOR();
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.Plane)) {
+                        // TODO: 'Y' remembers last terminal choice of plane for next time
+                        result.checkpoint_me = true;
+                        other.time_since_plane_selected = 0.0f;
+
+                        // already one of the three primary planes
+                        if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
+                            feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
+                        } else {
+                            feature_plane->is_active = true;
+                            feature_plane->signed_distance_to_world_origin = 0.0f;
+                            feature_plane->normal = { 0.0f, 1.0f, 0.0f };
+                        }
+                    }
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.ExtrudeAdd)) {
+                        preview->extrude_in_length = 0; // FORNOW
+                        preview->extrude_out_length = 0; // FORNOW
+                    }
+                    if (GUIBUTTON(commands.ExtrudeCut)) {
+                        preview->extrude_in_length = 0; // FORNOW
+                        preview->extrude_out_length = 0; // FORNOW
+                    }
+                    if (GUIBUTTON(commands.RevolveAdd)) {
+                        preview->revolve_in_angle = 0; // FORNOW
+                        preview->revolve_out_angle = 0; // FORNOW
+                    }
+                    if (GUIBUTTON(commands.RevolveCut)) {
+                        preview->revolve_in_angle = 0; // FORNOW
+                        preview->revolve_out_angle = 0; // FORNOW
+                    }
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.NudgePlane)) {
+                        if (feature_plane->is_active) {
+                            preview->feature_plane_offset = 0.0f; // FORNOW
+                        } else {
+                            messagef(omax.orange, "NudgePlane: no feature plane selected");
+                            set_state_Mesh_command(None); // FORNOW
+                        }
+                    }
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.ClearMesh)) {
+                        result.checkpoint_me = true;
+                        result.snapshot_me = true;
+                        mesh_free_AND_zero(mesh);
+                        *feature_plane = {};
+                        messagef(omax.green, "ClearMesh");
+                    }
+                    if (GUIBUTTON(commands.ZoomMesh)) {
+                        init_camera_mesh();
+                    }
+                }
+
+
                 ////////////////////////////////////////////////////////////////////////////////
-
-                GUIBUTTON(commands.OpenSTL);
-                GUIBUTTON(commands.SaveSTL);
-                SEPERATOR();
-                SEPERATOR();
-                if (GUIBUTTON(commands.Plane)) {
-                    // TODO: 'Y' remembers last terminal choice of plane for next time
-                    result.checkpoint_me = true;
-                    other.time_since_plane_selected = 0.0f;
-
-                    // already one of the three primary planes
-                    if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
-                        feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
-                    } else {
-                        feature_plane->is_active = true;
-                        feature_plane->signed_distance_to_world_origin = 0.0f;
-                        feature_plane->normal = { 0.0f, 1.0f, 0.0f };
-                    }
-                }
-                SEPERATOR();
-                if (GUIBUTTON(commands.ExtrudeAdd)) {
-                    preview->extrude_in_length = 0; // FORNOW
-                    preview->extrude_out_length = 0; // FORNOW
-                }
-                if (GUIBUTTON(commands.ExtrudeCut)) {
-                    preview->extrude_in_length = 0; // FORNOW
-                    preview->extrude_out_length = 0; // FORNOW
-                }
-                if (GUIBUTTON(commands.RevolveAdd)) {
-                    preview->revolve_in_angle = 0; // FORNOW
-                    preview->revolve_out_angle = 0; // FORNOW
-                }
-                if (GUIBUTTON(commands.RevolveCut)) {
-                    preview->revolve_in_angle = 0; // FORNOW
-                    preview->revolve_out_angle = 0; // FORNOW
-                }
-                SEPERATOR();
-                if (GUIBUTTON(commands.NudgePlane)) {
-                    if (feature_plane->is_active) {
-                        preview->feature_plane_offset = 0.0f; // FORNOW
-                    } else {
-                        messagef(omax.orange, "NudgePlane: no feature plane selected");
-                        set_state_Mesh_command(None); // FORNOW
-                    }
-                }
-                SEPERATOR();
-                if (GUIBUTTON(commands.ClearMesh)) {
-                    result.checkpoint_me = true;
-                    result.snapshot_me = true;
-                    mesh_free_AND_zero(mesh);
-                    *feature_plane = {};
-                    messagef(omax.green, "ClearMesh");
-                }
-                if (GUIBUTTON(commands.ZoomMesh)) {
-                    init_camera_mesh();
-                }
 
                 // if (GUIBUTTON(commands.OrthoCamera)) {
                 //     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                 // }
-
-                ////////////////////////////////////////////////////////////////////////////////
-
-
-
-
 
                 if (GUIBUTTON(commands.DivideNearest)) {
                     set_state_Draw_command(DivideNearest);
@@ -688,17 +697,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 }
 
-                if (GUIBUTTON(commands.Delete)) {
-                    // trust me you want this code (imagine deleting stuff while in the middle of a two click command)
-                    set_state_Draw_command(None);
-                    set_state_Snap_command(None);
-
-                    for (int i = drawing->entities.length - 1; i >= 0; --i) {
-                        if (drawing->entities.array[i].is_selected) {
-                            cookbook._delete_entity(i);
-                        }
-                    }
-                }
 
                 if (GUIBUTTON(commands.HELP_MENU)) {
                     other.show_help = !other.show_help;
