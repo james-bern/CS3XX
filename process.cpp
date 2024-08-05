@@ -77,21 +77,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             real h = Draw_pen.font_height_Pixel + Draw_pen2.font_height_Pixel;
 
-            EasyTextPen Snap_pen = Draw_pen;
-            EasyTextPen Snap_pen2 = Draw_pen2;
-            Snap_pen.origin.x += (w + padding);
-            Snap_pen.origin.y = window_get_height_Pixel() - (h + padding);
-            Snap_pen2.origin = Snap_pen.origin;
-
-            EasyTextPen Colo_pen = Snap_pen;
-            EasyTextPen Colo_pen2 = Snap_pen2;
-            Colo_pen.origin.y -= (h + padding);
-            Colo_pen2.origin = Colo_pen.origin;
-
             EasyTextPen Xsel_pen = Draw_pen;
             EasyTextPen Xsel_pen2 = Draw_pen2;
             Xsel_pen.origin.x += (w + padding);
             Xsel_pen2.origin = Xsel_pen.origin;
+
+            EasyTextPen Snap_pen = Xsel_pen;
+            EasyTextPen Snap_pen2 = Xsel_pen2;
+
+            EasyTextPen Colo_pen = Snap_pen;
+            EasyTextPen Colo_pen2 = Snap_pen2;
+            Colo_pen.origin.y += 114.0f;
+            Colo_pen2.origin = Colo_pen.origin;
+
 
             EasyTextPen Both_pen = Draw_pen;
             EasyTextPen Both_pen2 = Draw_pen2;
@@ -155,12 +153,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (group == ToolboxGroup::Snap) {
                         pen = &Snap_pen;
                         pen2 = &Snap_pen2;
-                        horz = true;
                         w = 64.0f;
                     } else if (group == ToolboxGroup::Colo) {
                         pen = &Colo_pen;
                         pen2 = &Colo_pen2;
-                        horz = true;
                         w = 48.0f;
                     } else if (group == ToolboxGroup::Both) {
                         pen = &Both_pen;
