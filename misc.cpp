@@ -87,7 +87,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             if (squared_distance < min_squared_distance) {
                                 min_squared_distance = squared_distance;
                                 result.mouse_position = p[d];
-                                result.entity_index_snapped_to = entity - drawing->entities.array;
+                                result.entity_index_snapped_to = uint(entity - drawing->entities.array);
                                 result.snapped = true;
                             }
                         }
@@ -106,8 +106,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         ClosestIntersectionResult res = closest_intersection(closest_entity, temp_entity, before);
                         if (!res.no_possible_intersection) {
                             result.mouse_position = res.point;
-                            result.entity_index_snapped_to = closest_entity_info.closest_entity - drawing->entities.array; //TODO TODO TODO
-                            result.entity_index_intersect = temp_entity - drawing->entities.array;
+                            result.entity_index_snapped_to = uint(closest_entity_info.closest_entity - drawing->entities.array); //TODO TODO TODO
+                            result.entity_index_intersect = uint(temp_entity - drawing->entities.array);
                             result.snapped = true;
                             result.split_intersect = true;
                         } else messagef(omax.orange, "no intersection found");
@@ -147,16 +147,16 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         ArcEntity c1 = two_click_command->entity_closest_to_first_click->arc;
 
                         vec2 center_diff = c2.center - c1.center;
-                        double dist = distance(c1.center, c2.center);
-                        double angle = ATAN2(center_diff);
+                        real dist = distance(c1.center, c2.center);
+                        real angle = ATAN2(center_diff);
 
-                        double phi1 = acos((c1.radius - c2.radius) / dist);
-                        double phi2 = acos((c1.radius + c2.radius) / dist);
+                        real phi1 = acos((c1.radius - c2.radius) / dist);
+                        real phi2 = acos((c1.radius + c2.radius) / dist);
 
-                        double theta1a = angle + phi1;
-                        double theta1b = angle - phi1;
-                        double theta2a = angle + phi2;
-                        double theta2b = angle - phi2;
+                        real theta1a = angle + phi1;
+                        real theta1b = angle - phi1;
+                        real theta2a = angle + phi2;
+                        real theta2b = angle - phi2;
 
                         vec2 p1a1 = c1.center + V2(c1.radius * COS(theta1a), c1.radius * SIN(theta1a));
                         vec2 p1a2 = c1.center + V2(c1.radius * COS(theta1b), c1.radius * SIN(theta1b));
@@ -185,7 +185,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         two_click_command->tangent_first_click = false;
                         result.snapped = true;
                         result.split_tangent_2 = true;
-                        result.entity_index_tangent_2 = two_click_command->entity_closest_to_first_click - drawing->entities.array;
+                        result.entity_index_tangent_2 = uint(two_click_command->entity_closest_to_first_click - drawing->entities.array);
 
                     } else if (two_click_command->awaiting_second_click) {
                         vec2 center = closest_entity->arc.center;

@@ -324,7 +324,7 @@ struct Cookbook {
 
                 vec2 line_vector = line.end - line.start;
                 bool line_left = cross(line_vector, reference_point - line.start) < 0;
-                vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1 : -1);
+                vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1.0f : -1.0f);
                 LineEntity new_line; // ! color, etc. undefined
                 new_line.start = line.start + line_adjust; 
                 new_line.end = line.end + line_adjust; 
@@ -386,7 +386,7 @@ struct Cookbook {
                         fillet_middle_arc += 1.0f;
                     }
                 }
-                if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001) || ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001))) {
+                if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
                     //messagef(omax.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
                     if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
                         EntA->arc.start_angle_in_degrees = divide_theta;

@@ -519,7 +519,7 @@ void conversation_draw() {
                     real a = -RAD(preview->revolve_out_angle);
                     real b = RAD(preview->revolve_in_angle);
                     real L = b - a;
-                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / .1)) + 2);
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / 0.1f)) + 2);
                     vec3 axis = V3(e_theta(PI / 2 + preview_dxf_axis_angle_from_y), 0.0f);
                     mat4 R_0 = M4_RotationAbout(axis, a);
                     mat4 R_inc = M4_RotationAbout(axis, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));

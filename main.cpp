@@ -385,7 +385,7 @@ int main() {
 
                 _for_each_entity_ {
                     vec3 target_color = get_color((entity->is_selected) ? ColorCode::Selection : entity->color_code);
-                    if (entity->is_selected) target_color = CLAMPED_LERP(3.0f * entity->time_since_is_selected_changed - 0.1, AVG(omax.white, target_color), target_color);
+                    if (entity->is_selected) target_color = CLAMPED_LERP(3.0f * entity->time_since_is_selected_changed - 0.1f, AVG(omax.white, target_color), target_color);
                     JUICEIT_EASYTWEEN(&entity->preview_color, target_color, 3.0f);
                 }
             }

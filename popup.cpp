@@ -202,9 +202,9 @@ void POPUP(
     //               (i am NOT actually looking at where the mouse was when the event happened)
     //               ((this is probably usually fine, and can be switched over to the "proper" approach without too much trouble"))
     bool popup_info_is_hovering = false;
-    uint popup_info_hover_cell_index;
-    uint popup_info_hover_cell_cursor;
-    uint popup_info_active_cell_cursor;
+    uint popup_info_hover_cell_index = uint(-1);
+    uint popup_info_hover_cell_cursor = uint(-1);
+    uint popup_info_active_cell_cursor = uint(-1);
     for_(d, popup_num_cells) {
         bool d_is_active_cell_index; {
             d_is_active_cell_index = true;

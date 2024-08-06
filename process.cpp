@@ -889,7 +889,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         };
 
 
-                        uint hot_entity_index = hot_entity - drawing->entities.array;
+                        uint hot_entity_index = uint(hot_entity - drawing->entities.array);
 
                         // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
                         edge_marked[hot_entity_index] = true;
@@ -967,8 +967,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 if (state_Draw_command_is_(Rotate)) {
                                     double xpos, ypos;
                                     glfwGetCursorPos(glfw_window, &xpos, &ypos);
-                                    real x_new = xpos + 64;
-                                    real y_new = ypos;
+                                    real x_new = real(xpos) + 64.0f;
+                                    real y_new = real(ypos);
                                     glfwSetCursorPos(glfw_window, x_new, y_new);
                                     callback_cursor_position(glfw_window, x_new, y_new);
                                 }
@@ -976,9 +976,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     double xpos, ypos;
                                     glfwGetCursorPos(glfw_window, &xpos, &ypos);
                                     real theta = (PI / 2) + drawing->axis_angle_from_y;
-                                    real r = 64;
-                                    real x_new = xpos + r * COS(theta);
-                                    real y_new = ypos - r * SIN(theta);
+                                    real r = 64.0f;
+                                    real x_new = real(xpos) + r * COS(theta);
+                                    real y_new = real(ypos) - r * SIN(theta);
                                     glfwSetCursorPos(glfw_window, x_new, y_new);
                                     callback_cursor_position(glfw_window, x_new, y_new);
                                 }
@@ -1783,9 +1783,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
                         } else {
                             if (prev_rotate_copy_angle_in_degrees != popup->rotate_copy_angle) {
-                                popup->rotate_copy_num_total_copies = MAX(2U, uint(360 / popup->rotate_copy_angle));
+                                popup->rotate_copy_num_total_copies = MAX(2U, uint(360.0f / popup->rotate_copy_angle));
                             } else if (prev_rotate_copy_num_copies != popup->rotate_copy_num_total_copies) {
-                                popup->rotate_copy_angle = 360 / popup->rotate_copy_num_total_copies;
+                                popup->rotate_copy_angle = 360.0f / popup->rotate_copy_num_total_copies;
                             }
                         }
                     }

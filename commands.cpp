@@ -163,11 +163,11 @@ struct {
 real parse_config(String str) {
     if (0) {
     } else if (string_matches_prefix(str, "F")) {
-        return 0;
+        return 0.0f;
     } else if (string_matches_prefix(str, "T")) {
-        return 1;
+        return 1.0f;
     } else {
-        return strtol(str.data, NULL, 0); 
+        return real(strtol(str.data, NULL, 0)); 
     }
 }
 
