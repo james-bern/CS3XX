@@ -303,17 +303,12 @@ int main() {
 
     }
 
-
-    messagef(omax.red, "TODO: period no longer works (should this be on by default?)");
+    messagef(omax.red, "TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 
     messagef(omax.red, "TODO: mesh / dxf statistics should be persistently on screen (like ZBrush)");
-    messagef(omax.red, "TODO: delete/backspace seems broken (getting eaten by phantom popup?)");
-    messagef(omax.red, "TODO: after opening a dxf, can't use hotkeys (getting eaten by phantom popup?)");
-    messagef(omax.red, "TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 
     messagef(omax.red, "TODO: switch to monokai colors in Red, Orange, Yellow, Green, Blue, Purple, LightGray, DarkGray, Cyan, Magenta");
     messagef(omax.red, "TODO: rename omax -> pallete (allow for pallete swaps later)");
-    messagef(omax.red, "TODO?: make buttons their own pane");
     #ifdef SHIP
     // messagef(omax.green, "press ? for help");
     #endif
