@@ -298,10 +298,6 @@ int main() {
     }
 
 
-    messagef(omax.red, "TODO: move Snap into second column (like Xsel)");
-    messagef(omax.red, "TODO: move Colo into second column (beneath Xsel)");
-    messagef(omax.red, "TODO: move popup spawn to right of second column");
-    messagef(omax.red, "TODO: move XY button/popup near each other");
     messagef(omax.red, "TODO: period no longer works (should this be on by default?)");
 
     messagef(omax.red, "TODO: mesh / dxf statistics should be persistently on screen (like ZBrush)");
