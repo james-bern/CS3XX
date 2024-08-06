@@ -757,7 +757,7 @@ void conversation_draw() {
         vec3 color = omax.white;
         // {
         //     color = omax.white;
-        //     if ((state_Draw_command_is_(Color)) && (state.click_modifier != ClickModifier::Selected)) {
+        //     if ((state_Draw_command_is_(SetColor)) && (state.click_modifier != ClickModifier::OfSelection)) {
         //         color = get_color(state.click_color_code);
         //     }
         // }
@@ -836,7 +836,7 @@ void conversation_draw() {
         //////////////////////////////////////////
 
         easy_text_drawf(&pen1, "\nSELECT COMMANDS\n");
-        PRINT_COMMAND(&pen1, Color);
+        PRINT_COMMAND(&pen1, SetColor);
         PRINT_COMMAND(&pen1, Connected);
         PRINT_COMMAND(&pen1, All);
         PRINT_COMMAND(&pen1, Window);

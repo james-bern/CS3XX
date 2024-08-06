@@ -29,12 +29,12 @@ bool WINDOW_SELECT_OR_WINDOW_DESELECT() {
 bool _non_WINDOW__SELECT_DESELECT___OR___SET_COLOR() {
     return (
             ((!state_Xsel_command_is_(Window)) && SELECT_OR_DESELECT())
-            || (state_Draw_command_is_(Color)));
+            || (state_Draw_command_is_(SetColor)));
 }
 
 bool _SELECT_OR_DESELECT_COLOR() {
     bool A = SELECT_OR_DESELECT();
-    bool B = (state_Draw_command_is_(Color));
+    bool B = (state_Draw_command_is_(SetColor));
     return A && B;
 }
 

@@ -223,11 +223,12 @@ void init_camera_drawing() {
     *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_drawing_mesh_OpenGL), 0.0f });
     if (drawing->entities.length) {
         bbox2 bbox = entities_get_bbox(&drawing->entities);
-        real f = (get_x_divider_drawing_mesh_Pixel() / window_get_width_Pixel());
+        real eps = 150.0f;
+        real f = ((get_x_divider_drawing_mesh_Pixel() - eps) / window_get_width_Pixel());
         vec2 L = (bbox.max - bbox.min);
         camera_drawing->ortho_screen_height_World = MAX((L.x / f) / window_get_aspect(), L.y);
-        camera_drawing->ortho_screen_height_World += 64.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
-        camera_drawing->pre_nudge_World = AVG(bbox.min, bbox.max);
+        camera_drawing->ortho_screen_height_World += 96.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
+        camera_drawing->pre_nudge_World = V2(-(eps / 2) * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel()), 0.0f) + AVG(bbox.min, bbox.max);
     }
 }
 void init_camera_mesh() {

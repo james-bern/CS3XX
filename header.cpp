@@ -17,7 +17,7 @@ enum class ToolboxGroup {
     Snap,
     Mesh,
     Xsel, // Select
-    Colo, // Color
+    Colo, // SetColor
     Both, // DrawingAndMesh
     NUMBER_OF,
 };
@@ -444,7 +444,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool hide_toolbox;
 
     Pane hot_pane;
-    real x_divider_drawing_mesh_OpenGL;
+    real x_divider_drawing_mesh_OpenGL = 0.15f;
     Pane mouse_left_drag_pane;
     Pane mouse_right_drag_pane;
 
@@ -537,7 +537,7 @@ vec3 get_accent_color(ToolboxGroup group) {
     } else if (group == ToolboxGroup::Mesh) {
         result = omax.purple;
     } else if (group == ToolboxGroup::Snap) {
-        result = omax.orange;
+        result = omax.green;
     } else if (group == ToolboxGroup::Xsel) {
         result = omax.yellow;
     } else if (group == ToolboxGroup::Colo) {

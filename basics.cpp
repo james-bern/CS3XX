@@ -127,6 +127,7 @@ real MAG_CLAMP(real t, real a) {
 real LERP(real t, real a, real b) { return ((1.0f - t) * a) + (t * b); }
 tuDv LERP(real t, vecD a, vecD b) { return ((1.0f - t) * a) + (t * b); }
 real AVG(real a, real b) { return LERP(0.5f, a, b); }
+tuD real AVG(vecD a) { real tmp = 0.0f; for_(d, D) tmp += a[d]; return tmp/ D; }
 tuDv AVG(vecD a, vecD b) { return LERP(0.5f, a, b); }
 real INVERSE_LERP(real p, real a, real b) { return (p - a) / (b - a); }
 real LINEAR_REMAP(real p, real a, real b, real c, real d) { return LERP(INVERSE_LERP(p, a, b), c, d); }

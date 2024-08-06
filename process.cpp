@@ -66,7 +66,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             *toolbox = {};
 
-            real padding = 12.0f;
+            real padding = 8.0f;
 
             real w = 80.0f;
 
@@ -79,7 +79,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             EasyTextPen Xsel_pen = Draw_pen;
             EasyTextPen Xsel_pen2 = Draw_pen2;
-            Xsel_pen.origin.x += (w + padding);
+            Xsel_pen.origin.x += (w + padding) - 4.0f;
             Xsel_pen2.origin = Xsel_pen.origin;
 
             EasyTextPen Snap_pen = Xsel_pen;
@@ -87,7 +87,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             EasyTextPen Colo_pen = Snap_pen;
             EasyTextPen Colo_pen2 = Snap_pen2;
-            Colo_pen.origin.y += 114.0f;
+            Colo_pen.origin.y += 120.0f;
             Colo_pen2.origin = Colo_pen.origin;
 
 
@@ -150,6 +150,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (group == ToolboxGroup::Xsel) {
                         pen = &Xsel_pen;
                         pen2 = &Xsel_pen2;
+                        w = 64.0f;
                     } else if (group == ToolboxGroup::Snap) {
                         pen = &Snap_pen;
                         pen2 = &Snap_pen2;
@@ -157,7 +158,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (group == ToolboxGroup::Colo) {
                         pen = &Colo_pen;
                         pen2 = &Colo_pen2;
-                        w = 48.0f;
+                        w = 64.0f;
                     } else if (group == ToolboxGroup::Both) {
                         pen = &Both_pen;
                         pen2 = &Both_pen2;
@@ -226,7 +227,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     vec3 tmp_pen_color = pen->color;
                     vec3 tmp_pen2_color = pen2->color;
-                    pen->color = V3(1.0f) - color;
+                    {
+                        // pen->color = V3(1.0f) - color;
+                        if (AVG(color) > 0.5f) {
+                            pen->color = V3(0.0f);
+                        } else {
+                            pen->color = V3(1.0f);
+                        }
+                    }
                     {
                         if (gray_out_shortcut) {
                             pen2->color = LERP(0.8f, pen->color, color);
@@ -320,7 +328,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 ToolboxGroup group = most_recent_group_for_SEPERATOR;
                 ASSERT(group != ToolboxGroup::None);
 
-                real eps = 8;
+                real eps = 4;
                 if (group == ToolboxGroup::Draw) {
                     Draw_pen.offset_Pixel.y += eps;
                 } else if (group == ToolboxGroup::Snap) {
@@ -388,20 +396,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // Colo
-                    { // Selected
-                        if (state_Draw_command_is_(Color)) {
-                            if (GUIBUTTON(commands.Selected)) { 
-                                set_state_Colo_command(Selected);
+                    { // OfSelection
+                        if (state_Draw_command_is_(SetColor)) {
+                            if (GUIBUTTON(commands.OfSelection)) { 
+                                set_state_Colo_command(OfSelection);
                             }
                         }
                     }
                     { // ColorX
                         bool hide_buttons = !(0
-                                || state_Draw_command_is_(Color)
+                                || state_Draw_command_is_(SetColor)
                                 || ((SELECT_OR_DESELECT()) && (state_Xsel_command_is_(ByColor)))
                                 );
                         bool spoof_is_mode_false = 0
-                            || (state_Draw_command_is_(Color) && state_Colo_command_is_(Selected))
+                            || (state_Draw_command_is_(SetColor) && state_Colo_command_is_(OfSelection))
                             || (SELECT_OR_DESELECT() && state_Xsel_command_is_(ByColor))
                             ;
                         if (true) {
@@ -429,13 +437,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                     set_state_Draw_command(None);
                                     set_state_Xsel_command(None);
-                                } else if ((state_Draw_command_is_(Color)) && (state_Colo_command_is_(Selected))) { // qs0
+                                } else if ((state_Draw_command_is_(SetColor)) && (state_Colo_command_is_(OfSelection))) { // qs0
                                     _for_each_selected_entity_ cookbook.entity_set_color(entity, ColorCode(digit));
                                     set_state_Draw_command(None);
                                     set_state_Colo_command(None);
                                     _for_each_entity_ entity->is_selected = false;
                                 } else { // 0
-                                    set_state_Draw_command(Color);
+                                    set_state_Draw_command(SetColor);
                                     state.Colo_command = commands_Color[digit];
                                     set_state_Snap_command(None);
                                 }
@@ -493,7 +501,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                     SEPERATOR();
-                    if (GUIBUTTON(commands.Color)) set_state_Colo_command(Color0);
+                    if (GUIBUTTON(commands.SetColor)) set_state_Colo_command(Color0);
                     SEPERATOR();
                     GUIBUTTON(commands.Line);
                     GUIBUTTON(commands.Circle);
@@ -779,7 +787,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
-                    if (!state_Xsel_command_is_(Connected) && !state_Colo_command_is_(Selected)) {
+                    if (!state_Xsel_command_is_(Connected) && !state_Colo_command_is_(OfSelection)) {
                         if (SELECT_OR_DESELECT()) {
                             cookbook.entity_set_is_selected(hot_entity, value_to_write_to_selection_mask);
                         } else {
