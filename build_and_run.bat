@@ -38,8 +38,9 @@ IF "%1"=="" (
         set OPTARG=d
     )
 
-    cl -O!OPTARG! ^
+    clang-cl -O!OPTARG! ^
     /d2FH4- ^
+    /finstrument-functions ^
     -W4 -wd4201 -wd4127 ^
     /nologo -fp:except -Z7 -GR- -EHa- -FC ^
     /I .\opengl ^

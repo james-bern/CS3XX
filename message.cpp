@@ -50,7 +50,7 @@ void _messages_update() {
 }
 
 void _messages_draw() {
-    real font_height_Pixel = 16.0f;
+    real font_height_Pixel = 12.0f;
     uint i_0 = (_message_index == 0) ? (MESSAGE_MAX_NUM_MESSAGES - 1) : _message_index - 1;
 
     real epsilon = font_height_Pixel;
@@ -86,7 +86,7 @@ void _messages_draw() {
 
         JUICEIT_EASYTWEEN(&message->y, y_target);
         if (message->time_remaining > 0) {
-            text_draw(other.OpenGL_from_Pixel, message->string, V2(x_left, y_top + message->y), V4(color, alpha), font_height_Pixel);
+            text_draw(other.OpenGL_from_Pixel, message->string, ROUND(V2(x_left, y_top + message->y)), V4(color, alpha), font_height_Pixel);
         }
     };
 

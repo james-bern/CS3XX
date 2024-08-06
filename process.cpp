@@ -617,123 +617,111 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.SaveSTL);
                 }
 
-
-                ////////////////////////////////////////////////////////////////////////////////
-
-                // if (GUIBUTTON(commands.OrthoCamera)) {
-                //     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
-                // }
-
-                if (GUIBUTTON(commands.DivideNearest)) {
-                    set_state_Draw_command(DivideNearest);
-                    set_state_Snap_command(None);
-
-                }
-
-
-
-                if (GUIBUTTON(commands.TOGGLE_GRID)) {
-                    other.hide_grid = !other.hide_grid;
-
-                }
-
-                if (GUIBUTTON(commands.PRINT_HISTORY)) {
-                    history_printf_script();
-
-                }
-
-                if (GUIBUTTON(commands.TOGGLE_EVENT_STACK)) { 
-                    other.show_event_stack = !other.show_event_stack;
-                }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
                 if (GUIBUTTON(commands.PREVIOUS_HOT_KEY_2D)) {
                     set_state_Draw_command(None); // FORNOW: patching space space doing Circle Center
-
                     return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
                 }
 
-                if (GUIBUTTON(commands.PREVIOUS_HOT_KEY_3D)) {
 
-                    return _standard_event_process_NOTE_RECURSIVE(state.shift_space_bar_event);
-                }
+                ////////////////////////////////////////////////////////////////////////////////
+
+                #ifndef SHIP
+                { // Secret Commands
+                    // if (GUIBUTTON(commands.OrthoCamera)) {
+                    //     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
+                    // }
+
+                    if (GUIBUTTON(commands.DivideNearest)) {
+                        set_state_Draw_command(DivideNearest);
+                        set_state_Snap_command(None);
+
+                    }
 
 
 
-                if (GUIBUTTON(commands.TOGGLE_DRAWING_DETAILS)) { 
-                    other.show_details = !other.show_details;
-                    { // messagef
-                        uint num_lines;
-                        uint num_arcs;
-                        {
-                            num_lines = 0;
-                            num_arcs = 0;
-                            _for_each_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    ++num_lines;
-                                } else { ASSERT(entity->type == EntityType::Arc);
-                                    ++num_arcs;
+                    if (GUIBUTTON(commands.TOGGLE_GRID)) {
+                        other.hide_grid = !other.hide_grid;
+
+                    }
+
+                    if (GUIBUTTON(commands.PRINT_HISTORY)) {
+                        history_printf_script();
+
+                    }
+
+                    if (GUIBUTTON(commands.TOGGLE_EVENT_STACK)) { 
+                        other.show_event_stack = !other.show_event_stack;
+                    }
+
+
+
+
+                    if (GUIBUTTON(commands.PREVIOUS_HOT_KEY_3D)) {
+
+                        return _standard_event_process_NOTE_RECURSIVE(state.shift_space_bar_event);
+                    }
+
+
+
+                    if (GUIBUTTON(commands.TOGGLE_DRAWING_DETAILS)) { 
+                        other.show_details = !other.show_details;
+                        { // messagef
+                            uint num_lines;
+                            uint num_arcs;
+                            {
+                                num_lines = 0;
+                                num_arcs = 0;
+                                _for_each_entity_ {
+                                    if (entity->type == EntityType::Line) {
+                                        ++num_lines;
+                                    } else { ASSERT(entity->type == EntityType::Arc);
+                                        ++num_arcs;
+                                    }
                                 }
                             }
+                            messagef(omax.cyan, "Drawing has %d elements = %d lines + %d arcs\nMesh has %d triangles",
+                                    drawing->entities.length, num_lines, num_arcs, mesh->num_triangles);
                         }
-                        messagef(omax.cyan, "Drawing has %d elements = %d lines + %d arcs\nMesh has %d triangles",
-                                drawing->entities.length, num_lines, num_arcs, mesh->num_triangles);
+
                     }
 
-                }
+                    if (GUIBUTTON(commands.TOGGLE_FEATURE_PLANE)) {
+                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
+                        feature_plane->is_active = false;
 
-                if (GUIBUTTON(commands.TOGGLE_FEATURE_PLANE)) {
-                    if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
-                    feature_plane->is_active = false;
-
-                }
-
-
-                if (GUIBUTTON(commands.HELP_MENU)) {
-                    other.show_help = !other.show_help;
-
-                }
-
-
-                if (GUIBUTTON(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
-                    {
-                        vec3 tmp = omax.light_gray;
-                        omax.light_gray = omax.dark_gray;
-                        omax.dark_gray = tmp;
-                    }
-                    {
-                        vec3 tmp = omax.white;
-                        omax.white = omax.black;
-                        omax.black = tmp;
-                    }
-                    {
-                        vec3 tmp = omax.yellow;
-                        omax.yellow = omax.dark_yellow;
-                        omax.dark_yellow = tmp;
                     }
 
-                }
 
-                if (GUIBUTTON(commands.TOGGLE_BUTTONS)) { // FORNOW
-                    other.hide_toolbox = !other.hide_toolbox;
+                    if (GUIBUTTON(commands.HELP_MENU)) {
+                        other.show_help = !other.show_help;
+
+                    }
+
+
+                    if (GUIBUTTON(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
+                        {
+                            vec3 tmp = omax.light_gray;
+                            omax.light_gray = omax.dark_gray;
+                            omax.dark_gray = tmp;
+                        }
+                        {
+                            vec3 tmp = omax.white;
+                            omax.white = omax.black;
+                            omax.black = tmp;
+                        }
+                        {
+                            vec3 tmp = omax.yellow;
+                            omax.yellow = omax.dark_yellow;
+                            omax.dark_yellow = tmp;
+                        }
+
+                    }
+
+                    if (GUIBUTTON(commands.TOGGLE_BUTTONS)) { // FORNOW
+                        other.hide_toolbox = !other.hide_toolbox;
+                    }
                 }
+                #endif
 
                 if (key_event->subtype == KeyEventSubtype::Hotkey) { // (not button)
                     if (!hotkey_consumed_by_GUIBUTTON) {
@@ -975,7 +963,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
                             }
                             set_state_Snap_command(None);
-                            { // bump bumps cursor bump cursor bumps
+                            if (!other._please_suppress_drawing_popup_popup) { // bump bumps cursor bump cursor bumps
                                 if (state_Draw_command_is_(Rotate)) {
                                     double xpos, ypos;
                                     glfwGetCursorPos(glfw_window, &xpos, &ypos);

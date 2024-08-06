@@ -109,7 +109,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
         if (other.mouse_left_drag_pane == Pane::Separator) {
             real prev_x_divider_drawing_mesh_OpenGL = other.x_divider_drawing_mesh_OpenGL;
             real prev_x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
-            other.x_divider_drawing_mesh_OpenGL = CLAMP(LINEAR_REMAP(real(xpos), 0.0f, window_get_width_Pixel(), -1.0f, 1.0f), -0.9975f, 0.9975f); // *
+            other.x_divider_drawing_mesh_OpenGL = LINEAR_REMAP(CLAMP(real(xpos), 199.0f, window_get_width_Pixel() - 131.0f), 0.0f, window_get_width_Pixel(), -1.0f, 1.0f); // *
             real x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
 
             real dx_divider_drawing_mesh_OpenGL = 0.5f * (other.x_divider_drawing_mesh_OpenGL - prev_x_divider_drawing_mesh_OpenGL);

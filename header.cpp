@@ -463,7 +463,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     vec2 mouse_OpenGL;
     vec2 mouse_Pixel;
 
-    bool _please_suppress_drawing_popup_popup;
+    bool _please_suppress_drawing_popup_popup; // NOTE: THIS IS A TERRRRRIBLE VARIABLE NAME
     bool please_suppress_messagef;
     bool _please_suppress_drawing_toolbox;
     bool _please_suppress_drawing_toolbox_snaps;

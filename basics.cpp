@@ -96,6 +96,7 @@ real MM(real inches) { return ((inches) * real(25.4)); }
 #define POW powf
 #define SQRT sqrtf
 #define ROUND roundf
+tuDv ROUND(vecD a) { for_(d, D) a[d] = ROUND(a[d]); return a; }
 
 // SGN
 int SGN(  int a) { return (a < 0) ? -1 : 1; }
