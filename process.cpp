@@ -112,11 +112,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             auto GUIBUTTON = [&](Command command, bool hide_button = false) -> bool {
                 most_recent_group_for_SEPERATOR = command.group;
                 bool gray_out_shortcut;
-                if (!map_get(&shortcut_already_checked, command.shortcuts[0], false)) {
-                    map_put(&shortcut_already_checked, command.shortcuts[0], true);
-                    gray_out_shortcut = false;
-                } else {
-                    gray_out_shortcut = true;
+                gray_out_shortcut = false; // SUPPRESS COMPILER WARNING
+                if (!other._please_suppress_drawing_popup_popup) {
+                    if (!map_get(&shortcut_already_checked, command.shortcuts[0], false)) {
+                        map_put(&shortcut_already_checked, command.shortcuts[0], true);
+                        gray_out_shortcut = false;
+                    } else {
+                        gray_out_shortcut = true;
+                    }
                 }
 
 
@@ -134,7 +137,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 bool special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch = (other._please_suppress_drawing_popup_popup && (group == ToolboxGroup::Snap));
                 bool draw_tool = name.data;
 
-                if (!other.hide_toolbox
+                if (1
+                        && (!other.hide_toolbox)
+                        && (!other._please_suppress_drawing_popup_popup)
                         && (!hide_button)
                         && (group != ToolboxGroup::None)
                         && draw_tool
