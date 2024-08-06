@@ -87,7 +87,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             EasyTextPen Colo_pen = Snap_pen;
             EasyTextPen Colo_pen2 = Snap_pen2;
-            Colo_pen.origin.y += 120.0f;
+            Colo_pen.origin.y += 116.0f;
             Colo_pen2.origin = Colo_pen.origin;
 
 
@@ -208,7 +208,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
 
-                        vec3 base_color = (can_toggle) ? AVG(omax.black, omax.dark_gray) : omax.dark_gray;
+                        // vec3 base_color = (can_toggle) ? AVG(omax.black, omax.dark_gray) : omax.dark_gray;
+                        vec3 base_color = AVG(omax.black, omax.dark_gray);
                         base_color = LERP(0.00f, base_color, accent_color);
 
                         color = (hovering)

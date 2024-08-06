@@ -187,7 +187,7 @@ void POPUP(
                 pen.origin.x += get_x_divider_drawing_mesh_Pixel() - 90.0f;
             } else if (group == ToolboxGroup::Snap) {
                 // pen.origin.x = get_x_divider_drawing_mesh_Pixel() - 128.0f
-                pen.origin.y += 200.0f;
+                pen.origin.y += 196.0f;
             }
             pen.ghost_write = (dont_draw_because_already_called || other._please_suppress_drawing_popup_popup); // NOTE: _please_suppress_drawing_popup_popup is for undo / redo
             easy_text_draw(&pen, title);
