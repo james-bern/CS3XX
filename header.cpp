@@ -300,9 +300,17 @@ struct PopupManager {
     void begin_process() {
         // // NOTE: end of previous call to process
         // -- (so we don't also need an end_process())
-        for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
-            if (!_popup_popup_called_this_process[i]) tags[i] = NULL;
+        bool any_active; {
+            any_active = false;
+            for (uint i = 1; i < uint(ToolboxGroup::NUMBER_OF); ++i) {
+                if (!_popup_popup_called_this_process[i]) {
+                    tags[i] = NULL;
+                } else {
+                    any_active = true;
+                }
+            }
         }
+        if (!any_active) focus_group = ToolboxGroup::None;
         // // NOTE: beginning of this call to process
         focus_group_was_set_manually = false;
         memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));

@@ -40,6 +40,12 @@
 
 char *startup_script = "";
 
+#if 1 // hotkeys not working bug
+run_before_main {
+    startup_script = "^odemo.dxf\n";
+};
+#endif
+
 #if 0 // divide
 run_before_main {
     startup_script = 
