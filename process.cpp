@@ -246,9 +246,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
                     pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                    pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
                     easy_text_draw(pen, name);
                     pen2->offset_Pixel.y = pen->offset_Pixel.y;
                     pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
+                    pen2->offset_Pixel.x = ROUND(pen2->offset_Pixel.x);
                     // if (!gray_out_shortcut) {
                     //     easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
                     // } else {
