@@ -54,8 +54,10 @@ IF "%1"=="" (
     /LIBPATH:.\opengl ^
     /LIBPATH:.\manifold ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
-    glfw3.lib ^
-    Clipper2.lib tbb12_debug.lib tbb12.lib manifold.lib manifoldc.lib
+    Clipper2.lib cross_section.lib manifold.lib manifoldc.lib polygon.lib quickhull.lib ^
+    glfw3.lib
+    
+    
 
     call :setESC
 

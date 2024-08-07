@@ -175,6 +175,19 @@ struct Cookbook {
         bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
         bool is_line_arc_or_arc_line = (E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line);
         bool is_arc_arc = (E->type == EntityType::Arc && F->type == EntityType::Arc);
+
+
+        if (is_line_line) {
+            if (distance(E->line.start, E->line.end) < radius) {
+                messagef(omax.orange, "Fillet: first line too short for given radius");
+                return;
+            }
+            if (distance(F->line.start, F->line.end) < radius) {
+                messagef(omax.orange, "Fillet: second line too short for given radius");
+                return;
+            }
+        }
+
         if (is_line_line) {
             //  a -- b   x          a -- B-.  
             //                           |  - 
@@ -583,11 +596,26 @@ struct Cookbook {
 
     void manifold_wrapper() {
         bool add = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(RevolveAdd)));
+        bool revolve = ((state_Mesh_command_is_(RevolveAdd)) || (state_Mesh_command_is_(RevolveCut)));
         if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
             result->record_me = true;
             result->snapshot_me = true;
             result->checkpoint_me = true;
             other.time_since_successful_feature = 0.0f;
+
+            real out_quantity;
+            real in_quantity;
+            {
+                if (!revolve) { // extrude
+                    out_quantity = (add) ? popup->extrude_add_out_length : popup->extrude_cut_out_length;
+                    in_quantity = (add) ? popup->extrude_add_in_length : popup->extrude_cut_in_length;
+                } else {
+                    out_quantity = (add) ? popup->revolve_add_out_angle : popup->revolve_cut_out_angle;
+                    in_quantity = (add) ? popup->revolve_add_in_angle : popup->revolve_cut_in_angle;
+                }
+
+            }
+
             { // result.mesh
                 CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&drawing->entities, true);
                 Mesh tmp = wrapper_manifold(
@@ -597,8 +625,8 @@ struct Cookbook {
                         cross_section.polygonal_loops,
                         get_M_3D_from_2D(),
                         state.Mesh_command,
-                        (add) ? popup->extrude_add_out_length : popup->extrude_cut_out_length,
-                        (add) ? popup->extrude_add_in_length : popup->extrude_cut_in_length,
+                        out_quantity,
+                        in_quantity,
                         drawing->origin,
                         drawing->axis_base_point,
                         drawing->axis_angle_from_y);

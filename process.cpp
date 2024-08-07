@@ -99,6 +99,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EasyTextPen Mesh_pen = Draw_pen;
             EasyTextPen Mesh_pen2 = Draw_pen2;
             Mesh_pen.origin.x = window_get_width_Pixel() - (w + padding);
+            Mesh_pen.origin.y += 64.0f;
             Mesh_pen2.origin = Mesh_pen.origin;
 
 
@@ -1046,6 +1047,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
                                 cookbook.attempt_fillet(E, F, average_click, popup->fillet_radius);
+                                two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(DogEar)) {
                             result.checkpoint_me = true;
@@ -1056,6 +1058,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
                                 cookbook.attempt_dogear(E, F, average_click, popup->dogear_radius);
+                                two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(Circle)) {
                             if (clicks_are_same) {
