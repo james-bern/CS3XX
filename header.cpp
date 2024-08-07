@@ -1319,10 +1319,10 @@ Mesh wrapper_manifold(
         vec2 **polygonal_loops,
         mat4 M_3D_from_2D,
         Command Mesh_command,
-        real extrude_out_length,
-        real extrude_in_length,
-        vec2   dxf_origin,
-        vec2   dxf_axis_base_point,
+        real out_quantity,
+        real in_quantity,
+        vec2 dxf_origin,
+        vec2 dxf_axis_base_point,
         real dxf_axis_angle_from_y
         ) {
 
@@ -1359,11 +1359,13 @@ Mesh wrapper_manifold(
                 simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
             }
         } 
-        ManifoldPolygons *polygons; {
-            polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
+
+        ManifoldPolygons *_polygons; {
+            _polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
         }
+
         ManifoldCrossSection *cross_section; {
-            cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+            cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
             // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
 
             if (revolve) {
@@ -1372,23 +1374,29 @@ Mesh wrapper_manifold(
             }
         }
 
+        ManifoldPolygons *polygons = manifold_cross_section_to_polygons(malloc(manifold_polygons_size()), cross_section);
+
+        
+
         { // manifold_B
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {
                 do_once { messagef(omax.pink, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
-                extrude_in_length += SGN(extrude_in_length) * TOLERANCE_DEFAULT;
-                extrude_out_length += SGN(extrude_out_length) * TOLERANCE_DEFAULT;
+                in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
+                out_quantity += SGN(out_quantity) * TOLERANCE_DEFAULT;
             }
 
             // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
             //       but we support (30, 40) -- which is equivalent to (40, 0)
 
             if (extrude) {
-                real length = extrude_in_length + extrude_out_length;
-                manifold_B = manifold_extrude(malloc(manifold_manifold_size()), cross_section, length, 0, 0.0f, 1.0f, 1.0f);
-                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -extrude_in_length);
+                real length = in_quantity + out_quantity;
+                manifold_B = manifold_extrude(malloc(manifold_manifold_size()), polygons, length, 0, 0.0f, 1.0f, 1.0f);
+                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -in_quantity);
             } else { ASSERT(revolve);
+                do_once { messagef(omax.orange, "TODO: actually appropriately handle in_angle and out_angle for revolve"); };
                 // TODO: M_3D_from_2D 
-                manifold_B = manifold_revolve(malloc(manifold_manifold_size()), cross_section, NUM_SEGMENTS_PER_CIRCLE);
+                real angle = in_quantity + out_quantity;
+                manifold_B = manifold_revolve(malloc(manifold_manifold_size()), polygons, NUM_SEGMENTS_PER_CIRCLE, angle);
                 manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
                 manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
                 manifold_B = manifold_translate(manifold_B, manifold_B, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
@@ -1407,6 +1415,7 @@ Mesh wrapper_manifold(
         }
         manifold_delete_polygons(polygons);
         manifold_delete_cross_section(cross_section);
+        manifold_delete_polygons(_polygons);
     }
 
     Mesh result; { // C <- f(A, B)
