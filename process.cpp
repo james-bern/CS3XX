@@ -304,7 +304,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         two_click_command->awaiting_second_click = false;
                         two_click_command->tangent_first_click = false;
                     }
-                    if (flags & FOCUS_THEIF) {
+                    if (flags & FOCUS_THIEF) {
                         popup->manager.manually_set_focus_group(group);
                     }
                     if (flags & NO_RECORD) {

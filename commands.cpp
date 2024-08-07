@@ -1,6 +1,6 @@
-// NOTE: FORNOW: FOCUS_THEIF is really the same thing as having a popup (except for two-click commands like Line where the popup doesn't show initially)
+// NOTE: FORNOW: FOCUS_THIEF is really the same thing as having a popup (except for two-click commands like Line where the popup doesn't show initially)
 #define TWO_CLICK     (1 << 0)
-#define FOCUS_THEIF   (1 << 1)
+#define FOCUS_THIEF   (1 << 1)
 #define SNAPPER       (1 << 2)
 #define SHIFT_15      (1 << 3)
 #define NO_RECORD     (1 << 4)
@@ -24,31 +24,31 @@
     COMMANDS_INNER(Perp,            'P', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(Quad,            'Q', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(Tangent,         'T', 0b000, Snap, 1, 0); \
-    COMMANDS_INNER(XY,              'X', 0b000, Snap, 1, 0 | FOCUS_THEIF); \
+    COMMANDS_INNER(XY,              'X', 0b000, Snap, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(Zero,            'Z', 0b000, Snap, 0, 0); \
     \
-    COMMANDS_INNER(SetAxis,            'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(SetAxis,         'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Box,             'B', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
-    COMMANDS_INNER(SetColor,           'Q', 0b000, Draw, 1, 0); \
+    COMMANDS_INNER(SetColor,        'Q', 0b000, Draw, 1, 0); \
     COMMANDS_INNER(CenterBox,       'B', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Circle,          'C', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Copy,            'O', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Deselect,        'D', 0b000, Draw, 1, 0); \
     COMMANDS_INNER(DiamCircle,      'C', 0b010, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Divide2,         'I', 0b000, Draw, 1, 0 | TWO_CLICK); \
-    COMMANDS_INNER(Fillet,          'F', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THEIF); \
-    COMMANDS_INNER(DogEar,          'G', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THEIF); \
+    COMMANDS_INNER(Fillet,          'F', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
+    COMMANDS_INNER(DogEar,          'G', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
     COMMANDS_INNER(Line,            'L', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Measure,         'M', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Mirror2,         'M', 0b011, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Move,            'M', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
-    COMMANDS_INNER(Offset,          'H', 0b000, Draw, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(OpenDXF,         'O', 0b010, Draw, 1, 0 | FOCUS_THEIF); \
+    COMMANDS_INNER(Offset,          'H', 0b000, Draw, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(OpenDXF,         'O', 0b010, Draw, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(SetOrigin,       'Z', 0b001, Draw, 1, 0 | SNAPPER); \
     COMMANDS_INNER(Polygon,         'P', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(RCopy,           'R', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Rotate,          'R', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
-    COMMANDS_INNER(SaveDXF,         'S', 0b010, Draw, 1, 0 | FOCUS_THEIF | NO_RECORD); \
+    COMMANDS_INNER(SaveDXF,         'S', 0b010, Draw, 1, 0 | FOCUS_THIEF | NO_RECORD); \
     COMMANDS_INNER(Scale,           'S', 0b001, Draw, 1, 0 | NO_RECORD); \
     COMMANDS_INNER(Select,          'S', 0b000, Draw, 1, 0); \
     COMMANDS_INNER(MirrorX,         'X', 0b001, Draw, 1, 0 | SNAPPER); \
@@ -60,14 +60,14 @@
     COMMANDS_INNER(OverwriteDXF,                       0, 0b000, Draw, 0, 0); \
     COMMANDS_INNER(OverwriteSTL,                       0, 0b000, Mesh, 0, 0); \
     \
-    COMMANDS_INNER(ExtrudeAdd,      '[', 0b000, Mesh, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THEIF); \
+    COMMANDS_INNER(ExtrudeAdd,      '[', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(Plane,           'Y', 0b000, Mesh, 0, 0); \
-    COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THEIF); \
-    COMMANDS_INNER(SaveSTL,         'S', 0b011, Mesh, 1, 0 | FOCUS_THEIF | NO_RECORD); \
+    COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(SaveSTL,         'S', 0b011, Mesh, 1, 0 | FOCUS_THIEF | NO_RECORD); \
     COMMANDS_INNER(ClearMesh,       'N', 0b011, Mesh, 0, 0); \
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
