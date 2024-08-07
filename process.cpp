@@ -99,6 +99,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EasyTextPen Mesh_pen = Draw_pen;
             EasyTextPen Mesh_pen2 = Draw_pen2;
             Mesh_pen.origin.x = window_get_width_Pixel() - (w + padding);
+            Mesh_pen.origin.y += 64.0f;
             Mesh_pen2.origin = Mesh_pen.origin;
 
 
