@@ -853,7 +853,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen1, Circle);
         PRINT_COMMAND(&pen1, ClearDrawing);
         PRINT_COMMAND(&pen1, ClearMesh);
-        PRINT_COMMAND(&pen1, Plane);
+        PRINT_COMMAND(&pen1, CyclePlane);
         PRINT_COMMAND(&pen1, DELETE_SELECTED); // TODO
         PRINT_COMMAND(&pen1, DELETE_SELECTED_ALTERNATE); //TODO
         PRINT_COMMAND(&pen1, Deselect);
@@ -904,7 +904,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen2, TOGGLE_BUTTONS);
         PRINT_COMMAND(&pen2, TOGGLE_DRAWING_DETAILS);
         PRINT_COMMAND(&pen2, TOGGLE_EVENT_STACK);
-        PRINT_COMMAND(&pen2, TOGGLE_FEATURE_PLANE);
+        PRINT_COMMAND(&pen2, HidePlane);
         PRINT_COMMAND(&pen2, TOGGLE_GRID);
         PRINT_COMMAND(&pen2, TOGGLE_LIGHT_MODE);
         PRINT_COMMAND(&pen2, Divide2);

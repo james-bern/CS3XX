@@ -38,9 +38,9 @@
 
 #include "playground.cpp"
 
-char *startup_script = "";
+char *startup_script = "y";
 
-#if 1 // hotkeys not working bug
+#if 0 // hotkeys not working bug
 run_before_main {
     startup_script = "^odemo.dxf\n";
 };
@@ -228,7 +228,7 @@ run_before_main {
 #endif
 #ifdef SHIP
 run_before_main {
-    startup_script = "";
+    startup_script = "y";
     glfwSetWindowTitle(glfw_window, "Conversation pre-alpha " __DATE__ " " __TIME__);
 };
 #endif

@@ -64,7 +64,9 @@
     COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
-    COMMANDS_INNER(Plane,           'Y', 0b000, Mesh, 0, 0); \
+    COMMANDS_INNER(CyclePlane,           'Y', 0b000, Mesh, 0, 0); \
+    COMMANDS_INNER(HidePlane,       ';', 0b000, Mesh, 0, 0);  \
+    \
     COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(SaveSTL,         'S', 0b011, Mesh, 1, 0 | FOCUS_THIEF | NO_RECORD); \
@@ -105,7 +107,6 @@
     COMMANDS_INNER(TOGGLE_BUTTONS,          GLFW_KEY_TAB, 0b001, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_DRAWING_DETAILS,           '.', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_EVENT_STACK,               'K', 0b011, None, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(TOGGLE_FEATURE_PLANE,             ';', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_LIGHT_MODE,                'L', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_2D,              ' ', 0b000, None, 0, 0);  \

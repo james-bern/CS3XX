@@ -564,21 +564,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
                 { // Mesh
-                    if (GUIBUTTON(commands.Plane)) {
-                        // TODO: 'Y' remembers last terminal choice of plane for next time
-                        result.checkpoint_me = true;
-                        other.time_since_plane_selected = 0.0f;
-
-                        // already one of the three primary planes
-                        if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
-                            feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
-                        } else {
-                            feature_plane->is_active = true;
-                            feature_plane->signed_distance_to_world_origin = 0.0f;
-                            feature_plane->normal = { 0.0f, 1.0f, 0.0f };
-                        }
-                    }
-                    SEPERATOR();
                     if (GUIBUTTON(commands.ExtrudeAdd)) {
                         preview->extrude_in_length = 0; // FORNOW
                         preview->extrude_out_length = 0; // FORNOW
@@ -597,6 +582,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         preview->revolve_out_angle = 0; // FORNOW
                     }
                     SEPERATOR();
+                    if (GUIBUTTON(commands.CyclePlane)) {
+                        // TODO: 'Y' remembers last terminal choice of plane for next time
+                        result.checkpoint_me = true;
+                        other.time_since_plane_selected = 0.0f;
+
+                        // already one of the three primary planes
+                        if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
+                            feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
+                        } else {
+                            feature_plane->is_active = true;
+                            feature_plane->signed_distance_to_world_origin = 0.0f;
+                            feature_plane->normal = { 0.0f, 1.0f, 0.0f };
+                        }
+                    }
                     if (GUIBUTTON(commands.NudgePlane)) {
                         if (feature_plane->is_active) {
                             preview->feature_plane_offset = 0.0f; // FORNOW
@@ -604,6 +603,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(omax.orange, "NudgePlane: no feature plane selected");
                             set_state_Mesh_command(None); // FORNOW
                         }
+                    }
+                    if (GUIBUTTON(commands.HidePlane)) {
+                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
+                        feature_plane->is_active = false;
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
@@ -622,16 +625,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.SaveSTL);
                 }
 
-                if (GUIBUTTON(commands.PREVIOUS_HOT_KEY_2D)) {
-                    set_state_Draw_command(None); // FORNOW: patching space space doing Circle Center
-                    return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
-                }
 
 
                 ////////////////////////////////////////////////////////////////////////////////
 
                 #ifndef SHIP
                 { // Secret Commands
+                    if (GUIBUTTON(commands.PREVIOUS_HOT_KEY_2D)) {
+                        set_state_Draw_command(None); // FORNOW: patching space space doing Circle Center
+                        return _standard_event_process_NOTE_RECURSIVE(state.space_bar_event);
+                    }
                     // if (GUIBUTTON(commands.OrthoCamera)) {
                     //     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                     // }
@@ -690,11 +693,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
-                    if (GUIBUTTON(commands.TOGGLE_FEATURE_PLANE)) {
-                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
-                        feature_plane->is_active = false;
-
-                    }
 
 
                     if (GUIBUTTON(commands.HELP_MENU)) {
