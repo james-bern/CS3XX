@@ -142,7 +142,7 @@ else
         -L./opengl   \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit -framework QuartzCore \
-        -lsdf -lcollider -lcross_section -lquickhull -lpolygon -lClipper2 -ltbb -lmanifold -lmanifoldc \
+        -lmanifoldc -lClipper2 -lmanifold -lpolygon\
         $ARCH \
         # -mmacosx-version-min=13.5 \
         # -Wno-c++11-narrowing \

@@ -1,3 +1,8 @@
+both
+----
+you need to patch manifoldc.* to have an argument for angle in the revolve foreign function interface
+
+
 windows
 -------
 
@@ -22,11 +27,15 @@ search for *.lib with windows search and all 6 will show up
 mac
 ---
 
+you need to open manifold\bindings\c\CmakeLists.txt and change SHARED to STATIC
+
 git clone --recurse-submodules https://github.com/elalish/manifold.git
 cd manifold
 mkdir build
 cd build
+cmake "-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0" -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64;arm64" -DBUILD_SHARED_LIBS=OFF -DMANIFOLD_JSBIND=OFF -DMANIFOLD_PYBIND=OFF -DMANIFOLD_CBIND=ON -DMANIFOLD_PAR=OFF -DMANIFOLD_TEST=OFF .. && make
 
-cmake "-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0" -DCMAKE_BUILD_TYPE=Release "-DCMAKE_OSX_ARCHITECTURES:STRING=x86_64;arm64" -DBUILD_SHARED_LIBS=OFF -DMANIFOLD_JSBIND=OFF -DMANIFOLD_CBIND=ON -DMANIFOLD_PAR=TBB -DMANIFOLD_TEST=OFF .. && make
+NOTE: FORNOW: TBB is off (i think this will probably make things a lot slower on mac :()
+
 
 
