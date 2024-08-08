@@ -1393,10 +1393,10 @@ Mesh wrapper_manifold(
                 manifold_B = manifold_extrude(malloc(manifold_manifold_size()), polygons, length, 0, 0.0f, 1.0f, 1.0f);
                 manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -in_quantity);
             } else { ASSERT(revolve);
-                do_once { messagef(omax.orange, "TODO: actually appropriately handle in_angle and out_angle for revolve"); };
                 // TODO: M_3D_from_2D 
-                real angle = in_quantity + out_quantity;
-                manifold_B = manifold_revolve(malloc(manifold_manifold_size()), polygons, NUM_SEGMENTS_PER_CIRCLE, angle);
+                real angle_in_degrees = in_quantity + out_quantity;
+                manifold_B = manifold_revolve(malloc(manifold_manifold_size()), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
+                manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, 0.0, -out_quantity); // *
                 manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
                 manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
                 manifold_B = manifold_translate(manifold_B, manifold_B, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);

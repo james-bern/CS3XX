@@ -40,6 +40,12 @@
 
 char *startup_script = "y";
 
+#if 1 // hotkeys not working bug
+run_before_main {
+    startup_script = "cx20\n10\nsay]90\t30";
+};
+#endif
+
 #if 0 // hotkeys not working bug
 run_before_main {
     startup_script = "^odemo.dxf\n";
@@ -183,7 +189,7 @@ run_before_main {
 };
 #endif
 
-#if 1 // kitchen sink
+#if 0 // kitchen sink
 run_before_main {
     startup_script = 
                      #if 0
