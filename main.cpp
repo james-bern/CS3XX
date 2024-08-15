@@ -40,7 +40,7 @@
 
 char *startup_script = "y";
 
-#if 1 // hotkeys not working bug
+#if 0 // hotkeys not working bug
 run_before_main {
     startup_script = "cx20\n10\nsay]90\t30";
 };
@@ -189,10 +189,10 @@ run_before_main {
 };
 #endif
 
-#if 0 // kitchen sink
+#if 1 // kitchen sink
 run_before_main {
     startup_script = 
-                     #if 0
+                     #if 1
                      "cz10\n" // circle
                      "cz\t10\n" // bigger circle
                      "bzx30\t30\n" // box
@@ -210,7 +210,7 @@ run_before_main {
                      "saXzYzXzsa[1\n" // TODO: comment
                      #endif
                      "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>"
-                     #if 0
+                     #if 1
                      "[\t10\n" // TODO: comment
                      "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
                      "^n" // TODO: comment
@@ -312,14 +312,11 @@ int main() {
 
     }
 
-    messagef(omax.red, "TODO: current test case broken");
 
-    messagef(omax.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
+    // messagef(omax.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 
-    messagef(omax.red, "TODO: mesh / dxf statistics should be persistently on screen (like ZBrush)");
 
-    messagef(omax.red, "TODO: switch to monokai colors in Red, Orange, Yellow, Green, Blue, Purple, LightGray, DarkGray, Cyan, Magenta");
-    messagef(omax.red, "TODO: rename omax -> pallete (allow for pallete swaps later)");
+    // messagef(omax.red, "TODO: rename omax -> pallete (allow for pallete swaps later)");
     #ifdef SHIP
     // messagef(omax.green, "press ? for help");
     #endif

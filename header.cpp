@@ -316,6 +316,11 @@ struct PopupManager {
         memset(_popup_popup_called_this_process, 0, sizeof(_popup_popup_called_this_process));
     }
 
+    // void end_process() {
+    //     bool tag_corresponding_to_focus_group_became_NULL = (focus_group != ToolboxGroup::None) && (get_tag(focus_group) == NULL);
+    //     if (tag_corresponding_to_focus_group_became_NULL) focus_group = ToolboxGroup::None;
+    // }
+
     void manually_set_focus_group(ToolboxGroup new_focus_group) {
         // ASSERT(get_tag(new_focus_group)); // TODO: really important to get this assert working
         focus_group_was_set_manually = true;
@@ -495,7 +500,7 @@ struct StandardEventProcessResult {
 ////////////////////////////////////////
 
 struct {
-    #if 1
+    #if 0
     vec3 red = RGB255(255, 0, 0);
     vec3 orange = RGB255(204, 136, 1);
     vec3 green = RGB255(83, 255,  85);
@@ -508,7 +513,7 @@ struct {
     vec3 green = monokai.green;
     vec3 blue = monokai.blue;
     vec3 purple = monokai.purple;
-    vec3 pink = basic.magenta;
+    vec3 pink = AVG(monokai.red, monokai.purple);
     #endif
     vec3 cyan = RGB255(0, 255, 255);
     vec3 magenta = RGB255(255, 0, 255);

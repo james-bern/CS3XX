@@ -125,17 +125,19 @@ void POPUP(
         uint popup_info_hover_cell_cursor;
     };
     auto LOADUP_LOGIC = [&](SpecialCaseClickOnInactivePopup special_case = {}) { // load up
-        bool tag_corresponding_to_this_group_was_changed = (popup->manager.get_tag(group) != _name0.data);
+        bool tag_corresponding_to_this_group_was_changed = (popup->manager.get_tag(group) != command.name.data);
         bool tag_corresponding_to_focus_group_became_NULL = (popup->manager.focus_group != ToolboxGroup::None) && (popup->manager.get_tag(popup->manager.focus_group) == NULL);
         bool focus_group_was_manually_set_to_this_group = (popup->manager.focus_group_was_set_manually && (group == popup->manager.focus_group));
+        bool focus_group_is_None = (popup->manager.focus_group == ToolboxGroup::None); // FORNOW
         bool common = (0
                 || tag_corresponding_to_this_group_was_changed
                 || tag_corresponding_to_focus_group_became_NULL
                 || focus_group_was_manually_set_to_this_group
+                || focus_group_is_None
                 );
 
         if (tag_corresponding_to_this_group_was_changed) {
-            popup->manager.set_tag(group, _name0.data);
+            popup->manager.set_tag(group, command.name.data);
             if (zero_on_load_up) POPUP_CLEAR_ALL_VALUES_TO_ZERO();
         }
 

@@ -948,5 +948,27 @@ void conversation_draw() {
         }
     }
 
+    { // details
+        uint num_lines;
+        uint num_arcs;
+        {
+            num_lines = 0;
+            num_arcs = 0;
+            _for_each_entity_ {
+                if (entity->type == EntityType::Line) {
+                    ++num_lines;
+                } else { ASSERT(entity->type == EntityType::Arc);
+                    ++num_arcs;
+                }
+            }
+        }
+
+        real height = 12.0f;
+        EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, omax.gray };
+        easy_text_drawf(&pen, "%d lines %d arcs", num_lines, num_arcs);
+        pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, omax.gray };
+        easy_text_drawf(&pen, "%d triangles", mesh->num_triangles);
+    }
+
 }
 

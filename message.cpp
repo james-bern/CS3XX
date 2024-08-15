@@ -59,8 +59,8 @@ void _messages_draw() {
     {
         x_left = get_x_divider_drawing_mesh_Pixel() + epsilon;
         x_right = window_get_width_Pixel() - epsilon;
-        y_bottom = window_get_height_Pixel() - epsilon;
-        y_top = y_bottom - 144.0f;
+        y_bottom = window_get_height_Pixel() - 2 * epsilon;
+        y_top = y_bottom - 96.0f;
         bbox = { x_left, y_top, x_right, y_bottom };
     }
 
@@ -103,10 +103,10 @@ void _messages_draw() {
             if (i == i_0) break;
         }
     }
+    glDisable(GL_SCISSOR_TEST);
     
     // TODO: stencil test to the transition in beautiful
     bbox2 inflated_bbox = bbox_inflate(bbox, epsilon / 2); 
-    glDisable(GL_SCISSOR_TEST);
     eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
     eso_color(omax.black, 0.3f);
     eso_bbox_SOUP_QUADS(inflated_bbox);

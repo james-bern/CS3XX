@@ -24,6 +24,25 @@ StandardEventProcessResult standard_event_process(Event event) {
     // if (global_world_state_changed) {
     //     result.record_me = true;
     // }
+
+    // // popup->manager.end_process();
+    // FORNOW: horrifying workaround
+    if (popup->manager.focus_group != ToolboxGroup::None) {
+        Command check; {
+            check = {};
+            // FORNOW only checking the groups that make popups (Aug 14, 2024)
+            if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                check = state.Draw_command;
+            } else if (popup->manager.focus_group == ToolboxGroup::Mesh) {
+                check = state.Mesh_command;
+            } else if (popup->manager.focus_group == ToolboxGroup::Snap) {
+                check = state.Snap_command;
+            }
+        }
+        if (check.group == ToolboxGroup::None) {
+            popup->manager.focus_group = ToolboxGroup::None;
+        }
+    }
     return result;
 }
 
@@ -674,24 +693,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     if (GUIBUTTON(commands.TOGGLE_DRAWING_DETAILS)) { 
                         other.show_details = !other.show_details;
-                        { // messagef
-                            uint num_lines;
-                            uint num_arcs;
-                            {
-                                num_lines = 0;
-                                num_arcs = 0;
-                                _for_each_entity_ {
-                                    if (entity->type == EntityType::Line) {
-                                        ++num_lines;
-                                    } else { ASSERT(entity->type == EntityType::Arc);
-                                        ++num_arcs;
-                                    }
-                                }
-                            }
-                            messagef(omax.cyan, "Drawing has %d elements = %d lines + %d arcs\nMesh has %d triangles",
-                                    drawing->entities.length, num_lines, num_arcs, mesh->num_triangles);
-                        }
-
                     }
 
 
@@ -1659,7 +1660,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("x"), &popup->xy_x_coordinate,
                             CellType::Real, STRING("y"), &popup->xy_y_coordinate);
                     if (gui_key_enter(ToolboxGroup::Snap)) {
-                        // popup->_FORNOW_active_popup_unique_ID__FORNOW_name0 = NULL; // FORNOW when making box using 'X' 'X', we want the popup to trigger a reload
                         set_state_Snap_command(None);
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->xy_x_coordinate, popup->xy_y_coordinate));
                     }
