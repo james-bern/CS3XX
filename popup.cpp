@@ -171,14 +171,14 @@ void POPUP(
             raw_accent_color = get_accent_color(group);
             if (IS_FOCUSED()) {
                 accent_color = raw_accent_color;
-                lighter_gray = omax.light_gray;
-                darker_gray = omax.gray;
+                lighter_gray = pallete.light_gray;
+                darker_gray = pallete.gray;
                 lighter_gray = LERP(0.2f, lighter_gray, raw_accent_color);
                 darker_gray = LERP(0.1f, darker_gray, raw_accent_color);
             } else {
-                accent_color = LERP(0.1f, omax.gray, raw_accent_color);
-                lighter_gray = omax.dark_gray;
-                darker_gray = omax.dark_gray;
+                accent_color = LERP(0.1f, pallete.gray, raw_accent_color);
+                lighter_gray = pallete.dark_gray;
+                darker_gray = pallete.dark_gray;
                 lighter_gray = LERP(0.1f, lighter_gray, raw_accent_color);
                 darker_gray = LERP(0.05f, darker_gray, raw_accent_color);
             }

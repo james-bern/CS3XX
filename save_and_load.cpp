@@ -121,7 +121,7 @@ bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
 
     FILE* file = (FILE *) FILE_OPEN(filename, "w");
     if (!file) {
-        messagef(omax.red, "Error opening file for writing: %s\n", filename);
+        messagef(pallete.red, "Error opening file for writing: %s\n", filename);
         return false;
     }
 

@@ -33,7 +33,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     if (!other.show_details) {
         if (mesh->cosmetic_edges) {
             eso_begin(PVM_3D, SOUP_LINES); 
-            // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, omax.white, omax.black));
+            // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, pallete.white, pallete.black));
             eso_color(0,0,0);
             eso_size(1.0f);
             for_(i, mesh->num_cosmetic_edges) {
@@ -65,15 +65,17 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             {
                 vec3 n_Camera = inv_transpose_V_3D * n;
                 vec3 color_n = V3(V2(0.5f) + 0.5f * _V2(n_Camera), 1.0f);
+                // n_Camera = V3(0.5f) + 0.5f * n_Camera;
+                // vec3 color_n = (n_Camera.x * monokai.red + n_Camera.y * monokai.blue + n_Camera.z * monokai.purple) / 2;
                 if ((true || feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
 
                     // TODO:
                     if (feature_plane->is_active) {
-                        color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), omax.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, omax.yellow, V3(0.85f, 0.87f, 0.30f));
+                        color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), pallete.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, pallete.yellow, V3(0.85f, 0.87f, 0.30f));
                     } else color = color_n;
 
-                    // if (2.0f * time_since_plane_selected < 0.3f) color = omax.white; // FORNOW
+                    // if (2.0f * time_since_plane_selected < 0.3f) color = pallete.white; // FORNOW
 
                     alpha = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_going_inside), 1.0f, 0.7f);
 
@@ -89,10 +91,10 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 }
             }
             real mask = CLAMP(1.2f * other.time_since_successful_feature, 0.0f, 2.0f);
-            // color = CLAMPED_LINEAR_REMAP(time_since_successful_feature, -0.5f, 0.5f, omax.white, color);
+            // color = CLAMPED_LINEAR_REMAP(time_since_successful_feature, -0.5f, 0.5f, pallete.white, color);
             eso_color(color, alpha);
             for_(d, 3) {
-                eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bbox.max.y, mesh->bbox.min.y) + 0.5f * other.time_since_successful_feature), omax.white, color), alpha);
+                eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bbox.max.y, mesh->bbox.min.y) + 0.5f * other.time_since_successful_feature), pallete.white, color), alpha);
 
                 eso_vertex(p[d]);
             }
@@ -143,10 +145,10 @@ void conversation_draw() {
     vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position;
 
     if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
-        //messagef(omax.red, "wowowo");
+        //messagef(pallete.red, "wowowo");
         vec2 before = mouse;
         Entity *closest_entity = two_click_command->entity_closest_to_first_click;
-        messagef(omax.orange, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
+        messagef(pallete.orange, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
         vec2 center = closest_entity->arc.center;
         real radius = closest_entity->arc.radius;
         real d = distance(center, before);
@@ -200,10 +202,13 @@ void conversation_draw() {
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
         eso_begin(M4_Identity(), SOUP_LINES);
         // eso_overlay(true);
+        eso_size(dragging ? 1.0f
+                : hovering ? 2.0f
+                : 1.5f);
         eso_color(
-                dragging ? omax.light_gray
-                : hovering ? omax.white
-                : omax.gray);
+                dragging ? pallete.gray
+                : hovering ? pallete.light_gray
+                : pallete.dark_gray);
         eso_vertex(other.x_divider_drawing_mesh_OpenGL,  1.0f);
         eso_vertex(other.x_divider_drawing_mesh_OpenGL, -1.0f);
         eso_end();
@@ -236,8 +241,9 @@ void conversation_draw() {
 
         {
             if (!other.hide_grid) { // grid 2D grid 2d grid // jim wtf are these supposed to mean
-                eso_begin(PV_2D, SOUP_LINES);
-                eso_color(omax.dark_gray);
+                mat4 PVM = PV_2D * M4_Translation(-GRID_SIDE_LENGTH / 2, -GRID_SIDE_LENGTH / 2);
+                eso_begin(PVM, SOUP_LINES);
+                eso_color(pallete.darker_gray);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
                     eso_vertex(tmp, 0.0f);
@@ -246,8 +252,8 @@ void conversation_draw() {
                     eso_vertex(GRID_SIDE_LENGTH, tmp);
                 }
                 eso_end();
-                eso_begin(PV_2D, SOUP_LINE_LOOP);
-                eso_color(omax.dark_gray);
+                eso_begin(PVM, SOUP_LINE_LOOP);
+                eso_color(pallete.dark_gray);
                 eso_vertex(0.0f, 0.0f);
                 eso_vertex(0.0f, GRID_SIDE_LENGTH);
                 eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
@@ -261,13 +267,13 @@ void conversation_draw() {
                 eso_begin(PV_2D, SOUP_LINES); {
                     // axis
                     eso_stipple(true);
-                    eso_color(omax.dark_gray);
+                    eso_color(pallete.dark_gray);
                     if (state_Draw_command_is_(SetAxis)) {
-                        eso_color(omax.cyan);
+                        eso_color(pallete.cyan);
                     } else if (state_Mesh_command_is_(RevolveAdd)) {
-                        eso_color(AVG(omax.dark_gray, omax.cyan));
+                        eso_color(AVG(pallete.dark_gray, pallete.cyan));
                     } else if (state_Mesh_command_is_(RevolveCut)) {
-                        eso_color(AVG(omax.dark_gray, omax.cyan));
+                        eso_color(AVG(pallete.dark_gray, pallete.cyan));
                     } else {
                     }
                     vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
@@ -276,7 +282,7 @@ void conversation_draw() {
                 } eso_end();
                 eso_begin(PV_2D, SOUP_LINES); {
                     // origin
-                    eso_color(omax.white);
+                    eso_color(pallete.white);
                     real r = funky_OpenGL_factor;
                     eso_vertex(target_preview_drawing_origin - V2(r, 0));
                     eso_vertex(target_preview_drawing_origin + V2(r, 0));
@@ -327,7 +333,7 @@ void conversation_draw() {
 
                 if (other.show_details) {
                     eso_begin(PV_2D, SOUP_POINTS);
-                    eso_color(omax.white);
+                    eso_color(pallete.white);
                     eso_size(3.0f);
                     _for_each_entity_ {
                         if (entity->is_selected && (rotating || moving)) continue;
@@ -555,7 +561,7 @@ void conversation_draw() {
                             vec3 color;
                             // if (entity->is_selected) {
                             alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_is_selected_changed, other.time_since_plane_selected), 0.0f, 1.0f);
-                            color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), omax.white, preview->tubes_color);
+                            color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), pallete.white, preview->tubes_color);
                             // } else {
                             //     alpha = CLAMPED_LERP(5.0f * entity->time_since_is_selected_changed, 1.0f, 0.0f);
                             //     color = get_color(color);
@@ -572,7 +578,7 @@ void conversation_draw() {
         if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
             real r = other.camera_mesh.ortho_screen_height_World / 120.0f;
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES);
-            eso_color(omax.white);
+            eso_color(pallete.white);
             eso_vertex(-r, 0.0f);
             eso_vertex( r, 0.0f);
             eso_vertex(0.0f, -r);
@@ -583,7 +589,7 @@ void conversation_draw() {
                 vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                 vec2 a = preview_dxf_axis_base_point + v;
                 vec2 b = preview_dxf_axis_base_point - v;
-                eso_color(omax.cyan);
+                eso_color(pallete.cyan);
                 eso_vertex(-preview->drawing_origin + a);
                 eso_vertex(-preview->drawing_origin + b); // FORNOW
             }
@@ -612,8 +618,8 @@ void conversation_draw() {
                 }
                 mat4 transform = PVM1 * M0;
                 eso_begin(transform, SOUP_LINES);
-                eso_color(omax.dark_gray);
-                eso_size(1.0f);
+                eso_color(pallete.darker_gray);
+                eso_size(2.0f);
                 for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
                     real tmp = i * GRID_SPACING;
                     eso_vertex(tmp, 0.0f);
@@ -622,13 +628,14 @@ void conversation_draw() {
                     eso_vertex(GRID_SIDE_LENGTH, tmp);
                 }
                 eso_end();
-                eso_begin(transform, SOUP_LINE_LOOP);
-                eso_color(omax.dark_gray);
-                eso_vertex(0.0f, 0.0f);
-                eso_vertex(0.0f, GRID_SIDE_LENGTH);
-                eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
-                eso_vertex(GRID_SIDE_LENGTH, 0.0f);
-                eso_end();
+                // eso_size(4.0f);
+                // eso_begin(transform, SOUP_LINE_LOOP);
+                // eso_color(pallete.dark_gray);
+                // eso_vertex(0.0f, 0.0f);
+                // eso_vertex(0.0f, GRID_SIDE_LENGTH);
+                // eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
+                // eso_vertex(GRID_SIDE_LENGTH, 0.0f);
+                // eso_end();
             }
         }
 
@@ -754,9 +761,9 @@ void conversation_draw() {
             real target = (drag_none_and_hot_drawing || drag_drawing) ? 1.0f : 0.0f;
             JUICEIT_EASYTWEEN(&preview->cursor_subtext_alpha, target, 2.0f);
         }
-        vec3 color = omax.white;
+        vec3 color = pallete.white;
         // {
-        //     color = omax.white;
+        //     color = pallete.white;
         //     if ((state_Draw_command_is_(SetColor)) && (state.click_modifier != ClickModifier::OfSelection)) {
         //         color = get_color(state.click_color_code);
         //     }
@@ -793,7 +800,7 @@ void conversation_draw() {
     if (other.show_help) {
         eso_begin(M4_Identity(), SOUP_QUADS); {
             eso_overlay(true);
-            eso_color(omax.black, 0.7f);
+            eso_color(pallete.black, 0.7f);
             eso_vertex(-1.0f, -1.0f);
             eso_vertex(-1.0f,  1.0f);
             eso_vertex( 1.0f,  1.0f);
@@ -809,7 +816,7 @@ void conversation_draw() {
 
             return key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp);
         };
-        EasyTextPen pen1 = { V2(25.0f, 16.0f), 16.0f, omax.white, true}; // FORNOW
+        EasyTextPen pen1 = { V2(25.0f, 16.0f), 16.0f, pallete.white, true}; // FORNOW
         #define PRINT_COMMAND(PEN, NAME) \
         easy_text_drawf(PEN, "  %s: %s", #NAME, \
                 command_to_string(commands.NAME));
@@ -925,7 +932,7 @@ void conversation_draw() {
         if (other.paused) {
             eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
             eso_overlay(true);
-            eso_color(omax.green);
+            eso_color(pallete.green);
             for_(i, 2) {
                 real o = i * (1.7f * w);
                 eso_vertex(x     + o, y    );
@@ -938,7 +945,7 @@ void conversation_draw() {
         if (other.slowmo) {
             eso_begin(other.OpenGL_from_Pixel, SOUP_TRIANGLES);
             eso_overlay(true);
-            eso_color(omax.yellow);
+            eso_color(pallete.yellow);
             {
                 eso_vertex(x    , y - h);
                 eso_vertex(x    , y    );
@@ -964,9 +971,9 @@ void conversation_draw() {
         }
 
         real height = 12.0f;
-        EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, omax.gray };
+        EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, pallete.gray };
         easy_text_drawf(&pen, "%d lines %d arcs", num_lines, num_arcs);
-        pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, omax.gray };
+        pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, pallete.gray };
         easy_text_drawf(&pen, "%d triangles", mesh->num_triangles);
     }
 

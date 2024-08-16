@@ -110,8 +110,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             result.entity_index_intersect = uint(temp_entity - drawing->entities.array);
                             result.snapped = true;
                             result.split_intersect = true;
-                        } else messagef(omax.orange, "no intersection found");
-                    } else messagef(omax.orange, "no intersection found");
+                        } else messagef(pallete.orange, "no intersection found");
+                    } else messagef(pallete.orange, "no intersection found");
                 } else if (state_Snap_command_is_(Perp)) { // layout also does a divide which can be added if wanted
                     vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {
@@ -203,10 +203,10 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             result.snapped = true;
                         }
                     } else {
-                        messagef(omax.green, "wowowwowowo");
+                        messagef(pallete.green, "wowowwowowo");
                         two_click_command->tangent_first_click = true; 
                         two_click_command->entity_closest_to_first_click = closest_entity;
-                        messagef(omax.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
+                        messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
                     }
 
 

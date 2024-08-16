@@ -40,6 +40,14 @@ tuD bboxD bbox_inflate(bboxD A, real epsilon) {
     return A;
 }
 
+tuD bboxD bbox_inflate(bboxD A, vecD epsilon) {
+    for_(d, D) {
+        A.min[d] -= epsilon[d];
+        A.max[d] += epsilon[d];
+    }
+    return A;
+}
+
 // // add
 tuDb &operator += (bboxD &A, vecD p) {
     for_(d, D) {

@@ -78,7 +78,7 @@ void history_process_event(Event standard_event) {
 
 void history_undo() {
     if (elephant_is_empty_undo(&history.recorded_user_events)) {
-        messagef(omax.orange, "Undo: nothing to undo");
+        messagef(pallete.orange, "Undo: nothing to undo");
         return;
     }
 
@@ -115,12 +115,12 @@ void history_undo() {
         for (Event *event = begin; event < one_past_end; ++event) standard_event_process(*event);
     } other.please_suppress_messagef = false;
 
-    messagef(omax.green, "Undo");
+    messagef(pallete.green, "Undo");
 }
 
 void history_redo() {
     if (elephant_is_empty_redo(&history.recorded_user_events)) {
-        messagef(omax.orange, "Redo: nothing to redo");
+        messagef(pallete.orange, "Redo: nothing to redo");
         return;
     }
 
@@ -140,7 +140,7 @@ void history_redo() {
         }
     } other.please_suppress_messagef = false;
 
-    messagef(omax.green, "Redo");
+    messagef(pallete.green, "Redo");
 }
 
 void history_printf_script() {
@@ -171,7 +171,7 @@ void history_debug_draw() {
     { // FORNOW
         eso_begin(M4_Identity(), SOUP_QUADS);
         eso_overlay(true);
-        eso_color(omax.black, 0.7f);
+        eso_color(pallete.black, 0.7f);
         BoundingBox<2> bbox_OpenGL = { -1.0f, -1.0f, 1.0f, 1.0f };
         eso_bbox_SOUP_QUADS(bbox_OpenGL);
         eso_end();
@@ -223,7 +223,7 @@ void history_debug_draw() {
         easy_text_drawf(&pen, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
     };
 
-    pen = { V2(12.0f, 12.0f), 12.0f, omax.white, true };
+    pen = { V2(12.0f, 12.0f), 12.0f, pallete.white, true };
 
     { // recorded_user_events
         if (history.recorded_user_events._redo_stack.length) {
@@ -234,23 +234,23 @@ void history_debug_draw() {
                 ) {//
                 _history_user_event_draw_helper(*event);
             }
-            pen.color = omax.cyan; {
+            pen.color = pallete.cyan; {
                 easy_text_drawf(&pen, "^ redo (%d)", elephant_length_redo(&history.recorded_user_events));
-            } pen.color = omax.white;
+            } pen.color = pallete.white;
         }
         if ((history.recorded_user_events._redo_stack.length) || (history.recorded_user_events._undo_stack.length)) {
-            pen.color = omax.cyan; {
+            pen.color = pallete.cyan; {
                 easy_text_drawf(&pen, "  RECORDED_EVENTS");
-            } pen.color = omax.white;
+            } pen.color = pallete.white;
         } else {
-            pen.color = omax.cyan; {
+            pen.color = pallete.cyan; {
                 easy_text_drawf(&pen, "--- no history ---");
-            } pen.color = omax.white;
+            } pen.color = pallete.white;
         }
         if (history.recorded_user_events._undo_stack.length) {
-            pen.color = omax.cyan; {
+            pen.color = pallete.cyan; {
                 easy_text_drawf(&pen, "v undo (%d)", elephant_length_undo(&history.recorded_user_events));
-            } pen.color = omax.white;
+            } pen.color = pallete.white;
             for (////
                     Event *event = history.recorded_user_events._undo_stack.array + (history.recorded_user_events._undo_stack.length - 1);
                     event >= history.recorded_user_events._undo_stack.array;
@@ -273,19 +273,19 @@ void history_debug_draw() {
                 ) {//
                 _history_world_state_draw_helper(world_state);
             }
-            pen.color = omax.cyan; {
+            pen.color = pallete.cyan; {
                 easy_text_drawf(&pen, "^ redo (%d)", elephant_length_redo(&history.snapshotted_world_states));
-            } pen.color = omax.white;
+            } pen.color = pallete.white;
         }
         if ((history.snapshotted_world_states._redo_stack.length) || (history.snapshotted_world_states._undo_stack.length)) {
-            pen.color = omax.cyan; {
+            pen.color = pallete.cyan; {
                 easy_text_drawf(&pen, "  SNAPSHOTTED_WORLD_STATES");
-            } pen.color = omax.white;
+            } pen.color = pallete.white;
         }
         if (history.snapshotted_world_states._undo_stack.length) {
-            pen.color = omax.cyan; {
+            pen.color = pallete.cyan; {
                 easy_text_drawf(&pen, "v undo (%d)", elephant_length_undo(&history.snapshotted_world_states));
-            } pen.color = omax.white;
+            } pen.color = pallete.white;
             for (////
                     WorldState_ChangesToThisMustBeRecorded_state *world_state = history.snapshotted_world_states._undo_stack.array + (history.snapshotted_world_states._undo_stack.length - 1);
                     world_state >= history.snapshotted_world_states._undo_stack.array;

@@ -217,7 +217,7 @@ run_before_main {
 
     FILE *file = fopen("conversation.cfg", "r");
     if (!file) {
-        // messagef(omax.red, "Failed to open commands file");
+        // messagef(pallete.red, "Failed to open commands file");
         return;
     }
     defer { fclose(file); };

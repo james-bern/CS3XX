@@ -161,7 +161,7 @@ void callback_mouse_button(GLFWwindow *, int button, int action, int) {
             double_left_click = false;
             long new_timestamp = MILLIS();
             long delta = new_timestamp - other.timestamp_mouse_left_click;
-            // messagef(omax.blue, "%ld - %ld = %ld", new_timestamp, other.timestamp_mouse_left_click, delta);
+            // messagef(pallete.blue, "%ld - %ld = %ld", new_timestamp, other.timestamp_mouse_left_click, delta);
             if (delta < 128.0L) {
                 other.mouse_double_left_click_held = true;
                 double_left_click = true;

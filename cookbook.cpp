@@ -134,7 +134,7 @@ struct Cookbook {
         bool delete_flag = false;
         if (entity->type == EntityType::Line) {
             LineEntity line = entity->line;
-            // messagef(omax.orange, "%f", distance(point, line.start) - distance(point, line.
+            // messagef(pallete.orange, "%f", distance(point, line.start) - distance(point, line.
             bool point_is_on_line = 0.001 > ABS(distance(point, line.start) + distance(point, line.end) - distance(line.start, line.end)); // FORNOW
             if (point_is_on_line) {
                 if (distance(line.start, point) > TINY_VAL) {
@@ -168,7 +168,7 @@ struct Cookbook {
 
     void attempt_fillet(Entity *E, Entity *F, vec2 reference_point, real radius) {
         if (E == F) {
-            messagef(omax.orange, "Fillet: clicked same entity twice");
+            messagef(pallete.orange, "Fillet: clicked same entity twice");
             return;
         }
 
@@ -179,11 +179,11 @@ struct Cookbook {
 
         if (is_line_line) {
             if (distance(E->line.start, E->line.end) < radius) {
-                messagef(omax.orange, "Fillet: first line too short for given radius");
+                messagef(pallete.orange, "Fillet: first line too short for given radius");
                 return;
             }
             if (distance(F->line.start, F->line.end) < radius) {
-                messagef(omax.orange, "Fillet: second line too short for given radius");
+                messagef(pallete.orange, "Fillet: second line too short for given radius");
                 return;
             }
         }
@@ -211,7 +211,7 @@ struct Cookbook {
 
                 LineLineXResult _x = line_line_intersection(a, *b_ptr, c, *d_ptr);
                 if (_x.lines_are_parallel) {
-                    messagef(omax.orange, "Fillet: lines are parallel");
+                    messagef(pallete.orange, "Fillet: lines are parallel");
                     return;
                 }
                 x = _x.point;
@@ -255,7 +255,7 @@ struct Cookbook {
             vec2 X; {
                 LineLineXResult _X = line_line_intersection(*b_ptr, *b_ptr + perpendicularTo(e_ab), *d_ptr, *d_ptr + perpendicularTo(e_cd));
                 if (_X.lines_are_parallel) {
-                    messagef(omax.orange, "Fillet: ???");
+                    messagef(pallete.orange, "Fillet: ???");
                     return;
                 }
                 X = _X.point;
@@ -400,7 +400,7 @@ struct Cookbook {
                     }
                 }
                 if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
-                    //messagef(omax.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
+                    //messagef(pallete.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
                     if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
                         EntA->arc.start_angle_in_degrees = divide_theta;
                     } else {
@@ -472,18 +472,18 @@ struct Cookbook {
 
     void attempt_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
         if (E == F) {
-            messagef(omax.orange, "DogEar: clicked same entity twice");
+            messagef(pallete.orange, "DogEar: clicked same entity twice");
             return;
         }
 
         if (IS_ZERO(radius)) {
-            messagef(omax.orange, "DogEar: FORNOW: must have non-zero radius");
+            messagef(pallete.orange, "DogEar: FORNOW: must have non-zero radius");
             return;
         }
 
         bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
         if (!is_line_line) {
-            messagef(omax.orange, "DogEar: only line-line is supported");
+            messagef(pallete.orange, "DogEar: only line-line is supported");
             return;
         }
 
@@ -517,7 +517,7 @@ struct Cookbook {
 
             LineLineXResult _x = line_line_intersection(a, b, c, d);
             if (_x.lines_are_parallel) {
-                messagef(omax.orange, "Fillet: lines are parallel");
+                messagef(pallete.orange, "Fillet: lines are parallel");
                 return;
             }
             x = _x.point;

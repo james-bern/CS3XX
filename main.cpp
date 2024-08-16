@@ -1,3 +1,6 @@
+// TODO: BETA
+// - divide shows the point that was divided (animation)
+
 // TODO (Jim): slow mo keybind
 
 // TODO (Jim): cookbook_delete should throw a warning if you're trying to delete the same entity twice (run a O(n) pass on the sorted list)
@@ -313,27 +316,27 @@ int main() {
     }
 
 
-    // messagef(omax.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
+    // messagef(pallete.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 
 
-    // messagef(omax.red, "TODO: rename omax -> pallete (allow for pallete swaps later)");
+    // messagef(pallete.red, "TODO: rename pallete -> pallete (allow for pallete swaps later)");
     #ifdef SHIP
-    // messagef(omax.green, "press ? for help");
+    // messagef(pallete.green, "press ? for help");
     #endif
     /*
-    messagef(omax.red, "TODO: Intersection snap");
-    messagef(omax.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
-    messagef(omax.red, "TODO: Save/Load need buttons");
-    messagef(omax.red, "TODO: Camera clip planes still jacked (including ortho)");
-    messagef(omax.red, "TODO: Camera hotkeys ;, ' need buttons");
-    messagef(omax.red, "TODO: Rezoom camera needs button");
-    messagef(omax.red, "TODO: Beatiful button presses");
-    messagef(omax.red, "TODO: config needs inches vs. mm");
-    messagef(omax.red, "TODO: config needs bool to hide gui");
-    messagef(omax.red, "TODO: Select/deselect snaps");
-    messagef(omax.red, "TODO: Push power fillet to beta");
-    messagef(omax.red, "TODO: Push power offset (shell) to beta");
-    messagef(omax.red, "TODO: Save/Load DXF broken for some arcs if you load\n      and save the dxf in LAYOUT in the middle.");
+    messagef(pallete.red, "TODO: Intersection snap");
+    messagef(pallete.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
+    messagef(pallete.red, "TODO: Save/Load need buttons");
+    messagef(pallete.red, "TODO: Camera clip planes still jacked (including ortho)");
+    messagef(pallete.red, "TODO: Camera hotkeys ;, ' need buttons");
+    messagef(pallete.red, "TODO: Rezoom camera needs button");
+    messagef(pallete.red, "TODO: Beatiful button presses");
+    messagef(pallete.red, "TODO: config needs inches vs. mm");
+    messagef(pallete.red, "TODO: config needs bool to hide gui");
+    messagef(pallete.red, "TODO: Select/deselect snaps");
+    messagef(pallete.red, "TODO: Push power fillet to beta");
+    messagef(pallete.red, "TODO: Push power offset (shell) to beta");
+    messagef(pallete.red, "TODO: Save/Load DXF broken for some arcs if you load\n      and save the dxf in LAYOUT in the middle.");
     */
 
     auto SEND_DUMMY = [&]() {
@@ -356,7 +359,7 @@ int main() {
         glfwSwapBuffers(glfw_window);
         glFinish(); // 69363856
                     // SLEEP(1);
-        glClearColor(omax.black.x, omax.black.y, omax.black.z, 1.0f);
+        glClearColor(pallete.black.x, pallete.black.y, pallete.black.z, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
         eso_size(1.5f);
 
@@ -393,7 +396,7 @@ int main() {
 
                 _for_each_entity_ {
                     vec3 target_color = get_color((entity->is_selected) ? ColorCode::Selection : entity->color_code);
-                    if (entity->is_selected) target_color = CLAMPED_LERP(3.0f * entity->time_since_is_selected_changed - 0.1f, AVG(omax.white, target_color), target_color);
+                    if (entity->is_selected) target_color = CLAMPED_LERP(3.0f * entity->time_since_is_selected_changed - 0.1f, AVG(pallete.white, target_color), target_color);
                     JUICEIT_EASYTWEEN(&entity->preview_color, target_color, 3.0f);
                 }
             }

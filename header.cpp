@@ -521,40 +521,41 @@ struct {
     vec3 black = RGB255(0, 0, 0);
 
     vec3 dark_gray = RGB255(50, 50, 50);
+    vec3 darker_gray = RGB255(20, 20, 20);
     vec3 gray = RGB255(152, 152, 152);
     vec3 light_gray = RGB255(205, 205, 205);
     vec3 white = RGB255(255, 255, 255);
 
     vec3 dark_yellow = RGB255(200, 200, 0);
-} omax;
+} pallete;
 
-vec3 omax_pallete[] = {
-    omax.green,
-    omax.red,
-    omax.pink,
-    omax.magenta,
-    omax.purple,
-    omax.blue,
-    omax.gray,
-    omax.light_gray, // TODO: what is this
-    omax.cyan,
-    omax.orange,
+vec3 Q_pallete[] = {
+    pallete.green,
+    pallete.red,
+    pallete.pink,
+    pallete.magenta,
+    pallete.purple,
+    pallete.blue,
+    pallete.gray,
+    pallete.light_gray, // TODO: what is this
+    pallete.cyan,
+    pallete.orange,
 };
 
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = omax.cyan;
+        result = pallete.cyan;
     } else if (group == ToolboxGroup::Both) {
         result = monokai.orange;
     } else if (group == ToolboxGroup::Mesh) {
-        result = omax.pink;
+        result = pallete.pink;
     } else if (group == ToolboxGroup::Snap) {
-        result = omax.green;
+        result = pallete.green;
     } else if (group == ToolboxGroup::Xsel) {
-        result = omax.yellow;
+        result = pallete.yellow;
     } else if (group == ToolboxGroup::Colo) {
-        result = omax.yellow;
+        result = pallete.yellow;
     } else { ASSERT(group == ToolboxGroup::None);
         result = {};
     }
@@ -569,7 +570,7 @@ vec3 get_accent_color(ToolboxGroup group) {
 real Z_FIGHT_EPS = 0.05f;
 real TOLERANCE_DEFAULT = 5e-4f;
 uint NUM_SEGMENTS_PER_CIRCLE = 64;
-real GRID_SIDE_LENGTH = 250.0f;
+real GRID_SIDE_LENGTH = 240.0f;
 real GRID_SPACING = 10.0f;
 real CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW = RAD(45.0f);
 
@@ -694,14 +695,14 @@ vec2 entity_get_middle(Entity *entity) {
 vec3 get_color(ColorCode color_code) {
     uint i = uint(color_code);
     if (0 <= i && i <= 9) {
-        return omax_pallete[i];
+        return Q_pallete[i];
     } else if (20 <= i && i <= 29) {
-        do_once { messagef(omax.orange, "WARNING: slits not implemented"); };
-        return omax_pallete[i - 20];
+        do_once { messagef(pallete.orange, "WARNING: slits not implemented"); };
+        return Q_pallete[i - 20];
     } else if (color_code == ColorCode::Selection) {
-        return omax.yellow;
+        return pallete.yellow;
     } else if (color_code == ColorCode::Emphasis) {
-        return omax.cyan;
+        return pallete.cyan;
     } else {
         ASSERT(false);
         return {};
@@ -1150,7 +1151,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
 
 void cross_section_debug_draw(Camera *camera_drawing, CrossSectionEvenOdd *cross_section) {
     eso_begin(camera_drawing->get_PV(), SOUP_LINES);
-    eso_color(omax.white);
+    eso_color(pallete.white);
     for_(loop_index, cross_section->num_polygonal_loops) {
         vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
@@ -1385,7 +1386,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {
-                do_once { messagef(omax.pink, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
+                do_once { messagef(pallete.pink, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
                 out_quantity += SGN(out_quantity) * TOLERANCE_DEFAULT;
             }
