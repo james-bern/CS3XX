@@ -203,7 +203,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             result.snapped = true;
                         }
                     } else {
-                        messagef(pallete.green, "wowowwowowo");
+                        messagef(pallete.light_gray, "wowowwowowo");
                         two_click_command->tangent_first_click = true; 
                         two_click_command->entity_closest_to_first_click = closest_entity;
                         messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);

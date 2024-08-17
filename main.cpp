@@ -26,7 +26,7 @@
 // TODO: memcmp to see if should record
 // TODO: timer to see if should snapshot
 
-#if 1
+#if 0
 #define Color0 Green
 #define Color1 Red
 #define Color2 Pink
@@ -37,6 +37,17 @@
 #define Color7 LightGray
 #define Color8 Cyan
 #define Color9 Orange
+#else
+#define Color0 LightGray
+#define Color1 Gray
+#define Color2 DarkGray
+#define Color3 Red
+#define Color4 Orange
+#define Color5 Yellow
+#define Color6 Green
+#define Color7 Blue
+#define Color8 Purple
+#define Color9 Pink
 #endif
 
 #include "playground.cpp"
@@ -70,71 +81,11 @@ run_before_main {
         "uuuuuuuuuu"
         "uuuuuuuuuu"
         "uuuuuuuuuu"
-        "uuuuuuuuuu"
-        "uuuuuuuuuu"
-        "uuuuuuuuuu"
-        "uuuuuuuuuu"
-        "uuuuuuuuuu"
         "UUUUUUUUUU"
         "uuuuuuuuuu"
         "UUUUUUUUUU"
         "uuuuuuuuuu"
         "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
-        "UUUUUUUUUU"
-        "uuuuuuuuuu"
         "UUUUUUUUUU"
         ;
     #if 0
@@ -321,7 +272,7 @@ int main() {
 
     // messagef(pallete.red, "TODO: rename pallete -> pallete (allow for pallete swaps later)");
     #ifdef SHIP
-    // messagef(pallete.green, "press ? for help");
+    // messagef(pallete.light_gray, "press ? for help");
     #endif
     /*
     messagef(pallete.red, "TODO: Intersection snap");

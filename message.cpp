@@ -77,7 +77,7 @@ void _messages_draw() {
                 - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
         }
 
-        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, pallete.yellow, message->base_color);
+        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, pallete.white, message->base_color);
         color = CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, color, V3((color.x + color.y + color.z) / 3));
 
         real y_target = lines_drawn * font_height_Pixel;

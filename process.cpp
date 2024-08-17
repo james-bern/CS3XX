@@ -234,8 +234,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
 
                         // vec3 base_color = (can_toggle) ? AVG(pallete.black, pallete.dark_gray) : pallete.dark_gray;
-                        vec3 base_color = AVG(pallete.black, pallete.dark_gray);
-                        base_color = LERP(0.00f, base_color, accent_color);
+                        vec3 base_color = pallete.dark_gray;
+                        if (group == ToolboxGroup::Colo) {
+                            base_color = LERP(0.20f, pallete.darker_gray, accent_color);
+                        }
 
                         color = (hovering)
                             ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(pallete.white, accent_color) : accent_color)
@@ -542,11 +544,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         set_state_Xsel_command(None);
                         set_state_Colo_command(None);
 
+                        bool checkpoint = false;
                         for (int i = drawing->entities.length - 1; i >= 0; --i) {
                             if (drawing->entities.array[i].is_selected) {
                                 cookbook._delete_entity(i);
+                                checkpoint = true;
                             }
                         }
+                        result.checkpoint_me = checkpoint;
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.SetColor)) set_state_Colo_command(Color0);
@@ -585,7 +590,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.snapshot_me = true;
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
-                        messagef(pallete.green, "ClearDrawing");
+                        messagef(pallete.light_gray, "ClearDrawing");
                     }
                     if (GUIBUTTON(commands.ZoomDrawing)) {
                         init_camera_drawing();
@@ -654,7 +659,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.snapshot_me = true;
                         mesh_free_AND_zero(mesh);
                         *feature_plane = {};
-                        messagef(pallete.green, "ClearMesh");
+                        messagef(pallete.light_gray, "ClearMesh");
                     }
                     if (GUIBUTTON(commands.ZoomMesh)) {
                         init_camera_mesh();
@@ -1093,7 +1098,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 real r = length_click_vector;
                                 cookbook.buffer_add_arc(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
                                 cookbook.buffer_add_arc(first_click, r, theta_b_in_degrees, theta_a_in_degrees);
-                                // messagef(pallete.green, "Circle");
+                                // messagef(pallete.light_gray, "Circle");
                             }
                         } else if (state_Draw_command_is_(DiamCircle)) {
                             if (clicks_are_same) {
@@ -1108,7 +1113,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 real radius = length_click_vector / 2;
                                 cookbook.buffer_add_arc(center, radius, theta_a_in_degrees, theta_b_in_degrees);
                                 cookbook.buffer_add_arc(center, radius, theta_b_in_degrees, theta_a_in_degrees);
-                                // messagef(pallete.green, "Circle");
+                                // messagef(pallete.light_gray, "Circle");
                             }
                         } else if (state_Draw_command_is_(Divide2)) { // TODO: make sure no 0 length shenanigans
                             result.checkpoint_me = true;
@@ -1908,7 +1913,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 set_state_Draw_command(None);
-                                messagef(pallete.green, "OpenDXF \"%s\"", popup->open_dxf_filename.data);
+                                messagef(pallete.light_gray, "OpenDXF \"%s\"", popup->open_dxf_filename.data);
                             } else {
                                 messagef(pallete.orange, "OpenDXF: \"%s\" must be *.dxf or *.stl", popup->open_dxf_filename.data);
                             }
@@ -1929,7 +1934,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     ASSERT(success);
                                 }
                                 set_state_Draw_command(None);
-                                messagef(pallete.green, "OverwriteDXF \"%s\"", popup->save_dxf_filename.data);
+                                messagef(pallete.light_gray, "OverwriteDXF \"%s\"", popup->save_dxf_filename.data);
                             } else {
                                 messagef(pallete.orange, "OverwriteDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
                             }
@@ -1953,7 +1958,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     bool success = drawing_save_dxf(drawing, popup->save_dxf_filename);
                                     ASSERT(success);
                                 }
-                                messagef(pallete.green, "SaveDXF \"%s\"", popup->save_dxf_filename.data);
+                                messagef(pallete.light_gray, "SaveDXF \"%s\"", popup->save_dxf_filename.data);
                             } else {
                                 messagef(pallete.orange, "SaveDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
                             }
@@ -2014,7 +2019,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 set_state_Mesh_command(None);
-                                messagef(pallete.green, "OpenDXF \"%s\"", popup->open_stl_filename.data);
+                                messagef(pallete.light_gray, "OpenDXF \"%s\"", popup->open_stl_filename.data);
                             } else if (string_matches_suffix(popup->open_stl_filename, STRING(".stl"))) {
                                 result.record_me = true;
                                 result.checkpoint_me = true;
@@ -2026,7 +2031,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     init_camera_mesh();
                                 }
                                 set_state_Mesh_command(None);
-                                messagef(pallete.green, "OpenSTL \"%s\"", popup->open_stl_filename.data);
+                                messagef(pallete.light_gray, "OpenSTL \"%s\"", popup->open_stl_filename.data);
                             } else {
                                 messagef(pallete.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->open_stl_filename.data);
                             }
@@ -2047,7 +2052,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     ASSERT(success);
                                 }
                                 set_state_Mesh_command(None);
-                                messagef(pallete.green, "OverwriteSTL \"%s\"", popup->save_stl_filename.data);
+                                messagef(pallete.light_gray, "OverwriteSTL \"%s\"", popup->save_stl_filename.data);
                             } else {
                                 messagef(pallete.orange, "OverwriteSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
                             }
@@ -2071,7 +2076,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     bool success = mesh_save_stl(mesh, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
-                                messagef(pallete.green, "SaveSTL \"%s\"", popup->save_stl_filename.data);
+                                messagef(pallete.light_gray, "SaveSTL \"%s\"", popup->save_stl_filename.data);
                             } else {
                                 messagef(pallete.orange, "SaveSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
                             }
@@ -2095,9 +2100,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else {
                             cookbook.manifold_wrapper();
                             if (IS_ZERO(popup->extrude_add_in_length)) {
-                                messagef(pallete.green, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
+                                messagef(pallete.light_gray, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
                             } else {
-                                messagef(pallete.green, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
+                                messagef(pallete.light_gray, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
                             }
                         }
                     }
@@ -2118,9 +2123,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else {
                             cookbook.manifold_wrapper();
                             if (IS_ZERO(popup->extrude_cut_out_length)) {
-                                messagef(pallete.green, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
+                                messagef(pallete.light_gray, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
                             } else {
-                                messagef(pallete.green, "ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
+                                messagef(pallete.light_gray, "ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
                             }
                         }
                     }
@@ -2137,7 +2142,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.orange, "RevolveAdd: no feature plane selected");
                         } else {
                             cookbook.manifold_wrapper();
-                            messagef(pallete.green, "RevolveAdd");
+                            messagef(pallete.light_gray, "RevolveAdd");
                         }
                     }
                 } else if (state_Mesh_command_is_(RevolveCut)) {
@@ -2155,7 +2160,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.orange, "RevolveCut: current mesh empty");
                         } else {
                             cookbook.manifold_wrapper();
-                            messagef(pallete.green, "RevolveCut");
+                            messagef(pallete.light_gray, "RevolveCut");
                         }
                     }
                 } else if (state_Mesh_command_is_(NudgePlane)) {
@@ -2167,7 +2172,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.checkpoint_me = true;
                         feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
                         set_state_Mesh_command(None);
-                        messagef(pallete.green, "NudgePlane %gmm", popup->feature_plane_nudge);
+                        messagef(pallete.light_gray, "NudgePlane %gmm", popup->feature_plane_nudge);
                     }
                 }
             }

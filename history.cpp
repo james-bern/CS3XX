@@ -115,7 +115,7 @@ void history_undo() {
         for (Event *event = begin; event < one_past_end; ++event) standard_event_process(*event);
     } other.please_suppress_messagef = false;
 
-    messagef(pallete.green, "Undo");
+    messagef(pallete.light_gray, "Undo");
 }
 
 void history_redo() {
@@ -140,7 +140,7 @@ void history_redo() {
         }
     } other.please_suppress_messagef = false;
 
-    messagef(pallete.green, "Redo");
+    messagef(pallete.light_gray, "Redo");
 }
 
 void history_printf_script() {

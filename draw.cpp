@@ -60,19 +60,29 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
                 for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
                 x_n = dot(n, p[0]);
             }
+
+            vec3 eye; {
+                mat4 C = inverse(V_3D);
+                for_(d, 3) eye[d] = C(d, 3);
+            }
+
+            vec3 v = normalized(eye - p[0]);
+
             vec3 color; 
             real alpha;
             {
-                vec3 n_Camera = inv_transpose_V_3D * n;
-                vec3 color_n = V3(V2(0.5f) + 0.5f * _V2(n_Camera), 1.0f);
+                // vec3 n_Camera = inv_transpose_V_3D * n;
+                // vec3 color_n = V3(V2(0.66f) + 0.33f * _V2(n_Camera), 1.0f);
                 // n_Camera = V3(0.5f) + 0.5f * n_Camera;
                 // vec3 color_n = (n_Camera.x * monokai.red + n_Camera.y * monokai.blue + n_Camera.z * monokai.purple) / 2;
+                vec3 color_n = V3(0.4f + 0.3f * MAX(0.0f, dot(n, v)));
                 if ((true || feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
                     if (pass == 0) continue;
 
                     // TODO:
                     if (feature_plane->is_active) {
-                        color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), pallete.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, pallete.yellow, V3(0.85f, 0.87f, 0.30f));
+                        // color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), pallete.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, pallete.yellow, V3(0.85f, 0.87f, 0.30f));
+                        color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), pallete.white, pallete.light_gray);// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, pallete.yellow, V3(0.85f, 0.87f, 0.30f));
                     } else color = color_n;
 
                     // if (2.0f * time_since_plane_selected < 0.3f) color = pallete.white; // FORNOW
@@ -206,11 +216,11 @@ void conversation_draw() {
                 : hovering ? 2.0f
                 : 1.5f);
         eso_color(
-                dragging ? pallete.gray
+                dragging ? pallete.white
                 : hovering ? pallete.light_gray
-                : pallete.dark_gray);
-        eso_vertex(other.x_divider_drawing_mesh_OpenGL,  1.0f);
+                : pallete.gray);
         eso_vertex(other.x_divider_drawing_mesh_OpenGL, -1.0f);
+        eso_vertex(other.x_divider_drawing_mesh_OpenGL,  1.0f);
         eso_end();
     }
 
@@ -269,11 +279,11 @@ void conversation_draw() {
                     eso_stipple(true);
                     eso_color(pallete.dark_gray);
                     if (state_Draw_command_is_(SetAxis)) {
-                        eso_color(pallete.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     } else if (state_Mesh_command_is_(RevolveAdd)) {
-                        eso_color(AVG(pallete.dark_gray, pallete.cyan));
+                        eso_color(AVG(pallete.dark_gray, get_color(ColorCode::Emphasis)));
                     } else if (state_Mesh_command_is_(RevolveCut)) {
-                        eso_color(AVG(pallete.dark_gray, pallete.cyan));
+                        eso_color(AVG(pallete.dark_gray, get_color(ColorCode::Emphasis)));
                     } else {
                     }
                     vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
@@ -312,7 +322,9 @@ void conversation_draw() {
                         if (entity->is_selected && (rotating || moving)) continue;
                         // eso_color(entity->preview_color);
                         eso_color((entity->is_selected) ? get_color(ColorCode::Selection) : get_color(entity->color_code));
+                        // eso_color(get_color(entity->color_code));
                         eso_size(1.5f);
+                        // if (entity->is_selected) eso_size(3.0f);
                         eso_entity__SOUP_LINES(entity);
                     }
                 } eso_end();
@@ -352,7 +364,7 @@ void conversation_draw() {
                         || (state_Draw_command_is_(Box))
                    ) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(first_click->x, first_click->y);
                     eso_vertex(mouse.x, first_click->y);
                     eso_vertex(mouse.x, mouse.y);
@@ -365,7 +377,7 @@ void conversation_draw() {
                     real other_y = 2 * center.y - one_corner.y;
                     real other_x = 2 * center.x - one_corner.x;
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(one_corner);
                     eso_vertex(V2(one_corner.x, other_y));
                     eso_vertex(V2(other_x, other_y));
@@ -377,28 +389,28 @@ void conversation_draw() {
                 }
                 if (state_Draw_command_is_(Measure)) {
                     eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
                 if (state_Draw_command_is_(Mirror2)) {
                     eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
                 if (state_Draw_command_is_(Line)) {
                     eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(basic.cyan);
+                    eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
                 if (state_Draw_command_is_(Rotate)) {
                     eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
@@ -408,7 +420,7 @@ void conversation_draw() {
                     vec2 point = mouse;
                     real radius = distance(center, point);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     for_(i, NUM_SEGMENTS_PER_CIRCLE) {
                         real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
                         eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
@@ -421,7 +433,7 @@ void conversation_draw() {
                     vec2 center = (edge_one + edge_two) / 2;
                     real radius = norm(edge_one - center);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     for_(i, NUM_SEGMENTS_PER_CIRCLE) {
                         real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
                         eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
@@ -429,7 +441,7 @@ void conversation_draw() {
                     eso_end();
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_stipple(true);
-                    eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(edge_one);
                     eso_vertex(edge_two);
                     eso_end();
@@ -437,7 +449,7 @@ void conversation_draw() {
                 if (state_Draw_command_is_(Divide2)) {
                     if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                         eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
                         eso_end();
                     }
@@ -452,14 +464,14 @@ void conversation_draw() {
                     {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_stipple(true);
-                        eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(center);
                         eso_vertex(vertex_0);
                         eso_end();
                     }
                     {
                         eso_begin(PV_2D, SOUP_LINE_LOOP);
-                        eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                         for_(i, polygon_num_sides) {
                             real theta_i = theta_0 + (i * delta_theta);
                             real theta_ip1 = theta_i + delta_theta;
@@ -472,7 +484,7 @@ void conversation_draw() {
                 if (state_Draw_command_is_(Fillet)) {
                     if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                         eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
                         eso_end();
                     }
@@ -480,7 +492,7 @@ void conversation_draw() {
                 if (state_Draw_command_is_(DogEar)) {
                     if (two_click_command->awaiting_second_click) {
                         eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(basic.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                         eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
                         eso_end();
                     }
@@ -589,7 +601,7 @@ void conversation_draw() {
                 vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                 vec2 a = preview_dxf_axis_base_point + v;
                 vec2 b = preview_dxf_axis_base_point - v;
-                eso_color(pallete.cyan);
+                        eso_color(get_color(ColorCode::Emphasis));
                 eso_vertex(-preview->drawing_origin + a);
                 eso_vertex(-preview->drawing_origin + b); // FORNOW
             }

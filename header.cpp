@@ -520,16 +520,17 @@ struct {
     vec3 yellow = RGB255(255, 255, 0);
     vec3 black = RGB255(0, 0, 0);
 
-    vec3 dark_gray = RGB255(50, 50, 50);
-    vec3 darker_gray = RGB255(20, 20, 20);
-    vec3 gray = RGB255(152, 152, 152);
-    vec3 light_gray = RGB255(205, 205, 205);
     vec3 white = RGB255(255, 255, 255);
+    vec3 light_gray = RGB255(195, 195, 195);
+    vec3 gray = RGB255(132, 132, 132);
+    vec3 dark_gray = RGB255(70, 70, 70);
+    vec3 darker_gray = RGB255(20, 20, 20);
 
     vec3 dark_yellow = RGB255(200, 200, 0);
 } pallete;
 
-vec3 Q_pallete[] = {
+vec3 Q_pallete[10] = {
+    #if 0
     pallete.green,
     pallete.red,
     pallete.pink,
@@ -540,22 +541,35 @@ vec3 Q_pallete[] = {
     pallete.light_gray, // TODO: what is this
     pallete.cyan,
     pallete.orange,
+    #else
+    pallete.light_gray,
+    pallete.gray,
+    pallete.dark_gray,
+    pallete.red,
+    pallete.orange,
+    pallete.yellow,
+    pallete.green,
+    pallete.blue,
+    pallete.purple,
+    pallete.pink,
+    #endif
 };
 
 vec3 get_accent_color(ToolboxGroup group) {
+    return AVG(pallete.light_gray, pallete.white);
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = pallete.cyan;
+        result = pallete.white;
     } else if (group == ToolboxGroup::Both) {
-        result = monokai.orange;
+        result = pallete.white;
     } else if (group == ToolboxGroup::Mesh) {
-        result = pallete.pink;
+        result = pallete.white;
     } else if (group == ToolboxGroup::Snap) {
-        result = pallete.green;
+        result = pallete.white;
     } else if (group == ToolboxGroup::Xsel) {
-        result = pallete.yellow;
+        result = pallete.white;
     } else if (group == ToolboxGroup::Colo) {
-        result = pallete.yellow;
+        result = pallete.white;
     } else { ASSERT(group == ToolboxGroup::None);
         result = {};
     }
@@ -700,9 +714,9 @@ vec3 get_color(ColorCode color_code) {
         do_once { messagef(pallete.orange, "WARNING: slits not implemented"); };
         return Q_pallete[i - 20];
     } else if (color_code == ColorCode::Selection) {
-        return pallete.yellow;
+        return pallete.white;
     } else if (color_code == ColorCode::Emphasis) {
-        return pallete.cyan;
+        return pallete.white;
     } else {
         ASSERT(false);
         return {};
