@@ -521,8 +521,8 @@ struct {
     vec3 black = RGB255(0, 0, 0);
 
     vec3 white = RGB255(255, 255, 255);
-    vec3 light_gray = RGB255(195, 195, 195);
-    vec3 gray = RGB255(132, 132, 132);
+    vec3 light_gray = RGB255(160, 160, 160);
+    vec3 gray = RGB255(115, 115, 115);
     vec3 dark_gray = RGB255(70, 70, 70);
     vec3 darker_gray = RGB255(20, 20, 20);
 

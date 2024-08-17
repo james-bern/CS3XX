@@ -106,7 +106,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             EasyTextPen Colo_pen = Snap_pen;
             EasyTextPen Colo_pen2 = Snap_pen2;
-            Colo_pen.origin.y += 116.0f;
+            if (command_equals(state.Xsel_command, commands.ByColor)) {
+                Colo_pen.origin.y += 116.0f;
+            }
             Colo_pen2.origin = Colo_pen.origin;
 
 
@@ -129,12 +131,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             defer { map_free_and_zero(&shortcut_already_checked); };
             bool hotkey_consumed_by_GUIBUTTON = false;
             ToolboxGroup most_recent_group_for_SEPERATOR = ToolboxGroup::None;
-            auto GUIBUTTON = [&](Command command, bool hide_button = false) -> bool {
+            auto GUIBUTTON = [&](Command command, bool hide_button = false, bool deactivate_hotkey = false) -> bool {
                 most_recent_group_for_SEPERATOR = command.group;
                 bool gray_out_shortcut;
                 gray_out_shortcut = false; // SUPPRESS COMPILER WARNING
                 if (!other._please_suppress_drawing_popup_popup) {
-                    if (!map_get(&shortcut_already_checked, command.shortcuts[0], false)) {
+                    if (!deactivate_hotkey && !map_get(&shortcut_already_checked, command.shortcuts[0], false)) {
                         map_put(&shortcut_already_checked, command.shortcuts[0], true);
                         gray_out_shortcut = false;
                     } else {
@@ -328,7 +330,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     inner_result = false;
                     if (is_toolbox_button_mouse_event) {
                         inner_result |= (name.data == event.mouse_event.mouse_event_toolbox_button.name);
-                    } else {
+                    } else if (!deactivate_hotkey) {
                         for (Shortcut *shortcut = command.shortcuts; shortcut < command.shortcuts + COMMAND_MAX_NUM_SHORTCUTS; ++shortcut) {
                             bool tmp = _key_lambda(key_event, shortcut->key, (shortcut->mods & GLFW_MOD_CONTROL), (shortcut->mods & GLFW_MOD_SHIFT));
                             inner_result |= tmp;
@@ -441,6 +443,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         }
                     }
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.ToggleDetails)) { 
+                        other.show_details = !other.show_details;
+                    }
                 }
 
                 { // Colo
@@ -510,7 +516,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                         GUIBUTTON(commands.Connected);
                         GUIBUTTON(commands.Window);
-                        GUIBUTTON(commands.ByColor);
+                        bool deactive_sq = !command_equals(state.Xsel_command, commands.None);
+                        GUIBUTTON(commands.ByColor, false, deactive_sq);
                     }
                 }
 
@@ -529,6 +536,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             equivalent.type = EventType::Mouse;
                             equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
                             return _standard_event_process_NOTE_RECURSIVE(equivalent);
+                        }
+                        if (!command_equals(state.Snap_command, commands.None)) {
+                            if (GUIBUTTON(commands.ClearSnap)) {
+                                state.Snap_command = commands.None;
+                            }
                         }
                     }
                 }
@@ -716,9 +728,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                    if (GUIBUTTON(commands.TOGGLE_DRAWING_DETAILS)) { 
-                        other.show_details = !other.show_details;
-                    }
 
 
 

@@ -49,7 +49,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_TRI_MESH);
         eso_size(0.5f);
 
-        mat3 inv_transpose_V_3D = inverse(transpose(_M3(V_3D)));
+        // mat3 inv_transpose_V_3D = inverse(transpose(_M3(V_3D)));
 
 
         for_(i, mesh->num_triangles) {
@@ -290,15 +290,32 @@ void conversation_draw() {
                     eso_vertex(preview_dxf_axis_base_point + v);
                     eso_vertex(preview_dxf_axis_base_point - v);
                 } eso_end();
+                real r = 2 * funky_OpenGL_factor;
+                eso_begin(PV_2D, SOUP_POINTS); {
+                    eso_color(pallete.white);
+                    eso_size(5);
+                    eso_vertex(target_preview_drawing_origin - V2(0, 0));
+                } eso_end();
                 eso_begin(PV_2D, SOUP_LINES); {
                     // origin
                     eso_color(pallete.white);
-                    real r = funky_OpenGL_factor;
-                    eso_vertex(target_preview_drawing_origin - V2(r, 0));
+                    eso_size(2);
+                    eso_vertex(target_preview_drawing_origin - V2(0, 0));
+                    eso_size(2);
                     eso_vertex(target_preview_drawing_origin + V2(r, 0));
-                    eso_vertex(target_preview_drawing_origin - V2(0, r));
+                    eso_vertex(target_preview_drawing_origin - V2(0, 0));
                     eso_vertex(target_preview_drawing_origin + V2(0, r));
                 } eso_end();
+                // eso_begin(PV_2D, SOUP_TRIANGLES); {
+                //     eso_color(pallete.white);
+                //     real eps = r / 5;
+                //     eso_vertex(target_preview_drawing_origin + V2(r + 2 * eps, 0));
+                //     eso_vertex(target_preview_drawing_origin + V2(r,         eps));
+                //     eso_vertex(target_preview_drawing_origin + V2(r,        -eps));
+                //     eso_vertex(target_preview_drawing_origin + V2(0, r + 2 * eps));
+                //     eso_vertex(target_preview_drawing_origin + V2( eps, r));
+                //     eso_vertex(target_preview_drawing_origin + V2(-eps, r));
+                // } eso_end();
             }
 
             { // entities
@@ -588,12 +605,12 @@ void conversation_draw() {
         }
 
         if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
-            real r = other.camera_mesh.ortho_screen_height_World / 120.0f;
+            real r = other.camera_mesh.ortho_screen_height_World / 100.0f;
             eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES);
             eso_color(pallete.white);
-            eso_vertex(-r, 0.0f);
+            eso_vertex(0, 0.0f);
             eso_vertex( r, 0.0f);
-            eso_vertex(0.0f, -r);
+            eso_vertex(0.0f, 0);
             eso_vertex(0.0f,  r);
             if (revolving) {
                 // TODO: clip this to the feature_plane

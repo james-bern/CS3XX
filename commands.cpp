@@ -16,6 +16,7 @@
     \
     COMMANDS_INNER(Undo,            'U', 0b000, Both, 0, 0 | NO_RECORD, 'Z', 0b010); \
     COMMANDS_INNER(Redo,            'U', 0b001, Both, 0, 0 | NO_RECORD, 'Y', 0b010, 'Z', 0b011 ); \
+    COMMANDS_INNER(ToggleDetails,     '.', 0b000, Both, 0, 0 | NO_RECORD);  \
     \
     COMMANDS_INNER(Center,          'C', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(End,             'E', 0b000, Snap, 1, 0); \
@@ -26,6 +27,7 @@
     COMMANDS_INNER(Tangent,         'T', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(XY,              'X', 0b000, Snap, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(Zero,            'Z', 0b000, Snap, 0, 0); \
+    COMMANDS_INNER(ClearSnap,         0, 0b000, Snap, 0, 0); \
     \
     COMMANDS_INNER(SetAxis,         'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Box,             'B', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
@@ -105,7 +107,6 @@
     \
     \
     COMMANDS_INNER(TOGGLE_BUTTONS,          GLFW_KEY_TAB, 0b001, None, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(TOGGLE_DRAWING_DETAILS,           '.', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_EVENT_STACK,               'K', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_LIGHT_MODE,                'L', 0b011, None, 0, 0 | NO_RECORD);  \
