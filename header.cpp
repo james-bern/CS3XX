@@ -556,18 +556,17 @@ vec3 Q_pallete[10] = {
 };
 
 vec3 get_accent_color(ToolboxGroup group) {
-    return AVG(pallete.light_gray, pallete.white);
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = pallete.white;
+        result = V3(0.5f, 1.0f, 1.0f);
     } else if (group == ToolboxGroup::Both) {
-        result = pallete.white;
+        result = V3(1.0f, 0.5f, 1.0f);
     } else if (group == ToolboxGroup::Mesh) {
-        result = pallete.white;
+        result = V3(1.0f, 1.0f, 0.5f);
     } else if (group == ToolboxGroup::Snap) {
-        result = pallete.white;
+        result = V3(0.75f, 1.0f, 0.75f);
     } else if (group == ToolboxGroup::Xsel) {
-        result = pallete.white;
+        result = V3(0.75f, 0.75f, 1.0f);
     } else if (group == ToolboxGroup::Colo) {
         result = pallete.white;
     } else { ASSERT(group == ToolboxGroup::None);
