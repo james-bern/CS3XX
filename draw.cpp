@@ -386,8 +386,9 @@ void conversation_draw() {
             }
 
             if (state_Draw_command_is_(Box)) {
-                auto DRAW_BOX = [&](vec2 a, vec2 b, vec3 color) {
+                auto DRAW_BOX = [&](vec2 a, vec2 b, vec3 color, bool stipple = false) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_stipple(stipple);
                     eso_color(color);
                     eso_vertex(a);
                     eso_vertex(a.x, b.y);
@@ -396,16 +397,20 @@ void conversation_draw() {
                     eso_end();
                 };
                 if (!two_click_command->awaiting_second_click) {
-                    if (state_Snap_command_is_(XY)) {
-                        DRAW_BOX(preview->xy_xy, mouse, get_accent_color(ToolboxGroup::Snap));
+                    if (state_Snap_command_is_(XY) && (popup->manager.focus_group == ToolboxGroup::Snap)) {
+                        DRAW_BOX(preview->xy_xy, mouse, get_accent_color(ToolboxGroup::Snap), true);
                     }
                 } else {
                     DRAW_BOX(*first_click, mouse, get_color(ColorCode::Emphasis));
 
-                    // FORNOW here
-                    vec2 target_second_click = *first_click + V2(popup->box_width, popup->box_height);
-                    JUICEIT_EASYTWEEN(&preview->box_second_click, target_second_click);
-                    DRAW_BOX(*first_click, preview->box_second_click, pallete.cyan);
+                    if (state_Snap_command_is_(XY) && (popup->manager.focus_group == ToolboxGroup::Snap)) {
+                        DRAW_BOX(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                    } else if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                        // FORNOW here
+                        vec2 target_second_click = *first_click + V2(popup->box_width, popup->box_height);
+                        JUICEIT_EASYTWEEN(&preview->box_second_click, target_second_click);
+                        DRAW_BOX(*first_click, preview->box_second_click, pallete.cyan);
+                    }
                 }
             }
 
