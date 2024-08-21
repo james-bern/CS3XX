@@ -530,7 +530,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         GUIBUTTON(commands.Perp);
                         GUIBUTTON(commands.Quad);
                         GUIBUTTON(commands.Tangent);
-                        GUIBUTTON(commands.XY);
+                        if (GUIBUTTON(commands.XY)) {
+                            preview->xy_xy = {};
+                        }
                         if (GUIBUTTON(commands.Zero)) {
                             Event equivalent = {};
                             equivalent.type = EventType::Mouse;
@@ -798,6 +800,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             MagicSnapResult snap_result = mouse_event_drawing->snap_result;
             vec2 *mouse = &snap_result.mouse_position;
 
+            // TODO: commands.cpp flag
             if (snap_result.snapped && ( 
                         (state_Draw_command_is_(Box))
                         || (state_Draw_command_is_(CenterBox))
@@ -808,6 +811,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 ASSERT(snap_result.entity_index_snapped_to >= 0);
                 ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
                 cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
+                other.snap_divide_dot = *mouse;
+                other.size_snap_divide_dot = 7.0f;
             }
 
 
@@ -1022,6 +1027,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     callback_cursor_position(glfw_window, x_new, y_new);
                                 }
                             }
+                            preview->box_second_click = two_click_command->first_click;
                         }
                     } else { // (two_click_command->awaiting_second_click)
                         vec2 first_click = two_click_command->first_click;

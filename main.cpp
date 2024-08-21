@@ -1,3 +1,10 @@
+// BETA
+// TODO: use UP and DOWN arrow keys to increase or decrease the field by one if it's a pure number
+// TODO: preview fields if mouse not moving
+// -- or actually, do both, but have them fade or something if the mouse is/isn't moving (MouseDrawColor, EnterDrawColor)
+// -- or actually actually, time_since_current_popup_typed_in (and maybe also a boolean on mouse movement if they change their mind)
+// TODO: fillet preview
+
 // TODO: BETA
 // - divide shows the point that was divided (animation)
 
@@ -53,6 +60,18 @@
 #include "playground.cpp"
 
 char *startup_script = "y";
+
+#if 1 // Box tweening
+run_before_main {
+    startup_script = "bz5";
+};
+#endif
+
+#if 0 // UP DOWN polygon
+run_before_main {
+    startup_script = "pz";
+};
+#endif
 
 #if 0 // hotkeys not working bug
 run_before_main {
@@ -143,7 +162,7 @@ run_before_main {
 };
 #endif
 
-#if 1 // kitchen sink
+#if 0 // kitchen sink
 run_before_main {
     startup_script = 
                      #if 1
@@ -266,6 +285,8 @@ int main() {
 
     }
 
+
+    messagef(pallete.red, "make negative extrude and revolves work");
 
     // messagef(pallete.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 

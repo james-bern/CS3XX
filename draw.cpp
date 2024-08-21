@@ -272,6 +272,7 @@ void conversation_draw() {
             }
             if (1) { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
                 real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+                real r = 2 * funky_OpenGL_factor;
                 real LL = 1000 * funky_OpenGL_factor;
 
                 eso_begin(PV_2D, SOUP_LINES); {
@@ -290,7 +291,6 @@ void conversation_draw() {
                     eso_vertex(preview_dxf_axis_base_point + v);
                     eso_vertex(preview_dxf_axis_base_point - v);
                 } eso_end();
-                real r = 2 * funky_OpenGL_factor;
                 eso_begin(PV_2D, SOUP_POINTS); {
                     eso_color(pallete.white);
                     eso_size(5);
@@ -299,9 +299,8 @@ void conversation_draw() {
                 eso_begin(PV_2D, SOUP_LINES); {
                     // origin
                     eso_color(pallete.white);
-                    eso_size(2);
+                    eso_size(2.0f);
                     eso_vertex(target_preview_drawing_origin - V2(0, 0));
-                    eso_size(2);
                     eso_vertex(target_preview_drawing_origin + V2(r, 0));
                     eso_vertex(target_preview_drawing_origin - V2(0, 0));
                     eso_vertex(target_preview_drawing_origin + V2(0, r));
@@ -371,30 +370,65 @@ void conversation_draw() {
                     }
                     eso_end();
                 }
+
+                { // snap_divide_dot
+                    eso_begin(PV_2D, SOUP_POINTS);
+                    eso_color(pallete.white);
+                    JUICEIT_EASYTWEEN(&other.size_snap_divide_dot, 0.0f, 0.5f);
+                    eso_size(other.size_snap_divide_dot);
+                    eso_vertex(other.snap_divide_dot);
+                    eso_end();
+                }
             }
 
+            if (state_Snap_command_is_(XY)) {
+                JUICEIT_EASYTWEEN(&preview->xy_xy, V2(popup->xy_x_coordinate, popup->xy_y_coordinate));
+            }
 
-            if (two_click_command->awaiting_second_click) {
-                if (
-                        0
-                        || (state_Xsel_command_is_(Window))
-                        || (state_Draw_command_is_(Box))
-                   ) {
+            if (state_Draw_command_is_(Box)) {
+                auto DRAW_BOX = [&](vec2 a, vec2 b, vec3 color) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(color);
+                    eso_vertex(a);
+                    eso_vertex(a.x, b.y);
+                    eso_vertex(b);
+                    eso_vertex(b.x, a.y);
+                    eso_end();
+                };
+                if (!two_click_command->awaiting_second_click) {
+                    if (state_Snap_command_is_(XY)) {
+                        DRAW_BOX(preview->xy_xy, mouse, get_accent_color(ToolboxGroup::Snap));
+                    }
+                } else {
+                    DRAW_BOX(*first_click, mouse, get_color(ColorCode::Emphasis));
+
+                    // FORNOW here
+                    vec2 target_second_click = *first_click + V2(popup->box_width, popup->box_height);
+                    JUICEIT_EASYTWEEN(&preview->box_second_click, target_second_click);
+                    DRAW_BOX(*first_click, preview->box_second_click, pallete.cyan);
+                }
+            }
+
+            if (!two_click_command->awaiting_second_click) {
+            } else {
+
+                if (state_Xsel_command_is_(Window)) {
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(first_click->x, first_click->y);
                     eso_vertex(mouse.x, first_click->y);
                     eso_vertex(mouse.x, mouse.y);
                     eso_vertex(first_click->x, mouse.y);
                     eso_end();
                 }
+
                 if (state_Draw_command_is_(CenterBox)) {                
                     vec2 one_corner = mouse;
                     vec2 center = *first_click;
                     real other_y = 2 * center.y - one_corner.y;
                     real other_x = 2 * center.x - one_corner.x;
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(one_corner);
                     eso_vertex(V2(one_corner.x, other_y));
                     eso_vertex(V2(other_x, other_y));
@@ -406,14 +440,14 @@ void conversation_draw() {
                 }
                 if (state_Draw_command_is_(Measure)) {
                     eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
                 }
                 if (state_Draw_command_is_(Mirror2)) {
                     eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
@@ -427,7 +461,7 @@ void conversation_draw() {
                 }
                 if (state_Draw_command_is_(Rotate)) {
                     eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
                     eso_end();
@@ -437,7 +471,7 @@ void conversation_draw() {
                     vec2 point = mouse;
                     real radius = distance(center, point);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(get_color(ColorCode::Emphasis));
                     for_(i, NUM_SEGMENTS_PER_CIRCLE) {
                         real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
                         eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
@@ -450,7 +484,7 @@ void conversation_draw() {
                     vec2 center = (edge_one + edge_two) / 2;
                     real radius = norm(edge_one - center);
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(get_color(ColorCode::Emphasis));
                     for_(i, NUM_SEGMENTS_PER_CIRCLE) {
                         real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
                         eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
@@ -458,7 +492,7 @@ void conversation_draw() {
                     eso_end();
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_stipple(true);
-                        eso_color(get_color(ColorCode::Emphasis));
+                    eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(edge_one);
                     eso_vertex(edge_two);
                     eso_end();
@@ -533,8 +567,8 @@ void conversation_draw() {
             bool moving_stuff = ((state_Draw_command_is_(SetOrigin)) || (state_Mesh_command_is_(NudgePlane)));
             vec3 target_preview_tubes_color = (0) ? V3(0)
                 : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
-                : (adding) ? get_color(ColorCode::Traverse)
-                : (cutting) ? get_color(ColorCode::Quality1)
+                : (adding) ? pallete.green
+                : (cutting) ? pallete.red
                 : (moving_stuff) ? get_color(ColorCode::Emphasis)
                 : get_color(ColorCode::Selection);
             JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
@@ -618,7 +652,7 @@ void conversation_draw() {
                 vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                 vec2 a = preview_dxf_axis_base_point + v;
                 vec2 b = preview_dxf_axis_base_point - v;
-                        eso_color(get_color(ColorCode::Emphasis));
+                eso_color(get_color(ColorCode::Emphasis));
                 eso_vertex(-preview->drawing_origin + a);
                 eso_vertex(-preview->drawing_origin + b); // FORNOW
             }
@@ -1000,9 +1034,9 @@ void conversation_draw() {
         }
 
         real height = 12.0f;
-        EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, pallete.gray };
+        EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
         easy_text_drawf(&pen, "%d lines %d arcs", num_lines, num_arcs);
-        pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, pallete.gray };
+        pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
         easy_text_drawf(&pen, "%d triangles", mesh->num_triangles);
     }
 

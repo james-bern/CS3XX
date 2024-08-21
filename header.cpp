@@ -430,6 +430,9 @@ struct PreviewState {
     vec2 drawing_origin;
     vec2 mouse;
     real cursor_subtext_alpha;
+
+    vec2 box_second_click;
+    vec2 xy_xy;
 };
 
 struct Cursors {
@@ -482,6 +485,10 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     real time_since_plane_selected;
     real time_since_plane_deselected;
     real time_since_going_inside;
+
+
+    vec2 snap_divide_dot;
+    real size_snap_divide_dot;
 
     PreviewState preview;
 
