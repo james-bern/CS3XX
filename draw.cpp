@@ -381,38 +381,155 @@ void conversation_draw() {
                 }
             }
 
+
+            auto DRAW_CROSSHAIR = [&](vec2 o, vec3 color) {
+                real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+                eso_begin(PV_2D, SOUP_LINES);
+                eso_color(pallete.black);
+                real r = 1.3 * funky_OpenGL_factor;
+                eso_size(2.0f);
+                eso_vertex(o - V2(r, 0));
+                eso_vertex(o + V2(r, 0));
+                eso_vertex(o - V2(0, r));
+                eso_vertex(o + V2(0, r));
+                eso_color(color);
+                r -= .1;
+                eso_size(1.0f);
+                eso_vertex(o - V2(r, 0));
+                eso_vertex(o + V2(r, 0));
+                eso_vertex(o - V2(0, r));
+                eso_vertex(o + V2(0, r));
+                eso_end();
+            };
+
+            auto DRAW_BOX = [&](vec2 click_1, vec2 click_2, vec3 color) {
+                eso_begin(PV_2D, SOUP_LINE_LOOP);
+                eso_color(color);
+                eso_vertex(click_1);
+                eso_vertex(click_1.x, click_2.y);
+                eso_vertex(click_2);
+                eso_vertex(click_2.x, click_1.y);
+                eso_end();
+            };
+
+            auto DRAW_CIRCLE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+                vec2 center = click_1;
+                real radius = distance(click_1, click_2);
+                eso_begin(PV_2D, SOUP_LINE_LOOP);
+                eso_color(color);
+                for_(i, NUM_SEGMENTS_PER_CIRCLE) {
+                    real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
+                    eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
+                }
+                eso_end();
+            };
+
+            auto DRAW_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+                if (state_Draw_command_is_(Line)) {
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_color(color);
+                    eso_vertex(click_1);
+                    eso_vertex(click_2);
+                    eso_end();
+                }
+            };
+
             if (state_Snap_command_is_(XY)) {
                 JUICEIT_EASYTWEEN(&preview->xy_xy, V2(popup->xy_x_coordinate, popup->xy_y_coordinate));
             }
 
-            if (state_Draw_command_is_(Box)) {
-                auto DRAW_BOX = [&](vec2 a, vec2 b, vec3 color, bool stipple = false) {
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_stipple(stipple);
-                    eso_color(color);
-                    eso_vertex(a);
-                    eso_vertex(a.x, b.y);
-                    eso_vertex(b);
-                    eso_vertex(b.x, a.y);
-                    eso_end();
-                };
-                if (!two_click_command->awaiting_second_click) {
-                    if (state_Snap_command_is_(XY) && (popup->manager.focus_group == ToolboxGroup::Snap)) {
-                        DRAW_BOX(preview->xy_xy, mouse, get_accent_color(ToolboxGroup::Snap), true);
-                    }
-                } else {
-                    DRAW_BOX(*first_click, mouse, get_color(ColorCode::Emphasis));
+            if (state_Snap_command_is_(XY) && (popup->manager.focus_group == ToolboxGroup::Snap)) {
+                DRAW_CROSSHAIR(preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+            } else if (!state_Snap_command_is_(None)) {
+                JUICEIT_EASYTWEEN(&preview->mouse_snap, magic_snap(mouse).mouse_position, 1.0f);
+                DRAW_CROSSHAIR(preview->mouse_snap, get_accent_color(ToolboxGroup::Snap));
+            }
 
-                    if (state_Snap_command_is_(XY) && (popup->manager.focus_group == ToolboxGroup::Snap)) {
-                        DRAW_BOX(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+
+
+            vec2 preview_second_click = (state_Snap_command_is_(XY)) ? preview->xy_xy : preview->mouse_snap;
+
+            bool click_NOT_owned_by_Snap = state_Snap_command_is_(None) || state_Snap_command_is_(XY);
+
+            if (two_click_command->awaiting_second_click && !state_Draw_command_is_(None)) {
+                if (!ARE_EQUAL(*first_click, preview->popup_second_click)) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
+            }
+
+            if (state_Draw_command_is_(Box)) {
+                if (two_click_command->awaiting_second_click) {
+                    if (click_NOT_owned_by_Snap) DRAW_BOX(*first_click, mouse, get_color(ColorCode::Emphasis));
+                    if (!state_Snap_command_is_(None)) {
+                        DRAW_BOX(*first_click, preview_second_click, get_accent_color(ToolboxGroup::Snap));
                     } else if (popup->manager.focus_group == ToolboxGroup::Draw) {
-                        // FORNOW here
+                        // FORNOW
                         vec2 target_second_click = *first_click + V2(popup->box_width, popup->box_height);
-                        JUICEIT_EASYTWEEN(&preview->box_second_click, target_second_click);
-                        DRAW_BOX(*first_click, preview->box_second_click, pallete.cyan);
+                        JUICEIT_EASYTWEEN(&preview->popup_second_click, target_second_click);
+
+                        DRAW_BOX(*first_click, preview->popup_second_click, pallete.cyan);
                     }
                 }
             }
+
+            if (state_Draw_command_is_(Circle)) {
+                if (two_click_command->awaiting_second_click) {
+                    if (click_NOT_owned_by_Snap) DRAW_CIRCLE(*first_click, mouse, get_color(ColorCode::Emphasis));
+                    if (!state_Snap_command_is_(None)) {
+                        DRAW_CIRCLE(*first_click, preview_second_click, get_accent_color(ToolboxGroup::Snap));
+                    } else if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                        // FORNOW
+                        vec2 target_second_click = *first_click + V2(popup->circle_radius, 0.0f);
+                        JUICEIT_EASYTWEEN(&preview->popup_second_click, target_second_click);
+
+                        DRAW_CIRCLE(*first_click, preview->popup_second_click, pallete.cyan);
+                    }
+                }
+            }
+
+            if (state_Draw_command_is_(Line)) {
+                if (two_click_command->awaiting_second_click) {
+                    if (click_NOT_owned_by_Snap) DRAW_LINE(*first_click, mouse, get_color(ColorCode::Emphasis));
+                    if (!state_Snap_command_is_(None)) {
+                        DRAW_LINE(*first_click, preview_second_click, get_accent_color(ToolboxGroup::Snap));
+                    } else if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                        // FORNOW
+                        vec2 target_second_click = *first_click + V2(popup->line_run, popup->line_rise);
+                        JUICEIT_EASYTWEEN(&preview->popup_second_click, target_second_click);
+
+                        DRAW_LINE(*first_click, preview->popup_second_click, pallete.cyan);
+                    }
+                }
+            }
+
+            if (state_Draw_command_is_(Polygon)) {
+                uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
+                real delta_theta = TAU / polygon_num_sides;
+                vec2 center = two_click_command->first_click;
+                vec2 vertex_0 = mouse;
+                real radius = distance(center, vertex_0);
+                real theta_0 = ATAN2(vertex_0 - center);
+                {
+                    eso_begin(PV_2D, SOUP_LINES);
+                    eso_stipple(true);
+                    eso_color(get_color(ColorCode::Emphasis));
+                    eso_vertex(center);
+                    eso_vertex(vertex_0);
+                    eso_end();
+                }
+                {
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(get_color(ColorCode::Emphasis));
+                    for_(i, polygon_num_sides) {
+                        real theta_i = theta_0 + (i * delta_theta);
+                        real theta_ip1 = theta_i + delta_theta;
+                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
+                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
+                    }
+                    eso_end();
+                }
+            }
+
+
+
 
             if (!two_click_command->awaiting_second_click) {
             } else {
@@ -457,30 +574,11 @@ void conversation_draw() {
                     eso_vertex(mouse);
                     eso_end();
                 }
-                if (state_Draw_command_is_(Line)) {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(two_click_command->first_click);
-                    eso_vertex(mouse);
-                    eso_end();
-                }
                 if (state_Draw_command_is_(Rotate)) {
                     eso_begin(PV_2D, SOUP_LINES);
                     eso_color(get_color(ColorCode::Emphasis));
                     eso_vertex(two_click_command->first_click);
                     eso_vertex(mouse);
-                    eso_end();
-                }
-                if (state_Draw_command_is_(Circle)) {
-                    vec2 center = two_click_command->first_click;
-                    vec2 point = mouse;
-                    real radius = distance(center, point);
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    for_(i, NUM_SEGMENTS_PER_CIRCLE) {
-                        real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
-                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
-                    }
                     eso_end();
                 }
                 if (state_Draw_command_is_(DiamCircle)) {
@@ -507,33 +605,6 @@ void conversation_draw() {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
-                        eso_end();
-                    }
-                }
-                if (state_Draw_command_is_(Polygon)) {
-                    uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
-                    real delta_theta = TAU / polygon_num_sides;
-                    vec2 center = two_click_command->first_click;
-                    vec2 vertex_0 = mouse;
-                    real radius = distance(center, vertex_0);
-                    real theta_0 = ATAN2(vertex_0 - center);
-                    {
-                        eso_begin(PV_2D, SOUP_LINES);
-                        eso_stipple(true);
-                        eso_color(get_color(ColorCode::Emphasis));
-                        eso_vertex(center);
-                        eso_vertex(vertex_0);
-                        eso_end();
-                    }
-                    {
-                        eso_begin(PV_2D, SOUP_LINE_LOOP);
-                        eso_color(get_color(ColorCode::Emphasis));
-                        for_(i, polygon_num_sides) {
-                            real theta_i = theta_0 + (i * delta_theta);
-                            real theta_ip1 = theta_i + delta_theta;
-                            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
-                            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
-                        }
                         eso_end();
                     }
                 }

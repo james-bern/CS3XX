@@ -116,6 +116,7 @@ real MAX(real a, real b) { return (a > b) ? a : b; }
 bool IS_ZERO(real a) { return (ABS(a) < TINY_VAL); }
 tuD bool IS_ZERO(vecD a) { for_(d, D) if (!IS_ZERO(a[d])) return false; return true; }
 bool ARE_EQUAL(real a, real b) { return IS_ZERO(ABS(a - b)); }
+tuD bool ARE_EQUAL(vecD a, vecD b) { return IS_ZERO((a - b)); }
 bool IS_BETWEEN_LOOSE(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
 bool IS_BETWEEN_TIGHT(real p, real a, real b) { return (((a + TINY_VAL) < p) && (p < (b - TINY_VAL))); }
 // CLAMP

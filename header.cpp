@@ -408,11 +408,11 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     PopupState popup;
     ToolboxState toolbox;
 
-    Command Draw_command;
-    Command Mesh_command;
-    Command Snap_command;
-    Command Xsel_command;
-    Command Colo_command;
+    Command Draw_command = commands.None; // FORNOW (command_equals)
+    Command Mesh_command = commands.None; // FORNOW
+    Command Snap_command = commands.None; // FORNOW
+    Command Xsel_command = commands.None; // FORNOW
+    Command Colo_command = commands.None; // FORNOW
 
     Event space_bar_event;
     Event shift_space_bar_event;
@@ -431,8 +431,9 @@ struct PreviewState {
     vec2 mouse;
     real cursor_subtext_alpha;
 
-    vec2 box_second_click;
+    vec2 popup_second_click;
     vec2 xy_xy;
+    vec2 mouse_snap;
 };
 
 struct Cursors {
@@ -567,11 +568,11 @@ vec3 get_accent_color(ToolboxGroup group) {
     if (group == ToolboxGroup::Draw) {
         result = V3(0.5f, 1.0f, 1.0f);
     } else if (group == ToolboxGroup::Both) {
-        result = V3(1.0f, 0.5f, 1.0f);
+        result = V3(0.75f, 1.0f, 0.75f);
     } else if (group == ToolboxGroup::Mesh) {
         result = V3(1.0f, 1.0f, 0.5f);
     } else if (group == ToolboxGroup::Snap) {
-        result = V3(0.75f, 1.0f, 0.75f);
+        result = V3(1.0f, 0.5f, 1.0f);
     } else if (group == ToolboxGroup::Xsel) {
         result = V3(0.75f, 0.75f, 1.0f);
     } else if (group == ToolboxGroup::Colo) {

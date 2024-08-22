@@ -1,4 +1,5 @@
 // BETA
+// TODO: cool flash and then fade out with beep (don't actually need beep) for enter with crosshairs
 // TODO: use UP and DOWN arrow keys to increase or decrease the field by one if it's a pure number
 // TODO: preview fields if mouse not moving
 // -- or actually, do both, but have them fade or something if the mouse is/isn't moving (MouseDrawColor, EnterDrawColor)
@@ -61,7 +62,7 @@
 
 char *startup_script = "y";
 
-#if 1 // Box tweening
+#if 0 // Box tweening
 run_before_main {
     startup_script = "bz5";
 };

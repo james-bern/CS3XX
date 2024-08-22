@@ -523,13 +523,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 { // Snap 
                     if (state.Draw_command.flags & SNAPPER) {
-                        GUIBUTTON(commands.Center);
-                        GUIBUTTON(commands.End);
-                        GUIBUTTON(commands.Intersect);
-                        GUIBUTTON(commands.Middle);
-                        GUIBUTTON(commands.Perp);
-                        GUIBUTTON(commands.Quad);
-                        GUIBUTTON(commands.Tangent);
+                        if (GUIBUTTON(commands.Center)) preview->mouse_snap = preview->mouse;
+                        if (GUIBUTTON(commands.End)) preview->mouse_snap = preview->mouse;
+                        if (GUIBUTTON(commands.Intersect)) preview->mouse_snap = preview->mouse;
+                        if (GUIBUTTON(commands.Middle)) preview->mouse_snap = preview->mouse;
+                        if (GUIBUTTON(commands.Perp)) preview->mouse_snap = preview->mouse;
+                        if (GUIBUTTON(commands.Quad)) preview->mouse_snap = preview->mouse;
+                        if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse;
                         if (GUIBUTTON(commands.XY)) {
                             preview->xy_xy = {};
                         }
@@ -1027,7 +1027,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     callback_cursor_position(glfw_window, x_new, y_new);
                                 }
                             }
-                            preview->box_second_click = two_click_command->first_click;
+
+                            // FORNOW FORNOW
+                            preview->popup_second_click = two_click_command->first_click;
                         }
                     } else { // (two_click_command->awaiting_second_click)
                         vec2 first_click = two_click_command->first_click;
