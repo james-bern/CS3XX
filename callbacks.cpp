@@ -49,6 +49,8 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
 }
 
 void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
+    other.time_since_mouse_moved = 0.0f;
+
     // mouse_*
     vec2 delta_mouse_OpenGL;
     vec2 delta_mouse_World_2D;

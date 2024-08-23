@@ -486,6 +486,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     real time_since_plane_selected;
     real time_since_plane_deselected;
     real time_since_going_inside;
+    real time_since_mouse_moved;
+    real time_since_popup_second_click_not_the_same;
 
 
     vec2 snap_divide_dot;

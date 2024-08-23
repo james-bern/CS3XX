@@ -356,6 +356,8 @@ int main() {
                 other.time_since_successful_feature += dt;
                 other.time_since_plane_selected += dt;
                 other.time_since_plane_deselected += dt;
+                other.time_since_mouse_moved += dt;
+                other.time_since_popup_second_click_not_the_same += dt;
                 // time_since_successful_feature = 1.0f;
 
                 bool going_inside = 0

@@ -446,23 +446,41 @@ void conversation_draw() {
             }
 
 
+            vec2 target_second_click; {
+                target_second_click = *first_click;
+                if (state_Draw_command_is_(Box)) target_second_click += V2(popup->box_width, popup->box_height);
+                if (state_Draw_command_is_(Circle)) target_second_click += V2(popup->circle_radius, 0.0f);
+                if (state_Draw_command_is_(Line)) target_second_click += V2(popup->line_run, popup->line_rise);
+            }
 
             vec2 preview_second_click = (state_Snap_command_is_(XY)) ? preview->xy_xy : preview->mouse_snap;
 
             bool click_NOT_owned_by_Snap = state_Snap_command_is_(None) || state_Snap_command_is_(XY);
 
+            bool popup_second_click_is_same = ARE_EQUAL(*first_click, target_second_click);
+
             if (two_click_command->awaiting_second_click && !state_Draw_command_is_(None)) {
-                if (!ARE_EQUAL(*first_click, preview->popup_second_click)) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
+                if (popup_second_click_is_same) other.time_since_popup_second_click_not_the_same = 0.0f;
+                if (!popup_second_click_is_same) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
+            }
+
+            vec3 color_mouse = get_color(ColorCode::Emphasis);
+            if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                if (!popup_second_click_is_same) {
+                    color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
+                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
+                                ), color_mouse, 0.2f * AVG(pallete.white, pallete.cyan));
+                }
             }
 
             if (state_Draw_command_is_(Box)) {
                 if (two_click_command->awaiting_second_click) {
-                    if (click_NOT_owned_by_Snap) DRAW_BOX(*first_click, mouse, get_color(ColorCode::Emphasis));
+                    if (click_NOT_owned_by_Snap) DRAW_BOX(*first_click, mouse, color_mouse);
                     if (!state_Snap_command_is_(None)) {
                         DRAW_BOX(*first_click, preview_second_click, get_accent_color(ToolboxGroup::Snap));
-                    } else if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                    }
+                    {
                         // FORNOW
-                        vec2 target_second_click = *first_click + V2(popup->box_width, popup->box_height);
                         JUICEIT_EASYTWEEN(&preview->popup_second_click, target_second_click);
 
                         DRAW_BOX(*first_click, preview->popup_second_click, pallete.cyan);
@@ -472,12 +490,12 @@ void conversation_draw() {
 
             if (state_Draw_command_is_(Circle)) {
                 if (two_click_command->awaiting_second_click) {
-                    if (click_NOT_owned_by_Snap) DRAW_CIRCLE(*first_click, mouse, get_color(ColorCode::Emphasis));
+                    if (click_NOT_owned_by_Snap) DRAW_CIRCLE(*first_click, mouse, color_mouse);
                     if (!state_Snap_command_is_(None)) {
                         DRAW_CIRCLE(*first_click, preview_second_click, get_accent_color(ToolboxGroup::Snap));
-                    } else if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                    }
+                    {
                         // FORNOW
-                        vec2 target_second_click = *first_click + V2(popup->circle_radius, 0.0f);
                         JUICEIT_EASYTWEEN(&preview->popup_second_click, target_second_click);
 
                         DRAW_CIRCLE(*first_click, preview->popup_second_click, pallete.cyan);
@@ -487,12 +505,12 @@ void conversation_draw() {
 
             if (state_Draw_command_is_(Line)) {
                 if (two_click_command->awaiting_second_click) {
-                    if (click_NOT_owned_by_Snap) DRAW_LINE(*first_click, mouse, get_color(ColorCode::Emphasis));
+                    if (click_NOT_owned_by_Snap) DRAW_LINE(*first_click, mouse, color_mouse);
                     if (!state_Snap_command_is_(None)) {
                         DRAW_LINE(*first_click, preview_second_click, get_accent_color(ToolboxGroup::Snap));
-                    } else if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                    }
+                    {
                         // FORNOW
-                        vec2 target_second_click = *first_click + V2(popup->line_run, popup->line_rise);
                         JUICEIT_EASYTWEEN(&preview->popup_second_click, target_second_click);
 
                         DRAW_LINE(*first_click, preview->popup_second_click, pallete.cyan);
@@ -920,12 +938,14 @@ void conversation_draw() {
             else Bot_string = STRING("");
         }
 
+        #if 0
         { // spoof callback_cursor_position
             double xpos, ypos;
             glfwGetCursorPos(glfw_window, &xpos, &ypos);
             void callback_cursor_position(GLFWwindow *, double xpos, double ypos);
             callback_cursor_position(NULL, xpos, ypos);
         }
+        #endif
 
         EasyTextPen pen = { other.mouse_Pixel + V2(12.0f, 16.0f), 12.0f, color, true, 1.0f - preview->cursor_subtext_alpha };
         easy_text_draw(&pen, Top_string);
