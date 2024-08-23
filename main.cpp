@@ -1,4 +1,6 @@
 // BETA
+// TODO: Pressing enter should spawn a ghost of the pink or blue crosshairs
+// TODO: the white box should fade in
 // TODO: second click of fillets needs to be previewed in blue; some sort of cool bezier curve interpolation could be nice (or even just lerp between the central arcs?--polygon will be good practice (this could be fun for Nate)
 // TODO: cool flash and then fade out with beep (don't actually need beep) for enter with crosshairs
 // TODO: use UP and DOWN arrow keys to increase or decrease the field by one if it's a pure number
