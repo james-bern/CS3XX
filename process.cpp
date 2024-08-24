@@ -571,7 +571,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Line);
                     GUIBUTTON(commands.Circle);
                     GUIBUTTON(commands.Box);
-                    GUIBUTTON(commands.Polygon);
+                    if (GUIBUTTON(commands.Polygon)) preview->polygon_num_sides = popup->polygon_num_sides;
                     SEPERATOR();
                     // GUIBUTTON(commands.DiamCircle);
                     // GUIBUTTON(commands.CenterBox);
@@ -1029,6 +1029,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // FORNOW FORNOW
                             preview->popup_second_click = two_click_command->first_click;
                             preview->xy_xy = two_click_command->first_click;
+                            preview->color_mouse = pallete.black;
                         }
                     } else { // (two_click_command->awaiting_second_click)
                         vec2 first_click = two_click_command->first_click;

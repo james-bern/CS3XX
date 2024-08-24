@@ -434,6 +434,8 @@ struct PreviewState {
     vec2 popup_second_click;
     vec2 xy_xy;
     vec2 mouse_snap;
+    real polygon_num_sides;
+    vec3 color_mouse;
 };
 
 struct Cursors {
