@@ -425,11 +425,38 @@ void conversation_draw() {
             };
 
             auto DRAW_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
-                if (state_Draw_command_is_(Line)) {
+                eso_begin(PV_2D, SOUP_LINES);
+                eso_color(color);
+                eso_vertex(click_1);
+                eso_vertex(click_2);
+                eso_end();
+            };
+
+            auto DRAW_POLYGON = [&](vec2 click_1, vec2 click_2, vec3 color) {
+                // TODO: JUICEIT_EASYTWEEN polygon_num_sides
+                uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
+                real delta_theta = TAU / polygon_num_sides;
+                vec2 center = click_1;
+                vec2 vertex_0 = click_2;
+                real radius = distance(center, vertex_0);
+                real theta_0 = ATAN2(vertex_0 - center);
+                {
                     eso_begin(PV_2D, SOUP_LINES);
+                    eso_stipple(true);
                     eso_color(color);
-                    eso_vertex(click_1);
-                    eso_vertex(click_2);
+                    eso_vertex(center);
+                    eso_vertex(vertex_0);
+                    eso_end();
+                }
+                {
+                    eso_begin(PV_2D, SOUP_LINE_LOOP);
+                    eso_color(color);
+                    for_(i, polygon_num_sides) {
+                        real theta_i = theta_0 + (i * delta_theta);
+                        real theta_ip1 = theta_i + delta_theta;
+                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
+                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
+                    }
                     eso_end();
                 }
             };
@@ -442,6 +469,7 @@ void conversation_draw() {
                     if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
                     if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
                     if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
+                    if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
                 }
             }
 
@@ -492,6 +520,12 @@ void conversation_draw() {
                     DRAW_CIRCLE(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
                     DRAW_CIRCLE(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
                 }
+
+                if (state_Draw_command_is_(Polygon)) {
+                    DRAW_POLYGON(*first_click, position_mouse, color_mouse);
+                    DRAW_POLYGON(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
+                    DRAW_POLYGON(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                }
             }
 
             { // crosshairs
@@ -510,41 +544,14 @@ void conversation_draw() {
 
 
 
-
-
-            if (state_Draw_command_is_(Polygon)) {
-                uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
-                real delta_theta = TAU / polygon_num_sides;
-                vec2 center = two_click_command->first_click;
-                vec2 vertex_0 = mouse;
-                real radius = distance(center, vertex_0);
-                real theta_0 = ATAN2(vertex_0 - center);
-                {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_stipple(true);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(center);
-                    eso_vertex(vertex_0);
-                    eso_end();
-                }
-                {
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    for_(i, polygon_num_sides) {
-                        real theta_i = theta_0 + (i * delta_theta);
-                        real theta_ip1 = theta_i + delta_theta;
-                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
-                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
-                    }
-                    eso_end();
-                }
-            }
-
-
-
-
             if (!two_click_command->awaiting_second_click) {
             } else {
+
+
+
+
+
+
 
                 if (state_Xsel_command_is_(Window)) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);

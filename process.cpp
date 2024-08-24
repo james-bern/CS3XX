@@ -1864,10 +1864,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Draw_command_is_(Polygon)) {
                     if (two_click_command->awaiting_second_click) {
+                        uint prev_polygon_num_sides = popup->polygon_num_sides;
                         real prev_polygon_distance_to_corner = popup->polygon_distance_to_corner;
                         real prev_polygon_distance_to_side = popup->polygon_distance_to_side;
                         real prev_polygon_side_length = popup->polygon_side_length;
-                        real theta = PI / popup->polygon_num_sides;
                         POPUP(state.Draw_command,
                                 false,
                                 CellType::Uint, STRING("num_sides"), &popup->polygon_num_sides, 
@@ -1877,7 +1877,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
                         } else {
-                            if (prev_polygon_distance_to_corner != popup->polygon_distance_to_corner) {
+                            popup->polygon_num_sides = MAX(3U, popup->polygon_num_sides); // FORNOW
+                            real theta = PI / popup->polygon_num_sides;
+                            if (prev_polygon_num_sides != popup->polygon_num_sides) {
+                                popup->polygon_distance_to_side = popup->polygon_distance_to_corner * COS(theta);
+                                popup->polygon_side_length = 2 * popup->polygon_distance_to_corner * SIN(theta);
+                            } else if (prev_polygon_distance_to_corner != popup->polygon_distance_to_corner) {
                                 popup->polygon_distance_to_side = popup->polygon_distance_to_corner * COS(theta);
                                 popup->polygon_side_length = 2 * popup->polygon_distance_to_corner * SIN(theta);
                             } else if (prev_polygon_distance_to_side != popup->polygon_distance_to_side) {
