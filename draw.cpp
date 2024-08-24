@@ -123,6 +123,86 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
+    auto DRAW_CROSSHAIR = [&](vec2 o, vec3 color) {
+        real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+        eso_begin(PV_2D, SOUP_LINES);
+        eso_color(pallete.black);
+        real r = 1.3 * funky_OpenGL_factor;
+        eso_size(2.0f);
+        eso_vertex(o - V2(r, 0));
+        eso_vertex(o + V2(r, 0));
+        eso_vertex(o - V2(0, r));
+        eso_vertex(o + V2(0, r));
+        eso_color(color);
+        r = 1.2 * funky_OpenGL_factor;
+        eso_size(1.0f);
+        eso_vertex(o - V2(r, 0));
+        eso_vertex(o + V2(r, 0));
+        eso_vertex(o - V2(0, r));
+        eso_vertex(o + V2(0, r));
+        eso_end();
+    };
+
+    auto DRAW_BOX = [&](vec2 click_1, vec2 click_2, vec3 color) {
+        eso_begin(PV_2D, SOUP_LINE_LOOP);
+        eso_color(color);
+        eso_vertex(click_1);
+        eso_vertex(click_1.x, click_2.y);
+        eso_vertex(click_2);
+        eso_vertex(click_2.x, click_1.y);
+        eso_end();
+    };
+
+    auto DRAW_CIRCLE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+        vec2 center = click_1;
+        real radius = distance(click_1, click_2);
+        eso_begin(PV_2D, SOUP_LINE_LOOP);
+        eso_color(color);
+        for_(i, NUM_SEGMENTS_PER_CIRCLE) {
+            real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
+            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
+        }
+        eso_end();
+    };
+
+    auto DRAW_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+        eso_begin(PV_2D, SOUP_LINES);
+        eso_color(color);
+        eso_vertex(click_1);
+        eso_vertex(click_2);
+        eso_end();
+    };
+
+    auto DRAW_POLYGON = [&](vec2 click_1, vec2 click_2, vec3 color) {
+        // TODO: JUICEIT_EASYTWEEN polygon_num_sides
+        uint polygon_num_sides = MAX(3U, uint(preview->polygon_num_sides));
+        real delta_theta = -TAU / preview->polygon_num_sides;
+        vec2 center = click_1;
+        vec2 vertex_0 = click_2;
+        real radius = distance(center, vertex_0);
+        real theta_0 = ATAN2(vertex_0 - center);
+        {
+            eso_begin(PV_2D, SOUP_LINES);
+            eso_stipple(true);
+            eso_color(color);
+            eso_vertex(center);
+            eso_vertex(vertex_0);
+            eso_end();
+        }
+        {
+            eso_begin(PV_2D, SOUP_LINE_LOOP);
+            eso_color(color);
+            for_(i, polygon_num_sides) {
+                real theta_i = theta_0 + (i * delta_theta);
+                real theta_ip1 = theta_i + delta_theta;
+                eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
+                eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
+            }
+            eso_end();
+        }
+    };
+
+
     bool extruding = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(ExtrudeCut)));
     bool revolving = ((state_Mesh_command_is_(RevolveAdd)) || (state_Mesh_command_is_(RevolveCut)));
     bool adding     = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(RevolveAdd)));
@@ -235,19 +315,17 @@ void conversation_draw() {
             ); // TODO: loft up
 
     { // draw 2D draw 2d draw
+        bool moving = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Move));
+        bool linear_copying = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Copy));
+        bool rotating = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Rotate));
+        bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
+
         vec2 *first_click = &two_click_command->first_click;
         vec2 click_vector = (mouse - *first_click);
         real click_theta = ATAN2(click_vector);
 
         glEnable(GL_SCISSOR_TEST);
         gl_scissor_Pixel(0, 0, x_divider_drawing_mesh_Pixel, window_height);
-
-        {
-            #if 0
-            // TODO: section view
-            mesh_draw(P_2D, V_2D, inverse(get_M_3D_from_2D()));
-            #endif
-        }
 
         {
             if (!other.hide_grid) { // grid 2D grid 2d grid // jim wtf are these supposed to mean
@@ -318,15 +396,9 @@ void conversation_draw() {
             }
 
             { // entities
-                bool moving = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Move));
-                bool linear_copying = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Copy));
-                bool rotating = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Rotate));
-                bool draw_annotation_line = (moving || rotating || linear_copying);
-
-
 
                 eso_begin(PV_2D, SOUP_LINES); {
-                    if (draw_annotation_line) {
+                    if (moving_linear_copying_or_rotating) { // annotation-line
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(mouse);
                         eso_vertex(*first_click);
@@ -345,18 +417,20 @@ void conversation_draw() {
                     }
                 } eso_end();
 
-                if (draw_annotation_line) {
-                    mat4 M; {
-                        if (moving || linear_copying) {
-                            M = M4_Translation(click_vector);
-                        } else { ASSERT(rotating);
-                            M = M4_Translation(*first_click) * M4_RotationAboutZAxis(click_theta) * M4_Translation(-*first_click);
+                { // entities being moved
+                    if (moving_linear_copying_or_rotating) {
+                        mat4 M; {
+                            if (moving || linear_copying) {
+                                M = M4_Translation(click_vector);
+                            } else { ASSERT(rotating);
+                                M = M4_Translation(*first_click) * M4_RotationAboutZAxis(click_theta) * M4_Translation(-*first_click);
+                            }
                         }
+                        eso_begin(PV_2D * M, SOUP_LINES);
+                        eso_color(get_color(ColorCode::Emphasis));
+                        _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+                        eso_end();
                     }
-                    eso_begin(PV_2D * M, SOUP_LINES);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
-                    eso_end();
                 }
 
                 if (other.show_details) {
@@ -382,84 +456,6 @@ void conversation_draw() {
             }
 
 
-            auto DRAW_CROSSHAIR = [&](vec2 o, vec3 color) {
-                real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
-                eso_begin(PV_2D, SOUP_LINES);
-                eso_color(pallete.black);
-                real r = 1.3 * funky_OpenGL_factor;
-                eso_size(2.0f);
-                eso_vertex(o - V2(r, 0));
-                eso_vertex(o + V2(r, 0));
-                eso_vertex(o - V2(0, r));
-                eso_vertex(o + V2(0, r));
-                eso_color(color);
-                r = 1.2 * funky_OpenGL_factor;
-                eso_size(1.0f);
-                eso_vertex(o - V2(r, 0));
-                eso_vertex(o + V2(r, 0));
-                eso_vertex(o - V2(0, r));
-                eso_vertex(o + V2(0, r));
-                eso_end();
-            };
-
-            auto DRAW_BOX = [&](vec2 click_1, vec2 click_2, vec3 color) {
-                eso_begin(PV_2D, SOUP_LINE_LOOP);
-                eso_color(color);
-                eso_vertex(click_1);
-                eso_vertex(click_1.x, click_2.y);
-                eso_vertex(click_2);
-                eso_vertex(click_2.x, click_1.y);
-                eso_end();
-            };
-
-            auto DRAW_CIRCLE = [&](vec2 click_1, vec2 click_2, vec3 color) {
-                vec2 center = click_1;
-                real radius = distance(click_1, click_2);
-                eso_begin(PV_2D, SOUP_LINE_LOOP);
-                eso_color(color);
-                for_(i, NUM_SEGMENTS_PER_CIRCLE) {
-                    real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
-                    eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
-                }
-                eso_end();
-            };
-
-            auto DRAW_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
-                eso_begin(PV_2D, SOUP_LINES);
-                eso_color(color);
-                eso_vertex(click_1);
-                eso_vertex(click_2);
-                eso_end();
-            };
-
-            auto DRAW_POLYGON = [&](vec2 click_1, vec2 click_2, vec3 color) {
-                // TODO: JUICEIT_EASYTWEEN polygon_num_sides
-                uint polygon_num_sides = MAX(3U, uint(preview->polygon_num_sides));
-                real delta_theta = -TAU / preview->polygon_num_sides;
-                vec2 center = click_1;
-                vec2 vertex_0 = click_2;
-                real radius = distance(center, vertex_0);
-                real theta_0 = ATAN2(vertex_0 - center);
-                {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_stipple(true);
-                    eso_color(color);
-                    eso_vertex(center);
-                    eso_vertex(vertex_0);
-                    eso_end();
-                }
-                {
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(color);
-                    for_(i, polygon_num_sides) {
-                        real theta_i = theta_0 + (i * delta_theta);
-                        real theta_ip1 = theta_i + delta_theta;
-                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
-                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
-                    }
-                    eso_end();
-                }
-            };
 
             // FORNOW
 
@@ -563,13 +559,6 @@ void conversation_draw() {
 
             if (!two_click_command->awaiting_second_click) {
             } else {
-
-
-
-
-
-
-
                 if (state_Xsel_command_is_(Window)) {
                     eso_begin(PV_2D, SOUP_LINE_LOOP);
                     eso_color(get_color(ColorCode::Emphasis));
