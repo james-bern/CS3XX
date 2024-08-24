@@ -504,12 +504,12 @@ void conversation_draw() {
                 if  (Draw_eating_Enter) {
                     target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
                                 MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * AVG(pallete.white, get_accent_color(ToolboxGroup::Draw)));
+                                ), target_color_mouse, 0.2f * target_color_mouse);
                 }
                 if  (Snap_eating_Enter) {
                     target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
                                 MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * AVG(pallete.white, get_accent_color(ToolboxGroup::Snap)));
+                                ), target_color_mouse, 0.2f * target_color_mouse);
                 }
             }
 
