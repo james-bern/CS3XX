@@ -123,84 +123,6 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
-    auto DRAW_CROSSHAIR = [&](vec2 o, vec3 color) {
-        real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
-        eso_begin(PV_2D, SOUP_LINES);
-        eso_color(pallete.black);
-        real r = 1.3 * funky_OpenGL_factor;
-        eso_size(2.0f);
-        eso_vertex(o - V2(r, 0));
-        eso_vertex(o + V2(r, 0));
-        eso_vertex(o - V2(0, r));
-        eso_vertex(o + V2(0, r));
-        eso_color(color);
-        r = 1.2 * funky_OpenGL_factor;
-        eso_size(1.0f);
-        eso_vertex(o - V2(r, 0));
-        eso_vertex(o + V2(r, 0));
-        eso_vertex(o - V2(0, r));
-        eso_vertex(o + V2(0, r));
-        eso_end();
-    };
-
-    auto DRAW_BOX = [&](vec2 click_1, vec2 click_2, vec3 color) {
-        eso_begin(PV_2D, SOUP_LINE_LOOP);
-        eso_color(color);
-        eso_vertex(click_1);
-        eso_vertex(click_1.x, click_2.y);
-        eso_vertex(click_2);
-        eso_vertex(click_2.x, click_1.y);
-        eso_end();
-    };
-
-    auto DRAW_CIRCLE = [&](vec2 click_1, vec2 click_2, vec3 color) {
-        vec2 center = click_1;
-        real radius = distance(click_1, click_2);
-        eso_begin(PV_2D, SOUP_LINE_LOOP);
-        eso_color(color);
-        for_(i, NUM_SEGMENTS_PER_CIRCLE) {
-            real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
-        }
-        eso_end();
-    };
-
-    auto DRAW_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
-        eso_begin(PV_2D, SOUP_LINES);
-        eso_color(color);
-        eso_vertex(click_1);
-        eso_vertex(click_2);
-        eso_end();
-    };
-
-    auto DRAW_POLYGON = [&](vec2 click_1, vec2 click_2, vec3 color) {
-        // TODO: JUICEIT_EASYTWEEN polygon_num_sides
-        uint polygon_num_sides = MAX(3U, uint(preview->polygon_num_sides));
-        real delta_theta = -TAU / preview->polygon_num_sides;
-        vec2 center = click_1;
-        vec2 vertex_0 = click_2;
-        real radius = distance(center, vertex_0);
-        real theta_0 = ATAN2(vertex_0 - center);
-        {
-            eso_begin(PV_2D, SOUP_LINES);
-            eso_stipple(true);
-            eso_color(color);
-            eso_vertex(center);
-            eso_vertex(vertex_0);
-            eso_end();
-        }
-        {
-            eso_begin(PV_2D, SOUP_LINE_LOOP);
-            eso_color(color);
-            for_(i, polygon_num_sides) {
-                real theta_i = theta_0 + (i * delta_theta);
-                real theta_ip1 = theta_i + delta_theta;
-                eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
-                eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
-            }
-            eso_end();
-        }
-    };
 
 
     bool extruding = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(ExtrudeCut)));
@@ -315,18 +237,93 @@ void conversation_draw() {
             ); // TODO: loft up
 
     { // draw 2D draw 2d draw
+        auto DRAW_CROSSHAIR = [&](vec2 o, vec3 color) {
+            real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+            eso_begin(PV_2D, SOUP_LINES);
+            eso_color(pallete.black);
+            real r = 1.3 * funky_OpenGL_factor;
+            eso_size(2.0f);
+            eso_vertex(o - V2(r, 0));
+            eso_vertex(o + V2(r, 0));
+            eso_vertex(o - V2(0, r));
+            eso_vertex(o + V2(0, r));
+            eso_color(color);
+            r = 1.2 * funky_OpenGL_factor;
+            eso_size(1.0f);
+            eso_vertex(o - V2(r, 0));
+            eso_vertex(o + V2(r, 0));
+            eso_vertex(o - V2(0, r));
+            eso_vertex(o + V2(0, r));
+            eso_end();
+        };
+
+        auto DRAW_BOX = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            eso_begin(PV_2D, SOUP_LINE_LOOP);
+            eso_color(color);
+            eso_vertex(click_1);
+            eso_vertex(click_1.x, click_2.y);
+            eso_vertex(click_2);
+            eso_vertex(click_2.x, click_1.y);
+            eso_end();
+        };
+
+        auto DRAW_CIRCLE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            vec2 center = click_1;
+            real radius = distance(click_1, click_2);
+            eso_begin(PV_2D, SOUP_LINE_LOOP);
+            eso_color(color);
+            for_(i, NUM_SEGMENTS_PER_CIRCLE) {
+                real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
+                eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
+            }
+            eso_end();
+        };
+
+        auto DRAW_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            eso_begin(PV_2D, SOUP_LINES);
+            eso_color(color);
+            eso_vertex(click_1);
+            eso_vertex(click_2);
+            eso_end();
+        };
+
+        auto DRAW_POLYGON = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            // TODO: JUICEIT_EASYTWEEN polygon_num_sides
+            uint polygon_num_sides = MAX(3U, uint(preview->polygon_num_sides));
+            real delta_theta = -TAU / preview->polygon_num_sides;
+            vec2 center = click_1;
+            vec2 vertex_0 = click_2;
+            real radius = distance(center, vertex_0);
+            real theta_0 = ATAN2(vertex_0 - center);
+            {
+                eso_begin(PV_2D, SOUP_LINES);
+                eso_stipple(true);
+                eso_color(color);
+                eso_vertex(center);
+                eso_vertex(vertex_0);
+                eso_end();
+            }
+            {
+                eso_begin(PV_2D, SOUP_LINE_LOOP);
+                eso_color(color);
+                for_(i, polygon_num_sides) {
+                    real theta_i = theta_0 + (i * delta_theta);
+                    real theta_ip1 = theta_i + delta_theta;
+                    eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
+                    eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
+                }
+                eso_end();
+            }
+        };
+
         bool moving = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Move));
         bool linear_copying = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Copy));
         bool rotating = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Rotate));
         bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
 
-        vec2 *first_click = &two_click_command->first_click;
-        vec2 click_vector = (mouse - *first_click);
-        real click_theta = ATAN2(click_vector);
 
         glEnable(GL_SCISSOR_TEST);
         gl_scissor_Pixel(0, 0, x_divider_drawing_mesh_Pixel, window_height);
-
         {
             if (!other.hide_grid) { // grid 2D grid 2d grid // jim wtf are these supposed to mean
                 mat4 PVM = PV_2D * M4_Translation(-GRID_SIDE_LENGTH / 2, -GRID_SIDE_LENGTH / 2);
@@ -395,12 +392,71 @@ void conversation_draw() {
                 // } eso_end();
             }
 
-            { // entities
 
+
+            vec2 *first_click = &two_click_command->first_click;
+
+
+
+
+            vec2 Draw_Enter; {
+                Draw_Enter = *first_click;
+                if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                    if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
+                    if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
+                    if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
+                    if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
+                }
+            }
+            vec2 Snap_Enter; {
+                Snap_Enter = *first_click;
+                if (popup->manager.focus_group == ToolboxGroup::Snap) {
+                    if (state_Snap_command_is_(XY)) {
+                        Snap_Enter = V2(popup->xy_x_coordinate, popup->xy_y_coordinate);
+                    }
+                }
+            }
+            {
+                JUICEIT_EASYTWEEN(&preview->popup_second_click, Draw_Enter);
+                JUICEIT_EASYTWEEN(&preview->xy_xy, Snap_Enter);
+
+                JUICEIT_EASYTWEEN(&preview->mouse_snap, magic_snap(mouse).mouse_position, 1.0f);
+
+                JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
+            }
+            bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
+            vec2 position_mouse; {
+                position_mouse = (!Snap_eating_mouse) ? mouse : preview->mouse_snap; // FORNOW
+            }
+            bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) && (!ARE_EQUAL(*first_click, Draw_Enter)));
+            bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) && (!ARE_EQUAL(*first_click, Snap_Enter)));
+            vec3 target_color_mouse; {
+                target_color_mouse = get_color(ColorCode::Emphasis);
+                // if (Snap_eating_mouse) target_color_mouse = AVG(get_color(ColorCode::Emphasis), get_accent_color(ToolboxGroup::Snap));
+                if (Snap_eating_mouse) target_color_mouse = get_accent_color(ToolboxGroup::Snap);
+                if  (Draw_eating_Enter) {
+                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
+                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
+                                ), target_color_mouse, 0.2f * target_color_mouse);
+                }
+                if  (Snap_eating_Enter) {
+                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
+                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
+                                ), target_color_mouse, 0.2f * target_color_mouse);
+                }
+            }
+            JUICEIT_EASYTWEEN(&preview->color_mouse, target_color_mouse);
+
+
+
+            vec2 click_vector = (position_mouse - *first_click);
+            real click_theta = ATAN2(click_vector);
+
+            { // entities
                 eso_begin(PV_2D, SOUP_LINES); {
                     if (moving_linear_copying_or_rotating) { // annotation-line
                         eso_color(get_color(ColorCode::Emphasis));
-                        eso_vertex(mouse);
+                        eso_vertex(position_mouse);
                         eso_vertex(*first_click);
                     }
 
@@ -427,232 +483,185 @@ void conversation_draw() {
                             }
                         }
                         eso_begin(PV_2D * M, SOUP_LINES);
-                        eso_color(get_color(ColorCode::Emphasis));
+                        eso_color(preview->color_mouse);
                         _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
                         eso_end();
                     }
                 }
 
-                if (other.show_details) {
-                    eso_begin(PV_2D, SOUP_POINTS);
-                    eso_color(pallete.white);
-                    eso_size(3.0f);
-                    _for_each_entity_ {
-                        if (entity->is_selected && (rotating || moving)) continue;
-                        eso_vertex(entity_get_start_point(entity));
-                        eso_vertex(entity_get_end_point(entity));
+                { // dots snap_divide_dot
+                    if (other.show_details) { // dots
+                        eso_begin(PV_2D, SOUP_POINTS);
+                        eso_color(pallete.white);
+                        eso_size(3.0f);
+                        _for_each_entity_ {
+                            if (entity->is_selected && (rotating || moving)) continue;
+                            eso_vertex(entity_get_start_point(entity));
+                            eso_vertex(entity_get_end_point(entity));
+                        }
+                        eso_end();
                     }
-                    eso_end();
-                }
 
-                { // snap_divide_dot
-                    eso_begin(PV_2D, SOUP_POINTS);
-                    eso_color(pallete.white);
-                    JUICEIT_EASYTWEEN(&other.size_snap_divide_dot, 0.0f, 0.5f);
-                    eso_size(other.size_snap_divide_dot);
-                    eso_vertex(other.snap_divide_dot);
-                    eso_end();
-                }
-            }
-
-
-
-            // FORNOW
-
-            vec2 Draw_Enter; {
-                Draw_Enter = *first_click;
-                if (popup->manager.focus_group == ToolboxGroup::Draw) {
-                    if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
-                    if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
-                    if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
-                    if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
+                    { // snap_divide_dot
+                        eso_begin(PV_2D, SOUP_POINTS);
+                        eso_color(pallete.white);
+                        JUICEIT_EASYTWEEN(&other.size_snap_divide_dot, 0.0f, 0.5f);
+                        eso_size(other.size_snap_divide_dot);
+                        eso_vertex(other.snap_divide_dot);
+                        eso_end();
+                    }
                 }
             }
 
-            vec2 Snap_Enter; {
-                Snap_Enter = *first_click;
-                if (popup->manager.focus_group == ToolboxGroup::Snap) {
+            { // annotations
+
+                if (two_click_command->awaiting_second_click) {
+                    if (state_Draw_command_is_(Line)) {
+                        DRAW_LINE(*first_click, position_mouse, preview->color_mouse);
+                        DRAW_LINE(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
+                        DRAW_LINE(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                    }
+
+                    if (state_Draw_command_is_(Box)) {
+                        DRAW_BOX(*first_click, position_mouse, preview->color_mouse);
+                        DRAW_BOX(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
+                        DRAW_BOX(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                    }
+
+                    if (state_Draw_command_is_(Circle)) {
+                        DRAW_CIRCLE(*first_click, position_mouse, preview->color_mouse);
+                        DRAW_CIRCLE(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
+                        DRAW_CIRCLE(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                    }
+
+                    if (state_Draw_command_is_(Polygon)) {
+                        DRAW_POLYGON(*first_click, position_mouse, preview->color_mouse);
+                        DRAW_POLYGON(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
+                        DRAW_POLYGON(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                    }
+                }
+
+                { // crosshairs
                     if (state_Snap_command_is_(XY)) {
-                        Snap_Enter = V2(popup->xy_x_coordinate, popup->xy_y_coordinate);
+                        if (popup->manager.focus_group == ToolboxGroup::Snap) {
+                            if (!Snap_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
+                        }
+                        if (Snap_eating_Enter) DRAW_CROSSHAIR(preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                    } else if (!state_Snap_command_is_(None)) {
+                        DRAW_CROSSHAIR(preview->mouse_snap, get_accent_color(ToolboxGroup::Snap));
+                    }
+
+                    if (two_click_command->awaiting_second_click && !state_Draw_command_is_(None)) {
+                        if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                            if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
+                        }
+                        if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
                     }
                 }
-            }
-
-            {
-                JUICEIT_EASYTWEEN(&preview->popup_second_click, Draw_Enter);
-                JUICEIT_EASYTWEEN(&preview->xy_xy, Snap_Enter);
-
-                JUICEIT_EASYTWEEN(&preview->mouse_snap, magic_snap(mouse).mouse_position, 1.0f);
-
-                JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
-            }
-
-            bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
-            vec2 position_mouse; {
-                position_mouse = (!Snap_eating_mouse) ? mouse : preview->mouse_snap; // FORNOW
-            }
-            bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) && (!ARE_EQUAL(*first_click, Draw_Enter)));
-            bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) && (!ARE_EQUAL(*first_click, Snap_Enter)));
-            vec3 target_color_mouse; {
-                target_color_mouse = get_color(ColorCode::Emphasis);
-                // if (Snap_eating_mouse) target_color_mouse = AVG(get_color(ColorCode::Emphasis), get_accent_color(ToolboxGroup::Snap));
-                if (Snap_eating_mouse) target_color_mouse = get_accent_color(ToolboxGroup::Snap);
-                if  (Draw_eating_Enter) {
-                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
-                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * target_color_mouse);
-                }
-                if  (Snap_eating_Enter) {
-                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
-                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * target_color_mouse);
-                }
-            }
-
-            JUICEIT_EASYTWEEN(&preview->color_mouse, target_color_mouse);
-
-            if (two_click_command->awaiting_second_click) {
-                if (state_Draw_command_is_(Line)) {
-                    DRAW_LINE(*first_click, position_mouse, preview->color_mouse);
-                    DRAW_LINE(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                    DRAW_LINE(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                }
-
-                if (state_Draw_command_is_(Box)) {
-                    DRAW_BOX(*first_click, position_mouse, preview->color_mouse);
-                    DRAW_BOX(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                    DRAW_BOX(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                }
-
-                if (state_Draw_command_is_(Circle)) {
-                    DRAW_CIRCLE(*first_click, position_mouse, preview->color_mouse);
-                    DRAW_CIRCLE(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                    DRAW_CIRCLE(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                }
-
-                if (state_Draw_command_is_(Polygon)) {
-                    DRAW_POLYGON(*first_click, position_mouse, preview->color_mouse);
-                    DRAW_POLYGON(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                    DRAW_POLYGON(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                }
-            }
-
-            { // crosshairs
-                if (state_Snap_command_is_(XY)) {
-                    if (popup->manager.focus_group == ToolboxGroup::Snap) {
-                        if (!Snap_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
-                    }
-                    if (Snap_eating_Enter) DRAW_CROSSHAIR(preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                } else if (!state_Snap_command_is_(None)) {
-                    DRAW_CROSSHAIR(preview->mouse_snap, get_accent_color(ToolboxGroup::Snap));
-                }
-
-                if (two_click_command->awaiting_second_click && !state_Draw_command_is_(None)) {
-                    if (popup->manager.focus_group == ToolboxGroup::Draw) {
-                        if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
-                    }
-                    if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
-                }
-            }
 
 
 
-            if (!two_click_command->awaiting_second_click) {
-            } else {
-                if (state_Xsel_command_is_(Window)) {
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(first_click->x, first_click->y);
-                    eso_vertex(mouse.x, first_click->y);
-                    eso_vertex(mouse.x, mouse.y);
-                    eso_vertex(first_click->x, mouse.y);
-                    eso_end();
-                }
-
-                if (state_Draw_command_is_(CenterBox)) {                
-                    vec2 one_corner = mouse;
-                    vec2 center = *first_click;
-                    real other_y = 2 * center.y - one_corner.y;
-                    real other_x = 2 * center.x - one_corner.x;
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(one_corner);
-                    eso_vertex(V2(one_corner.x, other_y));
-                    eso_vertex(V2(other_x, other_y));
-                    if (two_click_command->tangent_first_click) {
-                        two_click_command->tangent_first_click = false;
-                    }
-                    eso_vertex(V2(other_x, one_corner.y));
-                    eso_end();
-                }
-                if (state_Draw_command_is_(Measure)) {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(two_click_command->first_click);
-                    eso_vertex(mouse);
-                    eso_end();
-                }
-                if (state_Draw_command_is_(Mirror2)) {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(two_click_command->first_click);
-                    eso_vertex(mouse);
-                    eso_end();
-                }
-                if (state_Draw_command_is_(Rotate)) {
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(two_click_command->first_click);
-                    eso_vertex(mouse);
-                    eso_end();
-                }
-                if (state_Draw_command_is_(DiamCircle)) {
-                    vec2 edge_one = two_click_command->first_click;
-                    vec2 edge_two = mouse;
-                    vec2 center = (edge_one + edge_two) / 2;
-                    real radius = norm(edge_one - center);
-                    eso_begin(PV_2D, SOUP_LINE_LOOP);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    for_(i, NUM_SEGMENTS_PER_CIRCLE) {
-                        real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
-                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
-                    }
-                    eso_end();
-                    eso_begin(PV_2D, SOUP_LINES);
-                    eso_stipple(true);
-                    eso_color(get_color(ColorCode::Emphasis));
-                    eso_vertex(edge_one);
-                    eso_vertex(edge_two);
-                    eso_end();
-                }
-                if (state_Draw_command_is_(Divide2)) {
-                    if (two_click_command->awaiting_second_click) {
-                        eso_begin(PV_2D, SOUP_LINES);
+                if (!two_click_command->awaiting_second_click) {
+                } else {
+                    if (state_Xsel_command_is_(Window)) {
+                        eso_begin(PV_2D, SOUP_LINE_LOOP);
                         eso_color(get_color(ColorCode::Emphasis));
-                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        eso_vertex(first_click->x, first_click->y);
+                        eso_vertex(mouse.x, first_click->y);
+                        eso_vertex(mouse.x, mouse.y);
+                        eso_vertex(first_click->x, mouse.y);
                         eso_end();
                     }
-                }
-                if (state_Draw_command_is_(Fillet)) {
-                    if (two_click_command->awaiting_second_click) {
-                        eso_begin(PV_2D, SOUP_LINES);
+
+                    if (state_Draw_command_is_(CenterBox)) {                
+                        vec2 one_corner = mouse;
+                        vec2 center = *first_click;
+                        real other_y = 2 * center.y - one_corner.y;
+                        real other_x = 2 * center.x - one_corner.x;
+                        eso_begin(PV_2D, SOUP_LINE_LOOP);
                         eso_color(get_color(ColorCode::Emphasis));
-                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        eso_vertex(one_corner);
+                        eso_vertex(V2(one_corner.x, other_y));
+                        eso_vertex(V2(other_x, other_y));
+                        if (two_click_command->tangent_first_click) {
+                            two_click_command->tangent_first_click = false;
+                        }
+                        eso_vertex(V2(other_x, one_corner.y));
                         eso_end();
                     }
-                }
-                if (state_Draw_command_is_(DogEar)) {
-                    if (two_click_command->awaiting_second_click) {
+                    if (state_Draw_command_is_(Measure)) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
-                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        eso_vertex(two_click_command->first_click);
+                        eso_vertex(mouse);
                         eso_end();
+                    }
+                    if (state_Draw_command_is_(Mirror2)) {
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(get_color(ColorCode::Emphasis));
+                        eso_vertex(two_click_command->first_click);
+                        eso_vertex(mouse);
+                        eso_end();
+                    }
+                    if (state_Draw_command_is_(Rotate)) {
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(get_color(ColorCode::Emphasis));
+                        eso_vertex(two_click_command->first_click);
+                        eso_vertex(mouse);
+                        eso_end();
+                    }
+                    if (state_Draw_command_is_(DiamCircle)) {
+                        vec2 edge_one = two_click_command->first_click;
+                        vec2 edge_two = mouse;
+                        vec2 center = (edge_one + edge_two) / 2;
+                        real radius = norm(edge_one - center);
+                        eso_begin(PV_2D, SOUP_LINE_LOOP);
+                        eso_color(get_color(ColorCode::Emphasis));
+                        for_(i, NUM_SEGMENTS_PER_CIRCLE) {
+                            real theta = (real(i) / NUM_SEGMENTS_PER_CIRCLE) * TAU;
+                            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta));
+                        }
+                        eso_end();
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_stipple(true);
+                        eso_color(get_color(ColorCode::Emphasis));
+                        eso_vertex(edge_one);
+                        eso_vertex(edge_two);
+                        eso_end();
+                    }
+                    if (state_Draw_command_is_(Divide2)) {
+                        if (two_click_command->awaiting_second_click) {
+                            eso_begin(PV_2D, SOUP_LINES);
+                            eso_color(get_color(ColorCode::Emphasis));
+                            eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                            eso_end();
+                        }
+                    }
+                    if (state_Draw_command_is_(Fillet)) {
+                        if (two_click_command->awaiting_second_click) {
+                            eso_begin(PV_2D, SOUP_LINES);
+                            eso_color(get_color(ColorCode::Emphasis));
+                            eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                            eso_end();
+                        }
+                    }
+                    if (state_Draw_command_is_(DogEar)) {
+                        if (two_click_command->awaiting_second_click) {
+                            eso_begin(PV_2D, SOUP_LINES);
+                            eso_color(get_color(ColorCode::Emphasis));
+                            eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                            eso_end();
+                        }
                     }
                 }
             }
         }
         glDisable(GL_SCISSOR_TEST);
     }
+
+
+
+
 
     { // 3D draw 3D 3d draw 3d
         {
