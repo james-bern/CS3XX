@@ -1843,6 +1843,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_linear_copy_angle = popup->linear_copy_angle;
                         real prev_linear_copy_run = popup->linear_copy_run;
                         real prev_linear_copy_rise = popup->linear_copy_rise;
+
                         POPUP(state.Draw_command,
                                 true,
                                 CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,

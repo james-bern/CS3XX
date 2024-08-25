@@ -404,8 +404,11 @@ void conversation_draw() {
                 if (popup->manager.focus_group == ToolboxGroup::Draw) {
                     if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
                     if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
-                    if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
                     if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
+                    if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
+                    if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
+                    if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
+                    if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
                 }
             }
             vec2 Snap_Enter; {
@@ -454,21 +457,11 @@ void conversation_draw() {
 
             { // entities
                 eso_begin(PV_2D, SOUP_LINES); {
-                    if (moving_linear_copying_or_rotating) { // annotation-line
-                        eso_color(get_color(ColorCode::Emphasis));
-                        eso_vertex(position_mouse);
-                        eso_vertex(*first_click);
-                    }
-
-                    // entities 2D entities 2d entities
-                    // drawing 2D drawing 2d drawing
+                    // entities 2D entities 2d entities drawing 2D drawing 2d drawing
                     _for_each_entity_ {
                         if (entity->is_selected && (rotating || moving)) continue;
-                        // eso_color(entity->preview_color);
                         eso_color((entity->is_selected) ? get_color(ColorCode::Selection) : get_color(entity->color_code));
-                        // eso_color(get_color(entity->color_code));
                         eso_size(1.5f);
-                        // if (entity->is_selected) eso_size(3.0f);
                         eso_entity__SOUP_LINES(entity);
                     }
                 } eso_end();
@@ -514,31 +507,24 @@ void conversation_draw() {
             }
 
             { // annotations
+              // new-style annotations
+                #define ANNOTATION(Name, NAME) \
+                do { \
+                    if (state_Draw_command_is_(Name)) { \
+                        DRAW_##NAME(*first_click, position_mouse, preview->color_mouse); \
+                        DRAW_##NAME(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw)); \
+                        DRAW_##NAME(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap)); \
+                    } \
+                } while (0)
 
                 if (two_click_command->awaiting_second_click) {
-                    if (state_Draw_command_is_(Line)) {
-                        DRAW_LINE(*first_click, position_mouse, preview->color_mouse);
-                        DRAW_LINE(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                        DRAW_LINE(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                    }
-
-                    if (state_Draw_command_is_(Box)) {
-                        DRAW_BOX(*first_click, position_mouse, preview->color_mouse);
-                        DRAW_BOX(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                        DRAW_BOX(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                    }
-
-                    if (state_Draw_command_is_(Circle)) {
-                        DRAW_CIRCLE(*first_click, position_mouse, preview->color_mouse);
-                        DRAW_CIRCLE(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                        DRAW_CIRCLE(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                    }
-
-                    if (state_Draw_command_is_(Polygon)) {
-                        DRAW_POLYGON(*first_click, position_mouse, preview->color_mouse);
-                        DRAW_POLYGON(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw));
-                        DRAW_POLYGON(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
-                    }
+                    ANNOTATION(Line, LINE);
+                    ANNOTATION(Box, BOX);
+                    ANNOTATION(Circle, CIRCLE);
+                    ANNOTATION(Polygon, POLYGON);
+                    ANNOTATION(Move, LINE);
+                    ANNOTATION(Copy, LINE);
+                    ANNOTATION(Rotate, LINE);
                 }
 
                 { // crosshairs
@@ -559,8 +545,7 @@ void conversation_draw() {
                     }
                 }
 
-
-
+                // FORNOW: old-style annotations
                 if (!two_click_command->awaiting_second_click) {
                 } else {
                     if (state_Xsel_command_is_(Window)) {
@@ -971,7 +956,7 @@ void conversation_draw() {
     void history_debug_draw(); // forward declaration
 
 
-    #if 0
+#if 0
     if (other.show_help) {
         eso_begin(M4_Identity(), SOUP_QUADS); {
             eso_overlay(true);
@@ -1095,7 +1080,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen2, UNDO_ALTERNATE);
         PRINT_COMMAND(&pen2, ZoomMesh);
     }
-    #endif
+#endif
 
     if (other.show_event_stack) history_debug_draw();
 

@@ -112,7 +112,7 @@ run_before_main {
         "UUUUUUUUUU"
         ;
     #if 0
-        "bz10\t10\n"
+    "bz10\t10\n"
         "lm<m2d 5 0>m<m2d 5 10>"
         "lm<m2d 0 5>m<m2d 10 5>"
         "sa\b"
@@ -122,7 +122,7 @@ run_before_main {
         "UUUUUUUUUU"
         "uuuuuuuuuu"
         "UUUUUUUUUU"
-    #endif
+        #endif
 };
 #endif
 
@@ -169,47 +169,47 @@ run_before_main {
 #if 0 // kitchen sink
 run_before_main {
     startup_script = 
-                     #if 1
-                     "cz10\n" // circle
-                     "cz\t10\n" // bigger circle
-                     "bzx30\t30\n" // box
-                     "ysadc<m2d 0 0>" // TODO: comment
-                     "[5\t15\n" // extrude
-                     "sc<m2d 0 30><esc>qs3" // TODO: comment
-                     "1<m2d 30 15>0<esc>" // TODO: comment
-                     "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
-                     "{3\n" // TODO: comment
-                     "sc<m2d 0 0>Zm<m2d -50 0>" // TODO: comment
-                     "sc<m2d 0 0>Am<m2d -50 0><m2d -15 5>" // TODO: comment
-                     "]360\n"
-                     "^n" // TODO: comment
-                     "cx30\t30\n3.4\n" // TODO: comment
-                     "saXzYzXzsa[1\n" // TODO: comment
-                     #endif
-                     "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>"
-                     #if 1
-                     "[\t10\n" // TODO: comment
-                     "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
-                     "^n" // TODO: comment
-                     "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
-                     "n25\n" // TODO: comment
-                     "sa[1\n" // TODO: comment
-                     "n0\n" // TODO: comment
-                     "^n" // TODO: comment
-                     "cz8\n" // TODO: comment
-                     "<m3d 1 100 -1 0 -1 0>" // TODO: comment
-                     "sa{100\n" // TODO: comment
-                     ";" // TODO: comment
-                     "^odemo.dxf\n" // TODO: comment
-                                    // "^signore.stl\ny\n" // TODO: comment
-                                    // "^oignore.stl\n" // TODO: comment
-                                    // ".." // TODO: comment
-                                    // "pz\t5\n" // (Nathan) Polygon
-                                    // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                                    // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
-                                    // "^N^ob:wug.drawing\nysa"
-                     #endif
-                     ;
+        #if 1
+        "cz10\n" // circle
+        "cz\t10\n" // bigger circle
+        "bzx30\t30\n" // box
+        "ysadc<m2d 0 0>" // TODO: comment
+        "[5\t15\n" // extrude
+        "sc<m2d 0 30><esc>qs3" // TODO: comment
+        "1<m2d 30 15>0<esc>" // TODO: comment
+        "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
+        "{3\n" // TODO: comment
+        "sc<m2d 0 0>Zm<m2d -50 0>" // TODO: comment
+        "sc<m2d 0 0>Am<m2d -50 0><m2d -15 5>" // TODO: comment
+        "]360\n"
+        "^n" // TODO: comment
+        "cx30\t30\n3.4\n" // TODO: comment
+        "saXzYzXzsa[1\n" // TODO: comment
+        #endif
+        "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>"
+        #if 1
+        "[\t10\n" // TODO: comment
+        "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
+        "^n" // TODO: comment
+        "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
+        "n25\n" // TODO: comment
+        "sa[1\n" // TODO: comment
+        "n0\n" // TODO: comment
+        "^n" // TODO: comment
+        "cz8\n" // TODO: comment
+        "<m3d 1 100 -1 0 -1 0>" // TODO: comment
+        "sa{100\n" // TODO: comment
+        ";" // TODO: comment
+        "^odemo.dxf\n" // TODO: comment
+                       // "^signore.stl\ny\n" // TODO: comment
+                       // "^oignore.stl\n" // TODO: comment
+                       // ".." // TODO: comment
+                       // "pz\t5\n" // (Nathan) Polygon
+                       // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
+                       // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
+                       // "^N^ob:wug.drawing\nysa"
+        #endif
+        ;
 };
 #endif
 #ifdef SHIP
@@ -290,7 +290,14 @@ int main() {
     }
 
 
-    messagef(pallete.red, "make negative extrude and revolves work");
+    messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
+    messagef(pallete.red, "TODO: make negative extrude and revolves work");
+    messagef(pallete.red, "TODO: blue move/rotate/copy (certainly) still needs work");
+    messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
+    messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
+    messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
+
+
 
     // messagef(pallete.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 
@@ -300,20 +307,20 @@ int main() {
     // messagef(pallete.light_gray, "press ? for help");
     #endif
     /*
-    messagef(pallete.red, "TODO: Intersection snap");
-    messagef(pallete.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
-    messagef(pallete.red, "TODO: Save/Load need buttons");
-    messagef(pallete.red, "TODO: Camera clip planes still jacked (including ortho)");
-    messagef(pallete.red, "TODO: Camera hotkeys ;, ' need buttons");
-    messagef(pallete.red, "TODO: Rezoom camera needs button");
-    messagef(pallete.red, "TODO: Beatiful button presses");
-    messagef(pallete.red, "TODO: config needs inches vs. mm");
-    messagef(pallete.red, "TODO: config needs bool to hide gui");
-    messagef(pallete.red, "TODO: Select/deselect snaps");
-    messagef(pallete.red, "TODO: Push power fillet to beta");
-    messagef(pallete.red, "TODO: Push power offset (shell) to beta");
-    messagef(pallete.red, "TODO: Save/Load DXF broken for some arcs if you load\n      and save the dxf in LAYOUT in the middle.");
-    */
+       messagef(pallete.red, "TODO: Intersection snap");
+       messagef(pallete.red, "TODO: SHIP should disable all the commands without without without without without without without without buttons");
+       messagef(pallete.red, "TODO: Save/Load need buttons");
+       messagef(pallete.red, "TODO: Camera clip planes still jacked (including ortho)");
+       messagef(pallete.red, "TODO: Camera hotkeys ;, ' need buttons");
+       messagef(pallete.red, "TODO: Rezoom camera needs button");
+       messagef(pallete.red, "TODO: Beatiful button presses");
+       messagef(pallete.red, "TODO: config needs inches vs. mm");
+       messagef(pallete.red, "TODO: config needs bool to hide gui");
+       messagef(pallete.red, "TODO: Select/deselect snaps");
+       messagef(pallete.red, "TODO: Push power fillet to beta");
+       messagef(pallete.red, "TODO: Push power offset (shell) to beta");
+       messagef(pallete.red, "TODO: Save/Load DXF broken for some arcs if you load\n      and save the dxf in LAYOUT in the middle.");
+       */
 
     auto SEND_DUMMY = [&]() {
         // "process" dummy event to draw popups and buttons
