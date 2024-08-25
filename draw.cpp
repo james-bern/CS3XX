@@ -319,7 +319,26 @@ void conversation_draw() {
         bool moving = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Move));
         bool linear_copying = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Copy));
         bool rotating = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Rotate));
-        bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
+        // bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
+
+        auto DRAW_ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            // TODO: do this like crosshairs where they disappear more immediatelly
+            if (IS_ZERO(squaredNorm(click_1 - click_2))) return; // NOTE: you want this (we're attempthing this call three times!)
+            vec2 click_vector_12 = click_2 - click_1;
+            real click_theta_12 = ATAN2(click_vector_12);
+            mat4 M; {
+                if (moving || linear_copying) {
+                    M = M4_Translation(click_vector_12);
+                } else { ASSERT(rotating);
+                    M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_theta_12) * M4_Translation(click_1);
+                }
+            }
+            eso_begin(PV_2D * M, SOUP_LINES);
+            eso_color(color);
+            _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+            eso_end();
+        };
+
 
 
         glEnable(GL_SCISSOR_TEST);
@@ -408,7 +427,11 @@ void conversation_draw() {
                     if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
                     if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
                     if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
-                    if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
+                    if (state_Draw_command_is_(Rotate)) {
+                        if (!IS_ZERO(popup->rotate_angle)) { // FORNOW
+                            Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
+                        }
+                    }
                 }
             }
             vec2 Snap_Enter; {
@@ -431,8 +454,10 @@ void conversation_draw() {
             vec2 position_mouse; {
                 position_mouse = (!Snap_eating_mouse) ? mouse : preview->mouse_snap; // FORNOW
             }
-            bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) && (!ARE_EQUAL(*first_click, Draw_Enter)));
-            bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) && (!ARE_EQUAL(*first_click, Snap_Enter)));
+            bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
+                    (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Draw_Enter)));
+            bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) &&
+                    (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Snap_Enter)));
             vec3 target_color_mouse; {
                 target_color_mouse = get_color(ColorCode::Emphasis);
                 // if (Snap_eating_mouse) target_color_mouse = AVG(get_color(ColorCode::Emphasis), get_accent_color(ToolboxGroup::Snap));
@@ -452,8 +477,8 @@ void conversation_draw() {
 
 
 
-            vec2 click_vector = (position_mouse - *first_click);
-            real click_theta = ATAN2(click_vector);
+            // vec2 click_vector = (position_mouse - *first_click);
+            // real click_theta = ATAN2(click_vector);
 
             { // entities
                 eso_begin(PV_2D, SOUP_LINES); {
@@ -466,21 +491,6 @@ void conversation_draw() {
                     }
                 } eso_end();
 
-                { // entities being moved
-                    if (moving_linear_copying_or_rotating) {
-                        mat4 M; {
-                            if (moving || linear_copying) {
-                                M = M4_Translation(click_vector);
-                            } else { ASSERT(rotating);
-                                M = M4_Translation(*first_click) * M4_RotationAboutZAxis(click_theta) * M4_Translation(-*first_click);
-                            }
-                        }
-                        eso_begin(PV_2D * M, SOUP_LINES);
-                        eso_color(preview->color_mouse);
-                        _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
-                        eso_end();
-                    }
-                }
 
                 { // dots snap_divide_dot
                     if (other.show_details) { // dots
@@ -525,6 +535,10 @@ void conversation_draw() {
                     ANNOTATION(Move, LINE);
                     ANNOTATION(Copy, LINE);
                     ANNOTATION(Rotate, LINE);
+                    // NOTE: this is still kinda broken
+                    ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
+                    ANNOTATION(Copy, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
+                    ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                 }
 
                 { // crosshairs

@@ -18,6 +18,13 @@ real get_x_divider_drawing_mesh_Pixel() {
     return LINEAR_REMAP(other.x_divider_drawing_mesh_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
 }
 
+#define __snap_for__ _for_each_entity_ if (!( \
+            1 \
+            && (state.Draw_command.flags & EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP) \
+            && (two_click_command->awaiting_second_click) \
+            && (entity->is_selected) \
+            ))
+
 MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
     MagicSnapResult result = {};
     result.mouse_position = before;
@@ -45,7 +52,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
             if (state_Snap_command_is_(Center) || state_Snap_command_is_(Quad) || state_Snap_command_is_(Tangent)) {
                 real min_squared_distance = HUGE_VAL;
                 Entity *temp_entity = NULL;
-                _for_each_entity_ {
+                __snap_for__ {
                     if (entity->type == EntityType::Line) {
                         continue;
                     } else { ASSERT(entity->type == EntityType::Arc);
@@ -79,7 +86,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     result.snapped = true;
                 } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
-                    _for_each_entity_ {
+                    __snap_for__ {
                         vec2 p[2];
                         entity_get_start_and_end_points(entity, &p[0], &p[1]);
                         for_(d, 2) {
@@ -95,7 +102,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                 } else if (state_Snap_command_is_(Intersect)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     Entity *temp_entity = NULL;
-                    _for_each_entity_ {
+                    __snap_for__ {
                         real squared_distance = squared_distance_point_entity(before, entity);
                         if (squared_distance < min_squared_distance && entity != closest_entity) {
                             min_squared_distance = squared_distance;
