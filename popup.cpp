@@ -5,6 +5,16 @@
 // BUG: somehow possible sometimes to type 'b' into ExtrudeAdd
 
 // TODO: consider adding type-checking (NOTE: maybe hard?)
+
+void _POPUP_MEASURE_HOOK(real value) {
+    // NOTE: _type_of_active_cell isn't getting cleared to None like it should be
+    if (popup->_type_of_active_cell != CellType::Real) return;
+
+    popup->active_cell_buffer.length = sprintf(popup->active_cell_buffer.data, "%g", value);
+    popup->cursor = popup->active_cell_buffer.length;
+    popup->selection_cursor = 0;
+}
+
 void POPUP(
         Command command,
         bool zero_on_load_up,
@@ -561,4 +571,5 @@ void POPUP(
     }
 
     if (IS_FOCUSED()) POPUP_SYNC_ACTIVE_CELL_BUFFER();
+
 };

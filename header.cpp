@@ -525,7 +525,7 @@ struct {
     vec3 green = monokai.green;
     vec3 blue = monokai.blue;
     vec3 purple = monokai.purple;
-    vec3 pink = AVG(monokai.red, monokai.purple);
+    vec3 brown = monokai.brown;
     #endif
     vec3 cyan = RGB255(0, 255, 255);
     vec3 magenta = RGB255(255, 0, 255);
@@ -563,7 +563,7 @@ vec3 Q_pallete[10] = {
     pallete.green,
     pallete.blue,
     pallete.purple,
-    pallete.pink,
+    pallete.brown,
     #endif
 };
 
@@ -745,7 +745,7 @@ void eso_entity__SOUP_LINES(Entity *entity) {
         real start_angle, end_angle;
         arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
         real delta_angle = end_angle - start_angle;
-        uint num_segments = uint(1 + (delta_angle / TAU) * 256); // FORNOW: TODO: make dependent on zoom
+        uint num_segments = uint(1 + (delta_angle / TAU) * 64); // FORNOW: TODO: make dependent on zoom
         real increment = delta_angle / num_segments;
         real current_angle = start_angle;
         for_(i, num_segments) {
@@ -1411,7 +1411,7 @@ Mesh wrapper_manifold(
 
         { // manifold_B
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {
-                do_once { messagef(pallete.pink, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
+                do_once { messagef(pallete.red, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
                 out_quantity += SGN(out_quantity) * TOLERANCE_DEFAULT;
             }

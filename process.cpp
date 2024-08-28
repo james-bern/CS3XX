@@ -160,7 +160,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 bool draw_tool = name.data;
 
                 if (1
-                        && (!other.hide_toolbox)
+                        && (!other.hide_toolbox || command_equals(command, commands.ToggleGUI))
                         && (!other._please_suppress_drawing_popup_popup)
                         && (!hide_button)
                         && (group != ToolboxGroup::None)
@@ -375,6 +375,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             };
 
             auto SEPERATOR = [&]() {
+                if (other.hide_toolbox) return;
+
                 ToolboxGroup group = most_recent_group_for_SEPERATOR;
                 ASSERT(group != ToolboxGroup::None);
 
@@ -397,6 +399,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 // NOTE: ordered by priority
 
                 { // Both
+                    if (GUIBUTTON(commands.ToggleGUI)) { 
+                        other.hide_toolbox = !other.hide_toolbox;
+                    }
+
+                    SEPERATOR();
+
                     { // Escape
                         if (GUIBUTTON(commands.Escape)) {
                             // do_once { messagef(pallete.orange, "ESCAPE maybe sus."); };
@@ -1293,6 +1301,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real length = length_click_vector;
                             messagef(pallete.cyan, "Angle is %gdeg.", angle);
                             messagef(pallete.cyan, "Length is %gmm.", length);
+
+                            messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
+                            _POPUP_MEASURE_HOOK(length);
                         } else if (state_Draw_command_is_(Mirror2)) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1412,7 +1423,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             _for_each_selected_entity_ entity->is_selected = false;
                         } else if (state_Draw_command_is_(Polygon)) {
-                            uint polygon_num_sides = MAX(3U, popup->polygon_num_sides);
+                            uint polygon_num_sides = popup->polygon_num_sides;
                             if (clicks_are_same) {
                                 messagef(pallete.orange, "Polygon: must have non-zero size");
                             } else {
@@ -1588,38 +1599,42 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             entity->is_selected = false;
                         }
                     } else if (state_Draw_command_is_(Offset)) {
-                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse);
-                        if (closest_results.success) {
-                            result.checkpoint_me = true;
-                            set_state_Snap_command(None);
-                            Entity *entity = closest_results.closest_entity;
-                            real input_offset = popup->offset_size;
-                            if (entity->type == EntityType::Line) {
-                                LineEntity *line = &entity->line;
-                                vec2 dir = *mouse - closest_results.line_nearest_point; // is there an easier way to find offset??
-                                vec2 offset = (input_offset * (dir/norm(dir)));
-                                cookbook.buffer_add_line(line->start + offset, line->end + offset, entity->is_selected, entity->color_code);
-                            } else { ASSERT(entity->type == EntityType::Arc);
-                                ArcEntity *arc = &entity->arc;
-                                bool in_circle = distance(arc->center, *mouse) < arc->radius;
-                                bool in_sector = false;
-                                if (!in_circle) {
-                                    vec2 start_point = entity_get_start_point(entity);
-                                    vec2 end_point = entity_get_end_point(entity);
-                                    vec2 perp_end = perpendicularTo(end_point - arc->center);
-                                    vec2 perp_start = perpendicularTo(start_point - arc->center);
-                                    vec2 end_to_mouse = *mouse - end_point;
-                                    vec2 start_to_mouse = *mouse - start_point;
-                                    real end_cross_p = cross(end_to_mouse, perp_end);
-                                    real start_cross_p = cross(start_to_mouse, perp_start);
-                                    real diam_cross_p = cross(end_to_mouse, start_point - end_point);
-                                    in_sector = (end_cross_p > 0) && (start_cross_p > 0) && (diam_cross_p > 0);
+                        if (IS_ZERO(popup->offset_size)) {
+                            messagef(pallete.orange, "Offset: must have non-zero distance");
+                        } else {
+                            DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse);
+                            if (closest_results.success) {
+                                result.checkpoint_me = true;
+                                set_state_Snap_command(None);
+                                Entity *entity = closest_results.closest_entity;
+                                real input_offset = popup->offset_size;
+                                if (entity->type == EntityType::Line) {
+                                    LineEntity *line = &entity->line;
+                                    vec2 dir = *mouse - closest_results.line_nearest_point; // is there an easier way to find offset??
+                                    vec2 offset = (input_offset * (dir/norm(dir)));
+                                    cookbook.buffer_add_line(line->start + offset, line->end + offset, entity->is_selected, entity->color_code);
+                                } else { ASSERT(entity->type == EntityType::Arc);
+                                    ArcEntity *arc = &entity->arc;
+                                    bool in_circle = distance(arc->center, *mouse) < arc->radius;
+                                    bool in_sector = false;
+                                    if (!in_circle) {
+                                        vec2 start_point = entity_get_start_point(entity);
+                                        vec2 end_point = entity_get_end_point(entity);
+                                        vec2 perp_end = perpendicularTo(end_point - arc->center);
+                                        vec2 perp_start = perpendicularTo(start_point - arc->center);
+                                        vec2 end_to_mouse = *mouse - end_point;
+                                        vec2 start_to_mouse = *mouse - start_point;
+                                        real end_cross_p = cross(end_to_mouse, perp_end);
+                                        real start_cross_p = cross(start_to_mouse, perp_start);
+                                        real diam_cross_p = cross(end_to_mouse, start_point - end_point);
+                                        in_sector = (end_cross_p > 0) && (start_cross_p > 0) && (diam_cross_p > 0);
+                                    }
+                                    real radius = arc->radius + input_offset;
+                                    if (in_circle || in_sector) {
+                                        radius = arc->radius - input_offset;
+                                    } 
+                                    cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, entity->is_selected, entity->color_code); 
                                 }
-                                real radius = arc->radius + input_offset;
-                                if (in_circle || in_sector) {
-                                    radius = arc->radius - input_offset;
-                                } 
-                                cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, entity->is_selected, entity->color_code); 
                             }
                         }
                     } else {
@@ -1876,6 +1891,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner,
                                 CellType::Real, STRING("distance_to_side"), &popup->polygon_distance_to_side,
                                 CellType::Real, STRING("side_length"), &popup->polygon_side_length);
+
+                        popup->polygon_num_sides = MIN(MAX(3U, popup->polygon_num_sides), 256U);
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
                         } else {
@@ -1938,7 +1955,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Draw_command(None);
                                 messagef(pallete.light_gray, "OpenDXF \"%s\"", popup->open_dxf_filename.data);
                             } else {
-                                messagef(pallete.orange, "OpenDXF: \"%s\" must be *.dxf or *.stl", popup->open_dxf_filename.data);
+                                messagef(pallete.orange, "OpenDXF: \"%s\" must be *.dxf", popup->open_dxf_filename.data);
                             }
                         } else {
                             messagef(pallete.orange, "Load: \"%s\" not found", popup->open_dxf_filename.data);
@@ -2024,26 +2041,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::String, STRING("filename"), &popup->open_stl_filename);
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (FILE_EXISTS(popup->open_stl_filename)) {
-                            if (string_matches_suffix(popup->open_stl_filename, STRING(".dxf"))) {
-                                result.record_me = true;
-                                result.checkpoint_me = true;
-                                result.snapshot_me = true;
-
-                                { // conversation_dxf_load
-                                    ASSERT(FILE_EXISTS(popup->open_stl_filename));
-
-                                    list_free_AND_zero(&drawing->entities);
-
-                                    entities_load(popup->open_stl_filename, &drawing->entities);
-
-                                    if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
-                                        init_camera_drawing();
-                                        drawing->origin = {};
-                                    }
-                                }
-                                set_state_Mesh_command(None);
-                                messagef(pallete.light_gray, "OpenDXF \"%s\"", popup->open_stl_filename.data);
-                            } else if (string_matches_suffix(popup->open_stl_filename, STRING(".stl"))) {
+                            if (string_matches_suffix(popup->open_stl_filename, STRING(".stl"))) {
                                 result.record_me = true;
                                 result.checkpoint_me = true;
                                 result.snapshot_me = true;
@@ -2056,7 +2054,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Mesh_command(None);
                                 messagef(pallete.light_gray, "OpenSTL \"%s\"", popup->open_stl_filename.data);
                             } else {
-                                messagef(pallete.orange, "Load: \"%s\" must be *.dxf or *.stl", popup->open_stl_filename.data);
+                                messagef(pallete.orange, "OpenSTL: \"%s\" must be *.stl", popup->open_stl_filename.data);
                             }
                         } else {
                             messagef(pallete.orange, "Load: \"%s\" not found", popup->open_stl_filename.data);

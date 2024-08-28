@@ -289,7 +289,7 @@ void conversation_draw() {
 
         auto DRAW_POLYGON = [&](vec2 click_1, vec2 click_2, vec3 color) {
             // TODO: JUICEIT_EASYTWEEN polygon_num_sides
-            uint polygon_num_sides = MAX(3U, uint(preview->polygon_num_sides));
+            uint polygon_num_sides = uint(preview->polygon_num_sides);
             real delta_theta = -TAU / preview->polygon_num_sides;
             vec2 center = click_1;
             vec2 vertex_0 = click_2;
@@ -330,7 +330,7 @@ void conversation_draw() {
                 if (moving || linear_copying) {
                     M = M4_Translation(click_vector_12);
                 } else { ASSERT(rotating);
-                    M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_theta_12) * M4_Translation(click_1);
+                    M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_theta_12) * M4_Translation(-click_1);
                 }
             }
             eso_begin(PV_2D * M, SOUP_LINES);
@@ -518,6 +518,7 @@ void conversation_draw() {
 
             { // annotations
               // new-style annotations
+                // FORNOW (this is sloppy and bad)
                 #define ANNOTATION(Name, NAME) \
                 do { \
                     if (state_Draw_command_is_(Name)) { \
@@ -532,6 +533,7 @@ void conversation_draw() {
                     ANNOTATION(Box, BOX);
                     ANNOTATION(Circle, CIRCLE);
                     ANNOTATION(Polygon, POLYGON);
+
                     ANNOTATION(Move, LINE);
                     ANNOTATION(Copy, LINE);
                     ANNOTATION(Rotate, LINE);

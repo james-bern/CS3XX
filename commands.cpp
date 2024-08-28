@@ -16,7 +16,8 @@
     \
     COMMANDS_INNER(Undo,            'U', 0b000, Both, 0, 0 | NO_RECORD, 'Z', 0b010); \
     COMMANDS_INNER(Redo,            'U', 0b001, Both, 0, 0 | NO_RECORD, 'Y', 0b010, 'Z', 0b011 ); \
-    COMMANDS_INNER(ToggleDetails,     '.', 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleDetails,   '.', 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleGUI,       '.', 0b010, Both, 0, 0 | NO_RECORD);  \
     \
     COMMANDS_INNER(Center,          'C', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(End,             'E', 0b000, Snap, 1, 0); \

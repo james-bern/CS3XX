@@ -117,8 +117,10 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                             result.entity_index_intersect = uint(temp_entity - drawing->entities.array);
                             result.snapped = true;
                             result.split_intersect = true;
-                        } else messagef(pallete.orange, "no intersection found");
-                    } else messagef(pallete.orange, "no intersection found");
+                        }
+                        // else messagef(pallete.orange, "no intersection found");
+                    }
+                    // else messagef(pallete.orange, "no intersection found");
                 } else if (state_Snap_command_is_(Perp)) { // layout also does a divide which can be added if wanted
                     vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {

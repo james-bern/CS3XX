@@ -1,4 +1,5 @@
 // BETA
+// TODO: first and second clicks of FGHI should be hinted (even first!)
 // TODO: Pressing enter should spawn a ghost of the pink or blue crosshairs
 // TODO: the white box should fade in
 // TODO: second click of fillets needs to be previewed in blue; some sort of cool bezier curve interpolation could be nice (or even just lerp between the central arcs?--polygon will be good practice (this could be fun for Nate)
@@ -58,12 +59,20 @@
 #define Color6 Green
 #define Color7 Blue
 #define Color8 Purple
-#define Color9 Pink
+#define Color9 Brown
 #endif
 
 #include "playground.cpp"
 
-char *startup_script = "y";
+char *startup_script = "";
+
+#if 1 // glorbo
+run_before_main {
+    startup_script = "^.^oglorbo.dxf\n"
+        // "^Oglorbo.stl\n"
+        ;
+};
+#endif
 
 #if 0 // Box tweening
 run_before_main {
@@ -214,7 +223,7 @@ run_before_main {
 #endif
 #ifdef SHIP
 run_before_main {
-    startup_script = "y";
+    startup_script = "";
     glfwSetWindowTitle(glfw_window, "Conversation pre-alpha " __DATE__ " " __TIME__);
 };
 #endif
@@ -286,15 +295,16 @@ int main() {
             other.cursors.hresize = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
             other.cursors.hand = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
         }
-
     }
 
 
+    messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
+    messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
     messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
     messagef(pallete.red, "TODO: make negative extrude and revolves work");
     messagef(pallete.red, "TODO: blue move/rotate/copy (certainly) still needs work");
-    messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
-    messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
+    // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
+    // messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
     messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
 
 
