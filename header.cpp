@@ -75,6 +75,7 @@ Command commands_Color[] = {
 enum class EntityType {
     Arc,
     Line,
+    Circle,
 };
 
 enum class Pane {
@@ -152,6 +153,13 @@ struct ArcEntity {
     real end_angle_in_degrees;
 };
 
+struct CircleEntity {
+    vec2 center;
+    real radius;
+    bool has_pseudo_point;
+    vec2 pseudo_point;
+};
+
 struct Entity {
     EntityType type;
 
@@ -162,6 +170,7 @@ struct Entity {
 
     LineEntity line;
     ArcEntity arc;
+    CircleEntity circle;
 };
 
 struct Mesh {
@@ -739,8 +748,7 @@ void eso_entity__SOUP_LINES(Entity *entity) {
         LineEntity *line = &entity->line;
         eso_vertex(line->start);
         eso_vertex(line->end);
-    } else {
-        ASSERT(entity->type == EntityType::Arc);
+    } else if (entity->type == EntityType::Arc) {
         ArcEntity *arc = &entity->arc;
         real start_angle, end_angle;
         arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
@@ -752,6 +760,16 @@ void eso_entity__SOUP_LINES(Entity *entity) {
             eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle));
             current_angle += increment;
             eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle));
+        }
+    } else { ASSERT(entity->type == EntityType::Circle);
+        CircleEntity *circle = &entity->circle;
+        uint num_segments = 64;
+        real current_angle = 0.0;
+        real increment = TAU / num_segments;
+        for_(i, num_segments) {
+            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle));
+            current_angle += increment;
+            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle));
         }
     }
 }
@@ -835,14 +853,20 @@ real squared_distance_point_dxf_arc_entity(vec2 p, ArcEntity *arc) {
     return squared_distance_point_arc_NOTE_pass_angles_in_radians(p, arc->center, arc->radius, RAD(arc->start_angle_in_degrees), RAD(arc->end_angle_in_degrees));
 }
 
+real squared_distance_point_dxf_circle_entity(vec2 p, CircleEntity *circle) {
+    return squared_distance_point_circle(p, circle->center, circle->radius);
+}
+
 real squared_distance_point_entity(vec2 p, Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line = &entity->line;
         return squared_distance_point_dxf_line_entity(p, line);
-    } else {
-        ASSERT(entity->type == EntityType::Arc);
+    } else if (entity->type == EntityType::Arc) {
         ArcEntity *arc = &entity->arc;
         return squared_distance_point_dxf_arc_entity(p, arc);
+    } else { ASSERT(entity->type == EntityType::Circle);
+        CircleEntity *circle = &entity->circle;
+        return squared_distance_point_dxf_circle_entity(p, circle);
     }
 }
 
@@ -880,9 +904,12 @@ DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 
                     real num = dot(p - line->start, line->end - line->start);
                     result.line_nearest_point = CLAMPED_LERP(num / l2, line->start, line->end);
                 }
-            } else { ASSERT(result.closest_entity->type == EntityType::Arc);
+            } else if (result.closest_entity->type == EntityType::Arc) {
                 ArcEntity *arc = &result.closest_entity->arc;
                 result.arc_nearest_angle_in_degrees = DEG(ATAN2(p - arc->center));
+            } else { ASSERT(result.closest_entity->type == EntityType::Circle);
+                CircleEntity *circle = &result.closest_entity->circle;
+                // result.arc_nearest_angle_in_degrees = DEG(ATAN2(p - circle->center));
             }
         }
     }
