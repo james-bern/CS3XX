@@ -14,10 +14,9 @@ Message messages[MESSAGE_MAX_NUM_MESSAGES];
 
 uint _message_index;
 
-void messagef(vec3 color, char *format, ...) {
+
+void _messagef(vec3 color, char *format, va_list arg) {
     if (other.please_suppress_messagef) return;
-    va_list arg;
-    va_start(arg, format);
     Message *message = &messages[_message_index];
     message->string.length = vsnprintf(message->string.data, MESSAGE_MAX_LENGTH, format, arg);
     va_end(arg);
@@ -36,6 +35,20 @@ void messagef(vec3 color, char *format, ...) {
     }
 
     // printf("%s\n", message->buffer); // FORNOW print to terminal as well
+}
+
+void messagef(vec3 color, char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    _messagef(color, format, args);
+    va_end(args);
+}
+
+void messagef(char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    _messagef(pallete.red, format, args);
+    va_end(args);
 }
 
 void _messages_update() {
