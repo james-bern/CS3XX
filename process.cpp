@@ -957,7 +957,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 seed = make_key(p);
                             }
 
-                            Queue<vec2> queue;
+                            Queue<vec2> queue = {};
                             queue_enqueue(&queue, seed);
 
                             while (queue.length) {
@@ -977,6 +977,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                             }
+
+                            queue_free_AND_zero(&queue);
                         }
 
 
