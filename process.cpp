@@ -957,25 +957,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 seed = make_key(p);
                             }
 
-                            GridPointSlot *curr = get_any_point_not_part_of_an_marked_entity(seed);
                             while (true) {
-                                if (curr == NULL) break;
-                                cookbook.entity_set_is_selected(&drawing->entities.array[curr->entity_index], value_to_write_to_selection_mask);
-                                edge_marked[curr->entity_index] = true;
-                                curr = get_any_point_not_part_of_an_marked_entity(get_key(curr, true)); // get other end
-                                if (curr == NULL) break;
-                                { // curr <- next (9-cell)
-                                    vec2 key = get_key(curr, false);
-                                    {
-                                        curr = NULL;
-                                        for (int dx = -1; dx <= 1; ++dx) {
-                                            for (int dy = -1; dy <= 1; ++dy) {
-                                                GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(key, dx, dy));
-                                                if (tmp) curr = tmp;
-                                            }
+                                bool notFound = true;
+                                for (int dx = -1; dx <= 1; ++dx) {
+                                    for (int dy = -1; dy <= 1; ++dy) {
+                                        GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(seed, dx, dy));
+                                        if (tmp) { 
+                                            notFound = false;
+                                            cookbook.entity_set_is_selected(&drawing->entities.array[tmp->entity_index], value_to_write_to_selection_mask);
+                                            seed = get_key(get_any_point_not_part_of_an_marked_entity(get_key(tmp, true)), false); // get other end
+                                            edge_marked[tmp->entity_index] = true;
                                         }
                                     }
                                 }
+                                if (notFound) break;
                             }
                         }
 
