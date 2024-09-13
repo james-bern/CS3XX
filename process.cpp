@@ -848,7 +848,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         #define GRID_CELL_WIDTH 0.003f
 
                         auto scalar_bucket = [&](real a) -> real {
-                            return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
+                            real ret = roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
+                            return ret == -0 ? 0 : ret; // what a fun bug
                         };
 
                         auto make_key = [&](vec2 p) -> vec2 {
@@ -866,7 +867,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         };
 
                         struct GridCell {
-                            GridPointSlot slots[2];
+                            GridPointSlot slots[5];
                         };
 
                         Map<vec2, GridCell> grid; { // TODO: build grid
@@ -957,21 +958,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 seed = make_key(p);
                             }
 
-                            while (true) {
-                                bool notFound = true;
+                            Queue<vec2> queue = {};
+                            queue_enqueue(&queue, seed);
+
+                            while (queue.length) {
+                                seed = queue_dequeue(&queue);
                                 for (int dx = -1; dx <= 1; ++dx) {
                                     for (int dy = -1; dy <= 1; ++dy) {
-                                        GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(seed, dx, dy));
-                                        if (tmp) { 
-                                            notFound = false;
+                                        while (1) {
+                                            GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(seed, dx, dy));
+
+                                            if (!tmp) break;
+
                                             cookbook.entity_set_is_selected(&drawing->entities.array[tmp->entity_index], value_to_write_to_selection_mask);
                                             seed = get_key(get_any_point_not_part_of_an_marked_entity(get_key(tmp, true)), false); // get other end
                                             edge_marked[tmp->entity_index] = true;
-                                        }
+                                            queue_enqueue(&queue, seed);
+                                        } 
                                     }
                                 }
-                                if (notFound) break;
                             }
+
+                            queue_free_AND_zero(&queue);
                         }
 
 
