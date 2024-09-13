@@ -848,7 +848,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         #define GRID_CELL_WIDTH 0.003f
 
                         auto scalar_bucket = [&](real a) -> real {
-                            return roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
+                            real ret = roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
+                            return ret == -0 ? 0 : ret; // what a fun bug
                         };
 
                         auto make_key = [&](vec2 p) -> vec2 {
