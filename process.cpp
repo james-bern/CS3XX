@@ -1004,7 +1004,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (first_click_accepted) {
                             two_click_command->awaiting_second_click = true;
                             two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
-                            if (!two_click_command->tangent_first_click) {
+                            if (!two_click_command->tangent_first_click) { // ???
                                 two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
                             }
                             set_state_Snap_command(None);
@@ -1110,15 +1110,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (clicks_are_same) {
                                 messagef(pallete.orange, "Circle: must have non-zero diameter");
                             } else {
+                                // messagef(pallete.light_gray, "Circle");
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
+                                real r = length_click_vector;
+
+                                #if 1
                                 real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                                real r = length_click_vector;
                                 cookbook.buffer_add_arc(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
                                 cookbook.buffer_add_arc(first_click, r, theta_b_in_degrees, theta_a_in_degrees);
-                                // messagef(pallete.light_gray, "Circle");
+                                #else
+                                cookbook.buffer_add_circle(first_click, r);
+                                #endif
                             }
                         } else if (state_Draw_command_is_(DiamCircle)) {
                             if (clicks_are_same) {

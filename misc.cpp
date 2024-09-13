@@ -49,15 +49,26 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
-            if (state_Snap_command_is_(Center) || state_Snap_command_is_(Quad) || state_Snap_command_is_(Tangent)) {
+            if (0
+                    || state_Snap_command_is_(Center)
+                    || state_Snap_command_is_(Quad)
+                    || state_Snap_command_is_(Tangent)
+               ) {
                 real min_squared_distance = HUGE_VAL;
                 Entity *temp_entity = NULL;
                 __snap_for__ {
                     if (entity->type == EntityType::Line) {
                         continue;
-                    } else { ASSERT(entity->type == EntityType::Arc);
+                    } else if (entity->type == EntityType::Arc) {
                         ArcEntity *arc = &entity->arc;
                         real squared_distance = squared_distance_point_dxf_arc_entity(before, arc);
+                        if (squared_distance < min_squared_distance) {
+                            min_squared_distance = squared_distance;
+                            temp_entity = entity;
+                        }
+                    } else { ASSERT(entity->type == EntityType::Circle); 
+                        CircleEntity *circle = &entity->circle;
+                        real squared_distance = squared_distance_point_dxf_circle_entity(before, circle);
                         if (squared_distance < min_squared_distance) {
                             min_squared_distance = squared_distance;
                             temp_entity = entity;
@@ -70,23 +81,51 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                 } else {
                     closest_entity_info.success = false;
                 }
-            } else {
+            } else { // NOTE (Jim): ? else if (!state_Snap_command_is_(None))
                 closest_entity_info = dxf_find_closest_entity(&drawing->entities, before);
             }
 
             if (closest_entity_info.success) {
-
                 Entity *closest_entity = closest_entity_info.closest_entity;
                 result.entity_index_snapped_to = uint(closest_entity_info.closest_entity - drawing->entities.array); //TODO TODO TODO
                 if (state_Snap_command_is_(Center)) {
-                    result.mouse_position = closest_entity->arc.center;
                     result.snapped = true;
+                    if (closest_entity->type == EntityType::Arc) {
+                        ArcEntity *arc = &closest_entity->arc;
+                        result.mouse_position = arc->center;
+                    } else { ASSERT(closest_entity->type == EntityType::Circle);
+                        CircleEntity *circle = &closest_entity->circle;
+                        result.mouse_position = circle->center;
+                    }
+                } else if (state_Snap_command_is_(Quad)) {
+                    result.snapped = true;
+                    vec2 center;
+                    real radius;
+                    real angle;
+                    {
+                        if (closest_entity->type == EntityType::Arc) {
+                            ArcEntity *arc = &closest_entity->arc;
+                            center = arc->center;
+                            radius = arc->radius;
+                        } else { ASSERT(closest_entity->type == EntityType::Circle);
+                            CircleEntity *circle = &closest_entity->circle;
+                            center = circle->center;
+                            radius = circle->radius;
+                        }
+                        { // angle
+                            angle = LINEAR_REMAP(angle_from_0_TAU(center, before), 0.0f, TAU, 0.0f, 4.0f);
+                            angle = (ROUND(angle) / 4.0f) * TAU;
+                        }
+                    }
+                    result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, angle);
                 } else if (state_Snap_command_is_(Middle)) {
+                    ASSERT(closest_entity->type != EntityType::Circle); // TODO
                     result.mouse_position = entity_get_middle(closest_entity);
                     result.snapped = true;
                 } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     __snap_for__ {
+                        ASSERT(entity->type != EntityType::Circle); // TODO
                         vec2 p[2];
                         entity_get_start_and_end_points(entity, &p[0], &p[1]);
                         for_(d, 2) {
@@ -100,6 +139,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         }
                     }
                 } else if (state_Snap_command_is_(Intersect)) { // this one is a little custom
+                                                                // TODO Circle
                     real min_squared_distance = HUGE_VAL;
                     Entity *temp_entity = NULL;
                     __snap_for__ {
@@ -122,6 +162,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     }
                     // else messagef(pallete.orange, "no intersection found");
                 } else if (state_Snap_command_is_(Perp)) { // layout also does a divide which can be added if wanted
+                                                           // TODO Circle
                     vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
@@ -134,16 +175,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.mouse_position = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
                         result.snapped = true;
                     }
-                } else if (state_Snap_command_is_(Quad)) {
-                    ArcEntity *arc = &closest_entity->arc;
-                    real angle; {
-                        angle = LINEAR_REMAP(angle_from_0_TAU(arc->center, before), 0.0f, TAU, 0.0f, 4.0f);
-                        angle = (ROUND(angle) / 4.0f) * TAU;
-                    }
-                    result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, angle);
-                    result.snapped = true;
                 } else if (state_Snap_command_is_(Tangent)) {
-
+                    // TODO TODO TODO
                     vec2 mouse = before;
 
                     if (two_click_command->awaiting_second_click) {
@@ -217,8 +250,6 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         two_click_command->entity_closest_to_first_click = closest_entity;
                         messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
                     }
-
-
                 }
             }
         }

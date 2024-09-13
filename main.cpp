@@ -1,3 +1,4 @@
+
 // BETA
 // TODO: first and second clicks of FGHI should be hinted (even first!)
 // TODO: Pressing enter should spawn a ghost of the pink or blue crosshairs
@@ -66,7 +67,7 @@
 
 char *startup_script = "";
 
-#if 1 // glorbo
+#if 0 // glorbo
 run_before_main {
     startup_script = "^.^oglorbo.dxf\n"
         // "^Oglorbo.stl\n"
@@ -298,6 +299,8 @@ int main() {
     }
 
 
+    messagef(pallete.red, "TODO: CIRCLE type entity");
+    messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
     messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
     messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
     messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");

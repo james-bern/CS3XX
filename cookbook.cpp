@@ -33,6 +33,19 @@ struct Cookbook {
         entity.color_code = color_code;
         return entity;
     };
+
+    Entity _make_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = {};
+        entity.type = EntityType::Circle;
+        entity.preview_color = get_color(ColorCode::Emphasis);
+        CircleEntity *circle = &entity.circle;
+        circle->center = center;
+        circle->radius = radius;
+        entity.is_selected = is_selected;
+        entity.color_code = color_code;
+        return entity;
+    };
+
     void _add_entity(Entity entity) {
         ASSERT(_delete_buffer.length == 0);
         list_push_back(&drawing->entities, entity);
@@ -48,6 +61,11 @@ struct Cookbook {
         _add_entity(entity);
     };
 
+    void _add_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, is_selected, color_code);
+        _add_entity(entity);
+    };
+
     void _buffer_add_entity(Entity entity) {
         list_push_back(&_add_buffer, entity);
     };
@@ -59,6 +77,11 @@ struct Cookbook {
 
     void buffer_add_arc(vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
         Entity entity = _make_arc(center, radius, start_angle_in_degrees, end_angle_in_degrees, is_selected, color_code);
+        _buffer_add_entity(entity);
+    };
+
+    void buffer_add_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, is_selected, color_code);
         _buffer_add_entity(entity);
     };
 
@@ -146,7 +169,7 @@ struct Cookbook {
                     delete_flag = true;
                 }
             }
-        } else { ASSERT(entity->type == EntityType::Arc);
+        } else if (entity->type == EntityType::Arc) {
             ArcEntity arc = entity->arc;
             real angle = DEG(ATAN2(point - arc.center));
             if (abs(distance(point, arc.center) - arc.radius) < 0.001 && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
@@ -160,6 +183,8 @@ struct Cookbook {
                 }
 
             }
+        } else { ASSERT(entity->type == EntityType::Circle);
+            ASSERT(false);
         }
         if (delete_flag) {
             _buffer_delete_entity_DEPRECATED_INDEX_VERSION(entity_index);

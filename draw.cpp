@@ -366,38 +366,39 @@ void conversation_draw() {
             }
             if (1) { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
                 real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
-                real r = 2 * funky_OpenGL_factor;
-                real LL = 1000 * funky_OpenGL_factor;
+                real r = 3 * funky_OpenGL_factor;
+                // real LL = 1000 * funky_OpenGL_factor;
 
-                eso_begin(PV_2D, SOUP_LINES); {
-                    // axis
-                    eso_stipple(true);
-                    eso_color(pallete.dark_gray);
-                    if (state_Draw_command_is_(SetAxis)) {
-                        eso_color(get_color(ColorCode::Emphasis));
-                    } else if (state_Mesh_command_is_(RevolveAdd)) {
-                        eso_color(AVG(pallete.dark_gray, get_color(ColorCode::Emphasis)));
-                    } else if (state_Mesh_command_is_(RevolveCut)) {
-                        eso_color(AVG(pallete.dark_gray, get_color(ColorCode::Emphasis)));
-                    } else {
-                    }
-                    vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
-                    eso_vertex(preview_dxf_axis_base_point + v);
-                    eso_vertex(preview_dxf_axis_base_point - v);
-                } eso_end();
+                // eso_begin(PV_2D, SOUP_LINES); {
+                //     // axis
+                //     eso_stipple(true);
+                //     eso_color(pallete.dark_gray);
+                //     if (state_Draw_command_is_(SetAxis)) {
+                //         eso_color(get_color(ColorCode::Emphasis));
+                //     } else if (state_Mesh_command_is_(RevolveAdd)) {
+                //         eso_color(AVG(pallete.dark_gray, get_color(ColorCode::Emphasis)));
+                //     } else if (state_Mesh_command_is_(RevolveCut)) {
+                //         eso_color(AVG(pallete.dark_gray, get_color(ColorCode::Emphasis)));
+                //     } else {
+                //     }
+                //     vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
+                //     eso_vertex(preview_dxf_axis_base_point + v);
+                //     eso_vertex(preview_dxf_axis_base_point - v);
+                // } eso_end();
                 eso_begin(PV_2D, SOUP_POINTS); {
+                    eso_overlay(true);
                     eso_color(pallete.white);
-                    eso_size(5);
+                    eso_size(6.0f);
                     eso_vertex(target_preview_drawing_origin - V2(0, 0));
                 } eso_end();
+                vec2 v = r * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                 eso_begin(PV_2D, SOUP_LINES); {
-                    // origin
+                    eso_overlay(true);
                     eso_color(pallete.white);
-                    eso_size(2.0f);
-                    eso_vertex(target_preview_drawing_origin - V2(0, 0));
-                    eso_vertex(target_preview_drawing_origin + V2(r, 0));
-                    eso_vertex(target_preview_drawing_origin - V2(0, 0));
-                    eso_vertex(target_preview_drawing_origin + V2(0, r));
+                    eso_size(3.0f);
+                    eso_vertex(preview_dxf_axis_base_point);
+                    eso_size(0.0f);
+                    eso_vertex(preview_dxf_axis_base_point + v);
                 } eso_end();
                 // eso_begin(PV_2D, SOUP_TRIANGLES); {
                 //     eso_color(pallete.white);
@@ -499,6 +500,11 @@ void conversation_draw() {
                         eso_size(3.0f);
                         _for_each_entity_ {
                             if (entity->is_selected && (rotating || moving)) continue;
+                            if (entity->type == EntityType::Circle) {
+                                CircleEntity *circle = &entity->circle;
+                                if (circle->has_pseudo_point) eso_vertex(circle->pseudo_point);
+                                continue;
+                            }
                             eso_vertex(entity_get_start_point(entity));
                             eso_vertex(entity_get_end_point(entity));
                         }
@@ -517,6 +523,7 @@ void conversation_draw() {
             }
 
             { // annotations
+
               // new-style annotations
                 // FORNOW (this is sloppy and bad)
                 #define ANNOTATION(Name, NAME) \
@@ -1134,21 +1141,25 @@ void conversation_draw() {
     { // details
         uint num_lines;
         uint num_arcs;
+        uint num_circles;
         {
             num_lines = 0;
             num_arcs = 0;
+            num_circles = 0;
             _for_each_entity_ {
                 if (entity->type == EntityType::Line) {
                     ++num_lines;
-                } else { ASSERT(entity->type == EntityType::Arc);
+                } else if (entity->type == EntityType::Arc) {
                     ++num_arcs;
+                } else { ASSERT(entity->type == EntityType::Circle);
+                    ++num_circles;
                 }
             }
         }
 
         real height = 12.0f;
         EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
-        easy_text_drawf(&pen, "%d lines %d arcs", num_lines, num_arcs);
+        easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
         pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
         easy_text_drawf(&pen, "%d triangles", mesh->num_triangles);
     }
