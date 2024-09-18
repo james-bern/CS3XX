@@ -67,6 +67,12 @@
 
 char *startup_script = "";
 
+#if 0 // bug.dxf load
+run_before_main {
+    startup_script = "^.^obug.dxf\n";
+};
+#endif
+
 #if 0 // glorbo
 run_before_main {
     startup_script = "^.^oglorbo.dxf\n"
