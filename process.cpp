@@ -537,7 +537,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (GUIBUTTON(commands.Middle)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Perp)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Quad)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
+                        //if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.XY)) preview->xy_xy = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Zero)) {
                             Event equivalent = {};

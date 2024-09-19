@@ -52,7 +52,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
             if (0
                     || state_Snap_command_is_(Center)
                     || state_Snap_command_is_(Quad)
-                    || state_Snap_command_is_(Tangent)
+                    //|| state_Snap_command_is_(Tangent)
                ) {
                 real min_squared_distance = HUGE_VAL;
                 Entity *temp_entity = NULL;
@@ -175,7 +175,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.mouse_position = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
                         result.snapped = true;
                     }
-                } else if (state_Snap_command_is_(Tangent)) {
+                } /*else if (state_Snap_command_is_(Tangent)) {
                     // TODO TODO TODO
                     vec2 mouse = before;
 
@@ -250,7 +250,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         two_click_command->entity_closest_to_first_click = closest_entity;
                         messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
                     }
-                }
+                }*/
             }
         }
     }

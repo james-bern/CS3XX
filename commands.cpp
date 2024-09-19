@@ -25,7 +25,7 @@
     COMMANDS_INNER(Middle,          'M', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(Perp,            'P', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(Quad,            'Q', 0b000, Snap, 1, 0); \
-    COMMANDS_INNER(Tangent,         'T', 0b000, Snap, 1, 0); \
+    /*COMMANDS_INNER(Tangent,         'T', 0b000, Snap, 1, 0); */\
     COMMANDS_INNER(XY,              'X', 0b000, Snap, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(Zero,            'Z', 0b000, Snap, 0, 0); \
     COMMANDS_INNER(ClearSnap,         0, 0b000, Snap, 0, 0); \
@@ -45,6 +45,7 @@
     COMMANDS_INNER(Measure,         'M', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Mirror2,         'M', 0b011, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Move,            'M', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
+    COMMANDS_INNER(Drag,            'D', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
     COMMANDS_INNER(Offset,          'H', 0b000, Draw, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(OpenDXF,         'O', 0b010, Draw, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(SetOrigin,       'Z', 0b001, Draw, 1, 0 | SNAPPER); \
