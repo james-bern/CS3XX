@@ -970,7 +970,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             if (!tmp) break;
 
                                             cookbook.entity_set_is_selected(&drawing->entities.array[tmp->entity_index], value_to_write_to_selection_mask);
-                                            queue_enqueue(&queue, get_key(get_any_point_not_part_of_an_marked_entity(get_key(tmp, true)), false)); // get other end);
+                                            GridPointSlot *nullCheck = get_any_point_not_part_of_an_marked_entity(get_key(tmp, true));
+                                            if (nullCheck) queue_enqueue(&queue, get_key(nullCheck, false)); // get other end);
                                             edge_marked[tmp->entity_index] = true;
                                         } 
                                     }
