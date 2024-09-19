@@ -10,6 +10,7 @@
 #define _UNSUED_FLAG8 (1 << 8)
 #define _UNSUED_FLAG9 (1 << 9)
 
+
 #define COMMANDS_OUTER \
     COMMANDS_INNER(None, 0, 0, None, 0, 0); \
     COMMANDS_INNER(Escape, GLFW_KEY_ESCAPE, 0b000, Both, 0, 0); \
