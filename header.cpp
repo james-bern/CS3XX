@@ -564,8 +564,6 @@ vec3 Q_pallete[10] = {
     pallete.orange,
     #else
     pallete.light_gray,
-    pallete.gray,
-    pallete.dark_gray,
     pallete.red,
     pallete.orange,
     pallete.yellow,
@@ -573,6 +571,7 @@ vec3 Q_pallete[10] = {
     pallete.blue,
     pallete.purple,
     pallete.brown,
+    pallete.dark_gray,
     #endif
 };
 

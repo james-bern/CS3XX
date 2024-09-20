@@ -479,7 +479,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             uint digit = 0;
                             {
                                 hotkey_quality = false;
-                                for_(color, 10) {
+                                for_(color, 9) {
                                     Command command = commands_Color[color];
                                     if (spoof_is_mode_false) command.is_mode = false;
                                     if (GUIBUTTON(command, hide_buttons)) {

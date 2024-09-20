@@ -52,15 +52,15 @@
 #define Color9 Orange
 #else
 #define Color0 LightGray
-#define Color1 Gray
-#define Color2 DarkGray
-#define Color3 Red
-#define Color4 Orange
-#define Color5 Yellow
-#define Color6 Green
-#define Color7 Blue
-#define Color8 Purple
-#define Color9 Brown
+#define Color1 Red
+#define Color2 Orange
+#define Color3 Yellow
+#define Color4 Green
+#define Color5 Blue
+#define Color6 Purple
+#define Color7 Brown
+#define Color8 DarkGray
+#define Color9 XXX
 #endif
 
 #include "playground.cpp"
