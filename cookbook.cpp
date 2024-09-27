@@ -152,39 +152,55 @@ struct Cookbook {
     };
 
     // DOES NOT EXTEND Line
-    void divide_entity_at_point(uint entity_index, vec2 point) {
+    void attempt_divide_entity_at_point(uint entity_index, vec2 point) {
         Entity *entity = &drawing->entities.array[entity_index];
         bool delete_flag = false;
         if (entity->type == EntityType::Line) {
-            LineEntity line = entity->line;
-            // messagef(pallete.orange, "%f", distance(point, line.start) - distance(point, line.
-            bool point_is_on_line = 0.001 > ABS(distance(point, line.start) + distance(point, line.end) - distance(line.start, line.end)); // FORNOW
+            LineEntity *line = &entity->line;
+            bool point_is_on_line = 0.001 > ABS(distance(point, line->start) + distance(point, line->end) - distance(line->start, line->end)); // FORNOW
             if (point_is_on_line) {
-                if (distance(line.start, point) > TINY_VAL) {
-                    buffer_add_line(line.start, point, false, entity->color_code);
+                if (distance(line->start, point) > TINY_VAL) {
+                    buffer_add_line(line->start, point, false, entity->color_code);
                     delete_flag = true;
                 }
-                if (distance(point, line.end) > TINY_VAL) {
-                    buffer_add_line(point, line.end, false, entity->color_code);
+                if (distance(point, line->end) > TINY_VAL) {
+                    buffer_add_line(point, line->end, false, entity->color_code);
                     delete_flag = true;
                 }
             }
         } else if (entity->type == EntityType::Arc) {
-            ArcEntity arc = entity->arc;
-            real angle = DEG(ATAN2(point - arc.center));
-            if (abs(distance(point, arc.center) - arc.radius) < 0.001 && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
-                if (!ARE_EQUAL(arc.start_angle_in_degrees, angle)) {
-                    buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, angle, false, entity->color_code);
+            ArcEntity *arc = &entity->arc;
+            real angle = DEG(ATAN2(point - arc->center));
+            if (abs(distance(point, arc->center) - arc->radius) < 0.001 && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc->start_angle_in_degrees, arc->end_angle_in_degrees)) {
+                if (!ARE_EQUAL(arc->start_angle_in_degrees, angle)) {
+                    buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, angle, false, entity->color_code);
                     delete_flag = true;
                 }
-                if (!ARE_EQUAL(arc.end_angle_in_degrees, angle)) {
-                    buffer_add_arc(arc.center, arc.radius, angle, arc.end_angle_in_degrees, false, entity->color_code);
+                if (!ARE_EQUAL(arc->end_angle_in_degrees, angle)) {
+                    buffer_add_arc(arc->center, arc->radius, angle, arc->end_angle_in_degrees, false, entity->color_code);
                     delete_flag = true;
                 }
 
             }
         } else { ASSERT(entity->type == EntityType::Circle);
-            ASSERT(false);
+            CircleEntity *circle = &entity->circle;
+            if (squared_distance_point_dxf_circle_entity(point, circle) < TINY_VAL) {
+                if (!circle->has_pseudo_point) {
+                    circle->has_pseudo_point = true;
+                    circle->pseudo_point = point;
+                } else {
+                    if (ARE_EQUAL(circle->pseudo_point, point)) {
+                        ;
+                    } else {
+                        delete_flag = true;
+                        real radius = distance(circle->center, point);
+                        real angle1_in_degrees = DEG(ATAN2(circle->pseudo_point - circle->center));
+                        real angle2_in_degrees = DEG(ATAN2(point - circle->center));
+                        buffer_add_arc(circle->center, radius, angle1_in_degrees, angle2_in_degrees, false, entity->color_code);
+                        buffer_add_arc(circle->center, radius, angle2_in_degrees, angle1_in_degrees, false, entity->color_code);
+                    }
+                }
+            }
         }
         if (delete_flag) {
             _buffer_delete_entity_DEPRECATED_INDEX_VERSION(entity_index);

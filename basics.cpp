@@ -77,7 +77,7 @@ template <typename F> bool operator + (run_before_main_dummy, F &&f) { f(); retu
 
 // // math
 // constants
-#define TINY_VAL real(1e-6)
+#define TINY_VAL real(1e-5)
 #undef HUGE_VAL
 #define HUGE_VAL real(1e6)
 #define PI real(3.14159265359)

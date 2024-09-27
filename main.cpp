@@ -67,6 +67,18 @@
 
 char *startup_script = "";
 
+#if 1 // circle
+run_before_main {
+    startup_script =
+        "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
+        "cz16\n"
+        "s<m2d> 0 0>\b"
+        "lq<m2d 8 0>q<m2d 16 0>"
+        // "sc"
+        ;
+};
+#endif
+
 #if 0 // bug.dxf load
 run_before_main {
     startup_script = "^.^obug.dxf\n";
@@ -305,7 +317,6 @@ int main() {
     }
 
 
-    messagef(pallete.red, "TODO: CIRCLE type entity");
     messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
     messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
     messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
@@ -315,6 +326,9 @@ int main() {
     // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
     // messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
     messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
+    messagef(pallete.yellow, "TODO: CIRCLE type entity");
+    messagef(pallete.yellow, "TODO: - Select Connected");
+    messagef(pallete.yellow, "TODO: - TwoClickDivide");
 
 
 

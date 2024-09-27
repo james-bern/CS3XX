@@ -783,6 +783,17 @@ void entities_debug_draw(Camera *camera_drawing, List<Entity> *entities) {
 }
 
 bbox2 entity_get_bbox(Entity *entity) {
+    // special case
+    if (entity->type == EntityType::Circle) {
+        CircleEntity *circle = &entity->circle;
+        return
+        {
+            circle->center - V2(circle->radius),
+                circle->center + V2(circle->radius)
+        };
+    }
+
+
     bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     vec2 s[2];
     uint n = 2;
@@ -1433,7 +1444,7 @@ Mesh wrapper_manifold(
 
         ManifoldPolygons *polygons = manifold_cross_section_to_polygons(malloc(manifold_polygons_size()), cross_section);
 
-        
+
 
         { // manifold_B
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {

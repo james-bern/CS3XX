@@ -537,7 +537,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (GUIBUTTON(commands.Middle)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Perp)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Quad)) preview->mouse_snap = preview->mouse; // FORNOW
-                        //if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
+                                                                                            //if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.XY)) preview->xy_xy = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Zero)) {
                             Event equivalent = {};
@@ -816,7 +816,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         || (state_Draw_command_is_(DiamCircle)))) {
                 ASSERT(snap_result.entity_index_snapped_to >= 0);
                 ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
-                cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
+                cookbook.attempt_divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
                 other.snap_divide_dot = *mouse;
                 other.size_snap_divide_dot = 7.0f;
             }
@@ -896,9 +896,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                 vec2 start;
                                 vec2 end;
-                                entity_get_start_and_end_points(entity, &start, &end);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
+                                bool poosh = false;
+                                if (entity->type == EntityType::Circle) {
+                                    CircleEntity *circle = &entity->circle;
+                                    if (circle->has_pseudo_point) {
+                                        poosh = true;
+                                        start = end = circle->pseudo_point;
+                                    }
+                                } else {
+                                    poosh = true;
+                                    entity_get_start_and_end_points(entity, &start, &end);
+                                }
+                                if (poosh) {
+                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
+                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
+                                }
                             }
                         }
 
@@ -917,10 +929,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             vec2 p; {
                                 Entity *entity = &drawing->entities.array[point->entity_index];
-                                if (end_NOT_start) {
-                                    p = entity_get_end_point(entity);
+                                if (entity->type == EntityType::Circle) {
+                                    CircleEntity *circle = &entity->circle;
+                                    ASSERT(circle->has_pseudo_point);
+                                    p = circle->pseudo_point;
                                 } else {
-                                    p = entity_get_start_point(entity);
+                                    if (end_NOT_start) {
+                                        p = entity_get_end_point(entity);
+                                    } else {
+                                        p = entity_get_start_point(entity);
+                                    }
                                 }
                             }
                             return make_key(p);
@@ -946,39 +964,53 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         edge_marked[hot_entity_index] = true;
                         cookbook.entity_set_is_selected(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
 
-                        for_(pass, 2) {
-                            vec2 seed; {
-                                vec2 p;
-                                if (pass == 0) {
-                                    p = entity_get_start_point(&drawing->entities.array[hot_entity_index]);
-                                } else {
-                                    p = entity_get_end_point(&drawing->entities.array[hot_entity_index]);
+                        Entity *entity = &drawing->entities.array[hot_entity_index]; // FORNOW: this is a scary name to give (just doing it out of laziness atm Jim Sep 27 2024)
+
+                        // this should be moved earlier in the code especially once this crap is turned into a function/its own file
+                        bool special_case_circle_no_pseudo_point = ((entity->type == EntityType::Circle) && (!entity->circle.has_pseudo_point));
+                        if (special_case_circle_no_pseudo_point) {
+                            entity->is_selected = value_to_write_to_selection_mask;
+                        } else {
+                            for_(pass, 2) {
+                                vec2 seed; {
+                                    vec2 p;
+                                    if (entity->type == EntityType::Circle) {
+                                        CircleEntity *circle = &entity->circle;
+                                        ASSERT(circle->has_pseudo_point);
+                                        p = circle->pseudo_point;
+                                    } else {
+                                        if (pass == 0) {
+                                            p = entity_get_start_point(entity);
+                                        } else {
+                                            p = entity_get_end_point(entity);
+                                        }
+                                    }
+                                    seed = make_key(p);
                                 }
-                                seed = make_key(p);
-                            }
 
-                            Queue<vec2> queue = {};
-                            queue_enqueue(&queue, seed);
+                                Queue<vec2> queue = {};
+                                queue_enqueue(&queue, seed);
 
-                            while (queue.length) {
-                                seed = queue_dequeue(&queue);
-                                for (int dx = -1; dx <= 1; ++dx) {
-                                    for (int dy = -1; dy <= 1; ++dy) {
-                                        while (1) {
-                                            GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(seed, dx, dy));
+                                while (queue.length) {
+                                    seed = queue_dequeue(&queue);
+                                    for (int dx = -1; dx <= 1; ++dx) {
+                                        for (int dy = -1; dy <= 1; ++dy) {
+                                            while (1) {
+                                                GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(seed, dx, dy));
 
-                                            if (!tmp) break;
+                                                if (!tmp) break;
 
-                                            cookbook.entity_set_is_selected(&drawing->entities.array[tmp->entity_index], value_to_write_to_selection_mask);
-                                            GridPointSlot *nullCheck = get_any_point_not_part_of_an_marked_entity(get_key(tmp, true));
-                                            if (nullCheck) queue_enqueue(&queue, get_key(nullCheck, false)); // get other end);
-                                            edge_marked[tmp->entity_index] = true;
-                                        } 
+                                                cookbook.entity_set_is_selected(&drawing->entities.array[tmp->entity_index], value_to_write_to_selection_mask);
+                                                GridPointSlot *nullCheck = get_any_point_not_part_of_an_marked_entity(get_key(tmp, true));
+                                                if (nullCheck) queue_enqueue(&queue, get_key(nullCheck, false)); // get other end);
+                                                edge_marked[tmp->entity_index] = true;
+                                            } 
+                                        }
                                     }
                                 }
-                            }
 
-                            queue_free_AND_zero(&queue);
+                                queue_free_AND_zero(&queue);
+                            }
                         }
 
 
@@ -1123,7 +1155,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Snap_command(None);
                                 real r = length_click_vector;
 
-                                #if 1
+                                #if 0
                                 real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 cookbook.buffer_add_arc(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
@@ -1230,8 +1262,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         if (!cut_arc_a && !cut_arc_b) {
                                             messagef(pallete.orange, "TwoClickDivide: no intersection found");
                                         }
-                                    } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
-                                             //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
+                                    } else { ASSERT((closest_entity_one->type == EntityType::Line) && (closest_entity_two->type == EntityType::Arc)); // kinda nasty but only way 
+                                                                                                                                                      //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
                                         Entity *entity_arc;
                                         Entity *entity_line;
                                         if (closest_entity_one->type == EntityType::Arc) {
@@ -1378,11 +1410,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             LineEntity *line = &new_entity.line;
                                             line->start = rotated_about(line->start, first_click, theta_rad);
                                             line->end = rotated_about(line->end, first_click, theta_rad);
-                                        } else { ASSERT(entity->type == EntityType::Arc);
+                                        } else if (entity->type == EntityType::Arc) {
                                             ArcEntity *arc = &new_entity.arc;
                                             arc->center = rotated_about(arc->center, first_click, theta_rad);
                                             arc->start_angle_in_degrees = theta_deg + arc->start_angle_in_degrees;
                                             arc->end_angle_in_degrees = theta_deg + arc->end_angle_in_degrees;
+                                        } else { ASSERT(entity->type == EntityType::Circle);
+                                            CircleEntity *circle = &new_entity.circle;
+                                            circle->center = rotated_about(circle->center, first_click, theta_rad);
                                         }
                                         cookbook._buffer_add_entity(new_entity);
                                         oldEntity = new_entity;
@@ -1398,9 +1433,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     LineEntity *line = &entity->line;
                                     line->start += click_vector;
                                     line->end   += click_vector;
-                                } else { ASSERT(entity->type == EntityType::Arc);
+                                } else if (entity->type == EntityType::Arc) {
                                     ArcEntity *arc = &entity->arc;
                                     arc->center += click_vector;
+                                } else { ASSERT(entity->type == EntityType::Circle);
+                                    CircleEntity *circle = &entity->circle;
+                                    circle->center += click_vector;
                                 }
                             }
                         } else if (state_Draw_command_is_(Copy)) {
@@ -1620,7 +1658,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     vec2 dir = *mouse - closest_results.line_nearest_point; // is there an easier way to find offset??
                                     vec2 offset = (input_offset * (dir/norm(dir)));
                                     cookbook.buffer_add_line(line->start + offset, line->end + offset, entity->is_selected, entity->color_code);
-                                } else { ASSERT(entity->type == EntityType::Arc);
+                                } else if (entity->type == EntityType::Arc) {
                                     ArcEntity *arc = &entity->arc;
                                     bool in_circle = distance(arc->center, *mouse) < arc->radius;
                                     bool in_sector = false;
@@ -1641,6 +1679,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         radius = arc->radius - input_offset;
                                     } 
                                     cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, entity->is_selected, entity->color_code); 
+                                } else { ASSERT(entity->type == EntityType::Circle);
+                                    CircleEntity *circle = &entity->circle;
+                                    bool in_circle = distance(circle->center, *mouse) < circle->radius;
+                                    int sign = (!in_circle) ? 1 : -1;
+                                    cookbook.buffer_add_circle(circle->center, circle->radius + sign * input_offset, entity->is_selected, entity->color_code);
                                 }
                             }
                         }
