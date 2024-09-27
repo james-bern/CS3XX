@@ -1606,13 +1606,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == EntityType::Arc);
+                            } else if (entity->type == EntityType::Arc) {
                                 ArcEntity *arc = &entity->arc;
                                 cookbook.buffer_add_arc(
                                         V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
                                         arc->radius,
                                         180 - arc->end_angle_in_degrees,
                                         180 - arc->start_angle_in_degrees,
+                                        true,
+                                        entity->color_code);
+                            } else { ASSERT(entity->type == EntityType::Circle);
+                                CircleEntity *circle = &entity->circle;
+                                cookbook.buffer_add_circle(
+                                        V2(-(circle->center.x - mouse->x) + mouse->x, circle->center.y),
+                                        circle->radius,
                                         true,
                                         entity->color_code);
                             }
@@ -1631,13 +1638,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == EntityType::Arc);
+                            } else if (entity->type == EntityType::Arc) {
                                 ArcEntity *arc = &entity->arc;
                                 cookbook.buffer_add_arc(
                                         V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
                                         arc->radius,
                                         -arc->end_angle_in_degrees,
                                         -arc->start_angle_in_degrees,
+                                        true,
+                                        entity->color_code);
+                            } else { ASSERT(entity->type == EntityType::Circle);
+                                CircleEntity *circle = &entity->circle;
+                                cookbook.buffer_add_circle(
+                                        V2(circle->center.x, -(circle->center.y - mouse->y) + mouse->y),
+                                        circle->radius,
                                         true,
                                         entity->color_code);
                             }

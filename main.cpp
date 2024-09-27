@@ -70,11 +70,12 @@ char *startup_script = "";
 #if 1 // circle
 run_before_main {
     startup_script =
-        "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
-        "cz16\n"
-        "s<m2d> 0 0>\b"
-        "lq<m2d 8 0>q<m2d 16 0>"
+        // "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
+        // "cz16\n"
+        // "s<m2d> 0 0>\b"
+        // "lq<m2d 8 0>q<m2d 16 0>"
         // "sc"
+        "^odemo.dxf\nsq1[5y"
         ;
 };
 #endif

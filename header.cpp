@@ -973,11 +973,15 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *en
                     }
                     if (!added_and_seeded_new_loop) break;
                 }
-                { // continue and complete
+
+                DXFEntityIndexAndFlipFlag *FORNOW_seed = &stretchy_list.array[stretchy_list.length - 1].array[stretchy_list.array[stretchy_list.length - 1].length - 1];
+
+                if (entities->array[FORNOW_seed->entity_index].type != EntityType::Circle) { // continue and complete
                     real tolerance = TOLERANCE_DEFAULT;
                     while (true) {
                         bool added_new_entity_to_loop = false;
                         for_(entity_index, entities->length) {
+                            if (entities->array[entity_index].type == EntityType::Circle) continue;
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
                             vec2 start_prev;
                             vec2 end_prev;
@@ -1016,55 +1020,55 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *en
                         }
                         if (!added_new_entity_to_loop) break;
                     }
-                }
 
-                { // reverse_loop if necessary
-                    uint num_entities_in_loop = stretchy_list.array[stretchy_list.length - 1].length;
-                    DXFEntityIndexAndFlipFlag *loop = stretchy_list.array[stretchy_list.length - 1].array;
-                    bool reverse_loop; {
-                        #if 0
-                        reverse_loop = false;
-                        #else
-                        real twice_the_signed_area; {
-                            twice_the_signed_area = 0.0f;
-                            for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
-                                uint entity_index = entity_index_and_flip_flag->entity_index;
-                                bool flip_flag = entity_index_and_flip_flag->flip_flag;
-                                Entity *entity = &entities->array[entity_index];
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    // shoelace-type formula
-                                    twice_the_signed_area += ((flip_flag) ? -1 : 1) * (line->start.x * line->end.y - line->end.x * line->start.y);
-                                } else {
-                                    ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc = &entity->arc;
-                                    // "Circular approximation using polygons"
-                                    // - n = 2 (area-preserving approximation of arc with two segments)
-                                    real start_angle, end_angle;
-                                    arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
-                                    vec2 start = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, start_angle);
-                                    vec2 end = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, end_angle);
-                                    real mid_angle = (start_angle + end_angle) / 2;
-                                    real d; {
-                                        real alpha = ABS(start_angle - end_angle) / 2;
-                                        d = arc->radius * alpha / SIN(alpha);
+                    { // reverse_loop if necessary
+                        uint num_entities_in_loop = stretchy_list.array[stretchy_list.length - 1].length;
+                        DXFEntityIndexAndFlipFlag *loop = stretchy_list.array[stretchy_list.length - 1].array;
+                        bool reverse_loop; {
+                            #if 0
+                            reverse_loop = false;
+                            #else
+                            real twice_the_signed_area; {
+                                twice_the_signed_area = 0.0f;
+                                for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
+                                    uint entity_index = entity_index_and_flip_flag->entity_index;
+                                    bool flip_flag = entity_index_and_flip_flag->flip_flag;
+                                    Entity *entity = &entities->array[entity_index];
+                                    if (entity->type == EntityType::Line) {
+                                        LineEntity *line = &entity->line;
+                                        // shoelace-type formula
+                                        twice_the_signed_area += ((flip_flag) ? -1 : 1) * (line->start.x * line->end.y - line->end.x * line->start.y);
+                                    } else {
+                                        ASSERT(entity->type == EntityType::Arc);
+                                        ArcEntity *arc = &entity->arc;
+                                        // "Circular approximation using polygons"
+                                        // - n = 2 (area-preserving approximation of arc with two segments)
+                                        real start_angle, end_angle;
+                                        arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
+                                        vec2 start = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, start_angle);
+                                        vec2 end = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, end_angle);
+                                        real mid_angle = (start_angle + end_angle) / 2;
+                                        real d; {
+                                            real alpha = ABS(start_angle - end_angle) / 2;
+                                            d = arc->radius * alpha / SIN(alpha);
+                                        }
+                                        vec2 mid = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, d, mid_angle);
+                                        twice_the_signed_area += mid.x * (end.y - start.y) + mid.y * (start.x - end.x); // TODO cross(...)
                                     }
-                                    vec2 mid = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, d, mid_angle);
-                                    twice_the_signed_area += mid.x * (end.y - start.y) + mid.y * (start.x - end.x); // TODO cross(...)
                                 }
                             }
+                            reverse_loop = (twice_the_signed_area < 0.0f);
+                            #endif
                         }
-                        reverse_loop = (twice_the_signed_area < 0.0f);
-                        #endif
-                    }
-                    if (reverse_loop) {
-                        for (uint i = 0, j = (num_entities_in_loop - 1); i < j; ++i, --j) {
-                            DXFEntityIndexAndFlipFlag tmp = loop[i];
-                            loop[i] = loop[j];
-                            loop[j] = tmp;
-                        }
-                        for_(i, num_entities_in_loop) {
-                            loop[i].flip_flag = !loop[i].flip_flag;
+                        if (reverse_loop) {
+                            for (uint i = 0, j = (num_entities_in_loop - 1); i < j; ++i, --j) {
+                                DXFEntityIndexAndFlipFlag tmp = loop[i];
+                                loop[i] = loop[j];
+                                loop[j] = tmp;
+                            }
+                            for_(i, num_entities_in_loop) {
+                                loop[i].flip_flag = !loop[i].flip_flag;
+                            }
                         }
                     }
                 }
@@ -1172,8 +1176,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                     } else {
                         list_push_back(&stretchy_list.array[stretchy_list.length - 1], { line->end.x, line->end.y });
                     }
-                } else {
-                    ASSERT(entity->type == EntityType::Arc);
+                } else if (entity->type == EntityType::Arc) {
                     ArcEntity *arc = &entity->arc;
                     real start_angle, end_angle;
                     arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
@@ -1186,6 +1189,14 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                         p = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle);
                         list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
                         current_angle += increment;
+                    }
+                } else { ASSERT(entity->type == EntityType::Circle);
+                    CircleEntity *circle = &entity->circle;
+                    uint num_segments = NUM_SEGMENTS_PER_CIRCLE;
+                    for_(i, num_segments) {
+                        real angle = real(i) / num_segments * TAU;
+                        vec2 p = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
+                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
                     }
                 }
             }
