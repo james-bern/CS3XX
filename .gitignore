@@ -24,3 +24,4 @@ jim/*
 executable
 manifold.lib
 demo.txt
+.vscode/*
