@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        ".fantomasignore": "ignore",
+        "__node_handle": "cpp",
+        "complex": "cpp"
+    }
+}
