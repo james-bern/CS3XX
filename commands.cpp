@@ -35,7 +35,7 @@
     COMMANDS_INNER(Box,             'B', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(SetColor,        'Q', 0b000, Draw, 1, 0); \
     COMMANDS_INNER(CenterBox,       'B', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
-    COMMANDS_INNER(CenterLine,      'L', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
+    COMMANDS_INNER(CenterLine,      'L', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Circle,          'C', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Copy,            'O', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
     COMMANDS_INNER(Deselect,        'D', 0b000, Draw, 1, 0); \
@@ -78,6 +78,9 @@
     COMMANDS_INNER(SaveSTL,         'S', 0b011, Mesh, 1, 0 | FOCUS_THIEF | NO_RECORD); \
     COMMANDS_INNER(ClearMesh,       'N', 0b011, Mesh, 0, 0); \
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
+    COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
+    \
+    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK); \
     \
     \
     COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \

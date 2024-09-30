@@ -345,6 +345,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         ASSERT(is_mode);
                         two_click_command->awaiting_second_click = false;
                         two_click_command->tangent_first_click = false;
+
+                        mesh_two_click_command->awaiting_second_click = false;
                     }
                     if (flags & FOCUS_THIEF) {
                         popup->manager.manually_set_focus_group(group);
@@ -684,6 +686,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     if (GUIBUTTON(commands.ZoomMesh)) {
                         init_camera_mesh();
+                    }
+                    if (GUIBUTTON(commands.ZoomPlane)) {
+                        init_camera_mesh();
+                        real x = feature_plane->normal.x;
+                        real y = feature_plane->normal.y;
+                        real z = feature_plane->normal.z;
+                        camera_mesh->euler_angles.y = ATAN2({z, x});
+                        camera_mesh->euler_angles.x = -ATAN2({norm(V2(z, x)), y});
+                    }
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.Measure3D)) {
+
                     }
                     SEPERATOR();
                     SEPERATOR();
@@ -1688,11 +1702,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     other.time_since_plane_selected = 0.0f;
                     {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];
-                        { // feature_plane->signed_distance_to_world_origin
-                            vec3 a_selected = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
-                            feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, a_selected);
-                        }
+                        vec3 triangle_intersection = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
+                        feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, triangle_intersection);
+                
+                        if (state.Mesh_command.flags & TWO_CLICK) {
+                            if (!mesh_two_click_command->awaiting_second_click) {
+                                mesh_two_click_command->first_click = triangle_intersection;
+                                mesh_two_click_command->triangle_index_for_first_click = index_of_first_triangle_hit_by_ray;
+                                mesh_two_click_command->awaiting_second_click = true;
+                            } else {
+                                vec3 first_click = mesh_two_click_command->first_click;
+                                vec3 second_click = triangle_intersection;
 
+                                messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
+                                if (0) {
+                                } else if (state_Mesh_command_is_(Measure3D)) {
+                                    set_state_Mesh_command(None);
+                                }
+                            }
+                        }
                     }
                 }
             }
