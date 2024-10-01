@@ -345,6 +345,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         ASSERT(is_mode);
                         two_click_command->awaiting_second_click = false;
                         two_click_command->tangent_first_click = false;
+
+                        mesh_two_click_command->awaiting_second_click = false;
                     }
                     if (flags & FOCUS_THIEF) {
                         popup->manager.manually_set_focus_group(group);
@@ -580,10 +582,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Circle);
                     GUIBUTTON(commands.Box);
                     if (GUIBUTTON(commands.Polygon)) preview->polygon_num_sides = popup->polygon_num_sides;
-                    SEPERATOR();
-                    // GUIBUTTON(commands.DiamCircle);
-                    // GUIBUTTON(commands.CenterBox);
                     // SEPERATOR();
+                    // GUIBUTTON(commands.DiamCircle);
+                    GUIBUTTON(commands.CenterLine);
+                    GUIBUTTON(commands.CenterBox);
+                    SEPERATOR();
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
                     GUIBUTTON(commands.Move);
@@ -684,6 +687,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     if (GUIBUTTON(commands.ZoomMesh)) {
                         init_camera_mesh();
+                    }
+                    if (GUIBUTTON(commands.ZoomPlane)) {
+                        init_camera_mesh();
+                        real x = feature_plane->normal.x;
+                        real y = feature_plane->normal.y;
+                        real z = feature_plane->normal.z;
+                        camera_mesh->euler_angles.y = ATAN2({z, x});
+                        camera_mesh->euler_angles.x = -ATAN2({norm(V2(z, x)), y});
+                    }
+                    SEPERATOR();
+                    if (GUIBUTTON(commands.Measure3D)) {
+
                     }
                     SEPERATOR();
                     SEPERATOR();
@@ -811,6 +826,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (snap_result.snapped && ( 
                         (state_Draw_command_is_(Box))
                         || (state_Draw_command_is_(CenterBox))
+                        || (state_Draw_command_is_(CenterLine))
                         || (state_Draw_command_is_(Circle))
                         || (state_Draw_command_is_(Line))
                         || (state_Draw_command_is_(Polygon))
@@ -1087,6 +1103,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(V2(one_corner.x, other_y),  V2(other_x, other_y));
                                 cookbook.buffer_add_line(V2(other_x, other_y), V2(other_x, one_corner.y));
                                 cookbook.buffer_add_line(V2(other_x, one_corner.y), one_corner);
+                            }
+                        } else if (state_Draw_command_is_(CenterLine)) {
+                            if (clicks_are_same) {
+                                messagef(pallete.orange, "Line: must have non-zero length");
+                            } else {
+                                result.checkpoint_me = true;
+                                set_state_Draw_command(None);
+                                set_state_Snap_command(None);
+                                vec2 mirrored_click = first_click + (first_click - second_click);
+                                cookbook.buffer_add_line(mirrored_click, second_click);
                             }
                         } else if (state_Draw_command_is_(Fillet)) {
                             result.checkpoint_me = true;
@@ -1899,11 +1925,25 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     other.time_since_plane_selected = 0.0f;
                     {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];
-                        { // feature_plane->signed_distance_to_world_origin
-                            vec3 a_selected = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
-                            feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, a_selected);
-                        }
+                        vec3 triangle_intersection = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
+                        feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, triangle_intersection);
+                
+                        if (state.Mesh_command.flags & TWO_CLICK) {
+                            if (!mesh_two_click_command->awaiting_second_click) {
+                                mesh_two_click_command->first_click = triangle_intersection;
+                                mesh_two_click_command->triangle_index_for_first_click = index_of_first_triangle_hit_by_ray;
+                                mesh_two_click_command->awaiting_second_click = true;
+                            } else {
+                                vec3 first_click = mesh_two_click_command->first_click;
+                                vec3 second_click = triangle_intersection;
 
+                                messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
+                                if (0) {
+                                } else if (state_Mesh_command_is_(Measure3D)) {
+                                    set_state_Mesh_command(None);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1983,6 +2023,32 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (state_Draw_command_is_(DiamCircle)) {
                     ;
                 } else if (state_Draw_command_is_(Line)) {
+                    if (two_click_command->awaiting_second_click) {
+                        real prev_line_length = popup->line_length;
+                        real prev_line_angle  = popup->line_angle;
+                        real prev_line_run    = popup->line_run;
+                        real prev_line_rise   = popup->line_rise;
+                        POPUP(state.Draw_command,
+                                true,
+                                CellType::Real, STRING("run (dx)"),    &popup->line_run,
+                                CellType::Real, STRING("rise (dy)"),   &popup->line_rise,
+                                CellType::Real, STRING("length"), &popup->line_length,
+                                CellType::Real, STRING("angle"),  &popup->line_angle
+                             );
+                        if (gui_key_enter(ToolboxGroup::Draw)) {
+                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
+                        } else {
+                            if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
+                                popup->line_run  = popup->line_length * COS(RAD(popup->line_angle));
+                                popup->line_rise = popup->line_length * SIN(RAD(popup->line_angle));
+                            } else if ((prev_line_run != popup->line_run) || (prev_line_rise != popup->line_rise)) {
+                                popup->line_length = SQRT(popup->line_run * popup->line_run + popup->line_rise * popup->line_rise);
+                                popup->line_angle = DEG(ATAN2(popup->line_rise, popup->line_run));
+                            }
+                        }
+                    }
+                } else if (state_Draw_command_is_(CenterLine)) {
+                    // Copied from Line
                     if (two_click_command->awaiting_second_click) {
                         real prev_line_length = popup->line_length;
                         real prev_line_angle  = popup->line_angle;
