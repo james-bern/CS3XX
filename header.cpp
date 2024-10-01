@@ -375,6 +375,11 @@ struct PopupState {
     real line_angle;
     real line_run;
     real line_rise;
+    real drag_length;
+    real drag_angle;
+    real drag_run;
+    uint drag_extend_line; // TODO: THIS SHOULD BE BOOL
+    real drag_rise;
     real move_length;
     real move_angle;
     real move_run;
