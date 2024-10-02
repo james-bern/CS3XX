@@ -34,13 +34,15 @@ struct Cookbook {
         return entity;
     };
 
-    Entity _make_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+    Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, vec2 pseudo_point, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
         Entity entity = {};
         entity.type = EntityType::Circle;
         entity.preview_color = get_color(ColorCode::Emphasis);
         CircleEntity *circle = &entity.circle;
         circle->center = center;
         circle->radius = radius;
+        circle->has_pseudo_point = has_pseudo_point;
+        circle->pseudo_point = pseudo_point;
         entity.is_selected = is_selected;
         entity.color_code = color_code;
         return entity;
@@ -61,8 +63,8 @@ struct Cookbook {
         _add_entity(entity);
     };
 
-    void _add_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, is_selected, color_code);
+    void _add_circle(vec2 center, real radius, bool has_pseudo_point, vec2 pseudo_point, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point, is_selected, color_code);
         _add_entity(entity);
     };
 
@@ -80,8 +82,8 @@ struct Cookbook {
         _buffer_add_entity(entity);
     };
 
-    void buffer_add_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, is_selected, color_code);
+    void buffer_add_circle(vec2 center, real radius, bool has_pseudo_point, vec2 pseudo_point, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point, is_selected, color_code);
         _buffer_add_entity(entity);
     };
 
