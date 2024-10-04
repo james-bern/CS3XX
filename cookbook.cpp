@@ -34,7 +34,7 @@ struct Cookbook {
         return entity;
     };
 
-    Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, vec2 pseudo_point, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+    Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
         Entity entity = {};
         entity.type = EntityType::Circle;
         entity.preview_color = get_color(ColorCode::Emphasis);
@@ -42,7 +42,7 @@ struct Cookbook {
         circle->center = center;
         circle->radius = radius;
         circle->has_pseudo_point = has_pseudo_point;
-        circle->pseudo_point = pseudo_point;
+        circle->pseudo_point_angle = pseudo_point_angle;
         entity.is_selected = is_selected;
         entity.color_code = color_code;
         return entity;
@@ -63,8 +63,8 @@ struct Cookbook {
         _add_entity(entity);
     };
 
-    void _add_circle(vec2 center, real radius, bool has_pseudo_point, vec2 pseudo_point, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point, is_selected, color_code);
+    void _add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle, is_selected, color_code);
         _add_entity(entity);
     };
 
@@ -82,8 +82,8 @@ struct Cookbook {
         _buffer_add_entity(entity);
     };
 
-    void buffer_add_circle(vec2 center, real radius, bool has_pseudo_point, vec2 pseudo_point, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point, is_selected, color_code);
+    void buffer_add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle, is_selected, color_code);
         _buffer_add_entity(entity);
     };
 
@@ -189,14 +189,14 @@ struct Cookbook {
             if (squared_distance_point_dxf_circle_entity(point, circle) < TINY_VAL) {
                 if (!circle->has_pseudo_point) {
                     circle->has_pseudo_point = true;
-                    circle->pseudo_point = point;
+                    circle->set_pseudo_point(point);
                 } else {
-                    if (ARE_EQUAL(circle->pseudo_point, point)) {
+                    if (ARE_EQUAL(circle->get_pseudo_point(), point)) {
                         ;
                     } else {
                         delete_flag = true;
                         real radius = distance(circle->center, point);
-                        real angle1_in_degrees = DEG(ATAN2(circle->pseudo_point - circle->center));
+                        real angle1_in_degrees = DEG(circle->pseudo_point_angle);
                         real angle2_in_degrees = DEG(ATAN2(point - circle->center));
                         buffer_add_arc(circle->center, radius, angle1_in_degrees, angle2_in_degrees, false, entity->color_code);
                         buffer_add_arc(circle->center, radius, angle2_in_degrees, angle1_in_degrees, false, entity->color_code);

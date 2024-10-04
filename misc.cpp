@@ -130,7 +130,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         if (entity->type == EntityType::Circle) {
                             CircleEntity *circle = &entity->circle;
                             if (circle->has_pseudo_point) {
-                                p[count++] = circle->pseudo_point;
+                                p[count++] = circle->get_pseudo_point();
                             }
                         } else {
                             entity_get_start_and_end_points(entity, &p[0], &p[1]);

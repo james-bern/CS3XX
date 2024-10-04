@@ -916,7 +916,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     CircleEntity *circle = &entity->circle;
                                     if (circle->has_pseudo_point) {
                                         poosh = true;
-                                        start = end = circle->pseudo_point;
+                                        start = end = circle->get_pseudo_point();
                                     }
                                 } else {
                                     poosh = true;
@@ -947,7 +947,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 if (entity->type == EntityType::Circle) {
                                     CircleEntity *circle = &entity->circle;
                                     ASSERT(circle->has_pseudo_point);
-                                    p = circle->pseudo_point;
+                                    p = circle->get_pseudo_point();
                                 } else {
                                     if (end_NOT_start) {
                                         p = entity_get_end_point(entity);
@@ -992,7 +992,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     if (entity->type == EntityType::Circle) {
                                         CircleEntity *circle = &entity->circle;
                                         ASSERT(circle->has_pseudo_point);
-                                        p = circle->pseudo_point;
+                                        p = circle->get_pseudo_point();
                                     } else {
                                         if (pass == 0) {
                                             p = entity_get_start_point(entity);
@@ -1178,7 +1178,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Snap_command(None);
                                 real r = length_click_vector;
 
-                                #if 1
+                                #if 0
                                 real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 cookbook.buffer_add_arc(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
@@ -1414,7 +1414,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 } else { ASSERT(entity->type == EntityType::Circle);
                                     CircleEntity *circle = &entity->circle;
                                     circle->center = rotated_about(circle->center, first_click, click_theta);
-                                    if (circle->has_pseudo_point) circle->pseudo_point = rotated_about(circle->pseudo_point, first_click, click_theta);
+                                    if (circle->has_pseudo_point) circle->pseudo_point_angle += click_theta;
                                 }
                             }
                         } else if (state_Draw_command_is_(RCopy)) {
@@ -1445,7 +1445,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         } else { ASSERT(entity->type == EntityType::Circle);
                                             CircleEntity *circle = &new_entity.circle;
                                             circle->center = rotated_about(circle->center, first_click, theta_rad);
-                                            circle->pseudo_point = rotated_about(circle->pseudo_point, first_click, theta_rad);
+                                            circle->pseudo_point_angle += theta_rad;
                                         }
                                         cookbook._buffer_add_entity(new_entity);
                                         oldEntity = new_entity;
@@ -1693,7 +1693,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 } else { ASSERT(entity->type == EntityType::Circle);
                                     CircleEntity *circle = &entity->circle;
                                     circle->center += click_vector;
-                                    if (circle->has_pseudo_point) circle->pseudo_point += click_vector;
                                 }
                             }
                         } else if (state_Draw_command_is_(Copy)) {
@@ -1871,14 +1870,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code);
                             } else { ASSERT(entity->type == EntityType::Circle);
-                                CircleEntity *circle = &entity->circle;
-                                cookbook.buffer_add_circle(
-                                        V2(-(circle->center.x - mouse->x) + mouse->x, circle->center.y),
-                                        circle->radius,
-                                        circle->has_pseudo_point,
-                                        (!circle->has_pseudo_point) ? V2(0) : V2(-(circle->pseudo_point.x - mouse->x) + mouse->x, circle->pseudo_point.y),
-                                        true,
-                                        entity->color_code);
+                                // TODO
+                                ;
                             }
                             entity->is_selected = false;
                         }
@@ -1905,14 +1898,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code);
                             } else { ASSERT(entity->type == EntityType::Circle);
-                                CircleEntity *circle = &entity->circle;
-                                cookbook.buffer_add_circle(
-                                        V2(circle->center.x, -(circle->center.y - mouse->y) + mouse->y),
-                                        circle->radius,
-                                        circle->has_pseudo_point,
-                                        (!circle->has_pseudo_point) ? V2(0) : V2(circle->pseudo_point.x, -(circle->pseudo_point.y - mouse->y) + mouse->y),
-                                        true,
-                                        entity->color_code);
+                                // TODO
+                                ;
                             }
                             entity->is_selected = false;
                         }
@@ -1960,7 +1947,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             circle->center,
                                             circle->radius + sign * input_offset,
                                             circle->has_pseudo_point,
-                                            circle->pseudo_point + normalized(circle->pseudo_point - circle->center) * sign * input_offset,
+                                            circle->pseudo_point_angle,
                                             entity->is_selected,
                                             entity->color_code);
                                 }
@@ -2425,7 +2412,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     CircleEntity *circle = &entity->circle;
                                     circle->center = scaled_about(circle->center, bbox_center, popup->scale_factor);
                                     circle->radius *= popup->scale_factor;
-                                    if (circle->has_pseudo_point) circle->pseudo_point = scaled_about(circle->pseudo_point, bbox_center, popup->scale_factor);
                                 }
                             }
                         }

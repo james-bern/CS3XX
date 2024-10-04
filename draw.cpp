@@ -519,7 +519,7 @@ void conversation_draw() {
                             if (entity->is_selected && (rotating || moving)) continue;
                             if (entity->type == EntityType::Circle) {
                                 CircleEntity *circle = &entity->circle;
-                                if (circle->has_pseudo_point) eso_vertex(circle->pseudo_point);
+                                if (circle->has_pseudo_point) eso_vertex(circle->get_pseudo_point());
                                 continue;
                             }
                             eso_vertex(entity_get_start_point(entity));
