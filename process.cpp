@@ -1402,20 +1402,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
                             _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    line->start = rotated_about(line->start, first_click, click_theta);
-                                    line->end = rotated_about(line->end, first_click, click_theta);
-                                } else if (entity->type == EntityType::Arc) {
-                                    ArcEntity *arc = &entity->arc;
-                                    arc->center = rotated_about(arc->center, first_click, click_theta);
-                                    arc->start_angle_in_degrees = DEG(click_theta) + arc->start_angle_in_degrees;
-                                    arc->end_angle_in_degrees = DEG(click_theta) + arc->end_angle_in_degrees;
-                                } else { ASSERT(entity->type == EntityType::Circle);
-                                    CircleEntity *circle = &entity->circle;
-                                    circle->center = rotated_about(circle->center, first_click, click_theta);
-                                    if (circle->has_pseudo_point) circle->pseudo_point_angle += click_theta;
-                                }
+                                *entity = entity_rotated(entity, first_click, click_theta);
                             }
                         } else if (state_Draw_command_is_(RCopy)) {
                             if (popup->rotate_copy_num_total_copies < 2) {
@@ -1425,30 +1412,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
 
-                                real theta_deg = popup->rotate_copy_angle;
-                                if (IS_ZERO(theta_deg)) theta_deg = 180.0f;
-                                real theta_rad = RAD(theta_deg);
+                                real dtheta_deg = popup->rotate_copy_angle;
+                                if (IS_ZERO(dtheta_deg)) dtheta_deg = 180.0f;
+                                real dtheta = RAD(dtheta_deg);
 
                                 _for_each_selected_entity_ {
-                                    Entity oldEntity = *entity;
                                     for_(j, popup->rotate_copy_num_total_copies - 1) {
-                                        Entity new_entity = oldEntity;
-                                        if (entity->type == EntityType::Line) {
-                                            LineEntity *line = &new_entity.line;
-                                            line->start = rotated_about(line->start, first_click, theta_rad);
-                                            line->end = rotated_about(line->end, first_click, theta_rad);
-                                        } else if (entity->type == EntityType::Arc) {
-                                            ArcEntity *arc = &new_entity.arc;
-                                            arc->center = rotated_about(arc->center, first_click, theta_rad);
-                                            arc->start_angle_in_degrees = theta_deg + arc->start_angle_in_degrees;
-                                            arc->end_angle_in_degrees = theta_deg + arc->end_angle_in_degrees;
-                                        } else { ASSERT(entity->type == EntityType::Circle);
-                                            CircleEntity *circle = &new_entity.circle;
-                                            circle->center = rotated_about(circle->center, first_click, theta_rad);
-                                            circle->pseudo_point_angle += theta_rad;
-                                        }
-                                        cookbook._buffer_add_entity(new_entity);
-                                        oldEntity = new_entity;
+                                        real theta = (j + 1) * dtheta;
+
+                                        cookbook._buffer_add_entity(entity_rotated(entity, first_click, theta));
                                     }
                                 }
                             }
@@ -1683,17 +1655,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
                             _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    line->start += click_vector;
-                                    line->end   += click_vector;
-                                } else if (entity->type == EntityType::Arc) {
-                                    ArcEntity *arc = &entity->arc;
-                                    arc->center += click_vector;
-                                } else { ASSERT(entity->type == EntityType::Circle);
-                                    CircleEntity *circle = &entity->circle;
-                                    circle->center += click_vector;
-                                }
+                                *entity = entity_translated(entity, click_vector);
                             }
                         } else if (state_Draw_command_is_(Copy)) {
                             result.checkpoint_me = true;
@@ -1701,23 +1663,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Snap_command(None);
                             uint num_additional_copies = MAX(1U, popup->linear_copy_num_additional_copies);
                             for_(i, num_additional_copies) {
-                                vec2 displacement = real(i + 1) * click_vector;
+                                vec2 translation_vector = real(i + 1) * click_vector;
                                 bool is_selected = (i == num_additional_copies - 1);
                                 _for_each_selected_entity_ {
-                                    Entity new_entity; {
-                                        new_entity = *entity;
-                                        new_entity.is_selected = is_selected;
-                                        new_entity.preview_color = get_color(ColorCode::Emphasis);
-                                        if (entity->type == EntityType::Line) {
-                                            LineEntity *line = &new_entity.line;
-                                            line->start += displacement;
-                                            line->end   += displacement;
-                                        } else { ASSERT(entity->type == EntityType::Arc);
-                                            ArcEntity *arc = &new_entity.arc;
-                                            arc->center += displacement;
-                                        }
-                                    }
-                                    cookbook._buffer_add_entity(new_entity);
+                                    cookbook._buffer_add_entity(entity_translated(entity, translation_vector));
                                 }
                             }
                             _for_each_selected_entity_ entity->is_selected = false;
@@ -1987,7 +1936,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];
                         vec3 triangle_intersection = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, triangle_intersection);
-                
+
                         if (state.Mesh_command.flags & TWO_CLICK) {
                             if (!mesh_two_click_command->awaiting_second_click) {
                                 mesh_two_click_command->first_click = triangle_intersection;

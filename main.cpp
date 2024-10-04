@@ -251,6 +251,7 @@ run_before_main {
 
 #include "manifoldc.h"
 #include "header.cpp"
+#include "header2.cpp"
 
 #define DUMMY_HOTKEY 9999
 
