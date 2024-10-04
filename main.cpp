@@ -76,7 +76,7 @@ run_before_main {
         // "s<m2d> 0 0>\b"
         // "lq<m2d 8 0>q<m2d 16 0>"
         // "sc"
-        // "^odemo.dxf\nsq1[5y"
+        "^odemo.dxf\n"
         ;
 };
 #endif
@@ -333,6 +333,8 @@ int main() {
     messagef(pallete.yellow, "TODO: CIRCLE type entity");
     messagef(pallete.yellow, "TODO: - Select Connected");
     messagef(pallete.yellow, "TODO: - TwoClickDivide");
+    messagef(pallete.green, "Offset broken clicking here *------* ");
+    messagef(pallete.green, "TODO (fun): Offset visualization and tweening");
 
 
 

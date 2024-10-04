@@ -541,7 +541,7 @@ void conversation_draw() {
 
             { // annotations
 
-              // new-style annotations
+                // new-style annotations
                 // FORNOW (this is sloppy and bad)
                 #define ANNOTATION(Name, NAME) \
                 do { \
@@ -583,6 +583,37 @@ void conversation_draw() {
                             if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
                         if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
+                    }
+                }
+
+                { // experimental preview part B
+                    if (state_Draw_command_is_(Offset)) {
+                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse);
+                        if (closest_result.success) {
+                            Entity _closest_entity = *closest_result.closest_entity;
+                            ArcEntity equivalent_arc = {};
+                            // FORNOW
+                            equivalent_arc.center = V2(10);
+                            equivalent_arc.radius = 100;
+                            equivalent_arc.start_angle_in_degrees = 0;
+                            equivalent_arc.end_angle_in_degrees = 180;
+                            if (_closest_entity.type == EntityType::Arc) {
+                                equivalent_arc = _closest_entity.arc;
+                                // TODO: start and end angle based on which is closer (do this later)
+                            }
+
+                            preview->offset_entity.type = EntityType::Arc; // FORNOW: here (TODO instead just store Arc in PreviewState)
+                            ArcEntity *preview_arc = &preview->offset_entity.arc;
+                            JUICEIT_EASYTWEEN(&preview_arc->center, equivalent_arc.center);
+                            JUICEIT_EASYTWEEN(&preview_arc->radius, equivalent_arc.radius);
+                            JUICEIT_EASYTWEEN(&preview_arc->start_angle_in_degrees, equivalent_arc.start_angle_in_degrees);
+                            JUICEIT_EASYTWEEN(&preview_arc->end_angle_in_degrees, equivalent_arc.end_angle_in_degrees);
+
+                            eso_begin(PV_2D, SOUP_LINES);
+                            eso_color(get_color(ColorCode::Emphasis));
+                            eso_entity__SOUP_LINES(&preview->offset_entity);
+                            eso_end();
+                        }
                     }
                 }
 

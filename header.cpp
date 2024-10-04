@@ -468,6 +468,8 @@ struct PreviewState {
     vec2 mouse_snap;
     real polygon_num_sides;
     vec3 color_mouse;
+
+    Entity offset_entity;
 };
 
 struct Cursors {
