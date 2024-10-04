@@ -293,6 +293,12 @@ struct TwoClickCommandState {
     bool tangent_first_click; // first thing that came to mind might be more elegant solution
 };
 
+struct MeshTwoClickCommandState {
+    bool awaiting_second_click;
+    vec3 first_click;
+    int triangle_index_for_first_click;
+};
+
 struct PopupManager {
     char *tags[uint(ToolboxGroup::NUMBER_OF)];
     //
@@ -375,6 +381,11 @@ struct PopupState {
     real line_angle;
     real line_run;
     real line_rise;
+    real drag_length;
+    real drag_angle;
+    real drag_run;
+    uint drag_extend_line; // TODO: THIS SHOULD BE BOOL
+    real drag_rise;
     real move_length;
     real move_angle;
     real move_run;
@@ -414,6 +425,7 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
     Drawing drawing;
     FeaturePlaneState feature_plane;
     TwoClickCommandState two_click_command;
+    MeshTwoClickCommandState mesh_two_click_command;
     PopupState popup;
     ToolboxState toolbox;
 

@@ -265,6 +265,7 @@ Mesh *mesh = &state.mesh;
 PopupState *popup = &state.popup;
 ToolboxState *toolbox = &state.toolbox;
 TwoClickCommandState *two_click_command = &state.two_click_command;
+MeshTwoClickCommandState *mesh_two_click_command = &state.mesh_two_click_command;
 Camera *camera_drawing = &other.camera_drawing;
 Camera *camera_mesh = &other.camera_mesh;
 PreviewState *preview = &other.preview;

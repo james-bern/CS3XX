@@ -16,9 +16,14 @@
 mat4 get_M_3D_from_2D() {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);
-    vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
-    vec3 x = normalized(cross(y, feature_plane->normal));
-    vec3 z = cross(x, y);
+    // OLD VERSION:
+    // vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
+    // vec3 x = normalized(cross(y, feature_plane->normal));
+    // vec3 z = cross(x, y);
+    vec3 down = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f, 0.0f, 1.0f * SGN(dot_product)) : V3(0.0f, -1.0f, 0.0f);
+    vec3 z = feature_plane->normal;
+    vec3 x = normalized(cross(z, down));
+    vec3 y = cross(z, x);
 
     // FORNOW
     if (ARE_EQUAL(ABS(dot_product), 1.0f) && SGN(dot_product) < 0.0f) {
@@ -66,7 +71,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             }
 
             vec3 eye; {
-                mat4 C = inverse(V_3D);
+                mat4 C = inverse(V_3D); // Is this recalculating the inverse for every triangle!?
                 for_(d, 3) eye[d] = C(d, 3);
             }
 
@@ -287,6 +292,14 @@ void conversation_draw() {
             eso_begin(PV_2D, SOUP_LINES);
             eso_color(color);
             eso_vertex(click_1);
+            eso_vertex(click_2);
+            eso_end();
+        };
+
+        auto DRAW_CENTERLINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            eso_begin(PV_2D, SOUP_LINES);
+            eso_color(color);
+            eso_vertex(click_1 + (click_1 - click_2));
             eso_vertex(click_2);
             eso_end();
         };
@@ -541,6 +554,7 @@ void conversation_draw() {
 
                 if (two_click_command->awaiting_second_click) {
                     ANNOTATION(Line, LINE);
+                    ANNOTATION(CenterLine, CENTERLINE);
                     ANNOTATION(Box, BOX);
                     ANNOTATION(Circle, CIRCLE);
                     ANNOTATION(Polygon, POLYGON);
