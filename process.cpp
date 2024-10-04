@@ -1367,6 +1367,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
                             _POPUP_MEASURE_HOOK(length);
                         } else if (state_Draw_command_is_(Mirror2)) {
+
+                            // TODO: entity_mirrored
+
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1666,7 +1669,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 vec2 translation_vector = real(i + 1) * click_vector;
                                 bool is_selected = (i == num_additional_copies - 1);
                                 _for_each_selected_entity_ {
-                                    cookbook._buffer_add_entity(entity_translated(entity, translation_vector));
+                                    Entity new_entity = entity_translated(entity, translation_vector);
+                                    new_entity.is_selected = is_selected;
+                                    cookbook._buffer_add_entity(new_entity);
                                 }
                             }
                             _for_each_selected_entity_ entity->is_selected = false;
@@ -1853,6 +1858,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             entity->is_selected = false;
                         }
                     } else if (state_Draw_command_is_(Offset)) {
+                        // TODO: entity_offseted (and preview drawing)
                         if (IS_ZERO(popup->offset_size)) {
                             messagef(pallete.orange, "Offset: must have non-zero distance");
                         } else {
