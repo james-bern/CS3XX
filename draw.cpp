@@ -9,6 +9,10 @@
 // TODO: 3D-picking is broken for non xyz planes
 // TODO: revisit extruded cut on the botton of box with name (why did the students need to flip their names)
 
+
+
+
+
 mat4 get_M_3D_from_2D() {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);

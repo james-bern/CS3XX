@@ -918,7 +918,7 @@ DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 
                 ArcEntity *arc = &result.closest_entity->arc;
                 result.arc_nearest_angle_in_degrees = DEG(ATAN2(p - arc->center));
             } else { ASSERT(result.closest_entity->type == EntityType::Circle);
-                CircleEntity *circle = &result.closest_entity->circle;
+                // CircleEntity *circle = &result.closest_entity->circle;
                 // result.arc_nearest_angle_in_degrees = DEG(ATAN2(p - circle->center));
             }
         }

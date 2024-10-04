@@ -1155,7 +1155,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Snap_command(None);
                                 real r = length_click_vector;
 
-                                #if 0
+                                #if 1
                                 real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 cookbook.buffer_add_arc(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
@@ -1383,11 +1383,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     LineEntity *line = &entity->line;
                                     line->start = rotated_about(line->start, first_click, click_theta);
                                     line->end = rotated_about(line->end, first_click, click_theta);
-                                } else { ASSERT(entity->type == EntityType::Arc);
+                                } else if (entity->type == EntityType::Arc) {
                                     ArcEntity *arc = &entity->arc;
                                     arc->center = rotated_about(arc->center, first_click, click_theta);
                                     arc->start_angle_in_degrees = DEG(click_theta) + arc->start_angle_in_degrees;
                                     arc->end_angle_in_degrees = DEG(click_theta) + arc->end_angle_in_degrees;
+                                } else { ASSERT(entity->type == EntityType::Circle);
+                                    CircleEntity *circle = &entity->circle;
+                                    circle->center = rotated_about(circle->center, first_click, click_theta);
+                                    if (circle->has_pseudo_point) circle->pseudo_point = rotated_about(circle->pseudo_point, first_click, click_theta);
                                 }
                             }
                         } else if (state_Draw_command_is_(RCopy)) {
@@ -2097,10 +2101,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     LineEntity *line = &entity->line;
                                     line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
                                     line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
-                                } else { ASSERT(entity->type == EntityType::Arc);
+                                } else if (entity->type == EntityType::Arc) {
                                     ArcEntity *arc = &entity->arc;
                                     arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
                                     arc->radius *= popup->scale_factor;
+                                } else { ASSERT(entity->type == EntityType::Circle);
+                                    CircleEntity *circle = &entity->circle;
+                                    circle->center = scaled_about(circle->center, bbox_center, popup->scale_factor);
+                                    circle->radius *= popup->scale_factor;
+                                    if (circle->has_pseudo_point) circle->pseudo_point = scaled_about(circle->pseudo_point, bbox_center, popup->scale_factor);
                                 }
                             }
                         }
