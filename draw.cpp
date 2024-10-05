@@ -597,10 +597,26 @@ void conversation_draw() {
                                 target_middle = entity_get_middle(_closest_entity);
                             } else { ASSERT(_closest_entity->type == EntityType::Circle);
                                 CircleEntity *circle = &_closest_entity->circle;
-                                real angle = (circle->has_pseudo_point) ? circle->pseudo_point_angle : 0.0f;
-                                target_start = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
-                                target_end = target_start;
+                                real angle; {
+                                    // vec2 a = preview->offset_entity_start;
+                                    // vec2 b = preview->offset_entity_middle;
+                                    // vec2 c = preview->offset_entity_end;
+                                    // vec2 p1 = AVG(a, b);
+                                    // vec2 p2 = AVG(b, c);
+                                    // vec2 n1 = normalized(perpendicularTo(b - a));
+                                    // vec2 n2 = normalized(perpendicularTo(c - b));
+                                    // vec2 q;
+                                    // LineLineXResult intersection_result = line_line_intersection(p1, p1 + n1, p2, p2 + n2);
+                                    // if (intersection_result.lines_are_parallel) {
+                                        angle = ATAN2(preview->offset_entity_end - preview->offset_entity_start) - PI / 2; // FORNOW
+                                    // } else {
+                                    //     q = intersection_result.point;
+                                    //     angle = ATAN2(q - b);
+                                    // }
+                                }
+                                target_start = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + TINY_VAL);
                                 target_middle = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI);
+                                target_end = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - TINY_VAL);
                             }
 
                             if (1) { // heuristic (FORNOW: minimize max distance)
@@ -619,8 +635,7 @@ void conversation_draw() {
                             JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
                             JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
 
-                            eso_begin(PV_2D, SOUP_LINE_STRIP);
-                            eso_color(get_color(ColorCode::Emphasis));
+                            eso_begin(PV_2D, SOUP_LINES);
                             { // eso_vertex
                                 Entity dummy = {};
                                 {
@@ -628,7 +643,9 @@ void conversation_draw() {
                                     vec2 b = preview->offset_entity_middle;
                                     vec2 c = preview->offset_entity_end;
                                     if (ARE_EQUAL(a, c)) { // full circle
-                                                           // TODO
+                                        dummy.type = EntityType::Circle;
+                                        dummy.circle.center = AVG(a, b);
+                                        dummy.circle.radius = distance(a, dummy.circle.center);
                                     } else {
                                         vec2 p1 = AVG(a, b);
                                         vec2 p2 = AVG(b, c);
@@ -650,7 +667,13 @@ void conversation_draw() {
                                             }
                                         }
                                     }
+                                    eso_color(monokai.blue);
+                                    eso_vertex(a);
+                                    eso_vertex(b);
+                                    eso_vertex(b);
+                                    eso_vertex(c);
                                 }
+                                eso_color(monokai.purple);
                                 eso_entity__SOUP_LINES(&dummy);
                             }
                             eso_end();
