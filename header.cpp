@@ -469,7 +469,9 @@ struct PreviewState {
     real polygon_num_sides;
     vec3 color_mouse;
 
-    Entity offset_entity;
+    vec2 offset_entity_start;
+    vec2 offset_entity_end;
+    vec2 offset_entity_middle;
 };
 
 struct Cursors {
@@ -1640,7 +1642,7 @@ vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
     real r_cross_s = cross(r, s);
 
     LineLineXResult result = {};
-    result.lines_are_parallel = abs(r_cross_s) < 0.0001;
+    result.lines_are_parallel = ABS(r_cross_s) < 0.0001;
     if (result.lines_are_parallel) {
     } else {
         vec2 q_minus_p = q - p;

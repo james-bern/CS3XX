@@ -590,28 +590,69 @@ void conversation_draw() {
                     if (state_Draw_command_is_(Offset)) {
                         DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse);
                         if (closest_result.success) {
-                            Entity _closest_entity = *closest_result.closest_entity;
-                            ArcEntity equivalent_arc = {};
-                            // FORNOW
-                            equivalent_arc.center = V2(10);
-                            equivalent_arc.radius = 100;
-                            equivalent_arc.start_angle_in_degrees = 0;
-                            equivalent_arc.end_angle_in_degrees = 180;
-                            if (_closest_entity.type == EntityType::Arc) {
-                                equivalent_arc = _closest_entity.arc;
-                                // TODO: start and end angle based on which is closer (do this later)
+                            Entity *_closest_entity = closest_result.closest_entity;
+                            vec2 target_start, target_end, target_middle;
+                            if (_closest_entity->type != EntityType::Circle) {
+                                entity_get_start_and_end_points(_closest_entity, &target_start, &target_end);
+                                target_middle = entity_get_middle(_closest_entity);
+                            } else { ASSERT(_closest_entity->type == EntityType::Circle);
+                                CircleEntity *circle = &_closest_entity->circle;
+                                real angle = (circle->has_pseudo_point) ? circle->pseudo_point_angle : 0.0f;
+                                target_start = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
+                                target_end = target_start;
+                                target_middle = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI);
                             }
 
-                            preview->offset_entity.type = EntityType::Arc; // FORNOW: here (TODO instead just store Arc in PreviewState)
-                            ArcEntity *preview_arc = &preview->offset_entity.arc;
-                            JUICEIT_EASYTWEEN(&preview_arc->center, equivalent_arc.center);
-                            JUICEIT_EASYTWEEN(&preview_arc->radius, equivalent_arc.radius);
-                            JUICEIT_EASYTWEEN(&preview_arc->start_angle_in_degrees, equivalent_arc.start_angle_in_degrees);
-                            JUICEIT_EASYTWEEN(&preview_arc->end_angle_in_degrees, equivalent_arc.end_angle_in_degrees);
+                            if (1) { // heuristic (FORNOW: minimize max distance)
+                                real D2na = squaredDistance(preview->offset_entity_start, target_start);
+                                real D2nb = squaredDistance(preview->offset_entity_end, target_end);
+                                real D2ya = squaredDistance(preview->offset_entity_start, target_end);
+                                real D2yb = squaredDistance(preview->offset_entity_end, target_start);
+                                real max_D2_no_swap = MAX(D2na, D2nb);
+                                real max_D2_yes_swap = MAX(D2ya, D2yb);
+                                if (max_D2_no_swap > max_D2_yes_swap) {
+                                    SWAP(&target_start, &target_end);
+                                }
+                            }
 
-                            eso_begin(PV_2D, SOUP_LINES);
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_start, target_start);
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
+
+                            eso_begin(PV_2D, SOUP_LINE_STRIP);
                             eso_color(get_color(ColorCode::Emphasis));
-                            eso_entity__SOUP_LINES(&preview->offset_entity);
+                            { // eso_vertex
+                                Entity dummy = {};
+                                {
+                                    vec2 a = preview->offset_entity_start;
+                                    vec2 b = preview->offset_entity_middle;
+                                    vec2 c = preview->offset_entity_end;
+                                    if (ARE_EQUAL(a, c)) { // full circle
+                                                           // TODO
+                                    } else {
+                                        vec2 p1 = AVG(a, b);
+                                        vec2 p2 = AVG(b, c);
+                                        vec2 n1 = normalized(perpendicularTo(b - a));
+                                        vec2 n2 = normalized(perpendicularTo(c - b));
+                                        LineLineXResult intersection_result = line_line_intersection(p1, p1 + n1, p2, p2 + n2);
+                                        if (intersection_result.lines_are_parallel) { // Line
+                                            dummy.type = EntityType::Line;
+                                            dummy.line.start = a;
+                                            dummy.line.end   = c;
+                                        } else {
+                                            dummy.type = EntityType::Arc;
+                                            dummy.arc.center = intersection_result.point;;
+                                            dummy.arc.radius = distance(a, dummy.arc.center);
+                                            dummy.arc.start_angle_in_degrees = DEG(ATAN2(c - dummy.arc.center));
+                                            dummy.arc.end_angle_in_degrees   = DEG(ATAN2(a - dummy.arc.center));
+                                            if (intersection_result.t_ab < 0.0) {
+                                                SWAP(&dummy.arc.start_angle_in_degrees, &dummy.arc.end_angle_in_degrees);
+                                            }
+                                        }
+                                    }
+                                }
+                                eso_entity__SOUP_LINES(&dummy);
+                            }
                             eso_end();
                         }
                     }
