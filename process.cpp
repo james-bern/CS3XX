@@ -1484,14 +1484,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                     vec2 start;
                                     vec2 end;
+
+                                    if (entity_length(entity) < 0.05f) continue; // TODO: TODO: VERY SCARY 0 LENGTH ENTITIES 
+                                                                                 //
                                     entity_get_start_and_end_points(entity, &start, &end);
                                     push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
                                     push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
                                 }
                             }
 
-                            bool *edge_marked = (bool *) calloc(drawing->entities.length, sizeof(bool));
-                            bool *to_move = (bool *) calloc(drawing->entities.length, sizeof(bool));
+                            struct EndpointMark {
+                                bool start_marked;
+                                bool end_marked;
+                            };
+                            EndpointMark *endpoint_marks = (EndpointMark *)calloc(drawing->entities.length, sizeof(EndpointMark));
+
+                            char *to_move = (char *) calloc(drawing->entities.length, sizeof(char));
 
                             ////////////////////////////////////////////////////////////////////////////////
                             // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
@@ -1522,7 +1530,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 for_(i, ARRAY_LENGTH(cell->slots)) {
                                     GridPointSlot *slot = &cell->slots[i];
                                     if (!slot->populated) continue;
-                                    if (edge_marked[slot->entity_index]) continue;
+                                    EndpointMark *mark = &endpoint_marks[slot->entity_index];
+                                    if (slot->end_NOT_start) {
+                                        if (mark->end_marked) continue;
+                                    } else {
+                                        if (mark->start_marked) continue;
+                                    }
                                     return slot;
                                 }
                                 return NULL;
@@ -1538,7 +1551,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 int entityToConnectToIndex;
                                 bool connectToStart;
 
-                                int entityToBeMovedIndex; // lowkey kinda ass variable names
+                                int entityToBeMovedIndex;
                                 bool moveStart;
                             } EntEntEndMapping;
 
@@ -1548,10 +1561,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                 int hot_entity_index = entity - drawing->entities.array;
 
-                                // NOTE: we will mark the hot entity, and then shoot off from both its endpoints
-                                if (edge_marked[hot_entity_index]) continue;
-
-                                edge_marked[hot_entity_index] = true;
+                                endpoint_marks[hot_entity_index].start_marked = true;
+                                endpoint_marks[hot_entity_index].end_marked = true;
 
                                 for_(pass, 2) {
                                     vec2 seed; {
@@ -1585,12 +1596,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                     if (ent.type != EntityType::Line) {
                                                         GridPointSlot *nullCheck = get_any_point_not_part_of_an_marked_entity(get_key(tmp, true));
                                                         to_move[tmp->entity_index] = true;
+                                                        endpoint_marks[tmp->entity_index].start_marked = true;
+                                                        endpoint_marks[tmp->entity_index].end_marked = true;
 
                                                         if (nullCheck)  {
                                                             ASSERT(ent.type == EntityType::Arc);
                                                             vec2 startPoint = entity_get_start_point(&ent);
                                                             vec2 endPoint = entity_get_end_point(&ent);
                                                             bool start = distance(startPoint, curPos) < distance(endPoint, curPos);
+
 
                                                             queue_enqueue(&queue, { get_key(nullCheck, false), tmp->entity_index, !start }); // not start because this is the other end that we are adding
                                                         }
@@ -1599,11 +1613,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                         vec2 endPoint = entity_get_end_point(&ent);
                                                         bool start = distance(startPoint, curPos) < distance(endPoint, curPos);
 
+                                                        if (start) {
+                                                            endpoint_marks[tmp->entity_index].start_marked = true;
+                                                        } else {
+                                                            endpoint_marks[tmp->entity_index].end_marked = true;
+                                                        }
+
                                                         queue_enqueue(&movePairs, { curParent.parentIndex, curParent.start, tmp->entity_index, start });
                                                     }
 
 
-                                                    edge_marked[tmp->entity_index] = true;
                                                 } 
                                             }
                                         }
@@ -1613,7 +1632,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
 
-                            _for_each_entity_ { // TODO: dont actually need to go over each but im lazy frfr
+                            _for_each_entity_ { // TODO: dont actually need to go over each but im lazy 
                                 if (to_move[entity - drawing->entities.array] || entity->is_selected) {
                                     if (entity->type == EntityType::Line) {
                                         LineEntity *line = &entity->line;
@@ -1650,7 +1669,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
 
-                            free(edge_marked);
+                            free(endpoint_marks);
                             queue_free_AND_zero(&movePairs);
                             map_free_and_zero(&grid);
                         } else if (state_Draw_command_is_(Move)) {
@@ -2117,11 +2136,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_drag_rise = popup->drag_rise;
                         POPUP(state.Draw_command,
                                 true,
+                                CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
                                 CellType::Real, STRING("run (dx)"), &popup->drag_run,
                                 CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
                                 CellType::Real, STRING("length"), &popup->drag_length,
-                                CellType::Real, STRING("angle"), &popup->drag_angle,
-                                CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line
+                                CellType::Real, STRING("angle"), &popup->drag_angle
                              );
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->drag_run, first_click->y + popup->drag_rise));
