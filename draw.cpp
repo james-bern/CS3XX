@@ -163,7 +163,7 @@ void conversation_draw() {
     }
 
     // preview
-    vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position;
+    vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position; // this isn't really snapped per se (probably a bad name) -- just has the 15 deg stuff and similar
 
     if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
         //messagef(pallete.red, "wowowo");
@@ -460,11 +460,14 @@ void conversation_draw() {
                     }
                 }
             }
+
+            MagicSnapResult true_snap_result = magic_snap(mouse);
+
             {
                 JUICEIT_EASYTWEEN(&preview->popup_second_click, Draw_Enter);
                 JUICEIT_EASYTWEEN(&preview->xy_xy, Snap_Enter);
 
-                JUICEIT_EASYTWEEN(&preview->mouse_snap, magic_snap(mouse).mouse_position, 1.0f);
+                JUICEIT_EASYTWEEN(&preview->mouse_snap, true_snap_result.mouse_position, 1.0f);
 
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
             }
@@ -513,8 +516,8 @@ void conversation_draw() {
                 { // dots snap_divide_dot
                     if (other.show_details) { // dots
                         eso_begin(PV_2D, SOUP_POINTS);
-                        eso_color(pallete.white);
                         eso_size(3.0f);
+                        eso_color(pallete.white);
                         _for_each_entity_ {
                             if (entity->is_selected && (rotating || moving)) continue;
                             if (entity->type == EntityType::Circle) {
@@ -530,7 +533,7 @@ void conversation_draw() {
 
                     { // snap_divide_dot
                         eso_begin(PV_2D, SOUP_POINTS);
-                        eso_color(pallete.white);
+                        eso_color(pallete.light_gray);
                         JUICEIT_EASYTWEEN(&other.size_snap_divide_dot, 0.0f, 0.5f);
                         eso_size(other.size_snap_divide_dot);
                         eso_vertex(other.snap_divide_dot);
@@ -568,6 +571,18 @@ void conversation_draw() {
                     ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                 }
 
+                { // entity snapped to
+                    // TODO: Intersect
+                    if (true_snap_result.snapped) {
+                        Entity *entity_snapped_to = &drawing->entities.array[true_snap_result.entity_index_snapped_to];
+                        eso_begin(PV_2D, SOUP_LINES);
+                        // eso_overlay(true);
+                        eso_color(get_accent_color(ToolboxGroup::Snap));
+                        eso_entity__SOUP_LINES(entity_snapped_to);
+                        eso_end();
+                    }
+                }
+
                 { // crosshairs
                     if (state_Snap_command_is_(XY)) {
                         if (popup->manager.focus_group == ToolboxGroup::Snap) {
@@ -587,38 +602,37 @@ void conversation_draw() {
                 }
 
                 { // experimental preview part B
+                  // NOTE: circle <-> circle is wonky
                     if (state_Draw_command_is_(Offset)) {
                         DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse);
                         if (closest_result.success) {
                             Entity *_closest_entity = closest_result.closest_entity;
-                            vec2 target_start, target_end, target_middle;
-                            if (_closest_entity->type != EntityType::Circle) {
-                                entity_get_start_and_end_points(_closest_entity, &target_start, &target_end);
-                                target_middle = entity_get_middle(_closest_entity);
-                            } else { ASSERT(_closest_entity->type == EntityType::Circle);
-                                CircleEntity *circle = &_closest_entity->circle;
+                            Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse);
+                            vec2 target_start, target_end, target_middle, target_opposite;
+                            if (target_entity.type != EntityType::Circle) {
+                                entity_get_start_and_end_points(&target_entity, &target_start, &target_end);
+                                target_middle = entity_get_middle(&target_entity);
+                                target_opposite = target_middle;
+                            } else { ASSERT(target_entity.type == EntityType::Circle);
+                                CircleEntity *circle = &target_entity.circle;
                                 real angle; {
-                                    // vec2 a = preview->offset_entity_start;
-                                    // vec2 b = preview->offset_entity_middle;
-                                    // vec2 c = preview->offset_entity_end;
-                                    // vec2 p1 = AVG(a, b);
-                                    // vec2 p2 = AVG(b, c);
-                                    // vec2 n1 = normalized(perpendicularTo(b - a));
-                                    // vec2 n2 = normalized(perpendicularTo(c - b));
-                                    // vec2 q;
-                                    // LineLineXResult intersection_result = line_line_intersection(p1, p1 + n1, p2, p2 + n2);
-                                    // if (intersection_result.lines_are_parallel) {
-                                        angle = ATAN2(preview->offset_entity_end - preview->offset_entity_start) - PI / 2; // FORNOW
-                                    // } else {
-                                    //     q = intersection_result.point;
-                                    //     angle = ATAN2(q - b);
-                                    // }
+                                    if (ARE_EQUAL(preview->offset_entity_end, preview->offset_entity_start)) {
+                                        angle = 0.0;
+                                    } else {
+                                        angle = (PI / 2) - ATAN2(normalized(preview->offset_entity_end - preview->offset_entity_start));
+                                    }
                                 }
-                                target_start = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + TINY_VAL);
-                                target_middle = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI);
-                                target_end = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - TINY_VAL);
+                                // real angle = ATAN2(preview->offset_entity_middle - circle->center);
+                                // real angle = ATAN2(mouse - circle->center);
+                                // TODO: something else?
+                                target_middle   = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
+                                target_start    = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - PI / 2);
+                                target_end      = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI / 2);
+                                target_opposite = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI);
+
                             }
 
+                            // reasonable line <-> arc behavior
                             if (1) { // heuristic (FORNOW: minimize max distance)
                                 real D2na = squaredDistance(preview->offset_entity_start, target_start);
                                 real D2nb = squaredDistance(preview->offset_entity_end, target_end);
@@ -634,46 +648,29 @@ void conversation_draw() {
                             JUICEIT_EASYTWEEN(&preview->offset_entity_start, target_start);
                             JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
                             JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_opposite, target_opposite);
 
+                            // TODO: could try a crescent moon kind of a situation
+                            // TODO: just need a three point arc lambda
+                            //       (and could in theory fillet the arcs)
+
+                            vec2 a = preview->offset_entity_start;
+                            vec2 b = preview->offset_entity_middle;
+                            vec2 c = preview->offset_entity_end;
+                            vec2 d = preview->offset_entity_opposite;
+                            Entity dummy = entity_make_three_point_arc_or_line(a, b, c);
+                            Entity dummy2 = entity_make_three_point_arc_or_line(a, d, c);
                             eso_begin(PV_2D, SOUP_LINES);
                             { // eso_vertex
-                                Entity dummy = {};
-                                {
-                                    vec2 a = preview->offset_entity_start;
-                                    vec2 b = preview->offset_entity_middle;
-                                    vec2 c = preview->offset_entity_end;
-                                    if (ARE_EQUAL(a, c)) { // full circle
-                                        dummy.type = EntityType::Circle;
-                                        dummy.circle.center = AVG(a, b);
-                                        dummy.circle.radius = distance(a, dummy.circle.center);
-                                    } else {
-                                        vec2 p1 = AVG(a, b);
-                                        vec2 p2 = AVG(b, c);
-                                        vec2 n1 = normalized(perpendicularTo(b - a));
-                                        vec2 n2 = normalized(perpendicularTo(c - b));
-                                        LineLineXResult intersection_result = line_line_intersection(p1, p1 + n1, p2, p2 + n2);
-                                        if (intersection_result.lines_are_parallel) { // Line
-                                            dummy.type = EntityType::Line;
-                                            dummy.line.start = a;
-                                            dummy.line.end   = c;
-                                        } else {
-                                            dummy.type = EntityType::Arc;
-                                            dummy.arc.center = intersection_result.point;;
-                                            dummy.arc.radius = distance(a, dummy.arc.center);
-                                            dummy.arc.start_angle_in_degrees = DEG(ATAN2(c - dummy.arc.center));
-                                            dummy.arc.end_angle_in_degrees   = DEG(ATAN2(a - dummy.arc.center));
-                                            if (intersection_result.t_ab < 0.0) {
-                                                SWAP(&dummy.arc.start_angle_in_degrees, &dummy.arc.end_angle_in_degrees);
-                                            }
-                                        }
-                                    }
-                                    eso_color(monokai.blue);
-                                    eso_vertex(a);
-                                    eso_vertex(b);
-                                    eso_vertex(b);
-                                    eso_vertex(c);
-                                }
-                                eso_color(monokai.purple);
+                              // eso_color(1.0f, 0.0f, 1.0f);
+                              // eso_vertex(a);
+                              // eso_vertex(b);
+                              // eso_vertex(b);
+                              // eso_vertex(c);
+                              // eso_color((distance(b, d) / distance(a, c)) * get_color(ColorCode::Emphasis));
+                                eso_color(get_color(ColorCode::Emphasis));
+                                eso_entity__SOUP_LINES(&dummy2);
+                                eso_color(get_color(ColorCode::Emphasis));
                                 eso_entity__SOUP_LINES(&dummy);
                             }
                             eso_end();
