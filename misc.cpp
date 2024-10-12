@@ -43,12 +43,13 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
         } else if (
                 (state_Draw_command_is_(Box))
                 && (two_click_command->awaiting_second_click)
-                && (other.shift_held)) {
-            // TODO (Felipe): snap square
+                && (other.shift_held)) { // TODO (Felipe): snap square
             result.mouse_position = before;
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
+            // TODO: need to filter End and Middle as well to ignore circles
+            // (this all needs to be cleaned up)
             if (0
                     || state_Snap_command_is_(Center)
                     || state_Snap_command_is_(Quad)
@@ -119,9 +120,10 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     }
                     result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, angle);
                 } else if (state_Snap_command_is_(Middle)) {
-                    ASSERT(closest_entity->type != EntityType::Circle); // TODO
-                    result.mouse_position = entity_get_middle(closest_entity);
-                    result.snapped = true;
+                    if (closest_entity->type != EntityType::Circle) {
+                        result.mouse_position = entity_get_middle(closest_entity);
+                        result.snapped = true;
+                    }
                 } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     __snap_for__ {

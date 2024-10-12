@@ -406,8 +406,8 @@ struct PopupState {
     real linear_copy_run;
     real linear_copy_rise;
     uint linear_copy_num_additional_copies;
+    real offset_distance;
     uint polygon_num_sides = 6;
-    real offset_size;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
     real polygon_side_length;
@@ -472,6 +472,7 @@ struct PreviewState {
     vec2 offset_entity_start;
     vec2 offset_entity_end;
     vec2 offset_entity_middle;
+    vec2 offset_entity_opposite;
 };
 
 struct Cursors {

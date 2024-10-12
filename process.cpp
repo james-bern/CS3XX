@@ -1877,53 +1877,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     } else if (state_Draw_command_is_(Offset)) {
                         // TODO: entity_offseted (and preview drawing)
-                        if (IS_ZERO(popup->offset_size)) {
+                        if (IS_ZERO(popup->offset_distance)) {
                             messagef(pallete.orange, "Offset: must have non-zero distance");
                         } else {
                             DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse);
                             if (closest_results.success) {
                                 result.checkpoint_me = true;
                                 set_state_Snap_command(None);
-                                Entity *entity = closest_results.closest_entity;
-                                real input_offset = popup->offset_size;
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    vec2 dir = *mouse - closest_results.line_nearest_point; // is there an easier way to find offset??
-                                    vec2 offset = (input_offset * (dir/norm(dir)));
-                                    cookbook.buffer_add_line(line->start + offset, line->end + offset, entity->is_selected, entity->color_code);
-                                } else if (entity->type == EntityType::Arc) {
-                                    ArcEntity *arc = &entity->arc;
-                                    bool in_circle = distance(arc->center, *mouse) < arc->radius;
-                                    bool in_sector = false;
-                                    if (!in_circle) {
-                                        vec2 start_point = entity_get_start_point(entity);
-                                        vec2 end_point = entity_get_end_point(entity);
-                                        vec2 perp_end = perpendicularTo(end_point - arc->center);
-                                        vec2 perp_start = perpendicularTo(start_point - arc->center);
-                                        vec2 end_to_mouse = *mouse - end_point;
-                                        vec2 start_to_mouse = *mouse - start_point;
-                                        real end_cross_p = cross(end_to_mouse, perp_end);
-                                        real start_cross_p = cross(start_to_mouse, perp_start);
-                                        real diam_cross_p = cross(end_to_mouse, start_point - end_point);
-                                        in_sector = (end_cross_p > 0) && (start_cross_p > 0) && (diam_cross_p > 0);
-                                    }
-                                    real radius = arc->radius + input_offset;
-                                    if (in_circle || in_sector) {
-                                        radius = arc->radius - input_offset;
-                                    } 
-                                    cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, entity->is_selected, entity->color_code); 
-                                } else { ASSERT(entity->type == EntityType::Circle);
-                                    CircleEntity *circle = &entity->circle;
-                                    bool in_circle = distance(circle->center, *mouse) < circle->radius;
-                                    int sign = (!in_circle) ? 1 : -1;
-                                    cookbook.buffer_add_circle(
-                                            circle->center,
-                                            circle->radius + sign * input_offset,
-                                            circle->has_pseudo_point,
-                                            circle->pseudo_point_angle,
-                                            entity->is_selected,
-                                            entity->color_code);
-                                }
+                                cookbook._buffer_add_entity(entity_offsetted(closest_results.closest_entity, popup->offset_distance, *mouse));
                             }
                         }
                     } else {
@@ -2272,7 +2233,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (state_Draw_command_is_(Offset)) {
                     POPUP(state.Draw_command,
                             false,
-                            CellType::Real, STRING("distance"), &popup->offset_size);
+                            CellType::Real, STRING("distance"), &popup->offset_distance);
                 } else if (state_Draw_command_is_(Fillet)) {
                     POPUP(state.Draw_command,
                             false,
