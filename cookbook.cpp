@@ -218,7 +218,7 @@ struct Cookbook {
         }
     }
 
-    void attempt_fillet(Entity *E, Entity *F, vec2 reference_point, real radius) {
+    void attempt_fillet(const Entity *E, const Entity *F, vec2 reference_point, real radius) {
         if (E == F) {
             messagef(pallete.orange, "Fillet: clicked same entity twice");
             return;
@@ -341,30 +341,23 @@ struct Cookbook {
                 buffer_add_arc(X, radius, theta_b_in_degrees, theta_d_in_degrees, false, E->color_code);
             }
 
-        } else if (is_line_arc_or_arc_line) {
-            // general idea
-            // 1. find what quadrant the click is in
-            // 2. use that to get the intersect between line and circle
-            // 3. ?????
-            // 4, perfect fillet
-
-            // NOTE: not sure how relevant comments are now
+        } else if (is_line_arc_or_arc_line) { // this is a very straight forward function
+                                              // general idea
+                                              // 1. find where relative to line/arc intersection click is
+                                              // 2. use that to get the fillet point
+                                              // 3. ?????
+                                              // 4, perfect fillet
 
             const Entity *EntL = E->type == EntityType::Line ? E : F;
             LineEntity line = EntL->line;
 
-            Entity *EntA = E->type == EntityType::Arc  ? E : F;
+            const Entity *EntA = E->type == EntityType::Arc  ? E : F;
             ArcEntity arc = EntA->arc;
 
-
-            // get closest intersection point
-            // in current version both points can always work
-            // this is only checking for the 
-            // WHAT IS THIS CHECKING FOR ?!?!?!?!?!?!?!!??!?????
             LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, reference_point);
 
             if (intersection.no_possible_intersection) {
-                messagef("no intersection found for fillet");
+                messagef("FILLET: no intersection found");
                 return;
             }
 
@@ -438,9 +431,9 @@ struct Cookbook {
 
             // add the new line
             if (extend_start) {
-                buffer_add_line(line_fillet_intersect, EntL->line.end, E->is_selected, E->color_code);
+                buffer_add_line(line_fillet_intersect, EntL->line.end, EntL->is_selected, EntL->color_code);
             } else {
-                buffer_add_line(EntL->line.start, line_fillet_intersect, E->is_selected, E->color_code);
+                buffer_add_line(EntL->line.start, line_fillet_intersect, EntL->is_selected, EntL->color_code);
             }
 
             // arc stuff
@@ -461,9 +454,9 @@ struct Cookbook {
             if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || 
                         ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
                 if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
-                    EntA->arc.start_angle_in_degrees = divide_theta;
+                    buffer_add_arc(EntA->arc.center, EntA->arc.radius, divide_theta, EntA->arc.end_angle_in_degrees, EntA->is_selected, EntA->color_code);
                 } else {
-                    EntA->arc.end_angle_in_degrees = divide_theta;
+                    buffer_add_arc(EntA->arc.center, EntA->arc.radius, EntA->arc.start_angle_in_degrees, divide_theta, EntA->is_selected, EntA->color_code);
                 }
             }
         } else { ASSERT(is_arc_arc);
@@ -483,49 +476,56 @@ struct Cookbook {
 
             ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, reference_point);
 
-            if (!fillet_point.no_possible_intersection) {
-                vec2 fillet_center = fillet_point.point;
-                vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
-                vec2 arc_b_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
-                real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
-                real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
+            if (fillet_point.no_possible_intersection) {
+                messagef("FILLET: no intersection found");
+                return;
+            }
 
-                // a swap so the fillet goes the right way
-                // (smallest angle
-                if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
-                    real temp = fillet_arc_b_theta;
-                    fillet_arc_b_theta = fillet_arc_a_theta;
-                    fillet_arc_a_theta = temp;
-                }
-                Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta), false, E->color_code); // if this is changed to radius it breaks, dont ask me why
-                if (radius > TINY_VAL) {
-                    _buffer_add_entity(fillet_arc);
-                }
+            vec2 fillet_center = fillet_point.point;
+            vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
+            vec2 arc_b_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
+            real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
+            real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
 
-                real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
-                real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
-                if (radius == 0) {
-                    ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, reference_point);
-                    divide_theta_a = zero_intersect.theta_a;
-                    divide_theta_b = zero_intersect.theta_b;
-                }
+            // a swap so the fillet goes the right way
+            // (smallest angle
+            if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
+                real temp = fillet_arc_b_theta;
+                fillet_arc_b_theta = fillet_arc_a_theta;
+                fillet_arc_a_theta = temp;
+            }
+            Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta), false, E->color_code); // if this is changed to radius it breaks, dont ask me why
+            if (radius > TINY_VAL) {
+                _buffer_add_entity(fillet_arc);
+            }
 
-                vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
-                real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
-                real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
-                if ((radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
-                    E->arc.start_angle_in_degrees = divide_theta_a;
-                } else {
-                    E->arc.end_angle_in_degrees = divide_theta_a;
-                }
-                if ((radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
-                    F->arc.start_angle_in_degrees = divide_theta_b;
-                } else {
-                    F->arc.end_angle_in_degrees = divide_theta_b;
+            real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
+            real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
+            if (radius == 0) {
+                ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, reference_point);
+                divide_theta_a = zero_intersect.theta_a;
+                divide_theta_b = zero_intersect.theta_b;
+            }
 
-                }
+            vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+            real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
+            real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
+            if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                buffer_add_arc(E->arc.center, E->arc.radius, divide_theta_a, E->arc.end_angle_in_degrees, E->is_selected, E->color_code);
+            } else {
+                buffer_add_arc(E->arc.center, E->arc.radius, E->arc.start_angle_in_degrees, divide_theta_a, E->is_selected, E->color_code);
+            }
+            if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                buffer_add_arc(F->arc.center, F->arc.radius, divide_theta_a, F->arc.end_angle_in_degrees, F->is_selected, F->color_code);
+            } else {
+                buffer_add_arc(F->arc.center, F->arc.radius, F->arc.start_angle_in_degrees, divide_theta_a, F->is_selected, F->color_code);
             }
         }
+
+        // least sus thing ever
+        buffer_delete_entity((Entity *)E);
+        buffer_delete_entity((Entity *)F);
+
     }
 
     void attempt_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
