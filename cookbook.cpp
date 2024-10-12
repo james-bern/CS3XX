@@ -249,27 +249,27 @@ struct Cookbook {
 
             vec2 p = reference_point;
             vec2 a;
-            vec2 *b_ptr;
+            vec2 b;
             vec2 c;
-            vec2 *d_ptr;
+            vec2 d;
             vec2 x;
             vec2 e_ab;
             vec2 e_cd;
             {
-                a     =  E->line.start;
-                b_ptr = &E->line.end;
-                c     =  F->line.start;
-                d_ptr = &F->line.end;
+                a = E->line.start;
+                b = E->line.end;
+                c = F->line.start;
+                d = F->line.end;
 
-                LineLineXResult _x = line_line_intersection(a, *b_ptr, c, *d_ptr);
+                LineLineXResult _x = line_line_intersection(a, b, c, d);
                 if (_x.lines_are_parallel) {
                     messagef(pallete.orange, "Fillet: lines are parallel");
                     return;
                 }
                 x = _x.point;
 
-                e_ab = normalized(*b_ptr - a);
-                e_cd = normalized(*d_ptr - c);
+                e_ab = normalized(b - a);
+                e_cd = normalized(d - c);
 
                 bool swap_ab, swap_cd; {
                     vec2 v_xp_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (p - x);
@@ -279,33 +279,48 @@ struct Cookbook {
 
                 if (swap_ab) {
                     {
-                        a = *b_ptr;
-                        b_ptr = &E->line.start;
+                        a = b;
+                        b = E->line.start;
                     }
                     e_ab *= -1;
                 }
 
                 if (swap_cd) {
                     {
-                        c = *d_ptr;
-                        d_ptr = &F->line.start;
+                        c = d;
+                        d = F->line.start;
                     }
                     e_cd *= -1;
                 }
             }
 
-            { // overwrite b, d
+            { // add new lines and remove old ones
                 real L; {
                     real full_angle = get_three_point_angle(a, x, c);
                     if (full_angle > PI) full_angle = TAU - full_angle;
                     L = radius / TAN(full_angle / 2);
                 }
-                *b_ptr = x - (L * e_ab);
-                *d_ptr = x - (L * e_cd);
+                b = x - (L * e_ab);
+                d = x - (L * e_cd);
+                Entity new_E = _make_line(a, b, E->is_selected, E->color_code);
+                Entity new_F = _make_line(c, d, F->is_selected, F->color_code);
+
+                // lowkey no idea what this does but copied for consistency 
+                new_E.preview_color = get_color(ColorCode::Emphasis);
+                new_F.preview_color = get_color(ColorCode::Emphasis);
+
+
+                _buffer_add_entity(new_E);
+                _buffer_add_entity(new_F);
+
+                //buffer_delete_entity(E);
+                //buffer_delete_entity(F);
+
             }
 
+            // deal with creating the fillet arc
             vec2 X; {
-                LineLineXResult _X = line_line_intersection(*b_ptr, *b_ptr + perpendicularTo(e_ab), *d_ptr, *d_ptr + perpendicularTo(e_cd));
+                LineLineXResult _X = line_line_intersection(b, b + perpendicularTo(e_ab), d, d + perpendicularTo(e_cd));
                 if (_X.lines_are_parallel) {
                     messagef(pallete.orange, "Fillet: ???");
                     return;
@@ -317,19 +332,15 @@ struct Cookbook {
                 real theta_b_in_degrees;
                 real theta_d_in_degrees;
                 {
-                    theta_b_in_degrees = DEG(angle_from_0_TAU(X, *b_ptr));
-                    theta_d_in_degrees = DEG(angle_from_0_TAU(X, *d_ptr));
-                    if (get_three_point_angle(*b_ptr, X, *d_ptr) > PI) {
+                    theta_b_in_degrees = DEG(angle_from_0_TAU(X, b));
+                    theta_d_in_degrees = DEG(angle_from_0_TAU(X, d));
+                    if (get_three_point_angle(b, X, d) > PI) {
                         SWAP(&theta_b_in_degrees, &theta_d_in_degrees);
                     }
                 }
                 buffer_add_arc(X, radius, theta_b_in_degrees, theta_d_in_degrees, false, E->color_code);
             }
 
-            { // aesthetics
-                E->preview_color = get_color(ColorCode::Emphasis);
-                F->preview_color = get_color(ColorCode::Emphasis);
-            }
         } else if (is_line_arc_or_arc_line) {
             // general idea
             // 1. find what quadrant the click is in
@@ -337,127 +348,122 @@ struct Cookbook {
             // 3. ?????
             // 4, perfect fillet
 
-            Entity *EntL = E->type == EntityType::Line ? E : F;
-            Entity *EntA  = E->type == EntityType::Arc  ? E : F;
+            // NOTE: not sure how relevant comments are now
 
+            const Entity *EntL = E->type == EntityType::Line ? E : F;
             LineEntity line = EntL->line;
+
+            Entity *EntA = E->type == EntityType::Arc  ? E : F;
             ArcEntity arc = EntA->arc;
+
 
             // get closest intersection point
             // in current version both points can always work
             // this is only checking for the 
+            // WHAT IS THIS CHECKING FOR ?!?!?!?!?!?!?!!??!?????
             LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, reference_point);
 
-            if (!intersection.no_possible_intersection) {
-                // Now have to decide which of the 4 possible fillets to do
-                // This currently only depends on the line as the arc can  
-                //   wrap both directions
-                // Check to see if one predicted by click position works otherwise
-                //   fillet from opposite side (inside/outside) of circle
-                //
-                //           \
-                //        B   \   A
-                //            |
-                //      ------|------
-                //            /
-                //        C  /   D
-                //      
+            if (intersection.no_possible_intersection) {
+                messagef("no intersection found for fillet");
+                return;
+            }
 
-                // in this case we can do any fillet
-                // in cases where the radius is massive weird stuff happens
-                // thats on the user though, or at least for now
-                bool all_fillets_valid = intersection.point_is_on_line_segment;
+            // Determine if fillet should be inside or outside the circle
+            real distance_second_click_center = distance(reference_point, arc.center);
+            bool fillet_inside_circle = intersection.point_is_on_line_segment && (distance_second_click_center < arc.radius);
 
-                // if click is inside the circle when both work
-                // TODO: better check for this as a line outside of arc still says outside
-                real distance_second_click_center = distance(reference_point, arc.center);
-                bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
+            // Get a line parallel to selected to determine where the fillet arc should be
+            vec2 line_vector = line.end - line.start;
+            bool line_left = cross(line_vector, reference_point - line.start) < 0;
+            vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1.0f : -1.0f);
 
-                real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
-                real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
-                bool start_inside_circle = start_val > -TINY_VAL;
-                bool end_inside_circle = end_val > -TINY_VAL;
-                if (abs(distance(intersection.point, line.start)) < 0.001f) {
-                    start_inside_circle = end_inside_circle;
-                }
-                if (abs(distance(intersection.point, line.end)) < 0.001f) {
-                    end_inside_circle = start_inside_circle;
-                }
-                if (!(start_inside_circle ^ (end_inside_circle ))) {
-                    fillet_inside_circle = end_inside_circle ;
-                }
+            LineEntity new_line; // ! color, etc. undefined
+            new_line.start = line.start + line_adjust; 
+            new_line.end = line.end + line_adjust; 
 
-                vec2 line_vector = line.end - line.start;
-                bool line_left = cross(line_vector, reference_point - line.start) < 0;
-                vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1.0f : -1.0f);
-                LineEntity new_line; // ! color, etc. undefined
-                new_line.start = line.start + line_adjust; 
-                new_line.end = line.end + line_adjust; 
+            // Same thing but for the arc 
+            real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
+            real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
+            bool start_inside_circle = start_val > -TINY_VAL;
+            bool end_inside_circle = end_val > -TINY_VAL;
+            if (abs(distance(intersection.point, line.start)) < 0.001f) {
+                start_inside_circle = end_inside_circle;
+            }
+            if (abs(distance(intersection.point, line.end)) < 0.001f) {
+                end_inside_circle = start_inside_circle;
+            }
+            if (start_inside_circle == end_inside_circle) { 
+                fillet_inside_circle = end_inside_circle;
+            }
 
-                ArcEntity new_arc = arc;
-                new_arc.radius += radius * (fillet_inside_circle ? -1 : 1);
+            ArcEntity new_arc = arc;
+            new_arc.radius += radius * (fillet_inside_circle ? -1 : 1);
 
-                LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, reference_point);
+            // calculate fillet center and intersections
+            LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, reference_point);
+            vec2 fillet_center = fillet_point.point;
+            vec2 line_fillet_intersect = fillet_center - line_adjust;
+            vec2 arc_fillet_intersect = fillet_center - radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
 
-                vec2 fillet_center = fillet_point.point;
-                vec2 line_fillet_intersect = fillet_center - line_adjust;
-                vec2 arc_fillet_intersect = fillet_center - radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
-                real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
-                real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
+            // calculate fillet angles
+            real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
+            real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
 
-                if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
-                    real temp = fillet_line_theta;
-                    fillet_line_theta = fillet_arc_theta;
-                    fillet_arc_theta = temp;
-                }
+            if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
+                real temp = fillet_line_theta;
+                fillet_line_theta = fillet_arc_theta;
+                fillet_arc_theta = temp;
+            }
 
-                Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta), false, E->color_code);
-                if (radius > TINY_VAL) {
-                    _buffer_add_entity(fillet_arc);
-                }
-                // TODO: MAKE THIS WORK FOR 0 RADIUS FILLETS
-                bool end_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0);
-                bool start_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.start - intersection.point)) > 0);
-                bool extend_start;
-                if (end_in_direction ^ start_in_direction) {
-                    extend_start = end_in_direction;
-                } else {
-                    if (distance(intersection.point, line.end) > distance(intersection.point, line.start)) {
-                        extend_start = true;
-                    } else {
-                        extend_start = false;
-                    }
-                }
-                if (radius == 0 && (end_inside_circle != start_inside_circle)) {
-                    extend_start = fillet_inside_circle != start_inside_circle;
-                }
-                if (extend_start) {
-                    EntL->line.start = line_fillet_intersect;
-                } else {
-                    EntL->line.end = line_fillet_intersect;
-                }
+            // make fillet arc
+            Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta), false, E->color_code);
+            if (radius > TINY_VAL) {
+                _buffer_add_entity(fillet_arc);
+            }
 
-                real divide_theta = DEG(ATAN2(fillet_center - arc.center));
-                real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+            // determine which end of the line should be changed
+            bool end_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0);
+            bool start_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.start - intersection.point)) > 0);
+            bool extend_start;
+            if (end_in_direction != start_in_direction) { 
+                extend_start = end_in_direction;
+            } else {
+                extend_start = distance(intersection.point, line.end) > distance(intersection.point, line.start);
+            }
 
-                // kinda weird but checks if divide theta > theta where line was tangent
+            // handle zero radius case
+            if (radius == 0 && (end_inside_circle != start_inside_circle)) {
+                extend_start = fillet_inside_circle != start_inside_circle;
+            }
+
+            // add the new line
+            if (extend_start) {
+                buffer_add_line(line_fillet_intersect, EntL->line.end, E->is_selected, E->color_code);
+            } else {
+                buffer_add_line(EntL->line.start, line_fillet_intersect, E->is_selected, E->color_code);
+            }
+
+            // arc stuff
+            real divide_theta = DEG(ATAN2(fillet_center - arc.center));
+            real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+
+            // kinda weird but checks if divide theta > theta where line was tangent
+            vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+            real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
+
+            // this is a slight nudge to ensure that the correct angle is adjusted
+            if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
                 real offset = DEG(ATAN2(reference_point - arc.center)); 
-                vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
-                real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
-                if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
-                    if (ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f)) {
-                        fillet_middle_arc -= 1.0f;
-                    } else {
-                        fillet_middle_arc += 1.0f;
-                    }
-                }
-                if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
-                    //messagef(pallete.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
-                    if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
-                        EntA->arc.start_angle_in_degrees = divide_theta;
-                    } else {
-                        EntA->arc.end_angle_in_degrees = divide_theta;
-                    }
+                fillet_middle_arc += ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f) ? -1.0f : 1.0f; 
+            }
+
+            // good luck
+            if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || 
+                        ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
+                if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
+                    EntA->arc.start_angle_in_degrees = divide_theta;
+                } else {
+                    EntA->arc.end_angle_in_degrees = divide_theta;
                 }
             }
         } else { ASSERT(is_arc_arc);
