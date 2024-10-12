@@ -218,7 +218,7 @@ struct Cookbook {
         }
     }
 
-    void attempt_fillet(const Entity *E, const Entity *F, vec2 reference_point, real radius) {
+    void attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(const Entity *E, const Entity *F, vec2 reference_point, real radius) {
         if (E == F) {
             messagef(pallete.orange, "Fillet: clicked same entity twice");
             return;
@@ -625,8 +625,8 @@ struct Cookbook {
             f = _f.point;
         }
 
-        attempt_fillet(E, &G, e + (e - y), radius);
-        attempt_fillet(F, &G, f + (f - y), radius);
+        attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, &G, e + (e - y), radius);
+        attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(F, &G, f + (f - y), radius);
 
         #if 0
         // // single arc version

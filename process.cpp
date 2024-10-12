@@ -1154,7 +1154,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
-                                cookbook.attempt_fillet(E, F, average_click, popup->fillet_radius);
+                                cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, average_click, popup->fillet_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(DogEar)) {
@@ -1817,7 +1817,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
 
                         for_(i, selected_entities.length) {
-                            cookbook.attempt_fillet(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
+                            cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
                         }
                     } else if (state_Draw_command_is_(MirrorX)) {
                         result.checkpoint_me = true;
