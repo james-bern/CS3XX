@@ -1654,7 +1654,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                 vec2 pointToConnectTo = curMapping.connectToStart ? entity_get_start_point(entToConnectTo) : entity_get_end_point(entToConnectTo);
                                 if (entToMove->type == EntityType::Line) {
-                                    messagef("%d", popup->drag_extend_line);
                                     if (popup->drag_extend_line == 0) {
                                         if (curMapping.moveStart) {
                                             entToMove->line.start = pointToConnectTo;
@@ -2557,6 +2556,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         messagef(pallete.light_gray, "NudgePlane %gmm", popup->feature_plane_nudge);
                     }
                 }
+            }
+        }
+    }
+
+
+    // FORNOW: remove zero length at end of loop TODO: don't allow their creation
+    _for_each_entity_ {
+        if (entity_length(entity) < GRID_CELL_WIDTH) {
+            messagef("WARNING: zero length entity detected and deleted");
+            cookbook.buffer_delete_entity(entity);
+        }
+        if (entity->type == EntityType::Circle) {
+            if (entity->circle.radius < GRID_CELL_WIDTH) {
+                messagef("WARNING: zero length entity detected and deleted");
+                cookbook.buffer_delete_entity(entity);
+            }
+        }
+        if (entity->type == EntityType::Arc) {
+            if (entity->arc.radius < GRID_CELL_WIDTH) {
+                messagef("WARNING: zero length entity detected and deleted");
+                cookbook.buffer_delete_entity(entity);
             }
         }
     }

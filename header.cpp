@@ -690,12 +690,14 @@ real entity_length(Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line = &entity->line;
         return norm(line->start - line->end);
-    } else { ASSERT(entity->type == EntityType::Arc);
+    } else if (entity->type == EntityType::Arc) {
         ArcEntity *arc = &entity->arc;
         real start_angle;
         real end_angle;
         arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
         return ABS(start_angle - end_angle) * arc->radius;
+    } else { ASSERT(entity->type == EntityType::Circle);
+        return PI * entity->circle.radius * 2;
     }
 }
 
