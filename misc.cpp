@@ -171,8 +171,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         // else messagef(pallete.orange, "no intersection found");
                     }
                     // else messagef(pallete.orange, "no intersection found");
-                } else if (state_Snap_command_is_(Perp)) { // layout also does a divide which can be added if wanted
-                                                           // TODO Circle
+                } else if (state_Snap_command_is_(Perp)) { 
                     vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
@@ -182,7 +181,17 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.snapped = true;
                     } else if (closest_entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
                         vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
-                        result.mouse_position = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        vec2 perp_one = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        vec2 perp_two = closest_entity->arc.center - closest_entity->arc.radius * normalized_in_direction;
+
+                        result.mouse_position = distance(perp_one, before) < distance(perp_two, before) ? perp_one : perp_two;
+                        result.snapped = true;
+                    } else { ASSERT(closest_entity->type == EntityType::Circle);
+                        vec2 normalized_in_direction = normalized(click_one - closest_entity->circle.center);
+                        vec2 perp_one = closest_entity->circle.center + closest_entity->circle.radius * normalized_in_direction;
+                        vec2 perp_two = closest_entity->circle.center - closest_entity->circle.radius * normalized_in_direction;
+
+                        result.mouse_position = distance(perp_one, before) < distance(perp_two, before) ? perp_one : perp_two;
                         result.snapped = true;
                     }
                 } /*else if (state_Snap_command_is_(Tangent)) {

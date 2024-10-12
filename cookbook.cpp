@@ -69,7 +69,16 @@ struct Cookbook {
     };
 
     void _buffer_add_entity(Entity entity) {
-        list_push_back(&_add_buffer, entity);
+        float LENGTH_CUTOFF = 0.003f;
+        if (entity_length(&entity) < LENGTH_CUTOFF) { // TODO: define glorbal const for min len
+            messagef("zero length entity not created");
+        } else if (entity.type == EntityType::Arc && entity.arc.radius < LENGTH_CUTOFF) {
+            messagef("zero length entity not created");
+        } else if (entity.type == EntityType::Circle && entity.circle.radius < LENGTH_CUTOFF) {
+            messagef("zero length entity not created");
+        } else {
+            list_push_back(&_add_buffer, entity);
+        }
     };
 
     void buffer_add_line(vec2 start, vec2 end, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
