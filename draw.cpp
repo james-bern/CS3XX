@@ -35,16 +35,18 @@ mat4 get_M_3D_from_2D() {
 
 bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     bbox2 face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
-    mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
+    // mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
+    phong_draw(P_3D, V_3D, M_3D, mesh);
+    // TODO: face_selection_bbox
 
-    mat4 PVM_3D = P_3D * V_3D * M_3D;
-
+    #if 1
     if (!other.show_details) {
         if (mesh->cosmetic_edges) {
+            mat4 PVM_3D = P_3D * V_3D * M_3D;
             eso_begin(PVM_3D, SOUP_LINES); 
             // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, pallete.white, pallete.black));
-            eso_color(0,0,0);
-            eso_size(1.0f);
+            eso_color(1,0,1);
+            eso_size(6.0f);
             for_(i, mesh->num_cosmetic_edges) {
                 for_(d, 2) {
                     eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
@@ -53,7 +55,9 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             eso_end();
         }
     }
+    #endif
 
+    #if 0
     for_(pass, 2) {
         eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_TRI_MESH);
         eso_size(0.5f);
@@ -120,6 +124,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         }
         eso_end();
     }
+    #endif
 
     return face_selection_bbox;
 }
@@ -572,7 +577,7 @@ void conversation_draw() {
                 }
 
                 { // entity snapped to
-                    // TODO: Intersect
+                  // TODO: Intersect
                     if (true_snap_result.snapped) {
                         Entity *entity_snapped_to = &drawing->entities.array[true_snap_result.entity_index_snapped_to];
                         eso_begin(PV_2D, SOUP_LINES);
@@ -933,6 +938,7 @@ void conversation_draw() {
         { // feature plane feature-plane feature_plane // floating sketch plane; selection plane NOTE: transparent
             {
                 bbox2 face_selection_bbox; {
+                    // TODO fix
                     face_selection_bbox = mesh_draw(P_3D, V_3D, M4_Identity());
                 }
                 bbox2 dxf_selection_bbox; {

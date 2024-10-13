@@ -1207,10 +1207,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
 
-                            Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
-                            DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, second_click);
-                            if (closest_result_two.success) {
-                                Entity *closest_entity_two = closest_result_two.closest_entity;
+                            // TODO: this should probably just call attempt_divide_entity_at_point(...) twice on the intersection point
+
+                            Entity *closest_entity_one;
+                            Entity *closest_entity_two;
+                            bool division_valid;
+                            {
+                                closest_entity_one = two_click_command->entity_closest_to_first_click; 
+                                DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, second_click);
+                                division_valid = closest_result_two.success;
+                                closest_entity_two = closest_result_two.closest_entity;
+                            }
+                            if (division_valid) {
                                 if (closest_entity_one == closest_entity_two) {
                                     messagef(pallete.orange, "TwoClickDivide: clicked same entity twice");
                                 } else {
@@ -1285,8 +1293,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         if (!cut_arc_a && !cut_arc_b) {
                                             messagef(pallete.orange, "TwoClickDivide: no intersection found");
                                         }
-                                    } else { ASSERT((closest_entity_one->type == EntityType::Line) && (closest_entity_two->type == EntityType::Arc)); // kinda nasty but only way 
-                                                                                                                                                      //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
+                                    } else { ASSERT(
+                                            (closest_entity_one->type == EntityType::Line) && (closest_entity_two->type == EntityType::Arc)
+                                            ||
+                                            (closest_entity_one->type == EntityType::Arc) && (closest_entity_two->type == EntityType::Line)
+                                            );
                                         Entity *entity_arc;
                                         Entity *entity_line;
                                         if (closest_entity_one->type == EntityType::Arc) {
@@ -1297,6 +1308,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             entity_line = closest_entity_one;
                                         }
                                         ArcEntity *arc = &entity_arc->arc;
+
                                         LineEntity *line = &entity_line->line;
 
                                         LineArcXResult line_x_arc_result = line_arc_intersection(line, arc);

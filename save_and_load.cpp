@@ -350,6 +350,7 @@ void stl_load(String filename, Mesh *mesh_to_load) {
         mesh_to_load->triangle_indices = triangle_indices;
         mesh_triangle_normals_calculate(mesh_to_load);
         mesh_cosmetic_edges_calculate(mesh_to_load);
+        mesh_vertex_normals_calculate(mesh_to_load);
         mesh_bbox_calculate(mesh_to_load);
     }
 }

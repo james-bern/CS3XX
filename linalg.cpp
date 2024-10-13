@@ -75,6 +75,17 @@ typedef SnailTupleOfUnsignedInts<2> uint2;
 typedef SnailTupleOfUnsignedInts<3> uint3;
 typedef SnailTupleOfUnsignedInts<4> uint4;
 
+tuD bool operator == (SnailTupleOfUnsignedInts<D> A, SnailTupleOfUnsignedInts<D> B) {
+    for_(d, D) {
+        if (A[d] != B[d]) return false;
+    }
+    return true;
+}
+
+tuD bool operator != (SnailTupleOfUnsignedInts<D> A, SnailTupleOfUnsignedInts<D> B) {
+    return (!(A == B));
+}
+
 // "constructors" //////////////////////////////////////////////////////////////
 
 vec2 V2(real x, real y) { return { x, y }; }
@@ -306,8 +317,8 @@ tuD real distance(vecD A, vecD B) {
 real ATAN2(vec2); // FORNOW: forward declaration
 real angle_from_0_TAU(vec2 A, vec2 B) {
     real result = ATAN2(B - A);
-     if (result < 0.0f) result += TAU;
-     return result;
+    if (result < 0.0f) result += TAU;
+    return result;
 }
 
 // ALIASES

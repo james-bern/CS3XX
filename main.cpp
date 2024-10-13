@@ -71,12 +71,15 @@ char *startup_script = "";
 run_before_main {
     startup_script =
         // "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
-        "^.cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>"
+        // "^.cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>"
         // "cz16\n"
         // "s<m2d> 0 0>\b"
         // "lq<m2d 8 0>q<m2d 16 0>"
         // "sc"
         "^odemo.dxf\n"
+        // "bz<m2d 10 10>"
+        // "cz<m2d 10 10>"
+        "ysq1[5\n"
         ;
 };
 #endif
@@ -277,6 +280,7 @@ bool already_processed_event_passed_to_popups;
 
 #include "boolean.cpp"
 #include "misc.cpp"
+#include "draw2.cpp"
 #include "draw.cpp"
 #include "save_and_load.cpp"
 #include "message.cpp"
