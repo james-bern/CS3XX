@@ -49,7 +49,8 @@ struct {
             vec3 N = normalize(fs_in.normal_World);
 
             vec3 rgb = vec3(0.0);
-            rgb += 0.8 * (vec3(1.0) - abs(N.zxy)); // normal-ambient
+            rgb += 0.5 * (vec3(1.0) - abs(N.zxy)); // normal-ambient
+            // rgb += 0.2 * vec3(1.0);
 
             for (int i = 0; i < 2; ++i) {
                 vec3 light_position_World = (i == 0) ? eye_World : vec3(0.0, 1000.0, 0.0);
@@ -61,9 +62,9 @@ struct {
                 float specular = pow(max(0.0, dot(N, H)), 256);
                 float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
 
-                rgb += 0.4 * diffuse;
+                rgb += 0.3 * diffuse;
                 rgb += 0.7 * specular;
-                rgb += 0.8 * (-0.3 + 1.3 * fresnel);
+                rgb += 0.8 * fresnel;
             }
 
             _gl_FragColor = vec4(rgb, 1.0);
