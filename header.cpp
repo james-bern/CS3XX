@@ -1346,159 +1346,184 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
     list_free_AND_zero(&list);
 }
 
+// TODO: this crap is so slow -- O(bad)
+// TODO: somehow manages to mess up doing more than one feature (wtf)
 void mesh_vertex_normals_calculate(Mesh *mesh) {
     #if 1 // O(horrible) flood fill that reallocs all the other mesh data
+    ASSERT(mesh->num_triangles);
+
+    // // TODO: frees (arena?)
+    // defer  {
+    //     // queue_free_AND_zero(&queue);
+    //     // free(visited);
+    // };
 
 
-    // DEBUGBREAK();
-    // flood fill off triangle indices
-    List<uint> patch;
-    {
-        patch = {};
-        Queue<uint> queue = {};
-        bool *visited = (bool *) calloc(mesh->num_triangles, sizeof(bool));
-        defer  {
-            // queue_free_AND_zero(&queue);
-            // free(visited);
-        };
+    List<vec3> new_vertex_positions = {};
+    List<uint3> new_triangle_indices = {};
+    List<vec3> new_triangle_normals = {};
+    List<uint2> new_cosmetic_edges = {}; // FORNOW: doubling up
 
+    bool *visited = (bool *) calloc(mesh->num_triangles, sizeof(bool));
+    while (true) {
+        // flood fill off triangle indices
+        List<uint> patch = {};
+        List<uint2> patch_cosmetic_edges = {};
+        {
+            Queue<uint> queue = {};
 
-        auto VISIT = [&](uint triangle_index) {
-            ASSERT(!visited[triangle_index]);
-            visited[triangle_index] = true;
-            list_push_back(&patch, triangle_index);
-            queue_enqueue(&queue, triangle_index);
-        };
+            auto VISIT = [&](uint triangle_index) {
+                ASSERT(!visited[triangle_index]);
+                visited[triangle_index] = true;
+                list_push_back(&patch, triangle_index);
+                queue_enqueue(&queue, triangle_index);
+            };
 
-        ASSERT(mesh->num_triangles);
-        VISIT(1700U % mesh->num_vertices);
-        while (queue.length) {
-            uint current_triangle_index = queue_dequeue(&queue);
-            uint3 tri = mesh->triangle_indices[current_triangle_index];
-            for_(d, 3) {
-                uint i = tri[d];
-                uint j = tri[(d + 1) % 3];
-                uint2 edge = { MIN(i, j), MAX(i, j) };
+            { // seed (and if seed fails, break out of while (true); O(num_triangles)
+                bool seeded = false;
+                for_(triangle_index, mesh->num_triangles) {
+                    if (!visited[triangle_index]) {
+                        VISIT(triangle_index);
+                        seeded = true;
+                        break;
+                    }
+                }
+                if (!seeded) break;
+            }
 
-                if (1) { // skip cosmetic edge; FORNOW: O(num_cosmetic_edges)
-                    bool skip_because_cosmetic_edge; {
-                        skip_because_cosmetic_edge = false;
-                        for_(cosmeticEdgeIndex, mesh->num_cosmetic_edges) {
-                            if (edge == mesh->cosmetic_edges[cosmeticEdgeIndex]) {
-                                skip_because_cosmetic_edge = true;
-                                break;
+            // flood
+            while (queue.length) {
+                uint current_triangle_index = queue_dequeue(&queue);
+                uint3 tri = mesh->triangle_indices[current_triangle_index];
+                for_(d, 3) {
+                    uint i = tri[d];
+                    uint j = tri[(d + 1) % 3];
+                    uint2 edge = { MIN(i, j), MAX(i, j) };
+
+                    { // skip cosmetic edge; FORNOW: O(num_cosmetic_edges)
+                        bool skip_because_cosmetic_edge__NOTE_also_records; {
+                            skip_because_cosmetic_edge__NOTE_also_records = false;
+                            for_(cosmetic_edge_index, mesh->num_cosmetic_edges) {
+                                if (edge == mesh->cosmetic_edges[cosmetic_edge_index]) {
+                                    skip_because_cosmetic_edge__NOTE_also_records = true;
+                                    break;
+                                }
                             }
                         }
+                        if (skip_because_cosmetic_edge__NOTE_also_records) {
+                            list_push_back(&patch_cosmetic_edges, edge);
+                            continue;
+                        }
                     }
-                    if (skip_because_cosmetic_edge) continue;
-                }
 
-                { // flood step; FORNOW: O(num_triangles)
-                    for_(cand, mesh->num_triangles) {
-                        if (visited[cand]) continue; // NOTE: also handles i == i case
-                        uint3 tri2 = mesh->triangle_indices[cand];
-                        for_(d2, 3) {
-                            uint i2 = tri2[d2];
-                            uint j2 = tri2[(d2 + 1) % 3];
-                            uint2 edge2 = { MIN(i2, j2), MAX(i2, j2) };
-                            if (edge == edge2) {
-                                VISIT(cand);
-                                break;
+                    { // flood step; FORNOW: O(num_triangles)
+                        for_(cand, mesh->num_triangles) {
+                            if (visited[cand]) continue; // NOTE: also handles i == i case
+                            uint3 tri2 = mesh->triangle_indices[cand];
+                            for_(d2, 3) {
+                                uint i2 = tri2[d2];
+                                uint j2 = tri2[(d2 + 1) % 3];
+                                uint2 edge2 = { MIN(i2, j2), MAX(i2, j2) };
+                                if (edge == edge2) {
+                                    VISIT(cand);
+                                    break;
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
 
-    List<uint> old_of_new; {
-        old_of_new = {};
-        // populate including duplicates
-        for_(triangle_index, patch.length) {
+        List<uint> VERTINDEX_old_of_new = {}; {
+            // populate including duplicates
+            for_(triangle_index, patch.length) {
+                uint3 tri = mesh->triangle_indices[patch.array[triangle_index]];
+                for_(d, 3) list_push_back(&VERTINDEX_old_of_new, tri[d]);
+            }
+
+            // sort
+            qsort(
+                    VERTINDEX_old_of_new.array,
+                    VERTINDEX_old_of_new.length,
+                    sizeof(uint),
+                    [](const void *_a, const void *_b) -> int {
+                    uint a = *((uint *) _a);
+                    uint b = *((uint *) _b);
+                    if (a < b) return 1;
+                    if (a > b) return -1;
+                    return 0;
+                    }
+                 );
+            { // sloppy remove duplicates
+                uint *prev = VERTINDEX_old_of_new.array;
+                for (
+                        uint *curr = VERTINDEX_old_of_new.array + 1;
+                        curr < VERTINDEX_old_of_new.array + VERTINDEX_old_of_new.length;
+                        ++curr
+                    ) {
+                    if (*curr != *prev) *(++prev) = *curr;
+                }
+                VERTINDEX_old_of_new.length = 1 + (prev - VERTINDEX_old_of_new.array); // update length
+            }
+        }
+        auto VERTINDEX_newOfOld = [&](uint old) -> uint {
+            for_(i, VERTINDEX_old_of_new.length) {
+                if (old == VERTINDEX_old_of_new.array[i]) {
+                    return (new_vertex_positions.length + i); // !
+                }
+            }
+            ASSERT(false);
+            return 0U;
+        };
+
+        uint patch_num_vertices = VERTINDEX_old_of_new.length;
+        vec3 *patch_vertex_positions = (vec3 *) malloc(patch_num_vertices * sizeof(vec3));
+        for_(vertex_index, patch_num_vertices) {
+            patch_vertex_positions[vertex_index] = mesh->vertex_positions[VERTINDEX_old_of_new.array[vertex_index]];
+        }
+
+        uint patch_num_triangles = patch.length;
+        uint3 *patch_triangle_indices = (uint3 *) malloc(patch_num_triangles * sizeof(uint3));
+        for_(triangle_index, patch_num_triangles) {
             uint3 tri = mesh->triangle_indices[patch.array[triangle_index]];
-            for_(d, 3) list_push_back(&old_of_new, tri[d]);
+            for_(d, 3) patch_triangle_indices[triangle_index][d] = VERTINDEX_newOfOld(tri[d]);
+        }
+        vec3 *patch_triangle_normals = (vec3 *) calloc(patch_num_triangles, sizeof(vec3));
+        for_(triangle_index, patch_num_triangles) {
+            patch_triangle_normals[triangle_index] = mesh->triangle_normals[patch.array[triangle_index]];
         }
 
-        // sort
-        qsort(
-                old_of_new.array,
-                old_of_new.length,
-                sizeof(uint),
-                [](const void *_a, const void *_b) -> int {
-                uint a = *((uint *) _a);
-                uint b = *((uint *) _b);
-                if (a < b) return 1;
-                if (a > b) return -1;
-                return 0;
-                }
-             );
-        { // sloppy remove duplicates
-            uint *prev = old_of_new.array;
-            for (
-                    uint *curr = old_of_new.array + 1;
-                    curr < old_of_new.array + old_of_new.length;
-                    ++curr
-                ) {
-                if (*curr != *prev) *(++prev) = *curr;
-            }
-            old_of_new.length = 1 + (prev - old_of_new.array); // update length
+        for_(triangle_index, patch_num_triangles) {
+            list_push_back(&new_triangle_indices, patch_triangle_indices[triangle_index]);
+            list_push_back(&new_triangle_normals, patch_triangle_normals[triangle_index]);
+        }
+
+        // NOTE: A has to go before B
+        for_(cosmetic_edge_index, patch_cosmetic_edges.length) { // A
+            uint2 edge = patch_cosmetic_edges.array[cosmetic_edge_index];
+            for_(d, 2) edge[d] = VERTINDEX_newOfOld(edge[d]);
+            list_push_back(&new_cosmetic_edges, edge);
+        }
+
+        for_(vertex_index, patch_num_vertices) { // B
+            list_push_back(&new_vertex_positions, patch_vertex_positions[vertex_index]);
         }
     }
 
-    auto new_of_old = [&](uint old) -> uint {
-        for_(i, old_of_new.length) {
-            if (old == old_of_new.array[i]) {
-                return i;
-            }
-        }
-        ASSERT(false);
-        return 0U;
-    };
-
-    uint new_num_vertices = old_of_new.length;
-    vec3 *new_vertex_positions = (vec3 *) malloc(new_num_vertices * sizeof(vec3));
-    for_(vertex_index, new_num_vertices) {
-        new_vertex_positions[vertex_index] = mesh->vertex_positions[old_of_new.array[vertex_index]];
-    }
-
-    uint new_num_triangles = patch.length;
-    uint3 *new_triangle_indices = (uint3 *) malloc(new_num_triangles * sizeof(uint3));
-    for_(triangle_index, new_num_triangles) {
-        uint3 tri = mesh->triangle_indices[patch.array[triangle_index]];
-        for_(d, 3) new_triangle_indices[triangle_index][d] = new_of_old(tri[d]);
-    }
-    // TODO
-    vec3 *new_triangle_normals = (vec3 *) calloc(new_num_triangles, sizeof(vec3));
-
-    mesh->num_vertices = new_num_vertices;
-    mesh->num_triangles = new_num_triangles;
-    mesh->vertex_positions = new_vertex_positions;
-    mesh->triangle_indices = new_triangle_indices;
-    mesh->triangle_normals = new_triangle_normals;
+    // SLOPPY
+    mesh->num_vertices     = new_vertex_positions.length;
+    mesh->num_triangles    = new_triangle_indices.length;
+    mesh->vertex_positions = new_vertex_positions.array;
+    mesh->triangle_indices = new_triangle_indices.array;
+    mesh->triangle_normals = new_triangle_normals.array;
+    //
+    mesh->num_cosmetic_edges  = new_cosmetic_edges.length;
+    mesh->cosmetic_edges  = new_cosmetic_edges.array;
 
 
 
-
-
-
-    mesh->num_cosmetic_edges = 0;
-    mesh->cosmetic_edges = NULL;
     #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     mesh->vertex_normals = (vec3 *) calloc(mesh->num_vertices, 3 * sizeof(vec3));

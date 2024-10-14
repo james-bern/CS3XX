@@ -52,15 +52,16 @@ struct {
             vec3 H = normalize(L + E);
             float F0 = .05;
             float diffuse = max(0, dot(N, L));
-            float specular = pow(max(0, dot(N, H)), 64);
+            float specular = pow(max(0, dot(N, H)), 256);
             float fresnel = F0 + (1 - F0) * pow(1 - max(0, dot(N, H)), 5);
 
             vec3 rgb = vec3(0.0);
-            // rgb += 0.3 * vec3(1.0); // ambient
-            rgb += 0.7 * (vec3(0.5) + 0.5 * N);
-            rgb += 0.4 * (-1.0 + 2.0 * diffuse);
-            rgb += 0.5 * specular;
-            rgb += 0.5 * (-0.3 + 1.3 * fresnel);
+            // rgb += 0.8 * vec3(0.0, 1.0, 1.0);
+            // rgb += 0.0 * vec3(1.0); // ambient
+            rgb += 0.8 * (vec3(1.0) - abs(N.zxy)); // normal-ambient
+            rgb += 0.8 * (-1.0 + 2.0 * diffuse);
+            rgb += 0.7 * specular;
+            rgb += 0.8 * (-0.3 + 1.3 * fresnel);
 
             _gl_FragColor = vec4(rgb, 1.0);
         }

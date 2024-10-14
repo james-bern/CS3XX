@@ -45,8 +45,8 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             mat4 PVM_3D = P_3D * V_3D * M_3D;
             eso_begin(PVM_3D, SOUP_LINES); 
             // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, pallete.white, pallete.black));
-            eso_color(1,0,1);
-            eso_size(6.0f);
+            eso_color(0,0,0);
+            eso_size(2.0f);
             for_(i, mesh->num_cosmetic_edges) {
                 for_(d, 2) {
                     eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
