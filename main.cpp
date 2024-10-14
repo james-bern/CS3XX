@@ -325,6 +325,7 @@ int main() {
     }
 
 
+    if (0) {
     messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
     messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
     messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
@@ -341,6 +342,7 @@ int main() {
     messagef(pallete.green, "TODO (fun): Offset visualization and tweening");
 
 
+    }
 
     // messagef(pallete.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 
