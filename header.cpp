@@ -1642,12 +1642,14 @@ void meshes_free_AND_zero(Meshes *meshes) {
     *meshes = {};
 }
 
-void GUARDED_MALLOC_MEMCPY(void *dst, void *src, int size) {
-    if (src) {
-        dst = malloc(size);
-        memcpy(dst, src, size);
-    }
-}
+//oh no
+#define GUARDED_MALLOC_MEMCPY(dst, src, count, type) \
+    do { \
+        if (src) { \
+            dst = (type *) malloc(count * sizeof(type)); \
+            memcpy(dst, src, count * sizeof(type)); \
+        } \
+    } while (0);
 
 void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
     *_dst = *_src;
@@ -1655,19 +1657,19 @@ void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
     {
         WorkMesh *dst = &_dst->work;
         WorkMesh *src = &_src->work;
-        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices  * sizeof(vec3 ));
-        GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles * sizeof(uint3));
-        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles * sizeof(vec3 ));
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices , vec3 );
+        GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles, uint3);
+        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles, vec3 );
     }
 
     {
         DrawMesh *dst = &_dst->draw;
         DrawMesh *src = &_src->draw;
-        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices   * sizeof(vec3 ));
-        GUARDED_MALLOC_MEMCPY(dst->vertex_normals,   src->vertex_normals,   src->num_vertices   * sizeof(vec3 ));
-        GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles  * sizeof(uint3));
-        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles  * sizeof(vec3 ));
-        GUARDED_MALLOC_MEMCPY(dst->hard_edges,       src->hard_edges,       src->num_hard_edges * sizeof(uint2));
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices  , vec3 );
+        GUARDED_MALLOC_MEMCPY(dst->vertex_normals,   src->vertex_normals,   src->num_vertices  , vec3 );
+        GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles , uint3);
+        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles , vec3 );
+        GUARDED_MALLOC_MEMCPY(dst->hard_edges,       src->hard_edges,       src->num_hard_edges, uint2);
     }
 }
 

@@ -51,7 +51,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             eso_size(1.0f);
             for_(i, mesh->num_hard_edges) {
                 for_(d, 2) {
-                    eso_vertex(mesh->vertex_positions[mesh->hard_edges[i][d]]);
+                        eso_vertex(mesh->vertex_positions[mesh->hard_edges[i][d]]);
                 }
             }
             eso_end();
