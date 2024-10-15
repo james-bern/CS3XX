@@ -265,7 +265,7 @@ ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other other;
 // convenient pointers to shorten xxx.foo.bar into foo->bar
 Drawing *drawing = &state.drawing;
 FeaturePlaneState *feature_plane = &state.feature_plane;
-Mesh *mesh = &state.mesh;
+Meshes *meshes = &state.meshes;
 PopupState *popup = &state.popup;
 ToolboxState *toolbox = &state.toolbox;
 TwoClickCommandState *two_click_command = &state.two_click_command;

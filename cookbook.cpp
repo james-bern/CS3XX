@@ -661,8 +661,8 @@ struct Cookbook {
 
             { // result.mesh
                 CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&drawing->entities, true);
-                Mesh tmp = wrapper_manifold(
-                        &state.mesh,
+                Meshes tmp = wrapper_manifold(
+                        &state.meshes,
                         cross_section.num_polygonal_loops,
                         cross_section.num_vertices_in_polygonal_loops,
                         cross_section.polygonal_loops,
@@ -675,8 +675,8 @@ struct Cookbook {
                         drawing->axis_angle_from_y);
                 cross_section_free(&cross_section);
 
-                mesh_free_AND_zero(&state.mesh); // FORNOW
-                state.mesh = tmp; // FORNOW
+                meshes_free_AND_zero(&state.meshes); // FORNOW
+                state.meshes = tmp; // FORNOW
             }
         }
 

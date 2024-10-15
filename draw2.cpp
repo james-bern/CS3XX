@@ -49,11 +49,22 @@ struct {
             vec3 N = normalize(fs_in.normal_World);
 
             vec3 rgb = vec3(0.0);
-            rgb += 0.5 * (vec3(1.0) - abs(N.zxy)); // normal-ambient
-            // rgb += 0.2 * vec3(1.0);
+            rgb += 0.5 * (vec3(1.0) - abs(normalize(fs_in.normal_World).zxy)); // normal-ambient
+            // rgb += 0.5 * vec3(1.0, 1.0, 0.0);
 
-            for (int i = 0; i < 2; ++i) {
-                vec3 light_position_World = (i == 0) ? eye_World : vec3(0.0, 1000.0, 0.0);
+            for (int i = 0; i < 4; ++i) {
+                vec3 light_position_World =
+                        (i == 0) ? vec3(100.0, 0.0, 0.0) :
+                        (i == 1) ? vec3(0.0, 100.0, 0.0) :
+                        (i == 2) ? vec3(0.0, 0.0, 100.0) :
+                        eye_World;
+
+                vec3 light_color =
+                        (i == 0) ? vec3(1.0, 0.0, 0.0) :
+                        (i == 1) ? vec3(0.0, 1.0, 0.0) :
+                        (i == 2) ? vec3(0.0, 0.0, 1.0) :
+                        vec3(1.0);
+
                 vec3 L = normalize(light_position_World - fs_in.position_World);
                 vec3 E = normalize(eye_World - fs_in.position_World);
                 vec3 H = normalize(L + E);
@@ -62,9 +73,9 @@ struct {
                 float specular = pow(max(0.0, dot(N, H)), 256);
                 float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
 
-                rgb += 0.3 * diffuse;
-                rgb += 0.7 * specular;
-                rgb += 0.8 * fresnel;
+                rgb += 0.3 * diffuse * light_color;
+                rgb += 0.9 * specular * light_color;
+                rgb += 0.2 * fresnel * light_color;
             }
 
             _gl_FragColor = vec4(rgb, 1.0);
@@ -89,7 +100,7 @@ run_before_main {
 };
 
 // TODO: compute vertex normals
-void phong_draw(mat4 P, mat4 V, mat4 M, Mesh *) {
+void phong_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
     // NOTE moved this up before the pushes; is that okay?
     ASSERT(phong.shader_program);

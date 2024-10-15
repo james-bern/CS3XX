@@ -206,7 +206,7 @@ bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
     return true;
 }
 
-bool mesh_save_stl(Mesh *mesh_to_save, String filename) {
+bool mesh_save_stl(WorkMesh *mesh_to_save, String filename) {
     FILE *file = FILE_OPEN(filename, "wb");
     if (!file) {
         return false;
@@ -243,7 +243,7 @@ bool mesh_save_stl(Mesh *mesh_to_save, String filename) {
     return true;
 }
 
-void stl_load(String filename, Mesh *mesh_to_load) {
+void stl_load(String filename, Meshes *meshes_to_load) {
     // history_record_state(history, manifold_manifold, mesh); // FORNOW
 
     { // mesh
@@ -344,14 +344,7 @@ void stl_load(String filename, Mesh *mesh_to_load) {
 
         free(triangle_soup);
 
-        mesh_to_load->num_vertices = num_vertices;
-        mesh_to_load->num_triangles = num_triangles;
-        mesh_to_load->vertex_positions = vertex_positions;
-        mesh_to_load->triangle_indices = triangle_indices;
-        mesh_triangle_normals_calculate(mesh_to_load);
-        mesh_cosmetic_edges_calculate(mesh_to_load);
-        mesh_vertex_normals_calculate(mesh_to_load);
-        mesh_bbox_calculate(mesh_to_load);
+        meshes_init(meshes_to_load, num_vertices, num_triangles, vertex_positions, triangle_indices);
     }
 }
 

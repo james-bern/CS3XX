@@ -184,19 +184,33 @@ struct Entity {
     CircleEntity circle;
 };
 
-struct Mesh {
+struct WorkMesh {
     uint num_vertices;
     uint num_triangles;
-    vec3 *vertex_positions;
-    uint3 *triangle_indices;
-    vec3 *triangle_normals;
-    vec3 *vertex_normals;
 
-    // ??
-    uint num_cosmetic_edges;
-    uint2 *cosmetic_edges;
+    vec3  *vertex_positions;
+    uint3 *triangle_indices;
+    vec3  *triangle_normals;
 
     bbox3 bbox;
+};
+
+struct DrawMesh {
+    uint num_vertices;
+    uint num_triangles; // NOTE: same as WorkMesh
+    uint num_hard_edges;
+
+    vec3  *vertex_positions;
+    vec3  *vertex_normals;
+    vec3  *triangle_normals; // TODO: eliminate this variable (preserve order of triangles work -> draw)
+    uint3 *triangle_indices;
+
+    uint2 *hard_edges;
+};
+
+struct Meshes {
+    WorkMesh work;
+    DrawMesh draw;
 };
 
 struct RawKeyEvent {
@@ -433,7 +447,7 @@ struct ToolboxState {
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
-    Mesh mesh;
+    Meshes meshes;
     Drawing drawing;
     FeaturePlaneState feature_plane;
     TwoClickCommandState two_click_command;
@@ -1292,8 +1306,14 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 // Mesh, Mesh //////////////////////
 ////////////////////////////////////////
 
+void mesh_bbox_calculate(WorkMesh *mesh) {
+    mesh->bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
+    for_(i, mesh->num_vertices) {
+        mesh->bbox += mesh->vertex_positions[i];
+    }
+}
 
-void mesh_triangle_normals_calculate(Mesh *mesh) {
+void mesh_triangle_normals_calculate(WorkMesh *mesh) {
     mesh->triangle_normals = (vec3 *) malloc(mesh->num_triangles * sizeof(vec3));
     vec3 p[3];
     for_(i, mesh->num_triangles) {
@@ -1303,11 +1323,13 @@ void mesh_triangle_normals_calculate(Mesh *mesh) {
     }
 }
 
-void mesh_cosmetic_edges_calculate(Mesh *mesh) {
+void mesh_hard_edges_calculate(Meshes *meshes) {
+    // // hard edges
     // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
     //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
     //           then go back and if passes some heuristic add that index to a stretchy buffer
     List<uint2> list = {}; {
+        WorkMesh *mesh = &meshes->work;
         Map<uint2, vec3> map = {}; {
             for_(i, mesh->num_triangles) {
                 vec3 n = mesh->triangle_normals[i];
@@ -1339,40 +1361,46 @@ void mesh_cosmetic_edges_calculate(Mesh *mesh) {
         map_free_and_zero(&map);
     }
     {
-        mesh->num_cosmetic_edges = list.length;
-        mesh->cosmetic_edges = (uint2 *) calloc(mesh->num_cosmetic_edges, sizeof(uint2));
-        memcpy(mesh->cosmetic_edges, list.array, mesh->num_cosmetic_edges * sizeof(uint2)); 
+        DrawMesh *mesh = &meshes->draw;
+        mesh->num_hard_edges = list.length;
+
+        mesh->hard_edges = (uint2 *) calloc(mesh->num_hard_edges, sizeof(uint2));
+        memcpy(mesh->hard_edges, list.array, mesh->num_hard_edges * sizeof(uint2)); 
     }
     list_free_AND_zero(&list);
 }
 
 // TODO: this crap is so slow -- O(bad)
 // TODO: the result of this is (obviously) no longer manifold, and so is suitable only for drawing; TODO: refactor to calculate just aesthetics
-// TODO: rename cosmetic edges to hard edges
-void mesh_vertex_normals_calculate(Mesh *mesh) {
+// TODO: rename hard edges to hard edges
 
-    #if 1 // O(horrible) flood fill that reallocs all the other mesh data
-    if (mesh->num_cosmetic_edges) { // torus shouldn't bother doing this crap
-        ASSERT(mesh->num_triangles);
+// // TODO: frees (arena?)
+// defer  {
+//     // queue_free_AND_zero(&queue);
+//     // free(visited);
+// };
+void mesh_divide_into_patches(Meshes *meshes) {
+    {
+        WorkMesh *work = &meshes->work;
+        DrawMesh *draw = &meshes->draw;
+        ASSERT(work->num_triangles == draw->num_triangles);
+        if (draw->num_hard_edges == 0) return; // torus shouldn't bother doing this crap
+    }
 
-        // // TODO: frees (arena?)
-        // defer  {
-        //     // queue_free_AND_zero(&queue);
-        //     // free(visited);
-        // };
-
-
-        List<vec3> new_vertex_positions = {};
-        List<uint3> new_triangle_indices = {};
-        List<vec3> new_triangle_normals = {};
-        List<uint2> new_cosmetic_edges = {}; // FORNOW: doubling up
-
+    List<vec3> new_vertex_positions = {};
+    List<uint3> new_triangle_indices = {};
+    List<vec3> new_triangle_normals = {};
+    List<uint2> new_hard_edges = {}; // FORNOW: doubling up
+    {
+        WorkMesh *mesh = &meshes->work;
+        uint num_hard_edges = meshes->draw.num_hard_edges;
+        uint2 *hard_edges = meshes->draw.hard_edges;
 
         bool *visited = (bool *) calloc(mesh->num_triangles, sizeof(bool));
         while (true) {
             // flood fill off triangle indices
             List<uint> patch = {};
-            List<uint2> patch_cosmetic_edges = {};
+            List<uint2> patch_hard_edges = {};
             {
                 Queue<uint> queue = {};
 
@@ -1405,18 +1433,18 @@ void mesh_vertex_normals_calculate(Mesh *mesh) {
                         uint j = tri[(d + 1) % 3];
                         uint2 edge = { MIN(i, j), MAX(i, j) };
 
-                        { // skip cosmetic edge; FORNOW: O(num_cosmetic_edges)
-                            bool skip_because_cosmetic_edge__NOTE_also_records; {
-                                skip_because_cosmetic_edge__NOTE_also_records = false;
-                                for_(cosmetic_edge_index, mesh->num_cosmetic_edges) {
-                                    if (edge == mesh->cosmetic_edges[cosmetic_edge_index]) {
-                                        skip_because_cosmetic_edge__NOTE_also_records = true;
+                        { // skip hard edge; FORNOW: O(num_hard_edges)
+                            bool skip_because_hard_edge__NOTE_also_records; {
+                                skip_because_hard_edge__NOTE_also_records = false;
+                                for_(hard_edge_index, num_hard_edges) {
+                                    if (edge == hard_edges[hard_edge_index]) {
+                                        skip_because_hard_edge__NOTE_also_records = true;
                                         break;
                                     }
                                 }
                             }
-                            if (skip_because_cosmetic_edge__NOTE_also_records) {
-                                list_push_back(&patch_cosmetic_edges, edge);
+                            if (skip_because_hard_edge__NOTE_also_records) {
+                                list_push_back(&patch_hard_edges, edge);
                                 continue;
                             }
                         }
@@ -1505,30 +1533,30 @@ void mesh_vertex_normals_calculate(Mesh *mesh) {
             }
 
             // NOTE: A has to go before B
-            for_(cosmetic_edge_index, patch_cosmetic_edges.length) { // A
-                uint2 edge = patch_cosmetic_edges.array[cosmetic_edge_index];
+            for_(hard_edge_index, patch_hard_edges.length) { // A
+                uint2 edge = patch_hard_edges.array[hard_edge_index];
                 for_(d, 2) edge[d] = VERTINDEX_newOfOld(edge[d]);
-                list_push_back(&new_cosmetic_edges, edge);
+                list_push_back(&new_hard_edges, edge);
             }
 
             for_(vertex_index, patch_num_vertices) { // B
                 list_push_back(&new_vertex_positions, patch_vertex_positions[vertex_index]);
             }
         }
-
-        // SLOPPY
+    }
+    { // FORNOW sloppy
+        DrawMesh *mesh = &meshes->draw;
         mesh->num_vertices     = new_vertex_positions.length;
         mesh->num_triangles    = new_triangle_indices.length;
         mesh->vertex_positions = new_vertex_positions.array;
         mesh->triangle_indices = new_triangle_indices.array;
         mesh->triangle_normals = new_triangle_normals.array;
-        //
-        mesh->num_cosmetic_edges  = new_cosmetic_edges.length;
-        mesh->cosmetic_edges  = new_cosmetic_edges.array;
+        mesh->num_hard_edges   = new_hard_edges.length;
+        mesh->hard_edges       = new_hard_edges.array;
     }
-    #endif
+}
 
-
+void mesh_vertex_normals_calculate(DrawMesh *mesh) {
     mesh->vertex_normals = (vec3 *) calloc(mesh->num_vertices, 3 * sizeof(vec3));
     for_(triangle_index, mesh->num_triangles) {
         vec3 triangle_normal = mesh->triangle_normals[triangle_index];
@@ -1549,52 +1577,96 @@ void mesh_vertex_normals_calculate(Mesh *mesh) {
     for_(vertex_index, mesh->num_vertices) {
         mesh->vertex_normals[vertex_index] = normalized(mesh->vertex_normals[vertex_index]);
     }
-
-}
-
-void mesh_bbox_calculate(Mesh *mesh) {
-    mesh->bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
-    for_(i, mesh->num_vertices) {
-        mesh->bbox += mesh->vertex_positions[i];
-    }
 }
 
 
-void mesh_free_AND_zero(Mesh *mesh) {
-    if (mesh->vertex_positions) free(mesh->vertex_positions);
-    if (mesh->triangle_indices) free(mesh->triangle_indices);
-    if (mesh->triangle_normals) free(mesh->triangle_normals);
-    if (mesh->cosmetic_edges)   free(mesh->cosmetic_edges);
-    if (mesh->vertex_normals)   free(mesh->vertex_normals);
-    *mesh = {};
+void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vertex_positions, uint3 *triangle_indices) {
+    {
+        WorkMesh *mesh = &meshes->work;
+
+        mesh->num_triangles = num_triangles;
+        mesh->num_vertices = num_vertices;
+
+        mesh->vertex_positions = vertex_positions;
+        mesh->triangle_indices = triangle_indices;
+
+        mesh_bbox_calculate(&meshes->work);
+        mesh_triangle_normals_calculate(&meshes->work);
+    }
+
+    {
+        DrawMesh *mesh = &meshes->draw;
+        mesh->num_vertices = num_vertices; // FORNOW
+        mesh->num_triangles = num_triangles;
+    }
+
+    {
+        mesh_hard_edges_calculate(meshes);
+    }
+
+    {
+        #if 1
+        mesh_divide_into_patches(meshes);
+        #else
+        WorkMesh *work = &meshes->work;
+        DrawMesh *draw = &meshes->draw;
+        draw->num_vertices = work->num_vertices; // FORNOW
+        draw->vertex_positions = work->vertex_positions;
+        draw->triangle_indices = work->triangle_indices;
+        #endif
+    }
+
+    {
+        mesh_vertex_normals_calculate(&meshes->draw);
+    }
 }
 
-void mesh_deep_copy(Mesh *dst, Mesh *src) {
-    *dst = *src;
-    if (src->vertex_positions) {
-        uint size = src->num_vertices * sizeof(vec3);
-        dst->vertex_positions = (vec3 *) malloc(size);
-        memcpy(dst->vertex_positions, src->vertex_positions, size);
+void meshes_free_AND_zero(Meshes *meshes) {
+    {
+        WorkMesh *mesh = &meshes->work;
+        GUARDED_free(mesh->vertex_positions);
+        GUARDED_free(mesh->triangle_indices);
+        GUARDED_free(mesh->triangle_normals);
     }
-    if (src->triangle_indices) {
-        uint size = src->num_triangles * sizeof(uint3);
-        dst->triangle_indices = (uint3 *) malloc(size);
-        memcpy(dst->triangle_indices, src->triangle_indices, size);
+
+    {
+        DrawMesh *mesh = &meshes->draw;
+        GUARDED_free(mesh->vertex_positions);
+        GUARDED_free(mesh->vertex_normals);
+        GUARDED_free(mesh->triangle_indices);
+        GUARDED_free(mesh->triangle_normals);
+        GUARDED_free(mesh->hard_edges);
     }
-    if (src->triangle_normals) {
-        uint size = src->num_triangles * sizeof(vec3); 
-        dst->triangle_normals = (vec3 *) malloc(size);
-        memcpy(dst->triangle_normals, src->triangle_normals, size);
+
+    *meshes = {};
+}
+
+void GUARDED_MALLOC_MEMCPY(void *dst, void *src, int size) {
+    if (src) {
+        dst = malloc(size);
+        memcpy(dst, src, size);
     }
-    if (src->cosmetic_edges) {
-        uint size = src->num_cosmetic_edges * sizeof(uint2);
-        dst->cosmetic_edges = (uint2 *) malloc(size);
-        memcpy(dst->cosmetic_edges, src->cosmetic_edges, size);
+}
+
+void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
+    *_dst = *_src;
+
+    {
+        WorkMesh *dst = &_dst->work;
+        WorkMesh *src = &_src->work;
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions,      src->vertex_positions,      src->num_vertices  * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles * sizeof(uint3));
+        GUARDED_MALLOC_MEMCPY(dst->triangle_normals,      src->triangle_normals,      src->num_triangles * sizeof(vec3));
     }
-    if (src->vertex_normals) {
-        uint size = src->num_vertices * sizeof(vec3);
-        dst->vertex_normals = (vec3 *) malloc(size);
-        memcpy(dst->vertex_normals, src->vertex_normals, size);
+
+    {
+        DrawMesh *dst = &_dst->draw;
+        DrawMesh *src = &_src->draw;
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions,      src->vertex_positions,      src->num_vertices   * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->vertex_normals,        src->vertex_normals,        src->num_vertices   * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles  * sizeof(uint3));
+        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles  * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->hard_edges,       src->hard_edges,       src->num_hard_edges * sizeof(uint2));
     }
 }
 
@@ -1618,12 +1690,12 @@ bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift
 void world_state_deep_copy(WorldState_ChangesToThisMustBeRecorded_state *dst, WorldState_ChangesToThisMustBeRecorded_state *src) {
     *dst = *src;
     dst->drawing.entities = {};
-    list_clone(&dst->drawing.entities,    &src->drawing.entities   );
-    mesh_deep_copy(&dst->mesh, &src->mesh);
+    list_clone(&dst->drawing.entities, &src->drawing.entities);
+    meshes_deep_copy(&dst->meshes, &src->meshes);
 }
 
 void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *world_state) {
-    mesh_free_AND_zero(&world_state->mesh);
+    meshes_free_AND_zero(&world_state->meshes);
     list_free_AND_zero(&world_state->drawing.entities);
 }
 
@@ -1633,8 +1705,8 @@ void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *wor
 
 // TODO: don't overwrite fancy mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
-Mesh wrapper_manifold(
-        Mesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
+Meshes wrapper_manifold(
+        Meshes *meshes, // dest__NOTE_GETS_OVERWRITTEN,
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
@@ -1647,6 +1719,7 @@ Mesh wrapper_manifold(
         real dxf_axis_angle_from_y
         ) {
 
+    WorkMesh *mesh = &meshes->work;
 
     bool add = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
     bool cut = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
@@ -1739,7 +1812,7 @@ Mesh wrapper_manifold(
         manifold_delete_polygons(_polygons);
     }
 
-    Mesh result; { // C <- f(A, B)
+    Meshes result; { // C <- f(A, B)
         ManifoldMeshGL *meshgl; {
             ManifoldManifold *manifold_C;
             if (manifold_A == NULL) {
@@ -1762,15 +1835,11 @@ Mesh wrapper_manifold(
         }
 
         { // result <- meshgl
-            result = {};
-            result.num_vertices = manifold_meshgl_num_vert(meshgl);
-            result.num_triangles = manifold_meshgl_num_tri(meshgl);
-            result.vertex_positions = (vec3 *) manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-            result.triangle_indices = (uint3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
-            mesh_triangle_normals_calculate(&result);
-            mesh_cosmetic_edges_calculate(&result);
-            mesh_vertex_normals_calculate(&result);
-            mesh_bbox_calculate(&result);
+            uint num_vertices = manifold_meshgl_num_vert(meshgl);
+            uint num_triangles = manifold_meshgl_num_tri(meshgl);
+            vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
+            uint3 *triangle_indices = (uint3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
+            meshes_init(&result, num_vertices, num_triangles, vertex_positions, triangle_indices);
         }
 
         manifold_delete_meshgl(meshgl);

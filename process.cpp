@@ -681,7 +681,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ClearMesh)) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
-                        mesh_free_AND_zero(mesh);
+                        meshes_free_AND_zero(meshes);
                         *feature_plane = {};
                         messagef(pallete.light_gray, "ClearMesh");
                     }
@@ -1908,6 +1908,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         } else if (mouse_event->subtype == MouseEventSubtype::Mesh) {
             MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
             result.record_me = false;
+            WorkMesh *mesh = &meshes->work;
             if (!mouse_event->mouse_held) {
                 int index_of_first_triangle_hit_by_ray = -1;
                 {
@@ -2382,7 +2383,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 { // conversation_stl_load(...)
                                     ASSERT(FILE_EXISTS(popup->open_stl_filename));
                                     // ?
-                                    stl_load(popup->open_stl_filename, mesh);
+                                    stl_load(popup->open_stl_filename, meshes);
                                     init_camera_mesh();
                                 }
                                 set_state_Mesh_command(None);
@@ -2403,7 +2404,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (popup->overwrite_stl_yn_buffer.data[0] == 'y') {
                             if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
                                 {
-                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
+                                    bool success = mesh_save_stl(&meshes->work, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
                                 set_state_Mesh_command(None);
@@ -2428,7 +2429,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
                                 set_state_Mesh_command(None);
                                 {
-                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
+                                    bool success = mesh_save_stl(&meshes->work, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
                                 messagef(pallete.light_gray, "SaveSTL \"%s\"", popup->save_stl_filename.data);
@@ -2473,7 +2474,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.orange, "ExtrudeCut: no feature plane selected");
                         } else if (IS_ZERO(popup->extrude_cut_in_length) && IS_ZERO(popup->extrude_cut_out_length)) {
                             messagef(pallete.orange, "ExtrudeCut: total extrusion length zero");
-                        } else if (mesh->num_triangles == 0) {
+                        } else if (meshes->work.num_triangles == 0) {
                             messagef(pallete.orange, "ExtrudeCut: current mesh empty");
                         } else {
                             cookbook.manifold_wrapper();
@@ -2511,7 +2512,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.orange, "RevolveCut: selection empty");
                         } else if (!feature_plane->is_active) {
                             messagef(pallete.orange, "RevolveCut: no feature plane selected");
-                        } else if (mesh->num_triangles == 0) {
+                        } else if (meshes->work.num_triangles == 0) {
                             messagef(pallete.orange, "RevolveCut: current mesh empty");
                         } else {
                             cookbook.manifold_wrapper();

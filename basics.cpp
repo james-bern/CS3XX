@@ -190,3 +190,7 @@ long MILLIS() {
 run_before_main { setvbuf(stdout, NULL, _IONBF, 0); };
 // seed random number generator
 run_before_main { srand((unsigned int) time(NULL)); };
+// GUARDED_free
+void GUARDED_free(void *pointer) {
+    if (pointer) free(pointer);
+}

@@ -34,6 +34,8 @@ mat4 get_M_3D_from_2D() {
 }
 
 bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
+    DrawMesh *mesh = &meshes->draw;
+
     bbox2 face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     // mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
     phong_draw(P_3D, V_3D, M_3D, mesh);
@@ -41,15 +43,15 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
 
     #if 1
     if (!other.show_details) {
-        if (mesh->cosmetic_edges) {
+        if (mesh->hard_edges) {
             mat4 PVM_3D = P_3D * V_3D * M_3D;
             eso_begin(PVM_3D, SOUP_LINES); 
             // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, pallete.white, pallete.black));
             eso_color(0,0,0);
             eso_size(1.0f);
-            for_(i, mesh->num_cosmetic_edges) {
+            for_(i, mesh->num_hard_edges) {
                 for_(d, 2) {
-                    eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
+                    eso_vertex(mesh->vertex_positions[mesh->hard_edges[i][d]]);
                 }
             }
             eso_end();
@@ -1277,7 +1279,7 @@ void conversation_draw() {
         EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
         easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
         pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
-        easy_text_drawf(&pen, "%d triangles", mesh->num_triangles);
+        easy_text_drawf(&pen, "%d triangles", meshes->work.num_triangles);
     }
 
 }
