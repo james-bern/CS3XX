@@ -1915,7 +1915,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real min_distance = HUGE_VAL;
                     for_(i, mesh->num_triangles) {
                         vec3 p[3]; {
-                            for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                            for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_index_tuples[i][j]];
                         }
                         RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction, p[0], p[1], p[2]);
                         if (ray_triangle_intersection_result.hit) {
@@ -1933,7 +1933,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     other.time_since_plane_selected = 0.0f;
                     {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];
-                        vec3 triangle_intersection = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
+                        vec3 triangle_intersection = mesh->vertex_positions[mesh->triangle_index_tuples[index_of_first_triangle_hit_by_ray][0]];
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, triangle_intersection);
 
                         if (state.Mesh_command.flags & TWO_CLICK) {

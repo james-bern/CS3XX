@@ -227,7 +227,7 @@ bool mesh_save_stl(WorkMesh *mesh_to_save, String filename) {
             offset += 12;
             vec3 triangle_vertex_positions[3];
             for_(j, 3) {
-                triangle_vertex_positions[j] = mesh_to_save->vertex_positions[mesh_to_save->triangle_indices[i][j]];
+                triangle_vertex_positions[j] = mesh_to_save->vertex_positions[mesh_to_save->triangle_index_tuples[i][j]];
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
                 triangle_vertex_positions[j] = { triangle_vertex_positions[j].x, -triangle_vertex_positions[j].z, triangle_vertex_positions[j].y };
 
@@ -314,7 +314,7 @@ void stl_load(String filename, Meshes *meshes_to_load) {
 
         uint num_vertices;
         vec3 *vertex_positions;
-        uint3 *triangle_indices;
+        uint3 *triangle_index_tuples;
         { // merge vertices (NOTE: only merges vertices that overlap exactly)
             num_vertices = 0;
             Map<vec3, uint> map = {};
@@ -337,14 +337,14 @@ void stl_load(String filename, Meshes *meshes_to_load) {
                 }
                 list_free_AND_zero(&list);
             }
-            triangle_indices = (uint3 *) malloc(num_triangles * sizeof(uint3));
-            for_(k, _3__times__num_triangles) triangle_indices[k / 3][k % 3] = map_get(&map, triangle_soup[k]);
+            triangle_index_tuples = (uint3 *) malloc(num_triangles * sizeof(uint3));
+            for_(k, _3__times__num_triangles) triangle_index_tuples[k / 3][k % 3] = map_get(&map, triangle_soup[k]);
             map_free_and_zero(&map);
         }
 
         free(triangle_soup);
 
-        meshes_init(meshes_to_load, num_vertices, num_triangles, vertex_positions, triangle_indices);
+        meshes_init(meshes_to_load, num_vertices, num_triangles, vertex_positions, triangle_index_tuples);
     }
 }
 

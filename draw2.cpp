@@ -131,7 +131,7 @@ void phong_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     guarded_push(mesh->vertex_normals, 3, sizeof(real), GL_FLOAT);
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, phong.EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_indices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_index_tuples, GL_DYNAMIC_DRAW);
 
     auto LOC = [&](char *name) { return glGetUniformLocation(phong.shader_program, name); };
     glUniformMatrix4fv(LOC("P"), 1, GL_TRUE, P.data);

@@ -28,7 +28,7 @@ struct EmmaMesh {
     vec3 *vertex_positions;
 
     uint num_triangles;
-    uint3 *triangle_indices;
+    uint3 *triangle_index_tuples;
 
     uint num_bones;
     Bone *bones;
@@ -80,20 +80,20 @@ int main() {
             ASSERT(currVert == mesh.num_vertices);
         }
 
-        { // triangle_indices
+        { // triangle_index_tuples
             mesh.num_triangles = 4 + meshSegments*8;
-            mesh.triangle_indices = (uint3 *) calloc(mesh.num_triangles, sizeof(uint3));
+            mesh.triangle_index_tuples = (uint3 *) calloc(mesh.num_triangles, sizeof(uint3));
             uint currTriangle = 0;
             // sides
             for (uint i = 0; i < mesh.num_vertices-4; i++) {
-                mesh.triangle_indices[currTriangle++] = { i, i+3, i+4 };
-                mesh.triangle_indices[currTriangle++] = { i, i+1, i+4 };
+                mesh.triangle_index_tuples[currTriangle++] = { i, i+3, i+4 };
+                mesh.triangle_index_tuples[currTriangle++] = { i, i+1, i+4 };
             }
             // ends
-            mesh.triangle_indices[currTriangle++] = { 0, 1, 3 };
-            mesh.triangle_indices[currTriangle++] = { 1, 2, 3 };
-            mesh.triangle_indices[currTriangle++] = { mesh.num_vertices-3, mesh.num_vertices-2, mesh.num_vertices-1 };
-            mesh.triangle_indices[currTriangle++] = { mesh.num_vertices-4, mesh.num_vertices-3, mesh.num_vertices-1 };
+            mesh.triangle_index_tuples[currTriangle++] = { 0, 1, 3 };
+            mesh.triangle_index_tuples[currTriangle++] = { 1, 2, 3 };
+            mesh.triangle_index_tuples[currTriangle++] = { mesh.num_vertices-3, mesh.num_vertices-2, mesh.num_vertices-1 };
+            mesh.triangle_index_tuples[currTriangle++] = { mesh.num_vertices-4, mesh.num_vertices-3, mesh.num_vertices-1 };
             ASSERT(currTriangle == mesh.num_triangles);
         }
 
@@ -151,7 +151,7 @@ int main() {
             eso_begin(PV, SOUP_TRI_MESH);
             for_(triangle_index, mesh.num_triangles) {
                 for_(d, 3) {
-                    uint vertex_index = mesh.triangle_indices[triangle_index][d];
+                    uint vertex_index = mesh.triangle_index_tuples[triangle_index][d];
                     vec3 color = {};
                     vec3 s_bind = mesh.vertex_positions[vertex_index]; 
                     vec3 newVertex = {};
