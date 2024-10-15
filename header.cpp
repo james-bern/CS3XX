@@ -1642,6 +1642,8 @@ void meshes_free_AND_zero(Meshes *meshes) {
     *meshes = {};
 }
 
+// TODO: arenasssssssssss (the mesh needs an arenaaaaaaaaa)
+
 //oh no
 #define GUARDED_MALLOC_MEMCPY(dst, src, count, type) \
     do { \
