@@ -1364,16 +1364,16 @@ void mesh_hard_edges_calculate(Meshes *meshes) {
         DrawMesh *mesh = &meshes->draw;
         mesh->num_hard_edges = list.length;
 
-        mesh->hard_edges = (uint2 *) calloc(mesh->num_hard_edges, sizeof(uint2));
+        mesh->hard_edges = (uint2 *) malloc(mesh->num_hard_edges * sizeof(uint2));
         memcpy(mesh->hard_edges, list.array, mesh->num_hard_edges * sizeof(uint2)); 
     }
     list_free_AND_zero(&list);
 }
 
-// TODO: this crap is so slow -- O(bad)
-// TODO: the result of this is (obviously) no longer manifold, and so is suitable only for drawing; TODO: refactor to calculate just aesthetics
-// TODO: rename hard edges to hard edges
+// // TODO: undo and redo are broken now :(
 
+// TODO: this crap is so slow -- O(bad)
+// TODO: 
 // // TODO: frees (arena?)
 // defer  {
 //     // queue_free_AND_zero(&queue);
@@ -1387,9 +1387,11 @@ void mesh_divide_into_patches(Meshes *meshes) {
         if (draw->num_hard_edges == 0) return; // torus shouldn't bother doing this crap
     }
 
+    // TODO: preserve triangle order (there's the same number of triangles
+
     List<vec3> new_vertex_positions = {};
     List<uint3> new_triangle_indices = {};
-    List<vec3> new_triangle_normals = {};
+    List<vec3> new_triangle_normals = {}; // TODO: eliminate this list
     List<uint2> new_hard_edges = {}; // FORNOW: doubling up
     {
         WorkMesh *mesh = &meshes->work;
@@ -1608,11 +1610,13 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
         #if 1
         mesh_divide_into_patches(meshes);
         #else
+        // TODO: support a simple fallback option
         WorkMesh *work = &meshes->work;
         DrawMesh *draw = &meshes->draw;
         draw->num_vertices = work->num_vertices; // FORNOW
         draw->vertex_positions = work->vertex_positions;
         draw->triangle_indices = work->triangle_indices;
+        draw->triangle_normals = work->triangle_normals;
         #endif
     }
 
@@ -1654,18 +1658,18 @@ void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
     {
         WorkMesh *dst = &_dst->work;
         WorkMesh *src = &_src->work;
-        GUARDED_MALLOC_MEMCPY(dst->vertex_positions,      src->vertex_positions,      src->num_vertices  * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices  * sizeof(vec3 ));
         GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles * sizeof(uint3));
-        GUARDED_MALLOC_MEMCPY(dst->triangle_normals,      src->triangle_normals,      src->num_triangles * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles * sizeof(vec3 ));
     }
 
     {
         DrawMesh *dst = &_dst->draw;
         DrawMesh *src = &_src->draw;
-        GUARDED_MALLOC_MEMCPY(dst->vertex_positions,      src->vertex_positions,      src->num_vertices   * sizeof(vec3));
-        GUARDED_MALLOC_MEMCPY(dst->vertex_normals,        src->vertex_normals,        src->num_vertices   * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices   * sizeof(vec3 ));
+        GUARDED_MALLOC_MEMCPY(dst->vertex_normals,   src->vertex_normals,   src->num_vertices   * sizeof(vec3 ));
         GUARDED_MALLOC_MEMCPY(dst->triangle_indices, src->triangle_indices, src->num_triangles  * sizeof(uint3));
-        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles  * sizeof(vec3));
+        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles  * sizeof(vec3 ));
         GUARDED_MALLOC_MEMCPY(dst->hard_edges,       src->hard_edges,       src->num_hard_edges * sizeof(uint2));
     }
 }

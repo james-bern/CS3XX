@@ -220,7 +220,7 @@ void history_debug_draw() {
     };
 
     auto _history_world_state_draw_helper = [&](WorldState_ChangesToThisMustBeRecorded_state *world_state) {
-        easy_text_drawf(&pen, "%d elements  %d triangles", world_state->drawing.entities.length, meshes->work.num_triangles);
+        easy_text_drawf(&pen, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->meshes.work.num_triangles);
     };
 
     pen = { V2(12.0f, 12.0f), 12.0f, pallete.white, true };
