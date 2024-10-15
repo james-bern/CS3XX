@@ -1279,7 +1279,7 @@ void conversation_draw() {
         EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
         easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
         pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
-        easy_text_drawf(&pen, "%d triangles", meshes->work.num_triangles);
+        easy_text_drawf(&pen, "%d triangles %d vertices", meshes->work.num_triangles, meshes->work.num_vertices);
     }
 
 }

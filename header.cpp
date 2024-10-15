@@ -1363,11 +1363,8 @@ void mesh_hard_edges_calculate(Meshes *meshes) {
     {
         DrawMesh *mesh = &meshes->draw;
         mesh->num_hard_edges = list.length;
-
-        mesh->hard_edges = (uint2 *) malloc(mesh->num_hard_edges * sizeof(uint2));
-        memcpy(mesh->hard_edges, list.array, mesh->num_hard_edges * sizeof(uint2)); 
+        mesh->hard_edges = list.array; // FORNOW sloppy
     }
-    list_free_AND_zero(&list);
 }
 
 // // TODO: undo and redo are broken now :(
@@ -1549,17 +1546,17 @@ void mesh_divide_into_patches(Meshes *meshes) {
     { // FORNOW sloppy
         DrawMesh *mesh = &meshes->draw;
         mesh->num_vertices     = new_vertex_positions.length;
-        mesh->num_triangles    = new_triangle_indices.length;
+        ASSERT(mesh->num_triangles == new_triangle_indices.length);
+        mesh->num_hard_edges   = new_hard_edges.length;
         mesh->vertex_positions = new_vertex_positions.array;
         mesh->triangle_indices = new_triangle_indices.array;
         mesh->triangle_normals = new_triangle_normals.array;
-        mesh->num_hard_edges   = new_hard_edges.length;
         mesh->hard_edges       = new_hard_edges.array;
     }
 }
 
 void mesh_vertex_normals_calculate(DrawMesh *mesh) {
-    mesh->vertex_normals = (vec3 *) calloc(mesh->num_vertices, 3 * sizeof(vec3));
+    mesh->vertex_normals = (vec3 *) calloc(mesh->num_vertices, sizeof(vec3));
     for_(triangle_index, mesh->num_triangles) {
         vec3 triangle_normal = mesh->triangle_normals[triangle_index];
         uint3 triangle_ijk = mesh->triangle_indices[triangle_index];
