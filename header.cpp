@@ -1596,12 +1596,12 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 list_push_back(&new_triangle_normals, patch_triangle_normals[triangle_index]);
             }
 
-            // // NOTE: A has to go before B
-            // for_(hard_edge_index, patch_hard_edges.length) { // A
-            //     uint2 edge = patch_hard_edges.array[hard_edge_index];
-            //     for_(d, 2) edge[d] = VERTINDEX_newOfOld(edge[d]);
-            //     list_push_back(&new_hard_edges, edge);
-            // }
+            // NOTE: A has to go before B
+            for_(hard_edge_index, patch_hard_edges.length) { // A
+                uint2 edge = patch_hard_edges.array[hard_edge_index];
+                for_(d, 2) edge[d] = VERTINDEX_newOfOld(edge[d]);
+                list_push_back(&new_hard_edges, edge);
+            }
 
             for_(vertex_index, patch_num_vertices) { // B
                 list_push_back(&new_vertex_positions, patch_vertex_positions[vertex_index]);
@@ -1614,11 +1614,11 @@ void mesh_divide_into_patches(Meshes *meshes) {
         DrawMesh *mesh = &meshes->draw;
         mesh->num_vertices     = new_vertex_positions.length;
         ASSERT(mesh->num_triangles == new_triangle_indices.length);
-        mesh->num_hard_edges   = 0;//new_hard_edges.length;
+        mesh->num_hard_edges   = new_hard_edges.length;
         mesh->vertex_positions = new_vertex_positions.array;
         mesh->triangle_index_tuples = new_triangle_indices.array;
         mesh->triangle_normals = new_triangle_normals.array;
-        mesh->hard_edges       = NULL;//new_hard_edges.array;
+        mesh->hard_edges       = new_hard_edges.array;
     }
 
     #endif
@@ -1777,7 +1777,7 @@ void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *wor
 // uh oh ///////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO: don't overwrite fancy mesh, let the calling code do what it will
+// TODO: don't overwrite  mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
 Meshes wrapper_manifold(
         Meshes *meshes, // dest__NOTE_GETS_OVERWRITTEN,
