@@ -80,18 +80,17 @@ if (false) {
             }
 }
 
-if (true) {
-// sunlight gooch
-{
                 vec3 warm_color = vec3(1.0, 1.0, 0.3);
                 vec3 cool_color = vec3(0.3, 0.7, 1.0);
+// sunlight gooch
+{
                 vec3 L = vec3(0.0, 1.0, 0.0);
                 float LN = dot(L, N);
                 float t = 0.5 + 0.5 * LN;
                 rgb += 0.7 * mix(cool_color, warm_color, t);
 }
 
-// eye light phong
+// eye light gooch phong
 {
                 vec3 L = normalize(eye_World - fs_in.position_World);
                 vec3 E = normalize(eye_World - fs_in.position_World);
@@ -102,13 +101,13 @@ if (true) {
                 float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
                 rgb += 0.3 * diffuse;
                 rgb += 0.2 * specular;
-                rgb += 0.3 * fresnel;
-}
+    rgb += 0.3 * fresnel;
+
 }
 
-            _gl_FragColor = vec4(rgb, 1.0);
-        }
-    )"";
+_gl_FragColor = vec4(rgb, 1.0);
+}
+)"";
 } fancy_source;
 
 struct {

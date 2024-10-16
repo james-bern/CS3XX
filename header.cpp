@@ -1327,48 +1327,48 @@ void mesh_triangle_normals_calculate(WorkMesh *mesh) {
 // TODO: make a better map
 
 
-void mesh_hard_edges_calculate(Meshes *meshes) {
-    // prep a map from edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
-    // iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
-    // then go back and if passes some heuristic add that index to a stretchy buffer
-    List<uint2> list = {}; {
-        WorkMesh *mesh = &meshes->work;
-        Map<uint2, vec3> map = {}; {
-            for_(i, mesh->num_triangles) {
-                vec3 n = mesh->triangle_normals[i];
-                uint3 tri = mesh->triangle_tuples[i];
-
-                for_(d, 3) {
-                    uint j0 = tri[d];
-                    uint j1 = tri[(d + 1) % 3];
-                    uint2 key = { MIN(j0, j1), MAX(j0, j1) };
-
-                    map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
-                }
-            }
-        }
-        {
-            // NOTE: this double for loop is just iterating over the map; will need to replace when we upgrade the map
-            for (List<Pair<uint2, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
-                for (Pair<uint2, vec3> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
-
-                    vec3 n2 = pair->value;
-                    real angle = DEG(acos(n2.x + n2.y + n2.z)); // [0.0f, 180.0f]
-                    if (angle > 30.0f) {
-                        list_push_back(&list, pair->key); // FORNOW
-                    }
-
-                }
-            }
-        }
-        map_free_and_zero(&map);
-    }
-    {
-        DrawMesh *mesh = &meshes->draw;
-        mesh->num_hard_edges = list.length;
-        mesh->hard_edges = list.array; // FORNOW: sloppy
-    }
-}
+// void mesh_hard_edges_calculate(Meshes *meshes) {
+//     // prep a map from edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
+//     // iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
+//     // then go back and if passes some heuristic add that index to a stretchy buffer
+//     List<uint2> list = {}; {
+//         WorkMesh *mesh = &meshes->work;
+//         Map<uint2, vec3> map = {}; {
+//             for_(i, mesh->num_triangles) {
+//                 vec3 n = mesh->triangle_normals[i];
+//                 uint3 tri = mesh->triangle_tuples[i];
+// 
+//                 for_(d, 3) {
+//                     uint j0 = tri[d];
+//                     uint j1 = tri[(d + 1) % 3];
+//                     uint2 key = { MIN(j0, j1), MAX(j0, j1) };
+// 
+//                     map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
+//                 }
+//             }
+//         }
+//         {
+//             // NOTE: this double for loop is just iterating over the map; will need to replace when we upgrade the map
+//             for (List<Pair<uint2, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
+//                 for (Pair<uint2, vec3> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
+// 
+//                     vec3 n2 = pair->value;
+//                     real angle = DEG(acos(n2.x + n2.y + n2.z)); // [0.0f, 180.0f]
+//                     if (angle > 30.0f) {
+//                         list_push_back(&list, pair->key); // FORNOW
+//                     }
+// 
+//                 }
+//             }
+//         }
+//         map_free_and_zero(&map);
+//     }
+//     {
+//         DrawMesh *mesh = &meshes->draw;
+//         mesh->num_hard_edges = list.length;
+//         mesh->hard_edges = list.array; // FORNOW: sloppy
+//     }
+// }
 
 // // TODO: undo and redo are broken now :(
 
@@ -1379,8 +1379,6 @@ void mesh_hard_edges_calculate(Meshes *meshes) {
 //     // queue_free_AND_zero(&queue);
 //     // free(visited);
 // };
-
-
 void mesh_divide_into_patches(Meshes *meshes) {
     {
         WorkMesh *work = &meshes->work;
@@ -1454,7 +1452,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
                 uint patch_index = num_patches;
 
-                // patch_index_from_triangle_index
+
                 map_put(&patch_index_from_triangle_index, triangle_index, patch_index);
 
                 { // patch_indices_from_old_vertex_index
@@ -1510,10 +1508,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
         }
     }
 
-    messagef(pallete.blue, "%d", num_patches);
-
     // NOTE: this feels unnecessarily slow
-    //       we didn't know how many patches there were then
+    //       but we didn't know how many patches there were back when we were flooding
     //       (but we do have an upper bound, which is the number of triangles)
     // TODO: consider trading space for time here (after profiling)
     uint *patch_num_vertices = (uint *) calloc(num_patches, sizeof(uint)); {
@@ -1629,7 +1625,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     }
 
 
-#else
+    #else
 
     List<vec3> new_vertex_positions = {};
     List<uint3> new_triangle_indices = {};
@@ -1806,7 +1802,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
         mesh->hard_edges       = new_hard_edges.array;
     }
 
-#endif
+    #endif
 }
 
 void mesh_vertex_normals_calculate(DrawMesh *mesh) {
@@ -1854,7 +1850,7 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
     }
 
     {
-        mesh_hard_edges_calculate(meshes);
+        // mesh_hard_edges_calculate(meshes);
     }
 
     {
