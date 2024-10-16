@@ -1484,9 +1484,14 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         twin_old_half_edge = { j, i };
                     }
                     uint twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
-                    bool is_not_already_marked = map_contains_key(&patch_index_from_triangle_index, twin_triangle_index);
-                    bool is_soft_edge_TODO = false;
-                    if (is_not_already_marked && is_soft_edge_TODO) { // TODO: condition on hard edge
+                    bool is_not_already_marked = !map_contains_key(&patch_index_from_triangle_index, twin_triangle_index);
+                    bool is_soft_edge; {
+                        vec3 n1 = old->triangle_normals[triangle_index];
+                        vec3 n2 = old->triangle_normals[twin_triangle_index];
+                        real angle_in_degrees = DEG(acos(dot(n1, n2))); // [0.0f, 180.0f]
+                        is_soft_edge = (angle_in_degrees < 30.0f);
+                    }
+                    if (is_not_already_marked && is_soft_edge) { // TODO: condition on hard edge
                         queue_enqueue(&queue, twin_triangle_index);
                     }
                 }
@@ -1548,7 +1553,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
         new_vertex_positions = (vec3 *) malloc(new_num_vertices * sizeof(vec3));
 
         for_(old_vertex_index, old->num_vertices) {
-            List<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index); ASSERT(patch_indices.length);
+            List<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
             for_(_patch_index_index, patch_indices.length) {
                 uint patch_index = patch_indices.array[_patch_index_index];
                 uint new_vertex_index = (patch_new_vetex_index_fingers[patch_index])++;
