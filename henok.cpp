@@ -8,7 +8,7 @@ int main() {
     real time = 0.0f;
     //// draw teapot
     double *vertex_positions = (double *) calloc(99999, sizeof(double)); 
-    int *triangle_index_tuples = (int *) calloc(99999, sizeof(int)); 
+    int *triangle_tuples = (int *) calloc(99999, sizeof(int)); 
     FILE *file = fopen("_henok_teapot.txt", "r");
     ASSERT(file);
     int num_vertices = 0;
@@ -25,9 +25,9 @@ int main() {
             ++num_vertices;
         }
         if (point_type == 'f') {
-            triangle_index_tuples[3 * num_triangles + 0] = a - 1;
-            triangle_index_tuples[3 * num_triangles + 1] = b - 1;
-            triangle_index_tuples[3 * num_triangles + 2] = c - 1;
+            triangle_tuples[3 * num_triangles + 0] = a - 1;
+            triangle_tuples[3 * num_triangles + 1] = b - 1;
+            triangle_tuples[3 * num_triangles + 2] = c - 1;
             ++num_triangles;
          }
     }
@@ -37,9 +37,9 @@ int main() {
         time += 0.0167f;
         int traingle_index = 0; 
         while (traingle_index < (3 * num_triangles)) {
-            int i = triangle_index_tuples[traingle_index];
-            int j = triangle_index_tuples[traingle_index + 1];
-            int k = triangle_index_tuples[traingle_index + 2];
+            int i = triangle_tuples[traingle_index];
+            int j = triangle_tuples[traingle_index + 1];
+            int k = triangle_tuples[traingle_index + 2];
 
             
             double x_i = (30.0f * vertex_positions[3 * i + 0]);

@@ -72,7 +72,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             vec3 p[3];
             real x_n;
             {
-                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_index_tuples[i][j]];
+                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_tuples[i][j]];
                 x_n = dot(n, p[0]);
             }
 

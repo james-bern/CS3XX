@@ -208,6 +208,18 @@ template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key 
     return default_value;
 }
 
+template <typename Key, typename Value> bool map_contains_key(Map<Key, Value> *map, Key key) {
+    if (map->num_buckets == 0) return false;
+    ASSERT(map->buckets);
+    List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
+    for (Pair<Key, Value> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
+        if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 
 template <typename Key, typename Value> void map_free_and_zero(Map<Key, Value> *map) {
     for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free_AND_zero(bucket);
