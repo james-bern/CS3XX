@@ -1443,63 +1443,72 @@ void mesh_divide_into_patches(Meshes *meshes) {
     uint num_patches = 0;
 
     {
-        uint seed_triangle_index = 0;
 
+        Queue<uint> queue = {};
+
+        auto QUEUE_ENQUEUE_AND_MARK = [&](uint triangle_index) {
+            queue_enqueue(&queue, triangle_index);
+
+            { // mark
+                uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
+
+                uint patch_index = num_patches;
+
+                // patch_index_from_triangle_index
+                map_put(&patch_index_from_triangle_index, triangle_index, patch_index);
+
+                { // patch_indices_from_old_vertex_index
+                    for_(d, 3) {
+                        uint old_vertex_index = old_triangle_tuple[d];
+                        List<uint> *patch_indices = _map_get_pointer(&patch_indices_from_old_vertex_index, old_vertex_index);
+                        // sorted unique push_back
+                        bool last_element_is_patch_index; {
+                            bool is_empty = (patch_indices->length == 0);
+                            if (is_empty) {
+                                last_element_is_patch_index = false;
+                            } else {
+                                last_element_is_patch_index = (patch_indices->array[patch_indices->length - 1] == patch_index);
+                            }
+                        }
+                        if (!last_element_is_patch_index) list_push_back(patch_indices, patch_index);
+                    }
+                }
+            }
+        };
+
+        uint seed_triangle_index = 0;
         while (true) {
             while (map_contains_key(&patch_index_from_triangle_index, seed_triangle_index)) ++seed_triangle_index;
             if (seed_triangle_index == num_triangles) break;
-
-            Queue<uint> queue = {};
-            queue_enqueue(&queue, seed_triangle_index);
+            QUEUE_ENQUEUE_AND_MARK(seed_triangle_index);
             while (queue.length) {
                 uint triangle_index = queue_dequeue(&queue);
-                { // mark
-                  // patch_index_from_triangle_index
-                    uint patch_index = num_patches;
-                    map_put(&patch_index_from_triangle_index, triangle_index, patch_index);
-
-                    { // patch_indices_from_old_vertex_index
-                        uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
-                        for_(d, 3) {
-                            uint old_vertex_index = old_triangle_tuple[d];
-                            List<uint> *patch_indices = _map_get_pointer(&patch_indices_from_old_vertex_index, old_vertex_index);
-                            // sorted unique push_back
-                            bool last_element_is_patch_index; {
-                                bool is_empty = (patch_indices->length == 0);
-                                if (is_empty) {
-                                    last_element_is_patch_index = false;
-                                } else {
-                                    last_element_is_patch_index = (patch_indices->array[patch_indices->length - 1] == patch_index);
-                                }
-                            }
-                            if (!last_element_is_patch_index) list_push_back(patch_indices, patch_index);
-                        }
-                    }
-                }
                 uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
                 for_(d, 3) {
-                    uint2 twin_old_half_edge; {
-                        uint i = old_triangle_tuple[ d         ];
-                        uint j = old_triangle_tuple[(d + 1) % 3];
-                        twin_old_half_edge = { j, i };
+                    uint twin_triangle_index; {
+                        uint2 twin_old_half_edge; {
+                            uint i = old_triangle_tuple[ d         ];
+                            uint j = old_triangle_tuple[(d + 1) % 3];
+                            twin_old_half_edge = { j, i };
+                        }
+                        twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
                     }
-                    uint twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
                     bool is_not_already_marked = !map_contains_key(&patch_index_from_triangle_index, twin_triangle_index);
                     bool is_soft_edge; {
                         vec3 n1 = old->triangle_normals[triangle_index];
                         vec3 n2 = old->triangle_normals[twin_triangle_index];
-                        real angle_in_degrees = DEG(acos(dot(n1, n2))); // [0.0f, 180.0f]
-                        is_soft_edge = (angle_in_degrees < 30.0f);
+                        real angle = acos(dot(n1, n2));
+                        is_soft_edge = (angle < RAD(30.0f));
                     }
-                    if (is_not_already_marked && is_soft_edge) { // TODO: condition on hard edge
-                        queue_enqueue(&queue, twin_triangle_index);
-                    }
+                    if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                 }
             }
 
             ++num_patches;
         }
     }
+
+    messagef(pallete.blue, "%d", num_patches);
 
     #if 0
 
@@ -1621,6 +1630,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
         uint2 *hard_edges = meshes->draw.hard_edges;
 
         bool *visited = (bool *) calloc(mesh->num_triangles, sizeof(bool));
+        uint num_patches = 0;
         while (true) {
             // flood fill off triangle indices
             List<uint> patch = {};
@@ -1646,6 +1656,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         }
                     }
                     if (!seeded) break;
+                    ++num_patches;
                 }
 
                 // flood
@@ -1768,6 +1779,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 list_push_back(&new_vertex_positions, patch_vertex_positions[vertex_index]);
             }
         }
+        messagef(pallete.blue, "%d", num_patches);
     }
 
 
