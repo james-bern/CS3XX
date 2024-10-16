@@ -1497,8 +1497,10 @@ void mesh_divide_into_patches(Meshes *meshes) {
                     bool is_soft_edge; {
                         vec3 n1 = old->triangle_normals[triangle_index];
                         vec3 n2 = old->triangle_normals[twin_triangle_index];
-                        real angle = acos(dot(n1, n2));
-                        is_soft_edge = (angle < RAD(30.0f));
+                        // NOTE: clamp ver ver important
+                        real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
+                        ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
+                        is_soft_edge = (angle_in_degrees < 30.0f);
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                 }
@@ -1509,6 +1511,20 @@ void mesh_divide_into_patches(Meshes *meshes) {
     }
 
     messagef(pallete.blue, "%d", num_patches);
+
+    // NOTE: this feels unnecessarily slow
+    //       we didn't know how many patches there were then
+    //       (but we do have an upper bound, which is the number of triangles)
+    // TODO: consider trading space for time here (after profiling)
+    uint *patch_num_vertices = (uint *) calloc(num_patches, sizeof(uint)); {
+        for_(old_vertex_index, old->num_vertices) {
+            List<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
+            for_(_patch_index_index, patch_indices.length) {
+                uint patch_index = patch_indices.array[_patch_index_index];
+                patch_num_vertices[patch_index]++;
+            }
+        }
+    }
 
     #if 0
 
@@ -1541,19 +1557,12 @@ void mesh_divide_into_patches(Meshes *meshes) {
     vec3 *new_vertex_positions;
     Map<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = {};
     {
-        uint *patch_new_vetex_index_fingers;
-        uint *patch_num_vertices;
+        uint *patch_new_vetex_index_fingers; // [ 0, |PATCH0|, |PATCH0| + |PATCH1|, ... ]
         {
-            patch_num_vertices = (uint *) calloc(num_patches, sizeof(uint));
-            for_(triangle_index, num_triangles) {
-                uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
-                patch_num_vertices[patch_index]++;
-            }
-
             patch_new_vetex_index_fingers = (uint *) calloc(num_patches, sizeof(uint));
-            for_(patch_index, num_patches) {
-                if (patch_index > 0) patch_new_vetex_index_fingers[patch_index] += patch_new_vetex_index_fingers[patch_index - 1];
-                patch_new_vetex_index_fingers[patch_index] += patch_num_vertices[patch_index];
+            for_(patch_index, num_patches - 1) {
+                patch_new_vetex_index_fingers[patch_index + 1] += patch_new_vetex_index_fingers[patch_index];
+                patch_new_vetex_index_fingers[patch_index + 1] += patch_num_vertices[patch_index];
             }
 
             new_num_vertices = patch_new_vetex_index_fingers[num_patches - 1] + patch_num_vertices[num_patches - 1];
@@ -1580,6 +1589,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
             }
         }
     }
+
+    messagef(pallete.blue, "%d", new_num_vertices);
 
 
 
@@ -1618,7 +1629,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     }
 
 
-    #else
+#else
 
     List<vec3> new_vertex_positions = {};
     List<uint3> new_triangle_indices = {};
@@ -1786,6 +1797,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     { // FORNOW sloppy
         DrawMesh *mesh = &meshes->draw;
         mesh->num_vertices     = new_vertex_positions.length;
+        messagef(pallete.blue, "%d", mesh->num_vertices);
         ASSERT(mesh->num_triangles == new_triangle_indices.length);
         mesh->num_hard_edges   = new_hard_edges.length;
         mesh->vertex_positions = new_vertex_positions.array;
@@ -1794,7 +1806,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
         mesh->hard_edges       = new_hard_edges.array;
     }
 
-    #endif
+#endif
 }
 
 void mesh_vertex_normals_calculate(DrawMesh *mesh) {
