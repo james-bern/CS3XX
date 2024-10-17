@@ -1,3 +1,215 @@
+#if 1
+
+#include "basics.cpp"
+#include "containers2.cpp"
+#include <sys/mman.h>
+#include <errno.h>
+
+
+// implement a bump allocator arena
+// - NOTE: need to VirtualAlloc a big block
+// implement a map with linear probing
+// TODO: write a VIRTUAL_ALLOC in basics that calls OS-dependent VirtualAlloc or mmap
+
+struct Arena {
+    char *write_head;
+
+    char *_memory;
+    char *_one_past_end_of_memory;
+    uint num_mprotected_pages;
+};
+
+Arena arena_create() {
+    uint capacity = 1024 * 1024 * 1024;
+
+    Arena result = {};
+
+    result._memory = (char *) mmap(NULL, capacity, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    ASSERT(result._memory != MAP_FAILED);
+    result.write_head = result._memory;
+
+    result._one_past_end_of_memory = result._memory + capacity;
+
+    return result;
+}
+
+char *arena_malloc(Arena *arena, uint size) {
+
+    // NOTE: must mprotect on page boundaries
+    size_t page_size = sysconf(_SC_PAGESIZE);
+
+    char * _one_past_end_of_mprotected_memory = arena->_memory + (arena->num_mprotected_pages * page_size);
+    if (arena->write_head + size > _one_past_end_of_mprotected_memory) {
+        // [          ][          ][          ][          ][          ][         
+        //    ^        ^                                       ^       ^         
+        //    |        |                                       |       |         
+        //    |        _one_past_end_of_mprotected_memory      |       :D        
+        //    |                                                |                 
+        //    write_head                                       write_head + size 
+
+        uint num_pages_to_mprotect = (((arena->write_head + size) - _one_past_end_of_mprotected_memory) / page_size + 1);
+        uint num_bytes_to_mprotect = num_pages_to_mprotect * page_size;
+        int mprotect_result = mprotect(
+                _one_past_end_of_mprotected_memory,
+                num_bytes_to_mprotect,
+                PROT_READ | PROT_WRITE
+                );
+        ASSERT(mprotect_result == 0);
+        arena->num_mprotected_pages += num_pages_to_mprotect;
+    }
+
+    char *result = arena->write_head;
+    arena->write_head += size;
+    ASSERT(arena->write_head <= arena->_one_past_end_of_memory);
+    return result;
+}
+
+void arena_free(Arena *arena) {
+    ASSERT(arena->_memory);
+
+}
+
+
+template <typename T> struct ArenaArrayList {
+    Arena *arena;
+
+    uint length;
+    uint _capacity;
+    T *array;
+
+};
+
+template <typename T> void list_push_back(ArenaArrayList<T> *list, T element) {
+    ASSERT(list->arena);
+    if (list->_capacity == 0) {
+        ASSERT(!list->array);
+        ASSERT(list->length == 0);
+        list->_capacity = 16;
+        list->array = (T *) arena_malloc(list->arena, list->_capacity * sizeof(T));
+    }
+    if (list->length == list->_capacity) {
+        T *new_array = (T *) arena_malloc(list->arena, 2 * list->_capacity * sizeof(T));
+        memcpy(new_array, list->array, list->_capacity * sizeof(T));
+        list->array = new_array;
+        list->_capacity *= 2;
+    }
+    list->array[list->length++] = element;
+}
+
+int main() {
+    Arena arena = arena_create();
+    void *foo = arena_malloc(&arena, 123);
+    void *bar = arena_malloc(&arena, 456);
+    void *baz = arena_malloc(&arena, 10001);
+    FORNOW_UNUSED(foo);
+    FORNOW_UNUSED(bar);
+    FORNOW_UNUSED(baz);
+
+    ArenaArrayList<uint> list = { &arena };
+    for_(i, 1000000) list_push_back(&list, i);
+
+    arena_free(&arena);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#else
 
 // BETA
 // TODO: first and second clicks of FGHI should be hinted (even first!)
@@ -326,20 +538,20 @@ int main() {
 
 
     if (0) {
-    messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
-    messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
-    messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
-    messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
-    messagef(pallete.red, "TODO: make negative extrude and revolves work");
-    messagef(pallete.red, "TODO: blue move/rotate/copy (certainly) still needs work");
-    // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
-    // messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
-    messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
-    messagef(pallete.yellow, "TODO: CIRCLE type entity");
-    messagef(pallete.yellow, "TODO: - Select Connected");
-    messagef(pallete.yellow, "TODO: - TwoClickDivide");
-    messagef(pallete.green, "Offset broken clicking here *------* ");
-    messagef(pallete.green, "TODO (fun): Offset visualization and tweening");
+        messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
+        messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
+        messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
+        messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
+        messagef(pallete.red, "TODO: make negative extrude and revolves work");
+        messagef(pallete.red, "TODO: blue move/rotate/copy (certainly) still needs work");
+        // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
+        // messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
+        messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
+        messagef(pallete.yellow, "TODO: CIRCLE type entity");
+        messagef(pallete.yellow, "TODO: - Select Connected");
+        messagef(pallete.yellow, "TODO: - TwoClickDivide");
+        messagef(pallete.green, "Offset broken clicking here *------* ");
+        messagef(pallete.green, "TODO (fun): Offset visualization and tweening");
 
 
     }
@@ -465,3 +677,4 @@ int main() {
     }
 }
 
+#endif
