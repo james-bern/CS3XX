@@ -1387,6 +1387,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
         // if (draw->num_hard_edges == 0) return; // torus shouldn't bother doing this crap
     }
 
+    Arena arena = arena_create();
+    defer { arena_free(&arena); };
 
 
     #if 1
@@ -1432,9 +1434,9 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
     Map<uint, uint> patch_index_from_triangle_index = {};
 
-    Map<uint, List<uint>> patch_indices_from_old_vertex_index = {}; {
+    Map<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = {}; {
         for_(old_vertex_index, old->num_vertices) {
-            map_put(&patch_indices_from_old_vertex_index, old_vertex_index, {});
+            map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { &arena });
         }
     }
 
@@ -1458,14 +1460,14 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 { // patch_indices_from_old_vertex_index
                     for_(d, 3) {
                         uint old_vertex_index = old_triangle_tuple[d];
-                        List<uint> *patch_indices = _map_get_pointer(&patch_indices_from_old_vertex_index, old_vertex_index);
+                        ArenaList<uint> *patch_indices = _map_get_pointer(&patch_indices_from_old_vertex_index, old_vertex_index);
                         // sorted unique push_back
                         bool last_element_is_patch_index; {
                             bool is_empty = (patch_indices->length == 0);
                             if (is_empty) {
                                 last_element_is_patch_index = false;
                             } else {
-                                last_element_is_patch_index = (patch_indices->array[patch_indices->length - 1] == patch_index);
+                                last_element_is_patch_index = (patch_indices->_array[patch_indices->length - 1] == patch_index);
                             }
                         }
                         if (!last_element_is_patch_index) list_push_back(patch_indices, patch_index);
@@ -1514,9 +1516,9 @@ void mesh_divide_into_patches(Meshes *meshes) {
     // TODO: consider trading space for time here (after profiling)
     uint *patch_num_vertices = (uint *) calloc(num_patches, sizeof(uint)); {
         for_(old_vertex_index, old->num_vertices) {
-            List<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
+            ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
             for_(_patch_index_index, patch_indices.length) {
-                uint patch_index = patch_indices.array[_patch_index_index];
+                uint patch_index = patch_indices[_patch_index_index];
                 patch_num_vertices[patch_index]++;
             }
         }
@@ -1567,9 +1569,9 @@ void mesh_divide_into_patches(Meshes *meshes) {
         new_vertex_positions = (vec3 *) malloc(new_num_vertices * sizeof(vec3));
 
         for_(old_vertex_index, old->num_vertices) {
-            List<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
+            ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
             for_(_patch_index_index, patch_indices.length) {
-                uint patch_index = patch_indices.array[_patch_index_index];
+                uint patch_index = patch_indices[_patch_index_index];
                 uint new_vertex_index = (patch_new_vetex_index_fingers[patch_index])++;
 
                 { // new_vertex_positions
