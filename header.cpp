@@ -1387,8 +1387,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
         // if (draw->num_hard_edges == 0) return; // torus shouldn't bother doing this crap
     }
 
-    Arena arena = arena_create();
-    defer { arena_free(&arena); };
+    Arena arena = NEW_BUMP_ALLOCATED_ARENA();
+    defer { arena.free(); };
 
 
     #if 1
@@ -1434,6 +1434,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
     Map<uint, uint> patch_index_from_triangle_index = {};
 
+    // TODO: ArenaSmallList
     Map<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = {}; {
         for_(old_vertex_index, old->num_vertices) {
             map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { &arena });
@@ -1443,7 +1444,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     uint num_patches = 0;
 
     {
-
+        // TODO: ArenaQueue
         Queue<uint> queue = {};
 
         auto QUEUE_ENQUEUE_AND_MARK = [&](uint triangle_index) {
@@ -1470,7 +1471,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                                 last_element_is_patch_index = (patch_indices->_array[patch_indices->length - 1] == patch_index);
                             }
                         }
-                        if (!last_element_is_patch_index) list_push_back(patch_indices, patch_index);
+                        if (!last_element_is_patch_index) patch_indices->push_back(patch_index);
                     }
                 }
             }
@@ -1514,7 +1515,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     //       but we didn't know how many patches there were back when we were flooding
     //       (but we do have an upper bound, which is the number of triangles)
     // TODO: consider trading space for time here (after profiling)
-    uint *patch_num_vertices = (uint *) calloc(num_patches, sizeof(uint)); {
+    uint *patch_num_vertices = (uint *) arena.calloc(num_patches, sizeof(uint)); {
         for_(old_vertex_index, old->num_vertices) {
             ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
             for_(_patch_index_index, patch_indices.length) {
@@ -1557,7 +1558,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     {
         uint *patch_new_vetex_index_fingers; // [ 0, |PATCH0|, |PATCH0| + |PATCH1|, ... ]
         {
-            patch_new_vetex_index_fingers = (uint *) calloc(num_patches, sizeof(uint));
+            patch_new_vetex_index_fingers = (uint *) arena.calloc(num_patches, sizeof(uint));
             for_(patch_index, num_patches - 1) {
                 patch_new_vetex_index_fingers[patch_index + 1] += patch_new_vetex_index_fingers[patch_index];
                 patch_new_vetex_index_fingers[patch_index + 1] += patch_num_vertices[patch_index];
@@ -1650,7 +1651,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 auto VISIT = [&](uint triangle_index) {
                     ASSERT(!visited[triangle_index]);
                     visited[triangle_index] = true;
-                    list_push_back(&patch, triangle_index);
+                    patch.push_back(triangle_index);
                     queue_enqueue(&queue, triangle_index);
                 };
 

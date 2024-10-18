@@ -77,9 +77,13 @@ struct Arena {
     u64 _num_committed_pages;
 
     char *_malloc_write_head;
+
+    void *malloc(uint);
+    void *calloc(uint, uint);
+    void free();
 };
 
-Arena arena_create() {
+Arena NEW_BUMP_ALLOCATED_ARENA() {
     Arena result = {};
     result._page_size = sysconf(_SC_PAGESIZE);
     result._num_reserved_pages = 1024 * 1024;
@@ -98,7 +102,7 @@ Arena arena_create() {
     return result;
 }
 
-char *arena_malloc(Arena *arena, uint size) {
+void *_arena_malloc(Arena *arena, uint size) {
     // NOTE: must mprotect on page boundaries
 
     char *_one_past_end_of_memory = arena->_reserved_memory + (arena->_num_reserved_pages * arena->_page_size);
@@ -123,17 +127,25 @@ char *arena_malloc(Arena *arena, uint size) {
         arena->_num_committed_pages += num_pages_to_mprotect;
     }
 
-    char *result = arena->_malloc_write_head;
+    void *result = (void *) arena->_malloc_write_head;
     arena->_malloc_write_head += size;
     ASSERT(arena->_malloc_write_head <= _one_past_end_of_memory);
     return result;
 }
 
-void arena_free(Arena *arena) {
+void *_arena_calloc(Arena *arena, uint count, uint size_per_element) {
+    uint size = count * size_per_element;
+    void *result = _arena_malloc(arena, size);
+    memset(result, 0, size);
+    return result;
+}
+
+void _arena_free(Arena *arena) {
     ASSERT(arena->_reserved_memory);
     munmap(arena->_reserved_memory, arena->_num_reserved_pages *arena->_page_size);
     *arena = {};
 }
+
 
 
 // // containers2.cpp ////////////////////////////////////////
@@ -150,24 +162,33 @@ template <typename T> struct ArenaList {
         ASSERT(index < length);
         return _array[index];
     }
+
+    void push_back(T);
 };
 
-template <typename T> void list_push_back(ArenaList<T> *list, T element) {
+template <typename T> void _list_push_back(ArenaList<T> *list, T element) {
     ASSERT(list->arena);
     if (list->_capacity == 0) {
         ASSERT(!list->_array);
         ASSERT(list->length == 0);
         list->_capacity = 16;
-        list->_array = (T *) arena_malloc(list->arena, list->_capacity * sizeof(T));
+        list->_array = (T *) _arena_malloc(list->arena, list->_capacity * sizeof(T));
     }
     if (list->length == list->_capacity) {
-        T *new_array = (T *) arena_malloc(list->arena, 2 * list->_capacity * sizeof(T));
+        T *new_array = (T *) _arena_malloc(list->arena, 2 * list->_capacity * sizeof(T));
         memcpy(new_array, list->_array, list->_capacity * sizeof(T));
         list->_array = new_array;
         list->_capacity *= 2;
     }
     list->_array[list->length++] = element;
 }
+
+
+void *Arena::malloc(uint a) { return _arena_malloc(this, a); }
+void *Arena::calloc(uint a, uint b) { return _arena_calloc(this, a, b); }
+void Arena::free() { _arena_free(this); }
+template <typename T> void ArenaList<T>::push_back(T a) { _list_push_back(this, a); }
+
 
 
 // TODO: ShortList
