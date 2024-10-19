@@ -1406,7 +1406,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
     // prep -- O(t)
     // ------------
     // iterate over all triangles building triangle_index_from_old_half_edge map -- O(t)
-    Map<uint2, uint> triangle_index_from_old_half_edge = {};
+    ArenaMap<uint2, uint> triangle_index_from_old_half_edge = { &arena };
+    map_reserve_for_expected_num_entries(&triangle_index_from_old_half_edge, 3 * num_triangles);
     {
         for_(triangle_index, num_triangles) {
             uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
@@ -1432,10 +1433,13 @@ void mesh_divide_into_patches(Meshes *meshes) {
     // NOTE: patch_indices_from_old_vertex_index is for the next step
     // TODO: SmallList
 
-    Map<uint, uint> patch_index_from_triangle_index = {};
+    ArenaMap<uint, uint> patch_index_from_triangle_index = { &arena };
+    map_reserve_for_expected_num_entries(&patch_index_from_triangle_index, num_triangles);
 
     // TODO: ArenaSmallList
-    Map<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = {}; {
+    ArenaMap<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = { &arena };
+    map_reserve_for_expected_num_entries(&patch_indices_from_old_vertex_index, old->num_vertices);
+    {
         for_(old_vertex_index, old->num_vertices) {
             map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { &arena });
         }
@@ -1492,6 +1496,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                             uint j = old_triangle_tuple[(d + 1) % 3];
                             twin_old_half_edge = { j, i };
                         }
+                        // NOTE: if this crashes, the mesh wasn't manifold?
                         twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
                     }
                     bool is_not_already_marked = !map_contains_key(&patch_index_from_triangle_index, twin_triangle_index);
@@ -1554,7 +1559,9 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
     uint new_num_vertices;
     vec3 *new_vertex_positions;
-    Map<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = {};
+    ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { &arena };
+    // FORNOW: This is a huge overestimate; TODO: map that can grow
+    map_reserve_for_expected_num_entries(&new_vertex_index_from_pair_patch_index_old_vertex_index, num_patches * old->num_vertices);
     {
         uint *patch_new_vetex_index_fingers; // [ 0, |PATCH0|, |PATCH0| + |PATCH1|, ... ]
         {

@@ -197,6 +197,7 @@ template <typename T> void ArenaList<T>::push_back(T a) { _list_push_back(this, 
 // TODO: let me access with the []
 
 template <typename Key, typename Value> struct PairKeyValue {
+    bool in_use;
     Key key;
     Value value;
 };
@@ -204,8 +205,9 @@ template <typename Key, typename Value> struct PairKeyValue {
 template <typename Key, typename Value> struct ArenaMap {
     Arena *arena;
 
-    PairKeyValue<Key, Value> *_array;
+    uint num_entries;
     uint _capacity;
+    PairKeyValue<Key, Value> *_array;
 
     // TODO: how do we make the square brackets work for putting and getting into a map
     // T &operator [](Key key) {
@@ -213,14 +215,85 @@ template <typename Key, typename Value> struct ArenaMap {
     // }
 };
 
+template <typename Key, typename Value> void map_reserve_for_expected_num_entries(
+        ArenaMap<Key, Value> *map,
+        uint expected_num_entries,
+        real load_factor = 2.0
+        ) {
+    ASSERT(map->arena);
+    ASSERT(!map->_array); // FORNOW
 
-template <typename Key, typename Value> void map_put(ArenaMap<Key, Value> *map, Key key, Value value) {
-    FORNOW_UNUSED(map);
-    FORNOW_UNUSED(key);
-    FORNOW_UNUSED(value);
+    map->num_entries = 0;
+    map->_capacity = (1 + (uint) (load_factor * expected_num_entries));
+    map->_array = (PairKeyValue<Key, Value> *) map->arena->calloc(map->_capacity, sizeof(PairKeyValue<Key, Value>));
 }
 
-template <typename Key, typename Value> void map_get(ArenaMap<Key, Value> *map, Key key) {
-    FORNOW_UNUSED(map);
-    FORNOW_UNUSED(key);
+template <typename Key, typename Value> void map_put(ArenaMap<Key, Value> *map, Key key, Value value) {
+    ASSERT(map->arena);
+    ASSERT(map->_array);
+    ASSERT(map->_capacity);
+
+    uint slot_index; {
+        bool found = false;
+        slot_index = (_paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->_capacity);
+        for_(_, map->_capacity) {
+            bool slot_in_use = (map->_array[slot_index].in_use);
+            if (!slot_in_use) {
+                found = true;
+                break;
+            }
+            slot_index = (slot_index + 1) % map->_capacity;
+        }
+        ASSERT(found); // ArenaMap (put): Array is completely full.
+    }
+
+    ++map->num_entries;
+
+    PairKeyValue<Key, Value> *slot = &map->_array[slot_index];
+    slot->in_use = true;
+    slot->key = key;
+    slot->value = value;
+}
+
+template <typename Key, typename Value> Value *_map_get_pointer(ArenaMap<Key, Value> *map, Key key) {
+    ASSERT(map->arena);
+    ASSERT(map->_array);
+    ASSERT(map->_capacity);
+
+    uint slot_index; {
+        bool found = false;
+        slot_index = (_paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->_capacity);
+        for_(_, map->_capacity) {
+            bool slot_in_use = (map->_array[slot_index].in_use);
+            bool slot_key_match = (memcmp(&map->_array[slot_index].key, &key, sizeof(Key)) == 0);
+            if (slot_in_use && slot_key_match) {
+                found = true;
+                break;
+            }
+            slot_index = (slot_index + 1) % map->_capacity;
+        }
+        ASSERT(found); // ArenaMap (get): Key not found.
+    }
+    PairKeyValue<Key, Value> *slot = &map->_array[slot_index];
+    return &slot->value;
+}
+
+template <typename Key, typename Value> Value map_get(ArenaMap<Key, Value> *map, Key key) {
+    return *_map_get_pointer(map, key);
+}
+
+template <typename Key, typename Value> bool map_contains_key(ArenaMap<Key, Value> *map, Key key) {
+    ASSERT(map->arena);
+    ASSERT(map->_array);
+    ASSERT(map->_capacity);
+
+    uint slot_index = (_paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->_capacity);
+    for_(_, map->_capacity) {
+        bool slot_in_use = (map->_array[slot_index].in_use);
+        bool slot_key_match = (memcmp(&map->_array[slot_index].key, &key, sizeof(Key)) == 0);
+        if (!slot_in_use) return false;
+        if (slot_in_use && slot_key_match) return true;
+        slot_index = (slot_index + 1) % map->_capacity;
+    }
+    return false;
 }
