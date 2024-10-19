@@ -676,6 +676,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                         feature_plane->is_active = false;
                     }
+                    if (GUIBUTTON(commands.MirrorPlane)) {
+                        other.mirror_3D_plane = !other.mirror_3D_plane;
+                    }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
                         result.checkpoint_me = true;
@@ -1680,6 +1683,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             result.record_me = false;
             if (!mouse_event->mouse_held) {
                 int index_of_first_triangle_hit_by_ray = -1;
+                vec3 exact_hit_pos;
                 {
                     real min_distance = HUGE_VAL;
                     for_(i, mesh->num_triangles) {
@@ -1690,6 +1694,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (ray_triangle_intersection_result.hit) {
                             if (ray_triangle_intersection_result.distance < min_distance) {
                                 min_distance = ray_triangle_intersection_result.distance;
+                                exact_hit_pos = ray_triangle_intersection_result.pos;
                                 index_of_first_triangle_hit_by_ray = i; // FORNOW
                             }
                         }
@@ -1707,16 +1712,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 
                         if (state.Mesh_command.flags & TWO_CLICK) {
                             if (!mesh_two_click_command->awaiting_second_click) {
-                                mesh_two_click_command->first_click = triangle_intersection;
+                                mesh_two_click_command->first_click = exact_hit_pos;
                                 mesh_two_click_command->triangle_index_for_first_click = index_of_first_triangle_hit_by_ray;
                                 mesh_two_click_command->awaiting_second_click = true;
                             } else {
                                 vec3 first_click = mesh_two_click_command->first_click;
-                                vec3 second_click = triangle_intersection;
+                                vec3 second_click = exact_hit_pos;
 
                                 messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
                                 if (0) {
                                 } else if (state_Mesh_command_is_(Measure3D)) {
+                                    messagef(pallete.cyan, "Length is %gmm.", norm(second_click - first_click));
                                     set_state_Mesh_command(None);
                                 }
                             }

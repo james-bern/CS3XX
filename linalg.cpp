@@ -648,6 +648,7 @@ tuD void pprint(matD M) {
 struct RayTriangleIntersectionResult {
     bool hit;
     real distance;
+    vec3 pos;
 };
 RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a, vec3 b, vec3 c) {
     RayTriangleIntersectionResult result = {};
@@ -659,6 +660,7 @@ RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a
         * V4(o, 1.0f);
     result.hit = ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0));
     result.distance = w_t.w;
+    result.pos = o + dir * result.distance;
     return result;
 }
 

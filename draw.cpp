@@ -22,7 +22,7 @@ mat4 get_M_3D_from_2D() {
     vec3 y = cross(z, x);
 
     // FORNOW
-    if (ARE_EQUAL(ABS(dot_product), 1.0f) && SGN(dot_product) < 0.0f) {
+    if (ARE_EQUAL(ABS(dot_product), 1.0f) && SGN(dot_product) < 0.0f && other.mirror_3D_plane) {
         y *= -1;
     }
 
@@ -906,6 +906,16 @@ void conversation_draw() {
                     eso_end();
                 }
             }
+        }
+
+        if (!mesh_two_click_command->awaiting_second_click) {
+
+        } else if (state_Mesh_command_is_(Measure3D)) {
+            eso_begin(PV_3D, SOUP_POINTS);
+            eso_size(20);
+            eso_color(get_color(ColorCode::Emphasis));
+            eso_vertex(mesh_two_click_command->first_click);
+            eso_end();
         }
 
         glDisable(GL_SCISSOR_TEST);
