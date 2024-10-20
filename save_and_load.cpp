@@ -1,4 +1,3 @@
-
 void entities_load(String filename, List<Entity> *entities) {
     #if 0
     {
@@ -27,10 +26,11 @@ void entities_load(String filename, List<Entity> *entities) {
     bool inches = true; // if none read will assume inches
     
     *entities = {}; {
-        #define PARSE_NONE  0
-        #define PARSE_LINE  1
-        #define PARSE_ARC   2
-        #define PARSE_UNITS 3
+        #define PARSE_NONE   0
+        #define PARSE_LINE   1
+        #define PARSE_ARC    2
+        #define PARSE_CIRCLE 3
+        #define PARSE_UNITS  4
         uint mode = 0;
 
         auto convert = [&](real value) {
@@ -59,6 +59,11 @@ void entities_load(String filename, List<Entity> *entities) {
                     code_is_hot = false;
                     entity = {};
                     entity.type = EntityType::Arc;
+                } else if (string_matches_prefix(line_from_file, STRING("CIRCLE"))) {
+                    mode = PARSE_CIRCLE;
+                    code_is_hot = false;
+                    entity = {};
+                    entity.type = EntityType::Circle;
                 }
             } else {
                 if (!code_is_hot) {
@@ -100,6 +105,14 @@ void entities_load(String filename, List<Entity> *entities) {
                             } else if (code == 51) {
                                 entity.arc.end_angle_in_degrees = value;
                             }
+                        } else if (mode == PARSE_CIRCLE) {
+                            if (code == 10) {
+                                entity.circle.center.x = convert(value);
+                            } else if (code == 20) {
+                                entity.circle.center.y = convert(value);
+                            } else if (code == 40) {
+                                entity.circle.radius = convert(value);
+                            }
                         } else {
                             ASSERT(mode == PARSE_UNITS);
                             inches = (value == 1);
@@ -115,7 +128,6 @@ void entities_load(String filename, List<Entity> *entities) {
     fclose(file);
 }
 
-// if this isnt the most b
 bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
     List<Entity> *entities = &drawing_to_save->entities;
 
@@ -174,6 +186,14 @@ bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
             fprintf(file, "40\n%.6f\n", entity->arc.radius);
             fprintf(file, "50\n%.6f\n", _WRAP_TO_0_360_INTERVAL(entity->arc.start_angle_in_degrees));
             fprintf(file, "51\n%.6f\n", _WRAP_TO_0_360_INTERVAL(entity->arc.end_angle_in_degrees));
+        } else if (entity->type == EntityType::Circle) {
+            fprintf(file, "0\nCIRCLE\n");
+            fprintf(file, "8\n0\n");  // Layer
+            fprintf(file, "62\n%d\n", entity->color_code);
+            fprintf(file, "10\n%.6f\n", entity->circle.center.x);
+            fprintf(file, "20\n%.6f\n", entity->circle.center.y);
+            fprintf(file, "30\n0.0\n");  // Z coordinate (2D)
+            fprintf(file, "40\n%.6f\n", entity->circle.radius);
         }
     }
 

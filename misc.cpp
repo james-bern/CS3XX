@@ -43,12 +43,13 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
         } else if (
                 (state_Draw_command_is_(Box))
                 && (two_click_command->awaiting_second_click)
-                && (other.shift_held)) {
-            // TODO (Felipe): snap square
+                && (other.shift_held)) { // TODO (Felipe): snap square
             result.mouse_position = before;
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
+            // TODO: need to filter End and Middle as well to ignore circles
+            // (this all needs to be cleaned up)
             if (0
                     || state_Snap_command_is_(Center)
                     || state_Snap_command_is_(Quad)
@@ -119,16 +120,25 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     }
                     result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, angle);
                 } else if (state_Snap_command_is_(Middle)) {
-                    ASSERT(closest_entity->type != EntityType::Circle); // TODO
-                    result.mouse_position = entity_get_middle(closest_entity);
-                    result.snapped = true;
+                    if (closest_entity->type != EntityType::Circle) {
+                        result.mouse_position = entity_get_middle(closest_entity);
+                        result.snapped = true;
+                    }
                 } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     __snap_for__ {
-                        ASSERT(entity->type != EntityType::Circle); // TODO
-                        vec2 p[2];
-                        entity_get_start_and_end_points(entity, &p[0], &p[1]);
-                        for_(d, 2) {
+                        uint count = 0;
+                        vec2 p[2] = {};
+                        if (entity->type == EntityType::Circle) {
+                            CircleEntity *circle = &entity->circle;
+                            if (circle->has_pseudo_point) {
+                                p[count++] = circle->get_pseudo_point();
+                            }
+                        } else {
+                            entity_get_start_and_end_points(entity, &p[0], &p[1]);
+                            count = 2;
+                        }
+                        for_(d, count) {
                             real squared_distance = squaredDistance(before, p[d]);
                             if (squared_distance < min_squared_distance) {
                                 min_squared_distance = squared_distance;
@@ -161,8 +171,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         // else messagef(pallete.orange, "no intersection found");
                     }
                     // else messagef(pallete.orange, "no intersection found");
-                } else if (state_Snap_command_is_(Perp)) { // layout also does a divide which can be added if wanted
-                                                           // TODO Circle
+                } else if (state_Snap_command_is_(Perp)) { 
                     vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
@@ -172,85 +181,95 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.snapped = true;
                     } else if (closest_entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
                         vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
-                        result.mouse_position = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        vec2 perp_one = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        vec2 perp_two = closest_entity->arc.center - closest_entity->arc.radius * normalized_in_direction;
+
+                        result.mouse_position = distance(perp_one, before) < distance(perp_two, before) ? perp_one : perp_two;
+                        result.snapped = true;
+                    } else { ASSERT(closest_entity->type == EntityType::Circle);
+                        vec2 normalized_in_direction = normalized(click_one - closest_entity->circle.center);
+                        vec2 perp_one = closest_entity->circle.center + closest_entity->circle.radius * normalized_in_direction;
+                        vec2 perp_two = closest_entity->circle.center - closest_entity->circle.radius * normalized_in_direction;
+
+                        result.mouse_position = distance(perp_one, before) < distance(perp_two, before) ? perp_one : perp_two;
                         result.snapped = true;
                     }
                 } /*else if (state_Snap_command_is_(Tangent)) {
-                    // TODO TODO TODO
-                    vec2 mouse = before;
+                // TODO TODO TODO
+                vec2 mouse = before;
 
-                    if (two_click_command->awaiting_second_click) {
-                        mouse = two_click_command->first_click;
-                    }
-                    if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
-                        mouse = two_click_command->first_click;
+                if (two_click_command->awaiting_second_click) {
+                mouse = two_click_command->first_click;
+                }
+                if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
+                mouse = two_click_command->first_click;
 
-                        ArcEntity c2 = closest_entity->arc;
-                        ArcEntity c1 = two_click_command->entity_closest_to_first_click->arc;
+                ArcEntity c2 = closest_entity->arc;
+                ArcEntity c1 = two_click_command->entity_closest_to_first_click->arc;
 
-                        vec2 center_diff = c2.center - c1.center;
-                        real dist = distance(c1.center, c2.center);
-                        real angle = ATAN2(center_diff);
+                vec2 center_diff = c2.center - c1.center;
+                real dist = distance(c1.center, c2.center);
+                real angle = ATAN2(center_diff);
 
-                        real phi1 = acos((c1.radius - c2.radius) / dist);
-                        real phi2 = acos((c1.radius + c2.radius) / dist);
+                real phi1 = acos((c1.radius - c2.radius) / dist);
+                real phi2 = acos((c1.radius + c2.radius) / dist);
 
-                        real theta1a = angle + phi1;
-                        real theta1b = angle - phi1;
-                        real theta2a = angle + phi2;
-                        real theta2b = angle - phi2;
+                real theta1a = angle + phi1;
+                real theta1b = angle - phi1;
+                real theta2a = angle + phi2;
+                real theta2b = angle - phi2;
 
-                        vec2 p1a1 = c1.center + V2(c1.radius * COS(theta1a), c1.radius * SIN(theta1a));
-                        vec2 p1a2 = c1.center + V2(c1.radius * COS(theta1b), c1.radius * SIN(theta1b));
-                        if (distance(mouse, p1a1) > distance(mouse, p1a1)) {
-                            p1a1 = p1a2;
-                            theta1a = theta1b;
-                        }
-                        vec2 p1b = c2.center + V2(c2.radius * COS(theta1a), c2.radius * SIN(theta1a));
+                vec2 p1a1 = c1.center + V2(c1.radius * COS(theta1a), c1.radius * SIN(theta1a));
+                vec2 p1a2 = c1.center + V2(c1.radius * COS(theta1b), c1.radius * SIN(theta1b));
+                if (distance(mouse, p1a1) > distance(mouse, p1a1)) {
+                p1a1 = p1a2;
+                theta1a = theta1b;
+                }
+                vec2 p1b = c2.center + V2(c2.radius * COS(theta1a), c2.radius * SIN(theta1a));
 
-                        vec2 p2a1 = c1.center + V2(c1.radius * COS(theta2a), c1.radius * SIN(theta2a));
-                        vec2 p2a2 = c1.center + V2(c1.radius * COS(theta2b), c1.radius * SIN(theta2b));
-                        if (distance(mouse, p2a1) > distance(mouse, p2a2)) {
-                            p2a1 = p2a2;
-                            theta2a = theta2b;
-                        }
-                        vec2 p2b = c2.center - V2(c2.radius * COS(theta2a), c2.radius * SIN(theta2a));
+                vec2 p2a1 = c1.center + V2(c1.radius * COS(theta2a), c1.radius * SIN(theta2a));
+                vec2 p2a2 = c1.center + V2(c1.radius * COS(theta2b), c1.radius * SIN(theta2b));
+                if (distance(mouse, p2a1) > distance(mouse, p2a2)) {
+                p2a1 = p2a2;
+                theta2a = theta2b;
+                }
+                vec2 p2b = c2.center - V2(c2.radius * COS(theta2a), c2.radius * SIN(theta2a));
 
-                        if (distance(before, p1b) > distance(before, p2b)) {
-                            two_click_command->first_click = p2a1;
-                            result.mouse_position = p2b;
-                        } else {
-                            two_click_command->first_click = p1a1;
-                            result.mouse_position = p1b;
-                        }
+                if (distance(before, p1b) > distance(before, p2b)) {
+                two_click_command->first_click = p2a1;
+                result.mouse_position = p2b;
+                } else {
+                two_click_command->first_click = p1a1;
+                result.mouse_position = p1b;
+                }
 
-                        two_click_command->tangent_first_click = false;
-                        result.snapped = true;
-                        result.split_tangent_2 = true;
-                        result.entity_index_tangent_2 = uint(two_click_command->entity_closest_to_first_click - drawing->entities.array);
+                two_click_command->tangent_first_click = false;
+                result.snapped = true;
+                result.split_tangent_2 = true;
+                result.entity_index_tangent_2 = uint(two_click_command->entity_closest_to_first_click - drawing->entities.array);
 
-                    } else if (two_click_command->awaiting_second_click) {
-                        vec2 center = closest_entity->arc.center;
-                        real radius = closest_entity->arc.radius;
-                        real d = distance(center, mouse);
+                } else if (two_click_command->awaiting_second_click) {
+                vec2 center = closest_entity->arc.center;
+                real radius = closest_entity->arc.radius;
+                real d = distance(center, mouse);
 
-                        if (d > radius) {
-                            real t1 = ATAN2(mouse - center);
-                            real t2 = acos(radius / d);
-                            real theta1 = t1 + t2;
-                            real theta2 = t1 - t2;
-                            vec2 tan1 = { center.x + radius * COS(theta1), center.y + radius * SIN(theta1) };
-                            vec2 tan2 = { center.x + radius * COS(theta2), center.y + radius * SIN(theta2) };
-                            result.mouse_position = distance(before, tan1) < distance(before, tan2) ? tan1 : tan2;
-                            result.snapped = true;
-                        }
-                    } else {
-                        messagef(pallete.light_gray, "wowowwowowo");
-                        two_click_command->tangent_first_click = true; 
-                        two_click_command->entity_closest_to_first_click = closest_entity;
-                        messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
-                    }
-                }*/
+                if (d > radius) {
+                real t1 = ATAN2(mouse - center);
+                real t2 = acos(radius / d);
+                real theta1 = t1 + t2;
+                real theta2 = t1 - t2;
+                vec2 tan1 = { center.x + radius * COS(theta1), center.y + radius * SIN(theta1) };
+                vec2 tan2 = { center.x + radius * COS(theta2), center.y + radius * SIN(theta2) };
+                result.mouse_position = distance(before, tan1) < distance(before, tan2) ? tan1 : tan2;
+                result.snapped = true;
+                }
+                } else {
+                messagef(pallete.light_gray, "wowowwowowo");
+                two_click_command->tangent_first_click = true; 
+                two_click_command->entity_closest_to_first_click = closest_entity;
+                messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
+            }
+            }*/
             }
         }
     }
