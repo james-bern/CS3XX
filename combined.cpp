@@ -63,21 +63,2582 @@
 #define Color9 XXX
 #endif
 
-// <!> Begin playground.cpp <!>
-#include "basics.cpp"
+// <!> Begin playground.cpp <!> 
+// <!> Begin basics.cpp <!> 
+#define _CRT_SECURE_NO_WARNINGS
+#include <cmath>
+#include <cstdio>
+#include <cstdint>
+#include <utility>
+#include <time.h>
+#include <chrono>
+
+// // types
+// basic types
+typedef uint32_t uint;
+typedef float real;
+typedef uint8_t u8;
+typedef uint64_t u64;
+// vecD
+template <uint D> struct Vector;
+typedef Vector<2> vec2;
+typedef Vector<3> vec3;
+typedef Vector<4> vec4;
+#define vecD Vector<D>
+#define tuD  template <uint D>
+#define tuDv tuD vecD
+// matD
+template <uint D> struct Matrix;
+typedef Matrix<2> mat2;
+typedef Matrix<3> mat3;
+typedef Matrix<4> mat4;
+#define matD Matrix<D>
+#define tuDm tuD matD
+
+// // standard macros
+// ASSERT
+#define ASSERT(b) do { if (!(b)) { \
+    printf("ASSERT("); \
+    printf(STR(b)); \
+    printf("); <- "); \
+    printf("Line %d in %s\n", __LINE__, __FILE__); \
+    *((volatile int *) 0) = 0; \
+} } while (0)
+// STATIC_ASSERT
+#define STATIC_ASSERT(cond) static_assert(cond, "STATIC_ASSERT");
+// FORNOW_UNUSED
+// - (suppresses compiler warning about unused variable)
+#define FORNOW_UNUSED(expr) do { (void)(expr); } while (0)
+#define _IS_INDEXABLE(arg) (sizeof(arg[0]))
+#define _IS_ARRAY(arg) (_IS_INDEXABLE(arg) && (((void *) &arg) == ((void *) arg)))
+#define ARRAY_LENGTH(arr) (_IS_ARRAY(arr) ? (sizeof(arr) / sizeof(arr[0])) : 0)
+
+// // unorthodox macros
+// for_
+// - makes general-purpose for loops more readable (to me)
+#define for_(i, N) for (uint i = 0; i < N; ++i)
+// do_once
+// - code inside do_once { ... } will run the first time it's hit, then never again
+#define STR(foo) #foo
+#define XSTR(foo) STR(foo)
+#define CONCAT_(a, b) a ## b
+#define CONCAT(a, b) CONCAT_(a, b)
+#define do_once static bool CONCAT(_do_once_, __LINE__) = false; bool CONCAT(_prev_do_once_, __LINE__) = CONCAT(_do_once_, __LINE__); CONCAT(_do_once_, __LINE__) = true; if (!CONCAT(_prev_do_once_, __LINE__) && CONCAT(_do_once_, __LINE__))
+// defer
+// - code inside defer { ... }; will run when we leave the defer's enclosing scope
+// - https://handmade.network/forums/t/1273-post_your_c_c++_macro_tricks/3
+template <typename F> struct Defer {
+    F f;
+    Defer(F _f) : f(_f) { }
+    ~Defer() { f(); }
+};
+template <typename F> Defer<F> makeDefer(F f) { return Defer<F>(f); };
+struct defer_dummy {};
+template <typename F> Defer<F> operator + (defer_dummy, F &&f) { return makeDefer<F>(std::forward<F>(f)); }
+#define defer auto CONCAT(defer_, __COUNTER__) = defer_dummy() + [&]()
+// run_before_main
+// - code inside run_before_main { ... }; runs before main
+struct run_before_main_dummy {};
+template <typename F> bool operator + (run_before_main_dummy, F &&f) { f(); return true; }
+#define run_before_main static bool CONCAT(run_before_main_, __COUNTER__) = run_before_main_dummy() + []()
+
+// // math
+// constants
+#define TINY_VAL real(1e-5)
+#undef HUGE_VAL
+#define HUGE_VAL real(1e6)
+#define PI real(3.14159265359)
+#define TAU (2 * PI)
+// conversions
+real RAD(real degrees) { return (PI / 180 * (degrees)); }
+real DEG(real radians) { return (180 / PI * (radians)); }
+real INCHES(real mm) { return ((mm) / real(25.4)); }
+real MM(real inches) { return ((inches) * real(25.4)); }
+// trig
+#define SIN sinf
+#define COS cosf
+#define TAN tanf
+#define ATAN2 atan2f
+// POW, SQRT
+#define POW powf
+#define SQRT sqrtf
+#define ROUND roundf
+tuDv ROUND(vecD a) { for_(d, D) a[d] = ROUND(a[d]); return a; }
+
+// SGN
+int SGN(  int a) { return (a < 0) ? -1 : 1; }
+int SGN(float a) { return (a < 0) ? -1 : 1; }
+// ABS
+int  ABS( int a) { return (a < 0) ? -a : a; }
+real ABS(real a) { return (a < 0) ? -a : a; }
+// MIN
+// int  MIN( int a,  int b) { return (a < b) ? a : b; } // TODO: do we ever use this?
+uint MIN(uint a, uint b) { return (a < b) ? a : b; }
+real MIN(real a, real b) { return (a < b) ? a : b; }
+// MAX
+// int  MAX( int a,  int b) { return (a > b) ? a : b; } // TODO: do we ever use this?
+uint MAX(uint a, uint b) { return (a > b) ? a : b; }
+real MAX(real a, real b) { return (a > b) ? a : b; }
+// floating-poiut comparisons
+bool IS_ZERO(real a) { return (ABS(a) < TINY_VAL); }
+tuD bool IS_ZERO(vecD a) { for_(d, D) if (!IS_ZERO(a[d])) return false; return true; }
+bool ARE_EQUAL(real a, real b) { return IS_ZERO(ABS(a - b)); }
+tuD bool ARE_EQUAL(vecD a, vecD b) { return IS_ZERO((a - b)); }
+bool IS_BETWEEN_LOOSE(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
+bool IS_BETWEEN_TIGHT(real p, real a, real b) { return (((a + TINY_VAL) < p) && (p < (b - TINY_VAL))); }
+// CLAMP
+real CLAMP(real t, real a, real b) { return MIN(MAX(t, a), b); }
+real MAG_CLAMP(real t, real a) {
+    ASSERT(a > 0.0f);
+    return CLAMP(t, -ABS(a), ABS(a));
+}
+// LERP
+real LERP(real t, real a, real b) { return ((1.0f - t) * a) + (t * b); }
+tuDv LERP(real t, vecD a, vecD b) { return ((1.0f - t) * a) + (t * b); }
+real AVG(real a, real b) { return LERP(0.5f, a, b); }
+tuD real AVG(vecD a) { real tmp = 0.0f; for_(d, D) tmp += a[d]; return tmp/ D; }
+tuDv AVG(vecD a, vecD b) { return LERP(0.5f, a, b); }
+real INVERSE_LERP(real p, real a, real b) { return (p - a) / (b - a); }
+real LINEAR_REMAP(real p, real a, real b, real c, real d) { return LERP(INVERSE_LERP(p, a, b), c, d); }
+// CLAMPED_LERP
+real CLAMPED_LERP(real t, real a, real b) { return LERP(CLAMP(t, 0.0f, 1.0f), a, b); }
+tuDv CLAMPED_LERP(real t, vecD a, vecD b) { return LERP(CLAMP(t, 0.0f, 1.0f), a, b); }
+real CLAMPED_INVERSE_LERP(real p, real a, real b) { return CLAMP(INVERSE_LERP(p, a, b), 0.0f, 1.0f); }
+real CLAMPED_LINEAR_REMAP(real p, real a, real b, real c, real d) { return LERP(CLAMPED_INVERSE_LERP(p, a, b), c, d); }
+tuDv CLAMPED_LINEAR_REMAP(real p, real a, real b, vecD c, vecD d) { return LERP(CLAMPED_INVERSE_LERP(p, a, b), c, d); }
+// MODULO
+// - works for negative N
+int MODULO(int x, int N) { return ((x % N) + N) % N; }
+
+// // OS-specific
+// detect operating system
+#if defined(__APPLE__) || defined(__MACH__)
+#define OPERATING_SYSTEM_APPLE
+#elif defined(WIN32) || defined(_WIN32) || defined(_WIN64)
+#define OPERATING_SYSTEM_WINDOWS
+#else
+#pragma message("ERROR: INVALID OPERATING SYSTEM")
+#endif
+// DEBUGGER
+#ifdef OPERATING_SYSTEM_APPLE
+#include <signal.h>
+#define DEBUGBREAK() raise(SIGTRAP)
+#elif defined(OPERATING_SYSTEM_WINDOWS)
+#define DEBUGBREAK() __debugbreak()
+#endif
+// SLEEP
+#ifdef OPERATING_SYSTEM_APPLE
+#include <unistd.h>
+#define SLEEP(x) usleep((x)*1000)
+#elif defined(OPERATING_SYSTEM_WINDOWS)
+#define SLEEP Sleep
+#endif
+// IS_NAN
+#ifdef OPERATING_SYSTEM_APPLE
+#include <unistd.h>
+#define IS_NAN _isnan
+#elif defined(OPERATING_SYSTEM_WINDOWS)
+#include <windows.h>
+#define IS_NAN(x) 
+#endif
+// SWAP
+template <typename T> void SWAP(T *a, T *b) {
+    T tmp = *a;
+    *a = *b;
+    *b = tmp;
+}
+// MILLIS
+long MILLIS() {
+    using namespace std::chrono;
+    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    return (long) ms.count();
+}
+// don't buffer printf
+run_before_main { setvbuf(stdout, NULL, _IONBF, 0); };
+// seed random number generator
+run_before_main { srand((unsigned int) time(NULL)); };
+// <!> End basics.cpp <!>
 #include <cstdint>
 #include <cstring>
 #include <stdarg.h>
-#include "string.cpp"
-#include "linalg.cpp"
-#include "color.cpp"
-#include "bbox.cpp"
-#include "containers.cpp" // TODO: implement better Map
-#include "elephant.cpp"
-#include "window.cpp"
-#include "shader.cpp"
-#include "soup.cpp"
-#include "text.cpp"
+// <!> Begin string.cpp <!> 
+struct String {
+    char *data;
+    uint length;
+};
+
+bool string_pointer_is_valid(String string, char *pointer) {
+    return (string.data <= pointer) && (pointer < string.data + string.length);
+}
+
+#define STRING(cstring_literal) { (char *)(cstring_literal), uint(strlen(cstring_literal)) }
+
+#define _STRING_CALLOC(name, length) String name = { (char *) calloc(1, length) }
+
+String _string_from_cstring(char *cstring) {
+    return { (char *)(cstring), uint(strlen(cstring)) };
+}
+
+bool string_matches_prefix(String string, String prefix) {
+    if (string.length < prefix.length) return false;
+    return (memcmp(string.data, prefix.data, prefix.length) == 0);
+}
+
+bool string_matches_prefix(String string, char *prefix) {
+    return string_matches_prefix(string, STRING(prefix));
+}
+
+bool string_matches_suffix(String string, String suffix) {
+    if (string.length < suffix.length) return false;
+    return (memcmp(&string.data[string.length - suffix.length], &suffix.data[suffix.length - suffix.length], suffix.length) == 0);
+}
+
+bool string_matches_suffix(String string, char *prefix) {
+    return string_matches_suffix(string, STRING(prefix));
+}
+
+bool string_equal(String string1, String string2) {
+    if (string1.length != string2.length) return false;
+
+    for_(i, string1.length) {
+        if (string1.data[i] != string2.data[i]) return false;
+    }
+    return true;
+}
+
+real strtof(String string) { // FORNOW
+    static char cstring[4096];
+    memset(cstring, 0, sizeof(cstring));
+    ASSERT(string.length < sizeof(cstring));
+    memcpy(cstring, string.data, string.length);
+    return strtof(cstring, NULL);
+}
+
+bool string_read_line_from_file(String *string, uint max_line_length, FILE *file) {
+    bool result = fgets(string->data, max_line_length, file);
+    if (result) string->length = uint(strlen(string->data));
+    return result;
+}
+
+FILE *FILE_OPEN(String filename, char *code, bool skip_assert = false) { // FORNOW
+    static char cstring[4096];
+    memset(cstring, 0, sizeof(cstring));
+    ASSERT(filename.length < sizeof(cstring));
+    memcpy(cstring, filename.data, filename.length);
+    FILE *result = fopen(cstring, code);
+    if (!skip_assert) ASSERT(result);
+    return result;
+}
+
+bool FILE_EXISTS(String filename) {
+    FILE *file = FILE_OPEN(filename, "r", true);
+    if (!file) {
+        return false;
+    }
+    fclose(file);
+    return true;
+}
+
+bool FGETS(String *line, uint LINE_MAX_LENGTH, FILE *file) {
+    ASSERT(line);
+    ASSERT(file);
+    bool result = fgets(line->data, LINE_MAX_LENGTH, file);
+    line->length = uint(strlen(line->data));
+    return result;
+}
+// <!> End string.cpp <!>
+// <!> Begin linalg.cpp <!> 
+////////////////////////////////////////////////////////////////////////////////
+// vectors and matrices ////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+tuD struct Vector {
+    // real data[D];
+    // real &operator [](uint index) { return data[index]; }
+};
+
+template <> struct Vector<2> {
+    struct { real x, y; };
+    real &operator [](uint index) {
+        ASSERT(index < 2);
+        if (index == 0) return x;
+        return y;
+    }
+};
+
+template <> struct Vector<3> {
+    struct { real x, y, z; };
+    real &operator [](uint index) {
+        ASSERT(index < 3);
+        if (index == 0) return x;
+        if (index == 1) return y;
+        return z;
+    }
+};
+
+template <> struct Vector<4> {
+    struct { real x, y, z, w; };
+    real &operator [](uint index) {
+        ASSERT(index < 4);
+        if (index == 0) return x;
+        if (index == 1) return y;
+        if (index == 2) return z;
+        return w;
+    }
+};
+
+
+tuD struct Matrix {
+    real data[D * D];
+    real &operator ()(uint row, uint col) {
+        ASSERT(row < D);
+        ASSERT(col < D);
+        return data[D * row + col];
+    }
+    const real &operator ()(uint row, uint col) const {
+        ASSERT(row < D);
+        ASSERT(col < D);
+        return data[D * row + col];
+    }
+};
+
+
+
+tuD union SnailTupleOfUnsignedInts {
+    uint data[D];
+    uint &operator [](uint index) { return data[index]; }
+};
+
+template <> union SnailTupleOfUnsignedInts<2> {
+    uint data[2];
+    struct { uint i, j; };
+    uint &operator [](uint index) { return data[index]; }
+};
+
+template <> union SnailTupleOfUnsignedInts<3> {
+    uint data[3];
+    struct { uint i, j, k; };
+    uint &operator [](uint index) { return data[index]; }
+};
+
+typedef SnailTupleOfUnsignedInts<2> uint2;
+typedef SnailTupleOfUnsignedInts<3> uint3;
+typedef SnailTupleOfUnsignedInts<4> uint4;
+
+// "constructors" //////////////////////////////////////////////////////////////
+
+vec2 V2(real x, real y) { return { x, y }; }
+vec3 V3(real x, real y, real z) { return { x, y, z }; }
+vec4 V4(real x, real y, real z, real w) { return { x, y, z, w }; }
+vec3 V3(vec2 xy, real z) { return { xy.x, xy.y, z }; }
+vec4 V4(vec3 xyz, real w) { return { xyz.x, xyz.y, xyz.z, w }; }
+vec2 V2(real x) { return { x, x }; }
+vec3 V3(real x) { return { x, x, x }; }
+vec4 V4(real x) { return { x, x, x, x }; }
+vec2 _V2(vec3 xyz) { return { xyz.x, xyz.y }; }
+vec3 _V3(vec4 xyzw) { return { xyzw.x, xyzw.y, xyzw.z }; }
+
+mat2 M2(real a0, real a1, real a2, real a3) {
+    return { a0, a1, a2, a3 };
+}
+mat3 M3(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8) {
+    return { a0, a1, a2, a3, a4, a5, a6, a7, a8 };
+}
+mat4 M4(real a0, real a1, real a2, real a3, real a4, real a5, real a6, real a7, real a8, real a9, real a10, real a11, real a12, real a13, real a14, real a15) {
+    return { a0, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 };
+}
+mat3 _M3(mat4 M) {
+    return { M(0, 0), M(0, 1), M(0, 2), M(1, 0), M(1, 1), M(1, 2), M(2, 0), M(2, 1), M(2, 2) };
+}
+
+mat2 hstack(vec2 col0, vec2 col1) { return { col0.x, col1.x, col0.y, col1.y }; }
+mat3 hstack(vec3 col0, vec3 col1, vec3 col2) { return { col0.x, col1.x, col2.x, col0.y, col1.y, col2.y, col0.z, col1.z, col2.z }; }
+mat4 hstack(vec4 col0, vec4 col1, vec4 col2, vec4 col3) { return { col0.x, col1.x, col2.x, col3.x, col0.y, col1.y, col2.y, col3.y, col0.z, col1.z, col2.z, col3.z, col0.w, col1.w, col2.w, col3.w }; }
+
+// arithmetic operators ////////////////////////////////////////////////////////
+
+// vectors
+tuDv  operator +  (vecD A, vecD B) {
+    vecD result;
+    for_(i, D) {
+        result[i] = A[i] + B[i];
+    }
+    return result;
+}
+tuDv &operator += (vecD &A, vecD B) {
+    A = A + B;
+    return A;
+}
+
+tuDv  operator -  (vecD A, vecD B) {
+    vecD result;
+    for_(i, D) {
+        result[i] = A[i] - B[i];
+    }
+    return result;
+}
+tuDv &operator -= (vecD &A, vecD B) {
+    A = A - B;
+    return A;
+}
+
+tuDv  operator *  (real scalar, vecD A) {
+    vecD result;
+    for_(i, D) {
+        result[i]  = scalar * A[i];
+    }
+    return result;
+}
+tuDv  operator *  (vecD A, real scalar) {
+    vecD result = scalar * A;
+    return result;
+}
+tuDv &operator *= (vecD &A, real scalar) {
+    A = scalar * A;
+    return A;
+}
+tuDv  operator -  (vecD A) {
+    return -1 * A;
+}
+
+tuDv  operator /  (vecD A, real scalar) {
+    vecD result;
+    for_(i, D) {
+        result[i]  = A[i] / scalar;
+    }
+    return result;
+}
+tuDv  operator /  (real scalar, vecD A) {
+    vecD result;
+    for_(i, D) {
+        result[i]  = scalar / A[i];
+    }
+    return result;
+}
+tuDv &operator /= (vecD &v, real scalar) {
+    v = v / scalar;
+    return v;
+}
+
+// matrices
+tuDm  operator +  (matD A, matD B) {
+    matD result = {};
+    for_(k, D * D) {
+        result.data[k] = A.data[k] + B.data[k];
+    }
+    return result;
+}
+tuDm &operator += (matD &A, matD B) {
+    A = A + B;
+    return A;
+}
+
+tuDm  operator -  (matD A, matD B) {
+    matD result = {};
+    for_(i, D * D) {
+        result.data[i] = A.data[i] - B.data[i];
+    }
+    return result;
+}
+tuDm &operator -= (matD &A, matD B) {
+    A = A + B;
+    return A;
+}
+
+tuDm  operator *  (matD A, matD B) {
+    matD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            for_(i, D) {
+                result(row, col) += A(row, i) * B(i, col);
+            }
+        }
+    }
+    return result;
+}
+tuDm &operator *= (matD &A, matD B) {
+    A = A * B;
+    return A;
+}
+tuDv  operator *  (matD A, vecD b) { // A b
+    vecD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result[row] += A(row, col) * b[col];
+        }
+    }
+    return result;
+}
+tuDv  operator *  (vecD b, matD A) { // b^D A
+    vecD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result[row] += A(col, row) * b[col];
+        }
+    }
+    return result;
+}
+tuDm  operator *  (real scalar, matD M) {
+    matD result = {};
+    for_(k, D * D) {
+        result.data[k] = scalar * M.data[k];
+    }
+    return result;
+}
+tuDm  operator *  (matD M, real scalar) {
+    return scalar * M;
+}
+tuDm &operator *= (matD &M, real scalar) {
+    M = scalar * M;
+    return M;
+}
+tuDm  operator -  (matD M) {
+    return -1 * M;
+}
+
+tuDm  operator /  (matD M, real scalar) {
+    return (1 / scalar) * M;
+}
+tuDm &operator /= (matD &M, real scalar) {
+    M = M / scalar;
+    return M;
+}
+
+// important vector functions //////////////////////////////////////////////////
+
+tuD real dot(vecD A, vecD B) {
+    real result = 0.0f;
+    for_(i, D) {
+        result += A[i] * B[i];
+    }
+    return result;
+}
+tuDm outer(vecD A, vecD B) {
+    matD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result(row, col) = A[row] * B[col];
+        }
+    }
+    return result;
+}
+
+real cross(vec2 A, vec2 B) {
+    return A.x * B.y - A.y * B.x;
+}
+vec3 cross(vec3 A, vec3 B) {
+    return { A.y * B.z - A.z * B.y, A.z * B.x - A.x * B.z, A.x * B.y - A.y * B.x };
+}
+
+tuD real squaredNorm(vecD A) {
+    return dot(A, A);
+}
+tuD real norm(vecD A) {
+    return sqrt(squaredNorm(A));
+}
+tuD real sum(vecD A) {
+    real result = 0.0;
+    for_(i, D) result += A[i];
+    return result;
+}
+tuDv normalized(vecD A) {
+    real norm_A = norm(A);
+    // ASSERT(fabs(norm_v) > 1e-7);
+    return (1 / norm_A) * A;
+}
+tuD real squaredDistance(vecD A, vecD B) {
+    return squaredNorm(A - B);
+}
+tuD real distance(vecD A, vecD B) {
+    return norm(A - B);
+}
+
+real ATAN2(vec2); // FORNOW: forward declaration
+real angle_from_0_TAU(vec2 A, vec2 B) {
+    real result = ATAN2(B - A);
+     if (result < 0.0f) result += TAU;
+     return result;
+}
+
+// ALIASES
+// tuD real length(vecD v) { return norm(v); }
+// tuD real squared_length(vecD v) { return squaredNorm(v); }
+
+// important matrix functions //////////////////////////////////////////////////
+
+tuDm transpose(matD M) {
+    matD result = {};
+    for_(row, D) {
+        for_(col, D) {
+            result(row, col) = M(col, row);
+        }
+    }
+    return result;
+}
+
+real determinant(mat2 M) {
+    return M(0, 0) * M(1, 1) - M(0, 1) * M(1, 0);
+}
+real determinant(mat3 M) {
+    return M(0, 0) * (M(1, 1) * M(2, 2) - M(2, 1) * M(1, 2))
+        - M(0, 1) * (M(1, 0) * M(2, 2) - M(1, 2) * M(2, 0))
+        + M(0, 2) * (M(1, 0) * M(2, 1) - M(1, 1) * M(2, 0));
+}
+real determinant(mat4 M) {
+    real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2);
+    real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1);
+    real A1223 = M(2, 1) * M(3, 2) - M(2, 2) * M(3, 1);
+    real A0323 = M(2, 0) * M(3, 3) - M(2, 3) * M(3, 0);
+    real A0223 = M(2, 0) * M(3, 2) - M(2, 2) * M(3, 0);
+    real A0123 = M(2, 0) * M(3, 1) - M(2, 1) * M(3, 0);
+    return M(0, 0) * ( M(1, 1) * A2323 - M(1, 2) * A1323 + M(1, 3) * A1223 ) 
+        - M(0, 1) * ( M(1, 0) * A2323 - M(1, 2) * A0323 + M(1, 3) * A0223 ) 
+        + M(0, 2) * ( M(1, 0) * A1323 - M(1, 1) * A0323 + M(1, 3) * A0123 ) 
+        - M(0, 3) * ( M(1, 0) * A1223 - M(1, 1) * A0223 + M(1, 2) * A0123 ) ;
+}
+
+mat2 inverse(mat2 M) {
+    real invdet = 1 / determinant(M);
+    return { invdet * M(1, 1), 
+        invdet * -M(0, 1), 
+        invdet * -M(1, 0), 
+        invdet * M(0, 0) };
+}
+mat3 inverse(mat3 M) {
+    real invdet = 1 / determinant(M);
+    return { invdet * (M(1, 1) * M(2, 2) - M(2, 1) * M(1, 2)),
+        invdet * (M(0, 2) * M(2, 1) - M(0, 1) * M(2, 2)),
+        invdet * (M(0, 1) * M(1, 2) - M(0, 2) * M(1, 1)),
+        invdet * (M(1, 2) * M(2, 0) - M(1, 0) * M(2, 2)),
+        invdet * (M(0, 0) * M(2, 2) - M(0, 2) * M(2, 0)),
+        invdet * (M(1, 0) * M(0, 2) - M(0, 0) * M(1, 2)),
+        invdet * (M(1, 0) * M(2, 1) - M(2, 0) * M(1, 1)),
+        invdet * (M(2, 0) * M(0, 1) - M(0, 0) * M(2, 1)),
+        invdet * (M(0, 0) * M(1, 1) - M(1, 0) * M(0, 1)) };
+}
+mat4 inverse(mat4 M) {
+    real invdet = 1 / determinant(M);
+    real A2323 = M(2, 2) * M(3, 3) - M(2, 3) * M(3, 2) ;
+    real A1323 = M(2, 1) * M(3, 3) - M(2, 3) * M(3, 1) ;
+    real A1223 = M(2, 1) * M(3, 2) - M(2, 2) * M(3, 1) ;
+    real A0323 = M(2, 0) * M(3, 3) - M(2, 3) * M(3, 0) ;
+    real A0223 = M(2, 0) * M(3, 2) - M(2, 2) * M(3, 0) ;
+    real A0123 = M(2, 0) * M(3, 1) - M(2, 1) * M(3, 0) ;
+    real A2313 = M(1, 2) * M(3, 3) - M(1, 3) * M(3, 2) ;
+    real A1313 = M(1, 1) * M(3, 3) - M(1, 3) * M(3, 1) ;
+    real A1213 = M(1, 1) * M(3, 2) - M(1, 2) * M(3, 1) ;
+    real A2312 = M(1, 2) * M(2, 3) - M(1, 3) * M(2, 2) ;
+    real A1312 = M(1, 1) * M(2, 3) - M(1, 3) * M(2, 1) ;
+    real A1212 = M(1, 1) * M(2, 2) - M(1, 2) * M(2, 1) ;
+    real A0313 = M(1, 0) * M(3, 3) - M(1, 3) * M(3, 0) ;
+    real A0213 = M(1, 0) * M(3, 2) - M(1, 2) * M(3, 0) ;
+    real A0312 = M(1, 0) * M(2, 3) - M(1, 3) * M(2, 0) ;
+    real A0212 = M(1, 0) * M(2, 2) - M(1, 2) * M(2, 0) ;
+    real A0113 = M(1, 0) * M(3, 1) - M(1, 1) * M(3, 0) ;
+    real A0112 = M(1, 0) * M(2, 1) - M(1, 1) * M(2, 0) ;
+    return { invdet * ( M(1, 1) * A2323 - M(1, 2) * A1323 + M(1, 3) * A1223 ),
+        invdet * - ( M(0, 1) * A2323 - M(0, 2) * A1323 + M(0, 3) * A1223 ),
+        invdet *   ( M(0, 1) * A2313 - M(0, 2) * A1313 + M(0, 3) * A1213 ),
+        invdet * - ( M(0, 1) * A2312 - M(0, 2) * A1312 + M(0, 3) * A1212 ),
+        invdet * - ( M(1, 0) * A2323 - M(1, 2) * A0323 + M(1, 3) * A0223 ),
+        invdet *   ( M(0, 0) * A2323 - M(0, 2) * A0323 + M(0, 3) * A0223 ),
+        invdet * - ( M(0, 0) * A2313 - M(0, 2) * A0313 + M(0, 3) * A0213 ),
+        invdet *   ( M(0, 0) * A2312 - M(0, 2) * A0312 + M(0, 3) * A0212 ),
+        invdet *   ( M(1, 0) * A1323 - M(1, 1) * A0323 + M(1, 3) * A0123 ),
+        invdet * - ( M(0, 0) * A1323 - M(0, 1) * A0323 + M(0, 3) * A0123 ),
+        invdet *   ( M(0, 0) * A1313 - M(0, 1) * A0313 + M(0, 3) * A0113 ),
+        invdet * - ( M(0, 0) * A1312 - M(0, 1) * A0312 + M(0, 3) * A0112 ),
+        invdet * - ( M(1, 0) * A1223 - M(1, 1) * A0223 + M(1, 2) * A0123 ),
+        invdet *   ( M(0, 0) * A1223 - M(0, 1) * A0223 + M(0, 2) * A0123 ),
+        invdet * - ( M(0, 0) * A1213 - M(0, 1) * A0213 + M(0, 2) * A0113 ),
+        invdet *   ( M(0, 0) * A1212 - M(0, 1) * A0212 + M(0, 2) * A0112 ) };
+}
+
+// using 4x4 transforms ////////////////////////////////////////////////////////
+
+tuDv transformPoint(const mat4 &M, vecD p) {
+    vec4 p_hom = {};
+    memcpy(&p_hom, &p, D * sizeof(real));
+    p_hom.w = 1;
+    vec4 ret_hom = M * p_hom;
+    ret_hom /= ret_hom.w;
+    vecD result = {};
+    memcpy(&result, &ret_hom, D * sizeof(real));
+    return result;
+}
+tuDv transformVector(const mat4 &M, vecD v) {
+    vec3 v_3D = {};
+    memcpy(&v_3D, &v, D * sizeof(real));
+    vec3 ret_hom = _M3(M) * v_3D;
+    vecD result;
+    memcpy(&result, &ret_hom, D * sizeof(real));
+    return result;
+}
+tuDv transformNormal(const mat4 &M, vecD n) {
+    vec3 ret_hom = inverse(transpose(_M3(M))) * n;
+    vecD result;
+    memcpy(&result, &ret_hom, D * sizeof(real));
+    return result;
+}
+
+// 4x4 transform cookbook //////////////////////////////////////////////////////
+
+tuDm identityMatrix() {
+    matD result = {};
+    for_(i, D) {
+        result(i, i) = 1;
+    }
+    return result;
+}
+const mat4 _Identity4x4 = identityMatrix<4>();
+
+mat4 M4_Identity() {
+    return _Identity4x4; // FORNOW
+}
+
+mat4 M4_Translation(real x, real y, real z = 0) {
+    mat4 result = _Identity4x4;
+    result(0, 3) = x;
+    result(1, 3) = y;
+    result(2, 3) = z;
+    return result;
+}
+mat4 M4_Translation(vec2 xy) {
+    return M4_Translation(xy.x, xy.y);
+}
+mat4 M4_Translation(vec3 xyz) {
+    return M4_Translation(xyz.x, xyz.y, xyz.z);
+}
+mat4 M4_Scaling(real x, real y, real z = 1) {
+    mat4 result = {};
+    result(0, 0) = x;
+    result(1, 1) = y;
+    result(2, 2) = z;
+    result(3, 3) = 1;
+    return result;
+}
+mat4 M4_Scaling(real s) {
+    return M4_Scaling(s, s, s);
+}
+mat4 M4_Scaling(vec2 xy) {
+    return M4_Scaling(xy.x, xy.y);
+}
+mat4 M4_Scaling(vec3 xyz) {
+    return M4_Scaling(xyz.x, xyz.y, xyz.z);
+}
+mat4 M4_RotationAboutXAxis(real t) {
+    mat4 result = _Identity4x4;
+    result(1, 1) = COS(t); result(1, 2) = -SIN(t);
+    result(2, 1) = SIN(t); result(2, 2) =  COS(t);
+    return result;
+}
+mat4 M4_RotationAboutYAxis(real t) {
+    mat4 result = _Identity4x4;
+    result(0, 0) =  COS(t); result(0, 2) = SIN(t);
+    result(2, 0) = -SIN(t); result(2, 2) = COS(t);
+    return result;
+}
+mat4 M4_RotationAboutZAxis(real t) {
+    mat4 result = _Identity4x4;
+    result(0, 0) = COS(t); result(0, 1) = -SIN(t);
+    result(1, 0) = SIN(t); result(1, 1) =  COS(t);
+    return result;
+}
+
+mat4 M4_RotationAbout(vec3 axis, real angle) {
+    real x = axis.x;
+    real y = axis.y;
+    real z = axis.z;
+    real x2 = x * x;
+    real y2 = y * y;
+    real z2 = z * z;
+    real xy = x * y;
+    real xz = x * z;
+    real yz = y * z;
+    real col = COS(angle);
+    real s = SIN(angle);
+    real d = 1-col;
+    return { col+x2*d, xy*d-z*s, xz*d+y*s, 0,
+        xy*d+z*s, col+y2*d, yz*d-x*s, 0,
+        xz*d-y*s, yz*d+x*s, col+z2*d, 0,
+        0, 0, 0, 1
+    };
+}
+
+mat4 M4_RotationFrom(vec3 a, vec3 b) {
+    // NOTE: twist dof is whatever
+    // https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+
+    // FORNOW
+    a = normalized(a);
+    b = normalized(b);
+
+    vec3 v = cross(a, b);
+    real col = dot(a, b);
+    if (ABS(col + 1.0f) < 1e-5f) return M4_Identity();
+    mat3 v_x = { 0.0, -v.z, v.y, v.z, 0.0, -v.x, -v.y, v.x, 0.0 };
+    mat3 R = identityMatrix<3>() + v_x + v_x * v_x / (1 + col);
+    return {
+        R.data[0], R.data[1], R.data[2], 0.0,
+            R.data[3], R.data[4], R.data[5], 0.0,
+            R.data[6], R.data[7], R.data[8], 0.0,
+            0.0,       0.0,       0.0, 1.0 };
+}
+
+// optimization stuff //////////////////////////////////////////////////////////
+
+tuDm firstDerivativeofUnitVector(vecD v) {
+    vecD tmp = normalized(v);
+    return (1 / norm(v)) * (identityMatrix<D>() - outer(tmp, tmp));
+}
+#define firstDerivativeOfNorm normalized
+#define secondDerivativeOfNorm firstDerivativeofUnitVector
+
+tuD real squaredNorm(matD M) {
+    real result = 0;
+    for(uint i = 0; i < D * D; ++i) {
+        result += M[i] * M[i];
+    }
+    return result;
+}
+
+// misc functions //////////////////////////////////////////////////////////////
+
+tuD real minComponent(vecD A) {
+    real result = HUGE_VAL;
+    for(uint i = 0; i < D; ++i) result = MIN(result, A[i]);
+    return result;
+}
+
+tuD real maxComponent(vecD A) {
+    real result = -HUGE_VAL;
+    for(uint i = 0; i < D; ++i) result = MAX(result, A[i]);
+    return result;
+}
+
+tuDv cwiseAbs(vecD A) {
+    for(uint i = 0; i < D; ++i) A[i] = abs(A[i]);
+    return A;
+}
+tuDv cwiseMin(vecD A, vecD B) {
+    vecD result = {};
+    for(uint i = 0; i < D; ++i) result[i] = (A[i] < B[i]) ? A[i] : B[i];
+    return result;
+}
+tuDv cwiseMax(vecD A, vecD B) {
+    vecD result = {};
+    for(uint i = 0; i < D; ++i) result[i] = (A[i] > B[i]) ? A[i] : B[i];
+    return result;
+}
+tuDv cwiseProduct(vecD a, vecD b) {
+    vecD result = {};
+    for(uint i = 0; i < D; ++i) result[i] = a[i] * b[i];
+    return result;
+}
+vec2 e_theta(real theta) {
+    return { COS(theta), SIN(theta) };
+}
+real ATAN2(vec2 a) {
+    return ATAN2(a.y, a.x);
+}
+vec2 rotated(vec2 a, real theta) {
+    return { COS(theta) * a.x - SIN(theta) * a.y, SIN(theta) * a.x + COS(theta) * a.y };
+}
+vec2 rotated_about(vec2 a, vec2 o, real theta) {
+    return rotated(a - o, theta) + o;
+}
+vec2 scaled_about(vec2 a, vec2 o, real scale) {
+    return scale * (a - o) + o;
+}
+mat2 R_theta_2x2(real theta) {
+    return { COS(theta), -SIN(theta), SIN(theta), COS(theta) };
+}
+vec2 perpendicularTo(vec2 v) {
+    return { v.y, -v.x };
+}
+
+mat4 xyzo2mat4(vec3 x, vec3 y, vec3 z, vec3 o) {
+    return {
+        x[0], y[0], z[0], o[0],
+        x[1], y[1], z[1], o[1],
+        x[2], y[2], z[2], o[2],
+        0, 0, 0, 1
+    };
+}
+#define M4_xyzo xyzo2mat4
+tuDv magClamped(vecD a, real col) {
+    real norm_a = norm(a);
+    if (ABS(norm_a) < col) { return a; }
+    return a / norm_a * MAG_CLAMP(norm_a, col);
+}
+
+// utility /////////////////////////////////////////////////////////////////////
+
+tuD void pprint(vecD A) {
+    printf("V%d(", D);
+    for_(i, D) {
+        printf("%lf", A[i]);
+        if (i != D - 1) printf(", ");
+    }
+    printf(")\n");
+}
+tuD void pprint(matD M) {
+    for_(row, D) {
+        printf("| ");
+        for_(col, D) {
+            printf("%lf", M(row, col));
+            if (col != D - 1) printf(", ");
+        }
+        printf(" |\n");
+    }
+}
+
+// math math ///////////////////////////////////////////////////////////////////
+
+struct RayTriangleIntersectionResult {
+    bool hit;
+    real distance;
+    vec3 pos;
+};
+RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a, vec3 b, vec3 c) {
+    RayTriangleIntersectionResult result = {};
+    vec4 w_t = inverse(M4(
+                a[0], b[0], c[0], -dir[0],
+                a[1], b[1], c[1], -dir[1],
+                a[2], b[2], c[2], -dir[2],
+                1.0f, 1.0f, 1.0f,     0.0))
+        * V4(o, 1.0f);
+    result.hit = ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0));
+    result.distance = w_t.w;
+    result.pos = o + dir * result.distance;
+    return result;
+}
+
+
+// <!> End linalg.cpp <!>
+// <!> Begin color.cpp <!> 
+struct {
+    vec3 red = { 1.0f, 0.0f, 0.0f };
+    vec3 green = { 0.0f, 1.0f, 0.0f };
+    vec3 blue = { 0.0f, 0.0f, 1.0f };
+    vec3 yellow = { 1.0f, 1.0f, 0.0f };
+    vec3 cyan = { 0.0f, 1.0f, 1.0f };
+    vec3 magenta = { 1.0f, 0.0f, 1.0f };
+    vec3 white = { 1.0f, 1.0f, 1.0f };
+    vec3 light_gray = { 0.75f, 0.75f, 0.75f };
+    vec3 gray = { 0.5f, 0.5f, 0.5f };
+    vec3 dark_gray = { 0.25f, 0.25f, 0.25f };
+    vec3 black = { 0.0f, 0.0f, 0.0f };
+    // TODO: add orange, brown, purple,
+} basic;
+
+vec3 RGB255(uint r, uint g, uint b) {
+    return V3(real(r), real(g), real(b)) / 255.0f;
+}
+
+struct {
+    vec3 red        = RGB255(249,  38, 114);
+    vec3 orange     = RGB255(253, 151,  31);
+    // not actual monokai yellow cause i don't like it
+    vec3 yellow     = RGB255(255, 255,  50);
+    vec3 green      = RGB255(166, 226,  46);
+    vec3 blue       = RGB255(102, 217, 239);
+    vec3 purple     = RGB255(174, 129, 255);
+    vec3 white      = RGB255(255, 255, 255); // *shrug*
+    vec3 light_gray = RGB255(192, 192, 192); // *shrug*
+    vec3 gray       = RGB255(127, 127, 127); // *shrug*
+    vec3 dark_gray  = RGB255( 64,  64,  64); // *shrug*
+    vec3 black      = RGB255(  0,   0,   0); // *shrug*
+    vec3 brown      = RGB255(123,  63,   0); // no actual brown
+} monokai;
+
+vec3 get_kelly_color(int i) {
+    static vec3 _kelly_colors[]={{255.f/255,179.f/255,0.f/255},{128.f/255,62.f/255,117.f/255},{255.f/255,104.f/255,0.f/255},{166.f/255,189.f/255,215.f/255},{193.f/255,0.f/255,32.f/255},{206.f/255,162.f/255,98.f/255},{129.f/255,112.f/255,102.f/255},{0.f/255,125.f/255,52.f/255},{246.f/255,118.f/255,142.f/255},{0.f/255,83.f/255,138.f/255},{255.f/255,122.f/255,92.f/255},{83.f/255,55.f/255,122.f/255},{255.f/255,142.f/255,0.f/255},{179.f/255,40.f/255,81.f/255},{244.f/255,200.f/255,0.f/255},{127.f/255,24.f/255,13.f/255},{147.f/255,170.f/255,0.f/255},{89.f/255,51.f/255,21.f/255},{241.f/255,58.f/255,19.f/255},{35.f/255,44.f/255,22.f/255}};
+    return _kelly_colors[MODULO(i, ARRAY_LENGTH(_kelly_colors))];
+}
+
+vec3 color_rainbow_swirl(real t) {
+    return {
+        (0.5f + 0.5f * COS(TAU * ( 0.000f - t))),
+        (0.5f + 0.5f * COS(TAU * ( 0.333f - t))),
+        (0.5f + 0.5f * COS(TAU * (-0.333f - t)))
+    };
+}
+
+// <!> End color.cpp <!>
+// <!> Begin bbox.cpp <!> 
+template <uint D> struct BoundingBox {
+    vecD min;
+    vecD max;
+};
+
+typedef BoundingBox<2> bbox2;
+typedef BoundingBox<3> bbox3;
+#define bboxD BoundingBox<D>
+#define tuDb tuD bboxD
+
+tuDb BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA() {
+    BoundingBox<D> result;
+    for_(d, D) {
+        result.min[d] = HUGE_VAL;
+        result.max[d] = -HUGE_VAL;
+    }
+    return result;
+}
+
+tuD bool bbox_contains(bboxD A, vecD point) {
+    for_(d, D) {
+        if (!IS_BETWEEN_LOOSE(point[d], A.min[d], A.max[d])) return false;
+    }
+    return true;
+}
+
+tuD bool bbox_contains(bboxD A, bboxD other) {
+    for_(d, D) {
+        if (A.min[d] > other.min[d]) return false;
+        if (A.max[d] < other.max[d]) return false;
+    }
+    return true;
+}
+
+tuD bboxD bbox_inflate(bboxD A, real epsilon) {
+    for_(d, D) {
+        A.min[d] -= epsilon;
+        A.max[d] += epsilon;
+    }
+    return A;
+}
+
+tuD bboxD bbox_inflate(bboxD A, vecD epsilon) {
+    for_(d, D) {
+        A.min[d] -= epsilon[d];
+        A.max[d] += epsilon[d];
+    }
+    return A;
+}
+
+// // add
+tuDb &operator += (bboxD &A, vecD p) {
+    for_(d, D) {
+        A.min[d] = MIN(A.min[d], p[d]);
+        A.max[d] = MAX(A.max[d], p[d]);
+    }
+    return A;
+}
+
+// // union
+// +
+tuDb  operator +  (bboxD A, bboxD B) {
+    bboxD result;
+    for_(d, D) {
+        result.min[d] = MIN(A.min[d], B.min[d]);
+        result.max[d] = MAX(A.max[d], B.max[d]);
+    }
+    return result;
+}
+// +=
+tuDb &operator += (bboxD &A, bboxD B) {
+    A = A + B;
+    return A;
+}
+
+void eso_vertex(real x, real y);
+void eso_bbox_SOUP_QUADS(bbox2 A) {
+    eso_vertex(A.min.x, A.min.y);
+    eso_vertex(A.min.x, A.max.y);
+    eso_vertex(A.max.x, A.max.y);
+    eso_vertex(A.max.x, A.min.y);
+}
+// <!> End bbox.cpp <!>
+// <!> Begin containers.cpp <!>  // TODO: implement better Map
+template <typename T> struct List {
+    uint length;
+    uint _capacity;
+    T *array;
+    // T &operator [](int index) { return data[index]; }
+};
+
+template <typename T> void list_push_back(List<T> *list, T element) {
+    if (list->_capacity == 0) {
+        ASSERT(!list->array);
+        ASSERT(list->length == 0);
+        list->_capacity = 16;
+        list->array = (T *) malloc(list->_capacity * sizeof(T));
+    }
+    if (list->length == list->_capacity) {
+        list->_capacity *= 2;
+        list->array = (T *) realloc(list->array, list->_capacity * sizeof(T));
+    }
+    list->array[list->length++] = element;
+}
+
+template <typename T> void list_free_AND_zero(List<T> *list) {
+    if (list->array) free(list->array);
+    *list = {};
+}
+
+template <typename T> void list_calloc_NOT_reserve(List<T> *list, unsigned int num_slots, unsigned int num_bytes_per_slot) {
+    ASSERT(!list->array);
+    list_free_AND_zero(list);
+    list->_capacity = num_slots;
+    list->length = num_slots;
+    list->array = (T *) calloc(num_slots, num_bytes_per_slot);
+}
+
+template <typename T> void list_memset(List<T> *list, char byte_to_write, unsigned int num_bytes_to_write) {
+    ASSERT(byte_to_write == 0); // NOTE: jim only ever calls memset(..., 0, ...); this check is just to catch his silly mistakes
+    memset(list->array, byte_to_write, num_bytes_to_write);
+}
+
+template <typename T> void list_clone(List<T> *destination, List<T> *source) {
+    list_free_AND_zero(destination);
+    destination->length = source->length;
+    destination->_capacity = source->_capacity;
+    if (destination->_capacity != 0) {
+        int num_bytes = destination->_capacity * sizeof(T);
+        destination->array = (T *) malloc(num_bytes);
+        memcpy(destination->array, source->array, num_bytes);
+    }
+}
+
+
+template <typename T> void list_insert(List<T> *list, uint i, T element) {
+    ASSERT(i <= list->length);
+    list_push_back(list, {});
+    memmove(&list->array[i + 1], &list->array[i], (list->length - i - 1) * sizeof(T));
+    list->array[i] = element;
+}
+
+template <typename T> T list_delete_at(List<T> *list, uint i) {
+    ASSERT(i >= 0);
+    ASSERT(i < list->length);
+    T result = list->array[i];
+    memmove(&list->array[i], &list->array[i + 1], (list->length - i - 1) * sizeof(T));
+    --list->length;
+    return result;
+}
+
+template <typename T> void list_push_front(List<T> *list, T element) {
+    list_insert(list, 0, element);
+}
+
+
+template <typename T> T list_pop_back(List<T> *list) {
+    ASSERT(list->length != 0);
+    return list_delete_at(list, list->length - 1);
+}
+
+template <typename T> T list_pop_front(List<T> *list) {
+    ASSERT(list->length != 0);
+    return list_delete_at(list, 0);
+}
+
+#define Queue List
+#define queue_enqueue list_push_back
+#define queue_dequeue list_pop_front
+#define queue_free_AND_zero list_free_AND_zero
+#define Stack List
+#define stack_push list_push_back
+#define stack_pop list_pop_back
+#define stack_free_AND_zero list_free_AND_zero
+
+
+
+template <typename Key, typename Value> struct Pair {
+    union {
+        struct {
+            Key key;
+            Value value;
+        };
+        struct {
+            Key first;
+            Key second;
+        };
+    };
+};
+
+template <typename Key, typename Value> struct Map {
+    uint num_buckets;
+    List<Pair<Key, Value>> *buckets;
+    // T &operator [](int index) { return data[index]; }
+};
+
+// http://www.azillionmonkeys.com/qed/hash.html
+#undef get16bits
+#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__) \
+    || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
+#define get16bits(d) (*((const uint16_t *) (d)))
+#endif
+#if !defined (get16bits)
+#define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8)\
+        +(uint32_t)(((const uint8_t *)(d))[0]) )
+#endif
+uint32_t paul_hsieh_SuperFastHash(void *_data, int len) {
+    char *data = (char *) _data;
+
+    uint32_t hash = len, tmp;
+    int rem;
+
+    if (len <= 0 || data == NULL) return 0;
+
+    rem = len & 3;
+    len >>= 2;
+
+    /* Main loop */
+    for (;len > 0; len--) {
+        hash  += get16bits (data);
+        tmp    = (get16bits (data+2) << 11) ^ hash;
+        hash   = (hash << 16) ^ tmp;
+        data  += 2*sizeof (uint16_t);
+        hash  += hash >> 11;
+    }
+
+    /* Handle end cases */
+    switch (rem) {
+        case 3: hash += get16bits (data);
+                hash ^= hash << 16;
+                hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
+                hash += hash >> 11;
+                break;
+        case 2: hash += get16bits (data);
+                hash ^= hash << 11;
+                hash += hash >> 17;
+                break;
+        case 1: hash += (signed char)*data;
+                hash ^= hash << 10;
+                hash += hash >> 1;
+    }
+
+    /* Force "avalanching" of final 127 bits */
+    hash ^= hash << 3;
+    hash += hash >> 5;
+    hash ^= hash << 4;
+    hash += hash >> 17;
+    hash ^= hash << 25;
+    hash += hash >> 6;
+
+    return hash;
+}
+
+template <typename Key, typename Value> void map_put(Map<Key, Value> *map, Key key, Value value) {
+    if (!map->buckets) {
+        map->num_buckets = 10001; //100003;
+        map->buckets = (List<Pair<Key, Value>> *) calloc(map->num_buckets, sizeof(List<Pair<Key, Value>>));
+    }
+    { // TODO resizing; load factor; ...
+    }
+    List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
+    for (Pair<Key, Value> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
+        if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
+            pair->value = value;
+            return;
+        }
+    }
+    list_push_back(bucket, { key, value });
+}
+
+template <typename Key, typename Value> Value *_map_get_pointer(Map<Key, Value> *map, Key key) {
+    if (map->num_buckets == 0) return NULL;
+    ASSERT(map->buckets);
+    List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
+    for (Pair<Key, Value> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
+        if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
+            return &pair->value;
+        }
+    }
+    return NULL;
+}
+
+template <typename Key, typename Value> Value map_get(Map<Key, Value> *map, Key key, Value default_value = {}) {
+    if (map->num_buckets == 0) return default_value;
+    ASSERT(map->buckets);
+    List<Pair<Key, Value>> *bucket = &map->buckets[paul_hsieh_SuperFastHash(&key, sizeof(Key)) % map->num_buckets];
+    for (Pair<Key, Value> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
+        if (memcmp(&pair->key, &key, sizeof(Key)) == 0) {
+            return pair->value;
+        }
+    }
+    return default_value;
+}
+
+
+template <typename Key, typename Value> void map_free_and_zero(Map<Key, Value> *map) {
+    for (List<Pair<Key, Value>> *bucket = map->buckets; bucket < &map->buckets[map->num_buckets]; ++bucket) list_free_AND_zero(bucket);
+    if (map->num_buckets) free(map->buckets);
+    *map = {};
+}
+
+// <!> End containers.cpp <!>
+// <!> Begin elephant.cpp <!> 
+// TODO: consider different ElephantStack internals
+
+template <typename T> struct ElephantStack {
+    Stack<T> _undo_stack;
+    Stack<T> _redo_stack;
+};
+
+template <typename T> uint elephant_length_undo(ElephantStack<T> *elephant) {
+    return elephant->_undo_stack.length;
+}
+
+template <typename T> uint elephant_length_redo(ElephantStack<T> *elephant) {
+    return elephant->_redo_stack.length;
+}
+
+template <typename T> bool elephant_is_empty_undo(ElephantStack<T> *elephant) {
+    return (elephant_length_undo(elephant) == 0);
+}
+
+template <typename T> bool elephant_is_empty_redo(ElephantStack<T> *elephant) {
+    return (elephant_length_redo(elephant) == 0);
+}
+
+template <typename T> T *elephant_undo_ptr_begin(ElephantStack<T> *elephant) {
+    return elephant->_undo_stack.array;
+}
+
+template <typename T> T *elephant_undo_ptr_one_past_end(ElephantStack<T> *elephant) {
+    return elephant->_undo_stack.array + elephant->_undo_stack.length;
+}
+
+template <typename T> T *elephant_redo_ptr_one_past_end(ElephantStack<T> *elephant) {
+    return elephant->_redo_stack.array + elephant->_redo_stack.length;
+}
+
+template <typename T> T *elephant_peek_undo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_undo_stack.length);
+    return elephant_undo_ptr_one_past_end(elephant) - 1;
+}
+
+template <typename T> T *elephant_peek_redo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_redo_stack.length);
+    return elephant_redo_ptr_one_past_end(elephant) - 1;
+}
+
+template <typename T> T *elephant_pop_undo_onto_redo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_undo_stack.length);
+    stack_push(&elephant->_redo_stack, stack_pop(&elephant->_undo_stack));
+    return elephant_peek_redo(elephant);
+}
+
+template <typename T> T *elephant_pop_redo_onto_undo(ElephantStack<T> *elephant) {
+    ASSERT(elephant->_redo_stack.length);
+    stack_push(&elephant->_undo_stack, stack_pop(&elephant->_redo_stack));
+    return elephant_peek_undo(elephant);
+}
+
+template <typename T> void elephant_clear_redo(ElephantStack<T> *elephant) {
+    stack_free_AND_zero(&elephant->_redo_stack);
+}
+
+template <typename T> void elephant_push_undo_clear_redo(ElephantStack<T> *elephant, T item) {
+    stack_push(&elephant->_undo_stack, item);
+    elephant_clear_redo(elephant);
+}
+
+// <!> End elephant.cpp <!>
+// <!> Begin window.cpp <!> 
+// TODO: an fps camera shouldn't be allowed to be ortho
+// TODO: camera should have clip planes as member variables
+
+#ifdef OPERATING_SYSTEM_APPLE
+#define GL_SILENCE_DEPRECATION
+#define GLFW_INCLUDE_GL_COREARB
+#include <OpenGL/gl3.h>
+#include "glfw3.h"
+#elif defined(OPERATING_SYSTEM_WINDOWS)
+#include "glad.c"
+#include "glfw3.h"
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WGL
+#define GLFW_NATIVE_INCLUDE_NONE
+#include "glfw3native.h"
+#endif
+
+GLFWwindow *glfw_window;
+real _window_macbook_retina_fixer__VERY_MYSTERIOUS;
+
+run_before_main {
+    ASSERT(glfwInit());
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
+    glfwWindowHint(GLFW_SAMPLES, 1);
+
+    glfw_window = glfwCreateWindow(960, 720,  __DATE__ " " __TIME__, NULL, NULL);
+    if (!glfw_window) {
+        printf("Something's gone wonky; if you weren't just messing with init(...) or something, please try restarting your computer and trying again.\n");
+        ASSERT(0);
+    }
+    glfwMakeContextCurrent(glfw_window);
+    glfwSetWindowPos(glfw_window, 0, 100);
+    glfwSetWindowAttrib(glfw_window, GLFW_FLOATING, false);
+    glfwSetWindowAttrib(glfw_window, GLFW_DECORATED, true);
+
+    #ifdef OPERATING_SYSTEM_WINDOWS
+    gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+    #endif
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LEQUAL);
+    glDepthRange(0.0f, 1.0f);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glfwSwapInterval(1);
+
+    { // _macbook_retina_scale
+        int num, den, _;
+        glfwGetFramebufferSize(glfw_window, &num, &_);
+        glfwGetWindowSize(glfw_window, &den, &_);
+        _window_macbook_retina_fixer__VERY_MYSTERIOUS = real(num / den);
+    }
+};
+
+
+vec2 window_get_size_Pixel() {
+    ASSERT(glfw_window);
+    int _width, _height;
+    glfwGetFramebufferSize(glfw_window, &_width, &_height);
+    real width = real(_width) / _window_macbook_retina_fixer__VERY_MYSTERIOUS;
+    real height = real(_height) / _window_macbook_retina_fixer__VERY_MYSTERIOUS;
+    return { width, height };
+}
+real window_get_width_Pixel() { return window_get_size_Pixel().x; }
+real window_get_height_Pixel() { return window_get_size_Pixel().y; }
+
+
+void gl_scissor_Pixel(double x, double y, double dx, double dy) {
+    // y_Pixel_upper_left -> y_Scissor_upper_left -> y_Scissor_lower_left
+    y = window_get_height_Pixel() - y - dy;
+    real factor = _window_macbook_retina_fixer__VERY_MYSTERIOUS;
+    glScissor(uint(factor * x), uint(factor * y), uint(factor * dx), uint(factor * dy));
+}
+void gl_scissor_Pixel(bbox2 bbox) {
+    gl_scissor_Pixel(bbox.min.x, bbox.min.y, bbox.max.x - bbox.min.x, bbox.max.y - bbox.min.y);
+}
+#ifdef glScissor
+#undef glScissor
+#endif
+#define glScissor RETINA_BREAKS_THIS_FUNCTION_USE_gl_scissor_WRAPPER
+
+
+
+real window_get_aspect() {
+    vec2 size = window_get_size_Pixel();
+    return size.x / size.y;
+}
+
+mat4 window_get_OpenGL_from_Pixel() {
+    // OpenGL                         Pixel 
+    // [x'] = [1/r_x      0   0 -1] [x] = [x/r_x - 1]
+    // [y'] = [    0 -1/r_y   0  1] [y] = [1 - y/r_y]
+    // [z'] = [    0      0   1  0] [z] = [        z] // so invertible (otherwise, would just have row [ 0 0 0 0 ]
+    // [1 ] = [    0      0   0  1] [1] = [        1]
+    vec2 r = window_get_size_Pixel() / 2;
+    mat4 result = {};
+    result(0, 0) = 1.0f / r.x;
+    result(1, 1) = -1.0f / r.y;
+    result(2, 2) = 1.0f;
+    result(0, 3) = -1.0f;
+    result(1, 3) = 1.0f;
+    result(3, 3) = 1.0f;
+    return result;
+}
+
+mat4 transform_get_P_persp(real angle_of_view, vec2 post_nudge_OpenGL = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
+    if (IS_ZERO(near_z_Camera)) { near_z_Camera = -0.100f; }
+    if (IS_ZERO(far_z_Camera)) { far_z_Camera = -100000.0f; }
+    if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }
+    ASSERT(near_z_Camera < 0.0f);
+    ASSERT(far_z_Camera < 0.0f);
+
+    // consider a point with coordinates (x, y, -z) in the camera's coordinate system
+    //                                                                   where z < 0*
+    //                              *recall that the camera's z-axis points backwards
+
+    // 1) imagine projecting the point onto some film plane with height r_y and distance D
+
+    //                r_y                               
+    //               -|                                 
+    //              - |                                 
+    //  angle_y    -  |           y <~ vertex           
+    //         \  -   |       -   |                     
+    //          |-    |   -       |                     
+    //          v     +           |                     
+    //         -) -   |           |                     
+    //        0-------+-----------+----->               
+    //                D          -z                     
+
+    // 2) scale film plane by 1 / r_y to yield OpenGL film plane (with height 1) and distance Q_y
+    // y' is the projected position of vertex y in OpenGL; i.e., if we can get y', we're done :) 
+
+    //                1 <~ edge of OpenGL film plane
+    //               -|                          
+    //              - |                          
+    //  angle_y    -  |           y              
+    //         \  -   |       -   |              
+    //          |-    |   -       |              
+    //          v     y'          |              
+    //         -) -   |           |              
+    //        0-------+-----------+----->        
+    //              D / r_y      -z              
+    //                ^                          
+    //                |                          
+    //                cot(angle_y) := Q_y        
+
+    // similar triangles has y' / Q_y = y / -z                     
+    //                          => y' = -Q_y * (y / z) (Equation 1)
+
+    // we can repeat this procedure in x      
+    // the only difference is Q_x vs. Q_y     
+    // -------------------------------------- 
+    // cot(angle_x) = D / r_x                 
+    // cot(angle_y) = D / r_y                 
+    // => r_x cot(angle_x) = r_y cot(angle_y) 
+    // recall: aspect := r_x / r_y            
+    //  => aspect cot(angle_x) = cot(angle_y) 
+    //                  => Q_x = Q_y / aspect.
+
+    // encode Equation 1 (and the variant for x) into a homogeneous matrix equation
+    // the third row is a   typical clip plane mapping                             
+
+    //  OpenGL                    Camera
+    //  [x'] = [Q_x   0  0  0] [x] = [ Q_x * x] ~> [-Q_x * (x / z)]
+    //  [y'] = [  0 Q_y  0  0] [y] = [ Q_y * y] ~> [-Q_y * (y / z)]
+    //  [z'] = [  0   0  a  b] [z] = [  az + b] ~> [      -a - b/z]
+    //  [ 1] = [  0   0 -1  0] [1] = [      -z] ~> [             1]
+
+    real angle_y = 0.5f * angle_of_view;
+    real Q_y = 1 / TAN(angle_y);
+    real Q_x = Q_y / aspect;
+
+    mat4 result = {};
+    result(0, 0) = Q_x;
+    result(1, 1) = Q_y;
+    result(3, 2) = -1;
+
+    // z'(z) = [-a - b/z]              
+    // we want to map [n, f] -> [-1, 1]
+    // z'(n) = -a - b/n := -1          
+    // z'(f) = -a - b/f :=  1          
+    //                                 
+    // => a + b/n =  1                 
+    //    a + b/f = -1                 
+    // => b/n - b/f = 2                
+    //                                 
+    // => b * (f - n) / (n * f) = 2    
+    // => b = (2 * n * f) / (f - n)    
+    //                                 
+    // => a + (2 * f) / (f - n) = 1    
+    // => a = -(n + f) / (f - n)       
+    //       = (n + f) / (n - f)       
+    result(2, 2) = (near_z_Camera + far_z_Camera) / (near_z_Camera - far_z_Camera);
+    result(2, 3) = (2 * near_z_Camera * far_z_Camera) / (far_z_Camera - near_z_Camera);
+
+    // [1 0 0  t_x_OpenGL] [Q_x   0  0  0]
+    // [0 1 0  t_y_OpenGL] [  0 Q_y  0  0]
+    // [0 0 1           0] [  0   0  a  b]
+    // [0 0 0           1] [  0   0 -1  0]
+    result(0, 2) = -post_nudge_OpenGL.x;
+    result(1, 2) = -post_nudge_OpenGL.y;
+
+    return result;
+}
+
+mat4 transform_get_P_ortho(real height_World, vec2 post_nudge_OpenGL = {}, real near_z_Camera = 0, real far_z_Camera = 0, real aspect = 0) {
+    // ASSERT(!IS_ZERO(height_World));
+    if (ARE_EQUAL(near_z_Camera, far_z_Camera)) {
+        near_z_Camera = 1000000.0f;
+        far_z_Camera = -near_z_Camera;
+    }
+    if (IS_ZERO(aspect)) { aspect = window_get_aspect(); }
+
+    // consider a point with coordinates (x, y, z) in the camera's coordinate system
+
+    // 1) imagine projecting the point onto some film plane with height r_y
+
+    // r_y                                  
+    // |                                    
+    // |                                    
+    // +-----------y                        
+    // |           |                        
+    // |           |                        
+    // +-----------------> minus_z direction
+
+    // 2) scale everything by 1 / r_y to yield OpenGL film plane (with height 1)
+
+    // 1                                     
+    // |                                     
+    // |                                     
+    // y'----------y / r_y                   
+    // |           |                         
+    // |           |                         
+    // +-----------------> minus_z  direction
+
+    // => y' = y / r_y
+
+    // OpenGL                        Camera
+    // [x'] = [1/r_x      0   0  0] [x] = [ x/r_x]
+    // [y'] = [    0  1/r_y   0  0] [y] = [ y/r_y]
+    // [z'] = [    0      0   a  b] [z] = [az + b]
+    // [1 ] = [    0      0   0  1] [1] = [     1]
+
+    // z'(z) = [az + b]                
+    // we want to map [n, f] -> [-1, 1]
+    // z'(n) = an + b := -1            
+    // z'(f) = af + b :=  1            
+    //                                 
+    // => a * (f - n) = 2              
+    //    a = 2 / (f - n)              
+    //                                 
+    // (2 * f) / (f - n) + b = 1       
+    // => b = (n + f) / (n - f)        
+
+    real r_y = height_World / 2;
+    real r_x = window_get_aspect() * r_y;
+    real a = 2.0f / (far_z_Camera - near_z_Camera);
+    real b = (near_z_Camera + far_z_Camera) / (near_z_Camera - far_z_Camera);
+
+    mat4 result = {};
+    result(0, 0) = 1.0f / r_x;
+    result(1, 1) = 1.0f / r_y;
+    result(2, 2) = a;
+    result(2, 3) = b;
+    result(3, 3) = 1.0f;
+
+    // [1 0 0  t_x] [1/r_x      0   0  0]
+    // [0 1 0  t_y] [    0  1/r_y   0  0]
+    // [0 0 1    0] [    0      0   a  b]
+    // [0 0 0    1] [    0      0   0  1]
+
+    result(0, 3) = post_nudge_OpenGL.x;
+    result(1, 3) = post_nudge_OpenGL.y;
+
+    return result;
+}
+
+enum class CameraType {
+    None,
+    Camera2D,
+    OrbitCamera3D,
+    FirstPersonCamera3D,
+};
+
+struct Camera {
+    CameraType type;
+    real angle_of_view; // NOTE: 0.0f <=> ortho camera
+    vec3 euler_angles;
+    union {
+        struct {
+            vec2 pre_nudge_World;
+            union {
+                real persp_distance_to_origin_World;
+                real ortho_screen_height_World;
+            };
+        };
+        vec3 first_person_position_World;
+    };
+    vec2 post_nudge_OpenGL;
+
+    mat4 get_P();
+    mat4 get_V();
+    mat4 get_PV();
+};
+
+Camera make_Camera2D(real screen_height_World, vec2 center_World = {}, vec2 post_nudge_OpenGL = {}) {
+    Camera result = {};
+    result.type = CameraType::Camera2D;
+    result.ortho_screen_height_World = screen_height_World;
+    result.pre_nudge_World = center_World;
+    result.post_nudge_OpenGL = post_nudge_OpenGL;
+    return result;
+}
+
+Camera make_OrbitCamera3D(real distance_to_origin_World, real angle_of_view = RAD(60.0f), vec3 euler_angles = {}, vec2 pre_nudge_World = {}, vec2 post_nudge_OpenGL = {}) {
+    Camera result = {};
+    result.type = CameraType::OrbitCamera3D;
+    result.angle_of_view = angle_of_view;
+    result.persp_distance_to_origin_World = distance_to_origin_World;
+    result.euler_angles = euler_angles;
+    result.pre_nudge_World = pre_nudge_World;
+    result.post_nudge_OpenGL = post_nudge_OpenGL;
+    return result;
+}
+
+Camera make_FirstPersonCamera3D(vec3 first_person_position_World, real angle_of_view = RAD(60.0f), vec3 euler_angles = {}, vec2 post_nudge_OpenGL = {}) {
+    Camera result = {};
+    result.type = CameraType::FirstPersonCamera3D;
+    result.angle_of_view = angle_of_view;
+    result.euler_angles = euler_angles;
+    result.first_person_position_World = first_person_position_World;
+    result.post_nudge_OpenGL = post_nudge_OpenGL;
+    return result;
+}
+
+Camera make_EquivalentCamera2D(Camera *orbit_camera_3D) {
+    ASSERT(orbit_camera_3D->type == CameraType::OrbitCamera3D);
+    bool is_perspective_camera = (!IS_ZERO(orbit_camera_3D->angle_of_view));
+    Camera result; {
+        result = *orbit_camera_3D;
+        result.type = CameraType::Camera2D;
+        result.angle_of_view = 0.0f;
+        result.euler_angles = {};
+        if (is_perspective_camera) result.ortho_screen_height_World = 2.0f * (orbit_camera_3D->persp_distance_to_origin_World * TAN(0.5f * orbit_camera_3D->angle_of_view));
+    }
+    return result;
+}
+
+
+mat4 Camera::get_P() {
+    if (IS_ZERO(this->angle_of_view)) {
+        return transform_get_P_ortho(this->ortho_screen_height_World, this->post_nudge_OpenGL);
+    } else {
+        return transform_get_P_persp(this->angle_of_view, this->post_nudge_OpenGL);
+    }
+}
+
+mat4 Camera::get_V() {
+    mat4 C; {
+        mat4 T = M4_Translation(this->first_person_position_World);
+        mat4 R_x = M4_RotationAboutXAxis(this->euler_angles.x);
+        mat4 R_y = M4_RotationAboutYAxis(this->euler_angles.y);
+        mat4 R_z = M4_RotationAboutZAxis(this->euler_angles.z);
+        mat4 R = (R_y * R_x * R_z);
+        C = (this->type != CameraType::FirstPersonCamera3D) ? (R * T) : (T * R);
+    }
+    return inverse(C);
+}
+
+mat4 Camera::get_PV() { return get_P() * get_V(); }
+
+
+// <!> End window.cpp <!>
+// <!> Begin shader.cpp <!> 
+uint shader_compile(char *source, GLenum type) {
+    uint shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
+    {
+        int success = 0;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            { // log
+                char infoLog[512];
+                glGetShaderInfoLog(shader, 512, NULL, infoLog);
+                printf("%s\n", source);
+                printf("%s", infoLog);
+            }
+            ASSERT(0);
+        }
+    }
+    ASSERT(shader);
+    return shader;
+};
+
+uint shader_build_program(uint vertex_shader, uint geometry_shader, uint fragment_shader) {
+    uint shader_program_ID = glCreateProgram();
+    ASSERT(shader_program_ID);
+    ASSERT(vertex_shader); glAttachShader(shader_program_ID, vertex_shader);
+    if (geometry_shader) glAttachShader(shader_program_ID, geometry_shader);
+    ASSERT(fragment_shader); glAttachShader(shader_program_ID, fragment_shader);
+    glLinkProgram(shader_program_ID);
+    {
+        int success = 0;
+        glGetProgramiv(shader_program_ID, GL_LINK_STATUS, &success);
+        if (!success) {
+            { // log
+                char infoLog[512];
+                glGetProgramInfoLog(shader_program_ID, 512, NULL, infoLog);
+                printf("%s", infoLog);
+            }
+            ASSERT(0);
+        }
+    }
+    return shader_program_ID;
+};
+
+uint shader_compile_and_build_program(char *vertex_shader_source, char *fragment_shader_source, char *geometry_shader_source = NULL) {
+    uint vert = shader_compile(vertex_shader_source, GL_VERTEX_SHADER);
+    uint frag = shader_compile(fragment_shader_source, GL_FRAGMENT_SHADER);
+    uint geom = geometry_shader_source ? shader_compile(geometry_shader_source, GL_GEOMETRY_SHADER) : 0;
+    return shader_build_program(vert, frag, geom);
+}
+
+// <!> End shader.cpp <!>
+// <!> Begin soup.cpp <!> 
+// XXXX: remove option to pass null in soup_draw
+// XXXX: remove rounded edges
+// NOTE: (soup draw should essentially never be called by the user)
+// TODO: per-vertex size
+// TODO: per-vertex stipple
+// TODO: properly draw meshes ala that one nvidia white paper
+
+////////////////////////////////////////////////////////////////////////////////
+// soup ////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+#define SOUP_POINTS         GL_POINTS
+#define SOUP_LINES          GL_LINES
+#define SOUP_LINE_STRIP     GL_LINE_STRIP
+#define SOUP_LINE_LOOP      GL_LINE_LOOP
+#define SOUP_TRIANGLES      GL_TRIANGLES
+#define SOUP_TRIANGLE_FAN   GL_TRIANGLE_FAN
+#define SOUP_TRIANGLE_STRIP GL_TRIANGLE_STRIP
+#define SOUP_QUADS          255
+#define SOUP_TRI_MESH       254 // TODO
+
+struct {
+    char *vert = R""(#version 330 core
+        layout (location = 0) in vec3 vertex;
+        layout (location = 1) in vec4 color;
+        layout (location = 2) in float size;
+
+        out BLOCK {
+            vec4 color;
+            float size;
+        } vs_out;
+
+        uniform mat4 transform;
+        uniform bool force_draw_on_top;
+
+        void main() {
+            gl_Position = transform * vec4(vertex, 1);
+            if (force_draw_on_top) {
+                gl_Position.z = -.99 * gl_Position.w; // ?
+            }
+            vs_out.color = color;
+            vs_out.size = size;
+        }
+    )"";
+
+    char *geom_POINTS = R""(#version 330 core
+        layout (points) in;
+        layout (triangle_strip, max_vertices = 4) out;
+        uniform vec2 OpenGL_from_Pixel_scale;
+
+        in BLOCK {
+            vec4 color;
+            float size;
+        } gs_in[];
+
+        out GS_OUT {
+            vec4 color;
+            vec2 xy;
+        } gs_out;
+
+        void emit(vec4 p, float x, float y) {
+            vec2 radius = (gs_in[0].size / 2) * OpenGL_from_Pixel_scale;
+            gs_out.color = gs_in[0].color;                                     
+            gs_out.xy = vec2(x, y);
+            gl_Position = (p + vec4(radius * gs_out.xy, 0, 0)) * gl_in[0].gl_Position.w;
+            EmitVertex();                                               
+        }
+
+        void main() {    
+            vec4 p = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+            emit(p, -1, -1);
+            emit(p, 1, -1);
+            emit(p, -1, 1);
+            emit(p, 1, 1);
+            EndPrimitive();
+        }  
+    )"";
+
+    char *frag_POINTS = R""(#version 330 core
+        in GS_OUT {
+            vec4 color;
+            vec2 xy;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        void main() {
+            frag_color = fs_in.color;
+            if (length(fs_in.xy) > 1) { discard; }
+        }
+    )"";
+
+    char *geom_LINES = R""(#version 330 core
+        layout (lines) in;
+        layout (triangle_strip, max_vertices = 4) out;
+        uniform vec2 OpenGL_from_Pixel_scale;
+
+        in BLOCK {
+            vec4 color;
+            float size;
+        } gs_in[];
+
+        out BLOCK {
+            vec4 color;
+            float size;
+            vec2 position_Pixel; // NOTE: y flipped sorry
+            float angle;
+            vec2 starting_point_Pixel;
+        } gs_out;
+
+        void main() {    
+            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
+            vec4 color_s = gs_in[0].color;
+            vec4 color_t = gs_in[1].color;
+
+            float angle = atan(OpenGL_from_Pixel_scale.x * (t.y - s.y), OpenGL_from_Pixel_scale.y * (t.x - s.x));
+
+            vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
+            vec4 perp_s = vec4((gs_in[0].size / 2) * perp, 0, 0);
+            vec4 perp_t = vec4((gs_in[1].size / 2) * perp, 0, 0);
+
+            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_s;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_t;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_s;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
+            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
+            gs_out.color = color_t;
+            gs_out.angle = angle;
+            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
+            EmitVertex();
+
+            EndPrimitive();
+        }  
+    )"";
+
+    char *frag_LINES = R""(#version 330 core
+        uniform bool stipple;
+
+        in BLOCK {
+            vec4 color;
+            float size;
+            vec2 position_Pixel;
+            float angle;
+            vec2 starting_point_Pixel;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        void main() {
+            frag_color = fs_in.color;
+            if (stipple) {
+                vec2 xy = fs_in.position_Pixel;
+                // rotate by -angle
+                float s = sin(fs_in.angle);
+                float c = cos(fs_in.angle);
+                mat2 Rinv = mat2(c, -s, s, c);
+                vec2 uv = Rinv * (xy - fs_in.starting_point_Pixel);
+
+                if (int(uv.x + 99999) % 10 > 5) discard; // FORNOW
+            }
+        }
+    )"";
+
+    char *frag_TRIANGLES = R""(#version 330 core
+        in BLOCK {
+            vec4 color;
+            float size;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        void main() {
+            frag_color = fs_in.color;
+        }
+    )"";
+
+    char *geom_TRI_MESH = R""(#version 330 core
+        layout (triangles) in;
+        layout (triangle_strip, max_vertices = 3) out;
+
+        uniform vec2 OpenGL_from_Pixel_scale;
+
+        in BLOCK {
+            vec4 color;
+            float size;
+        } gs_in[];
+
+        out GS_OUT {
+            vec4 color;
+            noperspective vec3 heights;
+            noperspective vec3 sizes;
+        } gs_out;
+
+        float point_line_dist(vec2 p, vec2 a, vec2 b) {
+           vec2 line = b - a;
+           vec2 n = vec2(line.y, -line.x);
+           vec2 v = p - a;
+           return abs(dot(v, n)) / length(n);
+        }
+
+        void main() {    
+            vec3 sizes = vec3(gs_in[0].size, gs_in[1].size, gs_in[2].size);
+
+            for (int d = 0; d < 3; ++d) {
+                gl_Position = gl_in[d].gl_Position / gl_in[d].gl_Position.w;
+                gs_out.color = gs_in[d].color;
+
+                int e = (d + 1) % 3;
+                int f = (d + 2) % 3;
+                vec2 p = gl_in[d].gl_Position.xy / gl_in[d].gl_Position.w / OpenGL_from_Pixel_scale;
+                vec2 q = gl_in[e].gl_Position.xy / gl_in[e].gl_Position.w / OpenGL_from_Pixel_scale;
+                vec2 r = gl_in[f].gl_Position.xy / gl_in[f].gl_Position.w / OpenGL_from_Pixel_scale;
+                vec3 heights = vec3(0);
+                heights[d] = point_line_dist(p, q, r);
+                vec3 bary = vec3(0);
+                bary[d] = 1;
+
+                gs_out.heights = heights;
+                gs_out.sizes = sizes;
+                EmitVertex();                                               
+            }
+
+            EndPrimitive();
+        }  
+    )"";
+
+    char *frag_TRI_MESH = R""(#version 330 core
+        in GS_OUT {
+            vec4 color;
+            noperspective vec3 heights;
+            noperspective vec3 sizes;
+        } fs_in;
+
+        out vec4 frag_color;
+
+        // TODO: eso_size should go in here, and you can remove the z-fight-y pass ...
+        // NOTE: passing 0 for size should be NO edges
+        void main() {
+            int i = 0;
+            if (fs_in.heights[1] < fs_in.heights[i]) i = 1;
+            if (fs_in.heights[2] < fs_in.heights[i]) i = 2;
+
+            if (fs_in.sizes[i] < 0.01) frag_color = fs_in.color;
+            else {
+                vec3 h = fs_in.heights / fs_in.sizes;
+                float height = min(min(h.x, h.y), h.z);
+                frag_color = mix(mix(vec4(0,0,0,1), fs_in.color, 0.5), fs_in.color, smoothstep(0.5, 1.0, height));
+            }
+        }
+    )"";
+
+
+} soup_source;
+
+struct {
+    uint shader_program_POINTS;
+    uint shader_program_LINES;
+    uint shader_program_TRIANGLES;
+    uint shader_program_TRI_MESH;
+    uint VAO[1];
+    uint VBO[16];
+    uint EBO[1];
+} soup;
+
+run_before_main {
+    uint vert = shader_compile(soup_source.vert, GL_VERTEX_SHADER);
+    uint geom_POINTS = shader_compile(soup_source.geom_POINTS, GL_GEOMETRY_SHADER);
+    uint geom_LINES = shader_compile(soup_source.geom_LINES, GL_GEOMETRY_SHADER);
+    uint geom_TRI_MESH = shader_compile(soup_source.geom_TRI_MESH, GL_GEOMETRY_SHADER);
+    uint frag_POINTS = shader_compile(soup_source.frag_POINTS, GL_FRAGMENT_SHADER);
+    uint frag_LINES = shader_compile(soup_source.frag_LINES, GL_FRAGMENT_SHADER);
+    uint frag_TRIANGLES = shader_compile(soup_source.frag_TRIANGLES, GL_FRAGMENT_SHADER);
+    uint frag_TRI_MESH = shader_compile(soup_source.frag_TRI_MESH, GL_FRAGMENT_SHADER);
+    soup.shader_program_POINTS = shader_build_program(vert, geom_POINTS, frag_POINTS);
+    soup.shader_program_LINES = shader_build_program(vert, geom_LINES, frag_LINES);
+    soup.shader_program_TRIANGLES = shader_build_program(vert, 0, frag_TRIANGLES);
+    soup.shader_program_TRI_MESH = shader_build_program(vert, geom_TRI_MESH, frag_TRI_MESH);
+    glGenVertexArrays(ARRAY_LENGTH(soup.VAO), soup.VAO);
+    glGenBuffers(ARRAY_LENGTH(soup.VBO), soup.VBO);
+    glGenBuffers(ARRAY_LENGTH(soup.EBO), soup.EBO);
+};
+
+void soup_draw(
+        mat4 transform,
+        uint SOUP_primitive,
+        uint num_vertices,
+        vec3 *vertex_positions,
+        vec4 *vertex_colors,
+        real *vertex_sizes,
+        bool force_draw_on_top,
+        bool stipple) {
+    if (num_vertices == 0) { return; } // NOTE: num_vertices zero is valid input
+
+    glBindVertexArray(soup.VAO[0]);
+    uint attrib_index = 0;
+    auto upload_vertex_attribute = [&](void *array, uint count, uint dim) {
+        ASSERT(array);
+        ASSERT(attrib_index <= ARRAY_LENGTH(soup.VBO));
+        glDisableVertexAttribArray(attrib_index); {
+            uint buffer_size = count * dim * sizeof(real);
+            glBindBuffer(GL_ARRAY_BUFFER, soup.VBO[attrib_index]);
+            glBufferData(GL_ARRAY_BUFFER, buffer_size, array, GL_DYNAMIC_DRAW);
+            glVertexAttribPointer(attrib_index, dim, GL_FLOAT, GL_FALSE, 0, NULL);
+        } glEnableVertexAttribArray(attrib_index);
+        ++attrib_index;
+    };
+    upload_vertex_attribute(vertex_positions, num_vertices, 3);
+    upload_vertex_attribute(vertex_colors, num_vertices, 4);
+    upload_vertex_attribute(vertex_sizes, num_vertices, 1);
+
+    uint GL_primitive;
+    uint shader_program_ID;
+    {
+        if (SOUP_primitive == SOUP_POINTS) {
+            GL_primitive = GL_POINTS;
+            shader_program_ID = soup.shader_program_POINTS;
+        } else if (SOUP_primitive == SOUP_LINES) {
+            GL_primitive = GL_LINES;
+            shader_program_ID = soup.shader_program_LINES;
+        } else if (SOUP_primitive == SOUP_LINE_STRIP) {
+            GL_primitive = GL_LINE_STRIP;
+            shader_program_ID = soup.shader_program_LINES;
+        } else if (SOUP_primitive == SOUP_LINE_LOOP) {
+            GL_primitive = GL_LINE_LOOP;
+            shader_program_ID = soup.shader_program_LINES;
+        } else if (SOUP_primitive == SOUP_TRIANGLES) {
+            GL_primitive = GL_TRIANGLES;
+            shader_program_ID = soup.shader_program_TRIANGLES;
+        } else if (SOUP_primitive == SOUP_TRIANGLE_FAN) {
+            GL_primitive = GL_TRIANGLE_FAN;
+            shader_program_ID = soup.shader_program_TRIANGLES;
+        } else if (SOUP_primitive == SOUP_TRIANGLE_STRIP) {
+            GL_primitive = GL_TRIANGLE_STRIP;
+            shader_program_ID = soup.shader_program_TRIANGLES;
+        } else if (SOUP_primitive == SOUP_QUADS) {
+            GL_primitive = GL_TRIANGLES;
+            shader_program_ID = soup.shader_program_TRIANGLES;
+        } else { ASSERT(SOUP_primitive == SOUP_TRI_MESH);
+            GL_primitive = SOUP_TRIANGLES;
+            shader_program_ID = soup.shader_program_TRI_MESH;
+        }
+    }
+    ASSERT(shader_program_ID);
+    glUseProgram(shader_program_ID);
+
+    auto LOC = [&](char *name) { return glGetUniformLocation(shader_program_ID, name); };
+    vec2 OpenGL_from_Pixel_scale = (2.0f / window_get_size_Pixel());
+
+    glUniform1ui(LOC("stipple"), stipple);
+    glUniform1ui(LOC("force_draw_on_top"), force_draw_on_top);
+    glUniform2f(LOC("OpenGL_from_Pixel_scale"), OpenGL_from_Pixel_scale.x, OpenGL_from_Pixel_scale.y);
+    glUniformMatrix4fv(LOC("transform"), 1, GL_TRUE, transform.data);
+
+    if (SOUP_primitive != SOUP_QUADS) {
+        glDrawArrays(GL_primitive, 0, num_vertices);
+    } else { ASSERT(SOUP_primitive == SOUP_QUADS);
+        const int MAX_VERTICES = 1000000;
+        ASSERT(num_vertices <= MAX_VERTICES);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, soup.EBO[0]);
+        {
+            GL_primitive = GL_TRIANGLES;
+            num_vertices = (num_vertices / 4) * 6;
+            static GLuint *indices;
+            if (!indices) {
+                indices = (GLuint *) malloc(MAX_VERTICES / 4 * 6 * sizeof(GLuint));
+                int k = 0;
+                for (int i = 0; i < MAX_VERTICES / 4; ++i) {
+                    indices[k++] = 4 * i + 2;
+                    indices[k++] = 4 * i + 1;
+                    indices[k++] = 4 * i + 0;
+                    indices[k++] = 4 * i + 3;
+                    indices[k++] = 4 * i + 2;
+                    indices[k++] = 4 * i + 0;
+                }
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, MAX_VERTICES / 4 * 6 * sizeof(GLuint), indices, GL_STATIC_DRAW);
+            }
+        }
+        glDrawElements(GL_primitive, num_vertices, GL_UNSIGNED_INT, NULL);
+    }
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// eso /////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+#define ESO_MAX_VERTICES 9999999
+
+struct {
+    bool _called_eso_begin_before_calling_eso_vertex_or_eso_end;
+
+    vec4 current_color;
+    real current_size;
+
+    bool overlay;
+    bool stipple;
+
+    mat4 transform;
+    uint primitive;
+
+    uint num_vertices;
+
+    vec3 vertex_positions[ESO_MAX_VERTICES];
+    vec4 vertex_colors[ESO_MAX_VERTICES];
+    real vertex_sizes[ESO_MAX_VERTICES];
+} eso;
+
+void eso_begin(mat4 transform, uint primitive) {
+    ASSERT(!eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
+    eso._called_eso_begin_before_calling_eso_vertex_or_eso_end = true;
+
+    eso.current_color = V4(basic.magenta, 1.0f);
+    eso.current_size = 1.5f;
+
+    eso.overlay = false;
+    eso.stipple = false;
+
+    eso.transform = transform;
+    eso.primitive = primitive;
+
+    eso.num_vertices = 0;
+}
+
+void eso_end() {
+    ASSERT(eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
+    eso._called_eso_begin_before_calling_eso_vertex_or_eso_end = false;
+    soup_draw(
+            eso.transform,
+            eso.primitive,
+            eso.num_vertices,
+            eso.vertex_positions,
+            eso.vertex_colors,
+            eso.vertex_sizes,
+            eso.overlay,
+            eso.stipple);
+}
+
+void eso_overlay(bool overlay) {
+    eso.overlay = overlay;
+}
+
+void eso_stipple(bool stipple) {
+    eso.stipple = stipple;
+}
+
+void eso_size(real size) {
+    eso.current_size = size;
+}
+
+void eso_color(real red, real green, real blue, real alpha) {
+    eso.current_color[0] = red;
+    eso.current_color[1] = green;
+    eso.current_color[2] = blue;
+    eso.current_color[3] = alpha;
+}
+
+void eso_color(real red, real green, real blue) {
+    eso_color(red, green, blue, 1.0f);
+}
+
+void eso_color(vec3 rgb) {
+    eso_color(rgb[0], rgb[1], rgb[2], 1.0f);
+}
+
+void eso_color(vec3 rgb, real alpha) {
+    eso_color(rgb[0], rgb[1], rgb[2], alpha);
+}
+
+void eso_color(vec4 rgba) {
+    eso_color(rgba[0], rgba[1], rgba[2], rgba[3]);
+}
+
+void eso_vertex(real x, real y, real z) {
+    ASSERT(eso._called_eso_begin_before_calling_eso_vertex_or_eso_end);
+    ASSERT(eso.num_vertices < ESO_MAX_VERTICES);
+    eso.vertex_positions[eso.num_vertices] = { x, y, z };
+    eso.vertex_colors[eso.num_vertices] = eso.current_color;
+    eso.vertex_sizes[eso.num_vertices] = eso.current_size;
+    ++eso.num_vertices;
+}
+
+void eso_vertex(real x, real y) {
+    eso_vertex(x, y, 0.0f);
+}
+
+
+void eso_vertex(vec2 xy) {
+    eso_vertex(xy[0], xy[1]);
+}
+
+void eso_vertex(vec3 xyz) {
+    eso_vertex(xyz[0], xyz[1], xyz[2]);
+}
+
+
+// <!> End soup.cpp <!>
+// <!> Begin text.cpp <!> 
+// NOTE: this is a (slightly) modified version of stb_easy_font with a wrapper
+
+static struct stb_easy_font_info_struct {
+    unsigned char advance;
+    unsigned char h_seg;
+    unsigned char v_seg;
+} stb_easy_font_charinfo[96] = {
+    {  6,  0,  0 },  {  3,  0,  0 },  {  5,  1,  1 },  {  7,  1,  4 },
+    {  7,  3,  7 },  {  7,  6, 12 },  {  7,  8, 19 },  {  4, 16, 21 },
+    {  4, 17, 22 },  {  4, 19, 23 },  { 23, 21, 24 },  { 23, 22, 31 },
+    { 20, 23, 34 },  { 22, 23, 36 },  { 19, 24, 36 },  { 21, 25, 36 },
+    {  6, 25, 39 },  {  6, 27, 43 },  {  6, 28, 45 },  {  6, 30, 49 },
+    {  6, 33, 53 },  {  6, 34, 57 },  {  6, 40, 58 },  {  6, 46, 59 },
+    {  6, 47, 62 },  {  6, 55, 64 },  { 19, 57, 68 },  { 20, 59, 68 },
+    { 21, 61, 69 },  { 22, 66, 69 },  { 21, 68, 69 },  {  7, 73, 69 },
+    {  9, 75, 74 },  {  6, 78, 81 },  {  6, 80, 85 },  {  6, 83, 90 },
+    {  6, 85, 91 },  {  6, 87, 95 },  {  6, 90, 96 },  {  7, 92, 97 },
+    {  6, 96,102 },  {  5, 97,106 },  {  6, 99,107 },  {  6,100,110 },
+    {  6,100,115 },  {  7,101,116 },  {  6,101,121 },  {  6,101,125 },
+    {  6,102,129 },  {  7,103,133 },  {  6,104,140 },  {  6,105,145 },
+    {  7,107,149 },  {  6,108,151 },  {  7,109,155 },  {  7,109,160 },
+    {  7,109,165 },  {  7,118,167 },  {  6,118,172 },  {  4,120,176 },
+    {  6,122,177 },  {  4,122,181 },  { 23,124,182 },  { 22,129,182 },
+    {  4,130,182 },  { 22,131,183 },  {  6,133,187 },  { 22,135,191 },
+    {  6,137,192 },  { 22,139,196 },  {  6,144,197 },  { 22,147,198 },
+    {  6,150,202 },  { 19,151,206 },  { 21,152,207 },  {  6,155,209 },
+    {  3,160,210 },  { 23,160,211 },  { 22,164,216 },  { 22,165,220 },
+    { 22,167,224 },  { 22,169,228 },  { 21,171,232 },  { 21,173,233 },
+    {  5,178,233 },  { 22,179,234 },  { 23,180,238 },  { 23,180,243 },
+    { 23,180,248 },  { 22,189,248 },  { 22,191,252 },  {  5,196,252 },
+    {  3,203,252 },  {  5,203,253 },  { 22,210,253 },  {  0,214,253 },
+};
+
+static unsigned char stb_easy_font_hseg[214] = {
+    97,37,69,84,28,51,2,18,10,49,98,41,65,25,81,105,33,9,97,1,97,37,37,36,81,10,98,107,3,100,3,99,58,51,4,99,58,8,73,81,10,50,98,8,73,81,4,10,50,98,8,25,33,65,81,10,50,17,65,97,25,33,25,49,9,65,20,68,1,65,25,49,41,11,105,13,101,76,10,50,10,50,98,11,99,10,98,11,50,99,11,50,11,99,8,57,58,3,99,99,107,10,10,11,10,99,11,5,100,41,65,57,41,65,9,17,81,97,3,107,9,97,1,97,33,25,9,25,41,100,41,26,82,42,98,27,83,42,98,26,51,82,8,41, 35,8,10,26,82,114,42,1,114,8,9,73,57,81,41,97,18,8,8,25,26,26,82,26,82,26,82,41,25,33,82,26,49,73,35,90,17,81,41,65,57,41,65,25,81,90,114,20,84,73,57,41,49,25,33,65,81,9,97,1,97,25,33,65,81,57,33,25,41,25,
+};
+
+static unsigned char stb_easy_font_vseg[253] = {
+    4,2,8,10,15,8,15,33,8,15,8,73,82,73,57,41,82,10,82,18,66,10,21,29,1,65, 27,8,27,9,65,8,10,50,97,74,66,42,10,21,57,41,29,25,14,81,73,57,26,8,8, 26,66,3,8,8,15,19,21,90,58,26,18,66,18,105,89,28,74,17,8,73,57,26,21, 8,42,41,42,8,28,22,8,8,30,7,8,8,26,66,21,7,8,8,29,7,7,21,8,8,8,59,7,8, 8,15,29,8,8,14,7,57,43,10,82,7,7,25,42,25,15,7,25,41,15,21,105,105,29, 7,57,57,26,21,105,73,97,89,28,97,7,57,58,26,82,18,57,57,74,8,30,6,8,8, 14,3,58,90,58,11,7,74,43,74,15,2,82,2,42,75,42,10,67,57,41,10,7,2,42, 74,106,15,2,35,8,8,29,7,8,8,59,35,51,8,8,15,35,30,35,8,8,30,7,8,8,60, 36,8,45,7,7,36,8,43,8,44,21,8,8,44,35,8,8,43,23,8,8,43,35,8,8,31,21,15, 20,8,8,28,18,58,89,58,26,21,89,73,89,29,20,8,8,30,7,
+};
+
+typedef struct {
+    unsigned char c[4];
+} stb_easy_font_color;
+
+static int stb_easy_font_draw_segs(float x, float y, unsigned char *segs, int num_segs, int vertical, stb_easy_font_color c, char *vbuf, int vbuf_size, int offset) {
+    int i,j;
+    for (i=0; i < num_segs; ++i) {
+        int len = segs[i] & 7;
+        x += (float) ((segs[i] >> 3) & 1);
+        if (len && offset+64 <= vbuf_size) {
+            float y0 = y + (float) (segs[i]>>4);
+            for (j=0; j < 4; ++j) {
+                * (float *) (vbuf+offset+0) = x  + (j==1 || j==2 ? (vertical ? 1 : len) : 0);
+                * (float *) (vbuf+offset+4) = y0 + (    j >= 2   ? (vertical ? len : 1) : 0);
+                * (float *) (vbuf+offset+8) = 0.f;
+                * (stb_easy_font_color *) (vbuf+offset+12) = c;
+                offset += 16;
+            }
+        }
+    }
+    return offset;
+}
+
+static float stb_easy_font_spacing_val = 0;
+
+// static void stb_easy_font_spacing(float spacing) {
+//    stb_easy_font_spacing_val = spacing;
+// }
+
+static int stb_easy_font_print(float x, float y, String string, unsigned char color[4], void *vertex_buffer, int vbuf_size) {
+    char *vbuf = (char *) vertex_buffer;
+    float start_x = x;
+    int offset = 0;
+
+    stb_easy_font_color c = { 255,255,255,255 }; // use structure copying to avoid needing depending on memcpy()
+    if (color) { c.c[0] = color[0]; c.c[1] = color[1]; c.c[2] = color[2]; c.c[3] = color[3]; }
+
+    char *text = string.data;
+    while (string_pointer_is_valid(string, text) && (offset < vbuf_size)) {
+        if (*text == '\n') {
+            y += 12;
+            x = start_x;
+        } else {
+            unsigned char advance = stb_easy_font_charinfo[*text-32].advance;
+            float y_ch = advance & 16 ? y+1 : y;
+            int h_seg, v_seg, num_h, num_v;
+            h_seg = stb_easy_font_charinfo[*text-32  ].h_seg;
+            v_seg = stb_easy_font_charinfo[*text-32  ].v_seg;
+            num_h = stb_easy_font_charinfo[*text-32+1].h_seg - h_seg;
+            num_v = stb_easy_font_charinfo[*text-32+1].v_seg - v_seg;
+            offset = stb_easy_font_draw_segs(x, y_ch, &stb_easy_font_hseg[h_seg], num_h, 0, c, vbuf, vbuf_size, offset);
+            offset = stb_easy_font_draw_segs(x, y_ch, &stb_easy_font_vseg[v_seg], num_v, 1, c, vbuf, vbuf_size, offset);
+            x += advance & 15;
+            x += stb_easy_font_spacing_val;
+        }
+        ++text;
+    }
+    return (unsigned) offset/64;
+}
+
+static int stb_easy_font_travel_x(String string) {
+    float len = 0;
+    float max_len = 0;
+    char *text = string.data;
+    while (string_pointer_is_valid(string, text)) {
+        if (*text == '\n') {
+            if (len > max_len) max_len = len;
+            len = 0;
+        } else {
+            len += stb_easy_font_charinfo[*text-32].advance & 15;
+            len += stb_easy_font_spacing_val;
+        }
+        ++text;
+    }
+    if (len > max_len) max_len = len;
+    return (int) ceil(max_len);
+}
+
+static int stb_easy_font_travel_y(String string) {
+    int count = 0;
+    char *text = string.data;
+    while (string_pointer_is_valid(string, text)) {
+        if (*text == '\n') ++count;
+        ++text;
+    }
+    return count * 12;
+}
+
+static vec2 stb_easy_font_travel(String string) {
+    return V2(real(stb_easy_font_travel_x(string)), real(stb_easy_font_travel_y(string)));
+}
+
+////////////////////////////////////////
+// text_draw ///////////////////////////
+////////////////////////////////////////
+
+vec2 text_travel(String string, real font_height_Pixel) {
+    return (font_height_Pixel / 12.0f) * stb_easy_font_travel(string);
+}
+
+// TODO: consider text_drawf
+template <uint D_position, uint D_color> vec2 text_draw(
+        mat4 PV,
+        String string,
+        Vector<D_position> position_World,
+        Vector<D_color> color,
+        real font_height_Pixel = 12.0f,
+        vec2 nudge_Pixel = {},
+        bool overlay = true
+        ) {
+    STATIC_ASSERT((D_position == 2) || (D_position == 3));
+    STATIC_ASSERT((D_color == 3) || (D_color == 4));
+
+    vec2 *vertex_positions;
+    uint num_vertices;
+    {
+        uint size = 99999 * sizeof(float);
+        static void *_vertex_positions = malloc(size);
+        vertex_positions = (vec2 *) _vertex_positions;
+
+        num_vertices = 4 * stb_easy_font_print(0, 0, string, NULL, _vertex_positions, size);
+        { // NOTE: stb stores like this [x:float y:float z:float color:uint8[4]]
+            for_(i, num_vertices) {
+                ((vec2 *) vertex_positions)[i] = {
+                    ((float *) vertex_positions)[4 * i + 0],
+                    ((float *) vertex_positions)[4 * i + 1],
+                };
+            }
+        }
+    }
+
+    vec3 position_World3; {
+        position_World3.z = 0;
+        for_(d, D_position) position_World3[d] = position_World[d];
+    }
+    vec3 position_OpenGL = transformPoint(PV, position_World3);
+
+    if (!IS_BETWEEN_LOOSE(position_OpenGL.z, -1.0f, 1.0f)) return {};
+
+    vec2 position_Pixel = transformPoint(inverse(window_get_OpenGL_from_Pixel()), _V2(position_OpenGL));
+
+    mat4 transform = window_get_OpenGL_from_Pixel()
+        * M4_Translation(position_Pixel + nudge_Pixel)
+        * M4_Scaling(font_height_Pixel / 12.0f);
+    eso_begin(transform, SOUP_QUADS);
+    eso_overlay(overlay);
+    eso_color(color);
+    for_(i, num_vertices) eso_vertex(vertex_positions[i]);
+    eso_end();
+
+    return text_travel(string, font_height_Pixel);
+}
+
+////////////////////////////////////////
+// easy_text_draw ///////////////////////////
+////////////////////////////////////////
+
+struct EasyTextPen {
+    vec2 origin;
+    real font_height_Pixel;
+    vec3 color;
+    bool automatically_append_newline;
+
+    real one_minus_alpha;
+    vec2 offset_Pixel;
+
+    bool ghost_write; // does all the math and updates, just doesn't draw
+
+    vec2 get_position_Pixel() {
+        return this->origin + this->offset_Pixel;
+    }
+    real get_x_Pixel() { return this->origin.x + this->offset_Pixel.x; }
+    real get_y_Pixel() { return this->origin.y + this->offset_Pixel.y; }
+};
+
+void easy_text_draw(EasyTextPen *pen, String string) {
+    vec2 travel;
+    if (!pen->ghost_write) {
+        travel = text_draw(window_get_OpenGL_from_Pixel(), string, pen->get_position_Pixel(), V4(pen->color, 1.0f - pen->one_minus_alpha), pen->font_height_Pixel);
+    } else {
+        travel = text_travel(string, pen->font_height_Pixel);
+    }
+
+    if (IS_ZERO(travel.y) && (!pen->automatically_append_newline)) {
+        pen->offset_Pixel.x += travel.x;
+    } else {
+        pen->offset_Pixel.x = 0.0f;
+        pen->offset_Pixel.y += travel.y;
+        if (pen->automatically_append_newline) pen->offset_Pixel.y += pen->font_height_Pixel;
+    }
+}
+
+void easy_text_drawf(EasyTextPen *pen, const char *format, ...) {
+    #define EASY_TEXT_MAX_LENGTH 4096
+    static _STRING_CALLOC(string, EASY_TEXT_MAX_LENGTH); {
+        va_list arg;
+        va_start(arg, format);
+        string.length = vsnprintf(string.data, EASY_TEXT_MAX_LENGTH, format, arg);
+        va_end(arg);
+    }
+    easy_text_draw(pen, string);
+}
+
+real _easy_text_dx(EasyTextPen *pen, String string) {
+    return text_travel(string, pen->font_height_Pixel).x;
+}
+
+real _easy_text_dx(EasyTextPen *pen, char *cstring) {
+    return _easy_text_dx(pen, STRING(cstring));
+}
+// <!> End text.cpp <!>
 #define sin use_SIN_instead_of_sin
 #define cos use_COS_instead_of_cos
 #define tan use_TAN_instead_of_tan
@@ -89,6 +2650,20 @@
 // <!> End playground.cpp <!>
 
 char *startup_script = "";
+
+#if 1 // circle
+run_before_main {
+    startup_script =
+        // "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
+        "^.cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>"
+        // "cz16\n"
+        // "s<m2d> 0 0>\b"
+        // "lq<m2d 8 0>q<m2d 16 0>"
+        // "sc"
+        "^odemo.dxf\n"
+        ;
+};
+#endif
 
 #if 0 // bug.dxf load
 run_before_main {
@@ -259,7 +2834,7 @@ run_before_main {
 #endif
 
 #include "manifoldc.h"
-// <!> Begin header.cpp <!>
+// <!> Begin header.cpp <!> 
 ////////////////////////////////////////
 // Forward-Declarations ////////////////
 ////////////////////////////////////////
@@ -318,7 +2893,289 @@ bool command_equals(Command A, Command B) {
 #define set_state_Colo_command(Name) do { /*ASSERT(command_equals(commands.Name, commands.None) || (commands.Name.group == ToolboxGroup::Colo));*/ state.Colo_command = commands.Name; } while (0)
 
 
-#include "commands.cpp"
+// <!> Begin commands.cpp <!> 
+// NOTE: FORNOW: FOCUS_THIEF is really the same thing as having a popup (except for two-click commands like Line where the popup doesn't show initially)
+#define TWO_CLICK     (1 << 0)
+#define FOCUS_THIEF   (1 << 1)
+#define SNAPPER       (1 << 2)
+#define SHIFT_15      (1 << 3)
+#define NO_RECORD     (1 << 4)
+#define EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP (1 << 5)
+#define _UNSUED_FLAG6 (1 << 6)
+#define _UNSUED_FLAG7 (1 << 7)
+#define _UNSUED_FLAG8 (1 << 8)
+#define _UNSUED_FLAG9 (1 << 9)
+
+
+#define COMMANDS_OUTER \
+    COMMANDS_INNER(None, 0, 0, None, 0, 0); \
+    COMMANDS_INNER(Escape, GLFW_KEY_ESCAPE, 0b000, Both, 0, 0); \
+    \
+    COMMANDS_INNER(Undo,            'U', 0b000, Both, 0, 0 | NO_RECORD, 'Z', 0b010); \
+    COMMANDS_INNER(Redo,            'U', 0b001, Both, 0, 0 | NO_RECORD, 'Y', 0b010, 'Z', 0b011 ); \
+    COMMANDS_INNER(ToggleDetails,   '.', 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleGUI,       '.', 0b010, Both, 0, 0 | NO_RECORD);  \
+    \
+    COMMANDS_INNER(Center,          'C', 0b000, Snap, 1, 0); \
+    COMMANDS_INNER(End,             'E', 0b000, Snap, 1, 0); \
+    COMMANDS_INNER(Intersect,       'I', 0b000, Snap, 1, 0); \
+    COMMANDS_INNER(Middle,          'M', 0b000, Snap, 1, 0); \
+    COMMANDS_INNER(Perp,            'P', 0b000, Snap, 1, 0); \
+    COMMANDS_INNER(Quad,            'Q', 0b000, Snap, 1, 0); \
+    /*COMMANDS_INNER(Tangent,         'T', 0b000, Snap, 1, 0); */\
+    COMMANDS_INNER(XY,              'X', 0b000, Snap, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(Zero,            'Z', 0b000, Snap, 0, 0); \
+    COMMANDS_INNER(ClearSnap,         0, 0b000, Snap, 0, 0); \
+    \
+    COMMANDS_INNER(SetAxis,         'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Box,             'B', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
+    COMMANDS_INNER(SetColor,        'Q', 0b000, Draw, 1, 0); \
+    COMMANDS_INNER(CenterBox,       'B', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
+    COMMANDS_INNER(CenterLine,      'L', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Circle,          'C', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
+    COMMANDS_INNER(Copy,            'O', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
+    COMMANDS_INNER(Deselect,        'D', 0b000, Draw, 1, 0); \
+    COMMANDS_INNER(DiamCircle,      'C', 0b010, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Divide2,         'I', 0b000, Draw, 1, 0 | TWO_CLICK); \
+    COMMANDS_INNER(Fillet,          'F', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
+    COMMANDS_INNER(DogEar,          'G', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
+    COMMANDS_INNER(Line,            'L', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Measure,         'M', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Mirror2,         'M', 0b011, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Move,            'M', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
+    COMMANDS_INNER(Drag,            'D', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
+    COMMANDS_INNER(Offset,          'H', 0b000, Draw, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(OpenDXF,         'O', 0b010, Draw, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(SetOrigin,       'Z', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(Polygon,         'P', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(RCopy,           'R', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Rotate,          'R', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
+    COMMANDS_INNER(SaveDXF,         'S', 0b010, Draw, 1, 0 | FOCUS_THIEF | NO_RECORD); \
+    COMMANDS_INNER(Scale,           'S', 0b001, Draw, 1, 0 | NO_RECORD); \
+    COMMANDS_INNER(Select,          'S', 0b000, Draw, 1, 0); \
+    COMMANDS_INNER(MirrorX,         'X', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(MirrorY,         'Y', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(ClearDrawing,    'N', 0b010, Draw, 0, 0); \
+    COMMANDS_INNER(ZoomDrawing,       0, 0b000, Draw, 0, 0 | NO_RECORD); \
+    \
+    COMMANDS_INNER(Delete,               GLFW_KEY_DELETE, 0b000, Draw, 0, 0, GLFW_KEY_BACKSPACE, 0b000);  \
+    COMMANDS_INNER(OverwriteDXF,                       0, 0b000, Draw, 0, 0); \
+    COMMANDS_INNER(OverwriteSTL,                       0, 0b000, Mesh, 0, 0); \
+    \
+    COMMANDS_INNER(ExtrudeAdd,      '[', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(CyclePlane,           'Y', 0b000, Mesh, 0, 0); \
+    COMMANDS_INNER(HidePlane,       ';', 0b000, Mesh, 0, 0);  \
+    COMMANDS_INNER(MirrorPlane,     0,   0b000, Mesh, 0, 0);  \
+    \
+    COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(SaveSTL,         'S', 0b011, Mesh, 1, 0 | FOCUS_THIEF | NO_RECORD); \
+    COMMANDS_INNER(ClearMesh,       'N', 0b011, Mesh, 0, 0); \
+    COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
+    COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
+    \
+    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK); \
+    \
+    \
+    COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \
+    COMMANDS_INNER(Connected,       'C', 0b000, Xsel, 1, 0); \
+    COMMANDS_INNER(Window,          'W', 0b000, Xsel, 1, 0 | TWO_CLICK); \
+    COMMANDS_INNER(ByColor,         'Q', 0b000, Xsel, 1, 0); \
+    \
+    COMMANDS_INNER(OfSelection,        'S', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color0,          '0', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color1,          '1', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color2,          '2', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color3,          '3', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color4,          '4', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color5,          '5', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color6,          '6', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color7,          '7', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color8,          '8', 0b000, Colo, 1, 0); \
+    COMMANDS_INNER(Color9,          '9', 0b000, Colo, 1, 0); \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    \
+    COMMANDS_INNER(TOGGLE_BUTTONS,          GLFW_KEY_TAB, 0b001, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(TOGGLE_EVENT_STACK,               'K', 0b011, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b000, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(TOGGLE_LIGHT_MODE,                'L', 0b011, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(PREVIOUS_HOT_KEY_2D,              ' ', 0b000, None, 0, 0);  \
+    COMMANDS_INNER(PREVIOUS_HOT_KEY_3D,              ' ', 0b001, None, 0, 0);  \
+    COMMANDS_INNER(PRINT_HISTORY,                    'H', 0b010, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(PowerFillet,                      'F', 0b001, None, 0, 0);  \
+    COMMANDS_INNER(HELP_MENU,                        '/', 0b010, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(DivideNearest,                    'X', 0b000, None, 0, 0);  \
+    // COMMANDS_INNER(NEXT_POPUP_BAR,                  TAB,  0b000, None, 0, 0);/* secretly supported but scary */ \
+
+
+
+
+    // TODO: tag each command with an ID?--have them part of an enum?
+    //       (checking equality based on name.data feels dangerous)
+
+
+struct {
+    #define COMMANDS_INNER(NAME, CHAR, CODE, GROUP, IS_MODE, FLAGS, ...) \
+    Command NAME = { ToolboxGroup::GROUP, IS_MODE, FLAGS, STRING(STR(NAME)), { CHAR, CODE, __VA_ARGS__ } };
+
+    COMMANDS_OUTER;
+
+    #undef COMMANDS_INNER
+} commands;
+
+
+#define CONFIG_OUTER \
+    CONFIG_INNER(HIDE_GUI, false);  \
+    CONFIG_INNER(usingInches, false);
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+struct {
+    #define CONFIG_INNER(NAME, VALUE) \
+    real NAME = VALUE
+
+    CONFIG_OUTER;
+
+    #undef CONFIG_INNER
+} config;
+
+
+
+
+
+real parse_config(String str) {
+    if (0) {
+    } else if (string_matches_prefix(str, "F")) {
+        return 0.0f;
+    } else if (string_matches_prefix(str, "T")) {
+        return 1.0f;
+    } else {
+        return real(strtol(str.data, NULL, 0)); 
+    }
+}
+
+uint parse_key(String str) {
+    if (0) {
+    } else if (string_matches_prefix(str, "ESCAPE")) {
+        return GLFW_KEY_ESCAPE;
+    } else if (string_matches_prefix(str, "TAB")) {
+        return GLFW_KEY_TAB;
+    } else if (string_matches_prefix(str, "DELETE")) {
+        return GLFW_KEY_DELETE;
+    } else if (string_matches_prefix(str, "BACKSPACE")) {
+        return GLFW_KEY_BACKSPACE;
+    } else {
+        return (uint)str.data[0];
+    }
+}
+
+#if 0
+Command parse_command(String str) {
+    char *start = str.data;
+    Command command = {};
+    while (str.data - start < str.length) {
+        if (string_matches_prefix(str, "SHIFT+")) {
+            command.shortcut.mods |= MOD_SHIFT;
+            str.data += 6;
+        } else if (string_matches_prefix(str, "CTRL+")) { 
+            command.shortcut.mods |= MOD_CTRL;
+            str.data += 5;
+        } else if (string_matches_prefix(str, "ALT+")) {
+            command.shortcut.mods |= MOD_ALT;
+            str.data += 4;
+        } else {
+            command.shortcut.key = parse_key(STRING(str.data));
+            break;
+        }
+    }
+    return command;
+}
+
+Command COMMAND(uint command_name, unsigned char modifier) {
+    return { command_name, modifier };
+}
+
+run_before_main {
+
+    FILE *file = fopen("conversation.cfg", "r");
+    if (!file) {
+        // messagef(pallete.red, "Failed to open commands file");
+        return;
+    }
+    defer { fclose(file); };
+
+    #define LINE_MAX_LENGTH 256
+    static _STRING_CALLOC(line, LINE_MAX_LENGTH);
+    while (FGETS(&line, LINE_MAX_LENGTH, file)) {
+        if (line.length == 0) {
+        } else if (line.data[0] == '#') {
+        } else {
+            bool is_valid;
+            String command_name;
+            String command_string;
+            {
+                uint index_of_equals_sign; {
+                    index_of_equals_sign = 0;
+                    while ((line.data[index_of_equals_sign] != '=') && (line.data[index_of_equals_sign])) ++index_of_equals_sign; 
+                }
+                is_valid = (line.data[index_of_equals_sign] != '\0' || index_of_equals_sign < line.length);
+                command_string = { &line.data[index_of_equals_sign + 1], line.length - index_of_equals_sign - 1 - 1 };
+                command_name = { line.data, index_of_equals_sign };
+                //DEBUGBREAK();
+            }
+            if (is_valid) {
+                #define COMMANDS_INNER(NAME, _CHAR, _CODE, _GROUP, _FLAGS, _IS_MODE) \
+                else if (string_matches_prefix(command_name, STR(NAME))) commands.NAME = parse_command(command_string)
+
+                if (0);
+                COMMANDS_OUTER;
+
+                #undef INNER
+
+
+                #define CONFIG_INNER(NAME, _VALUE) \
+                else if (string_matches_prefix(command_name, STR(NAME))) config.NAME = parse_config(command_string)
+
+                if (0);
+                CONFIG_OUTER;
+
+                #undef CONFIG_OUTER
+            }
+        }
+    }
+
+
+    // config stuff
+    {
+        // other.hide_toolbox = config.HIDE_GUI;
+    }
+};
+#undef OUTER
+#endif
+// <!> End commands.cpp <!>
 
 Command commands_Color[] = { 
     commands.Color0,
@@ -419,8 +3276,19 @@ struct CircleEntity {
     vec2 center;
     real radius;
     bool has_pseudo_point;
-    vec2 pseudo_point;
+    real pseudo_point_angle;
+
+    vec2 get_pseudo_point() {
+        vec2 get_point_on_circle_NOTE_pass_angle_in_radians(vec2, real, real);
+        return get_point_on_circle_NOTE_pass_angle_in_radians(this->center, this->radius, this->pseudo_point_angle);
+    }
+
+    void set_pseudo_point(vec2 pseudo_point) {
+        ASSERT(!ARE_EQUAL(this->center, pseudo_point));
+        this->pseudo_point_angle = ATAN2(pseudo_point - this->center);
+    }
 };
+
 
 struct Entity {
     EntityType type;
@@ -643,6 +3511,11 @@ struct PopupState {
     real line_angle;
     real line_run;
     real line_rise;
+    real drag_length;
+    real drag_angle;
+    real drag_run;
+    uint drag_extend_line; // TODO: THIS SHOULD BE BOOL
+    real drag_rise;
     real move_length;
     real move_angle;
     real move_run;
@@ -652,8 +3525,8 @@ struct PopupState {
     real linear_copy_run;
     real linear_copy_rise;
     uint linear_copy_num_additional_copies;
+    real offset_distance;
     uint polygon_num_sides = 6;
-    real offset_size;
     real polygon_distance_to_side;
     real polygon_distance_to_corner;
     real polygon_side_length;
@@ -714,6 +3587,11 @@ struct PreviewState {
     vec2 mouse_snap;
     real polygon_num_sides;
     vec3 color_mouse;
+
+    vec2 offset_entity_start;
+    vec2 offset_entity_end;
+    vec2 offset_entity_middle;
+    vec2 offset_entity_opposite;
 };
 
 struct Cursors {
@@ -933,12 +3811,14 @@ real entity_length(Entity *entity) {
     if (entity->type == EntityType::Line) {
         LineEntity *line = &entity->line;
         return norm(line->start - line->end);
-    } else { ASSERT(entity->type == EntityType::Arc);
+    } else if (entity->type == EntityType::Arc) {
         ArcEntity *arc = &entity->arc;
         real start_angle;
         real end_angle;
         arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, false);
         return ABS(start_angle - end_angle) * arc->radius;
+    } else { ASSERT(entity->type == EntityType::Circle);
+        return PI * entity->circle.radius * 2;
     }
 }
 
@@ -1053,6 +3933,17 @@ void entities_debug_draw(Camera *camera_drawing, List<Entity> *entities) {
 }
 
 bbox2 entity_get_bbox(Entity *entity) {
+    // special case
+    if (entity->type == EntityType::Circle) {
+        CircleEntity *circle = &entity->circle;
+        return
+        {
+            circle->center - V2(circle->radius),
+                circle->center + V2(circle->radius)
+        };
+    }
+
+
     bbox2 result = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
     vec2 s[2];
     uint n = 2;
@@ -1177,7 +4068,7 @@ DXFFindClosestEntityResult dxf_find_closest_entity(List<Entity> *entities, vec2 
                 ArcEntity *arc = &result.closest_entity->arc;
                 result.arc_nearest_angle_in_degrees = DEG(ATAN2(p - arc->center));
             } else { ASSERT(result.closest_entity->type == EntityType::Circle);
-                CircleEntity *circle = &result.closest_entity->circle;
+                // CircleEntity *circle = &result.closest_entity->circle;
                 // result.arc_nearest_angle_in_degrees = DEG(ATAN2(p - circle->center));
             }
         }
@@ -1232,11 +4123,15 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *en
                     }
                     if (!added_and_seeded_new_loop) break;
                 }
-                { // continue and complete
+
+                DXFEntityIndexAndFlipFlag *FORNOW_seed = &stretchy_list.array[stretchy_list.length - 1].array[stretchy_list.array[stretchy_list.length - 1].length - 1];
+
+                if (entities->array[FORNOW_seed->entity_index].type != EntityType::Circle) { // continue and complete
                     real tolerance = TOLERANCE_DEFAULT;
                     while (true) {
                         bool added_new_entity_to_loop = false;
                         for_(entity_index, entities->length) {
+                            if (entities->array[entity_index].type == EntityType::Circle) continue;
                             if (!MACRO_CANDIDATE_VALID(entity_index)) continue;
                             vec2 start_prev;
                             vec2 end_prev;
@@ -1275,55 +4170,55 @@ DXFLoopAnalysisResult dxf_loop_analysis_create_FORNOW_QUADRATIC(List<Entity> *en
                         }
                         if (!added_new_entity_to_loop) break;
                     }
-                }
 
-                { // reverse_loop if necessary
-                    uint num_entities_in_loop = stretchy_list.array[stretchy_list.length - 1].length;
-                    DXFEntityIndexAndFlipFlag *loop = stretchy_list.array[stretchy_list.length - 1].array;
-                    bool reverse_loop; {
-                        #if 0
-                        reverse_loop = false;
-                        #else
-                        real twice_the_signed_area; {
-                            twice_the_signed_area = 0.0f;
-                            for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
-                                uint entity_index = entity_index_and_flip_flag->entity_index;
-                                bool flip_flag = entity_index_and_flip_flag->flip_flag;
-                                Entity *entity = &entities->array[entity_index];
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    // shoelace-type formula
-                                    twice_the_signed_area += ((flip_flag) ? -1 : 1) * (line->start.x * line->end.y - line->end.x * line->start.y);
-                                } else {
-                                    ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc = &entity->arc;
-                                    // "Circular approximation using polygons"
-                                    // - n = 2 (area-preserving approximation of arc with two segments)
-                                    real start_angle, end_angle;
-                                    arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
-                                    vec2 start = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, start_angle);
-                                    vec2 end = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, end_angle);
-                                    real mid_angle = (start_angle + end_angle) / 2;
-                                    real d; {
-                                        real alpha = ABS(start_angle - end_angle) / 2;
-                                        d = arc->radius * alpha / SIN(alpha);
+                    { // reverse_loop if necessary
+                        uint num_entities_in_loop = stretchy_list.array[stretchy_list.length - 1].length;
+                        DXFEntityIndexAndFlipFlag *loop = stretchy_list.array[stretchy_list.length - 1].array;
+                        bool reverse_loop; {
+                            #if 0
+                            reverse_loop = false;
+                            #else
+                            real twice_the_signed_area; {
+                                twice_the_signed_area = 0.0f;
+                                for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < loop + num_entities_in_loop; ++entity_index_and_flip_flag) {
+                                    uint entity_index = entity_index_and_flip_flag->entity_index;
+                                    bool flip_flag = entity_index_and_flip_flag->flip_flag;
+                                    Entity *entity = &entities->array[entity_index];
+                                    if (entity->type == EntityType::Line) {
+                                        LineEntity *line = &entity->line;
+                                        // shoelace-type formula
+                                        twice_the_signed_area += ((flip_flag) ? -1 : 1) * (line->start.x * line->end.y - line->end.x * line->start.y);
+                                    } else {
+                                        ASSERT(entity->type == EntityType::Arc);
+                                        ArcEntity *arc = &entity->arc;
+                                        // "Circular approximation using polygons"
+                                        // - n = 2 (area-preserving approximation of arc with two segments)
+                                        real start_angle, end_angle;
+                                        arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
+                                        vec2 start = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, start_angle);
+                                        vec2 end = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, end_angle);
+                                        real mid_angle = (start_angle + end_angle) / 2;
+                                        real d; {
+                                            real alpha = ABS(start_angle - end_angle) / 2;
+                                            d = arc->radius * alpha / SIN(alpha);
+                                        }
+                                        vec2 mid = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, d, mid_angle);
+                                        twice_the_signed_area += mid.x * (end.y - start.y) + mid.y * (start.x - end.x); // TODO cross(...)
                                     }
-                                    vec2 mid = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, d, mid_angle);
-                                    twice_the_signed_area += mid.x * (end.y - start.y) + mid.y * (start.x - end.x); // TODO cross(...)
                                 }
                             }
+                            reverse_loop = (twice_the_signed_area < 0.0f);
+                            #endif
                         }
-                        reverse_loop = (twice_the_signed_area < 0.0f);
-                        #endif
-                    }
-                    if (reverse_loop) {
-                        for (uint i = 0, j = (num_entities_in_loop - 1); i < j; ++i, --j) {
-                            DXFEntityIndexAndFlipFlag tmp = loop[i];
-                            loop[i] = loop[j];
-                            loop[j] = tmp;
-                        }
-                        for_(i, num_entities_in_loop) {
-                            loop[i].flip_flag = !loop[i].flip_flag;
+                        if (reverse_loop) {
+                            for (uint i = 0, j = (num_entities_in_loop - 1); i < j; ++i, --j) {
+                                DXFEntityIndexAndFlipFlag tmp = loop[i];
+                                loop[i] = loop[j];
+                                loop[j] = tmp;
+                            }
+                            for_(i, num_entities_in_loop) {
+                                loop[i].flip_flag = !loop[i].flip_flag;
+                            }
                         }
                     }
                 }
@@ -1431,8 +4326,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                     } else {
                         list_push_back(&stretchy_list.array[stretchy_list.length - 1], { line->end.x, line->end.y });
                     }
-                } else {
-                    ASSERT(entity->type == EntityType::Arc);
+                } else if (entity->type == EntityType::Arc) {
                     ArcEntity *arc = &entity->arc;
                     real start_angle, end_angle;
                     arc_process_angles_into_lerpable_radians_considering_flip_flag(arc, &start_angle, &end_angle, flip_flag);
@@ -1445,6 +4339,14 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                         p = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle);
                         list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
                         current_angle += increment;
+                    }
+                } else { ASSERT(entity->type == EntityType::Circle);
+                    CircleEntity *circle = &entity->circle;
+                    uint num_segments = NUM_SEGMENTS_PER_CIRCLE;
+                    for_(i, num_segments) {
+                        real angle = real(i) / num_segments * TAU;
+                        vec2 p = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
+                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
                     }
                 }
             }
@@ -1703,7 +4605,7 @@ Mesh wrapper_manifold(
 
         ManifoldPolygons *polygons = manifold_cross_section_to_polygons(malloc(manifold_polygons_size()), cross_section);
 
-        
+
 
         { // manifold_B
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {
@@ -1863,7 +4765,7 @@ vec2 p, vec2 p_plus_r, vec2 q, vec2 q_plus_s) {
     real r_cross_s = cross(r, s);
 
     LineLineXResult result = {};
-    result.lines_are_parallel = abs(r_cross_s) < 0.0001;
+    result.lines_are_parallel = ABS(r_cross_s) < 0.0001;
     if (result.lines_are_parallel) {
     } else {
         vec2 q_minus_p = q - p;
@@ -2069,6 +4971,120 @@ real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
     return result;
 }
 // <!> End header.cpp <!>
+// <!> Begin header2.cpp <!> 
+// TODO: move make's out of cookbook and into here
+// TODO: entity_offseted (reference point)
+
+Entity entity_make_three_point_arc_or_line(vec2 a, vec2 b, vec2 c) {
+    Entity result = {};
+    if (false) { // full circle
+        result.type = EntityType::Circle;
+        result.circle.center = AVG(a, b);
+        result.circle.radius = distance(a, result.circle.center);
+    } else {
+        vec2 p1 = AVG(a, b);
+        vec2 p2 = AVG(b, c);
+        vec2 n1 = normalized(perpendicularTo(b - a));
+        vec2 n2 = normalized(perpendicularTo(c - b));
+        LineLineXResult intersection_result = line_line_intersection(p1, p1 + n1, p2, p2 + n2);
+        if (intersection_result.lines_are_parallel) { // Line
+            result.type = EntityType::Line;
+            result.line.start = a;
+            result.line.end   = c;
+        } else {
+            result.type = EntityType::Arc;
+            result.arc.center = intersection_result.point;;
+            result.arc.radius = distance(a, result.arc.center);
+            result.arc.start_angle_in_degrees = DEG(ATAN2(c - result.arc.center));
+            result.arc.end_angle_in_degrees   = DEG(ATAN2(a - result.arc.center));
+            if (intersection_result.t_ab < 0.0) {
+                SWAP(&result.arc.start_angle_in_degrees, &result.arc.end_angle_in_degrees);
+            }
+        }
+    }
+    return result;
+}
+
+Entity entity_translated(const Entity *_entity, vec2 translation_vector) {
+    Entity result = *_entity;
+    if (result.type == EntityType::Line) {
+        LineEntity *line = &result.line;
+        line->start += translation_vector;
+        line->end   += translation_vector;
+    } else if (result.type == EntityType::Arc) {
+        ArcEntity *arc = &result.arc;
+        arc->center += translation_vector;
+    } else { ASSERT(result.type == EntityType::Circle);
+        CircleEntity *circle = &result.circle;
+        circle->center += translation_vector;
+    }
+    return result;
+}
+
+Entity entity_rotated(const Entity *_entity, vec2 center, real theta) {
+    Entity result = *_entity;
+    if (result.type == EntityType::Line) {
+        LineEntity *line = &result.line;
+        line->start = rotated_about(line->start, center, theta);
+        line->end   = rotated_about(line->end,   center, theta);
+    } else if (result.type == EntityType::Arc) {
+        ArcEntity *arc = &result.arc;
+        arc->center = rotated_about(arc->center, center, theta);
+        arc->start_angle_in_degrees += DEG(theta);
+        arc->end_angle_in_degrees   += DEG(theta);
+    } else { ASSERT(result.type == EntityType::Circle);
+        CircleEntity *circle = &result.circle;
+        circle->center = rotated_about(circle->center, center, theta);
+        circle->pseudo_point_angle += theta;
+    }
+    return result;
+}
+
+Entity entity_offsetted(const Entity *_entity, real offset_distance, vec2 reference_point) {
+    Entity result = *_entity;
+    if (result.type == EntityType::Line) {
+        LineEntity *line = &result.line;
+        vec2 normal = normalized(perpendicularTo(line->end - line->start));
+        real sign = (dot(normal, reference_point - line->start) < 0.0) ? -1 : 1;
+        vec2 offset = sign * offset_distance * normal;
+        line->start += offset;
+        line->end += offset;
+    } else if (result.type == EntityType::Arc) {
+        ArcEntity *arc = &result.arc;
+        bool in_circle = (distance(arc->center, reference_point) < arc->radius);
+        bool in_sector = false;
+        if (!in_circle) {
+            // TODO: comment (diagram)
+            vec2 start_point = entity_get_start_point(&result);
+            vec2 end_point = entity_get_end_point(&result);
+            vec2 perp_end = perpendicularTo(end_point - arc->center);
+            vec2 perp_start = perpendicularTo(start_point - arc->center);
+            vec2 end_to_mouse = reference_point - end_point;
+            vec2 start_to_mouse = reference_point - start_point;
+            real end_cross_p = cross(end_to_mouse, perp_end);
+            real start_cross_p = cross(start_to_mouse, perp_start);
+            real diam_cross_p = cross(end_to_mouse, start_point - end_point);
+            in_sector = (end_cross_p > 0) && (start_cross_p > 0) && (diam_cross_p > 0);
+        }
+        int sign = (in_circle || in_sector) ? -1 : 1;
+        arc->radius += sign * offset_distance;
+    } else { ASSERT(result.type == EntityType::Circle);
+        CircleEntity *circle = &result.circle;
+        bool in_circle = distance(circle->center, reference_point) < circle->radius;
+        int sign = (!in_circle) ? 1 : -1;
+        circle->radius += sign * offset_distance;
+    }
+    return result;
+}
+
+#if 0
+Entity entity_mirrored(const Entity *result, vec2 origin, real axis_angle) {
+    return {};
+}
+
+
+#endif
+// <!> End header2.cpp <!>
 
 #define DUMMY_HOTKEY 9999
 
@@ -2092,7 +5108,7 @@ PreviewState *preview = &other.preview;
 Event event_passed_to_popups;
 bool already_processed_event_passed_to_popups;
 
-// <!> Begin boolean.cpp <!>
+// <!> Begin boolean.cpp <!> 
 bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
     return 0
         || (state_Draw_command_is_(Box))
@@ -2153,7 +5169,7 @@ bool enter_mode_SHIFT_SPACE_BAR_REPEAT_ELIGIBLE() {
 }
 
 // <!> End boolean.cpp <!>
-// <!> Begin misc.cpp <!>
+// <!> Begin misc.cpp <!> 
 #define _for_each_entity_ for (\
         Entity *entity = drawing->entities.array;\
         entity < &drawing->entities.array[drawing->entities.length];\
@@ -2199,12 +5215,13 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
         } else if (
                 (state_Draw_command_is_(Box))
                 && (two_click_command->awaiting_second_click)
-                && (other.shift_held)) {
-            // TODO (Felipe): snap square
+                && (other.shift_held)) { // TODO (Felipe): snap square
             result.mouse_position = before;
         } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
+            // TODO: need to filter End and Middle as well to ignore circles
+            // (this all needs to be cleaned up)
             if (0
                     || state_Snap_command_is_(Center)
                     || state_Snap_command_is_(Quad)
@@ -2275,16 +5292,25 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     }
                     result.mouse_position = get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, angle);
                 } else if (state_Snap_command_is_(Middle)) {
-                    ASSERT(closest_entity->type != EntityType::Circle); // TODO
-                    result.mouse_position = entity_get_middle(closest_entity);
-                    result.snapped = true;
+                    if (closest_entity->type != EntityType::Circle) {
+                        result.mouse_position = entity_get_middle(closest_entity);
+                        result.snapped = true;
+                    }
                 } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
                     __snap_for__ {
-                        ASSERT(entity->type != EntityType::Circle); // TODO
-                        vec2 p[2];
-                        entity_get_start_and_end_points(entity, &p[0], &p[1]);
-                        for_(d, 2) {
+                        uint count = 0;
+                        vec2 p[2] = {};
+                        if (entity->type == EntityType::Circle) {
+                            CircleEntity *circle = &entity->circle;
+                            if (circle->has_pseudo_point) {
+                                p[count++] = circle->get_pseudo_point();
+                            }
+                        } else {
+                            entity_get_start_and_end_points(entity, &p[0], &p[1]);
+                            count = 2;
+                        }
+                        for_(d, count) {
                             real squared_distance = squaredDistance(before, p[d]);
                             if (squared_distance < min_squared_distance) {
                                 min_squared_distance = squared_distance;
@@ -2317,8 +5343,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         // else messagef(pallete.orange, "no intersection found");
                     }
                     // else messagef(pallete.orange, "no intersection found");
-                } else if (state_Snap_command_is_(Perp)) { // layout also does a divide which can be added if wanted
-                                                           // TODO Circle
+                } else if (state_Snap_command_is_(Perp)) { 
                     vec2 click_one = two_click_command->awaiting_second_click ? two_click_command->first_click : before;
                     if (closest_entity->type == EntityType::Line) {
                         vec2 a_to_b = closest_entity->line.end - closest_entity->line.start;
@@ -2328,85 +5353,95 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.snapped = true;
                     } else if (closest_entity->type == EntityType::Arc) { // layout pretends the arc is a full circle for perp
                         vec2 normalized_in_direction = normalized(click_one - closest_entity->arc.center);
-                        result.mouse_position = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        vec2 perp_one = closest_entity->arc.center + closest_entity->arc.radius * normalized_in_direction;
+                        vec2 perp_two = closest_entity->arc.center - closest_entity->arc.radius * normalized_in_direction;
+
+                        result.mouse_position = distance(perp_one, before) < distance(perp_two, before) ? perp_one : perp_two;
+                        result.snapped = true;
+                    } else { ASSERT(closest_entity->type == EntityType::Circle);
+                        vec2 normalized_in_direction = normalized(click_one - closest_entity->circle.center);
+                        vec2 perp_one = closest_entity->circle.center + closest_entity->circle.radius * normalized_in_direction;
+                        vec2 perp_two = closest_entity->circle.center - closest_entity->circle.radius * normalized_in_direction;
+
+                        result.mouse_position = distance(perp_one, before) < distance(perp_two, before) ? perp_one : perp_two;
                         result.snapped = true;
                     }
                 } /*else if (state_Snap_command_is_(Tangent)) {
-                    // TODO TODO TODO
-                    vec2 mouse = before;
+                // TODO TODO TODO
+                vec2 mouse = before;
 
-                    if (two_click_command->awaiting_second_click) {
-                        mouse = two_click_command->first_click;
-                    }
-                    if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
-                        mouse = two_click_command->first_click;
+                if (two_click_command->awaiting_second_click) {
+                mouse = two_click_command->first_click;
+                }
+                if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
+                mouse = two_click_command->first_click;
 
-                        ArcEntity c2 = closest_entity->arc;
-                        ArcEntity c1 = two_click_command->entity_closest_to_first_click->arc;
+                ArcEntity c2 = closest_entity->arc;
+                ArcEntity c1 = two_click_command->entity_closest_to_first_click->arc;
 
-                        vec2 center_diff = c2.center - c1.center;
-                        real dist = distance(c1.center, c2.center);
-                        real angle = ATAN2(center_diff);
+                vec2 center_diff = c2.center - c1.center;
+                real dist = distance(c1.center, c2.center);
+                real angle = ATAN2(center_diff);
 
-                        real phi1 = acos((c1.radius - c2.radius) / dist);
-                        real phi2 = acos((c1.radius + c2.radius) / dist);
+                real phi1 = acos((c1.radius - c2.radius) / dist);
+                real phi2 = acos((c1.radius + c2.radius) / dist);
 
-                        real theta1a = angle + phi1;
-                        real theta1b = angle - phi1;
-                        real theta2a = angle + phi2;
-                        real theta2b = angle - phi2;
+                real theta1a = angle + phi1;
+                real theta1b = angle - phi1;
+                real theta2a = angle + phi2;
+                real theta2b = angle - phi2;
 
-                        vec2 p1a1 = c1.center + V2(c1.radius * COS(theta1a), c1.radius * SIN(theta1a));
-                        vec2 p1a2 = c1.center + V2(c1.radius * COS(theta1b), c1.radius * SIN(theta1b));
-                        if (distance(mouse, p1a1) > distance(mouse, p1a1)) {
-                            p1a1 = p1a2;
-                            theta1a = theta1b;
-                        }
-                        vec2 p1b = c2.center + V2(c2.radius * COS(theta1a), c2.radius * SIN(theta1a));
+                vec2 p1a1 = c1.center + V2(c1.radius * COS(theta1a), c1.radius * SIN(theta1a));
+                vec2 p1a2 = c1.center + V2(c1.radius * COS(theta1b), c1.radius * SIN(theta1b));
+                if (distance(mouse, p1a1) > distance(mouse, p1a1)) {
+                p1a1 = p1a2;
+                theta1a = theta1b;
+                }
+                vec2 p1b = c2.center + V2(c2.radius * COS(theta1a), c2.radius * SIN(theta1a));
 
-                        vec2 p2a1 = c1.center + V2(c1.radius * COS(theta2a), c1.radius * SIN(theta2a));
-                        vec2 p2a2 = c1.center + V2(c1.radius * COS(theta2b), c1.radius * SIN(theta2b));
-                        if (distance(mouse, p2a1) > distance(mouse, p2a2)) {
-                            p2a1 = p2a2;
-                            theta2a = theta2b;
-                        }
-                        vec2 p2b = c2.center - V2(c2.radius * COS(theta2a), c2.radius * SIN(theta2a));
+                vec2 p2a1 = c1.center + V2(c1.radius * COS(theta2a), c1.radius * SIN(theta2a));
+                vec2 p2a2 = c1.center + V2(c1.radius * COS(theta2b), c1.radius * SIN(theta2b));
+                if (distance(mouse, p2a1) > distance(mouse, p2a2)) {
+                p2a1 = p2a2;
+                theta2a = theta2b;
+                }
+                vec2 p2b = c2.center - V2(c2.radius * COS(theta2a), c2.radius * SIN(theta2a));
 
-                        if (distance(before, p1b) > distance(before, p2b)) {
-                            two_click_command->first_click = p2a1;
-                            result.mouse_position = p2b;
-                        } else {
-                            two_click_command->first_click = p1a1;
-                            result.mouse_position = p1b;
-                        }
+                if (distance(before, p1b) > distance(before, p2b)) {
+                two_click_command->first_click = p2a1;
+                result.mouse_position = p2b;
+                } else {
+                two_click_command->first_click = p1a1;
+                result.mouse_position = p1b;
+                }
 
-                        two_click_command->tangent_first_click = false;
-                        result.snapped = true;
-                        result.split_tangent_2 = true;
-                        result.entity_index_tangent_2 = uint(two_click_command->entity_closest_to_first_click - drawing->entities.array);
+                two_click_command->tangent_first_click = false;
+                result.snapped = true;
+                result.split_tangent_2 = true;
+                result.entity_index_tangent_2 = uint(two_click_command->entity_closest_to_first_click - drawing->entities.array);
 
-                    } else if (two_click_command->awaiting_second_click) {
-                        vec2 center = closest_entity->arc.center;
-                        real radius = closest_entity->arc.radius;
-                        real d = distance(center, mouse);
+                } else if (two_click_command->awaiting_second_click) {
+                vec2 center = closest_entity->arc.center;
+                real radius = closest_entity->arc.radius;
+                real d = distance(center, mouse);
 
-                        if (d > radius) {
-                            real t1 = ATAN2(mouse - center);
-                            real t2 = acos(radius / d);
-                            real theta1 = t1 + t2;
-                            real theta2 = t1 - t2;
-                            vec2 tan1 = { center.x + radius * COS(theta1), center.y + radius * SIN(theta1) };
-                            vec2 tan2 = { center.x + radius * COS(theta2), center.y + radius * SIN(theta2) };
-                            result.mouse_position = distance(before, tan1) < distance(before, tan2) ? tan1 : tan2;
-                            result.snapped = true;
-                        }
-                    } else {
-                        messagef(pallete.light_gray, "wowowwowowo");
-                        two_click_command->tangent_first_click = true; 
-                        two_click_command->entity_closest_to_first_click = closest_entity;
-                        messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
-                    }
-                }*/
+                if (d > radius) {
+                real t1 = ATAN2(mouse - center);
+                real t2 = acos(radius / d);
+                real theta1 = t1 + t2;
+                real theta2 = t1 - t2;
+                vec2 tan1 = { center.x + radius * COS(theta1), center.y + radius * SIN(theta1) };
+                vec2 tan2 = { center.x + radius * COS(theta2), center.y + radius * SIN(theta2) };
+                result.mouse_position = distance(before, tan1) < distance(before, tan2) ? tan1 : tan2;
+                result.snapped = true;
+                }
+                } else {
+                messagef(pallete.light_gray, "wowowwowowo");
+                two_click_command->tangent_first_click = true; 
+                two_click_command->entity_closest_to_first_click = closest_entity;
+                messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
+            }
+            }*/
             }
         }
     }
@@ -2458,7 +5493,7 @@ void init_camera_mesh() {
 
 
 // <!> End misc.cpp <!>
-// <!> Begin draw.cpp <!>
+// <!> Begin draw.cpp <!> 
 // // TODO: (Jim) stuff for alpha
 // TODO: fix in/out relationship (right now they just seem to add)
 // TODO: tubes
@@ -2469,6 +5504,10 @@ void init_camera_mesh() {
 // TODO: draw axis on RHS when revolving
 // TODO: 3D-picking is broken for non xyz planes
 // TODO: revisit extruded cut on the botton of box with name (why did the students need to flip their names)
+
+
+
+
 
 mat4 get_M_3D_from_2D() {
     vec3 up = { 0.0f, 1.0f, 0.0f };
@@ -2620,7 +5659,7 @@ void conversation_draw() {
     }
 
     // preview
-    vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position;
+    vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position; // this isn't really snapped per se (probably a bad name) -- just has the 15 deg stuff and similar
 
     if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
         //messagef(pallete.red, "wowowo");
@@ -2917,11 +5956,14 @@ void conversation_draw() {
                     }
                 }
             }
+
+            MagicSnapResult true_snap_result = magic_snap(mouse);
+
             {
                 JUICEIT_EASYTWEEN(&preview->popup_second_click, Draw_Enter);
                 JUICEIT_EASYTWEEN(&preview->xy_xy, Snap_Enter);
 
-                JUICEIT_EASYTWEEN(&preview->mouse_snap, magic_snap(mouse).mouse_position, 1.0f);
+                JUICEIT_EASYTWEEN(&preview->mouse_snap, true_snap_result.mouse_position, 1.0f);
 
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
             }
@@ -2970,13 +6012,13 @@ void conversation_draw() {
                 { // dots snap_divide_dot
                     if (other.show_details) { // dots
                         eso_begin(PV_2D, SOUP_POINTS);
-                        eso_color(pallete.white);
                         eso_size(3.0f);
+                        eso_color(pallete.white);
                         _for_each_entity_ {
                             if (entity->is_selected && (rotating || moving)) continue;
                             if (entity->type == EntityType::Circle) {
                                 CircleEntity *circle = &entity->circle;
-                                if (circle->has_pseudo_point) eso_vertex(circle->pseudo_point);
+                                if (circle->has_pseudo_point) eso_vertex(circle->get_pseudo_point());
                                 continue;
                             }
                             eso_vertex(entity_get_start_point(entity));
@@ -2987,7 +6029,7 @@ void conversation_draw() {
 
                     { // snap_divide_dot
                         eso_begin(PV_2D, SOUP_POINTS);
-                        eso_color(pallete.white);
+                        eso_color(pallete.light_gray);
                         JUICEIT_EASYTWEEN(&other.size_snap_divide_dot, 0.0f, 0.5f);
                         eso_size(other.size_snap_divide_dot);
                         eso_vertex(other.snap_divide_dot);
@@ -2998,7 +6040,7 @@ void conversation_draw() {
 
             { // annotations
 
-              // new-style annotations
+                // new-style annotations
                 // FORNOW (this is sloppy and bad)
                 #define ANNOTATION(Name, NAME) \
                 do { \
@@ -3025,6 +6067,18 @@ void conversation_draw() {
                     ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                 }
 
+                { // entity snapped to
+                    // TODO: Intersect
+                    if (true_snap_result.snapped) {
+                        Entity *entity_snapped_to = &drawing->entities.array[true_snap_result.entity_index_snapped_to];
+                        eso_begin(PV_2D, SOUP_LINES);
+                        // eso_overlay(true);
+                        eso_color(get_accent_color(ToolboxGroup::Snap));
+                        eso_entity__SOUP_LINES(entity_snapped_to);
+                        eso_end();
+                    }
+                }
+
                 { // crosshairs
                     if (state_Snap_command_is_(XY)) {
                         if (popup->manager.focus_group == ToolboxGroup::Snap) {
@@ -3040,6 +6094,83 @@ void conversation_draw() {
                             if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
                         if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
+                    }
+                }
+
+                { // experimental preview part B
+                  // NOTE: circle <-> circle is wonky
+                    if (state_Draw_command_is_(Offset)) {
+                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse);
+                        if (closest_result.success) {
+                            Entity *_closest_entity = closest_result.closest_entity;
+                            Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse);
+                            vec2 target_start, target_end, target_middle, target_opposite;
+                            if (target_entity.type != EntityType::Circle) {
+                                entity_get_start_and_end_points(&target_entity, &target_start, &target_end);
+                                target_middle = entity_get_middle(&target_entity);
+                                target_opposite = target_middle;
+                            } else { ASSERT(target_entity.type == EntityType::Circle);
+                                CircleEntity *circle = &target_entity.circle;
+                                real angle; {
+                                    if (ARE_EQUAL(preview->offset_entity_end, preview->offset_entity_start)) {
+                                        angle = 0.0;
+                                    } else {
+                                        angle = (PI / 2) - ATAN2(normalized(preview->offset_entity_end - preview->offset_entity_start));
+                                    }
+                                }
+                                // real angle = ATAN2(preview->offset_entity_middle - circle->center);
+                                // real angle = ATAN2(mouse - circle->center);
+                                // TODO: something else?
+                                target_middle   = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
+                                target_start    = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - PI / 2);
+                                target_end      = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI / 2);
+                                target_opposite = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI);
+
+                            }
+
+                            // reasonable line <-> arc behavior
+                            if (1) { // heuristic (FORNOW: minimize max distance)
+                                real D2na = squaredDistance(preview->offset_entity_start, target_start);
+                                real D2nb = squaredDistance(preview->offset_entity_end, target_end);
+                                real D2ya = squaredDistance(preview->offset_entity_start, target_end);
+                                real D2yb = squaredDistance(preview->offset_entity_end, target_start);
+                                real max_D2_no_swap = MAX(D2na, D2nb);
+                                real max_D2_yes_swap = MAX(D2ya, D2yb);
+                                if (max_D2_no_swap > max_D2_yes_swap) {
+                                    SWAP(&target_start, &target_end);
+                                }
+                            }
+
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_start, target_start);
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
+                            JUICEIT_EASYTWEEN(&preview->offset_entity_opposite, target_opposite);
+
+                            // TODO: could try a crescent moon kind of a situation
+                            // TODO: just need a three point arc lambda
+                            //       (and could in theory fillet the arcs)
+
+                            vec2 a = preview->offset_entity_start;
+                            vec2 b = preview->offset_entity_middle;
+                            vec2 c = preview->offset_entity_end;
+                            vec2 d = preview->offset_entity_opposite;
+                            Entity dummy = entity_make_three_point_arc_or_line(a, b, c);
+                            Entity dummy2 = entity_make_three_point_arc_or_line(a, d, c);
+                            eso_begin(PV_2D, SOUP_LINES);
+                            { // eso_vertex
+                              // eso_color(1.0f, 0.0f, 1.0f);
+                              // eso_vertex(a);
+                              // eso_vertex(b);
+                              // eso_vertex(b);
+                              // eso_vertex(c);
+                              // eso_color((distance(b, d) / distance(a, c)) * get_color(ColorCode::Emphasis));
+                                eso_color(get_color(ColorCode::Emphasis));
+                                eso_entity__SOUP_LINES(&dummy2);
+                                eso_color(get_color(ColorCode::Emphasis));
+                                eso_entity__SOUP_LINES(&dummy);
+                            }
+                            eso_end();
+                        }
                     }
                 }
 
@@ -3652,8 +6783,7 @@ void conversation_draw() {
 }
 
 // <!> End draw.cpp <!>
-// <!> Begin save_and_load.cpp <!>
-
+// <!> Begin save_and_load.cpp <!> 
 void entities_load(String filename, List<Entity> *entities) {
     #if 0
     {
@@ -3682,10 +6812,11 @@ void entities_load(String filename, List<Entity> *entities) {
     bool inches = true; // if none read will assume inches
     
     *entities = {}; {
-        #define PARSE_NONE  0
-        #define PARSE_LINE  1
-        #define PARSE_ARC   2
-        #define PARSE_UNITS 3
+        #define PARSE_NONE   0
+        #define PARSE_LINE   1
+        #define PARSE_ARC    2
+        #define PARSE_CIRCLE 3
+        #define PARSE_UNITS  4
         uint mode = 0;
 
         auto convert = [&](real value) {
@@ -3714,6 +6845,11 @@ void entities_load(String filename, List<Entity> *entities) {
                     code_is_hot = false;
                     entity = {};
                     entity.type = EntityType::Arc;
+                } else if (string_matches_prefix(line_from_file, STRING("CIRCLE"))) {
+                    mode = PARSE_CIRCLE;
+                    code_is_hot = false;
+                    entity = {};
+                    entity.type = EntityType::Circle;
                 }
             } else {
                 if (!code_is_hot) {
@@ -3755,6 +6891,14 @@ void entities_load(String filename, List<Entity> *entities) {
                             } else if (code == 51) {
                                 entity.arc.end_angle_in_degrees = value;
                             }
+                        } else if (mode == PARSE_CIRCLE) {
+                            if (code == 10) {
+                                entity.circle.center.x = convert(value);
+                            } else if (code == 20) {
+                                entity.circle.center.y = convert(value);
+                            } else if (code == 40) {
+                                entity.circle.radius = convert(value);
+                            }
                         } else {
                             ASSERT(mode == PARSE_UNITS);
                             inches = (value == 1);
@@ -3770,7 +6914,6 @@ void entities_load(String filename, List<Entity> *entities) {
     fclose(file);
 }
 
-// if this isnt the most b
 bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
     List<Entity> *entities = &drawing_to_save->entities;
 
@@ -3829,6 +6972,14 @@ bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
             fprintf(file, "40\n%.6f\n", entity->arc.radius);
             fprintf(file, "50\n%.6f\n", _WRAP_TO_0_360_INTERVAL(entity->arc.start_angle_in_degrees));
             fprintf(file, "51\n%.6f\n", _WRAP_TO_0_360_INTERVAL(entity->arc.end_angle_in_degrees));
+        } else if (entity->type == EntityType::Circle) {
+            fprintf(file, "0\nCIRCLE\n");
+            fprintf(file, "8\n0\n");  // Layer
+            fprintf(file, "62\n%d\n", entity->color_code);
+            fprintf(file, "10\n%.6f\n", entity->circle.center.x);
+            fprintf(file, "20\n%.6f\n", entity->circle.center.y);
+            fprintf(file, "30\n0.0\n");  // Z coordinate (2D)
+            fprintf(file, "40\n%.6f\n", entity->circle.radius);
         }
     }
 
@@ -3990,7 +7141,7 @@ void stl_load(String filename, Mesh *mesh_to_load) {
 }
 
 // <!> End save_and_load.cpp <!>
-// <!> Begin message.cpp <!>
+// <!> Begin message.cpp <!> 
 #define MESSAGE_MAX_LENGTH 256
 #define MESSAGE_MAX_NUM_MESSAGES 64
 #define MESSAGE_MAX_TIME 16.0f
@@ -4124,7 +7275,7 @@ void _messages_draw() {
 }
 
 // <!> End message.cpp <!>
-// <!> Begin popup.cpp <!>
+// <!> Begin popup.cpp <!> 
 // TODO: drawing before load up is bad bad very bad (we must load up first)
 // TODO: ?? LOAD UP MUST HAPPEN FIRST
 
@@ -4701,7 +7852,7 @@ void POPUP(
 
 };
 // <!> End popup.cpp <!>
-// <!> Begin history.cpp <!>
+// <!> Begin history.cpp <!> 
 StandardEventProcessResult standard_event_process(Event event); // forward declaration
 
 #ifdef DEBUG_HISTORY_DISABLE_HISTORY_ENTIRELY
@@ -5003,7 +8154,7 @@ void history_debug_draw() {
 //
 #endif
 // <!> End history.cpp <!>
-// <!> Begin callbacks.cpp <!>
+// <!> Begin callbacks.cpp <!> 
 Queue<RawEvent> raw_event_queue;
 
 void callback_key(GLFWwindow *, int key, int, int action, int mods) {
@@ -5247,7 +8398,7 @@ void callback_drop(GLFWwindow *, int count, const char **paths) {
 }
 
 // <!> End callbacks.cpp <!>
-// <!> Begin bake.cpp <!>
+// <!> Begin bake.cpp <!> 
 KeyEventSubtype classify_baked_subtype_of_raw_key_event(RawKeyEvent *raw_key_event) {
     if (popup->manager.focus_group == ToolboxGroup::None) return KeyEventSubtype::Hotkey;
 
@@ -5383,7 +8534,7 @@ Event make_mouse_event_3D(vec3 mouse_ray_origin, vec3 mouse_ray_direction) {
 }
 
 // <!> End bake.cpp <!>
-// <!> Begin cookbook.cpp <!>
+// <!> Begin cookbook.cpp <!> 
 
 
 struct Cookbook {
@@ -5420,13 +8571,15 @@ struct Cookbook {
         return entity;
     };
 
-    Entity _make_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+    Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
         Entity entity = {};
         entity.type = EntityType::Circle;
         entity.preview_color = get_color(ColorCode::Emphasis);
         CircleEntity *circle = &entity.circle;
         circle->center = center;
         circle->radius = radius;
+        circle->has_pseudo_point = has_pseudo_point;
+        circle->pseudo_point_angle = pseudo_point_angle;
         entity.is_selected = is_selected;
         entity.color_code = color_code;
         return entity;
@@ -5447,13 +8600,22 @@ struct Cookbook {
         _add_entity(entity);
     };
 
-    void _add_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, is_selected, color_code);
+    void _add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle, is_selected, color_code);
         _add_entity(entity);
     };
 
     void _buffer_add_entity(Entity entity) {
-        list_push_back(&_add_buffer, entity);
+        float LENGTH_CUTOFF = 0.003f;
+        if (entity_length(&entity) < LENGTH_CUTOFF) { // TODO: define glorbal const for min len
+            messagef("zero length entity not created");
+        } else if (entity.type == EntityType::Arc && entity.arc.radius < LENGTH_CUTOFF) {
+            messagef("zero length entity not created");
+        } else if (entity.type == EntityType::Circle && entity.circle.radius < LENGTH_CUTOFF) {
+            messagef("zero length entity not created");
+        } else {
+            list_push_back(&_add_buffer, entity);
+        }
     };
 
     void buffer_add_line(vec2 start, vec2 end, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
@@ -5466,8 +8628,8 @@ struct Cookbook {
         _buffer_add_entity(entity);
     };
 
-    void buffer_add_circle(vec2 center, real radius, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, is_selected, color_code);
+    void buffer_add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle, is_selected, color_code);
         _buffer_add_entity(entity);
     };
 
@@ -5538,46 +8700,62 @@ struct Cookbook {
     };
 
     // DOES NOT EXTEND Line
-    void divide_entity_at_point(uint entity_index, vec2 point) {
+    void attempt_divide_entity_at_point(uint entity_index, vec2 point) {
         Entity *entity = &drawing->entities.array[entity_index];
         bool delete_flag = false;
         if (entity->type == EntityType::Line) {
-            LineEntity line = entity->line;
-            // messagef(pallete.orange, "%f", distance(point, line.start) - distance(point, line.
-            bool point_is_on_line = 0.001 > ABS(distance(point, line.start) + distance(point, line.end) - distance(line.start, line.end)); // FORNOW
+            LineEntity *line = &entity->line;
+            bool point_is_on_line = 0.001 > ABS(distance(point, line->start) + distance(point, line->end) - distance(line->start, line->end)); // FORNOW
             if (point_is_on_line) {
-                if (distance(line.start, point) > TINY_VAL) {
-                    buffer_add_line(line.start, point, false, entity->color_code);
+                if (distance(line->start, point) > TINY_VAL) {
+                    buffer_add_line(line->start, point, false, entity->color_code);
                     delete_flag = true;
                 }
-                if (distance(point, line.end) > TINY_VAL) {
-                    buffer_add_line(point, line.end, false, entity->color_code);
+                if (distance(point, line->end) > TINY_VAL) {
+                    buffer_add_line(point, line->end, false, entity->color_code);
                     delete_flag = true;
                 }
             }
         } else if (entity->type == EntityType::Arc) {
-            ArcEntity arc = entity->arc;
-            real angle = DEG(ATAN2(point - arc.center));
-            if (abs(distance(point, arc.center) - arc.radius) < 0.001 && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc.start_angle_in_degrees, arc.end_angle_in_degrees)) {
-                if (!ARE_EQUAL(arc.start_angle_in_degrees, angle)) {
-                    buffer_add_arc(arc.center, arc.radius, arc.start_angle_in_degrees, angle, false, entity->color_code);
+            ArcEntity *arc = &entity->arc;
+            real angle = DEG(ATAN2(point - arc->center));
+            if (abs(distance(point, arc->center) - arc->radius) < 0.001 && ANGLE_IS_BETWEEN_CCW_DEGREES(angle, arc->start_angle_in_degrees, arc->end_angle_in_degrees)) {
+                if (!ARE_EQUAL(arc->start_angle_in_degrees, angle)) {
+                    buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, angle, false, entity->color_code);
                     delete_flag = true;
                 }
-                if (!ARE_EQUAL(arc.end_angle_in_degrees, angle)) {
-                    buffer_add_arc(arc.center, arc.radius, angle, arc.end_angle_in_degrees, false, entity->color_code);
+                if (!ARE_EQUAL(arc->end_angle_in_degrees, angle)) {
+                    buffer_add_arc(arc->center, arc->radius, angle, arc->end_angle_in_degrees, false, entity->color_code);
                     delete_flag = true;
                 }
 
             }
         } else { ASSERT(entity->type == EntityType::Circle);
-            ASSERT(false);
+            CircleEntity *circle = &entity->circle;
+            if (squared_distance_point_dxf_circle_entity(point, circle) < TINY_VAL) {
+                if (!circle->has_pseudo_point) {
+                    circle->has_pseudo_point = true;
+                    circle->set_pseudo_point(point);
+                } else {
+                    if (ARE_EQUAL(circle->get_pseudo_point(), point)) {
+                        ;
+                    } else {
+                        delete_flag = true;
+                        real radius = distance(circle->center, point);
+                        real angle1_in_degrees = DEG(circle->pseudo_point_angle);
+                        real angle2_in_degrees = DEG(ATAN2(point - circle->center));
+                        buffer_add_arc(circle->center, radius, angle1_in_degrees, angle2_in_degrees, false, entity->color_code);
+                        buffer_add_arc(circle->center, radius, angle2_in_degrees, angle1_in_degrees, false, entity->color_code);
+                    }
+                }
+            }
         }
         if (delete_flag) {
             _buffer_delete_entity_DEPRECATED_INDEX_VERSION(entity_index);
         }
     }
 
-    void attempt_fillet(Entity *E, Entity *F, vec2 reference_point, real radius) {
+    void attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(const Entity *E, const Entity *F, vec2 reference_point, real radius) {
         if (E == F) {
             messagef(pallete.orange, "Fillet: clicked same entity twice");
             return;
@@ -5608,27 +8786,27 @@ struct Cookbook {
 
             vec2 p = reference_point;
             vec2 a;
-            vec2 *b_ptr;
+            vec2 b;
             vec2 c;
-            vec2 *d_ptr;
+            vec2 d;
             vec2 x;
             vec2 e_ab;
             vec2 e_cd;
             {
-                a     =  E->line.start;
-                b_ptr = &E->line.end;
-                c     =  F->line.start;
-                d_ptr = &F->line.end;
+                a = E->line.start;
+                b = E->line.end;
+                c = F->line.start;
+                d = F->line.end;
 
-                LineLineXResult _x = line_line_intersection(a, *b_ptr, c, *d_ptr);
+                LineLineXResult _x = line_line_intersection(a, b, c, d);
                 if (_x.lines_are_parallel) {
                     messagef(pallete.orange, "Fillet: lines are parallel");
                     return;
                 }
                 x = _x.point;
 
-                e_ab = normalized(*b_ptr - a);
-                e_cd = normalized(*d_ptr - c);
+                e_ab = normalized(b - a);
+                e_cd = normalized(d - c);
 
                 bool swap_ab, swap_cd; {
                     vec2 v_xp_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (p - x);
@@ -5638,33 +8816,48 @@ struct Cookbook {
 
                 if (swap_ab) {
                     {
-                        a = *b_ptr;
-                        b_ptr = &E->line.start;
+                        a = b;
+                        b = E->line.start;
                     }
                     e_ab *= -1;
                 }
 
                 if (swap_cd) {
                     {
-                        c = *d_ptr;
-                        d_ptr = &F->line.start;
+                        c = d;
+                        d = F->line.start;
                     }
                     e_cd *= -1;
                 }
             }
 
-            { // overwrite b, d
+            { // add new lines and remove old ones
                 real L; {
                     real full_angle = get_three_point_angle(a, x, c);
                     if (full_angle > PI) full_angle = TAU - full_angle;
                     L = radius / TAN(full_angle / 2);
                 }
-                *b_ptr = x - (L * e_ab);
-                *d_ptr = x - (L * e_cd);
+                b = x - (L * e_ab);
+                d = x - (L * e_cd);
+                Entity new_E = _make_line(a, b, E->is_selected, E->color_code);
+                Entity new_F = _make_line(c, d, F->is_selected, F->color_code);
+
+                // lowkey no idea what this does but copied for consistency 
+                new_E.preview_color = get_color(ColorCode::Emphasis);
+                new_F.preview_color = get_color(ColorCode::Emphasis);
+
+
+                _buffer_add_entity(new_E);
+                _buffer_add_entity(new_F);
+
+                //buffer_delete_entity(E);
+                //buffer_delete_entity(F);
+
             }
 
+            // deal with creating the fillet arc
             vec2 X; {
-                LineLineXResult _X = line_line_intersection(*b_ptr, *b_ptr + perpendicularTo(e_ab), *d_ptr, *d_ptr + perpendicularTo(e_cd));
+                LineLineXResult _X = line_line_intersection(b, b + perpendicularTo(e_ab), d, d + perpendicularTo(e_cd));
                 if (_X.lines_are_parallel) {
                     messagef(pallete.orange, "Fillet: ???");
                     return;
@@ -5676,147 +8869,131 @@ struct Cookbook {
                 real theta_b_in_degrees;
                 real theta_d_in_degrees;
                 {
-                    theta_b_in_degrees = DEG(angle_from_0_TAU(X, *b_ptr));
-                    theta_d_in_degrees = DEG(angle_from_0_TAU(X, *d_ptr));
-                    if (get_three_point_angle(*b_ptr, X, *d_ptr) > PI) {
+                    theta_b_in_degrees = DEG(angle_from_0_TAU(X, b));
+                    theta_d_in_degrees = DEG(angle_from_0_TAU(X, d));
+                    if (get_three_point_angle(b, X, d) > PI) {
                         SWAP(&theta_b_in_degrees, &theta_d_in_degrees);
                     }
                 }
                 buffer_add_arc(X, radius, theta_b_in_degrees, theta_d_in_degrees, false, E->color_code);
             }
 
-            { // aesthetics
-                E->preview_color = get_color(ColorCode::Emphasis);
-                F->preview_color = get_color(ColorCode::Emphasis);
-            }
-        } else if (is_line_arc_or_arc_line) {
-            // general idea
-            // 1. find what quadrant the click is in
-            // 2. use that to get the intersect between line and circle
-            // 3. ?????
-            // 4, perfect fillet
+        } else if (is_line_arc_or_arc_line) { // this is a very straight forward function
+                                              // general idea
+                                              // 1. find where relative to line/arc intersection click is
+                                              // 2. use that to get the fillet point
+                                              // 3. ?????
+                                              // 4, perfect fillet
 
-            Entity *EntL = E->type == EntityType::Line ? E : F;
-            Entity *EntA  = E->type == EntityType::Arc  ? E : F;
-
+            const Entity *EntL = E->type == EntityType::Line ? E : F;
             LineEntity line = EntL->line;
+
+            const Entity *EntA = E->type == EntityType::Arc  ? E : F;
             ArcEntity arc = EntA->arc;
 
-            // get closest intersection point
-            // in current version both points can always work
-            // this is only checking for the 
             LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, reference_point);
 
-            if (!intersection.no_possible_intersection) {
-                // Now have to decide which of the 4 possible fillets to do
-                // This currently only depends on the line as the arc can  
-                //   wrap both directions
-                // Check to see if one predicted by click position works otherwise
-                //   fillet from opposite side (inside/outside) of circle
-                //
-                //           \
-                //        B   \   A
-                //            |
-                //      ------|------
-                //            /
-                //        C  /   D
-                //      
+            if (intersection.no_possible_intersection) {
+                messagef("FILLET: no intersection found");
+                return;
+            }
 
-                // in this case we can do any fillet
-                // in cases where the radius is massive weird stuff happens
-                // thats on the user though, or at least for now
-                bool all_fillets_valid = intersection.point_is_on_line_segment;
+            // Determine if fillet should be inside or outside the circle
+            real distance_second_click_center = distance(reference_point, arc.center);
+            bool fillet_inside_circle = intersection.point_is_on_line_segment && (distance_second_click_center < arc.radius);
 
-                // if click is inside the circle when both work
-                // TODO: better check for this as a line outside of arc still says outside
-                real distance_second_click_center = distance(reference_point, arc.center);
-                bool fillet_inside_circle = (all_fillets_valid && distance_second_click_center < arc.radius);
+            // Get a line parallel to selected to determine where the fillet arc should be
+            vec2 line_vector = line.end - line.start;
+            bool line_left = cross(line_vector, reference_point - line.start) < 0;
+            vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1.0f : -1.0f);
 
-                real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
-                real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
-                bool start_inside_circle = start_val > -TINY_VAL;
-                bool end_inside_circle = end_val > -TINY_VAL;
-                if (abs(distance(intersection.point, line.start)) < 0.001f) {
-                    start_inside_circle = end_inside_circle;
-                }
-                if (abs(distance(intersection.point, line.end)) < 0.001f) {
-                    end_inside_circle = start_inside_circle;
-                }
-                if (!(start_inside_circle ^ (end_inside_circle ))) {
-                    fillet_inside_circle = end_inside_circle ;
-                }
+            LineEntity new_line; // ! color, etc. undefined
+            new_line.start = line.start + line_adjust; 
+            new_line.end = line.end + line_adjust; 
 
-                vec2 line_vector = line.end - line.start;
-                bool line_left = cross(line_vector, reference_point - line.start) < 0;
-                vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1.0f : -1.0f);
-                LineEntity new_line; // ! color, etc. undefined
-                new_line.start = line.start + line_adjust; 
-                new_line.end = line.end + line_adjust; 
+            // Same thing but for the arc 
+            real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
+            real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
+            bool start_inside_circle = start_val > -TINY_VAL;
+            bool end_inside_circle = end_val > -TINY_VAL;
+            if (abs(distance(intersection.point, line.start)) < 0.001f) {
+                start_inside_circle = end_inside_circle;
+            }
+            if (abs(distance(intersection.point, line.end)) < 0.001f) {
+                end_inside_circle = start_inside_circle;
+            }
+            if (start_inside_circle == end_inside_circle) { 
+                fillet_inside_circle = end_inside_circle;
+            }
 
-                ArcEntity new_arc = arc;
-                new_arc.radius += radius * (fillet_inside_circle ? -1 : 1);
+            ArcEntity new_arc = arc;
+            new_arc.radius += radius * (fillet_inside_circle ? -1 : 1);
 
-                LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, reference_point);
+            // calculate fillet center and intersections
+            LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, reference_point);
+            vec2 fillet_center = fillet_point.point;
+            vec2 line_fillet_intersect = fillet_center - line_adjust;
+            vec2 arc_fillet_intersect = fillet_center - radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
 
-                vec2 fillet_center = fillet_point.point;
-                vec2 line_fillet_intersect = fillet_center - line_adjust;
-                vec2 arc_fillet_intersect = fillet_center - radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
-                real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
-                real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
+            // calculate fillet angles
+            real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
+            real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
 
-                if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
-                    real temp = fillet_line_theta;
-                    fillet_line_theta = fillet_arc_theta;
-                    fillet_arc_theta = temp;
-                }
+            if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
+                real temp = fillet_line_theta;
+                fillet_line_theta = fillet_arc_theta;
+                fillet_arc_theta = temp;
+            }
 
-                Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta), false, E->color_code);
-                if (radius > TINY_VAL) {
-                    _buffer_add_entity(fillet_arc);
-                }
-                // TODO: MAKE THIS WORK FOR 0 RADIUS FILLETS
-                bool end_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0);
-                bool start_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.start - intersection.point)) > 0);
-                bool extend_start;
-                if (end_in_direction ^ start_in_direction) {
-                    extend_start = end_in_direction;
-                } else {
-                    if (distance(intersection.point, line.end) > distance(intersection.point, line.start)) {
-                        extend_start = true;
-                    } else {
-                        extend_start = false;
-                    }
-                }
-                if (radius == 0 && (end_inside_circle != start_inside_circle)) {
-                    extend_start = fillet_inside_circle != start_inside_circle;
-                }
-                if (extend_start) {
-                    EntL->line.start = line_fillet_intersect;
-                } else {
-                    EntL->line.end = line_fillet_intersect;
-                }
+            // make fillet arc
+            Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta), false, E->color_code);
+            if (radius > TINY_VAL) {
+                _buffer_add_entity(fillet_arc);
+            }
 
-                real divide_theta = DEG(ATAN2(fillet_center - arc.center));
-                real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+            // determine which end of the line should be changed
+            bool end_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0);
+            bool start_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.start - intersection.point)) > 0);
+            bool extend_start;
+            if (end_in_direction != start_in_direction) { 
+                extend_start = end_in_direction;
+            } else {
+                extend_start = distance(intersection.point, line.end) > distance(intersection.point, line.start);
+            }
 
-                // kinda weird but checks if divide theta > theta where line was tangent
+            // handle zero radius case
+            if (radius == 0 && (end_inside_circle != start_inside_circle)) {
+                extend_start = fillet_inside_circle != start_inside_circle;
+            }
+
+            // add the new line
+            if (extend_start) {
+                buffer_add_line(line_fillet_intersect, EntL->line.end, EntL->is_selected, EntL->color_code);
+            } else {
+                buffer_add_line(EntL->line.start, line_fillet_intersect, EntL->is_selected, EntL->color_code);
+            }
+
+            // arc stuff
+            real divide_theta = DEG(ATAN2(fillet_center - arc.center));
+            real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+
+            // kinda weird but checks if divide theta > theta where line was tangent
+            vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+            real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
+
+            // this is a slight nudge to ensure that the correct angle is adjusted
+            if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
                 real offset = DEG(ATAN2(reference_point - arc.center)); 
-                vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
-                real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
-                if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
-                    if (ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f)) {
-                        fillet_middle_arc -= 1.0f;
-                    } else {
-                        fillet_middle_arc += 1.0f;
-                    }
-                }
-                if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
-                    //messagef(pallete.red, "%d %d", ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001, arc.end_angle_in_degrees+ 0.001), ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001, arc.start_angle_in_degrees + 0.001) ); 
-                    if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
-                        EntA->arc.start_angle_in_degrees = divide_theta;
-                    } else {
-                        EntA->arc.end_angle_in_degrees = divide_theta;
-                    }
+                fillet_middle_arc += ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f) ? -1.0f : 1.0f; 
+            }
+
+            // good luck
+            if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || 
+                        ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
+                if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
+                    buffer_add_arc(EntA->arc.center, EntA->arc.radius, divide_theta, EntA->arc.end_angle_in_degrees, EntA->is_selected, EntA->color_code);
+                } else {
+                    buffer_add_arc(EntA->arc.center, EntA->arc.radius, EntA->arc.start_angle_in_degrees, divide_theta, EntA->is_selected, EntA->color_code);
                 }
             }
         } else { ASSERT(is_arc_arc);
@@ -5836,49 +9013,56 @@ struct Cookbook {
 
             ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, reference_point);
 
-            if (!fillet_point.no_possible_intersection) {
-                vec2 fillet_center = fillet_point.point;
-                vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
-                vec2 arc_b_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
-                real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
-                real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
+            if (fillet_point.no_possible_intersection) {
+                messagef("FILLET: no intersection found");
+                return;
+            }
 
-                // a swap so the fillet goes the right way
-                // (smallest angle
-                if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
-                    real temp = fillet_arc_b_theta;
-                    fillet_arc_b_theta = fillet_arc_a_theta;
-                    fillet_arc_a_theta = temp;
-                }
-                Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta), false, E->color_code); // if this is changed to radius it breaks, dont ask me why
-                if (radius > TINY_VAL) {
-                    _buffer_add_entity(fillet_arc);
-                }
+            vec2 fillet_center = fillet_point.point;
+            vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
+            vec2 arc_b_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
+            real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
+            real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
 
-                real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
-                real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
-                if (radius == 0) {
-                    ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, reference_point);
-                    divide_theta_a = zero_intersect.theta_a;
-                    divide_theta_b = zero_intersect.theta_b;
-                }
+            // a swap so the fillet goes the right way
+            // (smallest angle
+            if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
+                real temp = fillet_arc_b_theta;
+                fillet_arc_b_theta = fillet_arc_a_theta;
+                fillet_arc_a_theta = temp;
+            }
+            Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta), false, E->color_code); // if this is changed to radius it breaks, dont ask me why
+            if (radius > TINY_VAL) {
+                _buffer_add_entity(fillet_arc);
+            }
 
-                vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
-                real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
-                real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
-                if ((radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
-                    E->arc.start_angle_in_degrees = divide_theta_a;
-                } else {
-                    E->arc.end_angle_in_degrees = divide_theta_a;
-                }
-                if ((radius == 0) ^ ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
-                    F->arc.start_angle_in_degrees = divide_theta_b;
-                } else {
-                    F->arc.end_angle_in_degrees = divide_theta_b;
+            real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
+            real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
+            if (radius == 0) {
+                ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, reference_point);
+                divide_theta_a = zero_intersect.theta_a;
+                divide_theta_b = zero_intersect.theta_b;
+            }
 
-                }
+            vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+            real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
+            real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
+            if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                buffer_add_arc(E->arc.center, E->arc.radius, divide_theta_a, E->arc.end_angle_in_degrees, E->is_selected, E->color_code);
+            } else {
+                buffer_add_arc(E->arc.center, E->arc.radius, E->arc.start_angle_in_degrees, divide_theta_a, E->is_selected, E->color_code);
+            }
+            if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                buffer_add_arc(F->arc.center, F->arc.radius, divide_theta_a, F->arc.end_angle_in_degrees, F->is_selected, F->color_code);
+            } else {
+                buffer_add_arc(F->arc.center, F->arc.radius, F->arc.start_angle_in_degrees, divide_theta_a, F->is_selected, F->color_code);
             }
         }
+
+        // least sus thing ever
+        buffer_delete_entity((Entity *)E);
+        buffer_delete_entity((Entity *)F);
+
     }
 
     void attempt_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
@@ -5978,8 +9162,8 @@ struct Cookbook {
             f = _f.point;
         }
 
-        attempt_fillet(E, &G, e + (e - y), radius);
-        attempt_fillet(F, &G, f + (f - y), radius);
+        attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, &G, e + (e - y), radius);
+        attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(F, &G, f + (f - y), radius);
 
         #if 0
         // // single arc version
@@ -6068,9 +9252,9 @@ void cookbook_free(Cookbook *cookbook) {
 }
 
 // <!> End cookbook.cpp <!>
-// <!> Begin button.cpp <!>
+// <!> Begin button.cpp <!> 
 // <!> End button.cpp <!>
-// <!> Begin process.cpp <!>
+// <!> Begin process.cpp <!> 
 // TODO: rz needs work
 
 // TODO: beautiful buttons; should indicate what's selected in green (persistent)
@@ -6612,7 +9796,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (GUIBUTTON(commands.Middle)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Perp)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Quad)) preview->mouse_snap = preview->mouse; // FORNOW
-                        //if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
+                                                                                            //if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.XY)) preview->xy_xy = preview->mouse; // FORNOW
                         if (GUIBUTTON(commands.Zero)) {
                             Event equivalent = {};
@@ -6663,6 +9847,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
                     GUIBUTTON(commands.Move);
+                    GUIBUTTON(commands.Drag);
                     GUIBUTTON(commands.Rotate);
                     GUIBUTTON(commands.Scale);
                     SEPERATOR();
@@ -6908,7 +10093,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         || (state_Draw_command_is_(DiamCircle)))) {
                 ASSERT(snap_result.entity_index_snapped_to >= 0);
                 ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
-                cookbook.divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
+                cookbook.attempt_divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
                 other.snap_divide_dot = *mouse;
                 other.size_snap_divide_dot = 7.0f;
             }
@@ -6935,8 +10120,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             ASSERT(found);
                         }
                     } else {
-                        #if 1 // TODO: consider just using the O(n*m) algorithm here instead
-
                         #define GRID_CELL_WIDTH 0.003f
 
                         auto scalar_bucket = [&](real a) -> real {
@@ -6988,9 +10171,21 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                 vec2 start;
                                 vec2 end;
-                                entity_get_start_and_end_points(entity, &start, &end);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
-                                push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
+                                bool poosh = false;
+                                if (entity->type == EntityType::Circle) {
+                                    CircleEntity *circle = &entity->circle;
+                                    if (circle->has_pseudo_point) {
+                                        poosh = true;
+                                        start = end = circle->get_pseudo_point();
+                                    }
+                                } else {
+                                    poosh = true;
+                                    entity_get_start_and_end_points(entity, &start, &end);
+                                }
+                                if (poosh) {
+                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
+                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
+                                }
                             }
                         }
 
@@ -7009,10 +10204,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                             vec2 p; {
                                 Entity *entity = &drawing->entities.array[point->entity_index];
-                                if (end_NOT_start) {
-                                    p = entity_get_end_point(entity);
+                                if (entity->type == EntityType::Circle) {
+                                    CircleEntity *circle = &entity->circle;
+                                    ASSERT(circle->has_pseudo_point);
+                                    p = circle->get_pseudo_point();
                                 } else {
-                                    p = entity_get_start_point(entity);
+                                    if (end_NOT_start) {
+                                        p = entity_get_end_point(entity);
+                                    } else {
+                                        p = entity_get_start_point(entity);
+                                    }
                                 }
                             }
                             return make_key(p);
@@ -7038,39 +10239,53 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         edge_marked[hot_entity_index] = true;
                         cookbook.entity_set_is_selected(&drawing->entities.array[hot_entity_index], value_to_write_to_selection_mask);
 
-                        for_(pass, 2) {
-                            vec2 seed; {
-                                vec2 p;
-                                if (pass == 0) {
-                                    p = entity_get_start_point(&drawing->entities.array[hot_entity_index]);
-                                } else {
-                                    p = entity_get_end_point(&drawing->entities.array[hot_entity_index]);
+                        Entity *entity = &drawing->entities.array[hot_entity_index]; // FORNOW: this is a scary name to give (just doing it out of laziness atm Jim Sep 27 2024)
+
+                        // this should be moved earlier in the code especially once this crap is turned into a function/its own file
+                        bool special_case_circle_no_pseudo_point = ((entity->type == EntityType::Circle) && (!entity->circle.has_pseudo_point));
+                        if (special_case_circle_no_pseudo_point) {
+                            entity->is_selected = value_to_write_to_selection_mask;
+                        } else {
+                            for_(pass, 2) {
+                                vec2 seed; {
+                                    vec2 p;
+                                    if (entity->type == EntityType::Circle) {
+                                        CircleEntity *circle = &entity->circle;
+                                        ASSERT(circle->has_pseudo_point);
+                                        p = circle->get_pseudo_point();
+                                    } else {
+                                        if (pass == 0) {
+                                            p = entity_get_start_point(entity);
+                                        } else {
+                                            p = entity_get_end_point(entity);
+                                        }
+                                    }
+                                    seed = make_key(p);
                                 }
-                                seed = make_key(p);
-                            }
 
-                            Queue<vec2> queue = {};
-                            queue_enqueue(&queue, seed);
+                                Queue<vec2> queue = {};
+                                queue_enqueue(&queue, seed);
 
-                            while (queue.length) {
-                                seed = queue_dequeue(&queue);
-                                for (int dx = -1; dx <= 1; ++dx) {
-                                    for (int dy = -1; dy <= 1; ++dy) {
-                                        while (1) {
-                                            GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(seed, dx, dy));
+                                while (queue.length) {
+                                    seed = queue_dequeue(&queue);
+                                    for (int dx = -1; dx <= 1; ++dx) {
+                                        for (int dy = -1; dy <= 1; ++dy) {
+                                            while (1) {
+                                                GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(nudge_key(seed, dx, dy));
 
-                                            if (!tmp) break;
+                                                if (!tmp) break;
 
-                                            cookbook.entity_set_is_selected(&drawing->entities.array[tmp->entity_index], value_to_write_to_selection_mask);
-                                            GridPointSlot *nullCheck = get_any_point_not_part_of_an_marked_entity(get_key(tmp, true));
-                                            if (nullCheck) queue_enqueue(&queue, get_key(nullCheck, false)); // get other end);
-                                            edge_marked[tmp->entity_index] = true;
-                                        } 
+                                                cookbook.entity_set_is_selected(&drawing->entities.array[tmp->entity_index], value_to_write_to_selection_mask);
+                                                GridPointSlot *nullCheck = get_any_point_not_part_of_an_marked_entity(get_key(tmp, true));
+                                                if (nullCheck) queue_enqueue(&queue, get_key(nullCheck, false)); // get other end);
+                                                edge_marked[tmp->entity_index] = true;
+                                            } 
+                                        }
                                     }
                                 }
-                            }
 
-                            queue_free_AND_zero(&queue);
+                                queue_free_AND_zero(&queue);
+                            }
                         }
 
 
@@ -7079,14 +10294,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         map_free_and_zero(&grid);
                         free(edge_marked);
 
-                        #else // old O(n^2) version
-                        uint loop_index = dxf_pick_loops.loop_index_from_entity_index[hot_entity_index];
-                        DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
-                        uint num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
-                        for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
-                            cookbook.entity_set_is_selected(&drawing->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
-                        }
-                        #endif
+                        /*uint loop_index = dxf_pick_loops.loop_index_from_entity_index[hot_entity_index];
+                          DXFEntityIndexAndFlipFlag *loop = dxf_pick_loops.loops[loop_index];
+                          uint num_entities = dxf_pick_loops.num_entities_in_loops[loop_index];
+                          for (DXFEntityIndexAndFlipFlag *entity_index_and_flip_flag = loop; entity_index_and_flip_flag < &loop[num_entities]; ++entity_index_and_flip_flag) {
+                          cookbook.entity_set_is_selected(&drawing->entities[entity_index_and_flip_flag->entity_index], value_to_write_to_selection_mask);
+                          }*/
                     }
                 }
             } else if (!mouse_event->mouse_held) {
@@ -7201,7 +10414,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (_F.success) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = _F.closest_entity;
-                                cookbook.attempt_fillet(E, F, average_click, popup->fillet_radius);
+                                cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, second_click, popup->fillet_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(DogEar)) {
@@ -7225,13 +10438,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Snap_command(None);
                                 real r = length_click_vector;
 
-                                #if 1
+                                #if 0
                                 real theta_a_in_degrees = DEG(click_theta);
                                 real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
                                 cookbook.buffer_add_arc(first_click, r, theta_a_in_degrees, theta_b_in_degrees);
                                 cookbook.buffer_add_arc(first_click, r, theta_b_in_degrees, theta_a_in_degrees);
                                 #else
-                                cookbook.buffer_add_circle(first_click, r);
+                                cookbook.buffer_add_circle(first_click, r, false, {});
                                 #endif
                             }
                         } else if (state_Draw_command_is_(DiamCircle)) {
@@ -7332,8 +10545,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         if (!cut_arc_a && !cut_arc_b) {
                                             messagef(pallete.orange, "TwoClickDivide: no intersection found");
                                         }
-                                    } else { // TODO: ASSERT(...); //ASSERT((closest_entity_two->type == EntityType::Line && closest_entity_two->type == EntityType::Arc) // kinda nasty but only way 
-                                             //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
+                                    } else { ASSERT((closest_entity_one->type == EntityType::Line) && (closest_entity_two->type == EntityType::Arc)); // kinda nasty but only way 
+                                                                                                                                                      //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
                                         Entity *entity_arc;
                                         Entity *entity_line;
                                         if (closest_entity_one->type == EntityType::Arc) {
@@ -7414,6 +10627,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
                             _POPUP_MEASURE_HOOK(length);
                         } else if (state_Draw_command_is_(Mirror2)) {
+
+                            // TODO: entity_mirrored
+
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -7449,16 +10665,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
                             _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    line->start = rotated_about(line->start, first_click, click_theta);
-                                    line->end = rotated_about(line->end, first_click, click_theta);
-                                } else { ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc = &entity->arc;
-                                    arc->center = rotated_about(arc->center, first_click, click_theta);
-                                    arc->start_angle_in_degrees = DEG(click_theta) + arc->start_angle_in_degrees;
-                                    arc->end_angle_in_degrees = DEG(click_theta) + arc->end_angle_in_degrees;
-                                }
+                                *entity = entity_rotated(entity, first_click, click_theta);
                             }
                         } else if (state_Draw_command_is_(RCopy)) {
                             if (popup->rotate_copy_num_total_copies < 2) {
@@ -7468,42 +10675,268 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
 
-                                real theta_deg = popup->rotate_copy_angle;
-                                if (IS_ZERO(theta_deg)) theta_deg = 180.0f;
-                                real theta_rad = RAD(theta_deg);
+                                real dtheta_deg = popup->rotate_copy_angle;
+                                if (IS_ZERO(dtheta_deg)) dtheta_deg = 180.0f;
+                                real dtheta = RAD(dtheta_deg);
 
                                 _for_each_selected_entity_ {
-                                    Entity oldEntity = *entity;
                                     for_(j, popup->rotate_copy_num_total_copies - 1) {
-                                        Entity new_entity = oldEntity;
-                                        if (entity->type == EntityType::Line) {
-                                            LineEntity *line = &new_entity.line;
-                                            line->start = rotated_about(line->start, first_click, theta_rad);
-                                            line->end = rotated_about(line->end, first_click, theta_rad);
-                                        } else { ASSERT(entity->type == EntityType::Arc);
-                                            ArcEntity *arc = &new_entity.arc;
-                                            arc->center = rotated_about(arc->center, first_click, theta_rad);
-                                            arc->start_angle_in_degrees = theta_deg + arc->start_angle_in_degrees;
-                                            arc->end_angle_in_degrees = theta_deg + arc->end_angle_in_degrees;
-                                        }
-                                        cookbook._buffer_add_entity(new_entity);
-                                        oldEntity = new_entity;
+                                        real theta = (j + 1) * dtheta;
+
+                                        cookbook._buffer_add_entity(entity_rotated(entity, first_click, theta));
                                     }
                                 }
                             }
+                        } else if (state_Draw_command_is_(Drag)) {
+                            result.checkpoint_me = true;
+                            set_state_Draw_command(None);
+                            set_state_Snap_command(None);
+
+
+                            #define GRID_CELL_WIDTH 0.003f
+
+                            auto scalar_bucket = [&](real a) -> real {
+                                real ret = roundf(a / GRID_CELL_WIDTH) * GRID_CELL_WIDTH;
+                                return ret == -0 ? 0 : ret; // what a fun bug
+                            };
+
+                            auto make_key = [&](vec2 p) -> vec2 {
+                                return { scalar_bucket(p.x), scalar_bucket(p.y) };
+                            };
+
+                            auto nudge_key = [&](vec2 key, int dx, int dy) -> vec2 {
+                                return make_key(V2(key.x + dx * GRID_CELL_WIDTH, key.y + dy * GRID_CELL_WIDTH));
+                            };
+
+                            struct GridPointSlot {
+                                bool populated;
+                                int entity_index;
+                                bool end_NOT_start;
+                            };
+
+                            struct GridCell {
+                                GridPointSlot slots[5];
+                            };
+
+                            Map<vec2, GridCell> grid; { // TODO: build grid
+                                grid = {};
+
+                                auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](vec2 p, uint entity_index, bool end_NOT_start) {
+                                    vec2 key = make_key(p);
+                                    GridCell *cell = _map_get_pointer(&grid, key);
+                                    if (cell == NULL) {
+                                        map_put(&grid, key, {});
+                                        cell = _map_get_pointer(&grid, key);
+                                    }
+                                    for_(i, ARRAY_LENGTH(cell->slots)) {
+                                        GridPointSlot *slot = &cell->slots[i];
+                                        if (slot->populated) continue;
+                                        slot->populated = true;
+                                        slot->entity_index = entity_index;
+                                        slot->end_NOT_start = end_NOT_start;
+                                        // printf("%f %f [%d]\n", key.x, key.y, i);
+                                        break;
+                                    }
+                                };
+
+                                for_(entity_index, drawing->entities.length) {
+                                    Entity *entity = &drawing->entities.array[entity_index];
+
+                                    vec2 start;
+                                    vec2 end;
+
+                                    if (entity_length(entity) < 0.05f) continue; // TODO: TODO: VERY SCARY 0 LENGTH ENTITIES 
+                                                                                 //
+                                    entity_get_start_and_end_points(entity, &start, &end);
+                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
+                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
+                                }
+                            }
+
+                            struct EndpointMark {
+                                bool start_marked;
+                                bool end_marked;
+                            };
+                            EndpointMark *endpoint_marks = (EndpointMark *)calloc(drawing->entities.length, sizeof(EndpointMark));
+
+                            char *to_move = (char *) calloc(drawing->entities.length, sizeof(char));
+
+                            ////////////////////////////////////////////////////////////////////////////////
+                            // NOTE: We are now done adding to the grid, so we can now operate directly on GridCell *'s
+                            //       We will use _map_get_pointer(...)
+                            ////////////////////////////////////////////////////////////////////////////////
+
+
+                            auto get_key = [&](GridPointSlot *point, bool other_endpoint) {
+                                bool end_NOT_start; {
+                                    end_NOT_start = point->end_NOT_start;
+                                    if (other_endpoint) end_NOT_start = !end_NOT_start;
+                                }
+                                vec2 p; {
+                                    Entity *entity = &drawing->entities.array[point->entity_index];
+                                    if (end_NOT_start) {
+                                        p = entity_get_end_point(entity);
+                                    } else {
+                                        p = entity_get_start_point(entity);
+                                    }
+                                }
+                                return make_key(p);
+                            };
+
+                            auto get_any_point_not_part_of_an_marked_entity = [&](vec2 key) -> GridPointSlot * {
+                                GridCell *cell = _map_get_pointer(&grid, key);
+                                if (!cell) return NULL;
+
+                                for_(i, ARRAY_LENGTH(cell->slots)) {
+                                    GridPointSlot *slot = &cell->slots[i];
+                                    if (!slot->populated) continue;
+                                    EndpointMark *mark = &endpoint_marks[slot->entity_index];
+                                    if (slot->end_NOT_start) {
+                                        if (mark->end_marked) continue;
+                                    } else {
+                                        if (mark->start_marked) continue;
+                                    }
+                                    return slot;
+                                }
+                                return NULL;
+                            };
+
+                            typedef struct EntVecMapping {
+                                vec2 p;
+                                int parentIndex;
+                                bool start;
+                            } EntVecMapping;
+
+                            typedef struct EntEntEndMapping {
+                                int entityToConnectToIndex;
+                                bool connectToStart;
+
+                                int entityToBeMovedIndex;
+                                bool moveStart;
+                            } EntEntEndMapping;
+
+                            Queue<EntEntEndMapping> movePairs = {};
+
+                            _for_each_selected_entity_ {
+
+                                int hot_entity_index = entity - drawing->entities.array;
+
+                                endpoint_marks[hot_entity_index].start_marked = true;
+                                endpoint_marks[hot_entity_index].end_marked = true;
+
+                                for_(pass, 2) {
+                                    vec2 seed; {
+                                        vec2 p;
+                                        if (pass == 0) {
+                                            p = entity_get_start_point(&drawing->entities.array[hot_entity_index]);
+                                        } else {
+                                            p = entity_get_end_point(&drawing->entities.array[hot_entity_index]);
+                                        }
+                                        seed = make_key(p);
+                                    }
+
+
+                                    Queue<EntVecMapping> queue = {};
+                                    queue_enqueue(&queue, { seed, hot_entity_index, pass == 0 });
+
+                                    while (queue.length) {
+                                        EntVecMapping curParent = queue_dequeue(&queue);
+                                        seed = curParent.p;
+
+                                        for (int dx = -1; dx <= 1; ++dx) {
+                                            for (int dy = -1; dy <= 1; ++dy) {
+                                                while (1) {
+                                                    vec2 curPos = nudge_key(seed, dx, dy);
+                                                    GridPointSlot *tmp = get_any_point_not_part_of_an_marked_entity(curPos);
+
+                                                    if (!tmp) break;
+
+                                                    Entity ent = drawing->entities.array[tmp->entity_index];
+
+                                                    if (ent.type != EntityType::Line) {
+                                                        GridPointSlot *nullCheck = get_any_point_not_part_of_an_marked_entity(get_key(tmp, true));
+                                                        to_move[tmp->entity_index] = true;
+                                                        endpoint_marks[tmp->entity_index].start_marked = true;
+                                                        endpoint_marks[tmp->entity_index].end_marked = true;
+
+                                                        if (nullCheck)  {
+                                                            ASSERT(ent.type == EntityType::Arc);
+                                                            vec2 startPoint = entity_get_start_point(&ent);
+                                                            vec2 endPoint = entity_get_end_point(&ent);
+                                                            bool start = distance(startPoint, curPos) < distance(endPoint, curPos);
+
+
+                                                            queue_enqueue(&queue, { get_key(nullCheck, false), tmp->entity_index, !start }); // not start because this is the other end that we are adding
+                                                        }
+                                                    } else { // what to do if it is a line
+                                                        vec2 startPoint = entity_get_start_point(&ent);
+                                                        vec2 endPoint = entity_get_end_point(&ent);
+                                                        bool start = distance(startPoint, curPos) < distance(endPoint, curPos);
+
+                                                        if (start) {
+                                                            endpoint_marks[tmp->entity_index].start_marked = true;
+                                                        } else {
+                                                            endpoint_marks[tmp->entity_index].end_marked = true;
+                                                        }
+
+                                                        queue_enqueue(&movePairs, { curParent.parentIndex, curParent.start, tmp->entity_index, start });
+                                                    }
+
+
+                                                } 
+                                            }
+                                        }
+                                    }
+
+                                    queue_free_AND_zero(&queue);
+                                }
+                            }
+
+                            _for_each_entity_ { // TODO: dont actually need to go over each but im lazy 
+                                if (to_move[entity - drawing->entities.array] || entity->is_selected) {
+                                    if (entity->type == EntityType::Line) {
+                                        LineEntity *line = &entity->line;
+                                        line->start += click_vector;
+                                        line->end   += click_vector;
+                                    } else { ASSERT(entity->type == EntityType::Arc);
+                                        ArcEntity *arc = &entity->arc;
+                                        arc->center += click_vector;
+                                    }
+                                }
+                            }
+
+
+                            while (movePairs.length) {
+                                EntEntEndMapping curMapping = queue_dequeue(&movePairs);
+
+                                Entity *entToConnectTo = &drawing->entities.array[curMapping.entityToConnectToIndex];
+                                Entity *entToMove = &drawing->entities.array[curMapping.entityToBeMovedIndex];
+
+                                vec2 pointToConnectTo = curMapping.connectToStart ? entity_get_start_point(entToConnectTo) : entity_get_end_point(entToConnectTo);
+                                if (entToMove->type == EntityType::Line) {
+                                    if (popup->drag_extend_line == 0) {
+                                        if (curMapping.moveStart) {
+                                            entToMove->line.start = pointToConnectTo;
+                                        } else {
+                                            entToMove->line.end = pointToConnectTo;
+                                        }
+                                    } else {
+                                        // TODO: dont make duplicate lines 
+                                        // TODO: make more similar to Jim's idea
+                                        cookbook.buffer_add_line(pointToConnectTo, curMapping.moveStart ? entToMove->line.start : entToMove->line.end);
+                                    }
+                                }
+                            }
+
+                            free(endpoint_marks);
+                            queue_free_AND_zero(&movePairs);
+                            map_free_and_zero(&grid);
                         } else if (state_Draw_command_is_(Move)) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
                             _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    line->start += click_vector;
-                                    line->end   += click_vector;
-                                } else { ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc = &entity->arc;
-                                    arc->center += click_vector;
-                                }
+                                *entity = entity_translated(entity, click_vector);
                             }
                         } else if (state_Draw_command_is_(Copy)) {
                             result.checkpoint_me = true;
@@ -7511,22 +10944,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Snap_command(None);
                             uint num_additional_copies = MAX(1U, popup->linear_copy_num_additional_copies);
                             for_(i, num_additional_copies) {
-                                vec2 displacement = real(i + 1) * click_vector;
+                                vec2 translation_vector = real(i + 1) * click_vector;
                                 bool is_selected = (i == num_additional_copies - 1);
                                 _for_each_selected_entity_ {
-                                    Entity new_entity; {
-                                        new_entity = *entity;
-                                        new_entity.is_selected = is_selected;
-                                        new_entity.preview_color = get_color(ColorCode::Emphasis);
-                                        if (entity->type == EntityType::Line) {
-                                            LineEntity *line = &new_entity.line;
-                                            line->start += displacement;
-                                            line->end   += displacement;
-                                        } else { ASSERT(entity->type == EntityType::Arc);
-                                            ArcEntity *arc = &new_entity.arc;
-                                            arc->center += displacement;
-                                        }
-                                    }
+                                    Entity new_entity = entity_translated(entity, translation_vector);
+                                    new_entity.is_selected = is_selected;
                                     cookbook._buffer_add_entity(new_entity);
                                 }
                             }
@@ -7655,7 +11077,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
 
                         for_(i, selected_entities.length) {
-                            cookbook.attempt_fillet(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
+                            cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
                         }
                     } else if (state_Draw_command_is_(MirrorX)) {
                         result.checkpoint_me = true;
@@ -7670,7 +11092,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == EntityType::Arc);
+                            } else if (entity->type == EntityType::Arc) {
                                 ArcEntity *arc = &entity->arc;
                                 cookbook.buffer_add_arc(
                                         V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
@@ -7679,6 +11101,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         180 - arc->start_angle_in_degrees,
                                         true,
                                         entity->color_code);
+                            } else { ASSERT(entity->type == EntityType::Circle);
+                                // TODO
+                                ;
                             }
                             entity->is_selected = false;
                         }
@@ -7695,7 +11120,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code
                                         );
-                            } else { ASSERT(entity->type == EntityType::Arc);
+                            } else if (entity->type == EntityType::Arc) {
                                 ArcEntity *arc = &entity->arc;
                                 cookbook.buffer_add_arc(
                                         V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
@@ -7704,46 +11129,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         -arc->start_angle_in_degrees,
                                         true,
                                         entity->color_code);
+                            } else { ASSERT(entity->type == EntityType::Circle);
+                                // TODO
+                                ;
                             }
                             entity->is_selected = false;
                         }
                     } else if (state_Draw_command_is_(Offset)) {
-                        if (IS_ZERO(popup->offset_size)) {
+                        // TODO: entity_offseted (and preview drawing)
+                        if (IS_ZERO(popup->offset_distance)) {
                             messagef(pallete.orange, "Offset: must have non-zero distance");
                         } else {
                             DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse);
                             if (closest_results.success) {
                                 result.checkpoint_me = true;
                                 set_state_Snap_command(None);
-                                Entity *entity = closest_results.closest_entity;
-                                real input_offset = popup->offset_size;
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    vec2 dir = *mouse - closest_results.line_nearest_point; // is there an easier way to find offset??
-                                    vec2 offset = (input_offset * (dir/norm(dir)));
-                                    cookbook.buffer_add_line(line->start + offset, line->end + offset, entity->is_selected, entity->color_code);
-                                } else { ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc = &entity->arc;
-                                    bool in_circle = distance(arc->center, *mouse) < arc->radius;
-                                    bool in_sector = false;
-                                    if (!in_circle) {
-                                        vec2 start_point = entity_get_start_point(entity);
-                                        vec2 end_point = entity_get_end_point(entity);
-                                        vec2 perp_end = perpendicularTo(end_point - arc->center);
-                                        vec2 perp_start = perpendicularTo(start_point - arc->center);
-                                        vec2 end_to_mouse = *mouse - end_point;
-                                        vec2 start_to_mouse = *mouse - start_point;
-                                        real end_cross_p = cross(end_to_mouse, perp_end);
-                                        real start_cross_p = cross(start_to_mouse, perp_start);
-                                        real diam_cross_p = cross(end_to_mouse, start_point - end_point);
-                                        in_sector = (end_cross_p > 0) && (start_cross_p > 0) && (diam_cross_p > 0);
-                                    }
-                                    real radius = arc->radius + input_offset;
-                                    if (in_circle || in_sector) {
-                                        radius = arc->radius - input_offset;
-                                    } 
-                                    cookbook.buffer_add_arc(arc->center, radius, arc->start_angle_in_degrees, arc->end_angle_in_degrees, entity->is_selected, entity->color_code); 
-                                }
+                                cookbook._buffer_add_entity(entity_offsetted(closest_results.closest_entity, popup->offset_distance, *mouse));
                             }
                         }
                     } else {
@@ -7782,7 +11183,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];
                         vec3 triangle_intersection = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, triangle_intersection);
-                
+
                         if (state.Mesh_command.flags & TWO_CLICK) {
                             if (!mesh_two_click_command->awaiting_second_click) {
                                 mesh_two_click_command->first_click = exact_hit_pos;
@@ -7949,6 +11350,33 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width / 2.0f, first_click->y + popup->box_height / 2.0f));
                         }
                     }
+                } else if (state_Draw_command_is_(Drag)) {
+                    // FORNOW: this is repeated from Line
+                    if (two_click_command->awaiting_second_click) {
+                        real prev_drag_length = popup->drag_length;
+                        real prev_drag_angle = popup->drag_angle;
+                        real prev_drag_run = popup->drag_run;
+                        real prev_drag_rise = popup->drag_rise;
+                        POPUP(state.Draw_command,
+                                true,
+                                CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
+                                CellType::Real, STRING("run (dx)"), &popup->drag_run,
+                                CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
+                                CellType::Real, STRING("length"), &popup->drag_length,
+                                CellType::Real, STRING("angle"), &popup->drag_angle
+                             );
+                        if (gui_key_enter(ToolboxGroup::Draw)) {
+                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->drag_run, first_click->y + popup->drag_rise));
+                        } else {
+                            if ((prev_drag_length != popup->drag_length) || (prev_drag_angle != popup->drag_angle)) {
+                                popup->drag_run = popup->drag_length * COS(RAD(popup->drag_angle));
+                                popup->drag_rise = popup->drag_length * SIN(RAD(popup->drag_angle));
+                            } else if ((prev_drag_run != popup->drag_run) || (prev_drag_rise != popup->drag_rise)) {
+                                popup->drag_length = SQRT(popup->drag_run * popup->drag_run + popup->drag_rise * popup->drag_rise);
+                                popup->drag_angle = DEG(ATAN2(popup->drag_rise, popup->drag_run));
+                            }
+                        }
+                    }
                 } else if (state_Draw_command_is_(Move)) {
                     // FORNOW: this is repeated from Line
                     if (two_click_command->awaiting_second_click) {
@@ -8068,7 +11496,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (state_Draw_command_is_(Offset)) {
                     POPUP(state.Draw_command,
                             false,
-                            CellType::Real, STRING("distance"), &popup->offset_size);
+                            CellType::Real, STRING("distance"), &popup->offset_distance);
                 } else if (state_Draw_command_is_(Fillet)) {
                     POPUP(state.Draw_command,
                             false,
@@ -8173,10 +11601,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     LineEntity *line = &entity->line;
                                     line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
                                     line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
-                                } else { ASSERT(entity->type == EntityType::Arc);
+                                } else if (entity->type == EntityType::Arc) {
                                     ArcEntity *arc = &entity->arc;
                                     arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
                                     arc->radius *= popup->scale_factor;
+                                } else { ASSERT(entity->type == EntityType::Circle);
+                                    CircleEntity *circle = &entity->circle;
+                                    circle->center = scaled_about(circle->center, bbox_center, popup->scale_factor);
+                                    circle->radius *= popup->scale_factor;
                                 }
                             }
                         }
@@ -8352,6 +11784,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         }
     }
 
+
+    // FORNOW: remove zero length at end of loop TODO: don't allow their creation
+    _for_each_entity_ {
+        if (entity_length(entity) < GRID_CELL_WIDTH) {
+            messagef("WARNING: zero length entity detected and deleted");
+            cookbook.buffer_delete_entity(entity);
+        }
+        if (entity->type == EntityType::Circle) {
+            if (entity->circle.radius < GRID_CELL_WIDTH) {
+                messagef("WARNING: zero length entity detected and deleted");
+                cookbook.buffer_delete_entity(entity);
+            }
+        }
+        if (entity->type == EntityType::Arc) {
+            if (entity->arc.radius < GRID_CELL_WIDTH) {
+                messagef("WARNING: zero length entity detected and deleted");
+                cookbook.buffer_delete_entity(entity);
+            }
+        }
+    }
+
     // event_passed_to_popups = {}; // FORNOW: probably unnecessary
     // already_processed_event_passed_to_popups = false; // FORNOW: probably unnecessary
     return result;
@@ -8389,7 +11842,7 @@ void history_process_event(Event freshly_baked_event) {
 }
 #endif
 // <!> End process.cpp <!>
-// <!> Begin script.cpp <!>
+// <!> Begin script.cpp <!> 
 void script_process(String string) {
     // TODO: gui
     // TODOLATER (weird 'X' version): char *string = "^osplash.drawing\nyscx2020\ne\t50";
@@ -8511,7 +11964,6 @@ int main() {
     }
 
 
-    messagef(pallete.red, "TODO: CIRCLE type entity");
     messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
     messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
     messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
@@ -8521,6 +11973,11 @@ int main() {
     // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
     // messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
     messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
+    messagef(pallete.yellow, "TODO: CIRCLE type entity");
+    messagef(pallete.yellow, "TODO: - Select Connected");
+    messagef(pallete.yellow, "TODO: - TwoClickDivide");
+    messagef(pallete.green, "Offset broken clicking here *------* ");
+    messagef(pallete.green, "TODO (fun): Offset visualization and tweening");
 
 
 
