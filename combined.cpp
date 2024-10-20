@@ -1,3 +1,4 @@
+
 // BETA
 // TODO: first and second clicks of FGHI should be hinted (even first!)
 // TODO: Pressing enter should spawn a ghost of the pink or blue crosshairs
