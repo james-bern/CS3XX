@@ -31,7 +31,8 @@ with open("combined.cpp", "w") as combined:
         for line in file.readlines():
             filename_or_none, remainder = is_jim_style_include(line)
             if filename_or_none:
-                paste_file(combined, filename_or_none)
+                print(f"main.cpp: {filename_or_none} {remainder}")
+                paste_file(combined, filename_or_none, remainder)
             else:
                 combined.write(line)
 

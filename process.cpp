@@ -677,8 +677,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                         feature_plane->is_active = false;
                     }
-                    if (GUIBUTTON(commands.MirrorPlane)) {
-                        other.mirror_3D_plane = !other.mirror_3D_plane;
+                    if (GUIBUTTON(commands.MirrorPlaneX)) {
+                        other.mirror_3D_plane_X = !other.mirror_3D_plane_X;
+                    }
+                    if (GUIBUTTON(commands.MirrorPlaneY)) {
+                        other.mirror_3D_plane_Y = !other.mirror_3D_plane_Y;
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
@@ -701,7 +704,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.Measure3D)) {
-
+                        // Copied from Hide Plane, should maybe be a function
+                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
+                        feature_plane->is_active = false;
                     }
                     SEPERATOR();
                     SEPERATOR();
@@ -1920,7 +1925,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                     result.checkpoint_me = result.record_me = true;
-                    feature_plane->is_active = true;
+                    if (state_Mesh_command_is_(Measure3D)) result.checkpoint_me = result.record_me = false;
+                    feature_plane->is_active = !(state.Mesh_command.flags & HIDE_FEATURE_PLANE);
                     other.time_since_plane_selected = 0.0f;
                     {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];

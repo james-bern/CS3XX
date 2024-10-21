@@ -25,10 +25,10 @@ mat4 get_M_3D_from_2D() {
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
 
-    // FORNOW
-    if (ARE_EQUAL(ABS(dot_product), 1.0f) && SGN(dot_product) < 0.0f && other.mirror_3D_plane) {
+    if (other.mirror_3D_plane_X)
+        x *= -1;
+    if (other.mirror_3D_plane_Y)
         y *= -1;
-    }
 
     return M4_xyzo(x, y, z, (feature_plane->signed_distance_to_world_origin) * feature_plane->normal);
 }

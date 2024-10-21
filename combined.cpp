@@ -2901,7 +2901,7 @@ bool command_equals(Command A, Command B) {
 #define SHIFT_15      (1 << 3)
 #define NO_RECORD     (1 << 4)
 #define EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP (1 << 5)
-#define _UNSUED_FLAG6 (1 << 6)
+#define HIDE_FEATURE_PLANE (1 << 6)
 #define _UNSUED_FLAG7 (1 << 7)
 #define _UNSUED_FLAG8 (1 << 8)
 #define _UNSUED_FLAG9 (1 << 9)
@@ -2966,9 +2966,10 @@ bool command_equals(Command A, Command B) {
     COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
-    COMMANDS_INNER(CyclePlane,           'Y', 0b000, Mesh, 0, 0); \
+    COMMANDS_INNER(CyclePlane,      'Y', 0b000, Mesh, 0, 0); \
     COMMANDS_INNER(HidePlane,       ';', 0b000, Mesh, 0, 0);  \
-    COMMANDS_INNER(MirrorPlane,     0,   0b000, Mesh, 0, 0);  \
+    COMMANDS_INNER(MirrorPlaneX,     0,  0b000, Mesh, 0, 0);  \
+    COMMANDS_INNER(MirrorPlaneY,     0,  0b000, Mesh, 0, 0);  \
     \
     COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
@@ -2977,7 +2978,7 @@ bool command_equals(Command A, Command B) {
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
-    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK); \
+    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | HIDE_FEATURE_PLANE); \
     \
     \
     COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \
@@ -3349,6 +3350,11 @@ struct MagicSnapResult {
     bool split_tangent_2;
 };
 
+struct MagicSnapResult3D {
+    vec3 mouse_position;
+    bool snapped;
+};
+
 struct MouseEventDrawing {
     MagicSnapResult snap_result;
 };
@@ -3617,7 +3623,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_help;
     bool show_event_stack;
     bool hide_toolbox;
-    bool mirror_3D_plane = true;
+    bool mirror_3D_plane_X = false;
+    bool mirror_3D_plane_Y = false;
 
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL = 0.15f;
@@ -5450,6 +5457,10 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
     return result;
 }
 
+MagicSnapResult3D magic_snap_3d(vec3 before) {
+    
+}
+
 void init_camera_drawing() {
     *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_drawing_mesh_OpenGL), 0.0f });
     if (drawing->entities.length) {
@@ -5521,10 +5532,10 @@ mat4 get_M_3D_from_2D() {
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
 
-    // FORNOW
-    if (ARE_EQUAL(ABS(dot_product), 1.0f) && SGN(dot_product) < 0.0f && other.mirror_3D_plane) {
+    if (other.mirror_3D_plane_X)
+        x *= -1;
+    if (other.mirror_3D_plane_Y)
         y *= -1;
-    }
 
     return M4_xyzo(x, y, z, (feature_plane->signed_distance_to_world_origin) * feature_plane->normal);
 }
@@ -9934,8 +9945,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
                         feature_plane->is_active = false;
                     }
-                    if (GUIBUTTON(commands.MirrorPlane)) {
-                        other.mirror_3D_plane = !other.mirror_3D_plane;
+                    if (GUIBUTTON(commands.MirrorPlaneX)) {
+                        other.mirror_3D_plane_X = !other.mirror_3D_plane_X;
+                    }
+                    if (GUIBUTTON(commands.MirrorPlaneY)) {
+                        other.mirror_3D_plane_Y = !other.mirror_3D_plane_Y;
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
@@ -9958,7 +9972,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.Measure3D)) {
-
+                        // Copied from Hide Plane, should maybe be a function
+                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
+                        feature_plane->is_active = false;
                     }
                     SEPERATOR();
                     SEPERATOR();
@@ -11177,7 +11193,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                     result.checkpoint_me = result.record_me = true;
-                    feature_plane->is_active = true;
+                    if (state_Mesh_command_is_(Measure3D)) result.checkpoint_me = result.record_me = false;
+                    feature_plane->is_active = !(state.Mesh_command.flags & HIDE_FEATURE_PLANE);
                     other.time_since_plane_selected = 0.0f;
                     {
                         feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];

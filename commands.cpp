@@ -5,7 +5,7 @@
 #define SHIFT_15      (1 << 3)
 #define NO_RECORD     (1 << 4)
 #define EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP (1 << 5)
-#define _UNSUED_FLAG6 (1 << 6)
+#define HIDE_FEATURE_PLANE (1 << 6)
 #define _UNSUED_FLAG7 (1 << 7)
 #define _UNSUED_FLAG8 (1 << 8)
 #define _UNSUED_FLAG9 (1 << 9)
@@ -70,9 +70,10 @@
     COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
-    COMMANDS_INNER(CyclePlane,           'Y', 0b000, Mesh, 0, 0); \
+    COMMANDS_INNER(CyclePlane,      'Y', 0b000, Mesh, 0, 0); \
     COMMANDS_INNER(HidePlane,       ';', 0b000, Mesh, 0, 0);  \
-    COMMANDS_INNER(MirrorPlane,     0,   0b000, Mesh, 0, 0);  \
+    COMMANDS_INNER(MirrorPlaneX,     0,  0b000, Mesh, 0, 0);  \
+    COMMANDS_INNER(MirrorPlaneY,     0,  0b000, Mesh, 0, 0);  \
     \
     COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
@@ -81,7 +82,7 @@
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
-    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK); \
+    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | HIDE_FEATURE_PLANE); \
     \
     \
     COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \
