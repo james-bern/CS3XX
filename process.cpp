@@ -605,6 +605,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.DogEar);
                     GUIBUTTON(commands.Offset);
                     GUIBUTTON(commands.Divide2);
+                    GUIBUTTON(commands.Join2);
                     SEPERATOR();
                     GUIBUTTON(commands.SetOrigin);
                     GUIBUTTON(commands.SetAxis);
@@ -1056,9 +1057,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (first_click_accepted) {
                             two_click_command->awaiting_second_click = true;
                             two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
-                            if (!two_click_command->tangent_first_click) { // ???
+                            // if (!two_click_command->tangent_first_click) { // ???
                                 two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
-                            }
+                            // }
                             set_state_Snap_command(None);
                             if (!other._please_suppress_drawing_popup_popup) { // bump bumps cursor bump cursor bumps
                                 if (state_Draw_command_is_(Rotate)) {
@@ -1203,6 +1204,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 // messagef(pallete.light_gray, "Circle");
                             }
                         } else if (state_Draw_command_is_(Divide2)) { // TODO: make sure no 0 length shenanigans
+
+                            // TODO: redo the logic on this so it only cancels the command if valid?
+                            // TODO: put this in github along with move shouldn't need a first click for its popup
+
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1211,6 +1216,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             Entity *closest_entity_one;
                             Entity *closest_entity_two;
+                            // ^ TODO: These should both just be from the two_click_command struct
+
                             bool division_valid;
                             {
                                 closest_entity_one = two_click_command->entity_closest_to_first_click; 
@@ -1359,6 +1366,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                             }
+                        } else if (state_Draw_command_is_(Join2)) {
+                            result.checkpoint_me = true;
+                            set_state_Draw_command(None);
+                            set_state_Snap_command(None);
                         } else if (state_Draw_command_is_(Line)) {
                             if (clicks_are_same) {
                                 messagef(pallete.orange, "Line: must have non-zero length");
@@ -2009,7 +2020,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_circle_radius = popup->circle_radius;
                         real prev_circle_circumference = popup->circle_circumference;
                         POPUP(state.Draw_command,
-                                false,
+                                true, // FORNOW
                                 CellType::Real, STRING("diameter"), &popup->circle_diameter,
                                 CellType::Real, STRING("radius"), &popup->circle_radius,
                                 CellType::Real, STRING("circumference"), &popup->circle_circumference);

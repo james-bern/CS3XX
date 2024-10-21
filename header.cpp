@@ -482,7 +482,11 @@ struct PreviewState {
     vec2 xy_xy;
     vec2 mouse_snap;
     real polygon_num_sides;
+
+    // FORNOW: These are bad names
     vec3 color_mouse;
+    vec3 color_draw;
+    vec3 color_snap;
 
     vec2 offset_entity_start;
     vec2 offset_entity_end;

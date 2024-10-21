@@ -224,6 +224,7 @@ template <typename Key, typename Value> void map_reserve_for_expected_num_entrie
     ASSERT(!map->_array); // FORNOW
 
     map->num_entries = 0;
+    // TODO: i think this is supposed to be a prime number
     map->_capacity = (1 + (uint) (load_factor * expected_num_entries));
     map->_array = (PairKeyValue<Key, Value> *) map->arena->calloc(map->_capacity, sizeof(PairKeyValue<Key, Value>));
 }

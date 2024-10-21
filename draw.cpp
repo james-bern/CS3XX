@@ -486,22 +486,31 @@ void conversation_draw() {
                     (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Draw_Enter)));
             bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) &&
                     (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Snap_Enter)));
+
+            real magic_mouse_move_time = MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved);
+            real magic_t = _JUICEIT_EASYTWEEN(-0.02f + 0.2f * magic_mouse_move_time);
+
             vec3 target_color_mouse; {
                 target_color_mouse = get_color(ColorCode::Emphasis);
                 // if (Snap_eating_mouse) target_color_mouse = AVG(get_color(ColorCode::Emphasis), get_accent_color(ToolboxGroup::Snap));
                 if (Snap_eating_mouse) target_color_mouse = get_accent_color(ToolboxGroup::Snap);
-                if  (Draw_eating_Enter) {
-                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
-                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * target_color_mouse);
-                }
-                if  (Snap_eating_Enter) {
-                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
-                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * target_color_mouse);
-                }
+                if (Draw_eating_Enter) target_color_mouse = CLAMPED_LERP(magic_t, target_color_mouse, 1.0f * target_color_mouse);
+                if (Snap_eating_Enter) target_color_mouse = CLAMPED_LERP(magic_t, target_color_mouse, 1.0f * target_color_mouse);
             }
+
+            vec3 target_color_draw;
+            vec3 target_color_snap;
+            {
+                target_color_draw = get_accent_color(ToolboxGroup::Draw);
+                target_color_snap = get_accent_color(ToolboxGroup::Snap);
+
+                target_color_draw = CLAMPED_LERP(magic_t, 1.0f * target_color_draw, target_color_draw);
+                target_color_snap = CLAMPED_LERP(magic_t, 1.0f * target_color_snap, target_color_snap);
+            }
+
             JUICEIT_EASYTWEEN(&preview->color_mouse, target_color_mouse);
+            JUICEIT_EASYTWEEN(&preview->color_draw, target_color_draw);
+            JUICEIT_EASYTWEEN(&preview->color_snap, target_color_snap);
 
 
 
@@ -557,8 +566,8 @@ void conversation_draw() {
                 do { \
                     if (state_Draw_command_is_(Name)) { \
                         DRAW_##NAME(*first_click, position_mouse, preview->color_mouse); \
-                        DRAW_##NAME(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw)); \
-                        DRAW_##NAME(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap)); \
+                        DRAW_##NAME(*first_click, preview->popup_second_click, preview->color_draw); \
+                        DRAW_##NAME(*first_click, preview->xy_xy, preview->color_snap); \
                     } \
                 } while (0)
 
@@ -584,7 +593,7 @@ void conversation_draw() {
                         Entity *entity_snapped_to = &drawing->entities.array[true_snap_result.entity_index_snapped_to];
                         eso_begin(PV_2D, SOUP_LINES);
                         // eso_overlay(true);
-                        eso_color(get_accent_color(ToolboxGroup::Snap));
+                        eso_color(preview->color_mouse);
                         eso_entity__SOUP_LINES(entity_snapped_to);
                         eso_end();
                     }
@@ -595,16 +604,16 @@ void conversation_draw() {
                         if (popup->manager.focus_group == ToolboxGroup::Snap) {
                             if (!Snap_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
-                        if (Snap_eating_Enter) DRAW_CROSSHAIR(preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                        if (Snap_eating_Enter) DRAW_CROSSHAIR(preview->xy_xy, preview->color_snap);
                     } else if (!state_Snap_command_is_(None)) {
-                        DRAW_CROSSHAIR(preview->mouse_snap, get_accent_color(ToolboxGroup::Snap));
+                        DRAW_CROSSHAIR(preview->mouse_snap, preview->color_mouse);
                     }
 
                     if (two_click_command->awaiting_second_click && !state_Draw_command_is_(None)) {
                         if (popup->manager.focus_group == ToolboxGroup::Draw) {
                             if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
-                        if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
+                        if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->popup_second_click, preview->color_draw);
                     }
                 }
 
