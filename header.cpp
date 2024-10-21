@@ -1633,7 +1633,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
         uint num_vertices_all_edges = 2 * (3 * num_triangles);
         draw->all_edges_vertex_positions = (vec3 *) malloc(num_vertices_all_edges * sizeof(vec3));
-        draw->all_edges_corresponding_triangle_indices = (uint *) malloc(num_vertices_all_edges);
+        draw->all_edges_corresponding_triangle_indices = (uint *) malloc(num_vertices_all_edges * sizeof(uint));
         {
             uint k = 0;
             for_(triangle_index, num_triangles) {
@@ -1649,6 +1649,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                     ++k;
                 }
             }
+            ASSERT(k == num_vertices_all_edges);
         }
 
     }
