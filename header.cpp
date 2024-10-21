@@ -1952,6 +1952,10 @@ void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
         GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices  , vec3 );
         GUARDED_MALLOC_MEMCPY(dst->vertex_normals,   src->vertex_normals,   src->num_vertices  , vec3 );
         GUARDED_MALLOC_MEMCPY(dst->triangle_tuples, src->triangle_tuples, src->num_triangles , uint3);
+
+        uint num_vertices_all_edges = 2 * (3 * src->num_triangles);
+        GUARDED_MALLOC_MEMCPY(dst->all_edges_vertex_positions, src->all_edges_vertex_positions, num_vertices_all_edges , vec3);
+        GUARDED_MALLOC_MEMCPY(dst->all_edges_corresponding_triangle_indices, src->all_edges_corresponding_triangle_indices, num_vertices_all_edges , uint);
     }
 }
 
