@@ -161,73 +161,29 @@ struct {
 
         uniform vec2 OpenGL_from_Pixel_scale;
 
-        out BLOCK {
-            vec4 color;
-            float size;
-            vec2 position_Pixel; // NOTE: y flipped sorry
-            float angle;
-            vec2 starting_point_Pixel;
-        } gs_out;
-
         void main() {    
             vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
             vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
-            vec4 color_s = vec4(1.0);
-            vec4 color_t = vec4(1.0);
 
             float size = 3.0f;
-
-            float angle = atan(OpenGL_from_Pixel_scale.x * (t.y - s.y), OpenGL_from_Pixel_scale.y * (t.x - s.x));
 
             vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
             vec4 perp_s = vec4((size / 2) * perp, 0, 0);
             vec4 perp_t = vec4((size / 2) * perp, 0, 0);
 
-            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_s;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
-
-            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_t;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
-
-            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_s;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
-
-            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w;
-            gs_out.position_Pixel = (vec2(1.0f) + gl_Position.xy) / OpenGL_from_Pixel_scale;
-            gs_out.color = color_t;
-            gs_out.angle = angle;
-            gs_out.starting_point_Pixel = (vec2(1.0f) + s.xy * gl_in[0].gl_Position.w) / OpenGL_from_Pixel_scale;
-            EmitVertex();
+            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w; EmitVertex();
+            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w; EmitVertex();
+            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w; EmitVertex();
+            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w; EmitVertex();
 
             EndPrimitive();
         }  
     )"";
 
     char *frag = R""(#version 330 core
-        in BLOCK {
-            vec4 color;
-            float size;
-            vec2 position_Pixel;
-            float angle;
-            vec2 starting_point_Pixel;
-        } fs_in;
-
         out vec4 _gl_FragColor;
-
         void main() {
-            _gl_FragColor = fs_in.color;
+            _gl_FragColor = vec4(1.0);
         }
     )"";
 } all_edge_pass_source;
