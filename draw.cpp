@@ -41,24 +41,6 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     fancy_draw(P_3D, V_3D, M_3D, mesh);
     // TODO: face_selection_bbox
 
-    #if 1
-    if (!other.show_details) {
-        if (mesh->hard_edges) {
-            mat4 PVM_3D = P_3D * V_3D * M_3D;
-            eso_begin(PVM_3D, SOUP_LINES); 
-            // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, pallete.white, pallete.black));
-            eso_color(0,0,0);
-            eso_size(1.0f);
-            for_(i, mesh->num_hard_edges) {
-                for_(d, 2) {
-                        eso_vertex(mesh->vertex_positions[mesh->hard_edges[i][d]]);
-                }
-            }
-            eso_end();
-        }
-    }
-    #endif
-
     #if 0
     for_(pass, 2) {
         eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_TRI_MESH);

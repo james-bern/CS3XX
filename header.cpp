@@ -198,14 +198,11 @@ struct WorkMesh {
 struct DrawMesh {
     uint num_vertices;
     uint num_triangles; // NOTE: same as WorkMesh
-    uint num_hard_edges;
 
     vec3  *vertex_positions;
     vec3  *vertex_normals;
-    vec3  *triangle_normals; // TODO: eliminate this variable (preserve order of triangles work -> draw)
-    uint3 *triangle_tuples;
+    uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
 
-    uint2 *hard_edges;
 };
 
 struct Meshes {
@@ -1628,14 +1625,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 draw->triangle_tuples[triangle_index][d] = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, key);
             }
         }
-        // TODOLATER: eliminate triangle_normals
-        // FORNOW: just deepcopy from WorkMesh
-        draw->triangle_normals = (vec3 *) malloc(old->num_triangles * sizeof(vec3));
-        memcpy(draw->triangle_normals, old->triangle_normals, old->num_triangles * sizeof(vec3));
 
-        // TODOLATER
-        draw->num_hard_edges   = 0;//new_hard_edges.length;
-        draw->hard_edges       = NULL;//new_hard_edges.array;
     }
 
 
@@ -1819,10 +1809,11 @@ void mesh_divide_into_patches(Meshes *meshes) {
     #endif
 }
 
-void mesh_vertex_normals_calculate(DrawMesh *mesh) {
+void mesh_vertex_normals_calculate(Meshes *meshes) {
+    DrawMesh *mesh = &meshes->draw;
     mesh->vertex_normals = (vec3 *) calloc(mesh->num_vertices, sizeof(vec3));
     for_(triangle_index, mesh->num_triangles) {
-        vec3 triangle_normal = mesh->triangle_normals[triangle_index];
+        vec3 triangle_normal = meshes->work.triangle_normals[triangle_index];
         uint3 triangle_ijk = mesh->triangle_tuples[triangle_index];
         real triangle_double_area; {
             vec3 a = mesh->vertex_positions[triangle_ijk[0]];
@@ -1882,7 +1873,7 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
     }
 
     {
-        mesh_vertex_normals_calculate(&meshes->draw);
+        mesh_vertex_normals_calculate(meshes);
     }
 }
 
@@ -1899,8 +1890,6 @@ void meshes_free_AND_zero(Meshes *meshes) {
         GUARDED_free(mesh->vertex_positions);
         GUARDED_free(mesh->vertex_normals);
         GUARDED_free(mesh->triangle_tuples);
-        GUARDED_free(mesh->triangle_normals);
-        GUARDED_free(mesh->hard_edges);
     }
 
     *meshes = {};
@@ -1934,8 +1923,6 @@ void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
         GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices  , vec3 );
         GUARDED_MALLOC_MEMCPY(dst->vertex_normals,   src->vertex_normals,   src->num_vertices  , vec3 );
         GUARDED_MALLOC_MEMCPY(dst->triangle_tuples, src->triangle_tuples, src->num_triangles , uint3);
-        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles , vec3 );
-        GUARDED_MALLOC_MEMCPY(dst->hard_edges,       src->hard_edges,       src->num_hard_edges, uint2);
     }
 }
 
