@@ -104,10 +104,11 @@ run_before_main {
         // "s<m2d> 0 0>\b"
         // "lq<m2d 8 0>q<m2d 16 0>"
         // "sc"
-        "^odemo.dxf\n"
+        // "^odemo.dxf\n"
         // "bz<m2d 10 10>"
         // "cz<m2d 10 10>"
-        "ysq1[5\n"
+        // "ysq1[5\n"
+        "^.^Odemo.stl\n"
         ;
 };
 #endif

@@ -203,9 +203,14 @@ struct DrawMesh {
     vec3  *vertex_normals;
     uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
 
+    vec3 *all_edges_vertex_positions;
+    uint *all_edges_corresponding_triangle_indices;
+
 };
 
+
 struct Meshes {
+    // TODO: Arena *arena
     WorkMesh work;
     DrawMesh draw;
 };
@@ -1388,8 +1393,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
         // if (draw->num_hard_edges == 0) return; // torus shouldn't bother doing this crap
     }
 
-    Arena arena = NEW_BUMP_ALLOCATED_ARENA();
-    defer { arena.free(); };
+    Arena function_arena = NEW_BUMP_ALLOCATED_ARENA();
+    defer { function_arena.free(); };
 
 
     #if 1
@@ -1407,7 +1412,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     // prep -- O(t)
     // ------------
     // iterate over all triangles building triangle_index_from_old_half_edge map -- O(t)
-    ArenaMap<uint2, uint> triangle_index_from_old_half_edge = { &arena };
+    ArenaMap<uint2, uint> triangle_index_from_old_half_edge = { &function_arena };
     map_reserve_for_expected_num_entries(&triangle_index_from_old_half_edge, 3 * num_triangles);
     {
         for_(triangle_index, num_triangles) {
@@ -1434,15 +1439,15 @@ void mesh_divide_into_patches(Meshes *meshes) {
     // NOTE: patch_indices_from_old_vertex_index is for the next step
     // TODO: SmallList
 
-    ArenaMap<uint, uint> patch_index_from_triangle_index = { &arena };
+    ArenaMap<uint, uint> patch_index_from_triangle_index = { &function_arena };
     map_reserve_for_expected_num_entries(&patch_index_from_triangle_index, num_triangles);
 
     // TODO: ArenaSmallList
-    ArenaMap<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = { &arena };
+    ArenaMap<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = { &function_arena };
     map_reserve_for_expected_num_entries(&patch_indices_from_old_vertex_index, old->num_vertices);
     {
         for_(old_vertex_index, old->num_vertices) {
-            map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { &arena });
+            map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { &function_arena });
         }
     }
 
@@ -1521,7 +1526,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     //       but we didn't know how many patches there were back when we were flooding
     //       (but we do have an upper bound, which is the number of triangles)
     // TODO: consider trading space for time here (after profiling)
-    uint *patch_num_vertices = (uint *) arena.calloc(num_patches, sizeof(uint)); {
+    uint *patch_num_vertices = (uint *) function_arena.calloc(num_patches, sizeof(uint)); {
         for_(old_vertex_index, old->num_vertices) {
             ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
             for_(_patch_index_index, patch_indices.length) {
@@ -1560,13 +1565,13 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
     uint new_num_vertices;
     vec3 *new_vertex_positions;
-    ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { &arena };
+    ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { &function_arena };
     // FORNOW: This is a huge overestimate; TODO: map that can grow
     map_reserve_for_expected_num_entries(&new_vertex_index_from_pair_patch_index_old_vertex_index, num_patches * old->num_vertices);
     {
         uint *patch_new_vetex_index_fingers; // [ 0, |PATCH0|, |PATCH0| + |PATCH1|, ... ]
         {
-            patch_new_vetex_index_fingers = (uint *) arena.calloc(num_patches, sizeof(uint));
+            patch_new_vetex_index_fingers = (uint *) function_arena.calloc(num_patches, sizeof(uint));
             for_(patch_index, num_patches - 1) {
                 patch_new_vetex_index_fingers[patch_index + 1] += patch_new_vetex_index_fingers[patch_index];
                 patch_new_vetex_index_fingers[patch_index + 1] += patch_num_vertices[patch_index];
@@ -1623,6 +1628,26 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 key.patch_index = patch_index;
                 key.old_vertex_index = old_triangle_tuple[d];
                 draw->triangle_tuples[triangle_index][d] = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, key);
+            }
+        }
+
+        uint num_vertices_all_edges = 2 * (3 * num_triangles);
+        draw->all_edges_vertex_positions = (vec3 *) malloc(num_vertices_all_edges * sizeof(vec3));
+        draw->all_edges_corresponding_triangle_indices = (uint *) malloc(num_vertices_all_edges);
+        {
+            uint k = 0;
+            for_(triangle_index, num_triangles) {
+                uint3 triangle_tuple = draw->triangle_tuples[triangle_index];
+                for_(d, 3) {
+                    uint i = triangle_tuple[d];
+                    uint j = triangle_tuple[(d + 1) % 3];
+                    draw->all_edges_vertex_positions[k] = draw->vertex_positions[i];
+                    draw->all_edges_corresponding_triangle_indices[k] = triangle_index;
+                    ++k;
+                    draw->all_edges_vertex_positions[k] = draw->vertex_positions[j];
+                    draw->all_edges_corresponding_triangle_indices[k] = triangle_index;
+                    ++k;
+                }
             }
         }
 
@@ -1890,6 +1915,9 @@ void meshes_free_AND_zero(Meshes *meshes) {
         GUARDED_free(mesh->vertex_positions);
         GUARDED_free(mesh->vertex_normals);
         GUARDED_free(mesh->triangle_tuples);
+
+        GUARDED_free(mesh->all_edges_vertex_positions);
+        GUARDED_free(mesh->all_edges_corresponding_triangle_indices);
     }
 
     *meshes = {};
