@@ -82,7 +82,7 @@
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
-    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | HIDE_FEATURE_PLANE); \
+    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | SNAPPER | HIDE_FEATURE_PLANE); \
     \
     \
     COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \

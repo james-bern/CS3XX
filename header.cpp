@@ -230,6 +230,14 @@ struct MagicSnapResult {
     bool split_tangent_2;
 };
 
+struct MagicSnapResult3D {
+    vec3 mouse_position;
+    uint triangle_index;
+
+    bool snapped;
+    bool hit_mesh;
+};
+
 struct MouseEventDrawing {
     MagicSnapResult snap_result;
 };
@@ -307,7 +315,6 @@ struct TwoClickCommandState {
 struct MeshTwoClickCommandState {
     bool awaiting_second_click;
     vec3 first_click;
-    int triangle_index_for_first_click;
 };
 
 struct PopupManager {

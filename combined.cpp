@@ -2978,7 +2978,7 @@ bool command_equals(Command A, Command B) {
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
-    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | HIDE_FEATURE_PLANE); \
+    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | SNAPPER | HIDE_FEATURE_PLANE); \
     \
     \
     COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \
@@ -3352,7 +3352,10 @@ struct MagicSnapResult {
 
 struct MagicSnapResult3D {
     vec3 mouse_position;
+    uint triangle_index;
+
     bool snapped;
+    bool hit_mesh;
 };
 
 struct MouseEventDrawing {
@@ -3432,7 +3435,6 @@ struct TwoClickCommandState {
 struct MeshTwoClickCommandState {
     bool awaiting_second_click;
     vec3 first_click;
-    int triangle_index_for_first_click;
 };
 
 struct PopupManager {
@@ -5457,8 +5459,53 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
     return result;
 }
 
-MagicSnapResult3D magic_snap_3d(vec3 before) {
-    
+MagicSnapResult3D magic_snap_3d() {
+    MagicSnapResult3D result{};
+
+    mat4 World_3D_from_OpenGL = inverse(camera_mesh->get_PV());
+    vec3 ray_origin = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL, -1.0f));
+    vec3 ray_end = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL,  1.0f));
+    vec3 ray_direction = normalized(ray_end - ray_origin);
+
+    int index_of_first_triangle_hit_by_ray = -1;
+    vec3 exact_hit_pos;
+    {
+        real min_distance = HUGE_VAL;
+        for_(i, mesh->num_triangles) {
+            vec3 p[3]; {
+                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+            }
+            RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(ray_origin, ray_direction, p[0], p[1], p[2]);
+            if (ray_triangle_intersection_result.hit) {
+                if (ray_triangle_intersection_result.distance < min_distance) {
+                    min_distance = ray_triangle_intersection_result.distance;
+                    exact_hit_pos = ray_triangle_intersection_result.pos;
+                    index_of_first_triangle_hit_by_ray = i; // FORNOW
+                }
+            }
+        }
+    }
+
+    if (index_of_first_triangle_hit_by_ray != -1) { // something hit
+        result.triangle_index = index_of_first_triangle_hit_by_ray;
+        result.hit_mesh = true;
+        result.mouse_position = exact_hit_pos;
+
+        if (!state_Snap_command_is_(None)) { // TODO: Change to 3D specific snap type?
+            real min_distance = HUGE_VAL;
+            for_(i, 3) {
+                vec3 vertex_pos = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][i]];
+                real dist = squaredDistance(exact_hit_pos, vertex_pos);
+                if (dist < min_distance) {
+                    min_distance = dist;
+                    result.mouse_position = vertex_pos;
+                    result.snapped = true;
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 void init_camera_drawing() {
@@ -6511,6 +6558,15 @@ void conversation_draw() {
             }
         }
 
+        MagicSnapResult3D snap_result = magic_snap_3d();
+        if (snap_result.hit_mesh) {
+            eso_begin(PV_3D, SOUP_POINTS);
+            eso_size(20);
+            eso_color(get_color(ColorCode::Emphasis));
+            eso_vertex(snap_result.mouse_position);
+            eso_end();
+        }
+
         if (!mesh_two_click_command->awaiting_second_click) {
 
         } else if (state_Mesh_command_is_(Measure3D)) {
@@ -6519,6 +6575,14 @@ void conversation_draw() {
             eso_color(get_color(ColorCode::Emphasis));
             eso_vertex(mesh_two_click_command->first_click);
             eso_end();
+
+            if (snap_result.hit_mesh) {
+                eso_begin(PV_3D, SOUP_LINES);
+                eso_color(get_color(ColorCode::Emphasis));
+                eso_vertex(mesh_two_click_command->first_click);
+                eso_vertex(snap_result.mouse_position);
+                eso_end();
+            }
         }
 
         glDisable(GL_SCISSOR_TEST);
@@ -11172,43 +11236,43 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
             result.record_me = false;
             if (!mouse_event->mouse_held) {
-                int index_of_first_triangle_hit_by_ray = -1;
-                vec3 exact_hit_pos;
-                {
-                    real min_distance = HUGE_VAL;
-                    for_(i, mesh->num_triangles) {
-                        vec3 p[3]; {
-                            for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
-                        }
-                        RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction, p[0], p[1], p[2]);
-                        if (ray_triangle_intersection_result.hit) {
-                            if (ray_triangle_intersection_result.distance < min_distance) {
-                                min_distance = ray_triangle_intersection_result.distance;
-                                exact_hit_pos = ray_triangle_intersection_result.pos;
-                                index_of_first_triangle_hit_by_ray = i; // FORNOW
-                            }
-                        }
-                    }
-                }
+                MagicSnapResult3D snap_result = magic_snap_3d();
+                
+                // int index_of_first_triangle_hit_by_ray = -1;
+                // vec3 exact_hit_pos;
+                // {
+                //     real min_distance = HUGE_VAL;
+                //     for_(i, mesh->num_triangles) {
+                //         vec3 p[3]; {
+                //             for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                //         }
+                //         RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction, p[0], p[1], p[2]);
+                //         if (ray_triangle_intersection_result.hit) {
+                //             if (ray_triangle_intersection_result.distance < min_distance) {
+                //                 min_distance = ray_triangle_intersection_result.distance;
+                //                 exact_hit_pos = ray_triangle_intersection_result.pos;
+                //                 index_of_first_triangle_hit_by_ray = i; // FORNOW
+                //             }
+                //         }
+                //     }
+                // }
 
-                if (index_of_first_triangle_hit_by_ray != -1) { // something hit
+                if (snap_result.hit_mesh) { // something hit
                     result.checkpoint_me = result.record_me = true;
                     if (state_Mesh_command_is_(Measure3D)) result.checkpoint_me = result.record_me = false;
                     feature_plane->is_active = !(state.Mesh_command.flags & HIDE_FEATURE_PLANE);
                     other.time_since_plane_selected = 0.0f;
                     {
-                        feature_plane->normal = mesh->triangle_normals[index_of_first_triangle_hit_by_ray];
-                        vec3 triangle_intersection = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][0]];
-                        feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, triangle_intersection);
+                        feature_plane->normal = mesh->triangle_normals[snap_result.triangle_index];
+                        feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, snap_result.mouse_position);
 
                         if (state.Mesh_command.flags & TWO_CLICK) {
                             if (!mesh_two_click_command->awaiting_second_click) {
-                                mesh_two_click_command->first_click = exact_hit_pos;
-                                mesh_two_click_command->triangle_index_for_first_click = index_of_first_triangle_hit_by_ray;
+                                mesh_two_click_command->first_click = snap_result.mouse_position;
                                 mesh_two_click_command->awaiting_second_click = true;
                             } else {
                                 vec3 first_click = mesh_two_click_command->first_click;
-                                vec3 second_click = exact_hit_pos;
+                                vec3 second_click = snap_result.mouse_position;
 
                                 messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
                                 if (0) {
