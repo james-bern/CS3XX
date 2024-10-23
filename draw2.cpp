@@ -73,10 +73,10 @@ struct {
             rgb += 0.3 * fresnel;
         }
 
-    _gl_FragColor = vec4(rgb, 1.0);
-}
-)"";
-    } face_pass_source;
+        _gl_FragColor = vec4(rgb, 1.0);
+    }
+    )"";
+} face_pass_source;
 
 struct {
     int shader_program;
@@ -94,50 +94,102 @@ run_before_main {
     glGenBuffers(1, &face_pass.EBO);
 };
 
+uint UNIFORM(uint shader_program, char *name) { return glGetUniformLocation(shader_program, name); };
+void POOSH(
+        uint vertex_attribute_index,
+        uint VBO,
+        void *array,
+        uint num_verts,
+        uint dim,
+        int sizeof_type,
+        int GL_TYPE
+        ) {
+    glDisableVertexAttribArray(vertex_attribute_index);
+    if (array) {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, num_verts * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
+
+        if      (GL_TYPE == GL_FLOAT) glVertexAttribPointer (vertex_attribute_index, dim, GL_TYPE, GL_FALSE, 0, NULL);
+        else if (GL_TYPE == GL_INT)   glVertexAttribIPointer(vertex_attribute_index, dim, GL_TYPE,           0, NULL);
+        else                          ASSERT(0);
+
+        glEnableVertexAttribArray(vertex_attribute_index);
+    }
+};
+
 void _fancy_draw_face_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    ASSERT(face_pass.shader_program);
-    glUseProgram(face_pass.shader_program);
+    mat4 C = inverse(V);
+    vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
 
-    glBindVertexArray(face_pass.VAO);
-    unsigned int vertex_attribute_index = 0;
-    auto POOSH = [&](void *array, int dim, int sizeof_type, int GL_TYPE_VAR) {
-        ASSERT(vertex_attribute_index < ARRAY_LENGTH(face_pass.VBO));
-        glDisableVertexAttribArray(vertex_attribute_index);
-        if (array) {
-            glBindBuffer(GL_ARRAY_BUFFER, face_pass.VBO[vertex_attribute_index]);
-            glBufferData(GL_ARRAY_BUFFER, mesh->num_vertices * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
-            if (GL_TYPE_VAR == GL_FLOAT) {
-                glVertexAttribPointer(vertex_attribute_index, dim, GL_TYPE_VAR, GL_FALSE, 0, NULL);
-            } else if (GL_TYPE_VAR == GL_INT) {
-                glVertexAttribIPointer(vertex_attribute_index, dim, GL_TYPE_VAR, 0, NULL);
-            } else {
-                ASSERT(0);
-            }
-            glEnableVertexAttribArray(vertex_attribute_index); // FORNOW: after the other stuff?
-        }
-        ++vertex_attribute_index;
-    };
 
-    POOSH(mesh->vertex_positions, 3, sizeof(real), GL_FLOAT);
-    POOSH(mesh->vertex_normals, 3, sizeof(real), GL_FLOAT);
+    uint shader_program = face_pass.shader_program;
+    uint  VAO = face_pass.VAO;
+    uint *VBO = face_pass.VBO;
+    uint  EBO = face_pass.EBO;
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, face_pass.EBO);
+
+    ASSERT(shader_program);
+    glUseProgram(shader_program);
+
+    glBindVertexArray(VAO);
+    POOSH(0, VBO[0], mesh->vertex_positions, mesh->num_vertices, 3, sizeof(real), GL_FLOAT);
+    POOSH(1, VBO[1], mesh->vertex_normals,   mesh->num_vertices, 3, sizeof(real), GL_FLOAT);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_DYNAMIC_DRAW);
 
-    auto LOC = [&](char *name) { return glGetUniformLocation(face_pass.shader_program, name); };
-    glUniformMatrix4fv(LOC("P"), 1, GL_TRUE, P.data);
-    glUniformMatrix4fv(LOC("V"), 1, GL_TRUE, V.data);
-    glUniformMatrix4fv(LOC("M"), 1, GL_TRUE, M.data);
-    { // fornow scavenge the camera position from V
-        mat4 C = inverse(V);
-        vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
-        glUniform3f(LOC("eye_World"), eye_World.x, eye_World.y, eye_World.z);
-    }
+    glUniformMatrix4fv(UNIFORM(shader_program, "P"), 1, GL_TRUE, P.data);
+    glUniformMatrix4fv(UNIFORM(shader_program, "V"), 1, GL_TRUE, V.data);
+    glUniformMatrix4fv(UNIFORM(shader_program, "M"), 1, GL_TRUE, M.data);
+    glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
 
     glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
 }
 
 
+struct {
+    char *vert = R""(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoords;
+
+        out vec2 TexCoords;
+
+        void main()
+        {
+            gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0); 
+            TexCoords = aTexCoords;
+        }  
+    )"";
+
+    char *frag = R""(
+        #version 330 core
+        out vec4 _gl_FragColor;
+
+        in vec2 TexCoords;
+
+        uniform sampler2D screenTexture;
+
+        void main()
+        { 
+            _gl_FragColor = texture(screenTexture, TexCoords);
+        }
+    )"";
+} texture_blit_source;
+
+struct {
+    int shader_program;
+    uint VAO;
+    uint VBO[2];
+} texture_blit;
+
+run_before_main {
+    uint vert = shader_compile(texture_blit_source.vert, GL_VERTEX_SHADER);
+    uint frag = shader_compile(texture_blit_source.frag, GL_FRAGMENT_SHADER);
+    texture_blit.shader_program = shader_build_program(vert, 0, frag);
+    glGenVertexArrays(1, &texture_blit.VAO);
+    glGenBuffers(ARRAY_LENGTH(texture_blit.VBO), texture_blit.VBO);
+};
 
 
 struct {
@@ -192,6 +244,9 @@ struct {
     int shader_program;
     uint VAO;
     uint VBO[2];
+
+    uint FBO;
+    uint texture;
 } all_edge_pass;
 
 run_before_main {
@@ -201,50 +256,96 @@ run_before_main {
     all_edge_pass.shader_program = shader_build_program(vert, geom, frag);
     glGenVertexArrays(1, &all_edge_pass.VAO);
     glGenBuffers(ARRAY_LENGTH(all_edge_pass.VBO), all_edge_pass.VBO);
+
+    glGenFramebuffers(1, &all_edge_pass.FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, all_edge_pass.FBO);
+
+    glGenTextures(1, &all_edge_pass.texture);
+    glBindTexture(GL_TEXTURE_2D, all_edge_pass.texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, all_edge_pass.texture, 0);  
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 };
 
-void _fancy_draw_all_edge_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    #if 1 ////////////////////////////////////////////////////////////////////////////////
-    ASSERT(all_edge_pass.shader_program);
-    glUseProgram(all_edge_pass.shader_program);
-    glBindVertexArray(all_edge_pass.VAO);
-    unsigned int vertex_attribute_index = 0;
-    auto POOSH = [&](void *array, uint count, uint dim, int sizeof_type, int GL_TYPE_VAR) {
-        ASSERT(vertex_attribute_index < ARRAY_LENGTH(all_edge_pass.VBO));
-        glDisableVertexAttribArray(vertex_attribute_index);
-        if (array) {
-            glBindBuffer(GL_ARRAY_BUFFER, all_edge_pass.VBO[vertex_attribute_index]);
-            glBufferData(GL_ARRAY_BUFFER, count * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
 
-            if      (GL_TYPE_VAR == GL_FLOAT) glVertexAttribPointer (vertex_attribute_index, dim, GL_TYPE_VAR, GL_FALSE, 0, NULL);
-            else if (GL_TYPE_VAR == GL_INT)   glVertexAttribIPointer(vertex_attribute_index, dim, GL_TYPE_VAR,           0, NULL);
-            else                              ASSERT(0);
+void _fancy_draw_all_edge_pass_A(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+    uint num_verts = 2 * (3 * mesh->num_triangles);
 
-            glEnableVertexAttribArray(vertex_attribute_index);
-        }
-        ++vertex_attribute_index;
-    };
-    auto LOC = [&](char *name) { return glGetUniformLocation(all_edge_pass.shader_program, name); };
+    uint shader_program = all_edge_pass.shader_program;
+    uint  VAO = all_edge_pass.VAO;
+    uint *VBO = all_edge_pass.VBO;
+    uint  FBO = all_edge_pass.FBO;
 
-    uint num_vertices_all_edges = 2 * (3 * mesh->num_triangles);
-    POOSH(mesh->all_edges_vertex_positions,               num_vertices_all_edges, 3, sizeof(real), GL_FLOAT);
-    POOSH(mesh->all_edges_corresponding_triangle_indices, num_vertices_all_edges, 1, sizeof(uint), GL_INT  );
+    ASSERT(shader_program);
+    glUseProgram(shader_program);
 
-    glUniformMatrix4fv(LOC("P"), 1, GL_TRUE, P.data);
-    glUniformMatrix4fv(LOC("V"), 1, GL_TRUE, V.data);
-    glUniformMatrix4fv(LOC("M"), 1, GL_TRUE, M.data);
-    glUniform2f(LOC("OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
+    glBindVertexArray(VAO);
+    POOSH(0, VBO[0], mesh->all_edges_vertex_positions,               num_verts, 3, sizeof(real), GL_FLOAT);
+    POOSH(1, VBO[1], mesh->all_edges_corresponding_triangle_indices, num_verts, 1, sizeof(uint), GL_INT  );
 
-    glDrawArrays(GL_LINES, 0, num_vertices_all_edges);
-    #else ////////////////////////////////////////////////////////////////////////////////
-    eso_begin(P * V * M, SOUP_LINES);
-    eso_color(0.0f, 0.0f, 0.0f);
-    uint num_edges = 3 * mesh->num_triangles;
-    for_(i, 2 * num_edges) {
-        eso_vertex(mesh->all_edges_vertex_positions[i]);
+    glUniformMatrix4fv(UNIFORM(shader_program, "P"), 1, GL_TRUE, P.data);
+    glUniformMatrix4fv(UNIFORM(shader_program, "V"), 1, GL_TRUE, V.data);
+    glUniformMatrix4fv(UNIFORM(shader_program, "M"), 1, GL_TRUE, M.data);
+    glUniform2f       (UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
+
+    #if 0
+    glDrawArrays(GL_LINES, 0, num_verts);
+    #else
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+    {
+
+        glClearColor(1.0f, 1.0f, 0.0f, 1.0f); 
+        glClear(GL_COLOR_BUFFER_BIT);
+        // glDrawArrays(GL_LINES, 0, num_verts);
+
     }
-    eso_end();
-    #endif ////////////////////////////////////////////////////////////////////////////////
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glClearColor(1.0f, 0.0f, 1.0f, 1.0f); 
+    glClear(GL_COLOR_BUFFER_BIT);
+    #endif
+}
+
+void _fancy_draw_all_edge_pass_B() {
+    uint num_verts = 6;
+    vec2 vertex_positions[] = {
+        { -1.0f, -1.0f },
+        {  1.0f, -1.0f },
+        {  1.0f,  1.0f },
+        { -1.0f, -1.0f },
+        {  1.0f,  1.0f },
+        { -1.0f,  1.0f },
+    };
+    vec2 vertex_texture_coordinates[] = {
+        { 0.0f, 0.0f },
+        { 1.0f, 0.0f },
+        { 1.0f, 1.0f },
+        { 0.0f, 0.0f },
+        { 1.0f, 1.0f },
+        { 0.0f, 1.0f },
+    };
+
+    uint shader_program = texture_blit.shader_program;
+    uint  VAO = texture_blit.VAO;
+    uint *VBO = texture_blit.VBO;
+
+    ASSERT(shader_program);
+    glUseProgram(shader_program);
+
+    glBindVertexArray(VAO);
+    POOSH(0, VBO[0], vertex_positions,           num_verts, 2, sizeof(real), GL_FLOAT);
+    POOSH(1, VBO[1], vertex_texture_coordinates, num_verts, 2, sizeof(real), GL_FLOAT);
+    glUniform1ui(UNIFORM(shader_program, "screenTexture"), all_edge_pass.texture);
+
+    glDisable(GL_DEPTH_TEST);
+    glBindTexture(GL_TEXTURE_2D, all_edge_pass.texture); // ?
+    glDrawArrays(GL_TRIANGLES, 0, num_verts);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glEnable(GL_DEPTH_TEST);
 }
 
 
@@ -252,7 +353,8 @@ void _fancy_draw_all_edge_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     _fancy_draw_face_pass(P, V, M, mesh);
-    _fancy_draw_all_edge_pass(P, V, M, mesh);
+    _fancy_draw_all_edge_pass_A(P, V, M, mesh);
+    _fancy_draw_all_edge_pass_B();
     // _fancy_draw_hard_edge_pass(P, V, M, mesh);
     // TODO(?):_fancy_draw_silhouette_edge_pass(P, V, M, mesh);
 }

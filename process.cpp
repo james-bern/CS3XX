@@ -2350,7 +2350,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Draw_command_is_(Scale)) {
-                    result.record_me = false;
+                    result.record_me = true;
                     POPUP(state.Draw_command,
                             false,
                             CellType::Real, STRING("scale factor"), &popup->scale_factor);
