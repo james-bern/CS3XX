@@ -218,11 +218,31 @@ struct Cookbook {
         }
     }
 
-    void attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(const Entity *E, const Entity *F, vec2 reference_point, real radius) {
+    void attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(const Entity *EntOne, const Entity *EntTwo, vec2 reference_point, real radius) {
+        const Entity *E = EntOne;
+        const Entity *F = EntTwo;
+
         if (E == F) {
             messagef(pallete.orange, "Fillet: clicked same entity twice");
             return;
         }
+
+        bool pseudoE = false;
+        bool pseudoF = false;
+        Entity temp1;
+        Entity temp2; // it is 1am my brain is very awake
+        if (EntOne->type == EntityType::Circle) { // TODO: do better when awake
+            temp1 = _make_arc(EntOne->circle.center, EntOne->circle.radius, 0.0f, 359.99f);
+            E = &temp1;
+            pseudoE = EntOne->circle.has_pseudo_point;
+        }
+        if (EntTwo->type == EntityType::Circle) {
+            temp2 = _make_arc(EntTwo->circle.center, EntTwo->circle.radius, 0.0f, 359.99f);
+            F = &temp2;
+            pseudoF = EntTwo->circle.has_pseudo_point;
+        }
+
+
 
         bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
         bool is_line_arc_or_arc_line = (E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line);
@@ -495,6 +515,7 @@ struct Cookbook {
                 fillet_arc_a_theta = temp;
             }
             Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta), false, E->color_code); // if this is changed to radius it breaks, dont ask me why
+            _buffer_add_entity(fillet_arc);
             if (radius > TINY_VAL) {
                 _buffer_add_entity(fillet_arc);
             }
@@ -510,10 +531,18 @@ struct Cookbook {
             vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
             real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
             real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
-            if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
-                buffer_add_arc(E->arc.center, E->arc.radius, divide_theta_a, E->arc.end_angle_in_degrees, E->is_selected, E->color_code);
-            } else {
-                buffer_add_arc(E->arc.center, E->arc.radius, E->arc.start_angle_in_degrees, divide_theta_a, E->is_selected, E->color_code);
+
+            if (EntOne->type == EntityType::Circle && !pseudoE) {
+                buffer_add_circle(EntOne->circle.center, EntOne->circle.radius, true, RAD(divide_theta_a), EntOne->is_selected, EntOne->color_code); // ah of course this uses radian because yes
+            }
+            else {
+                real start_angle = EntOne->type == EntityType::Circle ? DEG(EntOne->circle.pseudo_point_angle) : E->arc.start_angle_in_degrees;
+                real end_angle = EntOne->type == EntityType::Circle ? DEG(EntOne->circle.pseudo_point_angle) : E->arc.end_angle_in_degrees;
+                if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                    buffer_add_arc(E->arc.center, E->arc.radius, divide_theta_a, end_angle, E->is_selected, E->color_code);
+                } else {
+                    buffer_add_arc(E->arc.center, E->arc.radius, start_angle, divide_theta_a, E->is_selected, E->color_code);
+                }
             }
             if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
                 buffer_add_arc(F->arc.center, F->arc.radius, divide_theta_b, F->arc.end_angle_in_degrees, F->is_selected, F->color_code);
@@ -523,8 +552,8 @@ struct Cookbook {
         }
 
         // least sus thing ever
-        buffer_delete_entity((Entity *)E);
-        buffer_delete_entity((Entity *)F);
+        buffer_delete_entity((Entity *)EntOne);
+        buffer_delete_entity((Entity *)EntTwo);
 
     }
 
