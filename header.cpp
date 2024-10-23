@@ -166,6 +166,7 @@ struct CircleEntity {
 
     void set_pseudo_point(vec2 pseudo_point) {
         ASSERT(!ARE_EQUAL(this->center, pseudo_point));
+        this->has_pseudo_point = true; // seems safer to set this just in case
         this->pseudo_point_angle = ATAN2(pseudo_point - this->center);
     }
 };
