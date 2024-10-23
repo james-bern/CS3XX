@@ -516,9 +516,9 @@ struct Cookbook {
                 buffer_add_arc(E->arc.center, E->arc.radius, E->arc.start_angle_in_degrees, divide_theta_a, E->is_selected, E->color_code);
             }
             if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
-                buffer_add_arc(F->arc.center, F->arc.radius, divide_theta_a, F->arc.end_angle_in_degrees, F->is_selected, F->color_code);
+                buffer_add_arc(F->arc.center, F->arc.radius, divide_theta_b, F->arc.end_angle_in_degrees, F->is_selected, F->color_code);
             } else {
-                buffer_add_arc(F->arc.center, F->arc.radius, F->arc.start_angle_in_degrees, divide_theta_a, F->is_selected, F->color_code);
+                buffer_add_arc(F->arc.center, F->arc.radius, F->arc.start_angle_in_degrees, divide_theta_b, F->is_selected, F->color_code);
             }
         }
 
