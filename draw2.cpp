@@ -81,7 +81,7 @@ struct {
 struct {
     int shader_program;
     uint VAO;
-    uint VBO[6];
+    uint VBO[2];
     uint EBO;
 } face_pass;
 
@@ -104,6 +104,10 @@ void POOSH(
         int sizeof_type,
         int GL_TYPE
         ) {
+
+    ASSERT(VBO);
+    ASSERT(array);
+
     glDisableVertexAttribArray(vertex_attribute_index);
     if (array) {
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -127,8 +131,10 @@ void _fancy_draw_face_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     uint *VBO = face_pass.VBO;
     uint  EBO = face_pass.EBO;
 
-
     ASSERT(shader_program);
+    ASSERT(VAO);
+    ASSERT(EBO);
+
     glUseProgram(shader_program);
 
     glBindVertexArray(VAO);
@@ -244,7 +250,6 @@ struct {
     int shader_program;
     uint VAO;
     uint VBO[2];
-
     uint FBO;
     uint texture;
 } all_edge_pass;
@@ -261,13 +266,18 @@ run_before_main {
     glBindFramebuffer(GL_FRAMEBUFFER, all_edge_pass.FBO);
 
     glGenTextures(1, &all_edge_pass.texture);
+    glActiveTexture(all_edge_pass.texture); // ?
     glBindTexture(GL_TEXTURE_2D, all_edge_pass.texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_get_width_Pixel(), window_get_height_Pixel(), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
     glBindTexture(GL_TEXTURE_2D, 0);
 
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, all_edge_pass.texture, 0);  
+
+    ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 };
@@ -282,6 +292,9 @@ void _fancy_draw_all_edge_pass_A(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     uint  FBO = all_edge_pass.FBO;
 
     ASSERT(shader_program);
+    ASSERT(VAO);
+    ASSERT(FBO);
+
     glUseProgram(shader_program);
 
     glBindVertexArray(VAO);
@@ -305,8 +318,8 @@ void _fancy_draw_all_edge_pass_A(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glClearColor(1.0f, 0.0f, 1.0f, 1.0f); 
-    glClear(GL_COLOR_BUFFER_BIT);
+    // glClearColor(1.0f, 0.0f, 1.0f, 1.0f); 
+    // glClear(GL_COLOR_BUFFER_BIT);
     #endif
 }
 
@@ -334,14 +347,17 @@ void _fancy_draw_all_edge_pass_B() {
     uint *VBO = texture_blit.VBO;
 
     ASSERT(shader_program);
+    ASSERT(VAO);
+
     glUseProgram(shader_program);
 
     glBindVertexArray(VAO);
     POOSH(0, VBO[0], vertex_positions,           num_verts, 2, sizeof(real), GL_FLOAT);
     POOSH(1, VBO[1], vertex_texture_coordinates, num_verts, 2, sizeof(real), GL_FLOAT);
-    glUniform1ui(UNIFORM(shader_program, "screenTexture"), all_edge_pass.texture);
+    glUniform1ui(UNIFORM(shader_program, "screenTexture"), all_edge_pass.texture); // ?? 1ui vs 1i
 
     glDisable(GL_DEPTH_TEST);
+    glActiveTexture(all_edge_pass.texture); // ?
     glBindTexture(GL_TEXTURE_2D, all_edge_pass.texture); // ?
     glDrawArrays(GL_TRIANGLES, 0, num_verts);
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -349,12 +365,22 @@ void _fancy_draw_all_edge_pass_B() {
 }
 
 
+void _fancy_draw_hard_edges_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+    uint hard_edges_num_vertices = (2 * mesh->num_hard_edges);
+    eso_begin(P * V * M, SOUP_LINES);
+    eso_color(pallete.black);
+    eso_size(2.0f);
+    for_(k, hard_edges_num_vertices) {
+        eso_vertex(mesh->hard_edges_vertex_positions[k]);
+    }
+    eso_end();
+}
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     _fancy_draw_face_pass(P, V, M, mesh);
     _fancy_draw_all_edge_pass_A(P, V, M, mesh);
     _fancy_draw_all_edge_pass_B();
-    // _fancy_draw_hard_edge_pass(P, V, M, mesh);
+    // _fancy_draw_hard_edges_pass(P, V, M, mesh);
     // TODO(?):_fancy_draw_silhouette_edge_pass(P, V, M, mesh);
 }

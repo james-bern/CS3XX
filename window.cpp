@@ -68,8 +68,8 @@ vec2 window_get_size_Pixel() {
     real height = real(_height) / _window_macbook_retina_fixer__VERY_MYSTERIOUS;
     return { width, height };
 }
-real window_get_width_Pixel() { return window_get_size_Pixel().x; }
-real window_get_height_Pixel() { return window_get_size_Pixel().y; }
+uint window_get_width_Pixel() { return window_get_size_Pixel().x; }
+uint window_get_height_Pixel() { return window_get_size_Pixel().y; }
 
 
 void gl_scissor_Pixel(double x, double y, double dx, double dy) {

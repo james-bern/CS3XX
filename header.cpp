@@ -206,6 +206,10 @@ struct DrawMesh {
     vec3 *all_edges_vertex_positions;
     uint *all_edges_corresponding_triangle_indices;
 
+    uint num_hard_edges;
+    vec3 *hard_edges_vertex_positions;
+    uint *hard_edges_corresponding_triangle_indices;
+
 };
 
 
@@ -1319,6 +1323,11 @@ void mesh_bbox_calculate(WorkMesh *mesh) {
     }
 }
 
+void mesh_translate_to_origin(WorkMesh *mesh) {
+    vec3 bbox_center = AVG(mesh->bbox.min, mesh->bbox.max);
+    for_(i, mesh->num_vertices) mesh->vertex_positions[i] -= bbox_center;
+}
+
 void mesh_triangle_normals_calculate(WorkMesh *mesh) {
     mesh->triangle_normals = (vec3 *) malloc(mesh->num_triangles * sizeof(vec3));
     vec3 p[3];
@@ -1451,6 +1460,10 @@ void mesh_divide_into_patches(Meshes *meshes) {
         }
     }
 
+    vec3 *hard_edges_vertex_positions = (vec3 *) malloc(2 * 2 * 3 * num_triangles * sizeof(vec3));
+    uint *hard_edges_corresponding_triangle_indices = (uint *) malloc(2 * 2 * 3 * num_triangles * sizeof(uint));
+    uint num_hard_edges = 0;
+
     uint num_patches = 0;
 
     {
@@ -1496,12 +1509,10 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 uint triangle_index = queue_dequeue(&queue);
                 uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
                 for_(d, 3) {
+                    uint i = old_triangle_tuple[ d         ];
+                    uint j = old_triangle_tuple[(d + 1) % 3];
+                    uint2 twin_old_half_edge = { j, i };
                     uint twin_triangle_index; {
-                        uint2 twin_old_half_edge; {
-                            uint i = old_triangle_tuple[ d         ];
-                            uint j = old_triangle_tuple[(d + 1) % 3];
-                            twin_old_half_edge = { j, i };
-                        }
                         // NOTE: if this crashes, the mesh wasn't manifold?
                         twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
                     }
@@ -1512,9 +1523,25 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         // NOTE: clamp ver ver important
                         real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
                         ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
-                        is_soft_edge = (angle_in_degrees < 60.0f);
+                        is_soft_edge = (angle_in_degrees < 30.0f);
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
+                    if (is_not_already_marked && !is_soft_edge) {
+                        vec3 p_i = old->vertex_positions[i];
+                        vec3 p_j = old->vertex_positions[j];
+
+                        hard_edges_vertex_positions              [2 * num_hard_edges + 0] = p_i;
+                        hard_edges_vertex_positions              [2 * num_hard_edges + 1] = p_j;
+                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 0] = triangle_index;
+                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 1] = triangle_index;
+                        ++num_hard_edges;
+
+                        hard_edges_vertex_positions              [2 * num_hard_edges + 0] = p_j;
+                        hard_edges_vertex_positions              [2 * num_hard_edges + 1] = p_i;
+                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 0] = twin_triangle_index;
+                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 1] = twin_triangle_index;
+                        ++num_hard_edges;
+                    }
                 }
             }
 
@@ -1651,6 +1678,10 @@ void mesh_divide_into_patches(Meshes *meshes) {
             }
             ASSERT(k == num_vertices_all_edges);
         }
+
+        draw->hard_edges_vertex_positions = hard_edges_vertex_positions;
+        draw->hard_edges_corresponding_triangle_indices = hard_edges_corresponding_triangle_indices;
+        draw->num_hard_edges = num_hard_edges;
 
     }
 
@@ -1872,6 +1903,9 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
 
         mesh_bbox_calculate(&meshes->work);
         mesh_triangle_normals_calculate(&meshes->work);
+        #if 0
+        mesh_translate_to_origin(&meshes->work);
+        #endif
     }
 
     {
