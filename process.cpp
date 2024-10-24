@@ -1492,12 +1492,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                     vec2 start;
                                     vec2 end;
+                                    bool poosh = false;
 
                                     if (entity_length(entity) < 0.05f) continue; // TODO: TODO: VERY SCARY 0 LENGTH ENTITIES 
-                                                                                 //
-                                    entity_get_start_and_end_points(entity, &start, &end);
-                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
-                                    push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
+                                    if (entity->type == EntityType::Circle) {
+                                        CircleEntity *circle = &entity->circle;
+                                        if (circle->has_pseudo_point) {
+                                            poosh = true;
+                                            start = end = circle->get_pseudo_point();
+                                        }
+                                    } else {
+                                        poosh = true;
+                                        entity_get_start_and_end_points(entity, &start, &end);
+                                    }
+                                    if (poosh) {
+                                        push_into_grid_unless_cell_full__make_cell_if_none_exists(start, entity_index, false);
+                                        push_into_grid_unless_cell_full__make_cell_if_none_exists(end, entity_index, true);
+                                    }
                                 }
                             }
 
@@ -1522,10 +1533,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                                 vec2 p; {
                                     Entity *entity = &drawing->entities.array[point->entity_index];
-                                    if (end_NOT_start) {
-                                        p = entity_get_end_point(entity);
+
+                                    if (entity->type == EntityType::Circle) {
+                                        CircleEntity *circle = &entity->circle;
+                                        ASSERT(circle->has_pseudo_point);
+                                        p = circle->get_pseudo_point();
                                     } else {
-                                        p = entity_get_start_point(entity);
+                                        if (end_NOT_start) {
+                                            p = entity_get_end_point(entity);
+                                        } else {
+                                            p = entity_get_start_point(entity);
+                                        }
                                     }
                                 }
                                 return make_key(p);
@@ -1572,16 +1590,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 endpoint_marks[hot_entity_index].start_marked = true;
                                 endpoint_marks[hot_entity_index].end_marked = true;
 
+                                bool special_case_circle_no_pseudo_point = ((entity->type == EntityType::Circle) && (!entity->circle.has_pseudo_point));
+                                if (special_case_circle_no_pseudo_point) {
+                                    entity->is_selected = value_to_write_to_selection_mask;
+                                    to_move[hot_entity_index] = true;
+                                    continue;
+                                }
                                 for_(pass, 2) {
                                     vec2 seed; {
                                         vec2 p;
-                                        if (pass == 0) {
-                                            p = entity_get_start_point(&drawing->entities.array[hot_entity_index]);
+                                        if (entity->type == EntityType::Circle) {
+                                            CircleEntity *circle = &entity->circle;
+                                            ASSERT(circle->has_pseudo_point);
+                                            p = circle->get_pseudo_point();
+
                                         } else {
-                                            p = entity_get_end_point(&drawing->entities.array[hot_entity_index]);
+                                            if (pass == 0) {
+                                                p = entity_get_start_point(&drawing->entities.array[hot_entity_index]);
+                                            } else {
+                                                p = entity_get_end_point(&drawing->entities.array[hot_entity_index]);
+                                            }
                                         }
                                         seed = make_key(p);
                                     }
+
 
 
                                     Queue<EntVecMapping> queue = {};
@@ -1607,7 +1639,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                                         endpoint_marks[tmp->entity_index].start_marked = true;
                                                         endpoint_marks[tmp->entity_index].end_marked = true;
 
-                                                        if (nullCheck)  {
+                                                        if (ent.type == EntityType::Arc && nullCheck)  {
                                                             ASSERT(ent.type == EntityType::Arc);
                                                             vec2 startPoint = entity_get_start_point(&ent);
                                                             vec2 endPoint = entity_get_end_point(&ent);
@@ -1642,14 +1674,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             _for_each_entity_ { // TODO: dont actually need to go over each but im lazy 
                                 if (to_move[entity - drawing->entities.array] || entity->is_selected) {
-                                    if (entity->type == EntityType::Line) {
-                                        LineEntity *line = &entity->line;
-                                        line->start += click_vector;
-                                        line->end   += click_vector;
-                                    } else { ASSERT(entity->type == EntityType::Arc);
-                                        ArcEntity *arc = &entity->arc;
-                                        arc->center += click_vector;
-                                    }
+                                    *entity = entity_translated(entity, click_vector);
                                 }
                             }
 
@@ -1660,7 +1685,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 Entity *entToConnectTo = &drawing->entities.array[curMapping.entityToConnectToIndex];
                                 Entity *entToMove = &drawing->entities.array[curMapping.entityToBeMovedIndex];
 
-                                vec2 pointToConnectTo = curMapping.connectToStart ? entity_get_start_point(entToConnectTo) : entity_get_end_point(entToConnectTo);
+                                vec2 pointToConnectTo = entToConnectTo->type == EntityType::Circle ? entToConnectTo->circle.get_pseudo_point() :
+                                    curMapping.connectToStart ? entity_get_start_point(entToConnectTo) : entity_get_end_point(entToConnectTo);
                                 if (entToMove->type == EntityType::Line) {
                                     if (popup->drag_extend_line == 0) {
                                         if (curMapping.moveStart) {
@@ -1905,7 +1931,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             result.record_me = false;
             if (!mouse_event->mouse_held) {
                 MagicSnapResult3D snap_result = magic_snap_3d();
-                
+
                 // int index_of_first_triangle_hit_by_ray = -1;
                 // vec3 exact_hit_pos;
                 // {

@@ -472,7 +472,6 @@ struct Cookbook {
             }
 
             // good luck
-
             const Entity *arc_or_circle = swap_happened ? EntTwo : EntOne;
             if (arc_or_circle->type == EntityType::Circle && !arc_or_circle->circle.has_pseudo_point) {
                 buffer_add_circle(arc_or_circle->circle.center, arc_or_circle->circle.radius, true, RAD(divide_theta), arc_or_circle->is_selected, arc_or_circle->color_code); // ah of course this uses radian because yes
