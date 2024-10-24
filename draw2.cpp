@@ -266,9 +266,25 @@ run_before_main {
     glBindFramebuffer(GL_FRAMEBUFFER, all_edge_pass.FBO);
 
     glGenTextures(1, &all_edge_pass.texture);
-    glActiveTexture(all_edge_pass.texture); // ?
+
+    u8 *data = NULL;
+    #if 0
+    {
+        uint k = 0;
+        data = (u8 *) malloc(3 * window_get_width_Pixel() * window_get_height_Pixel());
+        for_(j, window_get_height_Pixel()) {
+            for_(i, window_get_width_Pixel()) {
+                data[k++] = i % 256;
+                data[k++] = j % 256;
+                data[k++] = 0;
+            }
+        }
+    }
+    #endif
+
+    glActiveTexture(GL_TEXTURE0); // ?
     glBindTexture(GL_TEXTURE_2D, all_edge_pass.texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_get_width_Pixel(), window_get_height_Pixel(), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, window_get_width_Pixel(), window_get_height_Pixel(), 0, GL_RGB, GL_UNSIGNED_BYTE, data);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -282,8 +298,11 @@ run_before_main {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 };
 
+void _fancy_draw_all_edge_pass_A() {
+    // TODO: draw the index buffer
+}
 
-void _fancy_draw_all_edge_pass_A(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+void _fancy_draw_all_edge_pass_B(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     uint num_verts = 2 * (3 * mesh->num_triangles);
 
     uint shader_program = all_edge_pass.shader_program;
@@ -309,21 +328,25 @@ void _fancy_draw_all_edge_pass_A(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     #if 0
     glDrawArrays(GL_LINES, 0, num_verts);
     #else
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_DEPTH_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, FBO);
     {
 
         glClearColor(1.0f, 1.0f, 0.0f, 1.0f); 
         glClear(GL_COLOR_BUFFER_BIT);
-        // glDrawArrays(GL_LINES, 0, num_verts);
+        glDrawArrays(GL_LINES, 0, num_verts);
 
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     // glClearColor(1.0f, 0.0f, 1.0f, 1.0f); 
     // glClear(GL_COLOR_BUFFER_BIT);
+    glEnable(GL_SCISSOR_TEST);
+    glEnable(GL_DEPTH_TEST);
     #endif
 }
 
-void _fancy_draw_all_edge_pass_B() {
+void _fancy_draw_all_edge_pass_C() {
     uint num_verts = 6;
     vec2 vertex_positions[] = {
         { -1.0f, -1.0f },
@@ -351,14 +374,14 @@ void _fancy_draw_all_edge_pass_B() {
 
     glUseProgram(shader_program);
 
+    glActiveTexture(GL_TEXTURE0); // ?
+    glBindTexture(GL_TEXTURE_2D, all_edge_pass.texture); // ?
+    glUniform1i(UNIFORM(shader_program, "screenTexture"), 0); // ?? 1ui vs 1i
     glBindVertexArray(VAO);
     POOSH(0, VBO[0], vertex_positions,           num_verts, 2, sizeof(real), GL_FLOAT);
     POOSH(1, VBO[1], vertex_texture_coordinates, num_verts, 2, sizeof(real), GL_FLOAT);
-    glUniform1ui(UNIFORM(shader_program, "screenTexture"), all_edge_pass.texture); // ?? 1ui vs 1i
 
     glDisable(GL_DEPTH_TEST);
-    glActiveTexture(all_edge_pass.texture); // ?
-    glBindTexture(GL_TEXTURE_2D, all_edge_pass.texture); // ?
     glDrawArrays(GL_TRIANGLES, 0, num_verts);
     glBindTexture(GL_TEXTURE_2D, 0);
     glEnable(GL_DEPTH_TEST);
@@ -379,8 +402,9 @@ void _fancy_draw_hard_edges_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     _fancy_draw_face_pass(P, V, M, mesh);
-    _fancy_draw_all_edge_pass_A(P, V, M, mesh);
-    _fancy_draw_all_edge_pass_B();
+    _fancy_draw_all_edge_pass_A();
+    // _fancy_draw_all_edge_pass_B(P, V, M, mesh);
+    _fancy_draw_all_edge_pass_C();
     // _fancy_draw_hard_edges_pass(P, V, M, mesh);
     // TODO(?):_fancy_draw_silhouette_edge_pass(P, V, M, mesh);
 }
