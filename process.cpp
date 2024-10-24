@@ -1876,8 +1876,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code);
                             } else { ASSERT(entity->type == EntityType::Circle);
-                                // TODO
-                                ;
+                                CircleEntity *circle = &entity->circle;
+                                cookbook.buffer_add_circle(
+                                        V2(-(circle->center.x - mouse->x) + mouse->x, circle->center.y),
+                                        circle->radius,
+                                        circle->has_pseudo_point,
+                                        PI - circle->pseudo_point_angle,
+                                        true,
+                                        entity->color_code);
                             }
                             entity->is_selected = false;
                         }
@@ -1904,8 +1910,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         true,
                                         entity->color_code);
                             } else { ASSERT(entity->type == EntityType::Circle);
-                                // TODO
-                                ;
+                                CircleEntity *circle = &entity->circle;
+                                cookbook.buffer_add_circle(
+                                        V2(circle->center.x, -(circle->center.y - mouse->y) + mouse->y),
+                                        circle->radius,
+                                        circle->has_pseudo_point,
+                                        -circle->pseudo_point_angle,
+                                        true,
+                                        entity->color_code);
                             }
                             entity->is_selected = false;
                         }
