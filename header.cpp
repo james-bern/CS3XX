@@ -16,7 +16,7 @@ void _POOSH(uint *VBO, uint i, uint num_verts, void *array, uint dim, uint GL_TY
     glDisableVertexAttribArray(i);
     if (array) {
         glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-        glBufferData(GL_ARRAY_BUFFER, num_verts * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, num_verts * dim * sizeof_type, array, GL_STATIC_DRAW);
 
         if (GL_TYPE == GL_FLOAT) {
             glVertexAttribPointer (i, dim, GL_TYPE, GL_FALSE, 0, NULL);
@@ -249,20 +249,17 @@ struct DrawMesh {
 
 
 struct {
-    struct {
-        uint VAO;
-        uint VBO[3];
-        uint EBO;
-    } Faces;
-
-    struct {
-    } Edges;
+    uint VAO;
+    uint VBO[3];
+    uint EBO_faces;
+    uint EBO_edges;
 } GL;
 
 run_before_main {
-    glGenVertexArrays(1, &GL.Faces.VAO);
-    glGenBuffers(ARRAY_LENGTH(GL.Faces.VBO), GL.Faces.VBO);
-    glGenBuffers(1, &GL.Faces.EBO);
+    glGenVertexArrays(1, &GL.VAO);
+    glGenBuffers(ARRAY_LENGTH(GL.VBO), GL.VBO);
+    glGenBuffers(1, &GL.EBO_faces);
+    glGenBuffers(1, &GL.EBO_edges);
 };
 
 
@@ -1578,7 +1575,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         // NOTE: clamp ver ver important
                         real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
                         ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
-                        is_soft_edge = (angle_in_degrees < 30.0f);
+                        is_soft_edge = (angle_in_degrees < 60.0f);
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                     if (is_not_already_marked && !is_soft_edge) {
@@ -1992,11 +1989,28 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
     }
     { // GL
         DrawMesh *mesh = &meshes->draw;
-        glBindVertexArray(GL.Faces.VAO);
-        POOSH(GL.Faces.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
-        POOSH(GL.Faces.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.Faces.EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_DYNAMIC_DRAW);
+        glBindVertexArray(GL.VAO);
+        POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+        POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+        {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
+        }
+        { // gross explosion from triangles to edges
+            // if there is a better way to do this please lmk :(
+            uint size = 2 * 3 * mesh->num_triangles * sizeof(uint);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_edges);
+            uint *mesh_edge_tuples = (uint *) malloc(size);
+            defer { free(mesh_edge_tuples); };
+            uint k = 0;
+            for_(i, mesh->num_triangles) {
+                for_(d, 3) {
+                    mesh_edge_tuples[k++] = mesh->triangle_tuples[i][d];
+                    mesh_edge_tuples[k++] = mesh->triangle_tuples[i][(d + 1) % 3];
+                }
+            }
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
+        }
     }
 }
 

@@ -1270,7 +1270,36 @@ void conversation_draw() {
         EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
         easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
         pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
-        easy_text_drawf(&pen, "%d triangles %d vertices", meshes->work.num_triangles, meshes->work.num_vertices);
+
+
+        static int fps; {
+            static int measured_fps;
+
+            // grab and smooth fps
+            {
+                const int N_MOVING_WINDOW = 5;
+                static std::chrono::steady_clock::time_point prev_timestamps[N_MOVING_WINDOW];
+                std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
+                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp - prev_timestamps[N_MOVING_WINDOW - 1]);
+                measured_fps = (int) round(N_MOVING_WINDOW / (nanos.count() / 1000000000.));
+
+                for (int i = N_MOVING_WINDOW - 1; i >= 1; --i) {
+                    prev_timestamps[i] = prev_timestamps[i - 1];
+                }
+                prev_timestamps[0] = timestamp;
+            }
+
+            {
+                static std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
+                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - timestamp);
+                if (nanos.count() > 166666666 / 1.5) {
+                    timestamp = std::chrono::steady_clock::now();
+                    fps = measured_fps;
+                }
+            }
+        }
+
+        easy_text_drawf(&pen, "%d triangles %d vertices %d fps", meshes->work.num_triangles, meshes->work.num_vertices, fps);
     }
 
 }

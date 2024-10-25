@@ -58,7 +58,8 @@ struct {
         } fs_in;
 
         uniform vec3 eye_World;
-        uniform bool ID_buffer_version;
+
+        uniform int mode;
 
         out vec4 _gl_FragColor;
 
@@ -66,78 +67,151 @@ struct {
             vec3 N = normalize(fs_in.normal_World);
             vec3 rgb = vec3(0.0);
 
+            if (mode == 0) {
+                vec3 warm_color = vec3(1.0, 1.0, 0.3);
+                vec3 cool_color = vec3(0.3, 0.7, 1.0);
 
-        vec3 warm_color = vec3(1.0, 1.0, 0.3);
-        vec3 cool_color = vec3(0.3, 0.7, 1.0);
-        // sunlight gooch
-        {
-            vec3 L = vec3(0.0, 1.0, 0.0);
-            float LN = dot(L, N);
-            float t = 0.5 + 0.5 * LN;
-            rgb += 0.7 * mix(cool_color, warm_color, t);
-        }
+                { // sunlight gooch
+                    vec3 L = vec3(0.0, 1.0, 0.0);
+                    float LN = dot(L, N);
+                    float t = 0.5 + 0.5 * LN;
+                    rgb += 0.7 * mix(cool_color, warm_color, t);
+                }
 
-        // eye light phong fresnel
-        {
-            vec3 L = normalize(eye_World - fs_in.position_World);
-            vec3 E = normalize(eye_World - fs_in.position_World);
-            vec3 H = normalize(L + E);
-            float F0 = 0.05;
-            float diffuse = max(0.0, dot(N, L));
-            float specular = pow(max(0.0, dot(N, H)), 256);
-            float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-            rgb += 0.3 * diffuse;
-            rgb += 0.2 * specular;
-            rgb += 0.3 * fresnel;
-        }
+                { // eye light phong fresnel
+                    vec3 L = normalize(eye_World - fs_in.position_World);
+                    vec3 E = normalize(eye_World - fs_in.position_World);
+                    vec3 H = normalize(L + E);
+                    float F0 = 0.05;
+                    float diffuse = max(0.0, dot(N, L));
+                    float specular = pow(max(0.0, dot(N, H)), 256);
+                    float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
+                    rgb += 0.3 * diffuse;
+                    rgb += 0.2 * specular;
+                    rgb += 0.3 * fresnel;
+                }
+            } else if (mode == 3) {
+                int r = (gl_PrimitiveID)             % 256;
+                int g = (gl_PrimitiveID / 256)       % 256;
+                int b = (gl_PrimitiveID / 256 / 256) % 256;
+                rgb = vec3(r / 255.0, g / 255.0, b / 255.0);
+            }
 
-        if (ID_buffer_version) {
-            int r = gl_PrimitiveID % 256;
-            int g = (gl_PrimitiveID / 256) % 256;
-            int b = (gl_PrimitiveID / 256 / 256) % 256;
-            rgb = vec3(r / 255.0, g / 255.0, b / 255.0);
+            _gl_FragColor = vec4(rgb, 1.0);
         }
-        _gl_FragColor = vec4(rgb, 1.0);
-    }
     )"";
 } face_pass_source;
 
+
 struct {
-    int shader_program;
-} face_pass;
+    char *vert = R""(
+        #version 330 core
+        layout (location = 0) in vec3 position_Model;
+
+        uniform mat4 PVM;
+
+        void main() {
+            gl_Position = PVM * vec4(position_Model, 1.0);
+        }
+    )"";
+
+    char *geom = R""(#version 330 core
+        layout (lines) in;
+        layout (triangle_strip, max_vertices = 4) out;
+
+        uniform vec2 OpenGL_from_Pixel_scale;
+
+        void main() {    
+            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
+            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
+
+            float size = 1.0f;
+
+            vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
+            vec4 perp_s = vec4((size / 2) * perp, 0, 0);
+            vec4 perp_t = vec4((size / 2) * perp, 0, 0);
+
+            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w; EmitVertex();
+            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w; EmitVertex();
+            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w; EmitVertex();
+            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w; EmitVertex();
+
+            EndPrimitive();
+        }  
+    )"";
+
+    char *frag = R""(#version 330 core
+        out vec4 _gl_FragColor;
+        void main() {
+            _gl_FragColor = vec4(1.0);
+        }
+    )"";
+} edge_pass_source;
+
+int face_shader_program;
+int edge_shader_program;
+
 
 run_before_main {
-    uint vert = shader_compile(face_pass_source.vert, GL_VERTEX_SHADER);
-    uint frag = shader_compile(face_pass_source.frag, GL_FRAGMENT_SHADER);
-    face_pass.shader_program = shader_build_program(vert, 0, frag);
+    {
+        uint face_vert = shader_compile(face_pass_source.vert, GL_VERTEX_SHADER);
+        uint face_frag = shader_compile(face_pass_source.frag, GL_FRAGMENT_SHADER);
+        face_shader_program = shader_build_program(face_vert, 0, face_frag);
+    }
+
+    {
+        uint edge_vert = shader_compile(edge_pass_source.vert, GL_VERTEX_SHADER  );
+        uint edge_geom = shader_compile(edge_pass_source.geom, GL_GEOMETRY_SHADER);
+        uint edge_frag = shader_compile(edge_pass_source.frag, GL_FRAGMENT_SHADER);
+        edge_shader_program = shader_build_program(edge_vert, edge_geom, edge_frag);
+    }
 };
 
 
-void DRAW_FACES(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, bool ID_buffer_version) {
+uint DRAW_MESH_MODE_LIT            = 0;
+uint DRAW_MESH_MODE_PATCH_ID       = 1;
+uint DRAW_MESH_MODE_PATCH_EDGES    = 2;
+uint DRAW_MESH_MODE_TRIANGLE_ID    = 3;
+uint DRAW_MESH_MODE_TRIANGLE_EDGES = 4;
+void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
+    mat4 PVM = PV * M;
 
-    uint shader_program = face_pass.shader_program;
-    ASSERT(shader_program);
-    glUseProgram(shader_program);
+    // NOTE: glPolygonMode doesn't work here (it does NOT change the primitive)
+    // TODO: custom element buffer object for lines
 
-    glBindVertexArray(GL.Faces.VAO);
-    glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
-    glUniformMatrix4fv(UNIFORM(shader_program, "M"), 1, GL_TRUE, M.data);
-    glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
-    glUniform1ui      (UNIFORM(shader_program, "ID_buffer_version"), ID_buffer_version);
-    glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
+    if (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) {
+        glBindVertexArray(GL.VAO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_edges);
+        uint shader_program = edge_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
+        glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
+        glUniform2f       (UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
+        glDrawElements(GL_LINES, 2 * 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
+    } else if ((mode == DRAW_MESH_MODE_LIT) || (mode == DRAW_MESH_MODE_TRIANGLE_ID)) {
+        glBindVertexArray(GL.VAO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
+        uint shader_program = face_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
+        glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
+        glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
+        glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
+        glUniform1i(UNIFORM(shader_program, "mode"), mode);
+        glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
+    } else {
+        // ...
+    }
+
+
 }
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    static uint frame = 0;
-    frame++;
-    if (frame > 120) frame = 0;
-    if (frame < 60) DRAW_FACES(P, V, M, mesh, false);
-    else DRAW_FACES(P, V, M, mesh, true);
-    // DRAW_FLAT_ID_BUFFER_FACES(P, V, M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_LIT,         P, V, M4_Translation(-80.0, 0.0,   0.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_PATCH_ID,       P, V, M4_Translation( 00.0, 0.0, -30.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES,    P, V, M4_Translation( 00.0, 0.0,  30.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_ID,    P, V, M4_Translation( 80.0, 0.0, -30.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M4_Translation( 80.0, 0.0,  30.0) * M, mesh);
 
     // _fancy_draw_all_edge_pass(P, V, M, mesh);
     // _fancy_draw_hard_edges_pass(P, V, M, mesh);
@@ -254,53 +328,6 @@ struct {
 
 
 
-struct {
-    char *vert = R""(
-        #version 330 core
-        layout (location = 0) in vec3 position_Model;
-        layout (location = 1) in  int    triangle_ID;
-
-        uniform mat4 P;
-        uniform mat4 V;
-        uniform mat4 M;
-
-        void main() {
-            gl_Position = P * V * M * vec4(position_Model, 1.0);
-        }
-    )"";
-
-    char *geom_LINES = R""(#version 330 core
-        layout (lines) in;
-        layout (triangle_strip, max_vertices = 4) out;
-
-        uniform vec2 OpenGL_from_Pixel_scale;
-
-        void main() {    
-            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
-            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
-
-            float size = 3.0f;
-
-            vec2 perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
-            vec4 perp_s = vec4((size / 2) * perp, 0, 0);
-            vec4 perp_t = vec4((size / 2) * perp, 0, 0);
-
-            gl_Position = (s - perp_s) * gl_in[0].gl_Position.w; EmitVertex();
-            gl_Position = (t - perp_t) * gl_in[1].gl_Position.w; EmitVertex();
-            gl_Position = (s + perp_s) * gl_in[0].gl_Position.w; EmitVertex();
-            gl_Position = (t + perp_t) * gl_in[1].gl_Position.w; EmitVertex();
-
-            EndPrimitive();
-        }  
-    )"";
-
-    char *frag_LINES = R""(#version 330 core
-        out vec4 _gl_FragColor;
-        void main() {
-            _gl_FragColor = vec4(1.0);
-        }
-    )"";
-} all_edge_pass_source;
 
 struct {
     int shader_program;
