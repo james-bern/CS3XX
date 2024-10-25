@@ -1210,7 +1210,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_arc(center, radius, theta_b_in_degrees, theta_a_in_degrees);
                                 // messagef(pallete.light_gray, "Circle");
                             }
-                        } else if (state_Draw_command_is_(Divide2)) { // TODO: make sure no 0 length shenanigans
+                        } else if (state_Draw_command_is_(Divide2)) { 
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1222,135 +1222,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 if (closest_entity_one == closest_entity_two) {
                                     messagef(pallete.orange, "TwoClickDivide: clicked same entity twice");
                                 } else {
-                                    if (closest_entity_one->type == EntityType::Line && closest_entity_two->type == EntityType::Line) {
-                                        LineEntity segment_one = closest_entity_one->line;
-                                        LineEntity segment_two = closest_entity_two->line;
-                                        vec2 a = segment_one.start;
-                                        vec2 b = segment_one.end;
-                                        vec2 c = segment_two.start;
-                                        vec2 d = segment_two.end;
-                                        LineLineXResult X_result = line_line_intersection(a, b, c, d);
-                                        bool neither_line_extension_hits_the_other_segment = ((!X_result.point_is_on_segment_ab) && (!X_result.point_is_on_segment_cd));
-                                        if (neither_line_extension_hits_the_other_segment) {
-                                            messagef(pallete.orange, "TwoClickDivide: no intersection found");
-                                        } else {
-                                            if (X_result.point_is_on_segment_ab) {
-                                                cookbook.buffer_add_line(X_result.point, a, false, closest_entity_one->color_code);
-                                                cookbook.buffer_add_line(X_result.point, b, false, closest_entity_one->color_code);
-                                                cookbook.buffer_delete_entity(closest_entity_one);
-                                            }
-                                            if (X_result.point_is_on_segment_cd) {
-                                                cookbook.buffer_add_line(X_result.point, c, false, closest_entity_two->color_code);
-                                                cookbook.buffer_add_line(X_result.point, d, false, closest_entity_two->color_code);
-                                                cookbook.buffer_delete_entity(closest_entity_two);
-                                            } 
-                                        }
-                                    } else if (closest_entity_one->type == EntityType::Arc && closest_entity_two->type == EntityType::Arc){
-                                        // math for this is here https://paulbourke.net/geometry/circlesphere/
+                                    ClosestIntersectionResult intersection = closest_intersection(closest_entity_one, closest_entity_two, second_click);
+                                    if (intersection.no_possible_intersection) {
+                                        messagef(pallete.red, "NO INTERSECTION FOUND");
+                                    } else {
+                                        bool divided_first = cookbook.attempt_divide_entity_at_point(closest_entity_one, intersection.point);
+                                        bool divided_second = cookbook.attempt_divide_entity_at_point(closest_entity_two, intersection.point);
 
-                                        ArcEntity arcA = closest_entity_one->arc;
-                                        ArcEntity arcB = closest_entity_two->arc;
-
-                                        ArcArcXResult arc_x_arc_result = arc_arc_intersection(&arcA, &arcB);
-
-                                        bool p1Works = arc_x_arc_result.point1_is_on_arc_a || arc_x_arc_result.point1_is_on_arc_b; 
-                                        bool p2Works = arc_x_arc_result.point2_is_on_arc_a || arc_x_arc_result.point2_is_on_arc_b; 
-                                        bool cut_arc_a = false;
-                                        bool cut_arc_b = false;
-                                        real theta_a = 0;
-                                        real theta_b = 0;
-
-                                        if (p1Works) {
-                                            real click_to_p1 = distance(arc_x_arc_result.point1, second_click);
-                                            real click_to_p2 = distance(arc_x_arc_result.point2, second_click);
-                                            if (p2Works && click_to_p2 < click_to_p1) { 
-                                                theta_a = arc_x_arc_result.theta_2a;
-                                                theta_b = arc_x_arc_result.theta_2b;
-                                                cut_arc_a = arc_x_arc_result.point2_is_on_arc_a;
-                                                cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
-                                            } else {
-                                                theta_a = arc_x_arc_result.theta_1a;
-                                                theta_b = arc_x_arc_result.theta_1b;
-                                                cut_arc_a = arc_x_arc_result.point1_is_on_arc_a;
-                                                cut_arc_b = arc_x_arc_result.point1_is_on_arc_b;
-                                            }
-                                        } else if (p2Works) {
-                                            theta_a = arc_x_arc_result.theta_2a;
-                                            theta_b = arc_x_arc_result.theta_2b;
-                                            cut_arc_a = arc_x_arc_result.point2_is_on_arc_a;
-                                            cut_arc_b = arc_x_arc_result.point2_is_on_arc_b;
-                                        }
-                                        if (cut_arc_a) {
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, arcA.start_angle_in_degrees, theta_a, false, closest_entity_one->color_code);
-                                            cookbook.buffer_add_arc(arcA.center, arcA.radius, theta_a, arcA.end_angle_in_degrees, false, closest_entity_one->color_code);
-                                            cookbook.buffer_delete_entity(closest_entity_one);
-                                        }
-                                        if (cut_arc_b) {
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, arcB.start_angle_in_degrees, theta_b, false, closest_entity_two->color_code);
-                                            cookbook.buffer_add_arc(arcB.center, arcB.radius, theta_b, arcB.end_angle_in_degrees, false, closest_entity_two->color_code);
-                                            cookbook.buffer_delete_entity(closest_entity_two);
-                                        }
-                                        if (!cut_arc_a && !cut_arc_b) {
-                                            messagef(pallete.orange, "TwoClickDivide: no intersection found");
-                                        }
-                                    } else { ASSERT((closest_entity_one->type == EntityType::Line) && (closest_entity_two->type == EntityType::Arc)); // kinda nasty but only way 
-                                                                                                                                                      //       || (closest_entity_two->type == EntityType::Arc && closest_entity_two->type == EntityType::Line));
-                                        Entity *entity_arc;
-                                        Entity *entity_line;
-                                        if (closest_entity_one->type == EntityType::Arc) {
-                                            entity_arc = closest_entity_one;
-                                            entity_line = closest_entity_two;
-                                        } else {
-                                            entity_arc = closest_entity_two;
-                                            entity_line = closest_entity_one;
-                                        }
-                                        ArcEntity *arc = &entity_arc->arc;
-                                        LineEntity *line = &entity_line->line;
-
-                                        LineArcXResult line_x_arc_result = line_arc_intersection(line, arc);
-                                        bool p1Works = line_x_arc_result.point1_is_on_arc || line_x_arc_result.point1_is_on_line_segment;
-                                        bool p2Works = line_x_arc_result.point2_is_on_arc || line_x_arc_result.point2_is_on_line_segment;
-
-                                        vec2 intersect = {};
-                                        real theta = 0;
-                                        bool cutLine = false;
-                                        bool cutArc = false;
-
-                                        if (p1Works) {
-                                            real click_to_p1 = distance(line_x_arc_result.point1, second_click);
-                                            real click_to_p2 = distance(line_x_arc_result.point2, second_click);
-                                            if (p2Works && click_to_p2 < click_to_p1) { 
-                                                intersect = line_x_arc_result.point2;
-                                                theta = line_x_arc_result.theta_2;
-                                                cutLine = line_x_arc_result.point2_is_on_line_segment;
-                                                cutArc = line_x_arc_result.point2_is_on_arc;
-                                            } else {
-                                                intersect = line_x_arc_result.point1;
-                                                theta = line_x_arc_result.theta_1;
-                                                cutLine = line_x_arc_result.point1_is_on_line_segment;
-                                                cutArc = line_x_arc_result.point1_is_on_arc;
-                                            }
-                                        } else if (p2Works) {
-                                            intersect = line_x_arc_result.point2;
-                                            theta = line_x_arc_result.theta_2;
-                                            cutLine = line_x_arc_result.point2_is_on_line_segment;
-                                            cutArc = line_x_arc_result.point2_is_on_arc;
-                                        }
-
-                                        if (p1Works || p2Works) {
-                                            if (cutLine) {
-                                                cookbook.buffer_add_line(intersect, line->start, false, entity_line->color_code);
-                                                cookbook.buffer_add_line(intersect, line->end, false, entity_line->color_code);
-                                                cookbook.buffer_delete_entity(entity_line);
-                                            }
-                                            if (cutArc) {
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta, false, entity_arc->color_code);
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees, false, entity_arc->color_code);
-                                                cookbook.buffer_delete_entity(entity_arc);
-                                            }
-                                        }
-                                        if (!cutArc && !cutLine) {
-                                            messagef(pallete.orange, "TwoClickDivide: no intersection found");
+                                        if (!divided_first && !divided_second) {
+                                            messagef(pallete.red, "NO INTERSECTION FOUND");
                                         }
                                     }
                                 }
@@ -1915,7 +1795,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         V2(circle->center.x, -(circle->center.y - mouse->y) + mouse->y),
                                         circle->radius,
                                         circle->has_pseudo_point,
-                                        -circle->pseudo_point_angle,
+                                        -circle->pseudo_point_angle_in_degrees,
                                         true,
                                         entity->color_code);
                             }

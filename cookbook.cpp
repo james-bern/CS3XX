@@ -163,9 +163,9 @@ struct Cookbook {
     };
 
     // DOES NOT EXTEND Line
-    void attempt_divide_entity_at_point(uint entity_index, vec2 point) {
-        Entity *entity = &drawing->entities.array[entity_index];
+    bool attempt_divide_entity_at_point(Entity *entity, vec2 point) {
         bool delete_flag = false;
+        bool pseudo_point_created = false;
         if (entity->type == EntityType::Line) {
             LineEntity *line = &entity->line;
             bool point_is_on_line = 0.001 > ABS(distance(point, line->start) + distance(point, line->end) - distance(line->start, line->end)); // FORNOW
@@ -199,6 +199,7 @@ struct Cookbook {
                 if (!circle->has_pseudo_point) {
                     circle->has_pseudo_point = true;
                     circle->set_pseudo_point(point);
+                    pseudo_point_created = true;
                 } else {
                     if (ARE_EQUAL(circle->get_pseudo_point(), point)) {
                         ;
@@ -214,8 +215,13 @@ struct Cookbook {
             }
         }
         if (delete_flag) {
-            _buffer_delete_entity_DEPRECATED_INDEX_VERSION(entity_index);
+            buffer_delete_entity(entity);
         }
+        return delete_flag || pseudo_point_created;
+    }
+    void attempt_divide_entity_at_point(uint entity_index, vec2 point) {
+        Entity *entity = &drawing->entities.array[entity_index];
+        attempt_divide_entity_at_point(entity, point); 
     }
 
     void attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(const Entity *EntOne, const Entity *EntTwo, vec2 reference_point, real radius) {
@@ -540,7 +546,7 @@ struct Cookbook {
             real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
 
             if (EntOne->type == EntityType::Circle && !pseudoE) {
-                buffer_add_circle(EntOne->circle.center, EntOne->circle.radius, true, divide_theta_a, EntOne->is_selected, EntOne->color_code); // ah of course this uses radian because yes
+                buffer_add_circle(EntOne->circle.center, EntOne->circle.radius, true, divide_theta_a, EntOne->is_selected, EntOne->color_code); 
             } else {
                 real start_angle = EntOne->type == EntityType::Circle ? EntOne->circle.pseudo_point_angle_in_degrees : E->arc.start_angle_in_degrees;
                 real end_angle = EntOne->type == EntityType::Circle ? EntOne->circle.pseudo_point_angle_in_degrees : E->arc.end_angle_in_degrees;
@@ -551,7 +557,7 @@ struct Cookbook {
                 }
             }
             if (EntTwo->type == EntityType::Circle && !pseudoF) {
-                buffer_add_circle(EntTwo->circle.center, EntTwo->circle.radius, true, divide_theta_b, EntTwo->is_selected, EntTwo->color_code); // ah of course this uses radian because yes
+                buffer_add_circle(EntTwo->circle.center, EntTwo->circle.radius, true, divide_theta_b, EntTwo->is_selected, EntTwo->color_code); 
             } else {
                 real start_angle_in_degrees = EntTwo->type == EntityType::Circle ? EntTwo->circle.pseudo_point_angle_in_degrees : F->arc.start_angle_in_degrees;
                 real end_angle_in_degrees = EntTwo->type == EntityType::Circle ? EntTwo->circle.pseudo_point_angle_in_degrees : F->arc.end_angle_in_degrees;

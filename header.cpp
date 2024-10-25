@@ -1838,17 +1838,36 @@ struct ClosestIntersectionResult {
     bool no_possible_intersection;
 };
 
+ArcEntity get_arc_entity(const Entity* entity) {
+    if (entity->type == EntityType::Circle) {
+        return {
+            entity->circle.center,
+                entity->circle.radius,
+                0.0f,  // start angle
+                180.0f // end angle
+        };
+    }
+    return entity->arc;
+}
+
 ClosestIntersectionResult closest_intersection(Entity *A, Entity *B, vec2 point) {
     if (A->type == EntityType::Line && B->type == EntityType::Line) {
         LineLineXResult res = line_line_intersection(&A->line, &B->line);
         return { res.point, res.lines_are_parallel}; 
-    } else if (A->type == EntityType::Arc && B->type == EntityType::Arc) {
-        ArcArcXClosestResult res = arc_arc_intersection_closest(&A->arc, &B->arc, point);
+    } else if ((A->type == EntityType::Arc || A->type == EntityType::Circle) && (B->type == EntityType::Arc || B->type == EntityType::Circle)) {
+        ArcEntity arc_a = get_arc_entity(A);
+        ArcEntity arc_b = get_arc_entity(B);
+        ArcArcXClosestResult res = arc_arc_intersection_closest(&arc_a, &arc_b, point);
         return { res.point, res.no_possible_intersection };
     } else {
         LineArcXClosestResult res; 
-        if (A->type == EntityType::Line) res = line_arc_intersection_closest(&A->line, &B->arc, point);
-        else res = line_arc_intersection_closest(&B->line, &A->arc, point);
+        if (A->type == EntityType::Line) {
+            ArcEntity arc = get_arc_entity(B);
+            res = line_arc_intersection_closest(&A->line, &arc, point);
+        } else {
+            ArcEntity arc = get_arc_entity(A);
+            res = line_arc_intersection_closest(&B->line, &arc, point);
+        }
         return { res.point, res.no_possible_intersection };
     }
 }
