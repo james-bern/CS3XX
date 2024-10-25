@@ -1,3 +1,38 @@
+// gl
+
+void _POOSH(uint *VBO, uint i, uint num_verts, void *array, uint dim, uint GL_TYPE) {
+    ASSERT(VBO);
+    ASSERT(array);
+    ASSERT(num_verts);
+
+    uint sizeof_type; {
+        if (GL_TYPE == GL_FLOAT) {
+            sizeof_type = sizeof(real);
+        } else { ASSERT(GL_TYPE == GL_INT);
+            sizeof_type = sizeof(uint);
+        }
+    }
+
+    glDisableVertexAttribArray(i);
+    if (array) {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
+        glBufferData(GL_ARRAY_BUFFER, num_verts * dim * sizeof_type, array, GL_DYNAMIC_DRAW);
+
+        if (GL_TYPE == GL_FLOAT) {
+            glVertexAttribPointer (i, dim, GL_TYPE, GL_FALSE, 0, NULL);
+        } else { ASSERT(GL_TYPE == GL_INT);
+            glVertexAttribIPointer(i, dim, GL_TYPE,           0, NULL);
+        }
+
+        glEnableVertexAttribArray(i);
+    }
+};
+void POOSH(uint *VBO, uint i, uint num_verts, vec3 *array) { _POOSH(VBO, i, num_verts, array, 3, GL_FLOAT); }
+void POOSH(uint *VBO, uint i, uint num_verts, vec2 *array) { _POOSH(VBO, i, num_verts, array, 2, GL_FLOAT); }
+void POOSH(uint *VBO, uint i, uint num_verts, uint *array) { _POOSH(VBO, i, num_verts, array, 1, GL_INT  ); }
+
+uint UNIFORM(uint shader_program, char *name) { return glGetUniformLocation(shader_program, name); };
+
 ////////////////////////////////////////
 // Forward-Declarations ////////////////
 ////////////////////////////////////////
@@ -210,6 +245,9 @@ struct DrawMesh {
     vec3 *hard_edges_vertex_positions;
     uint *hard_edges_corresponding_triangle_indices;
 
+    uint VAO_faces;
+    uint VBO_faces[2];
+    uint EBO_faces;
 };
 
 
@@ -1934,6 +1972,22 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
 
     {
         mesh_vertex_normals_calculate(meshes);
+    }
+    { // GL
+      // TODO: you're gonna leak here if you're not careful
+        DrawMesh *mesh = &meshes->draw;
+
+        // TODO (IMPORTANT): make these global or something
+        // (you don't want to be generating new buffers every time you make a new mesh)
+        glGenVertexArrays(1, &mesh->VAO_faces);
+        glGenBuffers(ARRAY_LENGTH(mesh->VBO_faces), mesh->VBO_faces);
+        glGenBuffers(1, &mesh->EBO_faces);
+
+        glBindVertexArray(mesh->VAO_faces);
+        POOSH(mesh->VBO_faces, 0, mesh->num_vertices, mesh->vertex_positions);
+        POOSH(mesh->VBO_faces, 1, mesh->num_vertices, mesh->vertex_normals);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO_faces);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_DYNAMIC_DRAW);
     }
 }
 
