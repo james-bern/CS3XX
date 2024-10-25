@@ -249,14 +249,20 @@ struct DrawMesh {
 
 
 struct {
-uint VAO;
-uint VBO[2];
-uint EBO;
-} mesh_face_pass;
+    struct {
+        uint VAO;
+        uint VBO[3];
+        uint EBO;
+    } Faces;
+
+    struct {
+    } Edges;
+} GL;
+
 run_before_main {
-    glGenVertexArrays(1, &mesh_face_pass.VAO);
-    glGenBuffers(ARRAY_LENGTH(mesh_face_pass.VBO), mesh_face_pass.VBO);
-    glGenBuffers(1, &mesh_face_pass.EBO);
+    glGenVertexArrays(1, &GL.Faces.VAO);
+    glGenBuffers(ARRAY_LENGTH(GL.Faces.VBO), GL.Faces.VBO);
+    glGenBuffers(1, &GL.Faces.EBO);
 };
 
 
@@ -1986,10 +1992,10 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
     }
     { // GL
         DrawMesh *mesh = &meshes->draw;
-        glBindVertexArray(mesh_face_pass.VAO);
-        POOSH(mesh_face_pass.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
-        POOSH(mesh_face_pass.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_face_pass.EBO);
+        glBindVertexArray(GL.Faces.VAO);
+        POOSH(GL.Faces.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+        POOSH(GL.Faces.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.Faces.EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_DYNAMIC_DRAW);
     }
 }

@@ -58,8 +58,7 @@ struct {
         } fs_in;
 
         uniform vec3 eye_World;
-
-        uniform bool has_vertex_normals;
+        uniform bool ID_buffer_version;
 
         out vec4 _gl_FragColor;
 
@@ -92,6 +91,12 @@ struct {
             rgb += 0.3 * fresnel;
         }
 
+        if (ID_buffer_version) {
+            int r = gl_PrimitiveID % 256;
+            int g = (gl_PrimitiveID / 256) % 256;
+            int b = (gl_PrimitiveID / 256 / 256) % 256;
+            rgb = vec3(r / 255.0, g / 255.0, b / 255.0);
+        }
         _gl_FragColor = vec4(rgb, 1.0);
     }
     )"";
@@ -108,7 +113,7 @@ run_before_main {
 };
 
 
-void DRAW_SMOOTH_LIT_FACES(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+void DRAW_FACES(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, bool ID_buffer_version) {
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -117,17 +122,22 @@ void DRAW_SMOOTH_LIT_FACES(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     ASSERT(shader_program);
     glUseProgram(shader_program);
 
-    glBindVertexArray(mesh_face_pass.VAO);
+    glBindVertexArray(GL.Faces.VAO);
     glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
     glUniformMatrix4fv(UNIFORM(shader_program, "M"), 1, GL_TRUE, M.data);
     glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
+    glUniform1ui      (UNIFORM(shader_program, "ID_buffer_version"), ID_buffer_version);
     glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
 }
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    DRAW_SMOOTH_LIT_FACES(P, V, M, mesh);
-    // DRAW_FLAT_TRIANGLE_INDEX_COLORED_FACES(P, V, M, mesh);
+    static uint frame = 0;
+    frame++;
+    if (frame > 120) frame = 0;
+    if (frame < 60) DRAW_FACES(P, V, M, mesh, false);
+    else DRAW_FACES(P, V, M, mesh, true);
+    // DRAW_FLAT_ID_BUFFER_FACES(P, V, M, mesh);
 
     // _fancy_draw_all_edge_pass(P, V, M, mesh);
     // _fancy_draw_hard_edges_pass(P, V, M, mesh);
