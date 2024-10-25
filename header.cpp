@@ -238,9 +238,6 @@ struct DrawMesh {
     vec3  *vertex_normals;
     uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
 
-    vec3 *all_edges_vertex_positions;
-    uint *all_edges_corresponding_triangle_indices;
-
     uint num_hard_edges;
     vec3 *hard_edges_vertex_positions;
     uint *hard_edges_corresponding_triangle_indices;
@@ -1710,27 +1707,6 @@ void mesh_divide_into_patches(Meshes *meshes) {
             }
         }
 
-        uint num_vertices_all_edges = 2 * (3 * num_triangles);
-        draw->all_edges_vertex_positions = (vec3 *) malloc(num_vertices_all_edges * sizeof(vec3));
-        draw->all_edges_corresponding_triangle_indices = (uint *) malloc(num_vertices_all_edges * sizeof(uint));
-        {
-            uint k = 0;
-            for_(triangle_index, num_triangles) {
-                uint3 triangle_tuple = draw->triangle_tuples[triangle_index];
-                for_(d, 3) {
-                    uint i = triangle_tuple[d];
-                    uint j = triangle_tuple[(d + 1) % 3];
-                    draw->all_edges_vertex_positions[k] = draw->vertex_positions[i];
-                    draw->all_edges_corresponding_triangle_indices[k] = triangle_index;
-                    ++k;
-                    draw->all_edges_vertex_positions[k] = draw->vertex_positions[j];
-                    draw->all_edges_corresponding_triangle_indices[k] = triangle_index;
-                    ++k;
-                }
-            }
-            ASSERT(k == num_vertices_all_edges);
-        }
-
         draw->hard_edges_vertex_positions = hard_edges_vertex_positions;
         draw->hard_edges_corresponding_triangle_indices = hard_edges_corresponding_triangle_indices;
         draw->num_hard_edges = num_hard_edges;
@@ -1992,6 +1968,7 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
         glBindVertexArray(GL.VAO);
         POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
         POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+        // POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_triangle_indices); // TODO
         {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
@@ -2027,9 +2004,6 @@ void meshes_free_AND_zero(Meshes *meshes) {
         GUARDED_free(mesh->vertex_positions);
         GUARDED_free(mesh->vertex_normals);
         GUARDED_free(mesh->triangle_tuples);
-
-        GUARDED_free(mesh->all_edges_vertex_positions);
-        GUARDED_free(mesh->all_edges_corresponding_triangle_indices);
     }
 
     *meshes = {};
@@ -2063,10 +2037,6 @@ void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
         GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices  , vec3 );
         GUARDED_MALLOC_MEMCPY(dst->vertex_normals,   src->vertex_normals,   src->num_vertices  , vec3 );
         GUARDED_MALLOC_MEMCPY(dst->triangle_tuples, src->triangle_tuples, src->num_triangles , uint3);
-
-        uint num_vertices_all_edges = 2 * (3 * src->num_triangles);
-        GUARDED_MALLOC_MEMCPY(dst->all_edges_vertex_positions, src->all_edges_vertex_positions, num_vertices_all_edges , vec3);
-        GUARDED_MALLOC_MEMCPY(dst->all_edges_corresponding_triangle_indices, src->all_edges_corresponding_triangle_indices, num_vertices_all_edges , uint);
     }
 }
 
