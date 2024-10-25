@@ -34,7 +34,7 @@ struct Cookbook {
         return entity;
     };
 
-    Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+    Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
         Entity entity = {};
         entity.type = EntityType::Circle;
         entity.preview_color = get_color(ColorCode::Emphasis);
@@ -42,7 +42,7 @@ struct Cookbook {
         circle->center = center;
         circle->radius = radius;
         circle->has_pseudo_point = has_pseudo_point;
-        circle->pseudo_point_angle = pseudo_point_angle;
+        circle->pseudo_point_angle_in_degrees = pseudo_point_angle_in_degrees;
         entity.is_selected = is_selected;
         entity.color_code = color_code;
         return entity;
@@ -63,8 +63,8 @@ struct Cookbook {
         _add_entity(entity);
     };
 
-    void _add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle, is_selected, color_code);
+    void _add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle_in_degrees, is_selected, color_code);
         _add_entity(entity);
     };
 
@@ -91,8 +91,8 @@ struct Cookbook {
         _buffer_add_entity(entity);
     };
 
-    void buffer_add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
-        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle, is_selected, color_code);
+    void buffer_add_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+        Entity entity = _make_circle(center, radius, has_pseudo_point, pseudo_point_angle_in_degrees, is_selected, color_code);
         _buffer_add_entity(entity);
     };
 
@@ -205,7 +205,7 @@ struct Cookbook {
                     } else {
                         delete_flag = true;
                         real radius = distance(circle->center, point);
-                        real angle1_in_degrees = DEG(circle->pseudo_point_angle);
+                        real angle1_in_degrees = circle->pseudo_point_angle_in_degrees;
                         real angle2_in_degrees = DEG(ATAN2(point - circle->center));
                         buffer_add_arc(circle->center, radius, angle1_in_degrees, angle2_in_degrees, false, entity->color_code);
                         buffer_add_arc(circle->center, radius, angle2_in_degrees, angle1_in_degrees, false, entity->color_code);
@@ -474,10 +474,10 @@ struct Cookbook {
             // good luck
             const Entity *arc_or_circle = swap_happened ? EntTwo : EntOne;
             if (arc_or_circle->type == EntityType::Circle && !arc_or_circle->circle.has_pseudo_point) {
-                buffer_add_circle(arc_or_circle->circle.center, arc_or_circle->circle.radius, true, RAD(divide_theta), arc_or_circle->is_selected, arc_or_circle->color_code); // ah of course this uses radian because yes
+                buffer_add_circle(arc_or_circle->circle.center, arc_or_circle->circle.radius, true, divide_theta, arc_or_circle->is_selected, arc_or_circle->color_code); // ah of course this uses radian because yes
             } else {
-                real start_angle = arc_or_circle->type == EntityType::Circle ? DEG(arc_or_circle->circle.pseudo_point_angle) : arc_or_circle->arc.start_angle_in_degrees;
-                real end_angle = arc_or_circle->type == EntityType::Circle ? DEG(arc_or_circle->circle.pseudo_point_angle) : arc_or_circle->arc.end_angle_in_degrees;
+                real start_angle = arc_or_circle->type == EntityType::Circle ? arc_or_circle->circle.pseudo_point_angle_in_degrees : arc_or_circle->arc.start_angle_in_degrees;
+                real end_angle = arc_or_circle->type == EntityType::Circle ? arc_or_circle->circle.pseudo_point_angle_in_degrees : arc_or_circle->arc.end_angle_in_degrees;
                 if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || 
                             ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
                     if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
@@ -540,10 +540,10 @@ struct Cookbook {
             real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
 
             if (EntOne->type == EntityType::Circle && !pseudoE) {
-                buffer_add_circle(EntOne->circle.center, EntOne->circle.radius, true, RAD(divide_theta_a), EntOne->is_selected, EntOne->color_code); // ah of course this uses radian because yes
+                buffer_add_circle(EntOne->circle.center, EntOne->circle.radius, true, divide_theta_a, EntOne->is_selected, EntOne->color_code); // ah of course this uses radian because yes
             } else {
-                real start_angle = EntOne->type == EntityType::Circle ? DEG(EntOne->circle.pseudo_point_angle) : E->arc.start_angle_in_degrees;
-                real end_angle = EntOne->type == EntityType::Circle ? DEG(EntOne->circle.pseudo_point_angle) : E->arc.end_angle_in_degrees;
+                real start_angle = EntOne->type == EntityType::Circle ? EntOne->circle.pseudo_point_angle_in_degrees : E->arc.start_angle_in_degrees;
+                real end_angle = EntOne->type == EntityType::Circle ? EntOne->circle.pseudo_point_angle_in_degrees : E->arc.end_angle_in_degrees;
                 if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
                     buffer_add_arc(E->arc.center, E->arc.radius, divide_theta_a, end_angle, E->is_selected, E->color_code);
                 } else {
@@ -551,10 +551,10 @@ struct Cookbook {
                 }
             }
             if (EntTwo->type == EntityType::Circle && !pseudoF) {
-                buffer_add_circle(EntTwo->circle.center, EntTwo->circle.radius, true, RAD(divide_theta_b), EntTwo->is_selected, EntTwo->color_code); // ah of course this uses radian because yes
+                buffer_add_circle(EntTwo->circle.center, EntTwo->circle.radius, true, divide_theta_b, EntTwo->is_selected, EntTwo->color_code); // ah of course this uses radian because yes
             } else {
-                real start_angle_in_degrees = EntTwo->type == EntityType::Circle ? DEG(EntTwo->circle.pseudo_point_angle) : F->arc.start_angle_in_degrees;
-                real end_angle_in_degrees = EntTwo->type == EntityType::Circle ? DEG(EntTwo->circle.pseudo_point_angle) : F->arc.end_angle_in_degrees;
+                real start_angle_in_degrees = EntTwo->type == EntityType::Circle ? EntTwo->circle.pseudo_point_angle_in_degrees : F->arc.start_angle_in_degrees;
+                real end_angle_in_degrees = EntTwo->type == EntityType::Circle ? EntTwo->circle.pseudo_point_angle_in_degrees : F->arc.end_angle_in_degrees;
                 if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
                     buffer_add_arc(F->arc.center, F->arc.radius, divide_theta_b, end_angle_in_degrees, F->is_selected, F->color_code);
                 } else {

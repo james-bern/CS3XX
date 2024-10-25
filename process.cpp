@@ -1881,7 +1881,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                         V2(-(circle->center.x - mouse->x) + mouse->x, circle->center.y),
                                         circle->radius,
                                         circle->has_pseudo_point,
-                                        PI - circle->pseudo_point_angle,
+                                        180.0f - circle->pseudo_point_angle_in_degrees,
                                         true,
                                         entity->color_code);
                             }

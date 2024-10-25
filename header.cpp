@@ -157,17 +157,17 @@ struct CircleEntity {
     vec2 center;
     real radius;
     bool has_pseudo_point;
-    real pseudo_point_angle;
+    real pseudo_point_angle_in_degrees;
 
     vec2 get_pseudo_point() {
-        vec2 get_point_on_circle_NOTE_pass_angle_in_radians(vec2, real, real);
-        return get_point_on_circle_NOTE_pass_angle_in_radians(this->center, this->radius, this->pseudo_point_angle);
+        vec2 get_point_on_circle_NOTE_pass_angle_in_radians(vec2, real, real); // what a lovely forward declaration
+        return get_point_on_circle_NOTE_pass_angle_in_radians(this->center, this->radius, RAD(this->pseudo_point_angle_in_degrees));
     }
 
     void set_pseudo_point(vec2 pseudo_point) {
         ASSERT(!ARE_EQUAL(this->center, pseudo_point));
         this->has_pseudo_point = true; // seems safer to set this just in case
-        this->pseudo_point_angle = ATAN2(pseudo_point - this->center);
+        this->pseudo_point_angle_in_degrees = DEG(ATAN2(pseudo_point - this->center));
     }
 };
 

@@ -61,7 +61,7 @@ Entity entity_rotated(const Entity *_entity, vec2 center, real theta) {
     } else { ASSERT(result.type == EntityType::Circle);
         CircleEntity *circle = &result.circle;
         circle->center = rotated_about(circle->center, center, theta);
-        circle->pseudo_point_angle += theta;
+        circle->pseudo_point_angle_in_degrees += DEG(theta);
     }
     return result;
 }
