@@ -108,7 +108,7 @@ run_before_main {
 };
 
 
-void _fancy_draw_face_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+void DRAW_SMOOTH_LIT_FACES(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -125,6 +125,16 @@ void _fancy_draw_face_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 }
 
 
+void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+    DRAW_SMOOTH_LIT_FACES(P, V, M, mesh);
+    // DRAW_FLAT_TRIANGLE_INDEX_COLORED_FACES(P, V, M, mesh);
+
+    // _fancy_draw_all_edge_pass(P, V, M, mesh);
+    // _fancy_draw_hard_edges_pass(P, V, M, mesh);
+    // TODO(?):_fancy_draw_silhouette_edge_pass(P, V, M, mesh);
+}
+
+#if 0
 struct {
     char *vert = R""(
         #version 330 core
@@ -336,7 +346,7 @@ void _fancy_draw_all_edge_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         {
             glClearColor(1.0f, 1.0f, 1.0f, 1.0f); 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            _fancy_draw_face_pass(P, V, M, mesh);
+            // TODO: need to draw flat-shaded (soup mesh) colored by triangle index
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glEnable(GL_SCISSOR_TEST);
@@ -389,7 +399,6 @@ void _fancy_draw_all_edge_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     {
         uint shader_program = texture_blit.shader_program;
         ASSERT(shader_program);
-
         glUseProgram(shader_program);
 
         glActiveTexture(GL_TEXTURE0);
@@ -400,6 +409,7 @@ void _fancy_draw_all_edge_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glDrawArrays(GL_TRIANGLES, 0, blit_quad.num_vertices);
 
         glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0);
     }
 }
 
@@ -416,9 +426,4 @@ void _fancy_draw_hard_edges_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 }
 
 
-void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    // _fancy_draw_face_pass(P, V, M, mesh);
-    _fancy_draw_all_edge_pass(P, V, M, mesh);
-    // _fancy_draw_hard_edges_pass(P, V, M, mesh);
-    // TODO(?):_fancy_draw_silhouette_edge_pass(P, V, M, mesh);
-}
+#endif
