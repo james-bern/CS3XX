@@ -245,10 +245,21 @@ struct DrawMesh {
     vec3 *hard_edges_vertex_positions;
     uint *hard_edges_corresponding_triangle_indices;
 
-    uint VAO_faces;
-    uint VBO_faces[2];
-    uint EBO_faces;
 };
+
+
+struct {
+uint VAO;
+uint VBO[2];
+uint EBO;
+} mesh_face_pass;
+run_before_main {
+    glGenVertexArrays(1, &mesh_face_pass.VAO);
+    glGenBuffers(ARRAY_LENGTH(mesh_face_pass.VBO), mesh_face_pass.VBO);
+    glGenBuffers(1, &mesh_face_pass.EBO);
+};
+
+
 
 
 struct Meshes {
@@ -1974,19 +1985,11 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
         mesh_vertex_normals_calculate(meshes);
     }
     { // GL
-      // TODO: you're gonna leak here if you're not careful
         DrawMesh *mesh = &meshes->draw;
-
-        // TODO (IMPORTANT): make these global or something
-        // (you don't want to be generating new buffers every time you make a new mesh)
-        glGenVertexArrays(1, &mesh->VAO_faces);
-        glGenBuffers(ARRAY_LENGTH(mesh->VBO_faces), mesh->VBO_faces);
-        glGenBuffers(1, &mesh->EBO_faces);
-
-        glBindVertexArray(mesh->VAO_faces);
-        POOSH(mesh->VBO_faces, 0, mesh->num_vertices, mesh->vertex_positions);
-        POOSH(mesh->VBO_faces, 1, mesh->num_vertices, mesh->vertex_normals);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh->EBO_faces);
+        glBindVertexArray(mesh_face_pass.VAO);
+        POOSH(mesh_face_pass.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+        POOSH(mesh_face_pass.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_face_pass.EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_DYNAMIC_DRAW);
     }
 }

@@ -1,6 +1,5 @@
 // TODO: VAO and VBO are about mesh data (don't connect them to shaders)
 
-
 struct {
     uint num_vertices = 6;
     uint VAO;
@@ -8,6 +7,7 @@ struct {
     vec2 vertex_positions[6] = { { -1.0f, -1.0f }, {  1.0f, -1.0f }, {  1.0f,  1.0f }, { -1.0f, -1.0f }, {  1.0f,  1.0f }, { -1.0f,  1.0f }, };
     vec2 vertex_texture_coordinates[6] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f }, };
 } blit_quad;
+
 run_before_main {
     glGenVertexArrays(1, &blit_quad.VAO);
     glGenBuffers(ARRAY_LENGTH(blit_quad.VBO), blit_quad.VBO);
@@ -15,6 +15,8 @@ run_before_main {
     POOSH(blit_quad.VBO, 0, blit_quad.num_vertices, blit_quad.vertex_positions);
     POOSH(blit_quad.VBO, 1, blit_quad.num_vertices, blit_quad.vertex_texture_coordinates);
 };
+
+
 
 struct {
     char *vert = R""(
@@ -27,8 +29,7 @@ struct {
             vec3 normal_World;
         } vs_out;
 
-        uniform mat4 P;
-        uniform mat4 V;
+        uniform mat4 PV;
         uniform mat4 M;
 
         void main() {
@@ -37,7 +38,7 @@ struct {
                 vec4 tmp = vec4(position_Model, 1.0);
                 tmp = M * tmp;
                 vs_out.position_World = vec3(tmp);
-                gl_Position = P * V * tmp;
+                gl_Position = PV * tmp;
             }
 
             {
@@ -110,16 +111,14 @@ run_before_main {
 void _fancy_draw_face_pass(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
+    mat4 PV = P * V;
 
     uint shader_program = face_pass.shader_program;
-
     ASSERT(shader_program);
-
     glUseProgram(shader_program);
 
-    glBindVertexArray(mesh->VAO_faces);
-    glUniformMatrix4fv(UNIFORM(shader_program, "P"), 1, GL_TRUE, P.data);
-    glUniformMatrix4fv(UNIFORM(shader_program, "V"), 1, GL_TRUE, V.data);
+    glBindVertexArray(mesh_face_pass.VAO);
+    glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
     glUniformMatrix4fv(UNIFORM(shader_program, "M"), 1, GL_TRUE, M.data);
     glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
     glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
