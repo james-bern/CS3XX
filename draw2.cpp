@@ -23,10 +23,12 @@ struct {
         #version 330 core
         layout (location = 0) in vec3 position_Model;
         layout (location = 1) in vec3 normal_Model;
+        layout (location = 2) in uint vertex_patch_index;
 
         out BLOCK {
             vec3 position_World;
             vec3 normal_World;
+            flat uint vertex_patch_index;
         } vs_out;
 
         uniform mat4 PV;
@@ -47,6 +49,9 @@ struct {
                 vs_out.normal_World = tmp;
             }
 
+            {
+                vs_out.vertex_patch_index = vertex_patch_index;
+            }
         }
     )"";
 
@@ -55,6 +60,7 @@ struct {
         in BLOCK {
             vec3 position_World;
             vec3 normal_World;
+            flat uint vertex_patch_index;
         } fs_in;
 
         uniform vec3 eye_World;
@@ -90,10 +96,11 @@ struct {
                     rgb += 0.2 * specular;
                     rgb += 0.3 * fresnel;
                 }
-            } else if (mode == 3) {
-                int r = (gl_PrimitiveID)             % 256;
-                int g = (gl_PrimitiveID / 256)       % 256;
-                int b = (gl_PrimitiveID / 256 / 256) % 256;
+            } else if ((mode == 1) || (mode == 3)) {
+                int id = (mode == 1) ? int(fs_in.vertex_patch_index) : gl_PrimitiveID;
+                int r = (id)             % 256;
+                int g = (id / 256)       % 256;
+                int b = (id / 256 / 256) % 256;
                 rgb = vec3(r / 255.0, g / 255.0, b / 255.0);
             }
 
@@ -184,12 +191,12 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
     if (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) {
         glBindVertexArray(GL.VAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_edges);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
         uint shader_program = edge_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
         glUniform2f       (UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
         glDrawElements(GL_LINES, 2 * 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
-    } else if ((mode == DRAW_MESH_MODE_LIT) || (mode == DRAW_MESH_MODE_TRIANGLE_ID)) {
+    } else if ((mode == DRAW_MESH_MODE_LIT) || (mode == DRAW_MESH_MODE_TRIANGLE_ID) || (mode == DRAW_MESH_MODE_PATCH_ID)) {
         glBindVertexArray(GL.VAO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
         uint shader_program = face_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
@@ -207,7 +214,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    DRAW_MESH(DRAW_MESH_MODE_LIT,         P, V, M4_Translation(-80.0, 0.0,   0.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_LIT,            P, V, M4_Translation(-80.0, 0.0,   0.0) * M, mesh);
     DRAW_MESH(DRAW_MESH_MODE_PATCH_ID,       P, V, M4_Translation( 00.0, 0.0, -30.0) * M, mesh);
     DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES,    P, V, M4_Translation( 00.0, 0.0,  30.0) * M, mesh);
     DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_ID,    P, V, M4_Translation( 80.0, 0.0, -30.0) * M, mesh);

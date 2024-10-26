@@ -236,8 +236,11 @@ struct DrawMesh {
 
     vec3  *vertex_positions;
     vec3  *vertex_normals;
+    uint  *vertex_patch_indices;
+
     uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
 
+    // TODO: we don't need this data anymore
     uint num_hard_edges;
     vec3 *hard_edges_vertex_positions;
     uint *hard_edges_corresponding_triangle_indices;
@@ -249,14 +252,16 @@ struct {
     uint VAO;
     uint VBO[3];
     uint EBO_faces;
-    uint EBO_edges;
+    uint EBO_all_edges;
+    uint EBO_hard_edges;
 } GL;
 
 run_before_main {
     glGenVertexArrays(1, &GL.VAO);
     glGenBuffers(ARRAY_LENGTH(GL.VBO), GL.VBO);
     glGenBuffers(1, &GL.EBO_faces);
-    glGenBuffers(1, &GL.EBO_edges);
+    glGenBuffers(1, &GL.EBO_all_edges);
+    glGenBuffers(1, &GL.EBO_hard_edges);
 };
 
 
@@ -1641,6 +1646,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
     uint new_num_vertices;
     vec3 *new_vertex_positions;
+    uint *new_vertex_patch_indices;
     ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { &function_arena };
     // FORNOW: This is a huge overestimate; TODO: map that can grow
     map_reserve_for_expected_num_entries(&new_vertex_index_from_pair_patch_index_old_vertex_index, num_patches * old->num_vertices);
@@ -1657,6 +1663,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
         }
 
         new_vertex_positions = (vec3 *) malloc(new_num_vertices * sizeof(vec3));
+        new_vertex_patch_indices = (uint *) malloc(new_num_vertices * sizeof(uint));
 
         for_(old_vertex_index, old->num_vertices) {
             ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
@@ -1674,6 +1681,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 key.patch_index = patch_index;
                 key.old_vertex_index = old_vertex_index;
                 map_put(&new_vertex_index_from_pair_patch_index_old_vertex_index, key, new_vertex_index);
+
+                new_vertex_patch_indices[new_vertex_index] = patch_index;
             }
         }
     }
@@ -1696,6 +1705,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
         draw->num_triangles = num_triangles;
         draw->vertex_positions = new_vertex_positions;
         draw->triangle_tuples = (uint3 *) malloc(num_triangles * sizeof(uint3));
+        draw->vertex_patch_indices = new_vertex_patch_indices;
         for_(triangle_index, num_triangles) {
             uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
             uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
@@ -1968,25 +1978,24 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
         glBindVertexArray(GL.VAO);
         POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
         POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
-        // POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_triangle_indices); // TODO
+        POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
         {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
         }
         { // gross explosion from triangles to edges
-            // if there is a better way to do this please lmk :(
+          // if there is a better way to do this please lmk :(
             uint size = 2 * 3 * mesh->num_triangles * sizeof(uint);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_edges);
-            uint *mesh_edge_tuples = (uint *) malloc(size);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
+            uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
             defer { free(mesh_edge_tuples); };
             uint k = 0;
             for_(i, mesh->num_triangles) {
-                for_(d, 3) {
-                    mesh_edge_tuples[k++] = mesh->triangle_tuples[i][d];
-                    mesh_edge_tuples[k++] = mesh->triangle_tuples[i][(d + 1) % 3];
-                }
+                for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
             }
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
+        }
+        {
         }
     }
 }
