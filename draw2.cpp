@@ -110,6 +110,9 @@ struct {
 } face_pass_source;
 
 
+
+// TODO: distinguish between Clip and NDC
+
 struct {
     char *vert = R""(
         #version 330 core
@@ -123,40 +126,64 @@ struct {
     )"";
 
     char *geom = R""(#version 330 core
+        // https://backend.orbit.dtu.dk/ws/portalfiles/portal/3735323/wire-sccg.pdf
+
         layout (lines) in;
         layout (triangle_strip, max_vertices = 4) out;
 
         uniform vec2 OpenGL_from_Pixel_scale;
         uniform float _t01;
 
-        out vec4 color;
+
+        out BLOCK {
+            noperspective vec3 color;
+            noperspective float L;
+            noperspective vec2 corner; // (+/-1, +/-1)
+        } gs_out;
+
+        float size = 8.0f;
 
         void main() {    
-            vec4 s = gl_in[0].gl_Position / gl_in[0].gl_Position.w;
-            vec4 t = gl_in[1].gl_Position / gl_in[1].gl_Position.w;
+            vec4 v0_NDC = gl_in[0].gl_Position;
+            vec4 v1_NDC = gl_in[1].gl_Position;
+            float w0 = 1.0 / v0_NDC.w; // NOTE: This is actually how OpenGL works (TODO: link)
+            float w1 = 1.0 / v1_NDC.w; // ----------------------------------------------------
+            vec4 v0_Clip = v0_NDC * w0;
+            vec4 v1_Clip = v1_NDC * w1;
 
-            float size = 16.0f;
+            vec4 S = vec4(OpenGL_from_Pixel_scale, 1, 1);
+            vec4 v0 = v0_Clip / S; // _Window (Pixel coordinates with origin at center of screen and no y flip)
+            vec4 v1 = v1_Clip / S;
 
-            vec2 _tangent = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(t.xy - s.xy));
-            vec4 tangent = 3 * _t01 * vec4((size / 2) * _tangent, 0, 0);
+            vec4 a = vec4(normalize(v1.xy - v0.xy), 0, 0); // tangent
+            vec4 b = vec4(-a.y, a.x, 0, 0);                // normal
 
-            vec2 _perp = OpenGL_from_Pixel_scale * normalize(OpenGL_from_Pixel_scale * vec2(s.y - t.y, t.x - s.x));
-            vec4 perp = vec4((size / 2) * _perp, 0, 0);
+            // a = vec4((32.0 * _t01) * normalize(v1.xy - v0.xy), 0, 0); // TESTING
 
-            color = vec4(1.0); color.r = 0;
-            gl_Position = (s - perp - tangent) * gl_in[0].gl_Position.w;
+            float L = (length(v0.xy - v1.xy) / size);
+
+            gs_out.L = L;
+            gs_out.corner  = vec2(-1, -1);
+            gs_out.color = vec3(1.0, 0.0, 0.0);
+            gl_Position = (S * (v0 + size * (-a - b))) / w0;
             EmitVertex();
 
-            color = vec4(1.0); color.r = 0;
-            gl_Position = (s + perp - tangent) * gl_in[0].gl_Position.w;
+            gs_out.L = L;
+            gs_out.corner = vec2(-1, +1);
+            gs_out.color = vec3(1.0, 0.0, 0.0);
+            gl_Position = (S * (v0 + size * (-a + b))) / w0;
             EmitVertex();
 
-            color = vec4(1.0); color.g = 0;
-            gl_Position = (t - perp + tangent) * gl_in[1].gl_Position.w;
+            gs_out.L = L;
+            gs_out.corner = vec2(+1, -1);
+            gs_out.color = vec3(1.0, 0.0, 0.0);
+            gl_Position = (S * (v1 + size * (+a - b))) / w1;
             EmitVertex();
 
-            color = vec4(1.0); color.g = 0;
-            gl_Position = (t + perp + tangent) * gl_in[1].gl_Position.w;
+            gs_out.L = L;
+            gs_out.corner = vec2(+1, +1);
+            gs_out.color = vec3(1.0, 0.0, 0.0);
+            gl_Position = (S * (v1 + size * (+a + b))) / w1;
             EmitVertex();
 
             EndPrimitive();
@@ -165,10 +192,40 @@ struct {
 
     char *frag = R""(#version 330 core
         // TODO: sample the ID buffer and drop selectively
-        in vec4 color;
+        // TODO: anti-aliasing with the exponential function
+        in BLOCK {
+            noperspective vec3 color;
+            noperspective float L;
+            noperspective vec2 corner;
+        } fs_in;
+
+        float squaredDistance(vec2 a, vec2 b) {
+            vec2 delta = (a - b);
+            return dot(delta, delta);
+        }
+
+        float squaredDistancePointLineSegment(vec2 p, vec2 start, vec2 end) {
+            float d2; {
+                float l2 = squaredDistance(start, end);
+                if (l2 < 0.0001) { // zero length edge
+                    d2 = squaredDistance(p, start);
+                } else {
+                    float num = dot(p - start, end - start);
+                    float t = clamp(num / l2, 0.0, 1.0);
+                    vec2 q = mix(start, end, t);
+                    d2 = squaredDistance(p, q);
+                }
+            }
+            return d2;
+        }
+
         out vec4 _gl_FragColor;
         void main() {
-            _gl_FragColor = color;
+            vec2 hLx = vec2(0.5 * fs_in.L, 0);
+            float d2 = squaredDistancePointLineSegment(fs_in.corner * (hLx + vec2(1.0)), -hLx, hLx);
+            float I = exp2(-2 * min(d2, 1.8 * 1.8));
+            // _gl_FragColor = vec4(vec3(1.0), I);
+            _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1); // FORNOW
         }
     )"";
 } edge_pass_source;
