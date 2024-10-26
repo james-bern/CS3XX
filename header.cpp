@@ -241,9 +241,10 @@ struct DrawMesh {
     uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
 
     // TODO: we don't need this data anymore
-    uint num_hard_edges;
-    vec3 *hard_edges_vertex_positions;
-    uint *hard_edges_corresponding_triangle_indices;
+    uint num_hard_half_edges; // num_hard_half_edges
+    uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
+                             // vec3 *hard_edges_vertex_positions;
+                             // uint *hard_edges_corresponding_triangle_indices;
 
 };
 
@@ -1467,6 +1468,11 @@ void mesh_divide_into_patches(Meshes *meshes) {
         uint old_vertex_index;
     };
 
+    struct PairOldHardHalfEdgeTupleTriangleIndex {
+        uint2 old_hard_half_edge_tuple;
+        uint triangle_index;
+    };
+
 
     WorkMesh *old = &meshes->work;
     uint num_triangles = old->num_triangles;
@@ -1481,9 +1487,9 @@ void mesh_divide_into_patches(Meshes *meshes) {
         for_(triangle_index, num_triangles) {
             uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
             for_(d, 3) {
-                uint i = old_triangle_tuple[ d         ];
-                uint j = old_triangle_tuple[(d + 1) % 3];
-                uint2 old_half_edge = { i, j }; // NOTE: DON'T sort the edge; we WANT a half-edge
+                uint old_i = old_triangle_tuple[ d         ];
+                uint old_j = old_triangle_tuple[(d + 1) % 3];
+                uint2 old_half_edge = { old_i, old_j }; // NOTE: DON'T sort the edge; we WANT a half-edge
                 map_put(&triangle_index_from_old_half_edge, old_half_edge, triangle_index);
             }
         }
@@ -1514,11 +1520,12 @@ void mesh_divide_into_patches(Meshes *meshes) {
         }
     }
 
-    vec3 *hard_edges_vertex_positions = (vec3 *) malloc(2 * 2 * 3 * num_triangles * sizeof(vec3));
-    uint *hard_edges_corresponding_triangle_indices = (uint *) malloc(2 * 2 * 3 * num_triangles * sizeof(uint));
-    uint num_hard_edges = 0;
-
     uint num_patches = 0;
+
+    uint new_num_hard_half_edges = 0;
+    // FORNOW: overestimate
+    PairOldHardHalfEdgeTupleTriangleIndex *pairs_of_old_hard_half_edge_tuple_and_triangle_index = (PairOldHardHalfEdgeTupleTriangleIndex *) malloc(2 * 3 * num_triangles * sizeof(pairs_of_old_hard_half_edge_tuple_and_triangle_index[0])); // TODO: use this sizeof trick elsewhere
+                                                                                                                                                                                                                                             // TODO: scratch arena alloc
 
     {
         // TODO: ArenaQueue
@@ -1563,9 +1570,10 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 uint triangle_index = queue_dequeue(&queue);
                 uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
                 for_(d, 3) {
-                    uint i = old_triangle_tuple[ d         ];
-                    uint j = old_triangle_tuple[(d + 1) % 3];
-                    uint2 twin_old_half_edge = { j, i };
+                    uint old_i = old_triangle_tuple[ d         ];
+                    uint old_j = old_triangle_tuple[(d + 1) % 3];
+                    uint2 old_half_edge = { old_i, old_j };
+                    uint2 twin_old_half_edge = { old_j, old_i };
                     uint twin_triangle_index; {
                         // NOTE: if this crashes, the mesh wasn't manifold?
                         twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
@@ -1577,24 +1585,12 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         // NOTE: clamp ver ver important
                         real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
                         ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
-                        is_soft_edge = (angle_in_degrees < 60.0f);
+                        is_soft_edge = (angle_in_degrees < 30.0f);
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                     if (is_not_already_marked && !is_soft_edge) {
-                        vec3 p_i = old->vertex_positions[i];
-                        vec3 p_j = old->vertex_positions[j];
-
-                        hard_edges_vertex_positions              [2 * num_hard_edges + 0] = p_i;
-                        hard_edges_vertex_positions              [2 * num_hard_edges + 1] = p_j;
-                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 0] = triangle_index;
-                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 1] = triangle_index;
-                        ++num_hard_edges;
-
-                        hard_edges_vertex_positions              [2 * num_hard_edges + 0] = p_j;
-                        hard_edges_vertex_positions              [2 * num_hard_edges + 1] = p_i;
-                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 0] = twin_triangle_index;
-                        hard_edges_corresponding_triangle_indices[2 * num_hard_edges + 1] = twin_triangle_index;
-                        ++num_hard_edges;
+                        pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { old_half_edge, triangle_index };
+                        pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { twin_old_half_edge, twin_triangle_index };
                     }
                 }
             }
@@ -1687,7 +1683,22 @@ void mesh_divide_into_patches(Meshes *meshes) {
         }
     }
 
-    messagef(pallete.blue, "%d", new_num_vertices);
+    uint2 *new_hard_half_edge_tuples = (uint2 *) malloc(new_num_hard_half_edges * sizeof(uint2));
+    {
+        for_(hard_half_edge_index, new_num_hard_half_edges) {
+            PairOldHardHalfEdgeTupleTriangleIndex pair = pairs_of_old_hard_half_edge_tuple_and_triangle_index[hard_half_edge_index];
+            uint2 old_hard_half_edge_tuple = pair.old_hard_half_edge_tuple;
+            uint old_i = old_hard_half_edge_tuple.i;
+            uint old_j = old_hard_half_edge_tuple.j;
+            uint triangle_index = pair.triangle_index;
+
+            uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
+            uint new_i = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_i });
+            uint new_j = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_j });
+            new_hard_half_edge_tuples[hard_half_edge_index] = { new_i, new_j };
+        }
+
+    }
 
 
 
@@ -1717,9 +1728,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
             }
         }
 
-        draw->hard_edges_vertex_positions = hard_edges_vertex_positions;
-        draw->hard_edges_corresponding_triangle_indices = hard_edges_corresponding_triangle_indices;
-        draw->num_hard_edges = num_hard_edges;
+        draw->num_hard_half_edges = new_num_hard_half_edges;
+        draw->hard_half_edge_tuples = new_hard_half_edge_tuples;
 
     }
 
@@ -1996,6 +2006,8 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
         }
         {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
         }
     }
 }

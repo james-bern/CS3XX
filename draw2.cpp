@@ -189,14 +189,33 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     // NOTE: glPolygonMode doesn't work here (it does NOT change the primitive)
     // TODO: custom element buffer object for lines
 
-    if (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) {
+    if (
+            (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) ||
+            (mode == DRAW_MESH_MODE_PATCH_EDGES)
+       ) {
+
+        uint EBO;
+        uint num_vertices;
+        if (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) {
+            EBO = GL.EBO_all_edges;
+            uint mesh_num_half_edges = (3 * mesh->num_triangles);
+            num_vertices = (2 * mesh_num_half_edges);
+        } else {
+            EBO = GL.EBO_hard_edges;
+            num_vertices = (2 * mesh->num_hard_half_edges);
+        }
+
         glBindVertexArray(GL.VAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         uint shader_program = edge_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
         glUniform2f       (UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
-        glDrawElements(GL_LINES, 2 * 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
-    } else if ((mode == DRAW_MESH_MODE_LIT) || (mode == DRAW_MESH_MODE_TRIANGLE_ID) || (mode == DRAW_MESH_MODE_PATCH_ID)) {
+        glDrawElements(GL_LINES, num_vertices, GL_UNSIGNED_INT, NULL);
+    } else if (
+            (mode == DRAW_MESH_MODE_LIT) ||
+            (mode == DRAW_MESH_MODE_TRIANGLE_ID) ||
+            (mode == DRAW_MESH_MODE_PATCH_ID)
+            ) {
         glBindVertexArray(GL.VAO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
         uint shader_program = face_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
@@ -206,7 +225,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
         glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
     } else {
-        // ...
+        ASSERT(0);
     }
 
 
