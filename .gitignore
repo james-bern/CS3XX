@@ -25,3 +25,4 @@ executable
 manifold.lib
 demo.txt
 .vscode/*
+combined.cpp
