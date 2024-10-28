@@ -35,7 +35,7 @@ run_before_main {
 
     glActiveTexture(GL_TEXTURE0); // ?
     glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -272,7 +272,7 @@ struct {
             float I = exp2(-2 * min(d2, 1.8 * 1.8));
             // _gl_FragColor = vec4(vec3(1.0), I);
             _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1); // FORNOW
-            _gl_FragColor.rgb = texture(TextureID, OpenGL_from_Pixel_scale * gl_FragCoord.xy).rgb;
+            _gl_FragColor.rgb = texture(TextureID, OpenGL_from_Pixel_scale / 2 * gl_FragCoord.xy).rgb;
         }
     )"";
 } edge_pass_source;
@@ -374,21 +374,21 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M4_Translation(-00.0, 0.0,  00.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
 
 
     glDisable(GL_SCISSOR_TEST);
     glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
     {
-        glClearColor(0.0, 0.0, 0.0, 0.0);
+        glClearColor(0.0, 1.0, 1.0, 0.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
+        DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M, mesh);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glEnable(GL_SCISSOR_TEST);
 
     glDisable(GL_DEPTH_TEST); {
-        DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES, P, V, M4_Translation( 00.0, 0.0,  00.0) * M, mesh);
+        DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES, P, V, M, mesh);
     } glEnable(GL_DEPTH_TEST);
 
     DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
