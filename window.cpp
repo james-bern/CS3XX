@@ -49,7 +49,7 @@ run_before_main {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glfwSwapInterval(1);
+    glfwSwapInterval(0);
 
     { // _macbook_retina_scale
         int num, den, _;
@@ -57,6 +57,8 @@ run_before_main {
         glfwGetWindowSize(glfw_window, &den, &_);
         _window_macbook_retina_fixer__VERY_MYSTERIOUS = real(num / den);
     }
+
+    
 };
 
 

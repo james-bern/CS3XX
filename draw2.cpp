@@ -1,3 +1,4 @@
+// TODO: this doesn't work if you resize the window
 // TODO: get rid of STENCIL
 // NOTE: VAO and VBO are about mesh data (don't connect them to shaders)
 
@@ -38,8 +39,8 @@ run_before_main {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); 
     glBindTexture(GL_TEXTURE_2D, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GL2.TextureID, 0);  
 
@@ -133,12 +134,12 @@ struct {
                     rgb += 0.3 * fresnel;
                 }
             } else if ((mode == 1) || (mode == 3)) {
-                int id = (mode == 1) ? int(fs_in.vertex_patch_index) : gl_PrimitiveID;
-                int r = (id)             % 256;
-                int g = (id / 256)       % 256;
-                int b = (id / 256 / 256) % 256;
-                rgb = vec3(r / 255.0, g / 255.0, b / 255.0);
-                rgb = vec3(1);
+                int i = (mode == 1) ? int(fs_in.vertex_patch_index) : gl_PrimitiveID;
+                rgb.r = (i % 256);
+                rgb.g = ((i / 256) % 256);
+                rgb.b = ((i / (256 * 256)) % 256);
+                rgb /= 255.0;
+
             }
 
             _gl_FragColor = vec4(rgb, 1.0);
@@ -178,7 +179,7 @@ struct {
             noperspective vec2 corner; // (+/-1, +/-1)
         } gs_out;
 
-        float size = 2.0f;
+        float half_thickness = 0.5f;
 
         void main() {    
             vec4 v0_NDC = gl_in[0].gl_Position;
@@ -197,30 +198,30 @@ struct {
 
             // a = vec4((32.0 * _t01) * normalize(v1.xy - v0.xy), 0, 0); // TESTING
 
-            float L = (length(v0.xy - v1.xy) / size);
+            float L = (length(v0.xy - v1.xy) / half_thickness);
 
             gs_out.L = L;
             gs_out.corner  = vec2(-1, -1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gl_Position = (S * (v0 + size * (-a - b))) / w0;
+            gl_Position = (S * (v0 + half_thickness * (-a - b))) / w0;
             EmitVertex();
 
             gs_out.L = L;
             gs_out.corner = vec2(-1, +1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gl_Position = (S * (v0 + size * (-a + b))) / w0;
+            gl_Position = (S * (v0 + half_thickness * (-a + b))) / w0;
             EmitVertex();
 
             gs_out.L = L;
             gs_out.corner = vec2(+1, -1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gl_Position = (S * (v1 + size * (+a - b))) / w1;
+            gl_Position = (S * (v1 + half_thickness * (+a - b))) / w1;
             EmitVertex();
 
             gs_out.L = L;
             gs_out.corner = vec2(+1, +1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gl_Position = (S * (v1 + size * (+a + b))) / w1;
+            gl_Position = (S * (v1 + half_thickness * (+a + b))) / w1;
             EmitVertex();
 
             EndPrimitive();
@@ -259,26 +260,75 @@ struct {
 
         out vec4 _gl_FragColor;
         void main() {
+            vec2 TexCoord_from_FragCoord = OpenGL_from_Pixel_scale / 2;
+            vec2 texCoord = TexCoord_from_FragCoord * gl_FragCoord.xy / 2; // ?? TODO: work out where this factor is coming from
+            vec3 rgb = texture(TextureID, texCoord).rgb;
 
-            // int fragment_ID; {
-            //     vec3 rgb = texture(TextureID, OpenGL_from_Pixel_scale * gl_FragCoord.xy).rgb;
-            //     fragment_ID = (256 * 256 * int(255 * rgb.b)) + (256 * int(256 * rgb.g)) + int(255 * rgb.r);
-            // }
-            // int triangle_ID = gl_PrimitiveID / 3;
-            // if (fragment_ID != triangle_ID) discard;
+            vec3 rgb2; {
+                int i = gl_PrimitiveID / 3 / 2; // NOTE: /2 is (probably) because the geometry shader emits two triangles per line
+                rgb2.r = (i % 256);
+                rgb2.g = ((i / 256) % 256);
+                rgb2.b = ((i / (256 * 256)) % 256);
+                rgb2 /= 255.0;
+            }
+            // bool hit = (length(rgb - vec3(1.0)) > 0.0001);
+            bool no_match = (length(rgb - rgb2) > 0.0001);
+            // if (hit && no_match) discard;
+            if (no_match) discard;
 
             vec2 hLx = vec2(0.5 * fs_in.L, 0);
             float d2 = squaredDistancePointLineSegment(fs_in.corner * (hLx + vec2(1.0)), -hLx, hLx);
             float I = exp2(-2 * min(d2, 1.8 * 1.8));
-            // _gl_FragColor = vec4(vec3(1.0), I);
-            _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1); // FORNOW
-            _gl_FragColor.rgb = texture(TextureID, OpenGL_from_Pixel_scale / 2 * gl_FragCoord.xy).rgb;
+            _gl_FragColor = vec4(vec3(1.0), I);
+            // _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1.0); // FORNOW
+            // _gl_FragColor.rgb = rgb;
         }
     )"";
 } edge_pass_source;
 
 int face_shader_program;
 int edge_shader_program;
+
+
+
+struct {
+    char *vert = R""(
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoords;
+
+        out vec2 TexCoords;
+
+        void main()
+        {
+            gl_Position = vec4(aPos.x, aPos.y, 0.1, 1.0); // FORNOW: 0.1 (instead of 0.0) z fixes thrashing(?) of gui elements
+            TexCoords = aTexCoords;
+        }  
+    )"";
+
+    char *frag = R""(
+        #version 330 core
+        out vec4 _gl_FragColor;
+
+        in vec2 TexCoords;
+
+        uniform sampler2D screenTexture;
+
+        void main()
+        { 
+            _gl_FragColor = texture(screenTexture, TexCoords);
+        }
+    )"";
+} blit_full_screen_quad_source;
+
+
+uint blit_full_screen_quad_shader_program;
+
+run_before_main {
+    uint vert = shader_compile(blit_full_screen_quad_source.vert, GL_VERTEX_SHADER);
+    uint frag = shader_compile(blit_full_screen_quad_source.frag, GL_FRAGMENT_SHADER);
+    blit_full_screen_quad_shader_program = shader_build_program(vert, 0, frag);
+};
 
 
 run_before_main {
@@ -312,9 +362,32 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     // TODO: custom element buffer object for lines
 
     if (
+            (mode == DRAW_MESH_MODE_LIT) ||
+            (mode == DRAW_MESH_MODE_TRIANGLE_ID) ||
+            (mode == DRAW_MESH_MODE_PATCH_ID)
+       ) {
+        uint num_vertices = 3 * mesh->num_triangles;
+
+        glBindVertexArray(GL.VAO);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
+        uint shader_program = face_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
+        glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
+        glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
+        glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
+        glUniform1i(UNIFORM(shader_program, "mode"), mode);
+
+        glActiveTexture(GL_TEXTURE0); // ?
+        glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+        glUniform1i(UNIFORM(shader_program, "TextureID"), GL2.TextureID);
+
+
+        glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+        // glBindTexture(GL_TEXTURE_2D, 0);
+        // glActiveTexture(0); // ?
+    } else if (
             (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) ||
             (mode == DRAW_MESH_MODE_PATCH_EDGES)
-       ) {
+            ) {
 
         uint EBO;
         uint num_vertices;
@@ -340,29 +413,9 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
         glUniform2f(UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
         glDrawElements(GL_LINES, num_vertices, GL_UNSIGNED_INT, NULL);
-    } else if (
-            (mode == DRAW_MESH_MODE_LIT) ||
-            (mode == DRAW_MESH_MODE_TRIANGLE_ID) ||
-            (mode == DRAW_MESH_MODE_PATCH_ID)
-            ) {
-        glBindVertexArray(GL.VAO);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
-        uint shader_program = face_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
-        glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
-        glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
-        glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
-        glUniform1i(UNIFORM(shader_program, "mode"), mode);
-
-        glActiveTexture(GL_TEXTURE0); // ?
-        glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
-        glUniform1i(UNIFORM(shader_program, "TextureID"), GL2.TextureID);
-
-        glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
     } else {
         ASSERT(0);
     }
-
-
 }
 
 
@@ -377,23 +430,43 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
 
 
-    glDisable(GL_SCISSOR_TEST);
-    glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
-    {
-        glClearColor(0.0, 1.0, 1.0, 0.0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-        DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M, mesh);
+    if (other.show_details) {
+        glDisable(GL_SCISSOR_TEST);
+        glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
+        {
+            glClearColor(1.0, 1.0, 1.0, 1.0);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+            DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glEnable(GL_SCISSOR_TEST);
+
+        glDisable(GL_DEPTH_TEST); {
+            DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh);
+        } glEnable(GL_DEPTH_TEST);
     }
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glEnable(GL_SCISSOR_TEST);
 
-    glDisable(GL_DEPTH_TEST); {
-        DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES, P, V, M, mesh);
-    } glEnable(GL_DEPTH_TEST);
+    if (0) {
+        uint shader_program = blit_full_screen_quad_shader_program;
+        ASSERT(shader_program);
+        glUseProgram(shader_program);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+        glUniform1i(UNIFORM(shader_program, "screenTexture"), 0);
 
-    DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
-    DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_ID, P, V, M4_Translation( 80.0, 0.0, -60.0) * M, mesh);
-    DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M4_Translation( 80.0, 0.0,  00.0) * M, mesh);
+        glBindVertexArray(FullScreenQuad.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, FullScreenQuad.num_vertices);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0);
+        return;
+    }
+
+
+
+    // DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
+    // DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M, mesh);
+    // DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES, P, V, M, mesh);
 
     // _fancy_draw_all_edge_pass(P, V, M, mesh);
     // _fancy_draw_hard_edges_pass(P, V, M, mesh);

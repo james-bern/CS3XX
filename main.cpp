@@ -108,7 +108,8 @@ run_before_main {
         // "bz<m2d 10 10>"
         // "cz<m2d 10 10>"
         // "ysq1[5\n"
-        "^.^Odemo.stl\n"
+        "^G"
+        "^.^Obuddha.stl\n"
         // "^odemo.dxf\nsq1y[5\n<m3d 0 10 15 0 -1 0>"
         ;
 };

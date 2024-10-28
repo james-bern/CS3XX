@@ -1997,7 +1997,7 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
         }
         { // gross explosion from triangles to edges
           // if there is a better way to do this please lmk :(
-            uint size = 2 * 3 * mesh->num_triangles * sizeof(uint);
+            uint size = 3 * mesh->num_triangles * sizeof(uint2);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
             uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
             defer { free(mesh_edge_tuples); };
