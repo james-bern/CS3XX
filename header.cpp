@@ -240,6 +240,8 @@ struct DrawMesh {
 
     uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
 
+    // NOTE: GL half-edges follow order of triangle
+
     // TODO: we don't need this data anymore
     uint num_hard_half_edges; // num_hard_half_edges
     uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
@@ -1585,7 +1587,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         // NOTE: clamp ver ver important
                         real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
                         ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
-                        is_soft_edge = (angle_in_degrees < 30.0f);
+                        is_soft_edge = (angle_in_degrees < 60.0f);
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                     if (is_not_already_marked && !is_soft_edge) {

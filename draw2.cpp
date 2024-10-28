@@ -1,4 +1,5 @@
-// TODO: VAO and VBO are about mesh data (don't connect them to shaders)
+// TODO: get rid of STENCIL
+// NOTE: VAO and VBO are about mesh data (don't connect them to shaders)
 
 struct {
     uint num_vertices = 6;
@@ -6,16 +7,51 @@ struct {
     uint VBO[2];
     vec2 vertex_positions[6] = { { -1.0f, -1.0f }, {  1.0f, -1.0f }, {  1.0f,  1.0f }, { -1.0f, -1.0f }, {  1.0f,  1.0f }, { -1.0f,  1.0f }, };
     vec2 vertex_texture_coordinates[6] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f }, };
-} blit_quad;
+} FullScreenQuad;
 
 run_before_main {
-    glGenVertexArrays(1, &blit_quad.VAO);
-    glGenBuffers(ARRAY_LENGTH(blit_quad.VBO), blit_quad.VBO);
-    glBindVertexArray(blit_quad.VAO);
-    POOSH(blit_quad.VBO, 0, blit_quad.num_vertices, blit_quad.vertex_positions);
-    POOSH(blit_quad.VBO, 1, blit_quad.num_vertices, blit_quad.vertex_texture_coordinates);
+    glGenVertexArrays(1, &FullScreenQuad.VAO);
+    glGenBuffers(ARRAY_LENGTH(FullScreenQuad.VBO), FullScreenQuad.VBO);
+    glBindVertexArray(FullScreenQuad.VAO);
+    POOSH(FullScreenQuad.VBO, 0, FullScreenQuad.num_vertices, FullScreenQuad.vertex_positions);
+    POOSH(FullScreenQuad.VBO, 1, FullScreenQuad.num_vertices, FullScreenQuad.vertex_texture_coordinates);
 };
 
+
+struct {
+    uint FBO;
+    uint RBO;
+    uint TextureID;
+} GL2;
+
+run_before_main {
+    glGenFramebuffers(1, &GL2.FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
+
+    glGenTextures(1, &GL2.TextureID);
+
+    uint width = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_width_Pixel();
+    uint height = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_height_Pixel();
+
+    glActiveTexture(GL_TEXTURE0); // ?
+    glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GL2.TextureID, 0);  
+
+    glGenRenderbuffers(1, &GL2.RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, GL2.RBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GL2.RBO);
+
+    ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+};
 
 
 struct {
@@ -102,6 +138,7 @@ struct {
                 int g = (id / 256)       % 256;
                 int b = (id / 256 / 256) % 256;
                 rgb = vec3(r / 255.0, g / 255.0, b / 255.0);
+                rgb = vec3(1);
             }
 
             _gl_FragColor = vec4(rgb, 1.0);
@@ -141,7 +178,7 @@ struct {
             noperspective vec2 corner; // (+/-1, +/-1)
         } gs_out;
 
-        float size = 8.0f;
+        float size = 2.0f;
 
         void main() {    
             vec4 v0_NDC = gl_in[0].gl_Position;
@@ -191,14 +228,6 @@ struct {
     )"";
 
     char *frag = R""(#version 330 core
-        // TODO: sample the ID buffer and drop selectively
-        // TODO: anti-aliasing with the exponential function
-        in BLOCK {
-            noperspective vec3 color;
-            noperspective float L;
-            noperspective vec2 corner;
-        } fs_in;
-
         float squaredDistance(vec2 a, vec2 b) {
             vec2 delta = (a - b);
             return dot(delta, delta);
@@ -219,13 +248,31 @@ struct {
             return d2;
         }
 
+        in BLOCK {
+            noperspective vec3 color;
+            noperspective float L;
+            noperspective vec2 corner;
+        } fs_in;
+
+        uniform sampler2D TextureID;
+        uniform vec2 OpenGL_from_Pixel_scale;
+
         out vec4 _gl_FragColor;
         void main() {
+
+            // int fragment_ID; {
+            //     vec3 rgb = texture(TextureID, OpenGL_from_Pixel_scale * gl_FragCoord.xy).rgb;
+            //     fragment_ID = (256 * 256 * int(255 * rgb.b)) + (256 * int(256 * rgb.g)) + int(255 * rgb.r);
+            // }
+            // int triangle_ID = gl_PrimitiveID / 3;
+            // if (fragment_ID != triangle_ID) discard;
+
             vec2 hLx = vec2(0.5 * fs_in.L, 0);
             float d2 = squaredDistancePointLineSegment(fs_in.corner * (hLx + vec2(1.0)), -hLx, hLx);
             float I = exp2(-2 * min(d2, 1.8 * 1.8));
             // _gl_FragColor = vec4(vec3(1.0), I);
             _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1); // FORNOW
+            _gl_FragColor.rgb = texture(TextureID, OpenGL_from_Pixel_scale * gl_FragCoord.xy).rgb;
         }
     )"";
 } edge_pass_source;
@@ -291,7 +338,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniform1f(UNIFORM(shader_program, "_t01"), _t01);
 
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
-        glUniform2f       (UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
+        glUniform2f(UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
         glDrawElements(GL_LINES, num_vertices, GL_UNSIGNED_INT, NULL);
     } else if (
             (mode == DRAW_MESH_MODE_LIT) ||
@@ -305,6 +352,11 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
         glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
+
+        glActiveTexture(GL_TEXTURE0); // ?
+        glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+        glUniform1i(UNIFORM(shader_program, "TextureID"), GL2.TextureID);
+
         glDrawElements(GL_TRIANGLES, 3 * mesh->num_triangles, GL_UNSIGNED_INT, NULL);
     } else {
         ASSERT(0);
@@ -314,17 +366,33 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 }
 
 
+
+
+
+
+
+
+
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    // DRAW_MESH(DRAW_MESH_MODE_LIT,            P, V, M4_Translation(-00.0, 0.0,  00.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M4_Translation(-00.0, 0.0,  00.0) * M, mesh);
 
 
+    glDisable(GL_SCISSOR_TEST);
+    glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
+    {
+        glClearColor(0.0, 0.0, 0.0, 0.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glEnable(GL_SCISSOR_TEST);
 
-    // TODO: bring back FBO, RBO, etc.
-    DRAW_MESH(DRAW_MESH_MODE_PATCH_ID,       P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
-    DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES,    P, V, M4_Translation( 00.0, 0.0,  00.0) * M, mesh);
+    glDisable(GL_DEPTH_TEST); {
+        DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES, P, V, M4_Translation( 00.0, 0.0,  00.0) * M, mesh);
+    } glEnable(GL_DEPTH_TEST);
 
-    DRAW_MESH(DRAW_MESH_MODE_PATCH_ID,       P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
-    DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_ID,    P, V, M4_Translation( 80.0, 0.0, -60.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
+    DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_ID, P, V, M4_Translation( 80.0, 0.0, -60.0) * M, mesh);
     DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M4_Translation( 80.0, 0.0,  00.0) * M, mesh);
 
     // _fancy_draw_all_edge_pass(P, V, M, mesh);
