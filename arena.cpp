@@ -1,5 +1,9 @@
+#ifdef OPERATING_SYSTEM_APPLE
 #include <sys/mman.h>
 #include <errno.h>
+#else
+#include <windows.h>
+#endif
 
 
 // // hash.cpp ///////////////////////////////////////////////
@@ -85,8 +89,19 @@ struct Arena {
 
 Arena NEW_BUMP_ALLOCATED_ARENA() {
     Arena result = {};
-    result._page_size = sysconf(_SC_PAGESIZE);
     result._num_reserved_pages = 1024 * 1024;
+
+    #ifdef OPERATING_SYSTEM_APPLE
+    result._page_size = sysconf(_SC_PAGESIZE);
+    #else
+    {
+        SYSTEM_INFO si;
+        GetSystemInfo(&si);
+        result._page_size = si.dwPageSize;
+    }
+    #endif
+
+    #ifdef OPERATING_SYSTEM_APPLE
     result._reserved_memory = (char *)
         mmap(
                 NULL,
@@ -97,6 +112,16 @@ Arena NEW_BUMP_ALLOCATED_ARENA() {
                 0
             );
     ASSERT(result._reserved_memory != MAP_FAILED);
+    #else
+    result._reserved_memory = (char *)
+    VirtualAlloc(
+        NULL,
+        result._num_reserved_pages * result._page_size,
+        MEM_RESERVE,
+        PAGE_NOACCESS
+     );
+    ASSERT(result._reserved_memory);
+    #endif
     result._malloc_write_head = result._reserved_memory;
 
     return result;
@@ -106,25 +131,35 @@ void *_arena_malloc(Arena *arena, uint size) {
     // NOTE: must mprotect on page boundaries
 
     char *_one_past_end_of_memory = arena->_reserved_memory + (arena->_num_reserved_pages * arena->_page_size);
-    char *_one_past_end_of_mprotected_memory = arena->_reserved_memory + (arena->_num_committed_pages * arena->_page_size);
+    char *_one_past_end_of_committed_memory = arena->_reserved_memory + (arena->_num_committed_pages * arena->_page_size);
 
-    if (arena->_malloc_write_head + size > _one_past_end_of_mprotected_memory) {
+    if (arena->_malloc_write_head + size > _one_past_end_of_committed_memory) {
         // [          ][          ][          ][          ][          ][                 
         //    ^        ^                                       ^       ^                 
         //    |        |                                       |       |                 
-        //    |        _one_past_end_of_mprotected_memory      |       :D                
+        //    |        _one_past_end_of_committed_memory       |       :D                
         //    |                                                |                         
         //    _malloc_write_head                               _malloc_write_head + size 
 
-        uint num_pages_to_mprotect = (((arena->_malloc_write_head + size) - _one_past_end_of_mprotected_memory) / arena->_page_size + 1);
-        uint num_bytes_to_mprotect = num_pages_to_mprotect * arena->_page_size;
+        uint num_pages_to_commit = (((arena->_malloc_write_head + size) - _one_past_end_of_committed_memory) / arena->_page_size + 1);
+        uint num_bytes_to_commit = num_pages_to_commit * arena->_page_size;
+        #ifdef OPERATING_SYSTEM_APPLE
         int mprotect_result = mprotect(
-                _one_past_end_of_mprotected_memory,
+                _one_past_end_of_committed_memory,
                 num_bytes_to_mprotect,
                 PROT_READ | PROT_WRITE
                 );
         ASSERT(mprotect_result == 0);
-        arena->_num_committed_pages += num_pages_to_mprotect;
+        #else
+        LPVOID VirtualAlloc_result = VirtualAlloc(
+            _one_past_end_of_committed_memory,
+            num_bytes_to_commit,
+            MEM_COMMIT,
+            PAGE_READWRITE
+            );
+        ASSERT(VirtualAlloc_result);
+        #endif
+        arena->_num_committed_pages += num_pages_to_commit;
     }
 
     void *result = (void *) arena->_malloc_write_head;
@@ -142,7 +177,18 @@ void *_arena_calloc(Arena *arena, uint count, uint size_per_element) {
 
 void _arena_free(Arena *arena) {
     ASSERT(arena->_reserved_memory);
-    munmap(arena->_reserved_memory, arena->_num_reserved_pages *arena->_page_size);
+    #ifdef OPERATING_SYSTEM_APPLE
+    munmap(
+        arena->_reserved_memory,
+        arena->_num_reserved_pages * arena->_page_size
+        );
+    #else
+        VirtualFree(
+                       arena->_reserved_memory,
+                       arena->_num_reserved_pages *arena->_page_size,
+                       MEM_RELEASE
+                       );
+    #endif
     *arena = {};
 }
 
