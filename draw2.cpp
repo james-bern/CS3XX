@@ -1,5 +1,20 @@
 // TODO: re-read the paper to see what it says about curvy polygons (maybe they just didn't consider this case)
 // -- TODO: can pass corresponding triangle normals and see if that helps (the WorkMesh already has these computed; will have to do some work to hook them up, but not too much)
+// TODO: wait, does this even make sense? i don't think so. our triangles aren't actually exploded. we're just using ebos to go over the edges
+// there will be some weird geometry shader solution, but it's non-obvious fornow (passing around the third vertex
+
+// // !!!
+// NO this bad bad (see problem.stl) -- consider throwing away patch version and just using all edges but turning off some of them (modulating thickness) based on whether they're a patch edge. could pass into for each one to say whether it's a hard half edge or not
+// this is going to be an annoying change because i don't think you can pass whether it is a hard edge as a vertex attribute with the current pipeline
+// right now we just have all our vertices and we pass a triangle explode EBO as lines
+// we probably need to the data actually exploded into triangle soup labeled with "opposing edge is hard" or something like that, which isn't hard, just mildly annoying; or we could just go really inefficient and throw labeled line soup at the problem, which would require minimal modification to the current edge shader pipeline. this is probably the easiest thing to do; it's also a very straight forward idea. just upload a bunch of lines to the GPU, labeled with whether they're hard. no need for a patch ID buffer. and we can definitely single pass shade it. it's bad in terms of space, but that's also probably fine. so we need a massive bool *all_half_edges_soup_per_vertex_is_hard_half_edge; and then we'll also need all_half_edges_soup_vertex_positions; using an EBO with the same data used for smooth-shading the mesh was a cute idea, but I think we need to let it go
+// or actually, i think you could just use both textures. if it matches the patch id and it matches the face id, then you're golden
+
+// I think the obvious approach is backface culling (we need to look up when in the pipeline that happens)
+// - if it's early, then we rewrite this crap to make the geometry shader emit 3 lines per triangle (just a for loop)--but skip this if the triangle is facing away from us.
+// we might be able to condense the hard edges and all edges into a single pass if we do this, but let's not worry about that fornow. priority now is any hard edge solution that doesn't exhibit the problem we have now
+
+
 // TODO: this doesn't work if you resize the window
 // TODO: get rid of STENCIL
 // NOTE: VAO and VBO are about mesh data (don't connect them to shaders)
@@ -62,12 +77,12 @@ struct {
         #version 330 core
         layout (location = 0) in vec3 position_Model;
         layout (location = 1) in vec3 normal_Model;
-        layout (location = 2) in uint vertex_patch_index;
+        layout (location = 2) in uint patch_index;
 
         out BLOCK {
             vec3 position_World;
             vec3 normal_World;
-            flat uint vertex_patch_index;
+            flat uint patch_index;
         } vs_out;
 
         uniform mat4 PV;
@@ -89,7 +104,7 @@ struct {
             }
 
             {
-                vs_out.vertex_patch_index = vertex_patch_index;
+                vs_out.patch_index = patch_index;
             }
         }
     )"";
@@ -99,7 +114,7 @@ struct {
         in BLOCK {
             vec3 position_World;
             vec3 normal_World;
-            flat uint vertex_patch_index;
+            flat uint patch_index;
         } fs_in;
 
         uniform vec3 eye_World;
@@ -136,7 +151,7 @@ struct {
                     rgb += 0.3 * fresnel;
                 }
             } else if ((mode == 1) || (mode == 3)) {
-                int i = (mode == 1) ? int(fs_in.vertex_patch_index) : gl_PrimitiveID;
+                int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
                 rgb.r = (i % 256);
                 rgb.g = ((i / 256) % 256);
                 rgb.b = ((i / (256 * 256)) % 256);
@@ -158,17 +173,17 @@ struct {
         #version 330 core
         layout (location = 0) in vec3 position_Model;
         layout (location = 1) in vec3 normal_Model;
-        layout (location = 2) in uint vertex_patch_index;
+        layout (location = 2) in uint patch_index;
 
         uniform mat4 PVM;
 
         out BLOCK {
-            flat uint vertex_patch_index;
+            flat uint patch_index;
         } vs_out;
 
         void main() {
             normal_Model;
-            vs_out.vertex_patch_index = vertex_patch_index;
+            vs_out.patch_index = patch_index;
             gl_Position = PVM * vec4(position_Model, 1.0);
         }
     )"";
@@ -186,14 +201,14 @@ struct {
 
 
         in BLOCK {
-            flat uint vertex_patch_index;
+            flat uint patch_index;
         } gs_in[];
 
         out BLOCK {
             noperspective vec3 color;
             noperspective float L;
             noperspective vec2 corner; // (+/-1, +/-1)
-            flat uint vertex_patch_index;
+            flat uint patch_index;
         } gs_out;
 
         float _half_thickness = 0.5f;
@@ -223,28 +238,28 @@ struct {
             gs_out.L = L;
             gs_out.corner = vec2(-1, +1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gs_out.vertex_patch_index = gs_in[0].vertex_patch_index;
+            gs_out.patch_index = gs_in[0].patch_index;
             gl_Position = (S * (v0 + half_thickness * (-a + b))) / w0;
             EmitVertex();
 
             gs_out.L = L;
             gs_out.corner  = vec2(-1, -1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gs_out.vertex_patch_index = gs_in[0].vertex_patch_index;
+            gs_out.patch_index = gs_in[0].patch_index;
             gl_Position = (S * (v0 + half_thickness * (-a - b))) / w0;
             EmitVertex();
 
             gs_out.L = L;
             gs_out.corner = vec2(+1, +1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gs_out.vertex_patch_index = gs_in[1].vertex_patch_index;
+            gs_out.patch_index = gs_in[1].patch_index;
             gl_Position = (S * (v1 + half_thickness * (+a + b))) / w1;
             EmitVertex();
 
             gs_out.L = L;
             gs_out.corner = vec2(+1, -1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gs_out.vertex_patch_index = gs_in[1].vertex_patch_index;
+            gs_out.patch_index = gs_in[1].patch_index;
             gl_Position = (S * (v1 + half_thickness * (+a - b))) / w1;
             EmitVertex();
 
@@ -277,7 +292,7 @@ char *frag = R""(#version 330 core
             noperspective vec3 color;
             noperspective float L;
             noperspective vec2 corner;
-            flat uint vertex_patch_index;
+            flat uint patch_index;
         } fs_in;
 
         uniform sampler2D TextureID;
@@ -291,16 +306,18 @@ char *frag = R""(#version 330 core
             vec3 rgb = texture(TextureID, texCoord).rgb;
 
             vec3 rgb2; {
-                int i = (mode == 4) ? (gl_PrimitiveID / 3 / 2) : int(fs_in.vertex_patch_index); // NOTE: /2 is (probably) because the geometry shader emits two triangles per line
+                int i = (mode == 4) ? (gl_PrimitiveID / 3 / 2) : int(fs_in.patch_index); // NOTE: /2 is (probably) because the geometry shader emits two triangles per line
                 rgb2.r = (i % 256);
                 rgb2.g = ((i / 256) % 256);
                 rgb2.b = ((i / (256 * 256)) % 256);
                 rgb2 /= 255.0;
             }
-            // bool hit = (length(rgb - vec3(1.0)) > 0.0001);
+            bool hit = (length(rgb - vec3(1.0)) > 0.0001);
             bool no_match = (length(rgb - rgb2) > 0.0001);
             // if (hit && no_match) discard;
             if (no_match) discard;
+            // bool facing_away = (fs_in.triangle_normal.z < 0);
+            // if (facing_away) discard;
 
             vec2 hLx = vec2(0.5 * fs_in.L, 0);
             float d2 = squaredDistancePointLineSegment(fs_in.corner * (hLx + vec2(1.0)), -hLx, hLx);
@@ -459,6 +476,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
     for_(pass, 2) {
+        if (pass == 1) continue;
         if (other.show_details || (pass == 1)) {
             glDisable(GL_SCISSOR_TEST);
             glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);

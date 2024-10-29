@@ -1587,7 +1587,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         // NOTE: clamp ver ver important
                         real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
                         ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
-                        is_soft_edge = (angle_in_degrees < 60.0f);
+                        is_soft_edge = (angle_in_degrees < 30.0f);
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                     if (is_not_already_marked && !is_soft_edge) {
@@ -1991,6 +1991,8 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
         POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
         POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
         POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
+        { // FORNOW: gross explosion of triangle_normal from the work mesh
+        }
         {
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
