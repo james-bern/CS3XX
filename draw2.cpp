@@ -1,3 +1,5 @@
+// TODO: re-read the paper to see what it says about curvy polygons (maybe they just didn't consider this case)
+// -- TODO: can pass corresponding triangle normals and see if that helps (the WorkMesh already has these computed; will have to do some work to hook them up, but not too much)
 // TODO: this doesn't work if you resize the window
 // TODO: get rid of STENCIL
 // NOTE: VAO and VBO are about mesh data (don't connect them to shaders)
@@ -155,10 +157,18 @@ struct {
     char *vert = R""(
         #version 330 core
         layout (location = 0) in vec3 position_Model;
+        layout (location = 1) in vec3 normal_Model;
+        layout (location = 2) in uint vertex_patch_index;
 
         uniform mat4 PVM;
 
+        out BLOCK {
+            flat uint vertex_patch_index;
+        } vs_out;
+
         void main() {
+            normal_Model;
+            vs_out.vertex_patch_index = vertex_patch_index;
             gl_Position = PVM * vec4(position_Model, 1.0);
         }
     )"";
@@ -172,16 +182,26 @@ struct {
         uniform vec2 OpenGL_from_Pixel_scale;
         uniform float _t01;
 
+        // TODO: lines needs to know their patch index
+
+
+        in BLOCK {
+            flat uint vertex_patch_index;
+        } gs_in[];
 
         out BLOCK {
             noperspective vec3 color;
             noperspective float L;
             noperspective vec2 corner; // (+/-1, +/-1)
+            flat uint vertex_patch_index;
         } gs_out;
 
-        float half_thickness = 0.5f;
+        float _half_thickness = 0.5f;
+        uniform int mode;
 
         void main() {    
+            float half_thickness = (mode == 4) ? _half_thickness : 2 * _half_thickness;
+
             vec4 v0_NDC = gl_in[0].gl_Position;
             vec4 v1_NDC = gl_in[1].gl_Position;
             float w0 = 1.0 / v0_NDC.w; // NOTE: This is actually how OpenGL works (TODO: link)
@@ -201,34 +221,38 @@ struct {
             float L = (length(v0.xy - v1.xy) / half_thickness);
 
             gs_out.L = L;
-            gs_out.corner  = vec2(-1, -1);
-            gs_out.color = vec3(1.0, 0.0, 0.0);
-            gl_Position = (S * (v0 + half_thickness * (-a - b))) / w0;
-            EmitVertex();
-
-            gs_out.L = L;
             gs_out.corner = vec2(-1, +1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
+            gs_out.vertex_patch_index = gs_in[0].vertex_patch_index;
             gl_Position = (S * (v0 + half_thickness * (-a + b))) / w0;
             EmitVertex();
 
             gs_out.L = L;
-            gs_out.corner = vec2(+1, -1);
+            gs_out.corner  = vec2(-1, -1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gl_Position = (S * (v1 + half_thickness * (+a - b))) / w1;
+            gs_out.vertex_patch_index = gs_in[0].vertex_patch_index;
+            gl_Position = (S * (v0 + half_thickness * (-a - b))) / w0;
             EmitVertex();
 
             gs_out.L = L;
             gs_out.corner = vec2(+1, +1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
+            gs_out.vertex_patch_index = gs_in[1].vertex_patch_index;
             gl_Position = (S * (v1 + half_thickness * (+a + b))) / w1;
             EmitVertex();
 
-            EndPrimitive();
-        }  
-    )"";
+            gs_out.L = L;
+            gs_out.corner = vec2(+1, -1);
+            gs_out.color = vec3(1.0, 0.0, 0.0);
+            gs_out.vertex_patch_index = gs_in[1].vertex_patch_index;
+            gl_Position = (S * (v1 + half_thickness * (+a - b))) / w1;
+            EmitVertex();
 
-    char *frag = R""(#version 330 core
+    EndPrimitive();
+}  
+)"";
+
+char *frag = R""(#version 330 core
         float squaredDistance(vec2 a, vec2 b) {
             vec2 delta = (a - b);
             return dot(delta, delta);
@@ -253,10 +277,12 @@ struct {
             noperspective vec3 color;
             noperspective float L;
             noperspective vec2 corner;
+            flat uint vertex_patch_index;
         } fs_in;
 
         uniform sampler2D TextureID;
         uniform vec2 OpenGL_from_Pixel_scale;
+        uniform int mode;
 
         out vec4 _gl_FragColor;
         void main() {
@@ -265,7 +291,7 @@ struct {
             vec3 rgb = texture(TextureID, texCoord).rgb;
 
             vec3 rgb2; {
-                int i = gl_PrimitiveID / 3 / 2; // NOTE: /2 is (probably) because the geometry shader emits two triangles per line
+                int i = (mode == 4) ? (gl_PrimitiveID / 3 / 2) : int(fs_in.vertex_patch_index); // NOTE: /2 is (probably) because the geometry shader emits two triangles per line
                 rgb2.r = (i % 256);
                 rgb2.g = ((i / 256) % 256);
                 rgb2.b = ((i / (256 * 256)) % 256);
@@ -412,6 +438,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
         glUniform2f(UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
+        glUniform1i(UNIFORM(shader_program, "mode"), mode);
         glDrawElements(GL_LINES, num_vertices, GL_UNSIGNED_INT, NULL);
     } else {
         ASSERT(0);
@@ -427,23 +454,26 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+    // glCullFace(GL_BACK);
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
 
 
-    if (other.show_details) {
-        glDisable(GL_SCISSOR_TEST);
-        glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
-        {
-            glClearColor(1.0, 1.0, 1.0, 1.0);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh);
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glEnable(GL_SCISSOR_TEST);
+    for_(pass, 2) {
+        if (other.show_details || (pass == 1)) {
+            glDisable(GL_SCISSOR_TEST);
+            glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
+            {
+                glClearColor(1.0, 1.0, 1.0, 1.0);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+                DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_TRIANGLE_ID : DRAW_MESH_MODE_PATCH_ID, P, V, M, mesh);
+            }
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glEnable(GL_SCISSOR_TEST);
 
-        glDisable(GL_DEPTH_TEST); {
-            DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh);
-        } glEnable(GL_DEPTH_TEST);
+            glDisable(GL_DEPTH_TEST); {
+                DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_TRIANGLE_EDGES : DRAW_MESH_MODE_PATCH_EDGES, P, V, M, mesh);
+            } glEnable(GL_DEPTH_TEST);
+        }
     }
 
     if (0) {

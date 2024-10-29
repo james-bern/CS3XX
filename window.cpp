@@ -21,8 +21,8 @@ real _window_macbook_retina_fixer__VERY_MYSTERIOUS;
 run_before_main {
     ASSERT(glfwInit());
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // 3
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1); // 3
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
@@ -49,6 +49,8 @@ run_before_main {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    // glEnable(GL_CULL_FACE);
+    // glCullFace(GL_BACK);
     glfwSwapInterval(0);
 
     { // _macbook_retina_scale
