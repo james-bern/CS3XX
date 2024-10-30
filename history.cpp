@@ -200,7 +200,7 @@ void history_debug_draw() {
                 MouseEvent *mouse_event = &event.mouse_event;
                 if (mouse_event->subtype == MouseEventSubtype::Drawing) {
                     MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
-                    sprintf(message, "[MOUSE_DRAWING] %g %g", mouse_event_drawing->snap_result.mouse_position.x, mouse_event_drawing->snap_result.mouse_position.y);
+                    sprintf(message, "[MOUSE_DRAWING] %g %g", mouse_event_drawing->unsnapped_position.x, mouse_event_drawing->unsnapped_position.y);
                 } else if (mouse_event->subtype == MouseEventSubtype::Mesh) {
                     MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
                     sprintf(message, "[MOUSE_MESH] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);

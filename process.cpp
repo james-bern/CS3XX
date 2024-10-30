@@ -820,7 +820,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (state_Draw_command_is_(Measure)) result.record_me = false;
             if (mouse_event->mouse_held) result.record_me = false;
 
-            MagicSnapResult snap_result = mouse_event_drawing->snap_result;
+            MagicSnapResult snap_result = magic_snap(mouse_event_drawing->unsnapped_position);
             vec2 *mouse = &snap_result.mouse_position;
 
             // TODO: commands.cpp flag
@@ -843,7 +843,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             // fornow window wonky case
             if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes sc and qc
                 result.record_me = false;
-                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
+                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, snap_result.mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
                     if (!state_Xsel_command_is_(Connected) && !state_Colo_command_is_(OfSelection)) {
@@ -1046,7 +1046,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (!mouse_event->mouse_held) {
                 if ((state.Draw_command.flags | state.Xsel_command.flags) & TWO_CLICK) { // FORNOW
                     if (!two_click_command->awaiting_second_click) {
-                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
+                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, snap_result.mouse_position);
                         bool first_click_accepted; {
                             if (!first_click_must_acquire_entity()) {
                                 first_click_accepted = true;
@@ -1056,7 +1056,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                         if (first_click_accepted) {
                             two_click_command->awaiting_second_click = true;
-                            two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
+                            two_click_command->first_click = snap_result.mouse_position;
                             // if (!two_click_command->tangent_first_click) { // ???
                                 two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
                             // }

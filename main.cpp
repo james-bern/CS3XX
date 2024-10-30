@@ -95,7 +95,7 @@ int main() {
 
 char *startup_script = "";
 
-#if 1 // circle
+#if 0 // circle
 run_before_main {
     startup_script =
         // "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
@@ -108,9 +108,9 @@ run_before_main {
         // "bz<m2d 10 10>"
         // "cz<m2d 10 10>"
         // "ysq1[5\n"
-        "^G"
+        // "^G"
         // "^.^Obuddha.stl\n"
-        "^.^Ocylinder.stl\n"
+        // "^.^Ocylinder.stl\n"
         // "^odemo.dxf\nsq1y[5\n<m3d 0 10 15 0 -1 0>"
         ;
 };
@@ -231,7 +231,7 @@ run_before_main {
 };
 #endif
 
-#if 0 // kitchen sink
+#if 1 // kitchen sink
 run_before_main {
     startup_script = 
         #if 1
@@ -265,7 +265,7 @@ run_before_main {
         "<m3d 1 100 -1 0 -1 0>" // TODO: comment
         "sa{100\n" // TODO: comment
         ";" // TODO: comment
-        "^odemo.dxf\n" // TODO: comment
+        // "^odemo.dxf\n" // TODO: comment
                        // "^signore.stl\ny\n" // TODO: comment
                        // "^oignore.stl\n" // TODO: comment
                        // ".." // TODO: comment

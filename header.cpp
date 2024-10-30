@@ -306,7 +306,7 @@ struct RawEvent {
 
 struct MagicSnapResult {
     vec2 mouse_position;
-    bool snapped;
+    bool snapped; // TODO: carefully move this to be the first entry
     uint entity_index_snapped_to;
     uint entity_index_intersect;
     uint entity_index_tangent_2;
@@ -315,7 +315,8 @@ struct MagicSnapResult {
 };
 
 struct MouseEventDrawing {
-    MagicSnapResult snap_result;
+    vec2 unsnapped_position;
+    // MagicSnapResult snap_result;
 };
 
 struct MouseEventMesh {
