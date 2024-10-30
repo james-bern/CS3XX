@@ -436,6 +436,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     // glCullFace(GL_BACK);
+    return;
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
 
 
