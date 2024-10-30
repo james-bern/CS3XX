@@ -146,7 +146,7 @@ void *_arena_malloc(Arena *arena, uint size) {
         #ifdef OPERATING_SYSTEM_APPLE
         int mprotect_result = mprotect(
                 _one_past_end_of_committed_memory,
-                num_bytes_to_mprotect,
+                num_bytes_to_commit,
                 PROT_READ | PROT_WRITE
                 );
         ASSERT(mprotect_result == 0);
