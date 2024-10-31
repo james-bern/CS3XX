@@ -29,7 +29,7 @@ void _POOSH(uint *VBO, uint i, uint num_verts, void *array, uint dim, uint GL_TY
 };
 void POOSH(uint *VBO, uint i, uint num_verts, vec3 *array) { _POOSH(VBO, i, num_verts, array, 3, GL_FLOAT); }
 void POOSH(uint *VBO, uint i, uint num_verts, vec2 *array) { _POOSH(VBO, i, num_verts, array, 2, GL_FLOAT); }
-void POOSH(uint *VBO, uint i, uint num_verts,  int *array) { _POOSH(VBO, i, num_verts, array, 1, GL_INT  ); }
+void POOSH(uint *VBO, uint i, uint num_verts, uint *array) { _POOSH(VBO, i, num_verts, array, 1, GL_INT  ); }
 
 uint UNIFORM(uint shader_program, char *name) { return glGetUniformLocation(shader_program, name); };
 
@@ -240,37 +240,31 @@ struct DrawMesh {
 
     uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
 
-    int *all_half_edges_soup_per_vertex_is_hard_half_edge;
     // NOTE: GL half-edges follow order of triangle
 
     // TODO: we don't need this data anymore
-    // uint num_hard_half_edges; // num_hard_half_edges
-    // uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
-    // vec3 *hard_edges_vertex_positions;
-    // uint *hard_edges_corresponding_triangle_indices;
+    uint num_hard_half_edges; // num_hard_half_edges
+    uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
+                             // vec3 *hard_edges_vertex_positions;
+                             // uint *hard_edges_corresponding_triangle_indices;
 
 };
 
 
 struct {
-    uint VAO; // TODO: VAO_face
-    uint VBO[2]; // TODO: VBO_face
-    uint EBO_faces; // TODO: EBO_faces
-
-    uint VAO_edge;
-    uint VBO_edge[2];
+    uint VAO;
+    uint VBO[3];
+    uint EBO_faces;
+    uint EBO_all_edges;
+    uint EBO_hard_edges;
 } GL;
-
-struct {
-} GL3;
 
 run_before_main {
     glGenVertexArrays(1, &GL.VAO);
     glGenBuffers(ARRAY_LENGTH(GL.VBO), GL.VBO);
     glGenBuffers(1, &GL.EBO_faces);
-
-    glGenVertexArrays(1, &GL.VAO_edge);
-    glGenBuffers(ARRAY_LENGTH(GL.VBO_edge), GL.VBO_edge);
+    glGenBuffers(1, &GL.EBO_all_edges);
+    glGenBuffers(1, &GL.EBO_hard_edges);
 };
 
 
@@ -1531,13 +1525,10 @@ void mesh_divide_into_patches(Meshes *meshes) {
 
     uint num_patches = 0;
 
-    // uint new_num_hard_half_edges = 0;
+    uint new_num_hard_half_edges = 0;
     // FORNOW: overestimate
-    // PairOldHardHalfEdgeTupleTriangleIndex *pairs_of_old_hard_half_edge_tuple_and_triangle_index = (PairOldHardHalfEdgeTupleTriangleIndex *) malloc(2 * 3 * num_triangles * sizeof(pairs_of_old_hard_half_edge_tuple_and_triangle_index[0])); // TODO: use this sizeof trick elsewhere
-    // TODO: scratch arena alloc
-
-    ArenaMap<uint2, bool> old_half_hard_edges_set = { &function_arena };
-    map_reserve_for_expected_num_entries(&old_half_hard_edges_set, (3 * num_triangles));
+    PairOldHardHalfEdgeTupleTriangleIndex *pairs_of_old_hard_half_edge_tuple_and_triangle_index = (PairOldHardHalfEdgeTupleTriangleIndex *) malloc(2 * 3 * num_triangles * sizeof(pairs_of_old_hard_half_edge_tuple_and_triangle_index[0])); // TODO: use this sizeof trick elsewhere
+                                                                                                                                                                                                                                             // TODO: scratch arena alloc
 
     {
         // TODO: ArenaQueue
@@ -1584,7 +1575,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                 for_(d, 3) {
                     uint old_i = old_triangle_tuple[ d         ];
                     uint old_j = old_triangle_tuple[(d + 1) % 3];
-                    uint2 old_half_edge      = { old_i, old_j };
+                    uint2 old_half_edge = { old_i, old_j };
                     uint2 twin_old_half_edge = { old_j, old_i };
                     uint twin_triangle_index; {
                         // NOTE: if this crashes, the mesh wasn't manifold?
@@ -1601,40 +1592,13 @@ void mesh_divide_into_patches(Meshes *meshes) {
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                     if (is_not_already_marked && !is_soft_edge) {
-                        //     pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { old_half_edge, triangle_index };
-                        //     pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { twin_old_half_edge, twin_triangle_index };
-                        map_put(&old_half_hard_edges_set, old_half_edge, true);
-                        map_put(&old_half_hard_edges_set, twin_old_half_edge, true);
+                        pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { old_half_edge, triangle_index };
+                        pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { twin_old_half_edge, twin_triangle_index };
                     }
                 }
             }
 
             ++num_patches;
-        }
-    }
-
-    int *all_half_edges_soup_per_vertex_is_hard_half_edge; {
-        // NOTE: i'm calculating this with the old (undivided) data, which is fine
-        //       because all that matters here is the order of the triangle half-edges
-        //       which is preserved from old -> new
-
-        uint num_vertices = (2 * 3 * num_triangles);
-
-        all_half_edges_soup_per_vertex_is_hard_half_edge = (int *) malloc(num_vertices * sizeof(int));
-        uint k = 0;
-
-        defer { ASSERT(k == num_vertices); };
-
-        for_(triangle_index, num_triangles) {
-            uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
-            for_(d, 3) {
-                uint old_i = old_triangle_tuple[ d         ];
-                uint old_j = old_triangle_tuple[(d + 1) % 3];
-                uint2 old_half_edge = { old_i, old_j };
-                bool is_hard_half_edge = map_contains_key(&old_half_hard_edges_set, old_half_edge);
-                all_half_edges_soup_per_vertex_is_hard_half_edge[k++] = is_hard_half_edge;
-                all_half_edges_soup_per_vertex_is_hard_half_edge[k++] = is_hard_half_edge;
-            }
         }
     }
 
@@ -1722,22 +1686,23 @@ void mesh_divide_into_patches(Meshes *meshes) {
         }
     }
 
-    // uint2 *new_hard_half_edge_tuples = (uint2 *) malloc(new_num_hard_half_edges * sizeof(uint2));
-    // {
-    //     for_(hard_half_edge_index, new_num_hard_half_edges) {
-    //         PairOldHardHalfEdgeTupleTriangleIndex pair = pairs_of_old_hard_half_edge_tuple_and_triangle_index[hard_half_edge_index];
-    //         uint2 old_hard_half_edge_tuple = pair.old_hard_half_edge_tuple;
-    //         uint old_i = old_hard_half_edge_tuple.i;
-    //         uint old_j = old_hard_half_edge_tuple.j;
-    //         uint triangle_index = pair.triangle_index;
+    uint2 *new_hard_half_edge_tuples = (uint2 *) malloc(new_num_hard_half_edges * sizeof(uint2));
+    {
+        for_(hard_half_edge_index, new_num_hard_half_edges) {
+            PairOldHardHalfEdgeTupleTriangleIndex pair = pairs_of_old_hard_half_edge_tuple_and_triangle_index[hard_half_edge_index];
+            uint2 old_hard_half_edge_tuple = pair.old_hard_half_edge_tuple;
+            uint old_i = old_hard_half_edge_tuple.i;
+            uint old_j = old_hard_half_edge_tuple.j;
+            uint triangle_index = pair.triangle_index;
 
-    //         uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
-    //         uint new_i = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_i });
-    //         uint new_j = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_j });
-    //         new_hard_half_edge_tuples[hard_half_edge_index] = { new_i, new_j };
-    //     }
+            uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
+            uint new_i = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_i });
+            uint new_j = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_j });
+            new_hard_half_edge_tuples[hard_half_edge_index] = { new_i, new_j };
+        }
 
-    // }
+    }
+
 
 
     // build massive new arrays -- O(t)
@@ -1766,9 +1731,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
             }
         }
 
-        draw->all_half_edges_soup_per_vertex_is_hard_half_edge = all_half_edges_soup_per_vertex_is_hard_half_edge;
-        // draw->num_hard_half_edges = new_num_hard_half_edges;
-        // draw->hard_half_edge_tuples = new_hard_half_edge_tuples;
+        draw->num_hard_half_edges = new_num_hard_half_edges;
+        draw->hard_half_edge_tuples = new_hard_half_edge_tuples;
 
     }
 
@@ -2024,36 +1988,31 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
     }
     { // GL
         DrawMesh *mesh = &meshes->draw;
+        glBindVertexArray(GL.VAO);
+        POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+        POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+        POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
+        { // FORNOW: gross explosion of triangle_normal from the work mesh
+        }
         {
-            glBindVertexArray(GL.VAO);
-            POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
-            POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
         }
-        {
-            // FORNOW: gross explosion to a bunch of lines stored in anoter VAO
-            //         (lets us pass whether each vertex belongs to a hard edge really easily)
-            uint all_half_edges_num_vertices = (2 * 3 * mesh->num_triangles);
-            vec3 *all_half_edges_vertex_positions;
-            defer { free(all_half_edges_vertex_positions); };
-            {
-                all_half_edges_vertex_positions = (vec3 *) malloc(all_half_edges_num_vertices * sizeof(vec3));
-                uint k = 0;
-                for_(triangle_index, mesh->num_triangles) {
-                    uint3 triangle_tuple = mesh->triangle_tuples[triangle_index];
-                    for_(d, 3) {
-                        uint i = triangle_tuple[ d         ];
-                        uint j = triangle_tuple[(d + 1) % 3];
-                        all_half_edges_vertex_positions[k++] = mesh->vertex_positions[i];
-                        all_half_edges_vertex_positions[k++] = mesh->vertex_positions[j];
-                    }
-                }
+        { // gross explosion from triangles to edges
+          // if there is a better way to do this please lmk :(
+            uint size = 3 * mesh->num_triangles * sizeof(uint2);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
+            uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
+            defer { free(mesh_edge_tuples); };
+            uint k = 0;
+            for_(i, mesh->num_triangles) {
+                for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
             }
-
-            glBindVertexArray(GL.VAO_edge);
-            POOSH(GL.VBO_edge, 0, all_half_edges_num_vertices, all_half_edges_vertex_positions);
-            POOSH(GL.VBO_edge, 1, all_half_edges_num_vertices, mesh->all_half_edges_soup_per_vertex_is_hard_half_edge);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
+        }
+        {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
         }
     }
 }
