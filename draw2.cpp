@@ -357,9 +357,34 @@ struct {
 
         uniform sampler2D screenTexture;
 
-        void main()
-        { 
-            _gl_FragColor = texture(screenTexture, TexCoords);
+        void main() { 
+            // _gl_FragColor = texture(screenTexture, TexCoords);
+
+            // sobel
+            float o = 0.0005; // TODO: OpenGL_from_Pixel_scale
+            vec3 a00 = texture(screenTexture, TexCoords + vec2(-1 * o, -1 * o)).rgb;
+            vec3 a01 = texture(screenTexture, TexCoords + vec2(-1 * o,  0 * o)).rgb;
+            vec3 a02 = texture(screenTexture, TexCoords + vec2(-1 * o,  1 * o)).rgb;
+            vec3 a10 = texture(screenTexture, TexCoords + vec2( 0 * o, -1 * o)).rgb;
+            vec3 a11 = texture(screenTexture, TexCoords + vec2( 0 * o,  0 * o)).rgb;
+            vec3 a12 = texture(screenTexture, TexCoords + vec2( 0 * o,  1 * o)).rgb;
+            vec3 a20 = texture(screenTexture, TexCoords + vec2( 1 * o, -1 * o)).rgb;
+            vec3 a21 = texture(screenTexture, TexCoords + vec2( 1 * o,  0 * o)).rgb;
+            vec3 a22 = texture(screenTexture, TexCoords + vec2( 1 * o,  1 * o)).rgb;
+            float Q = 1024;
+            float b00 = min(1.0, Q * length(a00 - a11));
+            float b01 = min(1.0, Q * length(a01 - a11));
+            float b02 = min(1.0, Q * length(a02 - a11));
+            float b10 = min(1.0, Q * length(a10 - a11));
+         // float b11 = min(1.0, Q * length(a11 - a11));
+            float b12 = min(1.0, Q * length(a12 - a11));
+            float b20 = min(1.0, Q * length(a20 - a11));
+            float b21 = min(1.0, Q * length(a21 - a11));
+            float b22 = min(1.0, Q * length(a22 - a11));
+            float cx = (b00 - b02) + 2 * (b10 - b12) + (b20 - b22);
+            float cy = (b00 - b20) + 2 * (b01 - b21) + (b02 - b22);
+            float d = abs(cx) + abs(cy);
+            _gl_FragColor = vec4(vec3(1), d / 4);
         }
     )"";
 } blit_full_screen_quad_source;
@@ -477,7 +502,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
     for_(pass, 2) {
-        if (pass == 1) continue;
+        if (pass == 0) continue;
         if (other.show_details || (pass == 1)) {
             glDisable(GL_SCISSOR_TEST);
             glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
@@ -489,13 +514,15 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             glEnable(GL_SCISSOR_TEST);
 
+            /*
             glDisable(GL_DEPTH_TEST); {
                 DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_TRIANGLE_EDGES : DRAW_MESH_MODE_PATCH_EDGES, P, V, M, mesh);
             } glEnable(GL_DEPTH_TEST);
+            */
         }
     }
 
-    if (0) {
+    if (1) {
         uint shader_program = blit_full_screen_quad_shader_program;
         ASSERT(shader_program);
         glUseProgram(shader_program);
