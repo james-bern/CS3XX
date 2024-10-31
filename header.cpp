@@ -1,3 +1,5 @@
+real HARD_EDGE_THRESHOLD_IN_DEGREES = 30.0f;
+
 // gl
 
 void _POOSH(uint *VBO, uint i, uint num_verts, void *array, uint dim, uint GL_TYPE) {
@@ -1588,7 +1590,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
                         // NOTE: clamp ver ver important
                         real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
                         ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
-                        is_soft_edge = (angle_in_degrees < 30.0f);
+                        is_soft_edge = (angle_in_degrees < HARD_EDGE_THRESHOLD_IN_DEGREES);
                     }
                     if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
                     if (is_not_already_marked && !is_soft_edge) {

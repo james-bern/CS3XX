@@ -128,13 +128,40 @@ struct {
             vec3 rgb = vec3(0.0);
 
             if (mode == 0) {
-                vec3 warm_color = vec3(1.0, 1.0, 0.3);
-                vec3 cool_color = vec3(0.3, 0.7, 1.0);
 
-                { // sunlight gooch
+                if (true) { // three way rainbow gooch
+                    for (int d = 0; d < 3; ++d) {
+                        vec3 warm_color = vec3(0);
+                        warm_color[d] = 1.0;
+                        warm_color[(d + 1) % 3] = 0.7;
+                        warm_color[(d + 2) % 3] = 0.3;
+
+                        vec3 cool_color = vec3(1.0) - warm_color;
+
+                        vec3 L = vec3(0.0);
+                        L[d] = 1.0;
+
+                        float LN = dot(L, N);
+                        float t = 0.5 + 0.5 * LN;
+                        rgb += 0.4  * mix(cool_color, warm_color, t);
+                    }
+                }
+
+                if (false) { // sunlight gooch
+                    vec3 warm_color = vec3(1.0, 0.7, 0.3);
+                    vec3 cool_color = vec3(0.3, 0.7, 1.0);
                     vec3 L = vec3(0.0, 1.0, 0.0);
                     float LN = dot(L, N);
                     float t = 0.5 + 0.5 * LN;
+                    rgb += 0.7 * mix(cool_color, warm_color, t);
+                }
+
+                if (false) { // eyelight gooch
+                    vec3 warm_color = vec3(1.0, 0.7, 0.3);
+                    vec3 cool_color = vec3(0.3, 0.7, 1.0);
+                    vec3 L = normalize(eye_World - fs_in.position_World);
+                    float LN = dot(L, N);
+                    float t = LN;
                     rgb += 0.7 * mix(cool_color, warm_color, t);
                 }
 
@@ -142,26 +169,27 @@ struct {
                     vec3 L = normalize(eye_World - fs_in.position_World);
                     vec3 E = normalize(eye_World - fs_in.position_World);
                     vec3 H = normalize(L + E);
+                    float LN = dot(L, N);
                     float F0 = 0.05;
-                    float diffuse = max(0.0, dot(N, L));
+                    float diffuse = max(0.0, LN);
                     float specular = pow(max(0.0, dot(N, H)), 256);
                     float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-                    rgb += 0.3 * diffuse;
+                    rgb += 0.2 * diffuse;
                     rgb += 0.2 * specular;
                     rgb += 0.3 * fresnel;
                 }
             } else if ((mode == 1) || (mode == 3)) {
                 int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
-                rgb.r = (i % 256);
-                rgb.g = ((i / 256) % 256);
-                rgb.b = ((i / (256 * 256)) % 256);
-                rgb /= 255.0;
+    rgb.r = (i % 256);
+    rgb.g = ((i / 256) % 256);
+    rgb.b = ((i / (256 * 256)) % 256);
+    rgb /= 255.0;
 
-            }
+}
 
-            _gl_FragColor = vec4(rgb, 1.0);
-        }
-    )"";
+_gl_FragColor = vec4(rgb, 1.0);
+}
+)"";
 } face_pass_source;
 
 
@@ -259,9 +287,9 @@ struct {
             gs_out.L = L;
             gs_out.corner = vec2(+1, -1);
             gs_out.color = vec3(1.0, 0.0, 0.0);
-            gs_out.patch_index = gs_in[1].patch_index;
-            gl_Position = (S * (v1 + half_thickness * (+a - b))) / w1;
-            EmitVertex();
+    gs_out.patch_index = gs_in[1].patch_index;
+    gl_Position = (S * (v1 + half_thickness * (+a - b))) / w1;
+    EmitVertex();
 
     EndPrimitive();
 }  
@@ -321,8 +349,8 @@ char *frag = R""(#version 330 core
 
             vec2 hLx = vec2(0.5 * fs_in.L, 0);
             float d2 = squaredDistancePointLineSegment(fs_in.corner * (hLx + vec2(1.0)), -hLx, hLx);
-            float I = exp2(-2 * min(d2, 1.8 * 1.8));
-            _gl_FragColor = vec4(vec3(1.0), I);
+            float I = 0.3 * exp2(-2 * min(d2, 1.8 * 1.8));
+            _gl_FragColor = vec4(vec3(0.0), I);
             // _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1.0); // FORNOW
             // _gl_FragColor.rgb = rgb;
         }
@@ -357,11 +385,15 @@ struct {
 
         uniform sampler2D screenTexture;
 
+        float squaredLength(vec3 a) {
+            return dot(a, a);
+        }
+
         void main() { 
             // _gl_FragColor = texture(screenTexture, TexCoords);
 
             // sobel
-            float o = 0.0005; // TODO: OpenGL_from_Pixel_scale
+            float o = 0.00073; // TODO: OpenGL_from_Pixel_scale
             vec3 a00 = texture(screenTexture, TexCoords + vec2(-1 * o, -1 * o)).rgb;
             vec3 a01 = texture(screenTexture, TexCoords + vec2(-1 * o,  0 * o)).rgb;
             vec3 a02 = texture(screenTexture, TexCoords + vec2(-1 * o,  1 * o)).rgb;
@@ -371,20 +403,21 @@ struct {
             vec3 a20 = texture(screenTexture, TexCoords + vec2( 1 * o, -1 * o)).rgb;
             vec3 a21 = texture(screenTexture, TexCoords + vec2( 1 * o,  0 * o)).rgb;
             vec3 a22 = texture(screenTexture, TexCoords + vec2( 1 * o,  1 * o)).rgb;
-            float Q = 1024;
-            float b00 = min(1.0, Q * length(a00 - a11));
-            float b01 = min(1.0, Q * length(a01 - a11));
-            float b02 = min(1.0, Q * length(a02 - a11));
-            float b10 = min(1.0, Q * length(a10 - a11));
-         // float b11 = min(1.0, Q * length(a11 - a11));
-            float b12 = min(1.0, Q * length(a12 - a11));
-            float b20 = min(1.0, Q * length(a20 - a11));
-            float b21 = min(1.0, Q * length(a21 - a11));
-            float b22 = min(1.0, Q * length(a22 - a11));
-            float cx = (b00 - b02) + 2 * (b10 - b12) + (b20 - b22);
-            float cy = (b00 - b20) + 2 * (b01 - b21) + (b02 - b22);
-            float d = abs(cx) + abs(cy);
-            _gl_FragColor = vec4(vec3(1), d / 4);
+            float Q = 16777216.0;
+            float b00 = min(1.0, Q * squaredLength(a00 - a11));
+            float b01 = min(1.0, Q * squaredLength(a01 - a11));
+            float b02 = min(1.0, Q * squaredLength(a02 - a11));
+            float b10 = min(1.0, Q * squaredLength(a10 - a11));
+         // float b11 = min(1.0, Q * squaredLength(a11 - a11));
+            float b12 = min(1.0, Q * squaredLength(a12 - a11));
+            float b20 = min(1.0, Q * squaredLength(a20 - a11));
+            float b21 = min(1.0, Q * squaredLength(a21 - a11));
+            float b22 = min(1.0, Q * squaredLength(a22 - a11));
+            float Gx = (b00 - b02) + 2 * (b10 - b12) + (b20 - b22);
+            float Gy = (b00 - b20) + 2 * (b01 - b21) + (b02 - b22);
+            vec2 G = vec2(Gx, Gy);
+            float d = dot(G, G);
+            _gl_FragColor = vec4(vec3(0), d / 5);
         }
     )"";
 } blit_full_screen_quad_source;
@@ -453,20 +486,21 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         // glBindTexture(GL_TEXTURE_2D, 0);
         // glActiveTexture(0); // ?
     } else if (
-            (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) ||
-            (mode == DRAW_MESH_MODE_PATCH_EDGES)
+            mode == DRAW_MESH_MODE_TRIANGLE_EDGES
+            // || (mode == DRAW_MESH_MODE_PATCH_EDGES)
             ) {
 
         uint EBO;
         uint num_vertices;
-        if (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) {
-            EBO = GL.EBO_all_edges;
-            uint mesh_num_half_edges = (3 * mesh->num_triangles);
-            num_vertices = (2 * mesh_num_half_edges);
-        } else {
-            EBO = GL.EBO_hard_edges;
-            num_vertices = (2 * mesh->num_hard_half_edges);
-        }
+        // if (mode == DRAW_MESH_MODE_TRIANGLE_EDGES) {
+        EBO = GL.EBO_all_edges;
+        uint mesh_num_half_edges = (3 * mesh->num_triangles);
+        num_vertices = (2 * mesh_num_half_edges);
+        // }
+        // else {
+        // EBO = GL.EBO_hard_edges;
+        // num_vertices = (2 * mesh->num_hard_half_edges);
+        // }
 
         glBindVertexArray(GL.VAO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -496,47 +530,42 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
-    // glCullFace(GL_BACK);
-    //return;
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
 
 
     for_(pass, 2) {
-        if (pass == 0) continue;
-        if (other.show_details || (pass == 1)) {
-            glDisable(GL_SCISSOR_TEST);
-            glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
-            {
-                glClearColor(1.0, 1.0, 1.0, 1.0);
-                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-                DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_TRIANGLE_ID : DRAW_MESH_MODE_PATCH_ID, P, V, M, mesh);
-            }
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            glEnable(GL_SCISSOR_TEST);
+        if ((pass == 1) && !other.show_details) continue;
 
-            /*
-            glDisable(GL_DEPTH_TEST); {
-                DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_TRIANGLE_EDGES : DRAW_MESH_MODE_PATCH_EDGES, P, V, M, mesh);
-            } glEnable(GL_DEPTH_TEST);
-            */
+        glDisable(GL_SCISSOR_TEST);
+        glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
+        {
+            glClearColor(1.0, 1.0, 1.0, 1.0);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh);
         }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glEnable(GL_SCISSOR_TEST);
+
+        glDisable(GL_DEPTH_TEST); {
+            if (pass == 0) {
+                uint shader_program = blit_full_screen_quad_shader_program;
+                ASSERT(shader_program);
+                glUseProgram(shader_program);
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+                glUniform1i(UNIFORM(shader_program, "screenTexture"), 0);
+
+                glBindVertexArray(FullScreenQuad.VAO);
+                glDrawArrays(GL_TRIANGLES, 0, FullScreenQuad.num_vertices);
+
+                glBindTexture(GL_TEXTURE_2D, 0);
+                glUseProgram(0);
+            } else {
+                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh);
+            }
+        } glEnable(GL_DEPTH_TEST);
     }
 
-    if (1) {
-        uint shader_program = blit_full_screen_quad_shader_program;
-        ASSERT(shader_program);
-        glUseProgram(shader_program);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
-        glUniform1i(UNIFORM(shader_program, "screenTexture"), 0);
-
-        glBindVertexArray(FullScreenQuad.VAO);
-        glDrawArrays(GL_TRIANGLES, 0, FullScreenQuad.num_vertices);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glUseProgram(0);
-        return;
-    }
 
 
 

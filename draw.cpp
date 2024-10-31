@@ -991,6 +991,8 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
 
                 {
+                    glDisable(GL_CULL_FACE); // FORNOW
+
                     real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
                     if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
                     // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
@@ -999,6 +1001,8 @@ void conversation_draw() {
                     eso_color(preview->feature_plane_color, f * 0.4f);
                     eso_bbox_SOUP_QUADS(preview->feature_plane);
                     eso_end();
+
+                    glEnable(GL_CULL_FACE); // FORNOW
                 }
             }
         }
@@ -1299,7 +1303,7 @@ void conversation_draw() {
             }
         }
 
-        easy_text_drawf(&pen, "%d triangles %d vertices %d fps", meshes->work.num_triangles, meshes->work.num_vertices, fps);
+        easy_text_drawf(&pen, "%d triangles %d vertices  %d fps", meshes->work.num_triangles, meshes->work.num_vertices, fps);
     }
 
 }
