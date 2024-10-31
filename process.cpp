@@ -1103,6 +1103,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real clicks_are_same = IS_ZERO(click_vector);
                         real length_click_vector = norm(click_vector);
 
+                        DXFFindClosestEntityResult second_ent_search = dxf_find_closest_entity(&drawing->entities, second_click);
+                        two_click_command->entity_closest_to_second_click = second_ent_search.success ? second_ent_search.closest_entity : NULL;
+
                         if (0) {
                         } else if (state_Draw_command_is_(SetAxis)) {
                             result.checkpoint_me = true;
@@ -1158,10 +1161,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
 
                             set_state_Snap_command(None);
-                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
-                            if (_F.success) {
+                            if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
-                                Entity *F = _F.closest_entity;
+                                Entity *F = two_click_command->entity_closest_to_second_click;
                                 cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, second_click, popup->fillet_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
@@ -1169,10 +1171,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
 
                             set_state_Snap_command(None);
-                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
-                            if (_F.success) {
+                            if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
-                                Entity *F = _F.closest_entity;
+                                Entity *F = two_click_command->entity_closest_to_second_click;
                                 cookbook.attempt_dogear(E, F, average_click, popup->dogear_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
@@ -1216,9 +1217,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Snap_command(None);
 
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
-                            DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, second_click);
-                            if (closest_result_two.success) {
-                                Entity *closest_entity_two = closest_result_two.closest_entity;
+                            if (two_click_command->entity_closest_to_second_click) {
+                                Entity *closest_entity_two = two_click_command->entity_closest_to_second_click;
                                 if (closest_entity_one == closest_entity_two) {
                                     messagef(pallete.orange, "TwoClickDivide: clicked same entity twice");
                                 } else {

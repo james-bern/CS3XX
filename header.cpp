@@ -310,6 +310,7 @@ struct TwoClickCommandState {
     bool awaiting_second_click;
     vec2 first_click;
     Entity *entity_closest_to_first_click;
+    Entity *entity_closest_to_second_click;
     bool tangent_first_click; // first thing that came to mind might be more elegant solution
 };
 
