@@ -1164,7 +1164,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = two_click_command->entity_closest_to_second_click;
-                                cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, second_click, popup->fillet_radius);
+                                vec2 average_click = (second_click + two_click_command->first_click)/2;
+                                cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, average_click, popup->fillet_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(DogEar)) {
