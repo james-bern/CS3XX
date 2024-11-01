@@ -238,12 +238,12 @@ void conversation_draw() {
     real x_divider_drawing_mesh_Pixel = get_x_divider_drawing_mesh_Pixel();
 
     bool moving_selected_entities = (
-            (two_click_command->awaiting_second_click)
+            (state_Draw_command_is_(Move)) || 
+            ((two_click_command->awaiting_second_click)
             && (0 
-                || (state_Draw_command_is_(Move))
                 || (state_Draw_command_is_(Rotate))
                 || (state_Draw_command_is_(Copy)))
-            ); // TODO: loft up
+            )); // TODO: loft up
 
     { // draw 2D draw 2d draw
         auto DRAW_CROSSHAIR = [&](vec2 o, vec3 color) {
@@ -333,14 +333,16 @@ void conversation_draw() {
             }
         };
 
-        bool moving = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Move));
+        bool moving = state_Draw_command_is_(Move);
         bool linear_copying = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Copy));
         bool rotating = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Rotate));
         // bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
 
         auto DRAW_ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED = [&](vec2 click_1, vec2 click_2, vec3 color) {
             // TODO: do this like crosshairs where they disappear more immediatelly
-            if (IS_ZERO(squaredNorm(click_1 - click_2))) return; // NOTE: you want this (we're attempthing this call three times!)
+
+            //if (IS_ZERO(squaredNorm(click_1 - click_2))) return; // NOTE: you want this (we're attempthing this call three times!)
+            // changed how the call structure worked so maybe we dont need it
             vec2 click_vector_12 = click_2 - click_1;
             real click_theta_12 = ATAN2(click_vector_12);
             mat4 M; {
@@ -545,13 +547,17 @@ void conversation_draw() {
             { // annotations
 
                 // new-style annotations
-                // FORNOW (this is sloppy and bad)
+                // FORNOW (this is sloppy and bad) nate: just made it more sloppy and bad
                 #define ANNOTATION(Name, NAME) \
                 do { \
                     if (state_Draw_command_is_(Name)) { \
-                        DRAW_##NAME(*first_click, position_mouse, preview->color_mouse); \
+                        if (two_click_command->awaiting_second_click) { \
+                            DRAW_##NAME(*first_click, position_mouse, preview->color_mouse); \
+                            if (!IS_ZERO(squaredNorm(*first_click - preview->xy_xy))) { \
+                                DRAW_##NAME(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap)); \
+                            }\
+                        }\
                         DRAW_##NAME(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw)); \
-                        DRAW_##NAME(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap)); \
                     } \
                 } while (0)
 
@@ -566,13 +572,14 @@ void conversation_draw() {
                     ANNOTATION(Copy, LINE);
                     ANNOTATION(Rotate, LINE);
                     // NOTE: this is still kinda broken
-                    ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                     ANNOTATION(Copy, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                     ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
-                }
+                } 
+                ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
+
 
                 { // entity snapped to
-                    // TODO: Intersect
+                  // TODO: Intersect
                     if (true_snap_result.snapped) {
                         Entity *entity_snapped_to = &drawing->entities.array[true_snap_result.entity_index_snapped_to];
                         eso_begin(PV_2D, SOUP_LINES);

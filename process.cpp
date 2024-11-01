@@ -1164,7 +1164,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = two_click_command->entity_closest_to_second_click;
-                                vec2 average_click = (second_click + two_click_command->first_click)/2;
                                 cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, average_click, popup->fillet_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
@@ -2047,28 +2046,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Draw_command_is_(Move)) {
                     // FORNOW: this is repeated from Line
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_move_length = popup->move_length;
-                        real prev_move_angle = popup->move_angle;
-                        real prev_move_run = popup->move_run;
-                        real prev_move_rise = popup->move_rise;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("run (dx)"), &popup->move_run,
-                                CellType::Real, STRING("rise (dy)"), &popup->move_rise,
-                                CellType::Real, STRING("length"), &popup->move_length,
-                                CellType::Real, STRING("angle"), &popup->move_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
-                        } else {
-                            if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
-                                popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
-                                popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
-                            } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
-                                popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
-                                popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
-                            }
+                    real prev_move_length = popup->move_length;
+                    real prev_move_angle = popup->move_angle;
+                    real prev_move_run = popup->move_run;
+                    real prev_move_rise = popup->move_rise;
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::Real, STRING("run (dx)"), &popup->move_run,
+                            CellType::Real, STRING("rise (dy)"), &popup->move_rise,
+                            CellType::Real, STRING("length"), &popup->move_length,
+                            CellType::Real, STRING("angle"), &popup->move_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        *first_click = V2(0, 0);
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->move_run, popup->move_rise));
+                    } else {
+                        if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
+                            popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
+                            popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
+                        } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
+                            popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
+                            popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
                         }
                     }
                 } else if (state_Draw_command_is_(Rotate)) {
