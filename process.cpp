@@ -2019,29 +2019,30 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Draw_command_is_(Drag)) {
                     // FORNOW: this is repeated from Line
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_drag_length = popup->drag_length;
-                        real prev_drag_angle = popup->drag_angle;
-                        real prev_drag_run = popup->drag_run;
-                        real prev_drag_rise = popup->drag_rise;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
-                                CellType::Real, STRING("run (dx)"), &popup->drag_run,
-                                CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
-                                CellType::Real, STRING("length"), &popup->drag_length,
-                                CellType::Real, STRING("angle"), &popup->drag_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->drag_run, first_click->y + popup->drag_rise));
-                        } else {
-                            if ((prev_drag_length != popup->drag_length) || (prev_drag_angle != popup->drag_angle)) {
-                                popup->drag_run = popup->drag_length * COS(RAD(popup->drag_angle));
-                                popup->drag_rise = popup->drag_length * SIN(RAD(popup->drag_angle));
-                            } else if ((prev_drag_run != popup->drag_run) || (prev_drag_rise != popup->drag_rise)) {
-                                popup->drag_length = SQRT(popup->drag_run * popup->drag_run + popup->drag_rise * popup->drag_rise);
-                                popup->drag_angle = DEG(ATAN2(popup->drag_rise, popup->drag_run));
-                            }
+                    real prev_drag_length = popup->drag_length;
+                    real prev_drag_angle = popup->drag_angle;
+                    real prev_drag_run = popup->drag_run;
+                    real prev_drag_rise = popup->drag_rise;
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
+                            CellType::Real, STRING("run (dx)"), &popup->drag_run,
+                            CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
+                            CellType::Real, STRING("length"), &popup->drag_length,
+                            CellType::Real, STRING("angle"), &popup->drag_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        *first_click = V2(0, 0);
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->drag_run, popup->drag_rise));
+
+                    } else {
+                        if ((prev_drag_length != popup->drag_length) || (prev_drag_angle != popup->drag_angle)) {
+                            popup->drag_run = popup->drag_length * COS(RAD(popup->drag_angle));
+                            popup->drag_rise = popup->drag_length * SIN(RAD(popup->drag_angle));
+                        } else if ((prev_drag_run != popup->drag_run) || (prev_drag_rise != popup->drag_rise)) {
+                            popup->drag_length = SQRT(popup->drag_run * popup->drag_run + popup->drag_rise * popup->drag_rise);
+                            popup->drag_angle = DEG(ATAN2(popup->drag_rise, popup->drag_run));
                         }
                     }
                 } else if (state_Draw_command_is_(Move)) {
