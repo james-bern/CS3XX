@@ -11,26 +11,31 @@
 
 
 
-
-
-mat4 get_M_3D_from_2D() {
+mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);
-    // OLD VERSION:
-    // vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
-    // vec3 x = normalized(cross(y, feature_plane->normal));
-    // vec3 z = cross(x, y);
     vec3 down = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f, 0.0f, 1.0f * SGN(dot_product)) : V3(0.0f, -1.0f, 0.0f);
+    
     vec3 z = feature_plane->normal;
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
+    vec3 o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
+    
+    if (for_drawing) {
+        JUICEIT_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f);
+        JUICEIT_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f);
 
-    if (other.mirror_3D_plane_X)
-        x *= -1;
-    if (other.mirror_3D_plane_Y)
-        y *= -1;
+        real epsilon = 1.0;
+        x = transformVector(M4_RotationAbout(y, feature_plane->x_angle), x);
+        y = transformVector(M4_RotationAbout(x, feature_plane->y_angle), y);
+        if (!IS_ZERO(SIN(feature_plane->x_angle) + SIN(feature_plane->y_angle)))
+            o += epsilon * feature_plane->normal;
+    } else {
+        if (feature_plane->mirror_x) x *= - 1;
+        if (feature_plane->mirror_y) y *= - 1;
+    }
 
-    return M4_xyzo(x, y, z, (feature_plane->signed_distance_to_world_origin) * feature_plane->normal);
+    return M4_xyzo(x, y, z, o);
 }
 
 bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
@@ -130,7 +135,7 @@ void conversation_draw() {
     mat4 PV_2D = P_2D * V_2D;
     mat4 inv_PV_2D = inverse(PV_2D);
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
-    mat4 M_3D_from_2D = get_M_3D_from_2D();
+    mat4 M_3D_from_2D = get_M_3D_from_2D(true);
 
 
 
@@ -1017,6 +1022,7 @@ void conversation_draw() {
 
         } else if (state_Mesh_command_is_(Measure3D)) {
             eso_begin(PV_3D, SOUP_POINTS);
+            eso_overlay(true);
             eso_size(20);
             eso_color(get_color(ColorCode::Emphasis));
             eso_vertex(mesh_two_click_command->first_click);

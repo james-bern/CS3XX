@@ -678,10 +678,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->is_active = false;
                     }
                     if (GUIBUTTON(commands.MirrorPlaneX)) {
-                        other.mirror_3D_plane_X = !other.mirror_3D_plane_X;
+                        feature_plane->mirror_x = !feature_plane->mirror_x;
                     }
                     if (GUIBUTTON(commands.MirrorPlaneY)) {
-                        other.mirror_3D_plane_Y = !other.mirror_3D_plane_Y;
+                        feature_plane->mirror_y = !feature_plane->mirror_y;
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
