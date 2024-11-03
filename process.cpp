@@ -1103,6 +1103,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real clicks_are_same = IS_ZERO(click_vector);
                         real length_click_vector = norm(click_vector);
 
+                        DXFFindClosestEntityResult second_ent_search = dxf_find_closest_entity(&drawing->entities, second_click);
+                        two_click_command->entity_closest_to_second_click = second_ent_search.success ? second_ent_search.closest_entity : NULL;
+
                         if (0) {
                         } else if (state_Draw_command_is_(SetAxis)) {
                             result.checkpoint_me = true;
@@ -1158,21 +1161,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
 
                             set_state_Snap_command(None);
-                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
-                            if (_F.success) {
+                            if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
-                                Entity *F = _F.closest_entity;
-                                cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, second_click, popup->fillet_radius);
+                                Entity *F = two_click_command->entity_closest_to_second_click;
+                                cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, average_click, popup->fillet_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(DogEar)) {
                             result.checkpoint_me = true;
 
                             set_state_Snap_command(None);
-                            DXFFindClosestEntityResult _F = dxf_find_closest_entity(&drawing->entities, second_click);
-                            if (_F.success) {
+                            if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
-                                Entity *F = _F.closest_entity;
+                                Entity *F = two_click_command->entity_closest_to_second_click;
                                 cookbook.attempt_dogear(E, F, average_click, popup->dogear_radius);
                                 two_click_command->awaiting_second_click = false;
                             }
@@ -1216,9 +1217,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Snap_command(None);
 
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
-                            DXFFindClosestEntityResult closest_result_two = dxf_find_closest_entity(&drawing->entities, second_click);
-                            if (closest_result_two.success) {
-                                Entity *closest_entity_two = closest_result_two.closest_entity;
+                            if (two_click_command->entity_closest_to_second_click) {
+                                Entity *closest_entity_two = two_click_command->entity_closest_to_second_click;
                                 if (closest_entity_one == closest_entity_two) {
                                     messagef(pallete.orange, "TwoClickDivide: clicked same entity twice");
                                 } else {
@@ -2019,55 +2019,56 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Draw_command_is_(Drag)) {
                     // FORNOW: this is repeated from Line
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_drag_length = popup->drag_length;
-                        real prev_drag_angle = popup->drag_angle;
-                        real prev_drag_run = popup->drag_run;
-                        real prev_drag_rise = popup->drag_rise;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
-                                CellType::Real, STRING("run (dx)"), &popup->drag_run,
-                                CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
-                                CellType::Real, STRING("length"), &popup->drag_length,
-                                CellType::Real, STRING("angle"), &popup->drag_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->drag_run, first_click->y + popup->drag_rise));
-                        } else {
-                            if ((prev_drag_length != popup->drag_length) || (prev_drag_angle != popup->drag_angle)) {
-                                popup->drag_run = popup->drag_length * COS(RAD(popup->drag_angle));
-                                popup->drag_rise = popup->drag_length * SIN(RAD(popup->drag_angle));
-                            } else if ((prev_drag_run != popup->drag_run) || (prev_drag_rise != popup->drag_rise)) {
-                                popup->drag_length = SQRT(popup->drag_run * popup->drag_run + popup->drag_rise * popup->drag_rise);
-                                popup->drag_angle = DEG(ATAN2(popup->drag_rise, popup->drag_run));
-                            }
+                    real prev_drag_length = popup->drag_length;
+                    real prev_drag_angle = popup->drag_angle;
+                    real prev_drag_run = popup->drag_run;
+                    real prev_drag_rise = popup->drag_rise;
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
+                            CellType::Real, STRING("run (dx)"), &popup->drag_run,
+                            CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
+                            CellType::Real, STRING("length"), &popup->drag_length,
+                            CellType::Real, STRING("angle"), &popup->drag_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        *first_click = V2(0, 0);
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->drag_run, popup->drag_rise));
+
+                    } else {
+                        if ((prev_drag_length != popup->drag_length) || (prev_drag_angle != popup->drag_angle)) {
+                            popup->drag_run = popup->drag_length * COS(RAD(popup->drag_angle));
+                            popup->drag_rise = popup->drag_length * SIN(RAD(popup->drag_angle));
+                        } else if ((prev_drag_run != popup->drag_run) || (prev_drag_rise != popup->drag_rise)) {
+                            popup->drag_length = SQRT(popup->drag_run * popup->drag_run + popup->drag_rise * popup->drag_rise);
+                            popup->drag_angle = DEG(ATAN2(popup->drag_rise, popup->drag_run));
                         }
                     }
                 } else if (state_Draw_command_is_(Move)) {
                     // FORNOW: this is repeated from Line
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_move_length = popup->move_length;
-                        real prev_move_angle = popup->move_angle;
-                        real prev_move_run = popup->move_run;
-                        real prev_move_rise = popup->move_rise;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("run (dx)"), &popup->move_run,
-                                CellType::Real, STRING("rise (dy)"), &popup->move_rise,
-                                CellType::Real, STRING("length"), &popup->move_length,
-                                CellType::Real, STRING("angle"), &popup->move_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->move_run, first_click->y + popup->move_rise));
-                        } else {
-                            if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
-                                popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
-                                popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
-                            } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
-                                popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
-                                popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
-                            }
+                    real prev_move_length = popup->move_length;
+                    real prev_move_angle = popup->move_angle;
+                    real prev_move_run = popup->move_run;
+                    real prev_move_rise = popup->move_rise;
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::Real, STRING("run (dx)"), &popup->move_run,
+                            CellType::Real, STRING("rise (dy)"), &popup->move_rise,
+                            CellType::Real, STRING("length"), &popup->move_length,
+                            CellType::Real, STRING("angle"), &popup->move_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        *first_click = V2(0, 0);
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->move_run, popup->move_rise));
+                    } else {
+                        if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
+                            popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
+                            popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
+                        } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
+                            popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
+                            popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
                         }
                     }
                 } else if (state_Draw_command_is_(Rotate)) {
