@@ -115,6 +115,7 @@
     \
     \
     \
+    COMMANDS_INNER(ConfirmClose,                     0,   0b000, Draw, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(TOGGLE_BUTTONS,          GLFW_KEY_TAB, 0b001, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_EVENT_STACK,               'K', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b000, None, 0, 0 | NO_RECORD);  \

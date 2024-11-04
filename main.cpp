@@ -301,6 +301,7 @@ int main() {
             glfwSetScrollCallback(glfw_window, callback_scroll);
             glfwSetFramebufferSizeCallback(glfw_window, callback_framebuffer_size);
             glfwSetDropCallback(glfw_window, callback_drop);
+            glfwSetWindowCloseCallback(glfw_window, callback_window_close);
             { // NOTE: patch first frame mouse position issue
                 other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
 

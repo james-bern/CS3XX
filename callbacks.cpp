@@ -240,3 +240,13 @@ void callback_drop(GLFWwindow *, int count, const char **paths) {
     }
 }
 
+void callback_window_close(GLFWwindow *window) {
+    if (!other.awaiting_close_confirmation) {
+
+        glfwSetWindowShouldClose(window, GLFW_FALSE);
+        other.awaiting_close_confirmation = true;
+
+        set_state_Draw_command(SaveDXF);
+        set_state_Mesh_command(SaveSTL);
+    }
+}

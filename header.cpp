@@ -434,6 +434,7 @@ struct PopupState {
     _STRING_CALLOC(open_stl_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_stl_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(overwrite_stl_yn_buffer, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(close_confirmation, POPUP_CELL_LENGTH);
 };
 
 struct ToolboxState {
@@ -501,6 +502,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
     Camera camera_drawing;
     Camera camera_mesh;
+
+    bool awaiting_close_confirmation;
 
     bool hide_grid;
     bool show_details;
