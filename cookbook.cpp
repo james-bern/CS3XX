@@ -705,9 +705,9 @@ struct Cookbook {
         Entity G1;
         Entity G2;
         {
-            G1 = fillet_one.ent_two;
-            G2 = fillet_one.ent_two;
-            real half_theta_in_degrees =  0.5f * _WRAP_TO_0_360_INTERVAL(G.arc.end_angle_in_degrees - G.arc.start_angle_in_degrees);
+            G1 = fillet_two.ent_two;
+            G2 = fillet_two.ent_two;
+            real half_theta_in_degrees =  0.5f * _WRAP_TO_0_360_INTERVAL(fillet_two.ent_two.arc.end_angle_in_degrees - fillet_two.ent_two.arc.start_angle_in_degrees);
             G1.arc.end_angle_in_degrees -= half_theta_in_degrees;
             G2.arc.start_angle_in_degrees = G1.arc.end_angle_in_degrees;
         }
