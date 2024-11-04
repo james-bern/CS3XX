@@ -245,8 +245,8 @@ struct DrawMesh {
     // NOTE: GL half-edges follow order of triangle
 
     // TODO: we don't need this data anymore
-    uint num_hard_half_edges; // num_hard_half_edges
-    uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
+    // uint num_hard_half_edges; // num_hard_half_edges
+    // uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
                              // vec3 *hard_edges_vertex_positions;
                              // uint *hard_edges_corresponding_triangle_indices;
 
@@ -1688,22 +1688,22 @@ void mesh_divide_into_patches(Meshes *meshes) {
         }
     }
 
-    uint2 *new_hard_half_edge_tuples = (uint2 *) malloc(new_num_hard_half_edges * sizeof(uint2));
-    {
-        for_(hard_half_edge_index, new_num_hard_half_edges) {
-            PairOldHardHalfEdgeTupleTriangleIndex pair = pairs_of_old_hard_half_edge_tuple_and_triangle_index[hard_half_edge_index];
-            uint2 old_hard_half_edge_tuple = pair.old_hard_half_edge_tuple;
-            uint old_i = old_hard_half_edge_tuple.i;
-            uint old_j = old_hard_half_edge_tuple.j;
-            uint triangle_index = pair.triangle_index;
+    // uint2 *new_hard_half_edge_tuples = (uint2 *) malloc(new_num_hard_half_edges * sizeof(uint2));
+    // {
+    //     for_(hard_half_edge_index, new_num_hard_half_edges) {
+    //         PairOldHardHalfEdgeTupleTriangleIndex pair = pairs_of_old_hard_half_edge_tuple_and_triangle_index[hard_half_edge_index];
+    //         uint2 old_hard_half_edge_tuple = pair.old_hard_half_edge_tuple;
+    //         uint old_i = old_hard_half_edge_tuple.i;
+    //         uint old_j = old_hard_half_edge_tuple.j;
+    //         uint triangle_index = pair.triangle_index;
 
-            uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
-            uint new_i = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_i });
-            uint new_j = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_j });
-            new_hard_half_edge_tuples[hard_half_edge_index] = { new_i, new_j };
-        }
+    //         uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
+    //         uint new_i = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_i });
+    //         uint new_j = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_j });
+    //         new_hard_half_edge_tuples[hard_half_edge_index] = { new_i, new_j };
+    //     }
 
-    }
+    // }
 
 
 
@@ -1733,8 +1733,8 @@ void mesh_divide_into_patches(Meshes *meshes) {
             }
         }
 
-        draw->num_hard_half_edges = new_num_hard_half_edges;
-        draw->hard_half_edge_tuples = new_hard_half_edge_tuples;
+        // draw->num_hard_half_edges = new_num_hard_half_edges;
+        // draw->hard_half_edge_tuples = new_hard_half_edge_tuples;
 
     }
 
@@ -2013,8 +2013,8 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
         }
         {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
+            // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
+            // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
         }
     }
 }

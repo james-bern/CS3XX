@@ -37,6 +37,10 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
     DrawMesh *mesh = &meshes->draw;
 
     bbox2 face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+
+    // TODO: restore face_selection_bbox
+    // TODO: restore transparent face
+
     // mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
     fancy_draw(P_3D, V_3D, M_3D, mesh);
     // TODO: face_selection_bbox

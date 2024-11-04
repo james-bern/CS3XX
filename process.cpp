@@ -94,7 +94,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             Draw_pen2.font_height_Pixel = 12.0f;
             Draw_pen2.color = pallete.light_gray;
 
-            real h = Draw_pen.font_height_Pixel + Draw_pen2.font_height_Pixel;
+            real h = Draw_pen.font_height_Pixel;// + Draw_pen2.font_height_Pixel;
 
             EasyTextPen Xsel_pen = Draw_pen;
             EasyTextPen Xsel_pen2 = Draw_pen2;
@@ -145,7 +145,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                real w = 80.0f;
+                real w = 60.0f;
                 ToolboxGroup group = command.group;
                 bool is_mode = command.is_mode;
                 u64 flags = command.flags;
@@ -292,9 +292,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
-                    pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                    // pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                    pen->offset_Pixel.x = 4;
                     pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
-                    easy_text_draw(pen, name);
+                    {
+                        String fornow_hack = name;
+                        if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
+                        if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
+                        if (!hovering) {
+                        easy_text_draw(pen, fornow_hack);
+                        } else {
+                        easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                        }
+                    }
                     pen2->offset_Pixel.y = pen->offset_Pixel.y;
                     pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
                     pen2->offset_Pixel.x = ROUND(pen2->offset_Pixel.x);
@@ -303,7 +313,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // } else {
                     //     easy_text_drawf(pen2, "");
                     // }
-                    easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+
+                    //easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
 
                     pen->color = tmp_pen_color;
                     pen2->color = tmp_pen2_color;
@@ -584,8 +595,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.Polygon)) preview->polygon_num_sides = popup->polygon_num_sides;
                     // SEPERATOR();
                     // GUIBUTTON(commands.DiamCircle);
-                    GUIBUTTON(commands.CenterLine);
-                    GUIBUTTON(commands.CenterBox);
+                    // GUIBUTTON(commands.CenterLine);
+                    // GUIBUTTON(commands.CenterBox);
                     SEPERATOR();
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
@@ -1058,7 +1069,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             two_click_command->awaiting_second_click = true;
                             two_click_command->first_click = snap_result.mouse_position;
                             // if (!two_click_command->tangent_first_click) { // ???
-                                two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
+                            two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
                             // }
                             set_state_Snap_command(None);
                             if (!other._please_suppress_drawing_popup_popup) { // bump bumps cursor bump cursor bumps
@@ -1305,64 +1316,64 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             ||
                                             (closest_entity_one->type == EntityType::Arc) && (closest_entity_two->type == EntityType::Line)
                                             );
-                                        Entity *entity_arc;
-                                        Entity *entity_line;
-                                        if (closest_entity_one->type == EntityType::Arc) {
-                                            entity_arc = closest_entity_one;
-                                            entity_line = closest_entity_two;
-                                        } else {
-                                            entity_arc = closest_entity_two;
-                                            entity_line = closest_entity_one;
-                                        }
-                                        ArcEntity *arc = &entity_arc->arc;
+                                    Entity *entity_arc;
+                                    Entity *entity_line;
+                                    if (closest_entity_one->type == EntityType::Arc) {
+                                        entity_arc = closest_entity_one;
+                                        entity_line = closest_entity_two;
+                                    } else {
+                                        entity_arc = closest_entity_two;
+                                        entity_line = closest_entity_one;
+                                    }
+                                    ArcEntity *arc = &entity_arc->arc;
 
-                                        LineEntity *line = &entity_line->line;
+                                    LineEntity *line = &entity_line->line;
 
-                                        LineArcXResult line_x_arc_result = line_arc_intersection(line, arc);
-                                        bool p1Works = line_x_arc_result.point1_is_on_arc || line_x_arc_result.point1_is_on_line_segment;
-                                        bool p2Works = line_x_arc_result.point2_is_on_arc || line_x_arc_result.point2_is_on_line_segment;
+                                    LineArcXResult line_x_arc_result = line_arc_intersection(line, arc);
+                                    bool p1Works = line_x_arc_result.point1_is_on_arc || line_x_arc_result.point1_is_on_line_segment;
+                                    bool p2Works = line_x_arc_result.point2_is_on_arc || line_x_arc_result.point2_is_on_line_segment;
 
-                                        vec2 intersect = {};
-                                        real theta = 0;
-                                        bool cutLine = false;
-                                        bool cutArc = false;
+                                    vec2 intersect = {};
+                                    real theta = 0;
+                                    bool cutLine = false;
+                                    bool cutArc = false;
 
-                                        if (p1Works) {
-                                            real click_to_p1 = distance(line_x_arc_result.point1, second_click);
-                                            real click_to_p2 = distance(line_x_arc_result.point2, second_click);
-                                            if (p2Works && click_to_p2 < click_to_p1) { 
-                                                intersect = line_x_arc_result.point2;
-                                                theta = line_x_arc_result.theta_2;
-                                                cutLine = line_x_arc_result.point2_is_on_line_segment;
-                                                cutArc = line_x_arc_result.point2_is_on_arc;
-                                            } else {
-                                                intersect = line_x_arc_result.point1;
-                                                theta = line_x_arc_result.theta_1;
-                                                cutLine = line_x_arc_result.point1_is_on_line_segment;
-                                                cutArc = line_x_arc_result.point1_is_on_arc;
-                                            }
-                                        } else if (p2Works) {
+                                    if (p1Works) {
+                                        real click_to_p1 = distance(line_x_arc_result.point1, second_click);
+                                        real click_to_p2 = distance(line_x_arc_result.point2, second_click);
+                                        if (p2Works && click_to_p2 < click_to_p1) { 
                                             intersect = line_x_arc_result.point2;
                                             theta = line_x_arc_result.theta_2;
                                             cutLine = line_x_arc_result.point2_is_on_line_segment;
                                             cutArc = line_x_arc_result.point2_is_on_arc;
+                                        } else {
+                                            intersect = line_x_arc_result.point1;
+                                            theta = line_x_arc_result.theta_1;
+                                            cutLine = line_x_arc_result.point1_is_on_line_segment;
+                                            cutArc = line_x_arc_result.point1_is_on_arc;
                                         }
+                                    } else if (p2Works) {
+                                        intersect = line_x_arc_result.point2;
+                                        theta = line_x_arc_result.theta_2;
+                                        cutLine = line_x_arc_result.point2_is_on_line_segment;
+                                        cutArc = line_x_arc_result.point2_is_on_arc;
+                                    }
 
-                                        if (p1Works || p2Works) {
-                                            if (cutLine) {
-                                                cookbook.buffer_add_line(intersect, line->start, false, entity_line->color_code);
-                                                cookbook.buffer_add_line(intersect, line->end, false, entity_line->color_code);
-                                                cookbook.buffer_delete_entity(entity_line);
-                                            }
-                                            if (cutArc) {
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta, false, entity_arc->color_code);
-                                                cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees, false, entity_arc->color_code);
-                                                cookbook.buffer_delete_entity(entity_arc);
-                                            }
+                                    if (p1Works || p2Works) {
+                                        if (cutLine) {
+                                            cookbook.buffer_add_line(intersect, line->start, false, entity_line->color_code);
+                                            cookbook.buffer_add_line(intersect, line->end, false, entity_line->color_code);
+                                            cookbook.buffer_delete_entity(entity_line);
                                         }
-                                        if (!cutArc && !cutLine) {
-                                            messagef(pallete.orange, "TwoClickDivide: no intersection found");
+                                        if (cutArc) {
+                                            cookbook.buffer_add_arc(arc->center, arc->radius, arc->start_angle_in_degrees, theta, false, entity_arc->color_code);
+                                            cookbook.buffer_add_arc(arc->center, arc->radius, theta, arc->end_angle_in_degrees, false, entity_arc->color_code);
+                                            cookbook.buffer_delete_entity(entity_arc);
                                         }
+                                    }
+                                    if (!cutArc && !cutLine) {
+                                        messagef(pallete.orange, "TwoClickDivide: no intersection found");
+                                    }
                                     }
                                 }
                             }

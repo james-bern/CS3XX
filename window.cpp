@@ -26,7 +26,7 @@ run_before_main {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
-    glfwWindowHint(GLFW_SAMPLES, 9);
+    glfwWindowHint(GLFW_SAMPLES, 1);
 
     glfw_window = glfwCreateWindow(960, 720,  __DATE__ " " __TIME__, NULL, NULL);
     if (!glfw_window) {
@@ -51,7 +51,7 @@ run_before_main {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    glfwSwapInterval(0);
+    glfwSwapInterval(1);
 
     { // _macbook_retina_scale
         int num, den, _;

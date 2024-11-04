@@ -120,12 +120,14 @@ struct {
         uniform vec3 eye_World;
 
         uniform int mode;
+        uniform int transparent_mode;
 
         out vec4 _gl_FragColor;
 
         void main() {
             vec3 N = normalize(fs_in.normal_World);
             vec3 rgb = vec3(0.0);
+            float a = 1.0;
 
             if (mode == 0) {
 
@@ -178,19 +180,34 @@ struct {
                     rgb += 0.2 * specular;
                     rgb += 0.3 * fresnel;
                 }
+
+                bool is_transparent = (fs_in.patch_index == 0U);
+                if (is_transparent) {
+                    if (transparent_mode == 0) {
+                        discard;
+                    } else {
+                        a = 0.5;
+                    }
+                } else {
+                    if (transparent_mode == 0) {
+                        a = 1.0;
+                    } else {
+                        discard;
+                    }
+                }
+
             } else if ((mode == 1) || (mode == 3)) {
                 int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
-    rgb.r = (i % 256);
-    rgb.g = ((i / 256) % 256);
-    rgb.b = ((i / (256 * 256)) % 256);
-    rgb /= 255.0;
+                rgb.r = (i % 256);
+                rgb.g = ((i / 256) % 256);
+                rgb.b = ((i / (256 * 256)) % 256);
+                rgb /= 255.0;
+            }
 
-}
-
-_gl_FragColor = vec4(rgb, 1.0);
-}
-)"";
-} face_pass_source;
+            _gl_FragColor = vec4(rgb, a);
+            }
+        )"";
+    } face_pass_source;
 
 
 
@@ -223,7 +240,6 @@ struct {
         layout (triangle_strip, max_vertices = 4) out;
 
         uniform vec2 OpenGL_from_Pixel_scale;
-        uniform float _t01;
 
         // TODO: lines needs to know their patch index
 
@@ -258,8 +274,6 @@ struct {
 
             vec4 a = vec4(normalize(v1.xy - v0.xy), 0, 0); // tangent
             vec4 b = vec4(-a.y, a.x, 0, 0);                // normal
-
-            // a = vec4((32.0 * _t01) * normalize(v1.xy - v0.xy), 0, 0); // TESTING
 
             float L = (length(v0.xy - v1.xy) / half_thickness);
 
@@ -453,7 +467,7 @@ uint DRAW_MESH_MODE_PATCH_ID       = 1;
 uint DRAW_MESH_MODE_PATCH_EDGES    = 2;
 uint DRAW_MESH_MODE_TRIANGLE_ID    = 3;
 uint DRAW_MESH_MODE_TRIANGLE_EDGES = 4;
-void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, bool transparent_mode = false) {
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -476,6 +490,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
         glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
+        glUniform1i(UNIFORM(shader_program, "transparent_mode"), int(transparent_mode));
 
         glActiveTexture(GL_TEXTURE0); // ?
         glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
@@ -506,11 +521,6 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
         uint shader_program = edge_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
 
-        static real __t01;
-        static real _t01;
-        __t01 += 0.0167f;
-        _t01 = 0.5 - 0.5 * COS(__t01);
-        glUniform1f(UNIFORM(shader_program, "_t01"), _t01);
 
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
         glUniform2f(UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
@@ -530,7 +540,11 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+
+    glDisable(GL_CULL_FACE);
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
+    glEnable(GL_CULL_FACE);
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, true);
 
 
     for_(pass, 2) {
@@ -612,3 +626,10 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 
+#if 0
+        static real __t01;
+        static real _t01;
+        __t01 += 0.0167f;
+        _t01 = 0.5 - 0.5 * COS(__t01);
+        glUniform1f(UNIFORM(shader_program, "_t01"), _t01);
+#endif
