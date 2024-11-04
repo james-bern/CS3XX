@@ -22,13 +22,16 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
     
     if (for_drawing) {
-        FINITE_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
-        FINITE_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
-        JUICEIT_EASYTWEEN(&feature_plane->offset, 0.0f, 0.1f);
+        // FINITE_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
+        // FINITE_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
+        JUICEIT_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f);
+        JUICEIT_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f);
+        // TODO: Change 10 to function of feature_plane size
+        JUICEIT_EASYTWEEN(&feature_plane->offset, 10 * MAX(SIN(feature_plane->x_angle), SIN(feature_plane->y_angle)));
 
         x = transformVector(M4_RotationAbout(y, feature_plane->x_angle), x);
         y = transformVector(M4_RotationAbout(x, feature_plane->y_angle), y);
-        // o += feature_plane->offset * feature_plane->normal;
+        o += feature_plane->offset * feature_plane->normal;
     } else {
         if (feature_plane->mirror_x) x *= - 1;
         if (feature_plane->mirror_y) y *= - 1;

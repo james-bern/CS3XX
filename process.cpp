@@ -680,12 +680,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.MirrorPlaneX)) {
                         result.record_me = true;
                         feature_plane->mirror_x = !feature_plane->mirror_x;
-                        feature_plane->offset = 1.0;
                     }
                     if (GUIBUTTON(commands.MirrorPlaneY)) {
                         result.record_me = true;
                         feature_plane->mirror_y = !feature_plane->mirror_y;
-                        feature_plane->offset = 1.0;
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
