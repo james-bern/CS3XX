@@ -678,10 +678,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->is_active = false;
                     }
                     if (GUIBUTTON(commands.MirrorPlaneX)) {
+                        result.record_me = true;
                         feature_plane->mirror_x = !feature_plane->mirror_x;
+                        feature_plane->offset = 1.0;
                     }
                     if (GUIBUTTON(commands.MirrorPlaneY)) {
+                        result.record_me = true;
                         feature_plane->mirror_y = !feature_plane->mirror_y;
+                        feature_plane->offset = 1.0;
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
@@ -1822,7 +1826,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
             result.record_me = false;
             if (!mouse_event->mouse_held) {
-                MagicSnapResult3D snap_result = magic_snap_3d();
+                // TODO: FIX BUG
+                MagicSnapResult3D snap_result = magic_snap_raycast(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction);
 
                 // int index_of_first_triangle_hit_by_ray = -1;
                 // vec3 exact_hit_pos;

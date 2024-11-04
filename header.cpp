@@ -301,11 +301,14 @@ struct Drawing {
 };
 
 struct FeaturePlaneState {
+    // Only affect display
+    real x_angle;
+    real y_angle;
+    real offset;
+
     bool is_active;
     bool mirror_x;
-    real x_angle = 0.0f;
     bool mirror_y;
-    real y_angle = 0.0f;
     vec3 normal;
     real signed_distance_to_world_origin;
 };

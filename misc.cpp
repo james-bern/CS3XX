@@ -11,6 +11,16 @@ template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
     if (!other.paused) *a += f * (b - *a);
 }
 
+template <typename T> void FINITE_EASYTWEEN(T *a, T b, T threshold, real multiplier = 1.0f) {
+    real f = multiplier * 0.1f;
+    if (IS_ZERO(multiplier)) f = 1.0f;
+    if (!other.paused) {
+        T signed_delta = b - *a;
+        if (-threshold < signed_delta && signed_delta < threshold) *a = b;
+        else *a += f * signed_delta;
+    } 
+}
+
 real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
 
 
@@ -278,13 +288,8 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
     return result;
 }
 
-MagicSnapResult3D magic_snap_3d() {
+MagicSnapResult3D magic_snap_raycast(vec3 origin, vec3 dir) {
     MagicSnapResult3D result{};
-
-    mat4 World_3D_from_OpenGL = inverse(camera_mesh->get_PV());
-    vec3 ray_origin = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL, -1.0f));
-    vec3 ray_end = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL,  1.0f));
-    vec3 ray_direction = normalized(ray_end - ray_origin);
 
     int index_of_first_triangle_hit_by_ray = -1;
     vec3 exact_hit_pos;
@@ -294,7 +299,7 @@ MagicSnapResult3D magic_snap_3d() {
             vec3 p[3]; {
                 for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
             }
-            RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(ray_origin, ray_direction, p[0], p[1], p[2]);
+            RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(origin, dir, p[0], p[1], p[2]);
             if (ray_triangle_intersection_result.hit) {
                 if (ray_triangle_intersection_result.distance < min_distance) {
                     min_distance = ray_triangle_intersection_result.distance;

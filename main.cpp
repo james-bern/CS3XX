@@ -67,7 +67,18 @@
 
 char *startup_script = "";
 
-#if 1 // circle
+#if 1 // flip
+run_before_main {
+    startup_script =
+        "^odemo.dxf\n"
+        "sq1y[5\n"
+        "<m3d 0 100 15 0 -1 0>"
+        "sc<m2d 30 15><m2d 30 -15>"
+        ;
+};
+#endif
+
+#if 0 // circle
 run_before_main {
     startup_script =
         // "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
