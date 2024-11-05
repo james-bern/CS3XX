@@ -118,13 +118,21 @@ void history_undo() {
     messagef(pallete.light_gray, "Undo");
 }
 
+
 void history_redo() {
     if (elephant_is_empty_redo(&history.recorded_user_events)) {
         messagef(pallete.orange, "Redo: nothing to redo");
         return;
     }
 
-    other.please_suppress_messagef = true; {
+    other.please_suppress_messagef = true;
+    // NOTE: This hack (push false + pop of other.shift_held) fixes a pretty wild bug:
+    //       redo with SHIFT+U will trigger the other.shift_held override inside magic_snap
+    //       (observed behavior: the second point on a line draw redo is wonky and not snapped
+    //        --but is, i assume, at a lovely 15 deg divisible angle)
+    bool _other_shift_held = other.shift_held;
+    other.shift_held = false;
+    {
         while (EVENT_REDO_NONEMPTY()) { // // manipulate stacks (undo <- redo)
             StackPointers popped = POP_REDO_ONTO_UNDO();
             Event *user_event = popped.user_event;
@@ -138,7 +146,9 @@ void history_redo() {
 
             if (user_event->checkpoint_me) break;
         }
-    } other.please_suppress_messagef = false;
+    }
+    other.please_suppress_messagef = false;
+    other.shift_held = _other_shift_held;
 
     messagef(pallete.light_gray, "Redo");
 }

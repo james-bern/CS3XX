@@ -24,7 +24,6 @@ real get_x_divider_drawing_mesh_Pixel() {
             && (two_click_command->awaiting_second_click) \
             && (entity->is_selected) \
             ))
-
 MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
     MagicSnapResult result = {};
     result.mouse_position = before;

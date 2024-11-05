@@ -95,6 +95,18 @@ int main() {
 
 char *startup_script = "";
 
+#if 1 // snap
+run_before_main {
+    startup_script =
+        "^."
+        "^K"
+        "cz10\n"
+        "lq<m2d 15 5>"
+        "q<m2d -15 5>"
+        ;
+};
+#endif
+
 #if 0 // circle
 run_before_main {
     startup_script =

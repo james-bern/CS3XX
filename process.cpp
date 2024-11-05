@@ -612,11 +612,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.MirrorY);
                     // GUIBUTTON(commands.Mirror2);
                     SEPERATOR();
+                    GUIBUTTON(commands.Divide2);
+                    GUIBUTTON(commands.Join2);
+                    SEPERATOR();
+                    GUIBUTTON(commands.ElfHat);
                     GUIBUTTON(commands.Fillet);
                     GUIBUTTON(commands.DogEar);
                     GUIBUTTON(commands.Offset);
-                    GUIBUTTON(commands.Divide2);
-                    GUIBUTTON(commands.Join2);
                     SEPERATOR();
                     GUIBUTTON(commands.SetOrigin);
                     GUIBUTTON(commands.SetAxis);
