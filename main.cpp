@@ -99,10 +99,9 @@ char *startup_script = "";
 run_before_main {
     startup_script =
         "^."
-        "^K"
-        "cz10\n"
-        "lq<m2d 15 5>"
-        "q<m2d -15 5>"
+        "^odemo.dxf\n"
+        "ysq1[5\n"
+        "n5\nsq2{5"
         ;
 };
 #endif

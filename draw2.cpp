@@ -120,7 +120,6 @@ struct {
         uniform vec3 eye_World;
 
         uniform int mode;
-        uniform int transparent_mode;
 
         out vec4 _gl_FragColor;
 
@@ -179,21 +178,6 @@ struct {
                     rgb += 0.2 * diffuse;
                     rgb += 0.2 * specular;
                     rgb += 0.3 * fresnel;
-                }
-
-                bool is_transparent = (fs_in.patch_index == 0U);
-                if (is_transparent) {
-                    if (transparent_mode == 0) {
-                        discard;
-                    } else {
-                        a = 0.5;
-                    }
-                } else {
-                    if (transparent_mode == 0) {
-                        a = 1.0;
-                    } else {
-                        discard;
-                    }
                 }
 
             } else if ((mode == 1) || (mode == 3)) {
@@ -467,7 +451,7 @@ uint DRAW_MESH_MODE_PATCH_ID       = 1;
 uint DRAW_MESH_MODE_PATCH_EDGES    = 2;
 uint DRAW_MESH_MODE_TRIANGLE_ID    = 3;
 uint DRAW_MESH_MODE_TRIANGLE_EDGES = 4;
-void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, bool transparent_mode = false) {
+void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -490,7 +474,6 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, bool transpare
         glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
         glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
-        glUniform1i(UNIFORM(shader_program, "transparent_mode"), int(transparent_mode));
 
         glActiveTexture(GL_TEXTURE0); // ?
         glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
@@ -541,10 +524,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, bool transpare
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
-    glDisable(GL_CULL_FACE);
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
-    glEnable(GL_CULL_FACE);
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, true);
 
 
     for_(pass, 2) {
