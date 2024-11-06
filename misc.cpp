@@ -204,12 +204,18 @@ TransformMouseDrawingPositionResult transform_mouse_drawing_position(
 }
 
 MagicSnapResult3D magic_snap_3d() {
-    MagicSnapResult3D result{};
+    WorkMesh *mesh = &meshes->work;
+
+
+
+
+    MagicSnapResult3D result = {};
 
     mat4 World_3D_from_OpenGL = inverse(camera_mesh->get_PV());
     vec3 ray_origin = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL, -1.0f));
     vec3 ray_end = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL,  1.0f));
     vec3 ray_direction = normalized(ray_end - ray_origin);
+
 
     int index_of_first_triangle_hit_by_ray = -1;
     vec3 exact_hit_pos;
@@ -217,7 +223,7 @@ MagicSnapResult3D magic_snap_3d() {
         real min_distance = HUGE_VAL;
         for_(i, mesh->num_triangles) {
             vec3 p[3]; {
-                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_tuples[i][j]];
             }
             RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(ray_origin, ray_direction, p[0], p[1], p[2]);
             if (ray_triangle_intersection_result.hit) {
@@ -238,7 +244,7 @@ MagicSnapResult3D magic_snap_3d() {
         if (!state_Snap_command_is_(None)) { // TODO: Change to 3D specific snap type?
             real min_distance = HUGE_VAL;
             for_(i, 3) {
-                vec3 vertex_pos = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][i]];
+                vec3 vertex_pos = mesh->vertex_positions[mesh->triangle_tuples[index_of_first_triangle_hit_by_ray][i]];
                 real dist = squaredDistance(exact_hit_pos, vertex_pos);
                 if (dist < min_distance) {
                     min_distance = dist;

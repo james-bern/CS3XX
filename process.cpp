@@ -1268,10 +1268,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             messagef(pallete.red, "NO INTERSECTION FOUND");
                                         }
                                     }
-                                    if (!cutArc && !cutLine) {
-                                        messagef(pallete.orange, "TwoClickDivide: no intersection found");
-                                    }
-                                    }
                                 }
                             }
                         } else if (state_Draw_command_is_(Join2)) {
@@ -1759,7 +1755,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             } else { ASSERT(entity->type == EntityType::Circle);
                                 CircleEntity *circle = &entity->circle;
                                 cookbook.buffer_add_circle(
-                                        V2(-(circle->center.x - mouse->x) + mouse->x, circle->center.y),
+                                        V2(-(circle->center.x - mouse_transformed_position->x) + mouse_transformed_position->x, circle->center.y),
                                         circle->radius,
                                         circle->has_pseudo_point,
                                         180.0f - circle->pseudo_point_angle_in_degrees,
@@ -1793,7 +1789,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             } else { ASSERT(entity->type == EntityType::Circle);
                                 CircleEntity *circle = &entity->circle;
                                 cookbook.buffer_add_circle(
-                                        V2(circle->center.x, -(circle->center.y - mouse->y) + mouse->y),
+                                        V2(circle->center.x, -(circle->center.y - mouse_transformed_position->y) + mouse_transformed_position->y),
                                         circle->radius,
                                         circle->has_pseudo_point,
                                         -circle->pseudo_point_angle_in_degrees,
@@ -1820,7 +1816,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
         } else if (mouse_event->subtype == MouseEventSubtype::Mesh) {
-            MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
+            // MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
             result.record_me = false;
             if (!mouse_event->mouse_held) {
                 MagicSnapResult3D snap_result = magic_snap_3d();
@@ -1850,7 +1846,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     feature_plane->is_active = !(state.Mesh_command.flags & HIDE_FEATURE_PLANE);
                     other.time_since_plane_selected = 0.0f;
                     {
-                        feature_plane->normal = mesh->triangle_normals[snap_result.triangle_index];
+                        feature_plane->normal = meshes->work.triangle_normals[snap_result.triangle_index];
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, snap_result.mouse_position);
 
                         if (state.Mesh_command.flags & TWO_CLICK) {

@@ -1012,13 +1012,13 @@ void conversation_draw() {
         }
 
         MagicSnapResult3D snap_result = magic_snap_3d();
-        if (snap_result.hit_mesh) {
-            eso_begin(PV_3D, SOUP_POINTS);
-            eso_size(20);
-            eso_color(get_color(ColorCode::Emphasis));
-            eso_vertex(snap_result.mouse_position);
-            eso_end();
-        }
+        // if (snap_result.hit_mesh) {
+        //     eso_begin(PV_3D, SOUP_POINTS);
+        //     eso_size(20);
+        //     eso_color(get_color(ColorCode::Emphasis));
+        //     eso_vertex(snap_result.mouse_position);
+        //     eso_end();
+        // }
 
         if (!mesh_two_click_command->awaiting_second_click) {
 
