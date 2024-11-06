@@ -300,8 +300,8 @@ struct RawEvent {
     RawMouseEvent raw_mouse_event;
 };
 
-struct MagicSnapResult {
-    vec2 mouse_position;
+struct TransformMouseDrawingPositionResult {
+    vec2 mouse_position; // TODO: change this name to position?
     bool snapped; // TODO: carefully move this to be the first entry
     uint entity_index_snapped_to;
     uint entity_index_intersect;
@@ -312,7 +312,7 @@ struct MagicSnapResult {
 
 struct MouseEventDrawing {
     vec2 unsnapped_position;
-    // MagicSnapResult snap_result;
+    bool shift_held;
 };
 
 struct MouseEventMesh {
@@ -541,18 +541,15 @@ struct PreviewState {
     vec3 feature_plane_color;
     real feature_plane_offset;
     vec2 drawing_origin;
-    vec2 mouse;
     real cursor_subtext_alpha;
 
-    vec2 popup_second_click;
-    vec2 xy_xy;
-    vec2 mouse_snap;
-    real polygon_num_sides;
+    vec2 mouse_transformed__PINK_position;
+    vec2 mouse_no_snap_potentially_15_deg__GRAY_position;
+    vec2 mouse_from_Draw_Enter__BLUE_position;
+    // TODO: restore beatiful color lerp from gray to pink when snap becomes active
 
-    // FORNOW: These are bad names
-    vec3 color_mouse;
-    vec3 color_draw;
-    vec3 color_snap;
+    vec2 xy_xy;
+    real polygon_num_sides;
 
     vec2 offset_entity_start;
     vec2 offset_entity_end;

@@ -324,11 +324,12 @@ char *frag = R""(#version 330 core
         uniform sampler2D TextureID;
         uniform vec2 OpenGL_from_Pixel_scale;
         uniform int mode;
+        uniform float _window_macbook_retina_fixer__VERY_MYSTERIOUS;
 
         out vec4 _gl_FragColor;
         void main() {
             vec2 TexCoord_from_FragCoord = OpenGL_from_Pixel_scale / 2;
-            vec2 texCoord = TexCoord_from_FragCoord * gl_FragCoord.xy / 2; // ?? TODO: work out where this factor is coming from
+            vec2 texCoord = TexCoord_from_FragCoord * gl_FragCoord.xy / _window_macbook_retina_fixer__VERY_MYSTERIOUS; // ?? TODO: work out where this factor is coming from
             vec3 rgb = texture(TextureID, texCoord).rgb;
 
             vec3 rgb2; {
@@ -337,6 +338,8 @@ char *frag = R""(#version 330 core
                 rgb2.g = ((i / 256) % 256);
                 rgb2.b = ((i / (256 * 256)) % 256);
                 rgb2 /= 255.0;
+
+                // TODO: version that draws lines based on discontinuities in the z buffer
             }
             bool hit = (length(rgb - vec3(1.0)) > 0.0001);
             bool no_match = (length(rgb - rgb2) > 0.0001);
@@ -415,6 +418,7 @@ struct {
             float Gy = (b00 - b20) + 2 * (b01 - b21) + (b02 - b22);
             vec2 G = vec2(Gx, Gy);
             float d = dot(G, G);
+            // d = min(1.0, 100000 * fwidth(TexCoords).x);
             _gl_FragColor = vec4(vec3(0), d / 5);
         }
     )"";
@@ -508,6 +512,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
         glUniform2f(UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
+        glUniform1f(UNIFORM(shader_program, "_window_macbook_retina_fixer__VERY_MYSTERIOUS"), _window_macbook_retina_fixer__VERY_MYSTERIOUS);
         glDrawElements(GL_LINES, num_vertices, GL_UNSIGNED_INT, NULL);
     } else {
         ASSERT(0);

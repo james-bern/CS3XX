@@ -79,7 +79,7 @@ Event bake_event(RawEvent raw_event) {
                 mouse_event->subtype = MouseEventSubtype::Drawing;
                 MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
                 mouse_event_drawing->unsnapped_position = transformPoint(World_2D_from_OpenGL, other.mouse_OpenGL);
-                // mouse_event_drawing->snap_result = magic_snap(mouse_event_drawing->unsnapped_position);
+                mouse_event_drawing->shift_held = other.shift_held;
             } else if (raw_mouse_event->pane == Pane::Mesh) {
                 mat4 World_3D_from_OpenGL = inverse(camera_mesh->get_PV());
                 vec3 point_a = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL, -1.0f));
@@ -106,6 +106,8 @@ Event bake_event(RawEvent raw_event) {
     return event;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// THIS IS FOR THE SCRIPTING STUFF /////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
 Event make_mouse_event_2D(vec2 mouse_position) {
