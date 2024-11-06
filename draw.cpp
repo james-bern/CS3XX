@@ -34,26 +34,18 @@ mat4 get_M_3D_from_2D() {
 }
 
 bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
+    DrawMesh *mesh = &meshes->draw;
+
     bbox2 face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
-    mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
 
-    mat4 PVM_3D = P_3D * V_3D * M_3D;
+    // TODO: restore face_selection_bbox
+    // TODO: restore transparent face
 
-    if (!other.show_details) {
-        if (mesh->cosmetic_edges) {
-            eso_begin(PVM_3D, SOUP_LINES); 
-            // eso_color(CLAMPED_LERP(2 * time_since_successful_feature, pallete.white, pallete.black));
-            eso_color(0,0,0);
-            eso_size(1.0f);
-            for_(i, mesh->num_cosmetic_edges) {
-                for_(d, 2) {
-                    eso_vertex(mesh->vertex_positions[mesh->cosmetic_edges[i][d]]);
-                }
-            }
-            eso_end();
-        }
-    }
+    // mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
+    fancy_draw(P_3D, V_3D, M_3D, mesh);
+    // TODO: face_selection_bbox
 
+    #if 0
     for_(pass, 2) {
         eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_TRI_MESH);
         eso_size(0.5f);
@@ -66,7 +58,7 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
             vec3 p[3];
             real x_n;
             {
-                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_tuples[i][j]];
                 x_n = dot(n, p[0]);
             }
 
@@ -120,17 +112,34 @@ bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
         }
         eso_end();
     }
+    #endif
 
     return face_selection_bbox;
 }
 
 void conversation_draw() {
+
+
+
+
+
+
+
+
+
+
     mat4 P_2D = camera_drawing->get_P();
     mat4 V_2D = camera_drawing->get_V();
     mat4 PV_2D = P_2D * V_2D;
     mat4 inv_PV_2D = inverse(PV_2D);
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
+
+
+
+        TransformMouseDrawingPositionResult mouse_no_snap_potentially_15_deg__GRAY = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, true );
+        TransformMouseDrawingPositionResult mouse_transformed__PINK                = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, false);
+        JUICEIT_EASYTWEEN(&preview->mouse_no_snap_potentially_15_deg__GRAY_position, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
 
 
 
@@ -162,31 +171,8 @@ void conversation_draw() {
         JUICEIT_EASYTWEEN(&preview->feature_plane_offset, target);
     }
 
-    // preview
-    vec2 mouse = magic_snap(mouse_World_2D, true).mouse_position; // this isn't really snapped per se (probably a bad name) -- just has the 15 deg stuff and similar
 
-    if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
-        //messagef(pallete.red, "wowowo");
-        vec2 before = mouse;
-        Entity *closest_entity = two_click_command->entity_closest_to_first_click;
-        messagef(pallete.orange, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
-        vec2 center = closest_entity->arc.center;
-        real radius = closest_entity->arc.radius;
-        real d = distance(center, before);
-
-        if (d > radius) {
-            real t1 = acos(radius / d);
-            real t2 = ATAN2(before - center);
-            real theta = t1 + t2;
-            two_click_command->first_click = { center.x + radius * COS(theta), center.y + radius * SIN(theta) };
-        }
-    }
-    {
-        vec2 target_preview_mouse = mouse;
-        JUICEIT_EASYTWEEN(&preview->mouse, target_preview_mouse);
-    }
-
-    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(SetOrigin)) ? drawing->origin : mouse;
+    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(SetOrigin)) ? drawing->origin : mouse_no_snap_potentially_15_deg__GRAY.mouse_position; // NOTE: we use this so we don't double tween SetOrigin's effect on the preview entities on the right (or something like this ??)
     {
         JUICEIT_EASYTWEEN(&preview->drawing_origin, target_preview_drawing_origin);
     }
@@ -199,11 +185,11 @@ void conversation_draw() {
             preview_dxf_axis_base_point = drawing->axis_base_point;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else if (!two_click_command->awaiting_second_click) {
-            preview_dxf_axis_base_point = mouse;
+            preview_dxf_axis_base_point = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else {
             preview_dxf_axis_base_point = two_click_command->first_click;
-            preview_dxf_axis_angle_from_y = ATAN2(mouse - preview_dxf_axis_base_point) - PI / 2;
+            preview_dxf_axis_angle_from_y = ATAN2(mouse_no_snap_potentially_15_deg__GRAY.mouse_position - preview_dxf_axis_base_point) - PI / 2;
         }
     }
 
@@ -246,6 +232,11 @@ void conversation_draw() {
             )); // TODO: loft up
 
     { // draw 2D draw 2d draw
+
+
+
+
+
         auto DRAW_CROSSHAIR = [&](vec2 o, vec3 color) {
             real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
             eso_begin(PV_2D, SOUP_LINES);
@@ -360,6 +351,9 @@ void conversation_draw() {
 
 
 
+
+
+
         glEnable(GL_SCISSOR_TEST);
         gl_scissor_Pixel(0, 0, x_divider_drawing_mesh_Pixel, window_height);
         {
@@ -463,44 +457,45 @@ void conversation_draw() {
                 }
             }
 
-            MagicSnapResult true_snap_result = magic_snap(mouse);
 
             {
-                JUICEIT_EASYTWEEN(&preview->popup_second_click, Draw_Enter);
+                JUICEIT_EASYTWEEN(&preview->mouse_from_Draw_Enter__BLUE_position, Draw_Enter);
                 JUICEIT_EASYTWEEN(&preview->xy_xy, Snap_Enter);
 
-                JUICEIT_EASYTWEEN(&preview->mouse_snap, true_snap_result.mouse_position, 1.0f);
+                JUICEIT_EASYTWEEN(&preview->mouse_transformed__PINK_position, mouse_transformed__PINK.mouse_position, 1.0f);
 
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
             }
             bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
-            vec2 position_mouse; {
-                position_mouse = (!Snap_eating_mouse) ? mouse : preview->mouse_snap; // FORNOW
-            }
             bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
                     (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Draw_Enter)));
             bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) &&
                     (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Snap_Enter)));
-            vec3 target_color_mouse; {
-                target_color_mouse = get_color(ColorCode::Emphasis);
-                // if (Snap_eating_mouse) target_color_mouse = AVG(get_color(ColorCode::Emphasis), get_accent_color(ToolboxGroup::Snap));
-                if (Snap_eating_mouse) target_color_mouse = get_accent_color(ToolboxGroup::Snap);
-                if  (Draw_eating_Enter) {
-                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
-                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * target_color_mouse);
-                }
-                if  (Snap_eating_Enter) {
-                    target_color_mouse = CLAMPED_LERP(_JUICEIT_EASYTWEEN(-0.7f + 1.3f * 
-                                MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved)
-                                ), target_color_mouse, 0.2f * target_color_mouse);
+
+
+
+            vec3 BLUE = get_accent_color(ToolboxGroup::Draw);
+            vec3 PINK = get_accent_color(ToolboxGroup::Snap);
+            vec3 GRAY = get_color(ColorCode::Emphasis);
+
+            vec2 mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active;
+            vec3 GRAY_or_PINK_depending_on_whether_snap_is_active;
+            {
+                if (!Snap_eating_mouse) {
+                    GRAY_or_PINK_depending_on_whether_snap_is_active = GRAY;
+                    mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
+                } else {
+                    GRAY_or_PINK_depending_on_whether_snap_is_active = PINK;
+                    mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active = preview->mouse_transformed__PINK_position;
                 }
             }
-            JUICEIT_EASYTWEEN(&preview->color_mouse, target_color_mouse);
 
 
+            // real magic_mouse_move_time = MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved);
+            // real magic_t = _JUICEIT_EASYTWEEN(-0.02f + 0.2f * magic_mouse_move_time);
 
-            // vec2 click_vector = (position_mouse - *first_click);
+
+            // vec2 click_vector = (mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active - *first_click);
             // real click_theta = ATAN2(click_vector);
 
             { // entities
@@ -552,12 +547,12 @@ void conversation_draw() {
                 do { \
                     if (state_Draw_command_is_(Name)) { \
                         if (two_click_command->awaiting_second_click) { \
-                            DRAW_##NAME(*first_click, position_mouse, preview->color_mouse); \
+                            DRAW_##NAME(*first_click, mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active, GRAY_or_PINK_depending_on_whether_snap_is_active); \
                             if (!IS_ZERO(squaredNorm(*first_click - preview->xy_xy))) { \
-                                DRAW_##NAME(*first_click, preview->xy_xy, get_accent_color(ToolboxGroup::Snap)); \
-                            }\
-                        }\
-                        DRAW_##NAME(*first_click, preview->popup_second_click, get_accent_color(ToolboxGroup::Draw)); \
+                                DRAW_##NAME(*first_click, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
+                            } \
+                        } \
+                        DRAW_##NAME(*first_click, preview->xy_xy, PINK); \
                     } \
                 } while (0)
 
@@ -580,11 +575,11 @@ void conversation_draw() {
 
                 { // entity snapped to
                   // TODO: Intersect
-                    if (true_snap_result.snapped) {
-                        Entity *entity_snapped_to = &drawing->entities.array[true_snap_result.entity_index_snapped_to];
+                    if (mouse_transformed__PINK.snapped) {
+                        Entity *entity_snapped_to = &drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to];
                         eso_begin(PV_2D, SOUP_LINES);
                         // eso_overlay(true);
-                        eso_color(get_accent_color(ToolboxGroup::Snap));
+                        eso_color(GRAY_or_PINK_depending_on_whether_snap_is_active);
                         eso_entity__SOUP_LINES(entity_snapped_to);
                         eso_end();
                     }
@@ -595,26 +590,26 @@ void conversation_draw() {
                         if (popup->manager.focus_group == ToolboxGroup::Snap) {
                             if (!Snap_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
-                        if (Snap_eating_Enter) DRAW_CROSSHAIR(preview->xy_xy, get_accent_color(ToolboxGroup::Snap));
+                        if (Snap_eating_Enter) DRAW_CROSSHAIR(preview->xy_xy, PINK);
                     } else if (!state_Snap_command_is_(None)) {
-                        DRAW_CROSSHAIR(preview->mouse_snap, get_accent_color(ToolboxGroup::Snap));
+                        DRAW_CROSSHAIR(preview->mouse_transformed__PINK_position, PINK);
                     }
 
                     if (two_click_command->awaiting_second_click && !state_Draw_command_is_(None)) {
                         if (popup->manager.focus_group == ToolboxGroup::Draw) {
                             if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
-                        if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->popup_second_click, pallete.cyan);
+                        if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->mouse_from_Draw_Enter__BLUE_position, BLUE);
                     }
                 }
 
                 { // experimental preview part B
                   // NOTE: circle <-> circle is wonky
                     if (state_Draw_command_is_(Offset)) {
-                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse);
+                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
                         if (closest_result.success) {
                             Entity *_closest_entity = closest_result.closest_entity;
-                            Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse);
+                            Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
                             vec2 target_start, target_end, target_middle, target_opposite;
                             if (target_entity.type != EntityType::Circle) {
                                 entity_get_start_and_end_points(&target_entity, &target_start, &target_end);
@@ -630,7 +625,7 @@ void conversation_draw() {
                                     }
                                 }
                                 // real angle = ATAN2(preview->offset_entity_middle - circle->center);
-                                // real angle = ATAN2(mouse - circle->center);
+                                // real angle = ATAN2(mouse_no_snap_potentially_15_deg__GRAY - circle->center);
                                 // TODO: something else?
                                 target_middle   = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
                                 target_start    = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - PI / 2);
@@ -692,14 +687,14 @@ void conversation_draw() {
                         eso_begin(PV_2D, SOUP_LINE_LOOP);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(first_click->x, first_click->y);
-                        eso_vertex(mouse.x, first_click->y);
-                        eso_vertex(mouse.x, mouse.y);
-                        eso_vertex(first_click->x, mouse.y);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position.x, first_click->y);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position.x, mouse_no_snap_potentially_15_deg__GRAY.mouse_position.y);
+                        eso_vertex(first_click->x, mouse_no_snap_potentially_15_deg__GRAY.mouse_position.y);
                         eso_end();
                     }
 
                     if (state_Draw_command_is_(CenterBox)) {                
-                        vec2 one_corner = mouse;
+                        vec2 one_corner = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
                         vec2 center = *first_click;
                         real other_y = 2 * center.y - one_corner.y;
                         real other_x = 2 * center.x - one_corner.x;
@@ -718,26 +713,26 @@ void conversation_draw() {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(two_click_command->first_click);
-                        eso_vertex(mouse);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
                         eso_end();
                     }
                     if (state_Draw_command_is_(Mirror2)) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(two_click_command->first_click);
-                        eso_vertex(mouse);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
                         eso_end();
                     }
                     if (state_Draw_command_is_(Rotate)) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(two_click_command->first_click);
-                        eso_vertex(mouse);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
                         eso_end();
                     }
                     if (state_Draw_command_is_(DiamCircle)) {
                         vec2 edge_one = two_click_command->first_click;
-                        vec2 edge_two = mouse;
+                        vec2 edge_two = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
                         vec2 center = (edge_one + edge_two) / 2;
                         real radius = norm(edge_one - center);
                         eso_begin(PV_2D, SOUP_LINE_LOOP);
@@ -848,7 +843,7 @@ void conversation_draw() {
 
                 mat4 T_Move;
                 if (moving_selected_entities) {
-                    T_Move = M4_Translation(preview->mouse - two_click_command->first_click);
+                    T_Move = M4_Translation(preview->mouse_no_snap_potentially_15_deg__GRAY_position - two_click_command->first_click);
                 } else {
                     T_Move = M4_Identity();
                 }
@@ -940,6 +935,7 @@ void conversation_draw() {
         { // feature plane feature-plane feature_plane // floating sketch plane; selection plane NOTE: transparent
             {
                 bbox2 face_selection_bbox; {
+                    // TODO fix
                     face_selection_bbox = mesh_draw(P_3D, V_3D, M4_Identity());
                 }
                 bbox2 dxf_selection_bbox; {
@@ -947,7 +943,7 @@ void conversation_draw() {
 
                     // TODO: this should incorporate a preview of the fact that some entities are moving
                     if (moving_selected_entities) {
-                        vec2 T = (preview->mouse - two_click_command->first_click);
+                        vec2 T = (preview->mouse_no_snap_potentially_15_deg__GRAY_position - two_click_command->first_click);
                         dxf_selection_bbox.min += T;
                         dxf_selection_bbox.max += T;
                     }
@@ -999,6 +995,8 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
 
                 {
+                    glDisable(GL_CULL_FACE); // FORNOW
+
                     real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
                     if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
                     // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
@@ -1007,6 +1005,8 @@ void conversation_draw() {
                     eso_color(preview->feature_plane_color, f * 0.4f);
                     eso_bbox_SOUP_QUADS(preview->feature_plane);
                     eso_end();
+
+                    glEnable(GL_CULL_FACE); // FORNOW
                 }
             }
         }
@@ -1305,7 +1305,36 @@ void conversation_draw() {
         EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
         easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
         pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
-        easy_text_drawf(&pen, "%d triangles", mesh->num_triangles);
+
+
+        static int fps; {
+            static int measured_fps;
+
+            // grab and smooth fps
+            {
+                const int N_MOVING_WINDOW = 5;
+                static std::chrono::steady_clock::time_point prev_timestamps[N_MOVING_WINDOW];
+                std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
+                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp - prev_timestamps[N_MOVING_WINDOW - 1]);
+                measured_fps = (int) round(N_MOVING_WINDOW / (nanos.count() / 1000000000.));
+
+                for (int i = N_MOVING_WINDOW - 1; i >= 1; --i) {
+                    prev_timestamps[i] = prev_timestamps[i - 1];
+                }
+                prev_timestamps[0] = timestamp;
+            }
+
+            {
+                static std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
+                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - timestamp);
+                if (nanos.count() > 166666666 / 1.5) {
+                    timestamp = std::chrono::steady_clock::now();
+                    fps = measured_fps;
+                }
+            }
+        }
+
+        easy_text_drawf(&pen, "%d triangles %d vertices  %d fps", meshes->work.num_triangles, meshes->work.num_vertices, fps);
     }
 
 }

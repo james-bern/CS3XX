@@ -1,3 +1,30 @@
+#if 0
+
+#include "basics.cpp"
+#include "arena.cpp"
+
+int main() {
+    Arena arena = arena_create();
+    void *foo = arena_malloc(&arena, 123);
+    void *bar = arena_malloc(&arena, 456);
+    void *baz = arena_malloc(&arena, 10001);
+    FORNOW_UNUSED(foo);
+    FORNOW_UNUSED(bar);
+    FORNOW_UNUSED(baz);
+
+
+    ArenaList<uint> list = { &arena };
+    for_(i, 10000) list_push_back(&list, i);
+
+    ArenaMap<uint, uint> map = { &arena };
+    map_put(&map, 1U, 5U);
+    // printf("%d\n", map_get(1));
+
+    arena_free(&arena);
+}
+
+
+#else
 
 // BETA
 // TODO: first and second clicks of FGHI should be hinted (even first!)
@@ -64,19 +91,38 @@
 #endif
 
 #include "playground.cpp"
+#include "arena.cpp"
 
 char *startup_script = "";
 
-#if 1 // circle
+#if 1 // snap
+run_before_main {
+    startup_script =
+        "^."
+        "^odemo.dxf\n"
+        "ysq1[5\n"
+        "n5\nsq2{5"
+        ;
+};
+#endif
+
+#if 0 // circle
 run_before_main {
     startup_script =
         // "^..cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>le<m2d 10 0>q<m2d -10 0>"
-        "^.cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>"
+        // "^.cz32\nlq<m2d 10 0>zs<m2d 0 0>\b<esc>"
         // "cz16\n"
         // "s<m2d> 0 0>\b"
         // "lq<m2d 8 0>q<m2d 16 0>"
         // "sc"
-        "^odemo.dxf\n"
+        // "^odemo.dxf\n"
+        // "bz<m2d 10 10>"
+        // "cz<m2d 10 10>"
+        // "ysq1[5\n"
+        // "^G"
+        // "^.^Obuddha.stl\n"
+        // "^.^Ocylinder.stl\n"
+        // "^odemo.dxf\nsq1y[5\n<m3d 0 10 15 0 -1 0>"
         ;
 };
 #endif
@@ -203,37 +249,37 @@ run_before_main {
         "cz10\n" // circle
         "cz\t10\n" // bigger circle
         "bzx30\t30\n" // box
-        "ysadc<m2d 0 0>" // TODO: comment
+        "ysadc<m2d 0 0>" 
         "[5\t15\n" // extrude
-        "sc<m2d 0 30><esc>qs3" // TODO: comment
-        "1<m2d 30 15>0<esc>" // TODO: comment
-        "sq1sq3me<m2d 40 40>x15\t15\n" // TODO: comment
-        "{3\n" // TODO: comment
-        "sc<m2d 0 0>Zm<m2d -50 0>" // TODO: comment
-        "sc<m2d 0 0>Am<m2d -50 0><m2d -15 5>" // TODO: comment
+        "sc<m2d 0 30><esc>qs3" 
+        "1<m2d 30 15>0<esc>" 
+        "sq1sq3me<m2d 40 40>x15\t15\n" 
+        "{3\n" 
+        "sc<m2d 0 0>Zm<m2d -50 0>" 
+        "sc<m2d 0 0>Am<m2d -50 0><m2d -15 5>" 
         "]360\n"
-        "^n" // TODO: comment
-        "cx30\t30\n3.4\n" // TODO: comment
-        "saXzYzXzsa[1\n" // TODO: comment
+        "^n" 
+        "cx30\t30\n3.4\n" 
+        "saXzYzXzsa[1\n" 
         #endif
         "^osplash.dxf\nsc<m2d 24 0><m2d 16 0>"
         #if 1
-        "[\t10\n" // TODO: comment
-        "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" // TODO: comment
-        "^n" // TODO: comment
-        "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" // TODO: comment
-        "n25\n" // TODO: comment
-        "sa[1\n" // TODO: comment
-        "n0\n" // TODO: comment
-        "^n" // TODO: comment
-        "cz8\n" // TODO: comment
-        "<m3d 1 100 -1 0 -1 0>" // TODO: comment
-        "sa{100\n" // TODO: comment
-        ";" // TODO: comment
-        "^odemo.dxf\n" // TODO: comment
-                       // "^signore.stl\ny\n" // TODO: comment
-                       // "^oignore.stl\n" // TODO: comment
-                       // ".." // TODO: comment
+        "[\t10\n" 
+        "Ac<m2d 15.3 15.4>c<m2d -16.4 -16.3>sc<m2d -16 16>]\n" 
+        "^n" 
+        "l<m2d 0 0><m2d 0 10>l<m2d 0 10><m2d 10 0>l<m2d 10 0><m2d 0 0>" 
+        "n25\n"
+        "sa[1\n"
+        "n0\n"
+        "^n"
+        "cz8\n"
+        "<m3d 1 100 -1 0 -1 0>" 
+        "sa{100\n" 
+        // ";" 
+        // "^odemo.dxf\n" 
+                       // "^signore.stl\ny\n" 
+                       // "^oignore.stl\n" 
+                       // ".." 
                        // "pz\t5\n" // (Nathan) Polygon
                        // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
                        // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
@@ -262,7 +308,7 @@ ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other other;
 // convenient pointers to shorten xxx.foo.bar into foo->bar
 Drawing *drawing = &state.drawing;
 FeaturePlaneState *feature_plane = &state.feature_plane;
-Mesh *mesh = &state.mesh;
+Meshes *meshes = &state.meshes;
 PopupState *popup = &state.popup;
 ToolboxState *toolbox = &state.toolbox;
 TwoClickCommandState *two_click_command = &state.two_click_command;
@@ -277,6 +323,7 @@ bool already_processed_event_passed_to_popups;
 
 #include "boolean.cpp"
 #include "misc.cpp"
+#include "draw2.cpp"
 #include "draw.cpp"
 #include "save_and_load.cpp"
 #include "message.cpp"
@@ -322,22 +369,24 @@ int main() {
     }
 
 
-    messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
-    messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
-    messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
-    messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
-    messagef(pallete.red, "TODO: make negative extrude and revolves work");
-    messagef(pallete.red, "TODO: blue move/rotate/copy (certainly) still needs work");
-    // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
-    // messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
-    messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
-    messagef(pallete.yellow, "TODO: CIRCLE type entity");
-    messagef(pallete.yellow, "TODO: - Select Connected");
-    messagef(pallete.yellow, "TODO: - TwoClickDivide");
-    messagef(pallete.green, "Offset broken clicking here *------* ");
-    messagef(pallete.green, "TODO (fun): Offset visualization and tweening");
+    if (0) {
+        messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
+        messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
+        messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
+        messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
+        messagef(pallete.red, "TODO: make negative extrude and revolves work");
+        messagef(pallete.red, "TODO: blue move/rotate/copy (certainly) still needs work");
+        // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");
+        // messagef(pallete.blue, "TODO: EXCLUDE_SELECTED_ENTITIES_FROM_SECOND_CLICK_SNAP flag");
+        messagef(pallete.red, "TODO: rotate about origin bumps the mouse unnecessarily (or like...wrong?)");
+        messagef(pallete.yellow, "TODO: CIRCLE type entity");
+        messagef(pallete.yellow, "TODO: - Select Connected");
+        messagef(pallete.yellow, "TODO: - TwoClickDivide");
+        messagef(pallete.green, "Offset broken clicking here *------* ");
+        messagef(pallete.green, "TODO (fun): Offset visualization and tweening");
 
 
+    }
 
     // messagef(pallete.red, "?TODO: possible to get into a state where Escape no longer cancels Select, Connected (just popups)");
 
@@ -460,3 +509,4 @@ int main() {
     }
 }
 
+#endif

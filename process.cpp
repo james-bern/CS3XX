@@ -10,7 +10,7 @@
 // TODO: linear copy like layout
 // TODO: ???linear copy shouldn't be able to snap to the thing that 
 
-// TODO: mouse still pops on undo/redo
+// TODO: mouse_transformed_position still pops on undo/redo
 // ~~~~: snaps flicker when typing in the popup 
 
 // XXXX: click modifier belongs in other
@@ -94,7 +94,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             Draw_pen2.font_height_Pixel = 12.0f;
             Draw_pen2.color = pallete.light_gray;
 
-            real h = Draw_pen.font_height_Pixel + Draw_pen2.font_height_Pixel;
+            real h = Draw_pen.font_height_Pixel;// + Draw_pen2.font_height_Pixel;
 
             EasyTextPen Xsel_pen = Draw_pen;
             EasyTextPen Xsel_pen2 = Draw_pen2;
@@ -145,7 +145,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                real w = 80.0f;
+                real w = 60.0f;
                 ToolboxGroup group = command.group;
                 bool is_mode = command.is_mode;
                 u64 flags = command.flags;
@@ -292,9 +292,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
-                    pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                    // pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                    pen->offset_Pixel.x = 4;
                     pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
-                    easy_text_draw(pen, name);
+                    {
+                        String fornow_hack = name;
+                        if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
+                        if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
+                        if (!hovering) {
+                            easy_text_draw(pen, fornow_hack);
+                        } else {
+                            easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                        }
+                    }
                     pen2->offset_Pixel.y = pen->offset_Pixel.y;
                     pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
                     pen2->offset_Pixel.x = ROUND(pen2->offset_Pixel.x);
@@ -303,7 +313,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // } else {
                     //     easy_text_drawf(pen2, "");
                     // }
-                    easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+
+                    //easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
 
                     pen->color = tmp_pen_color;
                     pen2->color = tmp_pen2_color;
@@ -533,15 +544,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 { // Snap 
                     if (state.Draw_command.flags & SNAPPER) {
-                        if (GUIBUTTON(commands.Center)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.End)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Intersect)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Middle)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Perp)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Quad)) preview->mouse_snap = preview->mouse; // FORNOW
-                                                                                            //if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.XY)) preview->xy_xy = preview->mouse; // FORNOW
+
+                        bool snap_button_other_than_XY_or_Zero_pressed = 0
+                            | GUIBUTTON(commands.Center)
+                            | GUIBUTTON(commands.End)
+                            | GUIBUTTON(commands.Intersect)
+                            | GUIBUTTON(commands.Middle)
+                            | GUIBUTTON(commands.Perp)
+                            | GUIBUTTON(commands.Quad);
+
+                        if (snap_button_other_than_XY_or_Zero_pressed) {
+                            preview->mouse_transformed__PINK_position = preview->mouse_no_snap_potentially_15_deg__GRAY_position; // FORNOW
+                        }
+
+                        if (GUIBUTTON(commands.XY)) preview->xy_xy = preview->mouse_no_snap_potentially_15_deg__GRAY_position; // FORNOW
                         if (GUIBUTTON(commands.Zero)) {
+                            state.Snap_command = commands.None;
+
                             Event equivalent = {};
                             equivalent.type = EventType::Mouse;
                             equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
@@ -584,8 +603,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.Polygon)) preview->polygon_num_sides = popup->polygon_num_sides;
                     // SEPERATOR();
                     // GUIBUTTON(commands.DiamCircle);
-                    GUIBUTTON(commands.CenterLine);
-                    GUIBUTTON(commands.CenterBox);
+                    // GUIBUTTON(commands.CenterLine);
+                    // GUIBUTTON(commands.CenterBox);
                     SEPERATOR();
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
@@ -601,10 +620,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.MirrorY);
                     // GUIBUTTON(commands.Mirror2);
                     SEPERATOR();
+                    GUIBUTTON(commands.Divide2);
+                    GUIBUTTON(commands.Join2);
+                    SEPERATOR();
+                    GUIBUTTON(commands.ElfHat);
                     GUIBUTTON(commands.Fillet);
                     GUIBUTTON(commands.DogEar);
                     GUIBUTTON(commands.Offset);
-                    GUIBUTTON(commands.Divide2);
                     SEPERATOR();
                     GUIBUTTON(commands.SetOrigin);
                     GUIBUTTON(commands.SetAxis);
@@ -687,7 +709,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ClearMesh)) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
-                        mesh_free_AND_zero(mesh);
+                        meshes_free_AND_zero(meshes);
                         *feature_plane = {};
                         messagef(pallete.light_gray, "ClearMesh");
                     }
@@ -827,11 +849,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (state_Draw_command_is_(Measure)) result.record_me = false;
             if (mouse_event->mouse_held) result.record_me = false;
 
-            MagicSnapResult snap_result = mouse_event_drawing->snap_result;
-            vec2 *mouse = &snap_result.mouse_position;
+            TransformMouseDrawingPositionResult transform_mouse_drawing_position_result = transform_mouse_drawing_position(mouse_event_drawing->unsnapped_position, mouse_event_drawing->shift_held, false);
+            vec2 *mouse_transformed_position = &transform_mouse_drawing_position_result.mouse_position;
+
 
             // TODO: commands.cpp flag
-            if (snap_result.snapped && ( 
+            if (transform_mouse_drawing_position_result.snapped && ( 
                         (state_Draw_command_is_(Box))
                         || (state_Draw_command_is_(CenterBox))
                         || (state_Draw_command_is_(CenterLine))
@@ -839,10 +862,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         || (state_Draw_command_is_(Line))
                         || (state_Draw_command_is_(Polygon))
                         || (state_Draw_command_is_(DiamCircle)))) {
-                ASSERT(snap_result.entity_index_snapped_to >= 0);
-                ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
-                cookbook.attempt_divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
-                other.snap_divide_dot = *mouse;
+                ASSERT(transform_mouse_drawing_position_result.entity_index_snapped_to >= 0);
+                ASSERT(transform_mouse_drawing_position_result.entity_index_snapped_to < drawing->entities.length);
+                cookbook.attempt_divide_entity_at_point(transform_mouse_drawing_position_result.entity_index_snapped_to, *mouse_transformed_position);
+                other.snap_divide_dot = *mouse_transformed_position;
                 other.size_snap_divide_dot = 7.0f;
             }
 
@@ -850,7 +873,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             // fornow window wonky case
             if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes sc and qc
                 result.record_me = false;
-                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
+                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, transform_mouse_drawing_position_result.mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
                     if (!state_Xsel_command_is_(Connected) && !state_Colo_command_is_(OfSelection)) {
@@ -1053,7 +1076,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (!mouse_event->mouse_held) {
                 if ((state.Draw_command.flags | state.Xsel_command.flags) & TWO_CLICK) { // FORNOW
                     if (!two_click_command->awaiting_second_click) {
-                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
+                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, transform_mouse_drawing_position_result.mouse_position);
                         bool first_click_accepted; {
                             if (!first_click_must_acquire_entity()) {
                                 first_click_accepted = true;
@@ -1063,10 +1086,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                         if (first_click_accepted) {
                             two_click_command->awaiting_second_click = true;
-                            two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
-                            if (!two_click_command->tangent_first_click) { // ???
-                                two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
-                            }
+                            two_click_command->first_click = transform_mouse_drawing_position_result.mouse_position;
+                            // if (!two_click_command->tangent_first_click) { // ???
+                            two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
+                            // }
                             set_state_Snap_command(None);
                             if (!other._please_suppress_drawing_popup_popup) { // bump bumps cursor bump cursor bumps
                                 if (state_Draw_command_is_(Rotate)) {
@@ -1090,13 +1113,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
 
                             // FORNOW FORNOW
-                            preview->popup_second_click = two_click_command->first_click;
+                            preview->mouse_from_Draw_Enter__BLUE_position = two_click_command->first_click;
                             preview->xy_xy = two_click_command->first_click;
-                            preview->color_mouse = pallete.black;
                         }
                     } else { // (two_click_command->awaiting_second_click)
                         vec2 first_click = two_click_command->first_click;
-                        vec2 second_click = *mouse;
+                        vec2 second_click = *mouse_transformed_position;
                         vec2 click_vector = (second_click - first_click);
                         vec2 average_click = AVG(first_click, second_click);
                         real click_theta = angle_from_0_TAU(first_click, second_click);
@@ -1246,8 +1268,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                             messagef(pallete.red, "NO INTERSECTION FOUND");
                                         }
                                     }
+                                    if (!cutArc && !cutLine) {
+                                        messagef(pallete.orange, "TwoClickDivide: no intersection found");
+                                    }
+                                    }
                                 }
                             }
+                        } else if (state_Draw_command_is_(Join2)) {
+                            result.checkpoint_me = true;
+                            set_state_Draw_command(None);
+                            set_state_Snap_command(None);
                         } else if (state_Draw_command_is_(Line)) {
                             if (clicks_are_same) {
                                 messagef(pallete.orange, "Line: must have non-zero length");
@@ -1664,9 +1694,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
-                        drawing->origin = *mouse;
+                        drawing->origin = *mouse_transformed_position;
                     } else if (state_Draw_command_is_(DivideNearest)) { 
-                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse); // TODO *closest* -> *nearest*
+                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse_transformed_position); // TODO *closest* -> *nearest*
                         if (closest_results.success) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1704,48 +1734,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }          
                         }
-                    } else if (state_Draw_command_is_(PowerFillet)) {
-                        do_once { messagef(pallete.red, "(Jim) i maybe broke this by messing with fillet\nlet's take a look together :)"); };
-                        result.checkpoint_me = true;
-                        set_state_Draw_command(None);
-                        set_state_Snap_command(None);
-
-                        List<Entity*> selected_entities = {};
-                        selected_entities._capacity = 0;
-
-                        _for_each_selected_entity_ {
-                            if (entity->type == EntityType::Line) {
-                                entity->line.start -= *mouse;
-                                entity->line.end -= *mouse;
-                            } else {
-                                entity->arc.center -= *mouse;
-                            }
-                            list_push_back(&selected_entities, entity);
-                        }
-
-                        qsort(selected_entities.array, selected_entities.length, sizeof(Entity*), [](const void *a, const void *b) -> int {
-                                real a_angle = ATAN2(entity_get_middle(*(Entity **)a)); // why not Enity *? idk but it crashes otherwise
-                                real b_angle = ATAN2(entity_get_middle(*(Entity **)b)); 
-                                if (a_angle < b_angle) {
-                                return 1;
-                                } else if (b_angle > a_angle) {
-                                return -1;
-                                }
-                                return 0;
-                                }); // no this is not evil 
-                        for_(i, selected_entities.length) {
-                            Entity *entity = selected_entities.array[i];
-                            if (entity->type == EntityType::Line) {
-                                entity->line.start += *mouse;
-                                entity->line.end += *mouse;
-                            } else { ASSERT(entity->type == EntityType::Arc);
-                                entity->arc.center += *mouse;
-                            }
-                        }
-
-                        for_(i, selected_entities.length) {
-                            //cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
-                        }
                     } else if (state_Draw_command_is_(MirrorX)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
@@ -1754,15 +1742,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line = &entity->line;
                                 cookbook.buffer_add_line(
-                                        V2(-(line->start.x - mouse->x) + mouse->x, line->start.y),
-                                        V2(-(line->end.x - mouse->x) + mouse->x, line->end.y),
+                                        V2(-(line->start.x - mouse_transformed_position->x) + mouse_transformed_position->x, line->start.y),
+                                        V2(-(line->end.x - mouse_transformed_position->x) + mouse_transformed_position->x, line->end.y),
                                         true,
                                         entity->color_code
                                         );
                             } else if (entity->type == EntityType::Arc) {
                                 ArcEntity *arc = &entity->arc;
                                 cookbook.buffer_add_arc(
-                                        V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
+                                        V2(-(arc->center.x - mouse_transformed_position->x) + mouse_transformed_position->x, arc->center.y),
                                         arc->radius,
                                         180 - arc->end_angle_in_degrees,
                                         180 - arc->start_angle_in_degrees,
@@ -1788,15 +1776,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (entity->type == EntityType::Line) {
                                 LineEntity *line = &entity->line;
                                 cookbook.buffer_add_line(
-                                        V2(line->start.x, -(line->start.y - mouse->y) + mouse->y),
-                                        V2(line->end.x, -(line->end.y - mouse->y) + mouse->y),
+                                        V2(line->start.x, -(line->start.y - mouse_transformed_position->y) + mouse_transformed_position->y),
+                                        V2(line->end.x, -(line->end.y - mouse_transformed_position->y) + mouse_transformed_position->y),
                                         true,
                                         entity->color_code
                                         );
                             } else if (entity->type == EntityType::Arc) {
                                 ArcEntity *arc = &entity->arc;
                                 cookbook.buffer_add_arc(
-                                        V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
+                                        V2(arc->center.x, -(arc->center.y - mouse_transformed_position->y) + mouse_transformed_position->y),
                                         arc->radius,
                                         -arc->end_angle_in_degrees,
                                         -arc->start_angle_in_degrees,
@@ -1819,11 +1807,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (IS_ZERO(popup->offset_distance)) {
                             messagef(pallete.orange, "Offset: must have non-zero distance");
                         } else {
-                            DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse);
+                            DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse_transformed_position);
                             if (closest_results.success) {
                                 result.checkpoint_me = true;
                                 set_state_Snap_command(None);
-                                cookbook._buffer_add_entity(entity_offsetted(closest_results.closest_entity, popup->offset_distance, *mouse));
+                                cookbook._buffer_add_entity(entity_offsetted(closest_results.closest_entity, popup->offset_distance, *mouse_transformed_position));
                             }
                         }
                     } else {
@@ -1938,7 +1926,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_circle_radius = popup->circle_radius;
                         real prev_circle_circumference = popup->circle_circumference;
                         POPUP(state.Draw_command,
-                                false,
+                                true, // FORNOW
                                 CellType::Real, STRING("diameter"), &popup->circle_diameter,
                                 CellType::Real, STRING("radius"), &popup->circle_radius,
                                 CellType::Real, STRING("circumference"), &popup->circle_circumference);
@@ -2269,7 +2257,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Draw_command_is_(Scale)) {
-                    result.record_me = false;
+                    result.record_me = true;
                     POPUP(state.Draw_command,
                             false,
                             CellType::Real, STRING("scale factor"), &popup->scale_factor);
@@ -2313,7 +2301,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 { // conversation_stl_load(...)
                                     ASSERT(FILE_EXISTS(popup->open_stl_filename));
                                     // ?
-                                    stl_load(popup->open_stl_filename, mesh);
+                                    stl_load(popup->open_stl_filename, meshes);
                                     init_camera_mesh();
                                 }
                                 set_state_Mesh_command(None);
@@ -2334,7 +2322,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (popup->overwrite_stl_yn_buffer.data[0] == 'y') {
                             if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
                                 {
-                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
+                                    bool success = mesh_save_stl(&meshes->work, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
                                 set_state_Mesh_command(None);
@@ -2359,7 +2347,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
                                 set_state_Mesh_command(None);
                                 {
-                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
+                                    bool success = mesh_save_stl(&meshes->work, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
                                 messagef(pallete.light_gray, "SaveSTL \"%s\"", popup->save_stl_filename.data);
@@ -2404,7 +2392,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.orange, "ExtrudeCut: no feature plane selected");
                         } else if (IS_ZERO(popup->extrude_cut_in_length) && IS_ZERO(popup->extrude_cut_out_length)) {
                             messagef(pallete.orange, "ExtrudeCut: total extrusion length zero");
-                        } else if (mesh->num_triangles == 0) {
+                        } else if (meshes->work.num_triangles == 0) {
                             messagef(pallete.orange, "ExtrudeCut: current mesh empty");
                         } else {
                             cookbook.manifold_wrapper();
@@ -2442,7 +2430,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.orange, "RevolveCut: selection empty");
                         } else if (!feature_plane->is_active) {
                             messagef(pallete.orange, "RevolveCut: no feature plane selected");
-                        } else if (mesh->num_triangles == 0) {
+                        } else if (meshes->work.num_triangles == 0) {
                             messagef(pallete.orange, "RevolveCut: current mesh empty");
                         } else {
                             cookbook.manifold_wrapper();

@@ -76,12 +76,10 @@ Event bake_event(RawEvent raw_event) {
         {
             if (raw_mouse_event->pane == Pane::Drawing) {
                 mat4 World_2D_from_OpenGL = inverse(camera_drawing->get_PV());
-                vec2 mouse_World_2D = transformPoint(World_2D_from_OpenGL, other.mouse_OpenGL);
-
                 mouse_event->subtype = MouseEventSubtype::Drawing;
-
                 MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
-                mouse_event_drawing->snap_result = magic_snap(mouse_World_2D);
+                mouse_event_drawing->unsnapped_position = transformPoint(World_2D_from_OpenGL, other.mouse_OpenGL);
+                mouse_event_drawing->shift_held = other.shift_held;
             } else if (raw_mouse_event->pane == Pane::Mesh) {
                 mat4 World_3D_from_OpenGL = inverse(camera_mesh->get_PV());
                 vec3 point_a = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL, -1.0f));
@@ -109,6 +107,8 @@ Event bake_event(RawEvent raw_event) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// THIS IS FOR THE SCRIPTING STUFF /////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 Event make_mouse_event_2D(vec2 mouse_position) {
     Event event = {};
@@ -116,7 +116,8 @@ Event make_mouse_event_2D(vec2 mouse_position) {
     MouseEvent *mouse_event = &event.mouse_event;
     mouse_event->subtype = MouseEventSubtype::Drawing;
     MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
-    mouse_event_drawing->snap_result.mouse_position = mouse_position;
+    mouse_event_drawing->unsnapped_position = mouse_position;
+    //mouse_event_drawing->snap_result.mouse_position = mouse_position;
     return event;
 }
 Event make_mouse_event_2D(real x, real y) { return make_mouse_event_2D({ x, y }); }
@@ -131,4 +132,5 @@ Event make_mouse_event_3D(vec3 mouse_ray_origin, vec3 mouse_ray_direction) {
     mouse_event_mesh->mouse_ray_direction = mouse_ray_direction;
     return event;
 }
+
 

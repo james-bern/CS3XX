@@ -169,10 +169,10 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 // IS_NAN
 #ifdef OPERATING_SYSTEM_APPLE
 #include <unistd.h>
-#define IS_NAN _isnan
+#define IS_NAN isnan
 #elif defined(OPERATING_SYSTEM_WINDOWS)
 #include <windows.h>
-#define IS_NAN(x) 
+#define IS_NAN _isnan
 #endif
 // SWAP
 template <typename T> void SWAP(T *a, T *b) {
@@ -190,3 +190,7 @@ long MILLIS() {
 run_before_main { setvbuf(stdout, NULL, _IONBF, 0); };
 // seed random number generator
 run_before_main { srand((unsigned int) time(NULL)); };
+// GUARDED_free
+void GUARDED_free(void *pointer) {
+    if (pointer) free(pointer);
+}

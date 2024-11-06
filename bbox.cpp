@@ -75,8 +75,8 @@ tuDb &operator += (bboxD &A, bboxD B) {
 
 void eso_vertex(real x, real y);
 void eso_bbox_SOUP_QUADS(bbox2 A) {
-    eso_vertex(A.min.x, A.min.y);
-    eso_vertex(A.min.x, A.max.y);
-    eso_vertex(A.max.x, A.max.y);
     eso_vertex(A.max.x, A.min.y);
+    eso_vertex(A.max.x, A.max.y);
+    eso_vertex(A.min.x, A.max.y);
+    eso_vertex(A.min.x, A.min.y);
 }

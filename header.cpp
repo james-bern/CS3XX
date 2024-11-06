@@ -1,3 +1,40 @@
+real HARD_EDGE_THRESHOLD_IN_DEGREES = 30.0f;
+
+// gl
+
+void _POOSH(uint *VBO, uint i, uint num_verts, void *array, uint dim, uint GL_TYPE) {
+    ASSERT(VBO);
+    ASSERT(array);
+    ASSERT(num_verts);
+
+    uint sizeof_type; {
+        if (GL_TYPE == GL_FLOAT) {
+            sizeof_type = sizeof(real);
+        } else { ASSERT(GL_TYPE == GL_INT);
+            sizeof_type = sizeof(uint);
+        }
+    }
+
+    glDisableVertexAttribArray(i);
+    if (array) {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
+        glBufferData(GL_ARRAY_BUFFER, num_verts * dim * sizeof_type, array, GL_STATIC_DRAW);
+
+        if (GL_TYPE == GL_FLOAT) {
+            glVertexAttribPointer (i, dim, GL_TYPE, GL_FALSE, 0, NULL);
+        } else { ASSERT(GL_TYPE == GL_INT);
+            glVertexAttribIPointer(i, dim, GL_TYPE,           0, NULL);
+        }
+
+        glEnableVertexAttribArray(i);
+    }
+};
+void POOSH(uint *VBO, uint i, uint num_verts, vec3 *array) { _POOSH(VBO, i, num_verts, array, 3, GL_FLOAT); }
+void POOSH(uint *VBO, uint i, uint num_verts, vec2 *array) { _POOSH(VBO, i, num_verts, array, 2, GL_FLOAT); }
+void POOSH(uint *VBO, uint i, uint num_verts, uint *array) { _POOSH(VBO, i, num_verts, array, 1, GL_INT  ); }
+
+uint UNIFORM(uint shader_program, char *name) { return glGetUniformLocation(shader_program, name); };
+
 ////////////////////////////////////////
 // Forward-Declarations ////////////////
 ////////////////////////////////////////
@@ -185,18 +222,61 @@ struct Entity {
     CircleEntity circle;
 };
 
-struct Mesh {
+struct WorkMesh {
     uint num_vertices;
     uint num_triangles;
-    vec3 *vertex_positions;
-    uint3 *triangle_indices;
-    vec3 *triangle_normals;
 
-    // ??
-    uint num_cosmetic_edges;
-    uint2 *cosmetic_edges;
+    vec3  *vertex_positions;
+    uint3 *triangle_tuples;
+    vec3  *triangle_normals;
 
     bbox3 bbox;
+};
+
+struct DrawMesh {
+    uint num_vertices;
+    uint num_triangles; // NOTE: same as WorkMesh
+
+    vec3  *vertex_positions;
+    vec3  *vertex_normals;
+    uint  *vertex_patch_indices;
+
+    uint3 *triangle_tuples; // NOTE: same order as WorkMesh (so can use WorkMesh's triangle_normals)
+
+    // NOTE: GL half-edges follow order of triangle
+
+    // TODO: we don't need this data anymore
+    // uint num_hard_half_edges; // num_hard_half_edges
+    // uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
+                             // vec3 *hard_edges_vertex_positions;
+                             // uint *hard_edges_corresponding_triangle_indices;
+
+};
+
+
+struct {
+    uint VAO;
+    uint VBO[3];
+    uint EBO_faces;
+    uint EBO_all_edges;
+    uint EBO_hard_edges;
+} GL;
+
+run_before_main {
+    glGenVertexArrays(1, &GL.VAO);
+    glGenBuffers(ARRAY_LENGTH(GL.VBO), GL.VBO);
+    glGenBuffers(1, &GL.EBO_faces);
+    glGenBuffers(1, &GL.EBO_all_edges);
+    glGenBuffers(1, &GL.EBO_hard_edges);
+};
+
+
+
+
+struct Meshes {
+    // TODO: Arena *arena
+    WorkMesh work;
+    DrawMesh draw;
 };
 
 struct RawKeyEvent {
@@ -221,9 +301,9 @@ struct RawEvent {
     RawMouseEvent raw_mouse_event;
 };
 
-struct MagicSnapResult {
-    vec2 mouse_position;
-    bool snapped;
+struct TransformMouseDrawingPositionResult {
+    vec2 mouse_position; // TODO: change this name to position?
+    bool snapped; // TODO: carefully move this to be the first entry
     uint entity_index_snapped_to;
     uint entity_index_intersect;
     uint entity_index_tangent_2;
@@ -240,7 +320,8 @@ struct MagicSnapResult3D {
 };
 
 struct MouseEventDrawing {
-    MagicSnapResult snap_result;
+    vec2 unsnapped_position;
+    bool shift_held;
 };
 
 struct MouseEventMesh {
@@ -442,7 +523,7 @@ struct ToolboxState {
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
-    Mesh mesh;
+    Meshes meshes;
     Drawing drawing;
     FeaturePlaneState feature_plane;
     TwoClickCommandState two_click_command;
@@ -470,14 +551,15 @@ struct PreviewState {
     vec3 feature_plane_color;
     real feature_plane_offset;
     vec2 drawing_origin;
-    vec2 mouse;
     real cursor_subtext_alpha;
 
-    vec2 popup_second_click;
+    vec2 mouse_transformed__PINK_position;
+    vec2 mouse_no_snap_potentially_15_deg__GRAY_position;
+    vec2 mouse_from_Draw_Enter__BLUE_position;
+    // TODO: restore beatiful color lerp from gray to pink when snap becomes active
+
     vec2 xy_xy;
-    vec2 mouse_snap;
     real polygon_num_sides;
-    vec3 color_mouse;
 
     vec2 offset_entity_start;
     vec2 offset_entity_end;
@@ -1307,96 +1389,695 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 // Mesh, Mesh //////////////////////
 ////////////////////////////////////////
 
-
-void mesh_triangle_normals_calculate(Mesh *mesh) {
-    mesh->triangle_normals = (vec3 *) malloc(mesh->num_triangles * sizeof(vec3));
-    vec3 p[3];
-    for_(i, mesh->num_triangles) {
-        for_(d, 3) p[d] = mesh->vertex_positions[mesh->triangle_indices[i][d]];
-        vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
-        mesh->triangle_normals[i] = n;
-    }
-}
-
-void mesh_cosmetic_edges_calculate(Mesh *mesh) {
-    // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
-    //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
-    //           then go back and if passes some heuristic add that index to a stretchy buffer
-    List<uint2> list = {}; {
-        Map<uint2, vec3> map = {}; {
-            for_(i, mesh->num_triangles) {
-                vec3 n = mesh->triangle_normals[i];
-                for (uint jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
-                    uint j0 = mesh->triangle_indices[i][jj0];
-                    uint j1 = mesh->triangle_indices[i][jj1];
-                    if (j0 > j1) {
-                        uint tmp = j0;
-                        j0 = j1;
-                        j1 = tmp;
-                    }
-                    uint2 key = { j0, j1 };
-                    map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
-                }
-            }
-        }
-        {
-            for (List<Pair<uint2, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
-                for (Pair<uint2, vec3> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
-                    vec3 n2 = pair->value;
-                    // pprint(n2);
-                    real angle = DEG(acos(n2.x + n2.y + n2.z)); // [0.0f, 180.0f]
-                    if (angle > 30.0f) {
-                        list_push_back(&list, pair->key); // FORNOW
-                    }
-                }
-            }
-        }
-        map_free_and_zero(&map);
-    }
-    {
-        mesh->num_cosmetic_edges = list.length;
-        mesh->cosmetic_edges = (uint2 *) calloc(mesh->num_cosmetic_edges, sizeof(uint2));
-        memcpy(mesh->cosmetic_edges, list.array, mesh->num_cosmetic_edges * sizeof(uint2)); 
-    }
-    list_free_AND_zero(&list);
-}
-
-void mesh_bbox_calculate(Mesh *mesh) {
+void mesh_bbox_calculate(WorkMesh *mesh) {
     mesh->bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
     for_(i, mesh->num_vertices) {
         mesh->bbox += mesh->vertex_positions[i];
     }
 }
 
-void mesh_free_AND_zero(Mesh *mesh) {
-    if (mesh->vertex_positions) free(mesh->vertex_positions);
-    if (mesh->triangle_indices) free(mesh->triangle_indices);
-    if (mesh->triangle_normals) free(mesh->triangle_normals);
-    if (mesh->cosmetic_edges)   free(mesh->cosmetic_edges);
-    *mesh = {};
+void mesh_translate_to_origin(WorkMesh *mesh) {
+    vec3 bbox_center = AVG(mesh->bbox.min, mesh->bbox.max);
+    for_(i, mesh->num_vertices) mesh->vertex_positions[i] -= bbox_center;
 }
 
-void mesh_deep_copy(Mesh *dst, Mesh *src) {
-    *dst = *src;
-    if (src->vertex_positions) {
-        uint size = src->num_vertices * sizeof(vec3);
-        dst->vertex_positions = (vec3 *) malloc(size);
-        memcpy(dst->vertex_positions, src->vertex_positions, size);
+void mesh_triangle_normals_calculate(WorkMesh *mesh) {
+    mesh->triangle_normals = (vec3 *) malloc(mesh->num_triangles * sizeof(vec3));
+    vec3 p[3];
+    for_(i, mesh->num_triangles) {
+        for_(d, 3) p[d] = mesh->vertex_positions[mesh->triangle_tuples[i][d]];
+        vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
+        mesh->triangle_normals[i] = n;
     }
-    if (src->triangle_indices) {
-        uint size = src->num_triangles * sizeof(uint3);
-        dst->triangle_indices = (uint3 *) malloc(size);
-        memcpy(dst->triangle_indices, src->triangle_indices, size);
+}
+
+
+// TODO: make a better map
+
+
+// void mesh_hard_edges_calculate(Meshes *meshes) {
+//     // prep a map from edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
+//     // iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
+//     // then go back and if passes some heuristic add that index to a stretchy buffer
+//     List<uint2> list = {}; {
+//         WorkMesh *mesh = &meshes->work;
+//         Map<uint2, vec3> map = {}; {
+//             for_(i, mesh->num_triangles) {
+//                 vec3 n = mesh->triangle_normals[i];
+//                 uint3 tri = mesh->triangle_tuples[i];
+// 
+//                 for_(d, 3) {
+//                     uint j0 = tri[d];
+//                     uint j1 = tri[(d + 1) % 3];
+//                     uint2 key = { MIN(j0, j1), MAX(j0, j1) };
+// 
+//                     map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
+//                 }
+//             }
+//         }
+//         {
+//             // NOTE: this double for loop is just iterating over the map; will need to replace when we upgrade the map
+//             for (List<Pair<uint2, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
+//                 for (Pair<uint2, vec3> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
+// 
+//                     vec3 n2 = pair->value;
+//                     real angle = DEG(acos(n2.x + n2.y + n2.z)); // [0.0f, 180.0f]
+//                     if (angle > 30.0f) {
+//                         list_push_back(&list, pair->key); // FORNOW
+//                     }
+// 
+//                 }
+//             }
+//         }
+//         map_free_and_zero(&map);
+//     }
+//     {
+//         DrawMesh *mesh = &meshes->draw;
+//         mesh->num_hard_edges = list.length;
+//         mesh->hard_edges = list.array; // FORNOW: sloppy
+//     }
+// }
+
+// // TODO: undo and redo are broken now :(
+
+// TODO: this crap is so slow -- O(bad)
+// TODO: 
+// // TODO: frees (arena?)
+// defer  {
+//     // queue_free_AND_zero(&queue);
+//     // free(visited);
+// };
+void mesh_divide_into_patches(Meshes *meshes) {
+    {
+        WorkMesh *work = &meshes->work;
+        DrawMesh *draw = &meshes->draw;
+        ASSERT(work->num_triangles == draw->num_triangles);
+        // if (draw->num_hard_edges == 0) return; // torus shouldn't bother doing this crap
     }
-    if (src->triangle_normals) {
-        uint size = src->num_triangles * sizeof(vec3); 
-        dst->triangle_normals = (vec3 *) malloc(size);
-        memcpy(dst->triangle_normals, src->triangle_normals, size);
+
+    Arena function_arena = NEW_BUMP_ALLOCATED_ARENA();
+    defer { function_arena.free(); };
+
+
+    #if 1
+
+    struct PairPatchIndexOldVertexIndex {
+        uint patch_index;
+        uint old_vertex_index;
+    };
+
+    struct PairOldHardHalfEdgeTupleTriangleIndex {
+        uint2 old_hard_half_edge_tuple;
+        uint triangle_index;
+    };
+
+
+    WorkMesh *old = &meshes->work;
+    uint num_triangles = old->num_triangles;
+
+
+    // prep -- O(t)
+    // ------------
+    // iterate over all triangles building triangle_index_from_old_half_edge map -- O(t)
+    ArenaMap<uint2, uint> triangle_index_from_old_half_edge = { &function_arena };
+    map_reserve_for_expected_num_entries(&triangle_index_from_old_half_edge, 3 * num_triangles);
+    {
+        for_(triangle_index, num_triangles) {
+            uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
+            for_(d, 3) {
+                uint old_i = old_triangle_tuple[ d         ];
+                uint old_j = old_triangle_tuple[(d + 1) % 3];
+                uint2 old_half_edge = { old_i, old_j }; // NOTE: DON'T sort the edge; we WANT a half-edge
+                map_put(&triangle_index_from_old_half_edge, old_half_edge, triangle_index);
+            }
+        }
     }
-    if (src->cosmetic_edges) {
-        uint size = src->num_cosmetic_edges * sizeof(uint2);
-        dst->cosmetic_edges = (uint2 *) malloc(size);
-        memcpy(dst->cosmetic_edges, src->cosmetic_edges, size);
+
+
+    // paint each triangle with its patch index -- O(t)
+    // -----------------------------------------------------
+    // for each patch warm started search for seed off of finger using patch_index_from_triangle_index for whether seen -- O(t)
+    // NOTE: only reads through the entire array of triangles at most once
+    //  ++num_patches; -- O(1)
+    // (for each triangle) -- O(t)
+    //  infect neighbors conditional on whether is hard edge -- O(1)
+    //  NOTE: can do the hard edge computation here using the triangle_index_from_old_half_edge map
+    //  TODOLATER: also store the hard_edges for tube drawing later
+    // NOTE: patch_indices_from_old_vertex_index is for the next step
+    // TODO: SmallList
+
+    ArenaMap<uint, uint> patch_index_from_triangle_index = { &function_arena };
+    map_reserve_for_expected_num_entries(&patch_index_from_triangle_index, num_triangles);
+
+    // TODO: ArenaSmallList
+    ArenaMap<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = { &function_arena };
+    map_reserve_for_expected_num_entries(&patch_indices_from_old_vertex_index, old->num_vertices);
+    {
+        for_(old_vertex_index, old->num_vertices) {
+            map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { &function_arena });
+        }
+    }
+
+    uint num_patches = 0;
+
+    uint new_num_hard_half_edges = 0;
+    // FORNOW: overestimate
+    PairOldHardHalfEdgeTupleTriangleIndex *pairs_of_old_hard_half_edge_tuple_and_triangle_index = (PairOldHardHalfEdgeTupleTriangleIndex *) malloc(2 * 3 * num_triangles * sizeof(pairs_of_old_hard_half_edge_tuple_and_triangle_index[0])); // TODO: use this sizeof trick elsewhere
+                                                                                                                                                                                                                                             // TODO: scratch arena alloc
+
+    {
+        // TODO: ArenaQueue
+        Queue<uint> queue = {};
+
+        auto QUEUE_ENQUEUE_AND_MARK = [&](uint triangle_index) {
+            queue_enqueue(&queue, triangle_index);
+
+            { // mark
+                uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
+
+                uint patch_index = num_patches;
+
+
+                map_put(&patch_index_from_triangle_index, triangle_index, patch_index);
+
+                { // patch_indices_from_old_vertex_index
+                    for_(d, 3) {
+                        uint old_vertex_index = old_triangle_tuple[d];
+                        ArenaList<uint> *patch_indices = _map_get_pointer(&patch_indices_from_old_vertex_index, old_vertex_index);
+                        // sorted unique push_back
+                        bool last_element_is_patch_index; {
+                            bool is_empty = (patch_indices->length == 0);
+                            if (is_empty) {
+                                last_element_is_patch_index = false;
+                            } else {
+                                last_element_is_patch_index = (patch_indices->_array[patch_indices->length - 1] == patch_index);
+                            }
+                        }
+                        if (!last_element_is_patch_index) patch_indices->push_back(patch_index);
+                    }
+                }
+            }
+        };
+
+        uint seed_triangle_index = 0;
+        while (true) {
+            while (map_contains_key(&patch_index_from_triangle_index, seed_triangle_index)) ++seed_triangle_index;
+            if (seed_triangle_index == num_triangles) break;
+            QUEUE_ENQUEUE_AND_MARK(seed_triangle_index);
+            while (queue.length) {
+                uint triangle_index = queue_dequeue(&queue);
+                uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
+                for_(d, 3) {
+                    uint old_i = old_triangle_tuple[ d         ];
+                    uint old_j = old_triangle_tuple[(d + 1) % 3];
+                    uint2 old_half_edge = { old_i, old_j };
+                    uint2 twin_old_half_edge = { old_j, old_i };
+                    uint twin_triangle_index; {
+                        // NOTE: if this crashes, the mesh wasn't manifold?
+                        twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
+                    }
+                    bool is_not_already_marked = !map_contains_key(&patch_index_from_triangle_index, twin_triangle_index);
+                    bool is_soft_edge; {
+                        vec3 n1 = old->triangle_normals[triangle_index];
+                        vec3 n2 = old->triangle_normals[twin_triangle_index];
+                        // NOTE: clamp ver ver important
+                        real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
+                        ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
+                        is_soft_edge = (angle_in_degrees < HARD_EDGE_THRESHOLD_IN_DEGREES);
+                    }
+                    if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
+                    if (is_not_already_marked && !is_soft_edge) {
+                        pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { old_half_edge, triangle_index };
+                        pairs_of_old_hard_half_edge_tuple_and_triangle_index[new_num_hard_half_edges++] = { twin_old_half_edge, twin_triangle_index };
+                    }
+                }
+            }
+
+            ++num_patches;
+        }
+    }
+
+    // NOTE: this feels unnecessarily slow
+    //       but we didn't know how many patches there were back when we were flooding
+    //       (but we do have an upper bound, which is the number of triangles)
+    // TODO: consider trading space for time here (after profiling)
+    uint *patch_num_vertices = (uint *) function_arena.calloc(num_patches, sizeof(uint)); {
+        for_(old_vertex_index, old->num_vertices) {
+            ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
+            for_(_patch_index_index, patch_indices.length) {
+                uint patch_index = patch_indices[_patch_index_index];
+                patch_num_vertices[patch_index]++;
+            }
+        }
+    }
+
+    #if 0
+
+    //                                                         
+    // triangle-order preserving division into patches         
+    //                                                         
+    //                      |         0    6-----8             
+    //     0-----4          |        / \    \ C . \            
+    //    / \ C . \         |       / A \    \ .   \           
+    //   / A \ .   \        |      1-----2    7-----9          
+    //  1-----2-----5       |                                  
+    //   \ B /              |      3-----4                     
+    //    \ /               |       \ B /                      
+    //     3                |        \ /                       
+    //                      |         5                        
+    //                      |                                  
+    //                      |          ...:::: patch           
+    //                      |       0121230245 vertex          
+    // V 012345             |    V  0123456789 new_vertex_index
+    //   AAA                |       AAABBBCCCC                 
+    //    BBB               |       ^  ^  ^    fingers         
+    //   C C CC             |          ... ::: :::             
+    //                      |      012 132 024 254             
+    // T 012 132 024 254    |    T 012 465 678 798             
+    //                                                         
+
+    #endif
+
+    uint new_num_vertices;
+    vec3 *new_vertex_positions;
+    uint *new_vertex_patch_indices;
+    ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { &function_arena };
+    // FORNOW: This is a huge overestimate; TODO: map that can grow
+    map_reserve_for_expected_num_entries(&new_vertex_index_from_pair_patch_index_old_vertex_index, num_patches * old->num_vertices);
+    {
+        uint *patch_new_vetex_index_fingers; // [ 0, |PATCH0|, |PATCH0| + |PATCH1|, ... ]
+        {
+            patch_new_vetex_index_fingers = (uint *) function_arena.calloc(num_patches, sizeof(uint));
+            for_(patch_index, num_patches - 1) {
+                patch_new_vetex_index_fingers[patch_index + 1] += patch_new_vetex_index_fingers[patch_index];
+                patch_new_vetex_index_fingers[patch_index + 1] += patch_num_vertices[patch_index];
+            }
+
+            new_num_vertices = patch_new_vetex_index_fingers[num_patches - 1] + patch_num_vertices[num_patches - 1];
+        }
+
+        new_vertex_positions = (vec3 *) malloc(new_num_vertices * sizeof(vec3));
+        new_vertex_patch_indices = (uint *) malloc(new_num_vertices * sizeof(uint));
+
+        for_(old_vertex_index, old->num_vertices) {
+            ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
+            for_(_patch_index_index, patch_indices.length) {
+                uint patch_index = patch_indices[_patch_index_index];
+                uint new_vertex_index = (patch_new_vetex_index_fingers[patch_index])++;
+
+                { // new_vertex_positions
+                    vec3 vertex_position = old->vertex_positions[old_vertex_index];
+                    new_vertex_positions[new_vertex_index] = vertex_position;
+                }
+
+                // new_vertex_index_from_pair_patch_index_old_vertex_index
+                PairPatchIndexOldVertexIndex key;
+                key.patch_index = patch_index;
+                key.old_vertex_index = old_vertex_index;
+                map_put(&new_vertex_index_from_pair_patch_index_old_vertex_index, key, new_vertex_index);
+
+                new_vertex_patch_indices[new_vertex_index] = patch_index;
+            }
+        }
+    }
+
+    // uint2 *new_hard_half_edge_tuples = (uint2 *) malloc(new_num_hard_half_edges * sizeof(uint2));
+    // {
+    //     for_(hard_half_edge_index, new_num_hard_half_edges) {
+    //         PairOldHardHalfEdgeTupleTriangleIndex pair = pairs_of_old_hard_half_edge_tuple_and_triangle_index[hard_half_edge_index];
+    //         uint2 old_hard_half_edge_tuple = pair.old_hard_half_edge_tuple;
+    //         uint old_i = old_hard_half_edge_tuple.i;
+    //         uint old_j = old_hard_half_edge_tuple.j;
+    //         uint triangle_index = pair.triangle_index;
+
+    //         uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
+    //         uint new_i = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_i });
+    //         uint new_j = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, { patch_index, old_j });
+    //         new_hard_half_edge_tuples[hard_half_edge_index] = { new_i, new_j };
+    //     }
+
+    // }
+
+
+
+    // build massive new arrays -- O(t)
+    // ------------------------
+    // malloc huge arrays -- O(t)
+    //
+    // ?? how do we write the vertices
+    //
+    // for each triangle -- O(t)
+    //   write directly into arrays -- O(1)
+    {
+        DrawMesh *draw = &meshes->draw;
+        draw->num_vertices = new_num_vertices;
+        draw->num_triangles = num_triangles;
+        draw->vertex_positions = new_vertex_positions;
+        draw->triangle_tuples = (uint3 *) malloc(num_triangles * sizeof(uint3));
+        draw->vertex_patch_indices = new_vertex_patch_indices;
+        for_(triangle_index, num_triangles) {
+            uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
+            uint3 old_triangle_tuple = old->triangle_tuples[triangle_index];
+            for_(d, 3) {
+                PairPatchIndexOldVertexIndex key;
+                key.patch_index = patch_index;
+                key.old_vertex_index = old_triangle_tuple[d];
+                draw->triangle_tuples[triangle_index][d] = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, key);
+            }
+        }
+
+        // draw->num_hard_half_edges = new_num_hard_half_edges;
+        // draw->hard_half_edge_tuples = new_hard_half_edge_tuples;
+
+    }
+
+
+    #else
+
+    List<vec3> new_vertex_positions = {};
+    List<uint3> new_triangle_indices = {};
+    List<vec3> new_triangle_normals = {}; // TODO: eliminate this list
+    List<uint2> new_hard_edges = {}; // FORNOW: doubling up
+    {
+        WorkMesh *mesh = &meshes->work;
+        uint num_hard_edges = meshes->draw.num_hard_edges;
+        uint2 *hard_edges = meshes->draw.hard_edges;
+
+        bool *visited = (bool *) calloc(mesh->num_triangles, sizeof(bool));
+        uint num_patches = 0;
+        while (true) {
+            // flood fill off triangle indices
+            List<uint> patch = {};
+            List<uint2> patch_hard_edges = {};
+            {
+                Queue<uint> queue = {};
+
+                auto VISIT = [&](uint triangle_index) {
+                    ASSERT(!visited[triangle_index]);
+                    visited[triangle_index] = true;
+                    patch.push_back(triangle_index);
+                    queue_enqueue(&queue, triangle_index);
+                };
+
+                { // seed (and if seed fails, break out of while (true); O(num_triangles)
+                    bool seeded = false;
+                    for_(triangle_index, mesh->num_triangles) {
+                        if (!visited[triangle_index]) {
+                            // messagef(pallete.yellow, "%d", triangle_index);
+                            VISIT(triangle_index);
+                            seeded = true;
+                            break;
+                        }
+                    }
+                    if (!seeded) break;
+                    ++num_patches;
+                }
+
+                // flood
+                while (queue.length) {
+                    uint current_triangle_index = queue_dequeue(&queue);
+                    uint3 tri = mesh->triangle_tuples[current_triangle_index];
+                    for_(d, 3) {
+                        uint i = tri[d];
+                        uint j = tri[(d + 1) % 3];
+                        uint2 edge = { MIN(i, j), MAX(i, j) };
+
+                        { // skip hard edge; FORNOW: O(num_hard_edges)
+                            bool skip_because_hard_edge__NOTE_also_records; {
+                                skip_because_hard_edge__NOTE_also_records = false;
+                                for_(hard_edge_index, num_hard_edges) {
+                                    if (edge == hard_edges[hard_edge_index]) {
+                                        skip_because_hard_edge__NOTE_also_records = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (skip_because_hard_edge__NOTE_also_records) {
+                                list_push_back(&patch_hard_edges, edge);
+                                continue;
+                            }
+                        }
+
+                        { // flood step; FORNOW: O(num_triangles)
+                            for_(cand, mesh->num_triangles) {
+                                if (visited[cand]) continue; // NOTE: also handles i == i case
+                                uint3 tri2 = mesh->triangle_tuples[cand];
+                                for_(d2, 3) {
+                                    uint i2 = tri2[d2];
+                                    uint j2 = tri2[(d2 + 1) % 3];
+                                    uint2 edge2 = { MIN(i2, j2), MAX(i2, j2) };
+                                    if (edge == edge2) {
+                                        VISIT(cand);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            List<uint> VERTINDEX_old_of_new = {}; {
+                // populate list of patch vertices including duplicates
+                for_(triangle_index, patch.length) {
+                    uint3 tri = mesh->triangle_tuples[patch.array[triangle_index]];
+                    for_(d, 3) list_push_back(&VERTINDEX_old_of_new, tri[d]);
+                }
+
+                // sort O(n^2)
+                qsort(
+                        VERTINDEX_old_of_new.array,
+                        VERTINDEX_old_of_new.length,
+                        sizeof(uint),
+                        [](const void *_a, const void *_b) -> int {
+                        uint a = *((uint *) _a);
+                        uint b = *((uint *) _b);
+                        if (a < b) return 1;
+                        if (a > b) return -1;
+                        return 0;
+                        }
+                     );
+
+                { // sloppily remove duplicates
+                    uint *prev = VERTINDEX_old_of_new.array;
+                    for (
+                            uint *curr = VERTINDEX_old_of_new.array + 1;
+                            curr < VERTINDEX_old_of_new.array + VERTINDEX_old_of_new.length;
+                            ++curr
+                        ) {
+                        if (*curr != *prev) *(++prev) = *curr;
+                    }
+                    VERTINDEX_old_of_new.length = 1 + (prev - VERTINDEX_old_of_new.array); // update length
+                }
+            }
+            auto VERTINDEX_newOfOld = [&](uint old) -> uint {
+                for_(i, VERTINDEX_old_of_new.length) {
+                    if (old == VERTINDEX_old_of_new.array[i]) {
+                        return (new_vertex_positions.length + i); // !
+                    }
+                }
+                ASSERT(false);
+                return 0U;
+            };
+
+            uint patch_num_vertices = VERTINDEX_old_of_new.length;
+            vec3 *patch_vertex_positions = (vec3 *) malloc(patch_num_vertices * sizeof(vec3));
+            for_(vertex_index, patch_num_vertices) {
+                patch_vertex_positions[vertex_index] = mesh->vertex_positions[VERTINDEX_old_of_new.array[vertex_index]];
+            }
+
+            uint patch_num_triangles = patch.length;
+            uint3 *patch_triangle_indices = (uint3 *) malloc(patch_num_triangles * sizeof(uint3));
+            for_(triangle_index, patch_num_triangles) {
+                uint3 tri = mesh->triangle_tuples[patch.array[triangle_index]];
+                for_(d, 3) patch_triangle_indices[triangle_index][d] = VERTINDEX_newOfOld(tri[d]);
+            }
+            vec3 *patch_triangle_normals = (vec3 *) calloc(patch_num_triangles, sizeof(vec3));
+            for_(triangle_index, patch_num_triangles) {
+                patch_triangle_normals[triangle_index] = mesh->triangle_normals[patch.array[triangle_index]];
+            }
+
+            for_(triangle_index, patch_num_triangles) {
+                list_push_back(&new_triangle_indices, patch_triangle_indices[triangle_index]);
+                list_push_back(&new_triangle_normals, patch_triangle_normals[triangle_index]);
+            }
+
+            // NOTE: A has to go before B
+            for_(hard_edge_index, patch_hard_edges.length) { // A
+                uint2 edge = patch_hard_edges.array[hard_edge_index];
+                for_(d, 2) edge[d] = VERTINDEX_newOfOld(edge[d]);
+                list_push_back(&new_hard_edges, edge);
+            }
+
+            for_(vertex_index, patch_num_vertices) { // B
+                list_push_back(&new_vertex_positions, patch_vertex_positions[vertex_index]);
+            }
+        }
+        messagef(pallete.blue, "%d", num_patches);
+    }
+
+
+    { // FORNOW sloppy
+        DrawMesh *mesh = &meshes->draw;
+        mesh->num_vertices     = new_vertex_positions.length;
+        messagef(pallete.blue, "%d", mesh->num_vertices);
+        ASSERT(mesh->num_triangles == new_triangle_indices.length);
+        mesh->num_hard_edges   = new_hard_edges.length;
+        mesh->vertex_positions = new_vertex_positions.array;
+        mesh->triangle_tuples = new_triangle_indices.array;
+        mesh->triangle_normals = new_triangle_normals.array;
+        mesh->hard_edges       = new_hard_edges.array;
+    }
+
+    #endif
+}
+
+void mesh_vertex_normals_calculate(Meshes *meshes) {
+    DrawMesh *mesh = &meshes->draw;
+    mesh->vertex_normals = (vec3 *) calloc(mesh->num_vertices, sizeof(vec3));
+    for_(triangle_index, mesh->num_triangles) {
+        vec3 triangle_normal = meshes->work.triangle_normals[triangle_index];
+        uint3 triangle_ijk = mesh->triangle_tuples[triangle_index];
+        real triangle_double_area; {
+            vec3 a = mesh->vertex_positions[triangle_ijk[0]];
+            vec3 b = mesh->vertex_positions[triangle_ijk[1]];
+            vec3 c = mesh->vertex_positions[triangle_ijk[2]];
+            vec3 e = (b - a);
+            vec3 f = (c - a);
+            triangle_double_area = norm(cross(e, f));
+        }
+        for_(d, 3) {
+            uint vertex_index = triangle_ijk[d];
+            mesh->vertex_normals[vertex_index] += triangle_double_area * triangle_normal;
+        }
+    }
+    for_(vertex_index, mesh->num_vertices) {
+        mesh->vertex_normals[vertex_index] = normalized(mesh->vertex_normals[vertex_index]);
+    }
+}
+
+
+void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vertex_positions, uint3 *triangle_tuples) {
+    {
+        WorkMesh *mesh = &meshes->work;
+
+        mesh->num_triangles = num_triangles;
+        mesh->num_vertices = num_vertices;
+
+        mesh->vertex_positions = vertex_positions;
+        mesh->triangle_tuples = triangle_tuples;
+
+        mesh_bbox_calculate(&meshes->work);
+        mesh_triangle_normals_calculate(&meshes->work);
+        #if 0
+        mesh_translate_to_origin(&meshes->work);
+        #endif
+    }
+
+    {
+        DrawMesh *mesh = &meshes->draw;
+        mesh->num_vertices = num_vertices; // FORNOW
+        mesh->num_triangles = num_triangles;
+    }
+
+    {
+        // mesh_hard_edges_calculate(meshes);
+    }
+
+    {
+        #if 1
+        mesh_divide_into_patches(meshes);
+        #else
+        // TODO: support a simple fallback option
+        WorkMesh *work = &meshes->work;
+        DrawMesh *draw = &meshes->draw;
+        draw->num_vertices = work->num_vertices; // FORNOW
+        draw->vertex_positions = work->vertex_positions;
+        draw->triangle_tuples = work->triangle_tuples;
+        draw->triangle_normals = work->triangle_normals;
+        #endif
+    }
+
+    {
+        mesh_vertex_normals_calculate(meshes);
+    }
+    { // GL
+        DrawMesh *mesh = &meshes->draw;
+        glBindVertexArray(GL.VAO);
+        POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+        POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+        POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
+        { // FORNOW: gross explosion of triangle_normal from the work mesh
+        }
+        {
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
+        }
+        { // gross explosion from triangles to edges
+          // if there is a better way to do this please lmk :(
+            uint size = 3 * mesh->num_triangles * sizeof(uint2);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
+            uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
+            defer { free(mesh_edge_tuples); };
+            uint k = 0;
+            for_(i, mesh->num_triangles) {
+                for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
+            }
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
+        }
+        {
+            // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
+            // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
+        }
+    }
+}
+
+void meshes_free_AND_zero(Meshes *meshes) {
+    {
+        WorkMesh *mesh = &meshes->work;
+        GUARDED_free(mesh->vertex_positions);
+        GUARDED_free(mesh->triangle_tuples);
+        GUARDED_free(mesh->triangle_normals);
+    }
+
+    {
+        DrawMesh *mesh = &meshes->draw;
+        GUARDED_free(mesh->vertex_positions);
+        GUARDED_free(mesh->vertex_normals);
+        GUARDED_free(mesh->triangle_tuples);
+    }
+
+    *meshes = {};
+}
+
+// TODO: arenasssssssssss (the mesh needs an arenaaaaaaaaa)
+
+//oh no
+#define GUARDED_MALLOC_MEMCPY(dst, src, count, type) \
+    do { \
+        if (src) { \
+            dst = (type *) malloc(count * sizeof(type)); \
+            memcpy(dst, src, count * sizeof(type)); \
+        } \
+    } while (0);
+
+void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
+    *_dst = *_src;
+
+    {
+        WorkMesh *dst = &_dst->work;
+        WorkMesh *src = &_src->work;
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices , vec3 );
+        GUARDED_MALLOC_MEMCPY(dst->triangle_tuples, src->triangle_tuples, src->num_triangles, uint3);
+        GUARDED_MALLOC_MEMCPY(dst->triangle_normals, src->triangle_normals, src->num_triangles, vec3 );
+    }
+
+    {
+        DrawMesh *dst = &_dst->draw;
+        DrawMesh *src = &_src->draw;
+        GUARDED_MALLOC_MEMCPY(dst->vertex_positions, src->vertex_positions, src->num_vertices  , vec3 );
+        GUARDED_MALLOC_MEMCPY(dst->vertex_normals,   src->vertex_normals,   src->num_vertices  , vec3 );
+        GUARDED_MALLOC_MEMCPY(dst->triangle_tuples, src->triangle_tuples, src->num_triangles , uint3);
     }
 }
 
@@ -1420,12 +2101,12 @@ bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift
 void world_state_deep_copy(WorldState_ChangesToThisMustBeRecorded_state *dst, WorldState_ChangesToThisMustBeRecorded_state *src) {
     *dst = *src;
     dst->drawing.entities = {};
-    list_clone(&dst->drawing.entities,    &src->drawing.entities   );
-    mesh_deep_copy(&dst->mesh, &src->mesh);
+    list_clone(&dst->drawing.entities, &src->drawing.entities);
+    meshes_deep_copy(&dst->meshes, &src->meshes);
 }
 
 void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *world_state) {
-    mesh_free_AND_zero(&world_state->mesh);
+    meshes_free_AND_zero(&world_state->meshes);
     list_free_AND_zero(&world_state->drawing.entities);
 }
 
@@ -1433,10 +2114,10 @@ void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *wor
 // uh oh ///////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO: don't overwrite fancy mesh, let the calling code do what it will
+// TODO: don't overwrite  mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
-Mesh wrapper_manifold(
-        Mesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
+Meshes wrapper_manifold(
+        Meshes *meshes, // dest__NOTE_GETS_OVERWRITTEN,
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         vec2 **polygonal_loops,
@@ -1449,6 +2130,7 @@ Mesh wrapper_manifold(
         real dxf_axis_angle_from_y
         ) {
 
+    WorkMesh *mesh = &meshes->work;
 
     bool add = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
     bool cut = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
@@ -1466,7 +2148,7 @@ Mesh wrapper_manifold(
                     (real *) mesh->vertex_positions,
                     mesh->num_vertices,
                     3,
-                    (uint *) mesh->triangle_indices,
+                    (uint *) mesh->triangle_tuples,
                     mesh->num_triangles);
 
             manifold_A = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
@@ -1541,7 +2223,7 @@ Mesh wrapper_manifold(
         manifold_delete_polygons(_polygons);
     }
 
-    Mesh result; { // C <- f(A, B)
+    Meshes result; { // C <- f(A, B)
         ManifoldMeshGL *meshgl; {
             ManifoldManifold *manifold_C;
             if (manifold_A == NULL) {
@@ -1564,14 +2246,11 @@ Mesh wrapper_manifold(
         }
 
         { // result <- meshgl
-            result = {};
-            result.num_vertices = manifold_meshgl_num_vert(meshgl);
-            result.num_triangles = manifold_meshgl_num_tri(meshgl);
-            result.vertex_positions = (vec3 *) manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-            result.triangle_indices = (uint3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
-            mesh_triangle_normals_calculate(&result);
-            mesh_cosmetic_edges_calculate(&result);
-            mesh_bbox_calculate(&result);
+            uint num_vertices = manifold_meshgl_num_vert(meshgl);
+            uint num_triangles = manifold_meshgl_num_tri(meshgl);
+            vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
+            uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
+            meshes_init(&result, num_vertices, num_triangles, vertex_positions, triangle_tuples);
         }
 
         manifold_delete_meshgl(meshgl);
