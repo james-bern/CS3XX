@@ -29,6 +29,7 @@ void script_process(String string) {
                         vec3 mouse_ray_origin;
                         vec3 mouse_ray_direction;
                         sscanf(params, "%f %f %f %f %f %f", &mouse_ray_origin.x, &mouse_ray_origin.y, &mouse_ray_origin.z, &mouse_ray_direction.x, &mouse_ray_direction.y, &mouse_ray_direction.z);
+                        mouse_ray_direction = normalized(mouse_ray_direction);
                         instabaked_event = make_mouse_event_3D(mouse_ray_origin, mouse_ray_direction);
                     } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
                         is_instabaked = false;

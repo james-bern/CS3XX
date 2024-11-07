@@ -203,6 +203,8 @@ TransformMouseDrawingPositionResult transform_mouse_drawing_position(
     return result;
 }
 
+// This needs to take arguments; it currently breaks the scripting API
+// (You can't assume that other.mouse_OpenGL is always the position for this function)
 MagicSnapResult3D magic_snap_3d() {
     WorkMesh *mesh = &meshes->work;
 

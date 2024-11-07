@@ -753,6 +753,7 @@ void conversation_draw() {
                 }
                 for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
                     eso_begin(PV_3D * M * T_Move, SOUP_LINES); {
+                        eso_overlay(true);
                         _for_each_selected_entity_ {
                             real alpha;
                             vec3 color;

@@ -95,7 +95,29 @@ int main() {
 
 char *startup_script = "";
 
-#if 1 // snap
+// TODO: DEBUG_CHECKPOINT_EVERYTHING
+// TODO: button to print script to console
+
+#if 1 // splash
+run_before_main {
+    startup_script =
+        "^."
+        "^osplash.dxf\n"
+        "y"
+        "s"
+        "<m2d 16 16>"
+        "<m2d -16 16>"
+        "<m2d -16 -16>"
+        "<m2d 16 -16>"
+        "c"
+        "<m2d 100 0>"
+        "[50\n"
+        "<m3d 0 100 0 0 -1 0>"
+        ;
+};
+#endif
+
+#if 0 // snap
 run_before_main {
     startup_script =
         "^."
