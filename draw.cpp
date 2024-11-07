@@ -843,8 +843,11 @@ void conversation_draw() {
                 bbox2 face_selection_bbox; { // FORNOW: recompute every frame on CPU
                     face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
                     if (feature_plane->is_active) {
+
+                        mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
+
                         WorkMesh *mesh = &meshes->work;
-                        for_(triangle_index, work->num_triangles) {
+                        for_(triangle_index, mesh->num_triangles) {
                             vec3 n = mesh->triangle_normals[triangle_index];
                             if (ARE_EQUAL(n, feature_plane->normal)) {
                                 uint3 tuple = mesh->triangle_tuples[triangle_index];
@@ -852,9 +855,9 @@ void conversation_draw() {
                                 real sd = dot(a, n);
                                 if (ARE_EQUAL(sd, feature_plane->signed_distance_to_world_origin)) {
                                     for_(d, 3) {
-                                        vec3 p_World = mesh->vertex_positions[tuple[d]];
-                                        vec2 p_2D
-                                        face_selection_bbox += p;
+                                        vec3 p_3D = mesh->vertex_positions[tuple[d]];
+                                        vec2 p_2D = _V2(transformPoint(inv_M_3D_from_2D, p_3D));
+                                        face_selection_bbox += p_2D;
                                     }
                                 }
                             }

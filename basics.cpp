@@ -117,6 +117,13 @@ bool IS_ZERO(real a) { return (ABS(a) < TINY_VAL); }
 tuD bool IS_ZERO(vecD a) { for_(d, D) if (!IS_ZERO(a[d])) return false; return true; }
 bool ARE_EQUAL(real a, real b) { return IS_ZERO(ABS(a - b)); }
 tuD bool ARE_EQUAL(vecD a, vecD b) { return IS_ZERO((a - b)); }
+
+#define SMALL_VAL 1e-3
+bool APPROX_ZERO(real a) { return (ABS(a) < SMALL_VAL); }
+tuD bool APPROX_ZERO(vecD a) { for_(d, D) if (!APPROX_ZERO(a[d])) return false; return true; }
+bool APPROX_EQUAL(real a, real b) { return APPROX_ZERO(ABS(a - b)); }
+tuD bool APPROX_EQUAL(vecD a, vecD b) { return APPROX_ZERO((a - b)); }
+
 bool IS_BETWEEN_LOOSE(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
 bool IS_BETWEEN_TIGHT(real p, real a, real b) { return (((a + TINY_VAL) < p) && (p < (b - TINY_VAL))); }
 // CLAMP
