@@ -100,6 +100,7 @@ char *startup_script = "";
 
 #if 1 // splash
 run_before_main {
+    // #define DEBUG_HISTORY_CHECKPOINT_EVERYTHING // TODO: why this broken?
     startup_script =
         "^."
         "^osplash.dxf\n"

@@ -70,6 +70,9 @@ void history_process_event(Event standard_event) {
     StandardEventProcessResult tmp = standard_event_process(standard_event);
     standard_event.record_me = tmp.record_me;
     standard_event.checkpoint_me = tmp.checkpoint_me;
+    #ifdef DEBUG_HISTORY_CHECKPOINT_EVERYTHING
+    standard_event.checkpoint_me = true;
+    #endif
     #ifndef DEBUG_HISTORY_DISABLE_SNAPSHOTTING
     standard_event.snapshot_me = tmp.snapshot_me;
     #endif
