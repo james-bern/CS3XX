@@ -1,6 +1,5 @@
 
-
-struct Cookbook {
+struct Cookbook { 
     Event event;
     StandardEventProcessResult *result;
     bool skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack;
@@ -232,7 +231,6 @@ struct Cookbook {
     } FilletResult;
 
     FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 reference_point, real radius) {
-
         FilletResult fillet_result = {};
         const Entity *E = EntOne;
         const Entity *F = EntTwo;
@@ -591,21 +589,33 @@ struct Cookbook {
         return fillet_result;
     }
 
-    void attempt_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
+    typedef struct {
+        bool dogear_success;
+        Entity ent_one;
+        Entity ent_two;
+        Entity fillet_arc_one;
+        Entity fillet_arc_two;
+        Entity dogear_arc_one;
+        Entity dogear_arc_two;
+    } DogEarResult;
+
+    DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
+        DogEarResult dogear_result = {};
+
         if (E == F) {
             messagef(pallete.orange, "DogEar: clicked same entity twice");
-            return;
+            return dogear_result;
         }
 
         if (IS_ZERO(radius)) {
             messagef(pallete.orange, "DogEar: FORNOW: must have non-zero radius");
-            return;
+            return dogear_result;
         }
 
         bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
         if (!is_line_line) {
             messagef(pallete.orange, "DogEar: only line-line is supported");
-            return;
+            return dogear_result;
         }
 
         //                                    ,--.
@@ -639,7 +649,7 @@ struct Cookbook {
             LineLineXResult _x = line_line_intersection(a, b, c, d);
             if (_x.lines_are_parallel) {
                 messagef(pallete.orange, "DogEar: lines are parallel");
-                return;
+                return dogear_result;
             }
             x = _x.point;
 
@@ -691,16 +701,12 @@ struct Cookbook {
         FilletResult fillet_one = preview_fillet(E, &G, e + (e - y), radius);
         FilletResult fillet_two = preview_fillet(F, &fillet_one.ent_two, f + (f - y), radius);
 
-        _buffer_add_entity(fillet_one.ent_one);
-        _buffer_add_entity(fillet_one.fillet_arc);
-        _buffer_add_entity(fillet_two.ent_one);
-        _buffer_add_entity(fillet_two.fillet_arc);
+        dogear_result.ent_one = fillet_one.ent_one;
+        dogear_result.ent_two = fillet_two.ent_one;
+        dogear_result.fillet_arc_one = fillet_one.fillet_arc;
+        dogear_result.fillet_arc_two = fillet_two.fillet_arc;
 
 
-        #if 0
-        // // single arc version
-        _buffer_add_entity(G);
-        #else
         // // split arc version
         Entity G1;
         Entity G2;
@@ -711,9 +717,11 @@ struct Cookbook {
             G1.arc.end_angle_in_degrees -= half_theta_in_degrees;
             G2.arc.start_angle_in_degrees = G1.arc.end_angle_in_degrees;
         }
-        _buffer_add_entity(G1);
-        _buffer_add_entity(G2);
-        #endif
+        dogear_result.dogear_arc_one = G1;
+        dogear_result.dogear_arc_two = G2;
+
+        return dogear_result;
+
     }
 
 
