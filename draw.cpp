@@ -853,7 +853,7 @@ void conversation_draw() {
                                 uint3 tuple = mesh->triangle_tuples[triangle_index];
                                 vec3 a = mesh->vertex_positions[tuple[0]];
                                 real sd = dot(a, n);
-                                if (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f) {
+                                if (ABS(sd - feature_plane->signed_distance_to_world_origin) < 0.01f) {
                                     for_(d, 3) {
                                         vec3 p_3D = mesh->vertex_positions[tuple[d]];
                                         vec2 p_2D = _V2(transformPoint(inv_M_3D_from_2D, p_3D));

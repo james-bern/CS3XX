@@ -119,6 +119,10 @@ struct {
 
         uniform vec3 eye_World;
 
+        uniform int feature_plane_is_active;
+        uniform vec3 feature_plane_normal;
+        uniform float feature_plane_signed_distance_to_world_origin;
+
         uniform int mode;
 
         out vec4 _gl_FragColor;
@@ -148,6 +152,14 @@ struct {
                     }
                 }
 
+                if (feature_plane_is_active != 0) { // feature plane override
+                    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
+                        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
+                            rgb = mix(rgb, vec3(1.0), 0.4);
+                        }
+                    }
+                }
+
                 if (false) { // sunlight gooch
                     vec3 warm_color = vec3(1.0, 0.7, 0.3);
                     vec3 cool_color = vec3(0.3, 0.7, 1.0);
@@ -168,30 +180,30 @@ struct {
 
                 { // eye light phong fresnel
                     vec3 L = normalize(eye_World - fs_in.position_World);
-                    vec3 E = normalize(eye_World - fs_in.position_World);
-                    vec3 H = normalize(L + E);
-                    float LN = dot(L, N);
-                    float F0 = 0.05;
-                    float diffuse = max(0.0, LN);
-                    float specular = pow(max(0.0, dot(N, H)), 256);
-                    float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-                    rgb += 0.2 * diffuse;
-                    rgb += 0.2 * specular;
-                    rgb += 0.3 * fresnel;
-                }
+    vec3 E = normalize(eye_World - fs_in.position_World);
+    vec3 H = normalize(L + E);
+    float LN = dot(L, N);
+    float F0 = 0.05;
+    float diffuse = max(0.0, LN);
+    float specular = pow(max(0.0, dot(N, H)), 256);
+    float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
+    rgb += 0.2 * diffuse;
+    rgb += 0.2 * specular;
+    rgb += 0.3 * fresnel;
+}
 
-            } else if ((mode == 1) || (mode == 3)) {
-                int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
-                rgb.r = (i % 256);
-                rgb.g = ((i / 256) % 256);
-                rgb.b = ((i / (256 * 256)) % 256);
-                rgb /= 255.0;
-            }
+} else if ((mode == 1) || (mode == 3)) {
+    int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
+    rgb.r = (i % 256);
+    rgb.g = ((i / 256) % 256);
+    rgb.b = ((i / (256 * 256)) % 256);
+    rgb /= 255.0;
+}
 
-            _gl_FragColor = vec4(rgb, a);
-            }
-        )"";
-    } face_pass_source;
+_gl_FragColor = vec4(rgb, a);
+}
+)"";
+} face_pass_source;
 
 
 
@@ -483,6 +495,9 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
         glUniform1i(UNIFORM(shader_program, "TextureID"), GL2.TextureID);
 
+        glUniform1i(UNIFORM(shader_program, "feature_plane_is_active"), feature_plane->is_active);
+        glUniform3f(UNIFORM(shader_program, "feature_plane_normal"), feature_plane->normal.x, feature_plane->normal.y, feature_plane->normal.z);
+        glUniform1f(UNIFORM(shader_program, "feature_plane_signed_distance_to_world_origin"), feature_plane->signed_distance_to_world_origin);
 
         glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
         // glBindTexture(GL_TEXTURE_2D, 0);
@@ -612,9 +627,9 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 #if 0
-        static real __t01;
-        static real _t01;
-        __t01 += 0.0167f;
-        _t01 = 0.5 - 0.5 * COS(__t01);
-        glUniform1f(UNIFORM(shader_program, "_t01"), _t01);
+static real __t01;
+static real _t01;
+__t01 += 0.0167f;
+_t01 = 0.5 - 0.5 * COS(__t01);
+glUniform1f(UNIFORM(shader_program, "_t01"), _t01);
 #endif
