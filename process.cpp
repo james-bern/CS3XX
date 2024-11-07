@@ -296,11 +296,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     pen->offset_Pixel.x = 4;
                     pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
                     {
-                        String fornow_hack = name;
-                        if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
-                        if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
+                        // String fornow_hack = name;
+                        // if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
+                        // if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
                         if (!hovering) {
-                            easy_text_draw(pen, fornow_hack);
+                            // easy_text_draw(pen, fornow_hack);
+                            easy_text_draw(pen, name);
                         } else {
                             easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
                         }

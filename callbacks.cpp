@@ -201,7 +201,7 @@ void _callback_scroll_helper(Camera *camera_2D, double yoffset) {
     ASSERT(IS_ZERO(camera_2D->angle_of_view));
     ASSERT(IS_ZERO(camera_2D->euler_angles));
     vec2 mouse_position_World_before  = transformPoint(inverse(camera_2D->get_PV()), other.mouse_OpenGL);
-    camera_2D->ortho_screen_height_World *= (1.0f - 0.1f * real(yoffset));
+    camera_2D->ortho_screen_height_World *= (1.0f - 0.05f * real(yoffset));
     vec2 mouse_position_World_after = transformPoint(inverse(camera_2D->get_PV()), other.mouse_OpenGL);
     camera_2D->pre_nudge_World -= (mouse_position_World_after - mouse_position_World_before);
 }
@@ -240,13 +240,13 @@ void callback_drop(GLFWwindow *, int count, const char **paths) {
     }
 }
 
-void callback_window_close(GLFWwindow *window) {
-    if (!other.awaiting_close_confirmation) {
+void callback_window_close(GLFWwindow *) {
+    // if (!other.awaiting_close_confirmation) {
 
-        glfwSetWindowShouldClose(window, GLFW_FALSE);
-        other.awaiting_close_confirmation = true;
+    //     glfwSetWindowShouldClose(window, GLFW_FALSE);
+    //     other.awaiting_close_confirmation = true;
 
-        set_state_Draw_command(SaveDXF);
-        set_state_Mesh_command(SaveSTL);
-    }
+    //     set_state_Draw_command(SaveDXF);
+    //     set_state_Mesh_command(SaveSTL);
+    // }
 }

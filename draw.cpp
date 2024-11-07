@@ -33,100 +33,8 @@ mat4 get_M_3D_from_2D() {
     return M4_xyzo(x, y, z, (feature_plane->signed_distance_to_world_origin) * feature_plane->normal);
 }
 
-bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
-    DrawMesh *mesh = &meshes->draw;
-
-    bbox2 face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
-
-    // TODO: restore face_selection_bbox
-    // TODO: restore transparent face
-
-    // mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
-    fancy_draw(P_3D, V_3D, M_3D, mesh);
-    // TODO: face_selection_bbox
-
-    #if 0
-    for_(pass, 2) {
-        eso_begin(PVM_3D, (!other.show_details) ? SOUP_TRIANGLES : SOUP_TRI_MESH);
-        eso_size(0.5f);
-
-        // mat3 inv_transpose_V_3D = inverse(transpose(_M3(V_3D)));
-
-
-        for_(i, mesh->num_triangles) {
-            vec3 n = mesh->triangle_normals[i];
-            vec3 p[3];
-            real x_n;
-            {
-                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_tuples[i][j]];
-                x_n = dot(n, p[0]);
-            }
-
-            vec3 eye; {
-                mat4 C = inverse(V_3D); // Is this recalculating the inverse for every triangle!?
-                for_(d, 3) eye[d] = C(d, 3);
-            }
-
-            vec3 v = normalized(eye - p[0]);
-
-            vec3 color; 
-            real alpha;
-            {
-                // vec3 n_Camera = inv_transpose_V_3D * n;
-                // vec3 color_n = V3(V2(0.66f) + 0.33f * _V2(n_Camera), 1.0f);
-                // n_Camera = V3(0.5f) + 0.5f * n_Camera;
-                // vec3 color_n = (n_Camera.x * monokai.red + n_Camera.y * monokai.blue + n_Camera.z * monokai.purple) / 2;
-                vec3 color_n = V3(0.4f + 0.3f * MAX(0.0f, dot(n, v)));
-                if ((true || feature_plane->is_active) && (dot(n, feature_plane->normal) > 0.99f) && (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f)) {
-                    if (pass == 0) continue;
-
-                    // TODO:
-                    if (feature_plane->is_active) {
-                        // color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), pallete.white, V3(0.65f, 0.67f, 0.10f));// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, pallete.yellow, V3(0.85f, 0.87f, 0.30f));
-                        color = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_plane_selected), pallete.white, pallete.light_gray);// CLAMPED_LERP(2.0f * time_since_plane_selected - 0.5f, pallete.yellow, V3(0.85f, 0.87f, 0.30f));
-                    } else color = color_n;
-
-                    // if (2.0f * time_since_plane_selected < 0.3f) color = pallete.white; // FORNOW
-
-                    alpha = CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_going_inside), 1.0f, 0.7f);
-
-                    face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[0]));
-                    face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[1]));
-                    face_selection_bbox += _V2(transformPoint(inv_M_3D_from_2D, p[2]));
-
-
-                } else {
-                    if (pass == 1) continue;
-                    color = color_n;
-                    alpha = 1.0f;
-                }
-            }
-            real mask = CLAMP(1.2f * other.time_since_successful_feature, 0.0f, 2.0f);
-            // color = CLAMPED_LINEAR_REMAP(time_since_successful_feature, -0.5f, 0.5f, pallete.white, color);
-            eso_color(color, alpha);
-            for_(d, 3) {
-                eso_color(CLAMPED_LERP(mask + SIN(CLAMPED_INVERSE_LERP(p[d].y, mesh->bbox.max.y, mesh->bbox.min.y) + 0.5f * other.time_since_successful_feature), pallete.white, color), alpha);
-
-                eso_vertex(p[d]);
-            }
-        }
-        eso_end();
-    }
-    #endif
-
-    return face_selection_bbox;
-}
 
 void conversation_draw() {
-
-
-
-
-
-
-
-
-
 
     mat4 P_2D = camera_drawing->get_P();
     mat4 V_2D = camera_drawing->get_V();
@@ -135,13 +43,9 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D();
 
-
-
-        TransformMouseDrawingPositionResult mouse_no_snap_potentially_15_deg__GRAY = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, true );
-        TransformMouseDrawingPositionResult mouse_transformed__PINK                = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, false);
-        JUICEIT_EASYTWEEN(&preview->mouse_no_snap_potentially_15_deg__GRAY_position, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
-
-
+    TransformMouseDrawingPositionResult mouse_no_snap_potentially_15_deg__GRAY = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, true );
+    TransformMouseDrawingPositionResult mouse_transformed__PINK                = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, false);
+    JUICEIT_EASYTWEEN(&preview->mouse_no_snap_potentially_15_deg__GRAY_position, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
 
     bool extruding = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(ExtrudeCut)));
     bool revolving = ((state_Mesh_command_is_(RevolveAdd)) || (state_Mesh_command_is_(RevolveCut)));
@@ -226,9 +130,9 @@ void conversation_draw() {
     bool moving_selected_entities = (
             (state_Draw_command_is_(Move)) || 
             ((two_click_command->awaiting_second_click)
-            && (0 
-                || (state_Draw_command_is_(Rotate))
-                || (state_Draw_command_is_(Copy)))
+             && (0 
+                 || (state_Draw_command_is_(Rotate))
+                 || (state_Draw_command_is_(Copy)))
             )); // TODO: loft up
 
     { // draw 2D draw 2d draw
@@ -932,12 +836,32 @@ void conversation_draw() {
             }
         }
 
+        fancy_draw(P_3D, V_3D, M4_Identity(), &meshes->draw);
+
         { // feature plane feature-plane feature_plane // floating sketch plane; selection plane NOTE: transparent
             {
-                bbox2 face_selection_bbox; {
-                    // TODO fix
-                    face_selection_bbox = mesh_draw(P_3D, V_3D, M4_Identity());
+                bbox2 face_selection_bbox; { // FORNOW: recompute every frame on CPU
+                    face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
+                    if (feature_plane->is_active) {
+                        WorkMesh *mesh = &meshes->work;
+                        for_(triangle_index, work->num_triangles) {
+                            vec3 n = mesh->triangle_normals[triangle_index];
+                            if (ARE_EQUAL(n, feature_plane->normal)) {
+                                uint3 tuple = mesh->triangle_tuples[triangle_index];
+                                vec3 a = mesh->vertex_positions[tuple[0]];
+                                real sd = dot(a, n);
+                                if (ARE_EQUAL(sd, feature_plane->signed_distance_to_world_origin)) {
+                                    for_(d, 3) {
+                                        vec3 p_World = mesh->vertex_positions[tuple[d]];
+                                        vec2 p_2D
+                                        face_selection_bbox += p;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+
                 bbox2 dxf_selection_bbox; {
                     dxf_selection_bbox = entities_get_bbox(&drawing->entities, true);
 

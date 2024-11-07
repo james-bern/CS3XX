@@ -101,7 +101,6 @@ run_before_main {
         "^."
         "^odemo.dxf\n"
         "ysq1[5\n"
-        "n5\nsq2{5"
         ;
 };
 #endif
