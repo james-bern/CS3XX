@@ -1847,10 +1847,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (index_of_first_triangle_hit_by_ray != -1) { // something hit
                     result.checkpoint_me = result.record_me = true;
                     other.time_since_plane_selected = 0.0f;
-                    {
-                        feature_plane->normal = meshes->work.triangle_normals[index_of_first_triangle_hit_by_ray];
-                        feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, exact_hit_pos);
-                    }
+
+                    feature_plane->is_active = true;
+                    feature_plane->normal = meshes->work.triangle_normals[index_of_first_triangle_hit_by_ray];
+                    feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, exact_hit_pos);
                 }
 
                 // if (snap_result.hit_mesh) { // something hit
