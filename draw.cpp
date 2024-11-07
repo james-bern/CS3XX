@@ -849,11 +849,11 @@ void conversation_draw() {
                         WorkMesh *mesh = &meshes->work;
                         for_(triangle_index, mesh->num_triangles) {
                             vec3 n = mesh->triangle_normals[triangle_index];
-                            if (ARE_EQUAL(n, feature_plane->normal)) {
+                            if (dot(n, feature_plane->normal) > 0.99f) {
                                 uint3 tuple = mesh->triangle_tuples[triangle_index];
                                 vec3 a = mesh->vertex_positions[tuple[0]];
                                 real sd = dot(a, n);
-                                if (ARE_EQUAL(sd, feature_plane->signed_distance_to_world_origin)) {
+                                if (ABS(x_n - feature_plane->signed_distance_to_world_origin) < 0.01f) {
                                     for_(d, 3) {
                                         vec3 p_3D = mesh->vertex_positions[tuple[d]];
                                         vec2 p_2D = _V2(transformPoint(inv_M_3D_from_2D, p_3D));
