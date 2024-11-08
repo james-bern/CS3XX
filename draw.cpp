@@ -112,14 +112,11 @@ void conversation_draw() {
         bool dragging = (other.mouse_left_drag_pane == Pane::Separator);
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
         eso_begin(M4_Identity(), SOUP_LINES);
-        // eso_overlay(true);
+        eso_overlay(true);
         eso_size(dragging ? 1.0f
                 : hovering ? 2.0f
                 : 1.5f);
-        eso_color(
-                dragging ? pallete.white
-                : hovering ? pallete.light_gray
-                : pallete.gray);
+        eso_color(pallete.white);
         eso_vertex(other.x_divider_drawing_mesh_OpenGL, -1.0f);
         eso_vertex(other.x_divider_drawing_mesh_OpenGL,  1.0f);
         eso_end();
@@ -694,84 +691,8 @@ void conversation_draw() {
         }
 
 
-        mat4 inv_T_o = M4_Translation(-preview->drawing_origin);
-        if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew)
-            ;
-            // FORNOW
-            bool moving_stuff = ((state_Draw_command_is_(SetOrigin)) || (state_Mesh_command_is_(NudgePlane)));
-            vec3 target_preview_tubes_color = (0) ? V3(0)
-                : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
-                : (adding) ? pallete.green
-                : (cutting) ? pallete.red
-                : (moving_stuff) ? get_color(ColorCode::Emphasis)
-                : get_color(ColorCode::Selection);
-            JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
 
-            uint NUM_TUBE_STACKS_INCLUSIVE;
-            mat4 M;
-            mat4 M_incr;
-            {
-                // mat4 T_o = M4_Translation(preview->drawing_origin);
-                if (extruding) {
-                    real a = -preview->extrude_in_length;
-                    real L = preview->extrude_out_length + preview->extrude_in_length;
-                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / 2.5f)) + 2);
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
-                    M_incr = M4_Translation(0.0f, 0.0f, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
-                } else if (revolving) {
-                    real a = -RAD(preview->revolve_out_angle);
-                    real b = RAD(preview->revolve_in_angle);
-                    real L = b - a;
-                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / 0.1f)) + 2);
-                    vec3 axis = V3(e_theta(PI / 2 + preview_dxf_axis_angle_from_y), 0.0f);
-                    mat4 R_0 = M4_RotationAbout(axis, a);
-                    mat4 R_inc = M4_RotationAbout(axis, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
-                    mat4 T_a = M4_Translation(V3(preview_dxf_axis_base_point, 0.0f));
-                    mat4 inv_T_a = inverse(T_a);
-                    // M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
-                    M_incr = T_a * R_inc * inv_T_a;
-                    M = M_3D_from_2D * inv_T_o * T_a * R_0 * inv_T_a;
-                } else if (state_Draw_command_is_(SetOrigin)) {
-                    NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
-                    M_incr = M4_Identity();
-                } else if (state_Mesh_command_is_(NudgePlane)) {
-                    NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview->feature_plane_offset + Z_FIGHT_EPS);
-                    M_incr = M4_Identity();
-                } else { // default
-                    NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
-                    M_incr = M4_Identity();
-                }
-
-                mat4 T_Move;
-                if (moving_selected_entities) {
-                    T_Move = M4_Translation(preview->mouse_no_snap_potentially_15_deg__GRAY_position - two_click_command->first_click);
-                } else {
-                    T_Move = M4_Identity();
-                }
-                for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
-                    eso_begin(PV_3D * M * T_Move, SOUP_LINES); {
-                        eso_overlay(true);
-                        _for_each_selected_entity_ {
-                            real alpha;
-                            vec3 color;
-                            // if (entity->is_selected) {
-                            alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_is_selected_changed, other.time_since_plane_selected), 0.0f, 1.0f);
-                            color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), pallete.white, preview->tubes_color);
-                            // } else {
-                            //     alpha = CLAMPED_LERP(5.0f * entity->time_since_is_selected_changed, 1.0f, 0.0f);
-                            //     color = get_color(color);
-                            // }
-                            eso_color(color, alpha);
-                            eso_entity__SOUP_LINES(entity);
-                        }
-                    } eso_end();
-                    M *= M_incr;
-                }
-            }
-        }
+        // mat4 inv_T_o = M4_Translation(-preview->drawing_origin);
 
         if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
             real r = other.camera_mesh.ortho_screen_height_World / 100.0f;
@@ -794,56 +715,16 @@ void conversation_draw() {
             eso_end();
         }
 
-        if (!other.hide_grid) { // grid 3D grid 3d grid
-            for_(k, 6) {
-                real r = 0.5f * GRID_SIDE_LENGTH;
-                mat4 M0 = M4_Translation(-r, -r, r);
-                mat4 M1; {
-                    M1 = {}; // FORNOW compiler warning
-                    if (k == 0) M1 = M4_Identity();
-                    if (k == 1) M1 = M4_RotationAboutYAxis(PI);
-                    if (k == 2) M1 = M4_RotationAboutXAxis( PI / 2);
-                    if (k == 3) M1 = M4_RotationAboutXAxis(-PI / 2);
-                    if (k == 4) M1 = M4_RotationAboutYAxis( PI / 2);
-                    if (k == 5) M1 = M4_RotationAboutYAxis(-PI / 2);
-                }
-                mat4 PVM1 = PV_3D * M1;
-                { // backface culling (check sign of rasterized triangle)
-                    vec2 a = _V2(transformPoint(PVM1, V3(0.0f, 0.0f, r)));
-                    vec2 b = _V2(transformPoint(PVM1, V3(1.0f, 0.0f, r)));
-                    vec2 c = _V2(transformPoint(PVM1, V3(0.0f, 1.0f, r)));
-                    if (cross(b - a , c - a) > 0.0f) continue;
-                }
-                mat4 transform = PVM1 * M0;
-                eso_begin(transform, SOUP_LINES);
-                eso_color(pallete.darker_gray);
-                eso_size(2.0f);
-                for (uint i = 0; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING); ++i) {
-                    real tmp = i * GRID_SPACING;
-                    eso_vertex(tmp, 0.0f);
-                    eso_vertex(tmp, GRID_SIDE_LENGTH);
-                    eso_vertex(0.0f, tmp);
-                    eso_vertex(GRID_SIDE_LENGTH, tmp);
-                }
-                eso_end();
-                // eso_size(4.0f);
-                // eso_begin(transform, SOUP_LINE_LOOP);
-                // eso_color(pallete.dark_gray);
-                // eso_vertex(0.0f, 0.0f);
-                // eso_vertex(0.0f, GRID_SIDE_LENGTH);
-                // eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
-                // eso_vertex(GRID_SIDE_LENGTH, 0.0f);
-                // eso_end();
-            }
-        }
 
         fancy_draw(P_3D, V_3D, M4_Identity(), &meshes->draw);
+
+        mat4 PVM_feature_plane = PV_3D * M_3D_from_2D;
 
         { // feature plane feature-plane feature_plane // floating sketch plane; selection plane NOTE: transparent
             {
                 bbox2 face_selection_bbox; { // FORNOW: recompute every frame on CPU
                     face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
-                    if (feature_plane->is_active) {
+                    { // we want this to be done regardless for HidePlane tweening
 
                         mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
 
@@ -896,22 +777,28 @@ void conversation_draw() {
                     }
                 }
                 if (!feature_plane->is_active) {
-                    target_bbox.min -= V2(10.0f);
-                    target_bbox.max += V2(10.0f);
+                    target_bbox = bbox_inflate(target_bbox, 10.0f);
                 }
                 JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
                 JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
-                // if (other.time_since_plane_selected == 0.0f) { // FORNOW
-                //     preview->feature_plane = target_bbox;
-                // }
+                if (other.time_since_plane_selected == 0.0f) { // FORNOW
+                    preview->feature_plane = face_selection_bbox;
+
+                    // FORNOW
+                    if (face_selection_bbox.min[0] > face_selection_bbox.max[0]) {
+                        preview->feature_plane = {};
+                    }
+
+                    target_bbox = bbox_inflate(target_bbox, -10.0f);
+                }
             }
 
+
             {
-                mat4 PVM = PV_3D * M_3D_from_2D;
                 vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
                     if (state_Mesh_command_is_(NudgePlane)) {
-                        PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
+                        PVM_feature_plane *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (state_Draw_command_is_(SetOrigin)) {
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
@@ -922,21 +809,167 @@ void conversation_draw() {
 
                 JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
 
-                {
-                    glDisable(GL_CULL_FACE); // FORNOW
+            }
+        }
 
-                    real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
-                    if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
-                    // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
-                    // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
-                    eso_begin(PVM * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
-                    eso_color(preview->feature_plane_color, f * 0.4f);
-                    eso_bbox_SOUP_QUADS(preview->feature_plane);
-                    eso_end();
+        // NOTE this is hacky as hell there's something fancy we can probs do with stentcil buffering the lines
+        //      that is more correct than the 35/35 split, but FORNOW this is k
+        #if 1
+        glDepthMask(GL_FALSE);
+        { // draw feature plane
+            glDisable(GL_CULL_FACE); // FORNOW
 
-                    glEnable(GL_CULL_FACE); // FORNOW
+            real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
+            if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
+            // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
+            // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
+            eso_begin(PVM_feature_plane * M4_Translation(0.0f, 0.0f, 2 * Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
+            eso_color(preview->feature_plane_color, f * 0.35f);
+            eso_bbox_SOUP_QUADS(preview->feature_plane);
+            eso_end();
+
+            glEnable(GL_CULL_FACE); // FORNOW
+        }
+        glDepthMask(GL_TRUE);
+        #endif
+        if (!other.hide_grid) { // grid 3D grid 3d grid
+            JUICEIT_EASYTWEEN(&preview->bbox_min_y, meshes->work.bbox.min.y);
+            real r = 0.5f * GRID_SIDE_LENGTH;
+            real f; { // backface culling (check sign of rasterized triangle)
+                vec2 a = _V2(transformPoint(PV_3D, V3(0.0f, 0.0f, 0.0f)));
+                vec2 b = _V2(transformPoint(PV_3D, V3(1.0f, 0.0f, 0.0f)));
+                vec2 c = _V2(transformPoint(PV_3D, V3(0.0f, 0.0f, 1.0f)));
+                f = cross(normalized(c - a) , normalized(b - a));
+            }
+            mat4 transform = PV_3D * M4_Translation(0, 2 * Z_FIGHT_EPS - SGN(f) * Z_FIGHT_EPS, 0);
+            eso_begin(transform, SOUP_LINES);
+            eso_color(pallete.black, CLAMPED_LINEAR_REMAP(f, 1.0f, 0.0f, 0.07f, 0.02f));
+            eso_size(1.0f);
+            for (uint i = 1; i <= uint(GRID_SIDE_LENGTH / GRID_SPACING) - 1; ++i) {
+                real tmp = i * GRID_SPACING;
+                eso_vertex(-r + tmp,              preview->bbox_min_y, -r + 0.0f);
+                eso_vertex(-r + tmp,              preview->bbox_min_y, -r + GRID_SIDE_LENGTH);
+                eso_vertex(-r + 0.0f,             preview->bbox_min_y, -r + tmp);
+                eso_vertex(-r + GRID_SIDE_LENGTH, preview->bbox_min_y, -r + tmp);
+            }
+            eso_end();
+            // eso_size(4.0f);
+            // eso_begin(transform, SOUP_LINE_LOOP);
+            // eso_color(pallete.dark_gray);
+            // eso_vertex(0.0f, 0.0f);
+            // eso_vertex(0.0f, GRID_SIDE_LENGTH);
+            // eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
+            // eso_vertex(GRID_SIDE_LENGTH, 0.0f);
+            // eso_end();
+        }
+        { // draw feature plane
+            glDisable(GL_CULL_FACE); // FORNOW
+
+            real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
+            if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
+            // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
+            // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
+            eso_begin(PVM_feature_plane * M4_Translation(0.0f, 0.0f, 2 * Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
+            eso_color(preview->feature_plane_color, f * 0.35f);
+            eso_bbox_SOUP_QUADS(preview->feature_plane);
+            eso_end();
+
+            glEnable(GL_CULL_FACE); // FORNOW
+        }
+
+
+        if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew) cage cageit
+            ;
+            // FORNOW
+            bool moving_stuff = ((state_Draw_command_is_(SetOrigin)) || (state_Mesh_command_is_(NudgePlane)));
+            vec3 target_preview_tubes_color = (0) ? V3(0)
+                : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
+                : (adding) ? pallete.green
+                : (cutting) ? pallete.red
+                : (moving_stuff) ? get_color(ColorCode::Emphasis)
+                : V3(0);
+            JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
+
+            #if 1
+            glDisable(GL_DEPTH_TEST);
+            eso_begin(PV_3D * M_3D_from_2D, SOUP_LINES); {
+                eso_overlay(true);
+                _for_each_selected_entity_ {
+                    real alpha;
+                    vec3 color;
+                    alpha = CLAMP(1.0f * MIN(entity->time_since_is_selected_changed, other.time_since_plane_selected), 0.0f, 1.0f); // TODO:preview->alpha
+                    color = preview->tubes_color;
+                    eso_color(color, alpha);
+                    eso_entity__SOUP_LINES(entity, extruding, preview->extrude_out_length, -preview->extrude_in_length);
+                } eso_end();
+            }
+            glEnable(GL_DEPTH_TEST);
+            #else
+            uint NUM_TUBE_STACKS_INCLUSIVE;
+            mat4 M;
+            mat4 M_incr;
+            {
+                // mat4 T_o = M4_Translation(preview->drawing_origin);
+                if (extruding) {
+                    real a = -preview->extrude_in_length;
+                    real L = preview->extrude_out_length + preview->extrude_in_length;
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / 2.5f)) + 2);
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, a + Z_FIGHT_EPS);
+                    M_incr = M4_Translation(0.0f, 0.0f, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                } else if (revolving) {
+                    real a = -RAD(preview->revolve_out_angle);
+                    real b = RAD(preview->revolve_in_angle);
+                    real L = b - a;
+                    NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / 0.1f)) + 2);
+                    vec3 axis = V3(e_theta(PI / 2 + preview_dxf_axis_angle_from_y), 0.0f);
+                    mat4 R_0 = M4_RotationAbout(axis, a);
+                    mat4 R_inc = M4_RotationAbout(axis, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                    mat4 T_a = M4_Translation(V3(preview_dxf_axis_base_point, 0.0f));
+                    mat4 inv_T_a = inverse(T_a);
+                    // M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
+                    M_incr = T_a * R_inc * inv_T_a;
+                    M = M_3D_from_2D * inv_T_o * T_a * R_0 * inv_T_a;
+                } else if (state_Draw_command_is_(SetOrigin)) {
+                    NUM_TUBE_STACKS_INCLUSIVE = 1;
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
+                    M_incr = M4_Identity();
+                } else if (state_Mesh_command_is_(NudgePlane)) {
+                    NUM_TUBE_STACKS_INCLUSIVE = 1;
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview->feature_plane_offset + Z_FIGHT_EPS);
+                    M_incr = M4_Identity();
+                } else { // default
+                    NUM_TUBE_STACKS_INCLUSIVE = 1;
+                    M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
+                    M_incr = M4_Identity();
+                }
+
+                mat4 T_Move;
+                if (moving_selected_entities) {
+                    T_Move = M4_Translation(preview->mouse_no_snap_potentially_15_deg__GRAY_position - two_click_command->first_click);
+                } else {
+                    T_Move = M4_Identity();
+                }
+                for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
+                    eso_begin(PV_3D * M * T_Move, SOUP_LINES); {
+                        eso_overlay(true);
+                        _for_each_selected_entity_ {
+                            real alpha;
+                            vec3 color;
+                            // if (entity->is_selected) {
+                            alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_is_selected_changed, other.time_since_plane_selected), 0.0f, 1.0f);
+                            color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), pallete.black, preview->tubes_color);
+                            // } else {
+                            //     alpha = CLAMPED_LERP(5.0f * entity->time_since_is_selected_changed, 1.0f, 0.0f);
+                            //     color = get_color(color);
+                            // }
+                            eso_color(color, alpha);
+                            eso_entity__SOUP_LINES(entity);
+                        }
+                    } eso_end();
+                    M *= M_incr;
                 }
             }
+            #endif
         }
 
         MagicSnapResult3D snap_result = magic_snap_3d();
@@ -1229,40 +1262,42 @@ void conversation_draw() {
             }
         }
 
-        real height = 12.0f;
-        EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
-        easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
-        pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
+        if (other.show_details) { // number of elements, etc.
+            real height = 12.0f;
+            EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
+            easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
+            pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
 
 
-        static int fps; {
-            static int measured_fps;
+            static int fps; {
+                static int measured_fps;
 
-            // grab and smooth fps
-            {
-                const int N_MOVING_WINDOW = 5;
-                static std::chrono::steady_clock::time_point prev_timestamps[N_MOVING_WINDOW];
-                std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
-                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp - prev_timestamps[N_MOVING_WINDOW - 1]);
-                measured_fps = (int) round(N_MOVING_WINDOW / (nanos.count() / 1000000000.));
+                // grab and smooth fps
+                {
+                    const int N_MOVING_WINDOW = 5;
+                    static std::chrono::steady_clock::time_point prev_timestamps[N_MOVING_WINDOW];
+                    std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
+                    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp - prev_timestamps[N_MOVING_WINDOW - 1]);
+                    measured_fps = (int) round(N_MOVING_WINDOW / (nanos.count() / 1000000000.));
 
-                for (int i = N_MOVING_WINDOW - 1; i >= 1; --i) {
-                    prev_timestamps[i] = prev_timestamps[i - 1];
+                    for (int i = N_MOVING_WINDOW - 1; i >= 1; --i) {
+                        prev_timestamps[i] = prev_timestamps[i - 1];
+                    }
+                    prev_timestamps[0] = timestamp;
                 }
-                prev_timestamps[0] = timestamp;
+
+                {
+                    static std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
+                    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - timestamp);
+                    if (nanos.count() > 166666666 / 1.5) {
+                        timestamp = std::chrono::steady_clock::now();
+                        fps = measured_fps;
+                    }
+                }
             }
 
-            {
-                static std::chrono::steady_clock::time_point timestamp = std::chrono::steady_clock::now();
-                auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - timestamp);
-                if (nanos.count() > 166666666 / 1.5) {
-                    timestamp = std::chrono::steady_clock::now();
-                    fps = measured_fps;
-                }
-            }
+            easy_text_drawf(&pen, "%d triangles %d vertices  %d fps", meshes->work.num_triangles, meshes->work.num_vertices, fps);
         }
-
-        easy_text_drawf(&pen, "%d triangles %d vertices  %d fps", meshes->work.num_triangles, meshes->work.num_vertices, fps);
     }
 
 }

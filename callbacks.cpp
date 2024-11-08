@@ -153,6 +153,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             camera_mesh->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
     }
+
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {

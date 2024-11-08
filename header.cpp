@@ -248,8 +248,8 @@ struct DrawMesh {
     // TODO: we don't need this data anymore
     // uint num_hard_half_edges; // num_hard_half_edges
     // uint2 *hard_half_edge_tuples; // hard_half_edge_tuples
-                             // vec3 *hard_edges_vertex_positions;
-                             // uint *hard_edges_corresponding_triangle_indices;
+    // vec3 *hard_edges_vertex_positions;
+    // uint *hard_edges_corresponding_triangle_indices;
 
 };
 
@@ -565,6 +565,8 @@ struct PreviewState {
     vec2 offset_entity_end;
     vec2 offset_entity_middle;
     vec2 offset_entity_opposite;
+
+    real bbox_min_y;
 };
 
 struct Cursors {
@@ -589,6 +591,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
     bool hide_grid;
     bool show_details;
+    bool show_console;
     bool show_help;
     bool show_event_stack;
     bool hide_toolbox;
@@ -666,6 +669,7 @@ struct {
     vec3 black = RGB255(0, 0, 0);
 
     vec3 white = RGB255(255, 255, 255);
+    vec3 lighter_gray = RGB255(235, 235, 235);
     vec3 light_gray = RGB255(160, 160, 160);
     vec3 gray = RGB255(115, 115, 115);
     vec3 dark_gray = RGB255(70, 70, 70);
@@ -868,11 +872,32 @@ vec3 get_color(ColorCode color_code) {
     }
 }
 
-void eso_entity__SOUP_LINES(Entity *entity) {
+void eso_entity__SOUP_LINES(Entity *entity, bool cageit = false, real z0 = 0.0f, real z1 = 0.0f) {
+    auto Q = [&](vec2 a, vec2 b, bool exclude_vertical_a = false, bool exclude_vertical_b = false) {
+        if (!cageit) {
+            eso_vertex(a);
+            eso_vertex(b);
+        } else {
+            eso_vertex(a.x, a.y, z0);
+            eso_vertex(b.x, b.y, z0);
+
+            eso_vertex(a.x, a.y, z1);
+            eso_vertex(b.x, b.y, z1);
+
+            if (!exclude_vertical_a) {
+                eso_vertex(a.x, a.y, z0);
+                eso_vertex(a.x, a.y, z1);
+            }
+
+            if (!exclude_vertical_b) {
+                eso_vertex(b.x, b.y, z0);
+                eso_vertex(b.x, b.y, z1);
+            }
+        }
+    };
     if (entity->type == EntityType::Line) {
         LineEntity *line = &entity->line;
-        eso_vertex(line->start);
-        eso_vertex(line->end);
+        Q(line->start, line->end);
     } else if (entity->type == EntityType::Arc) {
         ArcEntity *arc = &entity->arc;
         real start_angle, end_angle;
@@ -882,9 +907,13 @@ void eso_entity__SOUP_LINES(Entity *entity) {
         real increment = delta_angle / num_segments;
         real current_angle = start_angle;
         for_(i, num_segments) {
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle));
+            Q(
+                    get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle),
+                    get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle + increment),
+                    (i != 0),
+                    (i != (num_segments - 1))
+             );
             current_angle += increment;
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle));
         }
     } else { ASSERT(entity->type == EntityType::Circle);
         CircleEntity *circle = &entity->circle;
@@ -892,9 +921,13 @@ void eso_entity__SOUP_LINES(Entity *entity) {
         real current_angle = 0.0;
         real increment = TAU / num_segments;
         for_(i, num_segments) {
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle));
+            Q(
+                    get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle), 
+                    get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle + increment),
+                    (i % (num_segments / 4) != 0),
+                    true
+             );
             current_angle += increment;
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle));
         }
     }
 }

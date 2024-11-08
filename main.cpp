@@ -302,13 +302,13 @@ run_before_main {
         "sa{100\n" 
         // ";" 
         // "^odemo.dxf\n" 
-                       // "^signore.stl\ny\n" 
-                       // "^oignore.stl\n" 
-                       // ".." 
-                       // "pz\t5\n" // (Nathan) Polygon
-                       // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
-                       // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
-                       // "^N^ob:wug.drawing\nysa"
+        // "^signore.stl\ny\n" 
+        // "^oignore.stl\n" 
+        // ".." 
+        // "pz\t5\n" // (Nathan) Polygon
+        // "cz18\nD<m2d 0 9>D<m2d 0 -9>s<m2d 2 -9><m2d -2 9>\b" // (Henok) DivideNearest
+        // "j2<m2d 1 7><m2d -1 -7>\n" //(Henok) Offset
+        // "^N^ob:wug.drawing\nysa"
         #endif
         ;
 };
@@ -350,6 +350,23 @@ bool already_processed_event_passed_to_popups;
 #include "misc.cpp"
 #include "draw2.cpp"
 #include "draw.cpp"
+
+void CLEAR_CANVAS() {
+    glClearColor(pallete.black.x, pallete.black.y, pallete.black.z, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    real x =  get_x_divider_drawing_mesh_Pixel();
+    real w = window_get_width_Pixel() - x;
+    real h = window_get_height_Pixel();
+    glEnable(GL_SCISSOR_TEST);
+    gl_scissor_Pixel(x, 0, w, h);
+
+    real r = 0.825f;
+    glClearColor(r, r, r, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_SCISSOR_TEST);
+}
+
 #include "save_and_load.cpp"
 #include "message.cpp"
 #include "popup.cpp"
@@ -360,6 +377,7 @@ bool already_processed_event_passed_to_popups;
 #include "button.cpp"
 #include "process.cpp"
 #include "script.cpp"
+
 
 int main() {
     { // init
@@ -456,15 +474,14 @@ int main() {
         glfwSwapBuffers(glfw_window);
         glFinish(); // 69363856
                     // SLEEP(1);
-        glClearColor(pallete.black.x, pallete.black.y, pallete.black.z, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        CLEAR_CANVAS(); // TODO: goes after poll events so that dragging the separator doesn't mess things up with an off by one frame error
+
+
         eso_size(1.5f);
-
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
-
         other._please_suppress_drawing_popup_popup = false;
         other._please_suppress_drawing_toolbox = false;
-
         memset(popup->a_popup_from_this_group_was_already_called_this_frame, 0, sizeof(popup->a_popup_from_this_group_was_already_called_this_frame));
 
         if (other.stepping_one_frame_while_paused) other.paused = false;
@@ -522,7 +539,7 @@ int main() {
 
         { // draw
             conversation_draw();
-            _messages_draw();
+            if (other.show_console) _messages_draw();
         }
 
         if (frame++ == 1) glfwShowWindow(glfw_window);

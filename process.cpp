@@ -160,7 +160,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 bool draw_tool = name.data;
 
                 if (1
-                        && (!other.hide_toolbox || command_equals(command, commands.ToggleGUI))
+                        && (!other.hide_toolbox || (0 && command_equals(command, commands.ToggleGUI)))
                         && (!other._please_suppress_drawing_popup_popup)
                         && (!hide_button)
                         && (group != ToolboxGroup::None)
@@ -466,6 +466,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                     SEPERATOR();
+                    if (GUIBUTTON(commands.ToggleConsole)) { 
+                        other.show_console = !other.show_console;
+                    }
                     if (GUIBUTTON(commands.ToggleDetails)) { 
                         other.show_details = !other.show_details;
                     }
