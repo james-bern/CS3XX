@@ -767,6 +767,7 @@ struct Cookbook {
         // reset some stuff
         set_state_Mesh_command(None);
         set_is_selected_for_all_entities(false);
+        feature_plane->is_active = false;
     };
 };
 

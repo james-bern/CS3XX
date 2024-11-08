@@ -567,6 +567,8 @@ struct PreviewState {
     vec2 offset_entity_opposite;
 
     real bbox_min_y;
+
+    real tween_extrude_add_scale;
 };
 
 struct Cursors {
@@ -581,6 +583,8 @@ struct Cursors {
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
+
+    FeaturePlaneState tween_extrude_add_feature_plane;
 
     Cursors cursors;
 
@@ -910,7 +914,7 @@ void eso_entity__SOUP_LINES(Entity *entity, bool cageit = false, real z0 = 0.0f,
             Q(
                     get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle),
                     get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle + increment),
-                    (i != 0),
+                    (i != 0) && (i != num_segments / 2),
                     (i != (num_segments - 1))
              );
             current_angle += increment;

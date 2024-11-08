@@ -104,6 +104,7 @@ int SGN(float a) { return (a < 0) ? -1 : 1; }
 // ABS
 int  ABS( int a) { return (a < 0) ? -a : a; }
 real ABS(real a) { return (a < 0) ? -a : a; }
+tuDv ABS(vecD a) { return cwiseAbs(a); }
 // MIN
 // int  MIN( int a,  int b) { return (a < b) ? a : b; } // TODO: do we ever use this?
 uint MIN(uint a, uint b) { return (a < b) ? a : b; }

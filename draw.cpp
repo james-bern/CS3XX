@@ -52,6 +52,8 @@ void conversation_draw() {
     bool adding     = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(RevolveAdd)));
     bool cutting     = ((state_Mesh_command_is_(ExtrudeCut)) || (state_Mesh_command_is_(RevolveCut)));
 
+    FORNOW_UNUSED(revolving);
+
     { // preview->extrude_in_length
         real target = (adding) ? popup->extrude_add_in_length : popup->extrude_cut_in_length;
         JUICEIT_EASYTWEEN(&preview->extrude_in_length, target);
@@ -414,8 +416,8 @@ void conversation_draw() {
                 { // dots snap_divide_dot
                     if (other.show_details) { // dots
                         eso_begin(PV_2D, SOUP_POINTS);
-                        eso_size(3.0f);
-                        eso_color(pallete.white);
+                        eso_size(2.0f);
+                        eso_color(get_accent_color(ToolboxGroup::Snap));
                         _for_each_entity_ {
                             if (entity->is_selected && (rotating || moving)) continue;
                             if (entity->type == EntityType::Circle) {
@@ -694,29 +696,17 @@ void conversation_draw() {
 
         // mat4 inv_T_o = M4_Translation(-preview->drawing_origin);
 
-        if (feature_plane->is_active) { // axes 3D axes 3d axes axis 3D axis 3d axis
-            real r = other.camera_mesh.ortho_screen_height_World / 100.0f;
-            eso_begin(PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS), SOUP_LINES);
-            eso_color(pallete.white);
-            eso_vertex(0, 0.0f);
-            eso_vertex( r, 0.0f);
-            eso_vertex(0.0f, 0);
-            eso_vertex(0.0f,  r);
-            if (revolving) {
-                // TODO: clip this to the feature_plane
-                real LL = 100.0f;
-                vec2 v = LL * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
-                vec2 a = preview_dxf_axis_base_point + v;
-                vec2 b = preview_dxf_axis_base_point - v;
-                eso_color(get_color(ColorCode::Emphasis));
-                eso_vertex(-preview->drawing_origin + a);
-                eso_vertex(-preview->drawing_origin + b); // FORNOW
-            }
-            eso_end();
+
+
+        {
+            real *scale = &preview->tween_extrude_add_scale;
+            JUICEIT_EASYTWEEN(scale, 1.0f);
+            FeaturePlaneState plane = other.tween_extrude_add_feature_plane; 
+            vec3 feature_plane_center = plane.normal * plane.signed_distance_to_world_origin;
+            mat4 S_tween = inverse(M_3D_from_2D) * M4_Scaling(1.0f, 1.0f, preview->tween_extrude_add_scale) * M_3D_from_2D;
+            mat4 M_tween = M4_Translation(feature_plane_center) * S_tween * M4_Translation(-feature_plane_center);
+            fancy_draw(P_3D, V_3D, M_tween, &meshes->draw);
         }
-
-
-        fancy_draw(P_3D, V_3D, M4_Identity(), &meshes->draw);
 
         mat4 PVM_feature_plane = PV_3D * M_3D_from_2D;
 
@@ -815,7 +805,7 @@ void conversation_draw() {
         // NOTE this is hacky as hell there's something fancy we can probs do with stentcil buffering the lines
         //      that is more correct than the 35/35 split, but FORNOW this is k
         #if 1
-        glDepthMask(GL_FALSE);
+        glDisable(GL_DEPTH_TEST);
         { // draw feature plane
             glDisable(GL_CULL_FACE); // FORNOW
 
@@ -830,7 +820,7 @@ void conversation_draw() {
 
             glEnable(GL_CULL_FACE); // FORNOW
         }
-        glDepthMask(GL_TRUE);
+        glEnable(GL_DEPTH_TEST);
         #endif
         if (!other.hide_grid) { // grid 3D grid 3d grid
             JUICEIT_EASYTWEEN(&preview->bbox_min_y, meshes->work.bbox.min.y);
@@ -876,6 +866,7 @@ void conversation_draw() {
 
             glEnable(GL_CULL_FACE); // FORNOW
         }
+
 
 
         if (feature_plane->is_active) { // selection 2d selection 2D selection tube tubes slice slices stack stacks wire wireframe wires frame (FORNOW: ew) cage cageit
@@ -997,6 +988,56 @@ void conversation_draw() {
                 eso_vertex(snap_result.mouse_position);
                 eso_end();
             }
+        }
+
+        {
+            if (0) { // world origin 3D
+                glDisable(GL_DEPTH_TEST);
+                eso_begin(PV_3D, SOUP_POINTS);
+                eso_overlay(true);
+                eso_size(4.0f);
+                eso_color(0.0f, 0.0f, 0.0f, 0.1f);
+                eso_vertex(0.0f, 0.0f, 0.0f);
+                eso_end();
+            }
+
+            { // axes 3D axes 3d axes axis 3D axis 3d axis
+                vec3 color;
+                mat4 M;
+                if (feature_plane->is_active) {
+                    M = M_3D_from_2D;
+                    color = V3(0.8, 0.0, 1.0);
+                } else {
+                    M = M4_Identity();
+                    color = pallete.light_gray;
+                }
+                real r = 2 * other.camera_mesh.ortho_screen_height_World / 100.0f;
+                mat4 transform = PV_3D * M * M4_Translation(0.0f, 0.0f, 3 * Z_FIGHT_EPS);
+
+                if (feature_plane->is_active) {
+                    eso_begin(transform, SOUP_LINES);
+                    eso_overlay(true);
+                    eso_color(color);
+
+                    eso_size(2.0f);
+                    eso_vertex(0.0f, 0.0f);
+                    eso_vertex(r, 0.0f);
+
+                    eso_vertex(0.0f, 0.0f);
+                    eso_vertex(0.0f, r);
+                    eso_end();
+                } else {
+                    // eso_begin(transform, SOUP_POINTS);
+                    // eso_overlay(true);
+                    // eso_color(color);
+                    // eso_size(5.0f);
+                    // eso_vertex(0.0f, 0.0f);
+                    // eso_end();
+                }
+            }
+
+
+            glEnable(GL_DEPTH_TEST);
         }
 
         glDisable(GL_SCISSOR_TEST);

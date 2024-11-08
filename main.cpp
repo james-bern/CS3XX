@@ -361,9 +361,24 @@ void CLEAR_CANVAS() {
     glEnable(GL_SCISSOR_TEST);
     gl_scissor_Pixel(x, 0, w, h);
 
-    real r = 0.825f;
+    real r = 0.875f;
     glClearColor(r, r, r, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+
+    #if 0
+    // TODO: sky box
+    glDisable(GL_DEPTH_TEST);
+    eso_begin(M4_Identity(), SOUP_QUADS);
+    eso_color(V3(r + 0.2f));
+    eso_vertex(-1.0f,  1.0f);
+    eso_vertex( 1.0f,  1.0f);
+    eso_color(V3(r - 0.1f));
+    eso_vertex( 1.0f, -1.0f);
+    eso_vertex(-1.0f, -1.0f);
+    eso_end();
+    glEnable(GL_DEPTH_TEST);
+    #endif
+
     glDisable(GL_SCISSOR_TEST);
 }
 

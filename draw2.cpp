@@ -152,13 +152,6 @@ struct {
                     }
                 }
 
-                if (feature_plane_is_active != 0) { // feature plane override
-                    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
-                        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
-                            rgb = mix(rgb, vec3(1.0), 1.0);
-                        }
-                    }
-                }
 
                 if (false) { // sunlight gooch
                     vec3 warm_color = vec3(1.0, 0.7, 0.3);
@@ -192,9 +185,18 @@ struct {
                     // rgb += 0.2 * diffuse * rgb_gooch3;
                     rgb += 0.3 * specular;
                     rgb += 0.3 * fresnel;
-                    rgb = mix(rgb, vec3(1), 0.5f);
+                    rgb = mix(rgb, vec3(1.0), 0.5f);
                 }
 
+                if (feature_plane_is_active != 0) { // feature plane override
+                    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
+                        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
+                            rgb = mix(rgb, vec3(1.0), 0.8);
+                        }
+                    }
+                }
+
+                    // rgb = clamp(vec3(0.0f), vec3(0.9f), rgb);
 } else if ((mode == 1) || (mode == 3)) {
     int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
     rgb.r = (i % 256);
@@ -365,7 +367,7 @@ char *frag = R""(#version 330 core
 
             vec2 hLx = vec2(0.5 * fs_in.L, 0);
             float d2 = squaredDistancePointLineSegment(fs_in.corner * (hLx + vec2(1.0)), -hLx, hLx);
-            float I = 0.12 * exp2(-2 * min(d2, 1.8 * 1.8));
+            float I = 0.18 * exp2(-2 * min(d2, 1.8 * 1.8));
             _gl_FragColor = vec4(vec3(0.0), I);
             // _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1.0); // FORNOW
             // _gl_FragColor.rgb = rgb;

@@ -2385,11 +2385,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.orange, "ExtrudeAdd: total extrusion length zero");
                         } else {
                             cookbook.manifold_wrapper();
+
                             if (IS_ZERO(popup->extrude_add_in_length)) {
                                 messagef(pallete.light_gray, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
                             } else {
                                 messagef(pallete.light_gray, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
                             }
+
+                            other.tween_extrude_add_feature_plane = *feature_plane;
+                            preview->tween_extrude_add_scale      = 0.0f;
                         }
                     }
                 } else if (state_Mesh_command_is_(ExtrudeCut)) {
