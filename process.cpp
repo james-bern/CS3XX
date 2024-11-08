@@ -1211,10 +1211,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             set_state_Snap_command(None);
                             if (two_click_command->entity_closest_to_second_click) {
-                                Entity *E = two_click_command->entity_closest_to_first_click;
-                                Entity *F = two_click_command->entity_closest_to_second_click;
-                                cookbook.attempt_dogear(E, F, average_click, popup->dogear_radius);
+                                Cookbook::DogEarResult dogear_result = cookbook.preview_dogear(
+                                        two_click_command->entity_closest_to_first_click, 
+                                        two_click_command->entity_closest_to_second_click, 
+                                        average_click, 
+                                        popup->dogear_radius);
                                 two_click_command->awaiting_second_click = false;
+
+                                cookbook._buffer_add_entity(dogear_result.ent_one);
+                                cookbook._buffer_add_entity(dogear_result.ent_two);
+                                cookbook._buffer_add_entity(dogear_result.fillet_arc_one);
+                                cookbook._buffer_add_entity(dogear_result.fillet_arc_two);
+                                cookbook._buffer_add_entity(dogear_result.dogear_arc_one);
+                                cookbook._buffer_add_entity(dogear_result.dogear_arc_two);
+
+                                cookbook.buffer_delete_entity(two_click_command->entity_closest_to_first_click);
+                                cookbook.buffer_delete_entity(two_click_command->entity_closest_to_second_click);
                             }
                         } else if (state_Draw_command_is_(Circle)) {
                             if (clicks_are_same) {
