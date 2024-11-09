@@ -766,13 +766,16 @@ void conversation_draw() {
                         target_bbox.max[1] += eps;
                     }
                 }
+
                 if (!feature_plane->is_active) {
-                    target_bbox = bbox_inflate(target_bbox, 10.0f);
+                    target_bbox = bbox_inflate(preview->feature_plane, 2.0f); // HACK
                 }
+
                 JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
                 JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
                 if (other.time_since_plane_selected == 0.0f) { // FORNOW
                     preview->feature_plane = face_selection_bbox;
+                    preview->feature_plane_alpha = 0.0f;
 
                     // FORNOW
                     if (face_selection_bbox.min[0] > face_selection_bbox.max[0]) {
@@ -782,25 +785,9 @@ void conversation_draw() {
                     target_bbox = bbox_inflate(target_bbox, -10.0f);
                 }
             }
-
-
-            {
-                vec3 target_feature_plane_color = get_color(ColorCode::Selection);
-                {
-                    if (state_Mesh_command_is_(NudgePlane)) {
-                        PVM_feature_plane *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
-                        target_feature_plane_color = get_color(ColorCode::Emphasis); 
-                    } else if (state_Draw_command_is_(SetOrigin)) {
-                        target_feature_plane_color = get_color(ColorCode::Emphasis); 
-                    } else if (moving_selected_entities) {
-                        target_feature_plane_color = get_color(ColorCode::Emphasis); 
-                    }
-                }
-
-                JUICEIT_EASYTWEEN(&preview->feature_plane_color, target_feature_plane_color);
-
-            }
         }
+
+        JUICEIT_EASYTWEEN(&preview->feature_plane_alpha, (feature_plane->is_active) ? 0.35f : 0.0f);
 
         // NOTE this is hacky as hell there's something fancy we can probs do with stentcil buffering the lines
         //      that is more correct than the 35/35 split, but FORNOW this is k
@@ -809,12 +796,10 @@ void conversation_draw() {
         { // draw feature plane
             glDisable(GL_CULL_FACE); // FORNOW
 
-            real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
-            if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
             // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
             // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
             eso_begin(PVM_feature_plane * M4_Translation(0.0f, 0.0f, 2 * Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
-            eso_color(preview->feature_plane_color, f * 0.35f);
+            eso_color(pallete.white, preview->feature_plane_alpha);
             eso_bbox_SOUP_QUADS(preview->feature_plane);
             eso_end();
 
@@ -855,12 +840,10 @@ void conversation_draw() {
         { // draw feature plane
             glDisable(GL_CULL_FACE); // FORNOW
 
-            real f = CLAMPED_LERP(SQRT(other.time_since_plane_deselected), 1.0f, 0.0f);
-            if (feature_plane->is_active) f = CLAMPED_LERP(SQRT(3.0f * other.time_since_plane_selected), f, 1.0f);
             // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
             // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
             eso_begin(PVM_feature_plane * M4_Translation(0.0f, 0.0f, 2 * Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
-            eso_color(preview->feature_plane_color, f * 0.35f);
+            eso_color(pallete.white, preview->feature_plane_alpha);
             eso_bbox_SOUP_QUADS(preview->feature_plane);
             eso_end();
 

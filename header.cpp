@@ -548,8 +548,8 @@ struct PreviewState {
     real revolve_in_angle;
     real revolve_out_angle;
     vec3 tubes_color;
-    vec3 feature_plane_color;
     real feature_plane_offset;
+    real feature_plane_alpha;
     vec2 drawing_origin;
     real cursor_subtext_alpha;
 

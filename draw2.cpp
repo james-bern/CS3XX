@@ -180,8 +180,8 @@ struct {
                     float diffuse = max(0.0, LN);
                     float specular = pow(max(0.0, dot(N, H)), 256);
                     float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-                    rgb += 0.5;
-                    rgb += 0.4 * diffuse;
+                    rgb += 0.65;
+                    rgb += 0.25 * diffuse;
                     // rgb += 0.2 * diffuse * rgb_gooch3;
                     rgb += 0.3 * specular;
                     rgb += 0.3 * fresnel;
