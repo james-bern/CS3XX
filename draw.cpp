@@ -1,10 +1,10 @@
 // // TODO: (Jim) stuff for alpha
 // TODO: fix in/out relationship (right now they just seem to add)
 // TODO: tubes
-// TODO: manifold_wrapper
+// TODO: manifold_wrapper_wrapper
 // XXX: fix origin axis relationship with revolve
 // XXX: - tubes
-// XXX: - manifold_wrapper
+// XXX: - manifold_wrapper_wrapper
 // TODO: draw axis on RHS when revolving
 // TODO: 3D-picking is broken for non xyz planes
 // TODO: revisit extruded cut on the botton of box with name (why did the students need to flip their names)
@@ -858,8 +858,8 @@ void conversation_draw() {
             bool moving_stuff = ((state_Draw_command_is_(SetOrigin)) || (state_Mesh_command_is_(NudgePlane)));
             vec3 target_preview_tubes_color = (0) ? V3(0)
                 : (moving_selected_entities) ? get_color(ColorCode::Emphasis)
-                : (adding) ? pallete.green
-                : (cutting) ? pallete.red
+                : (adding) ? V3(0.0f, 1.0f, 0.0f)
+                : (cutting) ? V3(1.0f, 0.0f, 0.0f)
                 : (moving_stuff) ? get_color(ColorCode::Emphasis)
                 : V3(0);
             JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
@@ -985,27 +985,17 @@ void conversation_draw() {
             }
 
             { // axes 3D axes 3d axes axis 3D axis 3d axis
-                vec3 color;
-                mat4 M;
-                if (feature_plane->is_active) {
-                    M = M_3D_from_2D;
-                    color = V3(0.8, 0.0, 1.0);
-                } else {
-                    M = M4_Identity();
-                    color = pallete.light_gray;
-                }
                 real r = 2 * other.camera_mesh.ortho_screen_height_World / 100.0f;
-                mat4 transform = PV_3D * M * M4_Translation(0.0f, 0.0f, 3 * Z_FIGHT_EPS);
+                mat4 transform = PV_3D * M_3D_from_2D * M4_Translation(0.0f, 0.0f, 3 * Z_FIGHT_EPS);
 
                 if (feature_plane->is_active) {
                     eso_begin(transform, SOUP_LINES);
                     eso_overlay(true);
-                    eso_color(color);
-
                     eso_size(2.0f);
+                    eso_color(1.0f, 0.0f, 0.0f);
                     eso_vertex(0.0f, 0.0f);
                     eso_vertex(r, 0.0f);
-
+                    eso_color(0.0f, 1.0f, 0.0f);
                     eso_vertex(0.0f, 0.0f);
                     eso_vertex(0.0f, r);
                     eso_end();

@@ -729,7 +729,7 @@ struct Cookbook {
     // SCARY //
     ///////////
 
-    void manifold_wrapper() {
+    void manifold_wrapper_wrapper() {
         bool add = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(RevolveAdd)));
         bool revolve = ((state_Mesh_command_is_(RevolveAdd)) || (state_Mesh_command_is_(RevolveCut)));
         if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
@@ -753,7 +753,7 @@ struct Cookbook {
 
             { // result.mesh
                 CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&drawing->entities, true);
-                Meshes tmp = wrapper_manifold(
+                Meshes tmp = manifold_wrapper(
                         &state.meshes,
                         cross_section.num_polygonal_loops,
                         cross_section.num_vertices_in_polygonal_loops,

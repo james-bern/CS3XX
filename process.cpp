@@ -2396,7 +2396,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (IS_ZERO(popup->extrude_add_in_length) && IS_ZERO(popup->extrude_add_out_length)) {
                             messagef(pallete.orange, "ExtrudeAdd: total extrusion length zero");
                         } else {
-                            cookbook.manifold_wrapper();
+                            cookbook.manifold_wrapper_wrapper();
 
                             if (IS_ZERO(popup->extrude_add_in_length)) {
                                 messagef(pallete.light_gray, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
@@ -2423,7 +2423,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (meshes->work.num_triangles == 0) {
                             messagef(pallete.orange, "ExtrudeCut: current mesh empty");
                         } else {
-                            cookbook.manifold_wrapper();
+                            cookbook.manifold_wrapper_wrapper();
                             if (IS_ZERO(popup->extrude_cut_out_length)) {
                                 messagef(pallete.light_gray, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
                             } else {
@@ -2443,7 +2443,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (!feature_plane->is_active) {
                             messagef(pallete.orange, "RevolveAdd: no feature plane selected");
                         } else {
-                            cookbook.manifold_wrapper();
+                            cookbook.manifold_wrapper_wrapper();
                             messagef(pallete.light_gray, "RevolveAdd");
                         }
                     }
@@ -2461,7 +2461,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else if (meshes->work.num_triangles == 0) {
                             messagef(pallete.orange, "RevolveCut: current mesh empty");
                         } else {
-                            cookbook.manifold_wrapper();
+                            cookbook.manifold_wrapper_wrapper();
                             messagef(pallete.light_gray, "RevolveCut");
                         }
                     }

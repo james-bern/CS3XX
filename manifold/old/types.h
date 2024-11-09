@@ -23,8 +23,8 @@ typedef struct ManifoldCrossSection ManifoldCrossSection;
 typedef struct ManifoldCrossSectionVec ManifoldCrossSectionVec;
 typedef struct ManifoldSimplePolygon ManifoldSimplePolygon;
 typedef struct ManifoldPolygons ManifoldPolygons;
+typedef struct ManifoldMesh ManifoldMesh;
 typedef struct ManifoldMeshGL ManifoldMeshGL;
-typedef struct ManifoldMeshGL64 ManifoldMeshGL64;
 typedef struct ManifoldBox ManifoldBox;
 typedef struct ManifoldRect ManifoldRect;
 
@@ -41,14 +41,14 @@ typedef struct ManifoldManifoldPair {
 } ManifoldManifoldPair;
 
 typedef struct ManifoldVec2 {
-  double x;
-  double y;
+  float x;
+  float y;
 } ManifoldVec2;
 
 typedef struct ManifoldVec3 {
-  double x;
-  double y;
-  double z;
+  float x;
+  float y;
+  float z;
 } ManifoldVec3;
 
 typedef struct ManifoldIVec3 {
@@ -58,15 +58,15 @@ typedef struct ManifoldIVec3 {
 } ManifoldIVec3;
 
 typedef struct ManifoldVec4 {
-  double x;
-  double y;
-  double z;
-  double w;
+  float x;
+  float y;
+  float z;
+  float w;
 } ManifoldVec4;
 
 typedef struct ManifoldProperties {
-  double surface_area;
-  double volume;
+  float surface_area;
+  float volume;
 } ManifoldProperties;
 
 // enums
@@ -104,6 +104,3 @@ typedef enum ManifoldJoinType {
   MANIFOLD_JOIN_TYPE_ROUND,
   MANIFOLD_JOIN_TYPE_MITER,
 } ManifoldJoinType;
-
-// function pointer
-typedef double (*ManifoldSdf)(double, double, double, void*);

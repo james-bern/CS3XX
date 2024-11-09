@@ -41,7 +41,7 @@ uint UNIFORM(uint shader_program, char *name) { return glGetUniformLocation(shad
 
 void messagef(vec3 color, char *format, ...);
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier = 1.0f);
-// TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
+// TODO: take entire transform (same used for draw) for manifold_wrapper--strip out incremental nature into function
 
 
 
@@ -1292,7 +1292,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 struct CrossSectionEvenOdd {
     uint num_polygonal_loops;
     uint *num_vertices_in_polygonal_loops;
-    vec2 **polygonal_loops;
+    ManifoldVec2 **polygonal_loops;
 };
 
 CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities, bool only_consider_selected_entities) {
@@ -1322,7 +1322,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
     }
     #endif
     // populate List's
-    List<List<vec2>> stretchy_list = {}; {
+    List<List<ManifoldVec2>> stretchy_list = {}; {
         DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(entities, only_consider_selected_entities);
         for_(loop_index, analysis.num_loops) {
             uint num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
@@ -1350,7 +1350,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                     vec2 p;
                     for_(i, num_segments) {
                         p = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle);
-                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
+                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], { p.x, p.y });
                         current_angle += increment;
                     }
                 } else { ASSERT(entity->type == EntityType::Circle);
@@ -1359,7 +1359,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                     for_(i, num_segments) {
                         real angle = real(i) / num_segments * TAU;
                         vec2 p = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
-                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
+                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], { p.x, p.y });
                     }
                 }
             }
@@ -1371,11 +1371,11 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
     CrossSectionEvenOdd result = {};
     result.num_polygonal_loops = stretchy_list.length;
     result.num_vertices_in_polygonal_loops = (uint *) calloc(result.num_polygonal_loops, sizeof(uint));
-    result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
+    result.polygonal_loops = (ManifoldVec2 **) calloc(result.num_polygonal_loops, sizeof(ManifoldVec2 *));
     for_(i, result.num_polygonal_loops) {
         result.num_vertices_in_polygonal_loops[i] = stretchy_list.array[i].length;
-        result.polygonal_loops[i] = (vec2 *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(vec2));
-        memcpy(result.polygonal_loops[i], stretchy_list.array[i].array, result.num_vertices_in_polygonal_loops[i] * sizeof(vec2));
+        result.polygonal_loops[i] = (ManifoldVec2 *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(ManifoldVec2));
+        memcpy(result.polygonal_loops[i], stretchy_list.array[i].array, result.num_vertices_in_polygonal_loops[i] * sizeof(ManifoldVec2));
     }
 
     // free List's
@@ -1389,7 +1389,7 @@ void cross_section_debug_draw(Camera *camera_drawing, CrossSectionEvenOdd *cross
     eso_begin(camera_drawing->get_PV(), SOUP_LINES);
     eso_color(pallete.white);
     for_(loop_index, cross_section->num_polygonal_loops) {
-        vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
+        ManifoldVec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
         for (int j = 0, i = n - 1; j < n; i = j++) {
             real a_x = polygonal_loop[i].x;
@@ -2153,11 +2153,11 @@ void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *wor
 
 // TODO: don't overwrite  mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
-Meshes wrapper_manifold(
+Meshes manifold_wrapper(
         Meshes *meshes, // dest__NOTE_GETS_OVERWRITTEN,
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
-        vec2 **polygonal_loops,
+        ManifoldVec2 **polygonal_loops,
         mat4 M_3D_from_2D,
         Command Mesh_command,
         real out_quantity,
