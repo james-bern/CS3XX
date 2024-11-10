@@ -21,8 +21,8 @@ real _window_macbook_retina_fixer__VERY_MYSTERIOUS;
 run_before_main {
     ASSERT(glfwInit());
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // 3
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1); // 3
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
@@ -49,6 +49,8 @@ run_before_main {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
     glfwSwapInterval(1);
 
     { // _macbook_retina_scale
@@ -57,6 +59,8 @@ run_before_main {
         glfwGetWindowSize(glfw_window, &den, &_);
         _window_macbook_retina_fixer__VERY_MYSTERIOUS = real(num / den);
     }
+
+    
 };
 
 
@@ -68,8 +72,8 @@ vec2 window_get_size_Pixel() {
     real height = real(_height) / _window_macbook_retina_fixer__VERY_MYSTERIOUS;
     return { width, height };
 }
-real window_get_width_Pixel() { return window_get_size_Pixel().x; }
-real window_get_height_Pixel() { return window_get_size_Pixel().y; }
+uint window_get_width_Pixel() { return window_get_size_Pixel().x; }
+uint window_get_height_Pixel() { return window_get_size_Pixel().y; }
 
 
 void gl_scissor_Pixel(double x, double y, double dx, double dy) {

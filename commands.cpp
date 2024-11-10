@@ -17,6 +17,7 @@
     \
     COMMANDS_INNER(Undo,            'U', 0b000, Both, 0, 0 | NO_RECORD, 'Z', 0b010); \
     COMMANDS_INNER(Redo,            'U', 0b001, Both, 0, 0 | NO_RECORD, 'Y', 0b010, 'Z', 0b011 ); \
+    COMMANDS_INNER(ToggleConsole,   ',', 0b000, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleDetails,   '.', 0b000, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleGUI,       '.', 0b010, Both, 0, 0 | NO_RECORD);  \
     \
@@ -42,8 +43,10 @@
     COMMANDS_INNER(DiamCircle,      'C', 0b010, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Divide2,         'I', 0b000, Draw, 1, 0 | TWO_CLICK); \
     COMMANDS_INNER(Fillet,          'F', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
+    COMMANDS_INNER(ElfHat,          'E', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
     COMMANDS_INNER(DogEar,          'G', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
     COMMANDS_INNER(Line,            'L', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(Join2,           'J', 0b000, Draw, 1, 0 | TWO_CLICK ); \
     COMMANDS_INNER(Measure,         'M', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Mirror2,         'M', 0b011, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Move,            'M', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15 | EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP); \
@@ -116,9 +119,10 @@
     \
     \
     \
+    COMMANDS_INNER(ConfirmClose,                     0,   0b000, Draw, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(TOGGLE_BUTTONS,          GLFW_KEY_TAB, 0b001, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_EVENT_STACK,               'K', 0b011, None, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b000, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_LIGHT_MODE,                'L', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_2D,              ' ', 0b000, None, 0, 0);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_3D,              ' ', 0b001, None, 0, 0);  \

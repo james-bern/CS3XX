@@ -70,6 +70,9 @@ void history_process_event(Event standard_event) {
     StandardEventProcessResult tmp = standard_event_process(standard_event);
     standard_event.record_me = tmp.record_me;
     standard_event.checkpoint_me = tmp.checkpoint_me;
+    #ifdef DEBUG_HISTORY_CHECKPOINT_EVERYTHING
+    standard_event.checkpoint_me = true;
+    #endif
     #ifndef DEBUG_HISTORY_DISABLE_SNAPSHOTTING
     standard_event.snapshot_me = tmp.snapshot_me;
     #endif
@@ -118,13 +121,15 @@ void history_undo() {
     messagef(pallete.light_gray, "Undo");
 }
 
+
 void history_redo() {
     if (elephant_is_empty_redo(&history.recorded_user_events)) {
         messagef(pallete.orange, "Redo: nothing to redo");
         return;
     }
 
-    other.please_suppress_messagef = true; {
+    other.please_suppress_messagef = true;
+    {
         while (EVENT_REDO_NONEMPTY()) { // // manipulate stacks (undo <- redo)
             StackPointers popped = POP_REDO_ONTO_UNDO();
             Event *user_event = popped.user_event;
@@ -138,7 +143,8 @@ void history_redo() {
 
             if (user_event->checkpoint_me) break;
         }
-    } other.please_suppress_messagef = false;
+    }
+    other.please_suppress_messagef = false;
 
     messagef(pallete.light_gray, "Redo");
 }
@@ -200,7 +206,7 @@ void history_debug_draw() {
                 MouseEvent *mouse_event = &event.mouse_event;
                 if (mouse_event->subtype == MouseEventSubtype::Drawing) {
                     MouseEventDrawing *mouse_event_drawing = &mouse_event->mouse_event_drawing;
-                    sprintf(message, "[MOUSE_DRAWING] %g %g", mouse_event_drawing->snap_result.mouse_position.x, mouse_event_drawing->snap_result.mouse_position.y);
+                    sprintf(message, "[MOUSE_DRAWING] %g %g", mouse_event_drawing->unsnapped_position.x, mouse_event_drawing->unsnapped_position.y);
                 } else if (mouse_event->subtype == MouseEventSubtype::Mesh) {
                     MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
                     sprintf(message, "[MOUSE_MESH] %g %g %g %g %g %g", mouse_event_mesh->mouse_ray_origin.x, mouse_event_mesh->mouse_ray_origin.y, mouse_event_mesh->mouse_ray_origin.z, mouse_event_mesh->mouse_ray_direction.x, mouse_event_mesh->mouse_ray_direction.y, mouse_event_mesh->mouse_ray_direction.z);
@@ -220,7 +226,7 @@ void history_debug_draw() {
     };
 
     auto _history_world_state_draw_helper = [&](WorldState_ChangesToThisMustBeRecorded_state *world_state) {
-        easy_text_drawf(&pen, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->mesh.num_triangles);
+        easy_text_drawf(&pen, "%d elements  %d triangles", world_state->drawing.entities.length, world_state->meshes.work.num_triangles);
     };
 
     pen = { V2(12.0f, 12.0f), 12.0f, pallete.white, true };
