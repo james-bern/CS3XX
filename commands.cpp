@@ -71,7 +71,7 @@
     COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(CyclePlane,      'Y', 0b000, Mesh, 0, 0); \
-    COMMANDS_INNER(HidePlane,       ';', 0b000, Mesh, 0, 0);  \
+    COMMANDS_INNER(TogglePlane,       ';', 0b000, Mesh, 0, 0);  \
     COMMANDS_INNER(MirrorPlaneX,    'X', 0b011, Mesh, 0, 0);  \
     COMMANDS_INNER(MirrorPlaneY,    'Y', 0b011, Mesh, 0, 0);  \
     \
@@ -83,6 +83,7 @@
     COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
     COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | SNAPPER | HIDE_FEATURE_PLANE); \
+    COMMANDS_INNER(SetOrigin3D,     'Z', 0b011, Mesh, 1, 0 | SNAPPER | HIDE_FEATURE_PLANE); \
     \
     \
     COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \

@@ -515,6 +515,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_event_stack;
     bool hide_toolbox;
 
+    bool should_feature_plane_be_active;
+
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL = 0.15f;
     Pane mouse_left_drag_pane;

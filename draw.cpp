@@ -1252,7 +1252,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen2, TOGGLE_BUTTONS);
         PRINT_COMMAND(&pen2, TOGGLE_DRAWING_DETAILS);
         PRINT_COMMAND(&pen2, TOGGLE_EVENT_STACK);
-        PRINT_COMMAND(&pen2, HidePlane);
+        PRINT_COMMAND(&pen2, TogglePlane);
         PRINT_COMMAND(&pen2, TOGGLE_GRID);
         PRINT_COMMAND(&pen2, TOGGLE_LIGHT_MODE);
         PRINT_COMMAND(&pen2, Divide2);

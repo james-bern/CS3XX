@@ -354,6 +354,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (flags & NO_RECORD) {
                         result.record_me = false;
                     }
+                    if (flags & HIDE_FEATURE_PLANE) {
+                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
+                        other.should_feature_plane_be_active = feature_plane->is_active;
+                        feature_plane->is_active = false;
+                    }
                     if (is_mode) {
                         if (0) {
                         } else if (group == ToolboxGroup::Draw) {
@@ -673,9 +678,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Mesh_command(None); // FORNOW
                         }
                     }
-                    if (GUIBUTTON(commands.HidePlane)) {
-                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
-                        feature_plane->is_active = false;
+                    if (GUIBUTTON(commands.TogglePlane)) {
+                        feature_plane->is_active = !feature_plane->is_active;
+                        if (feature_plane->is_active) other.time_since_plane_selected = 0.0f;
+                        else other.time_since_plane_deselected = 0.0f;
                     }
                     if (GUIBUTTON(commands.MirrorPlaneX)) {
                         result.record_me = true;
@@ -705,11 +711,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         camera_mesh->euler_angles.x = -ATAN2({norm(V2(z, x)), y});
                     }
                     SEPERATOR();
-                    if (GUIBUTTON(commands.Measure3D)) {
-                        // Copied from Hide Plane, should maybe be a function
-                        if (feature_plane->is_active) other.time_since_plane_deselected = 0.0f;
-                        feature_plane->is_active = false;
-                    }
+                    GUIBUTTON(commands.Measure3D);
+                    GUIBUTTON(commands.SetOrigin3D);
                     SEPERATOR();
                     SEPERATOR();
                     GUIBUTTON(commands.OpenSTL);
@@ -1824,51 +1827,34 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             MouseEventMesh *mouse_event_mesh = &mouse_event->mouse_event_mesh;
             result.record_me = false;
             if (!mouse_event->mouse_held) {
-                // TODO: FIX BUG
                 MagicSnapResult3D snap_result = magic_snap_raycast(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction);
 
-                // int index_of_first_triangle_hit_by_ray = -1;
-                // vec3 exact_hit_pos;
-                // {
-                //     real min_distance = HUGE_VAL;
-                //     for_(i, mesh->num_triangles) {
-                //         vec3 p[3]; {
-                //             for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
-                //         }
-                //         RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction, p[0], p[1], p[2]);
-                //         if (ray_triangle_intersection_result.hit) {
-                //             if (ray_triangle_intersection_result.distance < min_distance) {
-                //                 min_distance = ray_triangle_intersection_result.distance;
-                //                 exact_hit_pos = ray_triangle_intersection_result.pos;
-                //                 index_of_first_triangle_hit_by_ray = i; // FORNOW
-                //             }
-                //         }
-                //     }
-                // }
-
                 if (snap_result.hit_mesh) { // something hit
-                    result.checkpoint_me = result.record_me = true;
-                    if (state_Mesh_command_is_(Measure3D)) result.checkpoint_me = result.record_me = false;
-                    feature_plane->is_active = !(state.Mesh_command.flags & HIDE_FEATURE_PLANE);
-                    other.time_since_plane_selected = 0.0f;
-                    {
+                    if (!(state.Mesh_command.flags & HIDE_FEATURE_PLANE)) {
+                        result.checkpoint_me = result.record_me = true;
+                        other.time_since_plane_selected = 0.0f;
+                        feature_plane->is_active = true;
+
                         feature_plane->normal = mesh->triangle_normals[snap_result.triangle_index];
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, snap_result.mouse_position);
+                    } 
 
-                        if (state.Mesh_command.flags & TWO_CLICK) {
-                            if (!mesh_two_click_command->awaiting_second_click) {
-                                mesh_two_click_command->first_click = snap_result.mouse_position;
-                                mesh_two_click_command->awaiting_second_click = true;
-                            } else {
-                                vec3 first_click = mesh_two_click_command->first_click;
-                                vec3 second_click = snap_result.mouse_position;
+                    if (state.Mesh_command.flags & TWO_CLICK) {
+                        if (!mesh_two_click_command->awaiting_second_click) {
+                            mesh_two_click_command->first_click = snap_result.mouse_position;
+                            mesh_two_click_command->awaiting_second_click = true;
+                        } else {
+                            vec3 first_click = mesh_two_click_command->first_click;
+                            vec3 second_click = snap_result.mouse_position;
 
-                                messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
-                                if (0) {
-                                } else if (state_Mesh_command_is_(Measure3D)) {
-                                    messagef(pallete.cyan, "Length is %gmm.", norm(second_click - first_click));
-                                    set_state_Mesh_command(None);
-                                }
+                            messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
+                            if (0) {
+                            } else if (state_Mesh_command_is_(Measure3D)) {
+                                messagef(pallete.cyan, "Length is %gmm.", norm(second_click - first_click));
+                                set_state_Mesh_command(None);
+                                feature_plane->is_active = other.should_feature_plane_be_active;
+                                if (feature_plane->is_active)
+                                    other.time_since_plane_selected = 0.0f;
                             }
                         }
                     }
