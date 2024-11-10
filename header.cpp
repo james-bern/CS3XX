@@ -2185,14 +2185,14 @@ Meshes manifold_wrapper(
             manifold_A = NULL;
         } else { // manifold <- mesh
             ManifoldMeshGL *meshgl = manifold_meshgl(
-                    malloc(manifold_meshgl_size()),
+                    manifold_alloc_meshgl(),
                     (real *) mesh->vertex_positions,
                     mesh->num_vertices,
                     3,
                     (uint *) mesh->triangle_tuples,
                     mesh->num_triangles);
 
-            manifold_A = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
+            manifold_A = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
 
             manifold_delete_meshgl(meshgl);
         }
@@ -2212,7 +2212,7 @@ Meshes manifold_wrapper(
 
 
         ManifoldCrossSection *cross_section; {
-            cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+            cross_section = manifold_cross_section_of_polygons(manifold_alloc_cross_section(), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
             // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
 
             if (revolve) {
@@ -2221,22 +2221,21 @@ Meshes manifold_wrapper(
             }
         }
 
-        ManifoldPolygons *polygons = manifold_cross_section_to_polygons(malloc(manifold_polygons_size()), cross_section);
-
+        ManifoldPolygons *polygons = manifold_cross_section_to_polygons(manifold_alloc_polygons(), cross_section);
 
         do_once { // selection triangulation 3d 3D
-            ManifoldTriangulation *triangulation = manifold_triangulate(malloc(manifold_triangulation_size()), polygons, 0.0);
-            int selection_num_triangles = manifold_triangulation_num_tri(triangulation);
+            ManifoldTriangulation *triangulation = manifold_triangulate(manifold_alloc_triangulation(), polygons, 0.0); // TODO: what is eps
+            int selection_num_triangles = (int) manifold_triangulation_num_tri(triangulation);
             uint3 *selection_triangle_tuples = (uint3 *) manifold_triangulation_tri_verts(malloc(selection_num_triangles * sizeof(uint3)), triangulation);
+            manifold_delete_triangulation(triangulation);
             fornow_global_selection_num_triangles = selection_num_triangles;
             fornow_global_selection_triangle_tuples = selection_triangle_tuples;
 
-            // ?TODO?: have the vertices portentially changed? do i need to recover them from the cross section?
-            // FORNOW: flattening (is this even right?), converting (64->32 bit)
+            // 1) scavenging new vertex positions from CrossSection
+            // 2) converting 64bit->32bit
             {
                 List<vec2> tmp = {};
 
-                #if 1
                 size_t tmp_num_polygons = manifold_polygons_length(polygons);
                 for_(i, tmp_num_polygons) {
                     size_t tmp_num_vertices = manifold_polygons_simple_length(polygons, i);
@@ -2245,15 +2244,6 @@ Meshes manifold_wrapper(
                         list_push_back(&tmp, { real(_p.x), real(_p.y) });
                     }
                 }
-
-                #else
-                for_(i, num_polygonal_loops) {
-                    for_(j, num_vertices_in_polygonal_loops[i]) {
-                        ManifoldVec2 _p = polygonal_loops[i][j];
-                        list_push_back(&tmp, { real(_p.x), real(_p.y) });
-                    }
-                }
-                #endif
 
                 fornow_global_selection_vertex_positions = tmp.array;
             }
@@ -2272,12 +2262,12 @@ Meshes manifold_wrapper(
 
             if (extrude) {
                 real length = in_quantity + out_quantity;
-                manifold_B = manifold_extrude(malloc(manifold_manifold_size()), polygons, length, 0, 0.0f, 1.0f, 1.0f);
+                manifold_B = manifold_extrude(manifold_alloc_manifold(), polygons, length, 0, 0.0f, 1.0f, 1.0f);
                 manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -in_quantity);
             } else { ASSERT(revolve);
                 // TODO: M_3D_from_2D 
                 real angle_in_degrees = in_quantity + out_quantity;
-                manifold_B = manifold_revolve(malloc(manifold_manifold_size()), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
+                manifold_B = manifold_revolve(manifold_alloc_manifold(), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
                 manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, 0.0, -out_quantity); // *
                 manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
                 manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
@@ -2310,7 +2300,7 @@ Meshes manifold_wrapper(
                 // TODO: ? manifold_delete_manifold(manifold_A);
                 manifold_C =
                     manifold_boolean(
-                            malloc(manifold_manifold_size()),
+                            manifold_alloc_manifold(),
                             manifold_A,
                             manifold_B,
                             (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
@@ -2319,7 +2309,7 @@ Meshes manifold_wrapper(
                 manifold_delete_manifold(manifold_B);
             }
 
-            meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold_C);
+            meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_C);
         }
 
         { // result <- meshgl

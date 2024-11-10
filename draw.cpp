@@ -958,7 +958,7 @@ void conversation_draw() {
             }
             eso_end();
 
-            // eso_begin(PV_3D, SOUP_LINES);
+            // eso_begin(PV_3D * M_3D_from_2D, SOUP_LINES);
             // eso_overlay(true);
             // eso_color(pallete.black);
             // eso_size(1.0f);
