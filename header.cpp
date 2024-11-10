@@ -2151,6 +2151,10 @@ void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *wor
 // uh oh ///////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+uint fornow_global_selection_num_triangles;
+uint3 *fornow_global_selection_triangle_tuples;
+vec2 *fornow_global_selection_vertex_positions;
+
 // TODO: don't overwrite  mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
 Meshes manifold_wrapper(
@@ -2206,6 +2210,7 @@ Meshes manifold_wrapper(
             _polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
         }
 
+
         ManifoldCrossSection *cross_section; {
             cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
             // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
@@ -2218,6 +2223,41 @@ Meshes manifold_wrapper(
 
         ManifoldPolygons *polygons = manifold_cross_section_to_polygons(malloc(manifold_polygons_size()), cross_section);
 
+
+        do_once { // selection triangulation 3d 3D
+            ManifoldTriangulation *triangulation = manifold_triangulate(malloc(manifold_triangulation_size()), polygons, 0.0);
+            int selection_num_triangles = manifold_triangulation_num_tri(triangulation);
+            uint3 *selection_triangle_tuples = (uint3 *) manifold_triangulation_tri_verts(malloc(selection_num_triangles * sizeof(uint3)), triangulation);
+            fornow_global_selection_num_triangles = selection_num_triangles;
+            fornow_global_selection_triangle_tuples = selection_triangle_tuples;
+
+            // ?TODO?: have the vertices portentially changed? do i need to recover them from the cross section?
+            // FORNOW: flattening (is this even right?), converting (64->32 bit)
+            {
+                List<vec2> tmp = {};
+
+                #if 1
+                size_t tmp_num_polygons = manifold_polygons_length(polygons);
+                for_(i, tmp_num_polygons) {
+                    size_t tmp_num_vertices = manifold_polygons_simple_length(polygons, i);
+                    for_(j, tmp_num_vertices) {
+                        ManifoldVec2 _p = manifold_polygons_get_point(polygons, i, j);
+                        list_push_back(&tmp, { real(_p.x), real(_p.y) });
+                    }
+                }
+
+                #else
+                for_(i, num_polygonal_loops) {
+                    for_(j, num_vertices_in_polygonal_loops[i]) {
+                        ManifoldVec2 _p = polygonal_loops[i][j];
+                        list_push_back(&tmp, { real(_p.x), real(_p.y) });
+                    }
+                }
+                #endif
+
+                fornow_global_selection_vertex_positions = tmp.array;
+            }
+        };
 
 
         { // manifold_B

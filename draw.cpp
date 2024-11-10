@@ -946,6 +946,33 @@ void conversation_draw() {
             #endif
         }
 
+        if (fornow_global_selection_triangle_tuples) { // selection triangulation 3d 3D
+            eso_begin(PV_3D * M_3D_from_2D, SOUP_TRIANGLES);
+            eso_overlay(true);
+            eso_color(0.0f, 1.0f, 0.0f, 0.5f);
+            for_(triangle_index, fornow_global_selection_num_triangles) {
+                uint3 tuple = fornow_global_selection_triangle_tuples[triangle_index];
+                for_(d, 3) {
+                    eso_vertex(fornow_global_selection_vertex_positions[tuple[d]]);
+                }
+            }
+            eso_end();
+
+            // eso_begin(PV_3D, SOUP_LINES);
+            // eso_overlay(true);
+            // eso_color(pallete.black);
+            // eso_size(1.0f);
+            // for_(triangle_index, fornow_global_selection_num_triangles) {
+            //     uint3 tuple = fornow_global_selection_triangle_tuples[triangle_index];
+            //     for_(d, 3) {
+            //         uint dp1 = (d + 1) % 3;
+            //         eso_vertex(fornow_global_selection_vertex_positions[tuple[d]]);
+            //         eso_vertex(fornow_global_selection_vertex_positions[tuple[dp1]]);
+            //     }
+            // }
+            // eso_end();
+        };
+
         MagicSnapResult3D snap_result = magic_snap_3d();
         // if (snap_result.hit_mesh) {
         //     eso_begin(PV_3D, SOUP_POINTS);

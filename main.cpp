@@ -102,21 +102,21 @@ char *startup_script = "";
 run_before_main {
     // #define DEBUG_HISTORY_CHECKPOINT_EVERYTHING // TODO: why this broken?
     startup_script =
-        "^."
+        "^.^G"
         "^osplash.dxf\n"
         "y"
-        "s"
-        "<m2d 16 16>"
-        "<m2d -16 16>"
-        "<m2d -16 -16>"
-        "<m2d 16 -16>"
-        "c"
-        "<m2d 100 0>"
-        "[50\n"
-        "<m3d 0 100 0 0 -1 0>"
-        "<m2d 17 0>"
-        "{47\n"
-        ";"
+        "sc"
+        // "<m2d 16 16>"
+        // "<m2d -16 16>"
+        // "<m2d -16 -16>"
+        // "<m2d 16 -16>"
+        // "c"
+        // "<m2d 100 0>"
+        // "[50\n"
+        // "<m3d 0 100 0 0 -1 0>"
+        // "<m2d 17 0>"
+        // "{47\n"
+        // ";"
         ;
 };
 #endif
