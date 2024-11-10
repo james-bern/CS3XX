@@ -39,6 +39,36 @@ ManifoldSimplePolygon *manifold_polygons_get_simple(void *mem,
 ManifoldVec2 manifold_polygons_get_point(ManifoldPolygons *ps, int simple_idx,
                                          int pt_idx);
 
+// Triangulate
+// TODOLATER: TriangulateIdx
+
+// NOTES
+// - Triangulate returns a std::vector<ivec3> which is not a thing in C++
+// - ivec3 -> ManifoldIVec3
+// - std::vector -> bare pointer
+
+// std::vector<ivec3> Triangulate(const Polygons &polygons, double epsilon),
+
+
+
+ManifoldTriangulation *manifold_triangulate(void *mem, ManifoldPolygons *ps, double epsilon);
+int manifold_triangulation_num_tri(ManifoldTriangulation *m);
+int *manifold_triangulation_tri_verts(void *mem, ManifoldTriangulation *m);
+size_t manifold_triangulation_size();
+
+
+// TODOLATER
+// - destruction
+// - pointer free + destruction
+// - allocation
+
+// QUESTIONS for PR
+// - num_tri int vs. size_t
+// - what is the use case of "destruction" (destruct) vs.  "pointer free + destruction" (delete)
+
+ 
+
+
 // Mesh Construction
 
 ManifoldMeshGL *manifold_meshgl(void *mem, float *vert_props, size_t n_verts,
