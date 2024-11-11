@@ -465,16 +465,12 @@ void conversation_draw() {
                         if (two_click_command->awaiting_second_click) { \
                             DRAW_##NAME(*first_click, mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active, GRAY_or_PINK_depending_on_whether_snap_is_active); \
                         } else { \
-                            DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); \
+                            DRAW_##NAME({}, {}, GRAY); /*NOTE: this only actually shows up for Move and Copy (length lines/circles are invisible -- because no POINTS) */ \
                         } \
                         vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0) : *first_click; \
-                        /*if (!ARE_EQUAL(tmp, preview->mouse_from_Draw_Enter__BLUE_position)) { */\
                         DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
-                        /*} */\
                         if (state_Snap_command_is_(XY)) { \
-                            /*if (!ARE_EQUAL(tmp, preview->xy_xy)) { */\
                             DRAW_##NAME(tmp, preview->xy_xy, PINK); \
-                            /*} */\
                         } \
                     } \
                 } while (0)
