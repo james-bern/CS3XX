@@ -19,7 +19,7 @@ Entity entity_make_three_point_arc_or_line(vec2 a, vec2 b, vec2 c) {
             result.line.end   = c;
         } else {
             result.type = EntityType::Arc;
-            result.arc.center = intersection_result.point;;
+            result.arc.center = intersection_result.point;
             result.arc.radius = distance(a, result.arc.center);
             result.arc.start_angle_in_degrees = DEG(ATAN2(c - result.arc.center));
             result.arc.end_angle_in_degrees   = DEG(ATAN2(a - result.arc.center));

@@ -95,10 +95,18 @@ int main() {
 
 char *startup_script = "";
 
-// TODO: DEBUG_CHECKPOINT_EVERYTHING
-// TODO: button to print script to console
+#if 1 // flip
+run_before_main {
+    startup_script =
+        "^odemo.dxf\n"
+        "sq1y[5\n"
+        "<m3d 0 100 15 0 -1 0>"
+        "sc<m2d 30 15><m2d 30 -15>"
+        ;
+};
+#endif
 
-#if 1 // splash
+#if 0 // splash
 run_before_main {
     // #define DEBUG_HISTORY_CHECKPOINT_EVERYTHING // TODO: why this broken?
     startup_script =

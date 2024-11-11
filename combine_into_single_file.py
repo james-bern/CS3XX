@@ -11,7 +11,7 @@ def is_jim_style_include(line):
 already_pasted_files = set()
 def paste_file(output: TextIOWrapper, filename, remainder=""):
     if filename in already_pasted_files:
-        output.write(f'#include "{filename}"')
+        output.write(f'#include "{filename}"{remainder}\n')
         return
     already_pasted_files.add(filename)
 

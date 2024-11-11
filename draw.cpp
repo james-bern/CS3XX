@@ -11,26 +11,33 @@
 
 
 
-
-
-mat4 get_M_3D_from_2D() {
+mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);
-    // OLD VERSION:
-    // vec3 y = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f,  0.0f, -1.0f * SGN(dot_product)) : up;
-    // vec3 x = normalized(cross(y, feature_plane->normal));
-    // vec3 z = cross(x, y);
     vec3 down = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f, 0.0f, 1.0f * SGN(dot_product)) : V3(0.0f, -1.0f, 0.0f);
+    
     vec3 z = feature_plane->normal;
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
+    vec3 o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
+    
+    if (for_drawing) {
+        // FINITE_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
+        // FINITE_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
+        JUICEIT_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f);
+        JUICEIT_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f);
+        // TODO: Change 10 to function of feature_plane size
+        JUICEIT_EASYTWEEN(&feature_plane->offset, 10 * MAX(SIN(feature_plane->x_angle), SIN(feature_plane->y_angle)));
 
-    if (other.mirror_3D_plane_X)
-        x *= -1;
-    if (other.mirror_3D_plane_Y)
-        y *= -1;
+        x = transformVector(M4_RotationAbout(y, feature_plane->x_angle), x);
+        y = transformVector(M4_RotationAbout(x, feature_plane->y_angle), y);
+        o += feature_plane->offset * feature_plane->normal;
+    } else {
+        if (feature_plane->mirror_x) x *= - 1;
+        if (feature_plane->mirror_y) y *= - 1;
+    }
 
-    return M4_xyzo(x, y, z, (feature_plane->signed_distance_to_world_origin) * feature_plane->normal);
+    return M4_xyzo(x, y, z, o);
 }
 
 
@@ -41,7 +48,7 @@ void conversation_draw() {
     mat4 PV_2D = P_2D * V_2D;
     mat4 inv_PV_2D = inverse(PV_2D);
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
-    mat4 M_3D_from_2D = get_M_3D_from_2D();
+    mat4 M_3D_from_2D = get_M_3D_from_2D(true);
 
     TransformMouseDrawingPositionResult mouse_no_snap_potentially_15_deg__GRAY = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, true );
     TransformMouseDrawingPositionResult mouse_transformed__PINK                = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, false);
@@ -103,6 +110,13 @@ void conversation_draw() {
     mat4 P_3D = camera_mesh->get_P();
     mat4 V_3D = camera_mesh->get_V();
     mat4 PV_3D = P_3D * V_3D;
+    mat4 World_3D_from_OpenGL = inverse(PV_3D);
+    MagicSnapResult3D mouse_snap_result_3D; {
+        vec3 mouse_ray_origin = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL, -1.0f));
+        vec3 mouse_ray_end = transformPoint(World_3D_from_OpenGL, V3(other.mouse_OpenGL,  1.0f));
+        vec3 mouse_ray_direction = normalized(mouse_ray_end - mouse_ray_origin);
+        mouse_snap_result_3D = magic_snap_raycast(mouse_ray_origin, mouse_ray_direction);
+    }
 
     uint window_width, window_height; {
         vec2 _window_size = window_get_size_Pixel();
@@ -973,12 +987,11 @@ void conversation_draw() {
             // eso_end();
         };
 
-        MagicSnapResult3D snap_result = magic_snap_3d();
-        // if (snap_result.hit_mesh) {
+        // if (mouse_snap_result_3D.hit_mesh) {
         //     eso_begin(PV_3D, SOUP_POINTS);
         //     eso_size(20);
         //     eso_color(get_color(ColorCode::Emphasis));
-        //     eso_vertex(snap_result.mouse_position);
+        //     eso_vertex(mouse_snap_result_3D.mouse_position);
         //     eso_end();
         // }
 
@@ -986,16 +999,17 @@ void conversation_draw() {
 
         } else if (state_Mesh_command_is_(Measure3D)) {
             eso_begin(PV_3D, SOUP_POINTS);
+            eso_overlay(true);
             eso_size(20);
             eso_color(get_color(ColorCode::Emphasis));
             eso_vertex(mesh_two_click_command->first_click);
             eso_end();
 
-            if (snap_result.hit_mesh) {
+            if (mouse_snap_result_3D.hit_mesh) {
                 eso_begin(PV_3D, SOUP_LINES);
                 eso_color(get_color(ColorCode::Emphasis));
                 eso_vertex(mesh_two_click_command->first_click);
-                eso_vertex(snap_result.mouse_position);
+                eso_vertex(mouse_snap_result_3D.mouse_position);
                 eso_end();
             }
         }
@@ -1240,7 +1254,7 @@ void conversation_draw() {
         PRINT_COMMAND(&pen2, TOGGLE_BUTTONS);
         PRINT_COMMAND(&pen2, TOGGLE_DRAWING_DETAILS);
         PRINT_COMMAND(&pen2, TOGGLE_EVENT_STACK);
-        PRINT_COMMAND(&pen2, HidePlane);
+        PRINT_COMMAND(&pen2, TogglePlane);
         PRINT_COMMAND(&pen2, TOGGLE_GRID);
         PRINT_COMMAND(&pen2, TOGGLE_LIGHT_MODE);
         PRINT_COMMAND(&pen2, Divide2);

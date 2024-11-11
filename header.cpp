@@ -382,7 +382,14 @@ struct Drawing {
 };
 
 struct FeaturePlaneState {
+    // Only affect display
+    real x_angle;
+    real y_angle;
+    real offset;
+
     bool is_active;
+    bool mirror_x;
+    bool mirror_y;
     vec3 normal;
     real signed_distance_to_world_origin;
 };
@@ -599,8 +606,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_help;
     bool show_event_stack;
     bool hide_toolbox;
-    bool mirror_3D_plane_X = false;
-    bool mirror_3D_plane_Y = false;
+
+    bool should_feature_plane_be_active;
 
     Pane hot_pane;
     real x_divider_drawing_mesh_OpenGL = 0.15f;
