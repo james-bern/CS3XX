@@ -100,8 +100,8 @@ run_before_main {
     startup_script =
         "^odemo.dxf\n"
         "sq1y[5\n"
-        "<m3d 0 100 15 0 -1 0>"
-        "sc<m2d 30 15><m2d 30 -15>"
+        // "<m3d 0 100 15 0 -1 0>"
+        // "sc<m2d 30 15><m2d 30 -15>"
         ;
 };
 #endif

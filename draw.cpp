@@ -960,7 +960,7 @@ void conversation_draw() {
             #endif
         }
 
-        if (fornow_global_selection_triangle_tuples) { // selection triangulation 3d 3D
+        if (0 && fornow_global_selection_triangle_tuples) { // selection triangulation 3d 3D
             eso_begin(PV_3D * M_3D_from_2D, SOUP_TRIANGLES);
             eso_overlay(true);
             eso_color(0.0f, 1.0f, 0.0f, 0.5f);

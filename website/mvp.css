@@ -74,7 +74,7 @@ header,
 main {
     margin: 0 auto;
     max-width: var(--width-content);
-    padding: 1rem 1rem;
+    padding: 0.5rem 1rem;
 }
 
 hr {
@@ -137,7 +137,10 @@ header a strong {
 }
 
 header nav img {
-    margin: 1rem 0;
+    margin: 1rem 0rem 0rem 0rem;
+}
+
+header img {
 }
 
 section header {
@@ -302,7 +305,7 @@ sup {
 a {
     color: var(--color-link);
     display: inline-block;
-    /* font-weight: bold; */
+    font-weight: bold;
     text-decoration: none;
 }
 
@@ -402,7 +405,7 @@ form {
     display: block;
     max-width: var(--width-card-wide);
     min-width: var(--width-card);
-    padding: 0.25rem;
+    padding: 0.5rem;
     text-align: var(--justify-normal);
 }
 
@@ -418,7 +421,7 @@ textarea {
     display: block;
     font-size: inherit;
     max-width: var(--width-card-wide);
-    margin: 0.0rem;
+    margin: 0.75rem;
 }
 
 input[type="checkbox"],
@@ -597,3 +600,25 @@ blockquote footer {
     background-color: var(--color-scrollbar);
     border-radius: 10px;
 }
+
+/* https://stackoverflow.com/questions/18342536/how-to-hide-the-bar-at-the-top-of-youtube-even-when-mouse-hovers-over-it */
+
+.tweet {
+    transform-origin: top left;
+    width: 50%;
+    display: flex;
+}
+
+.anchor {
+    display: block;
+    position: relative;
+    top: -18px;
+    visibility: hidden;
+}
+
+iframe {
+    border: 1px solid var(--color-bg-secondary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow) var(--color-shadow);
+}
+
