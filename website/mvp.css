@@ -604,9 +604,9 @@ blockquote footer {
 /* https://stackoverflow.com/questions/18342536/how-to-hide-the-bar-at-the-top-of-youtube-even-when-mouse-hovers-over-it */
 
 .tweet {
-    transform-origin: top left;
-    width: 50%;
     display: flex;
+    max-width: var(--width-content);
+    overflow: auto;
 }
 
 .anchor {

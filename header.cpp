@@ -561,7 +561,7 @@ struct PreviewState {
     real cursor_subtext_alpha;
 
     vec2 mouse_transformed__PINK_position;
-    vec2 mouse_no_snap_potentially_15_deg__GRAY_position;
+    vec2 mouse_no_snap_potentially_15_deg__WHITE_position;
     vec2 mouse_from_Draw_Enter__BLUE_position;
     // TODO: restore beatiful color lerp from gray to pink when snap becomes active
 

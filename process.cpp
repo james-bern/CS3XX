@@ -565,14 +565,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             | GUIBUTTON(commands.Quad);
 
                         if (snap_button_other_than_XY_or_Zero_pressed) {
-                            preview->mouse_transformed__PINK_position = preview->mouse_no_snap_potentially_15_deg__GRAY_position; // FORNOW
+                            preview->mouse_transformed__PINK_position = preview->mouse_no_snap_potentially_15_deg__WHITE_position; // FORNOW
                         }
 
                         if (GUIBUTTON(commands.XY)) {
                             // this is the only good code in the codebase
 
                             // ohno NOTE:SEE001
-                            preview->xy_xy = (!two_click_command->awaiting_second_click) ? V2(0) : preview->mouse_no_snap_potentially_15_deg__GRAY_position;
+                            preview->xy_xy = (!two_click_command->awaiting_second_click) ? V2(0) : preview->mouse_no_snap_potentially_15_deg__WHITE_position;
                         }
                         if (GUIBUTTON(commands.Zero)) {
                             state.Snap_command = commands.None;
@@ -1128,8 +1128,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
 
-                            // FORNOW FORNOW
-                            preview->mouse_from_Draw_Enter__BLUE_position = two_click_command->first_click;
+                            // FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD
+                            vec2 Draw_Enter; {
+                                do_once { messagef(pallete.red, "FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD"); };
+                                Draw_Enter = (!two_click_command->awaiting_second_click) ? V2(0, 0) : two_click_command->first_click;
+                                // if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                                if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
+                                if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
+                                if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
+                                if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
+                                if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
+                                if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
+                                if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
+                                // }
+                            }
+
+                            preview->mouse_from_Draw_Enter__BLUE_position = Draw_Enter;
                             preview->xy_xy = two_click_command->first_click;
                         }
                     } else { // (two_click_command->awaiting_second_click)

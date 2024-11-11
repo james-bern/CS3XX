@@ -50,9 +50,9 @@ void conversation_draw() {
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D(true);
 
-    TransformMouseDrawingPositionResult mouse_no_snap_potentially_15_deg__GRAY = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, true );
+    TransformMouseDrawingPositionResult mouse_no_snap_potentially_15_deg__WHITE = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, true );
     TransformMouseDrawingPositionResult mouse_transformed__PINK                = transform_mouse_drawing_position(mouse_World_2D, other.shift_held, false);
-    JUICEIT_EASYTWEEN(&preview->mouse_no_snap_potentially_15_deg__GRAY_position, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
+    JUICEIT_EASYTWEEN(&preview->mouse_no_snap_potentially_15_deg__WHITE_position, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
 
     bool extruding = ((state_Mesh_command_is_(ExtrudeAdd)) || (state_Mesh_command_is_(ExtrudeCut)));
     bool revolving = ((state_Mesh_command_is_(RevolveAdd)) || (state_Mesh_command_is_(RevolveCut)));
@@ -85,7 +85,7 @@ void conversation_draw() {
     }
 
 
-    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(SetOrigin)) ? drawing->origin : mouse_no_snap_potentially_15_deg__GRAY.mouse_position; // NOTE: we use this so we don't double tween SetOrigin's effect on the preview entities on the right (or something like this ??)
+    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(SetOrigin)) ? drawing->origin : mouse_no_snap_potentially_15_deg__WHITE.mouse_position; // NOTE: we use this so we don't double tween SetOrigin's effect on the preview entities on the right (or something like this ??)
     {
         JUICEIT_EASYTWEEN(&preview->drawing_origin, target_preview_drawing_origin);
     }
@@ -98,11 +98,11 @@ void conversation_draw() {
             preview_dxf_axis_base_point = drawing->axis_base_point;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else if (!two_click_command->awaiting_second_click) {
-            preview_dxf_axis_base_point = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
+            preview_dxf_axis_base_point = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
             preview_dxf_axis_angle_from_y = drawing->axis_angle_from_y;
         } else {
             preview_dxf_axis_base_point = two_click_command->first_click;
-            preview_dxf_axis_angle_from_y = ATAN2(mouse_no_snap_potentially_15_deg__GRAY.mouse_position - preview_dxf_axis_base_point) - PI / 2;
+            preview_dxf_axis_angle_from_y = ATAN2(mouse_no_snap_potentially_15_deg__WHITE.mouse_position - preview_dxf_axis_base_point) - PI / 2;
         }
     }
 
@@ -380,35 +380,33 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
             }
             bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
-            bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
-                    (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Draw_Enter)));
-            bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) &&
-                    (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Snap_Enter)));
+            // bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
+            //         (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Draw_Enter)));
+            // bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) &&
+            //         (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Snap_Enter)));
 
 
 
             vec3 BLUE = get_accent_color(ToolboxGroup::Draw);
             vec3 PINK = get_accent_color(ToolboxGroup::Snap);
-            vec3 GRAY = get_color(ColorCode::Emphasis);
+            vec3 WHITE = get_color(ColorCode::Emphasis);
+            vec3 GRAY = pallete.gray;
 
-            vec2 mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active;
-            vec3 GRAY_or_PINK_depending_on_whether_snap_is_active;
+            vec2 mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
+            vec3 WHITE_or_PINK_depending_on_whether_snap_is_active;
             {
                 if (!Snap_eating_mouse) {
-                    GRAY_or_PINK_depending_on_whether_snap_is_active = GRAY;
-                    mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
+                    WHITE_or_PINK_depending_on_whether_snap_is_active = WHITE;
+                    mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
                 } else {
-                    GRAY_or_PINK_depending_on_whether_snap_is_active = PINK;
-                    mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active = preview->mouse_transformed__PINK_position;
+                    WHITE_or_PINK_depending_on_whether_snap_is_active = PINK;
+                    mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = preview->mouse_transformed__PINK_position;
                 }
             }
 
 
-            // real magic_mouse_move_time = MIN(other.time_since_popup_second_click_not_the_same, other.time_since_mouse_moved);
-            // real magic_t = _JUICEIT_EASYTWEEN(-0.02f + 0.2f * magic_mouse_move_time);
 
-
-            // vec2 click_vector = (mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active - *first_click);
+            // vec2 click_vector = (mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active - *first_click);
             // real click_theta = ATAN2(click_vector);
 
             { // entities
@@ -458,16 +456,16 @@ void conversation_draw() {
                 #define ANNOTATION(Name, NAME) \
                 do { \
                     if (state_Draw_command_is_(Name)) { \
+                        DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); /*NOTE: this only actually shows up for Move and Copy and Rotate and probably some other stuff we're forgetting lol whoops (length lines/circles are invisible -- because no POINTS) */ \
                         if (!two_click_command->awaiting_second_click) { \
                         } else { \
-                            DRAW_##NAME(*first_click, mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active, GRAY_or_PINK_depending_on_whether_snap_is_active); \
+                            DRAW_##NAME(*first_click, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, WHITE_or_PINK_depending_on_whether_snap_is_active); \
                         } \
                         vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click; \
                         DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
                         if (state_Snap_command_is_(XY)) { \
                             DRAW_##NAME(tmp, preview->xy_xy, PINK); \
                         } \
-                        DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); /*NOTE: this only actually shows up for Move and Copy (length lines/circles are invisible -- because no POINTS) */ \
                     } \
                 } while (0)
 
@@ -484,7 +482,7 @@ void conversation_draw() {
 
                 } 
                 ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
-                    ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
+                ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
                 ANNOTATION(Copy, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
 
 
@@ -494,7 +492,7 @@ void conversation_draw() {
                         Entity *entity_snapped_to = &drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to];
                         eso_begin(PV_2D, SOUP_LINES);
                         // eso_overlay(true);
-                        eso_color(GRAY_or_PINK_depending_on_whether_snap_is_active);
+                        eso_color(WHITE_or_PINK_depending_on_whether_snap_is_active);
                         eso_entity__SOUP_LINES(entity_snapped_to);
                         eso_end();
                     }
@@ -502,18 +500,12 @@ void conversation_draw() {
 
                 { // crosshairs
                     if (state_Snap_command_is_(XY)) {
-                        if (popup->manager.focus_group == ToolboxGroup::Snap) {
-                            if (!Snap_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
-                        }
                         DRAW_CROSSHAIR(preview->xy_xy, PINK);
                     } else if (!state_Snap_command_is_(None)) {
                         DRAW_CROSSHAIR(preview->mouse_transformed__PINK_position, PINK);
                     }
 
-                    if (two_click_command->awaiting_second_click && !state_Draw_command_is_(None)) {
-                        if (popup->manager.focus_group == ToolboxGroup::Draw) {
-                            if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
-                        }
+                    if (!state_Draw_command_is_(None)) {
                         DRAW_CROSSHAIR(preview->mouse_from_Draw_Enter__BLUE_position, BLUE);
                     }
                 }
@@ -521,10 +513,10 @@ void conversation_draw() {
                 { // experimental preview part B
                   // NOTE: circle <-> circle is wonky
                     if (state_Draw_command_is_(Offset)) {
-                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
+                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                         if (closest_result.success) {
                             Entity *_closest_entity = closest_result.closest_entity;
-                            Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
+                            Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                             vec2 target_start, target_end, target_middle, target_opposite;
                             if (target_entity.type != EntityType::Circle) {
                                 entity_get_start_and_end_points(&target_entity, &target_start, &target_end);
@@ -540,7 +532,7 @@ void conversation_draw() {
                                     }
                                 }
                                 // real angle = ATAN2(preview->offset_entity_middle - circle->center);
-                                // real angle = ATAN2(mouse_no_snap_potentially_15_deg__GRAY - circle->center);
+                                // real angle = ATAN2(mouse_no_snap_potentially_15_deg__WHITE - circle->center);
                                 // TODO: something else?
                                 target_middle   = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
                                 target_start    = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - PI / 2);
@@ -602,14 +594,14 @@ void conversation_draw() {
                         eso_begin(PV_2D, SOUP_LINE_LOOP);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(first_click->x, first_click->y);
-                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position.x, first_click->y);
-                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position.x, mouse_no_snap_potentially_15_deg__GRAY.mouse_position.y);
-                        eso_vertex(first_click->x, mouse_no_snap_potentially_15_deg__GRAY.mouse_position.y);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__WHITE.mouse_position.x, first_click->y);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__WHITE.mouse_position.x, mouse_no_snap_potentially_15_deg__WHITE.mouse_position.y);
+                        eso_vertex(first_click->x, mouse_no_snap_potentially_15_deg__WHITE.mouse_position.y);
                         eso_end();
                     }
 
                     if (state_Draw_command_is_(CenterBox)) {                
-                        vec2 one_corner = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
+                        vec2 one_corner = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
                         vec2 center = *first_click;
                         real other_y = 2 * center.y - one_corner.y;
                         real other_x = 2 * center.x - one_corner.x;
@@ -628,26 +620,26 @@ void conversation_draw() {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(two_click_command->first_click);
-                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                         eso_end();
                     }
                     if (state_Draw_command_is_(Mirror2)) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(two_click_command->first_click);
-                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                         eso_end();
                     }
                     if (state_Draw_command_is_(Rotate)) {
                         eso_begin(PV_2D, SOUP_LINES);
                         eso_color(get_color(ColorCode::Emphasis));
                         eso_vertex(two_click_command->first_click);
-                        eso_vertex(mouse_no_snap_potentially_15_deg__GRAY.mouse_position);
+                        eso_vertex(mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                         eso_end();
                     }
                     if (state_Draw_command_is_(DiamCircle)) {
                         vec2 edge_one = two_click_command->first_click;
-                        vec2 edge_two = mouse_no_snap_potentially_15_deg__GRAY.mouse_position;
+                        vec2 edge_two = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
                         vec2 center = (edge_one + edge_two) / 2;
                         real radius = norm(edge_one - center);
                         eso_begin(PV_2D, SOUP_LINE_LOOP);
@@ -754,7 +746,7 @@ void conversation_draw() {
 
                     // TODO: this should incorporate a preview of the fact that some entities are moving
                     if (moving_selected_entities) {
-                        vec2 T = (preview->mouse_no_snap_potentially_15_deg__GRAY_position - two_click_command->first_click);
+                        vec2 T = (preview->mouse_no_snap_potentially_15_deg__WHITE_position - two_click_command->first_click);
                         dxf_selection_bbox.min += T;
                         dxf_selection_bbox.max += T;
                     }
@@ -931,7 +923,7 @@ void conversation_draw() {
 
                 mat4 T_Move;
                 if (moving_selected_entities) {
-                    T_Move = M4_Translation(preview->mouse_no_snap_potentially_15_deg__GRAY_position - two_click_command->first_click);
+                    T_Move = M4_Translation(preview->mouse_no_snap_potentially_15_deg__WHITE_position - two_click_command->first_click);
                 } else {
                     T_Move = M4_Identity();
                 }
