@@ -11,8 +11,21 @@
 
     <body>
         <header>
+            <nav>
+                <a href=""><img alt="Conversation" src="logo.png" height="70"></a>
+                <ul>
+                    <li>home</li>
+                    <li><a href="#about">about</a></li>
+                    <li><a href="#devlog">devlog</a></li>
+                    <li><a href="https://james-bern.github.io" target="_blank">Jim ↗</a></li>
+                </ul>
+            </nav>
+
+            <br>
             <h1>Conversation</h1>
-            <h4>a simple CAD program</h4>
+            <h4>a simple CAD program 🙂👍</h4>
+
+            <br>
 
             <section>
                 <form action="https://formspree.io/f/myzywzdv" method="post">
@@ -27,16 +40,122 @@
             <br>
 
 
-            <h3>2D -> 3D in seconds</h3>
+            <h3>Design a 3D-printable part in less time than it takes SolidWorks to boot 😬</h3>
             <section>
 
-                <video style="border:1px solid black;" width="320" height="320" autoplay loop mute>
-                    <source src="video.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            </section>
+                <!-- <video style="border:1px solid black;" width="320" height="320" autoplay loop mute> -->
+                <!--     <source src="video.mp4" type="video/mp4"> -->
+                <!--     Your browser does not support the video tag. -->
+                <!-- </video> -->
 
+                <img style="solid black;" height="480" src="screenshot.png"></img>
+            </section>
         </header>
+        <main>
+            <h2 id="about">about</h2>
+            <p>
+            Conversation is a standalone desktop application for designing simple 3D-printed machines.
+            </p>
+
+            <ul>
+                <!-- <li> Conversation runs on Mac and Windows 🍏🤷‍♂️</li> -->
+                <li> It's <b>fast</b> 🐰 </li>
+                <li> It's <b>tiny</b> 🐣 </li>
+                <li> It's <b>fun </b> 😊 </li>
+            </ul>
+
+            <!-- <li> -->
+            <!-- It has lots of (optional) Vim-like keyboard shortcuts. -->
+            <!-- </li> -->
+
+
+            <br>
+
+            <h3>details</h3>
+
+            <p>
+            Conversation is a direct-modeling program.
+            Unlike SolidWorks, Conversation does not have a parametric feature tree (just basic undo/redo).
+            </p>
+
+            <p>
+            Conversation separates its 2D drawing and 3D geometry.
+            Unlike SolidWorks, Conversation does not absorb 2D sketches into 3D geometry or base 2D sketches on 3D geometry.
+            </p>
+
+            <p>
+            Conversation works with "lowest common denominator" filetypes.
+            Conversation uses lines, arcs, and circles to represent 2D geometry and can import/export DXF's.
+            Conversation uses triangle meshes to represent 3D geometry and can import/export the STL's (3MF coming sooon).
+            </p>
+
+            </p>
+
+            <br>
+
+            <h3>code</h3>
+
+            <p>
+            Conversation is written in "handmade-style" C/C++.
+            A from-scratch debug build of our codebase (not including external libraries) takes about one second.
+            We try to avoid external libraries; we do not use the C++ STL.
+            </p>
+
+            <p>
+            Conversation uses the amazing open source <a href="">Manifold</a> library as its geometry kernel.
+            Manifold can boolean add and subtract triangle meshes very quickly and precisely.
+            Manifold is the core enabling technology behind Conversation.
+            </p>
+
+            <p>
+            Conversation uses <a href="">GLFW</a> to open a window, create an OpenGL context, and handle user input events in a cross-platform fashion.
+            </p>
+
+            <p>
+            Conversation currently uses <a href="">stb_easy_font</a> to render text 🙃
+            We'll switch eventually, but Sean Barrett is still a GOAT.
+            </p>
+
+            <p>
+            This website uses <a href="">MVP.css</a>.
+            </p>
+
+
+            <br>
+
+            <h3>credits</h3>
+
+            <p>
+            Conversation is written by <a href="">James Bern</a>, <a href="">Nathan Vosburg</a>, and others.
+            </p>
+
+            <p>
+            The spark to actually try writing Conversation was <a href="https://elalish.blogspot.com/2023/03/perseverance-history-of-manifold.html">this blog post</a> by Manifold author <a href="">Emmett Lalish</a>. 🚀
+
+            Conversation draws additional inspiration from other CAD programs including OpenSCAD, ManifoldCAD, LAYOUT, QCAD, SketchUp, Shapr, SolidWorks, PowerPoint (jk but only sort of), and others.
+            </p>
+
+            <p>
+            We learned how to code in a "handmade-style" from articles and videos by <a href="">Casey Muratori</a>, <a href="">Ryan Fleury</a>, <a href="">Sean Barrett</a>, <a href="https://handmade.network/m/vjekoslav">Vjekoslav Krajačić</a>, <a href="">Mike Acton</a> and others.
+            </p>
+
+            <p>
+            All good mathematical code is written by <a href="https://people.sc.fsu.edu/~jburkardt/">John Burkardt</a>.
+            </p>
+
+            <p>
+            Big thanks to my CS345 students for being our guinea pigs 🐹
+            </p>
+
+
+
+            <br>
+
+            <!-- <h3>cite</h3> -->
+            <h2 id="devlog">devlog</h2>
+        </main>
+        <br><br><br><br><br><br><br><br><br><br>
+        <br><br><br><br><br><br><br><br><br><br>
     </body>
 </html>
 
