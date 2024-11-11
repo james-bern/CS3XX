@@ -1,7 +1,7 @@
 /* MVP.css v1.16 - https://github.com/andybrewer/mvp */
 
 :root {
-    --color-link: #ef900a;
+    --color-link: #faad2f;
 
     --active-brightness: 0.85;
     --border-radius: 5px;
@@ -248,6 +248,9 @@ h6 {
     line-height: var(--line-height);
     text-wrap: balance;
     margin: 0.3rem 0;
+}
+
+h5 {
 }
 
 mark {
