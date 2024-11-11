@@ -359,6 +359,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         two_click_command->tangent_first_click = false;
 
                         mesh_two_click_command->awaiting_second_click = false;
+
+                        preview->mouse_from_Draw_Enter__BLUE_position = {}; // ohno NOTE:SEE001
                     }
                     if (flags & FOCUS_THIEF) {
                         popup->manager.manually_set_focus_group(group);
@@ -568,6 +570,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         if (GUIBUTTON(commands.XY)) {
                             // this is the only good code in the codebase
+
+                            // ohno NOTE:SEE001
                             preview->xy_xy = (!two_click_command->awaiting_second_click) ? V2(0) : preview->mouse_no_snap_potentially_15_deg__GRAY_position;
                         }
                         if (GUIBUTTON(commands.Zero)) {
@@ -2065,7 +2069,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("angle"), &popup->move_angle
                          );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
-                        *first_click = V2(0, 0); // *
                         two_click_command->awaiting_second_click = true;
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->move_run, popup->move_rise));
                     } else {
@@ -2078,14 +2081,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Draw_command_is_(Rotate)) {
-                    if (two_click_command->awaiting_second_click) {
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("angle"), &popup->rotate_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(*first_click + e_theta(RAD(popup->rotate_angle))));
-                        }
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::Real, STRING("angle"), &popup->rotate_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(e_theta(RAD(popup->rotate_angle))));
                     }
                 } else if (state_Draw_command_is_(RCopy)) {
                     if (two_click_command->awaiting_second_click) {
@@ -2107,30 +2109,29 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Draw_command_is_(Copy)) {
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_linear_copy_length = popup->linear_copy_length;
-                        real prev_linear_copy_angle = popup->linear_copy_angle;
-                        real prev_linear_copy_run = popup->linear_copy_run;
-                        real prev_linear_copy_rise = popup->linear_copy_rise;
+                    real prev_linear_copy_length = popup->linear_copy_length;
+                    real prev_linear_copy_angle = popup->linear_copy_angle;
+                    real prev_linear_copy_run = popup->linear_copy_run;
+                    real prev_linear_copy_rise = popup->linear_copy_rise;
 
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
-                                CellType::Real, STRING("run (dx)"), &popup->linear_copy_run,
-                                CellType::Real, STRING("rise (dy)"), &popup->linear_copy_rise,
-                                CellType::Real, STRING("length"), &popup->linear_copy_length,
-                                CellType::Real, STRING("angle"), &popup->linear_copy_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->linear_copy_run, first_click->y + popup->linear_copy_rise));
-                        } else {
-                            if ((prev_linear_copy_length != popup->linear_copy_length) || (prev_linear_copy_angle != popup->linear_copy_angle)) {
-                                popup->linear_copy_run = popup->linear_copy_length * COS(RAD(popup->linear_copy_angle));
-                                popup->linear_copy_rise = popup->linear_copy_length * SIN(RAD(popup->linear_copy_angle));
-                            } else if ((prev_linear_copy_run != popup->linear_copy_run) || (prev_linear_copy_rise != popup->linear_copy_rise)) {
-                                popup->linear_copy_length = SQRT(popup->linear_copy_run * popup->linear_copy_run + popup->linear_copy_rise * popup->linear_copy_rise);
-                                popup->linear_copy_angle = DEG(ATAN2(popup->linear_copy_rise, popup->linear_copy_run));
-                            }
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::Real, STRING("run (dx)"), &popup->linear_copy_run,
+                            CellType::Real, STRING("rise (dy)"), &popup->linear_copy_rise,
+                            CellType::Real, STRING("length"), &popup->linear_copy_length,
+                            CellType::Real, STRING("angle"), &popup->linear_copy_angle,
+                            CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies
+                         );
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->linear_copy_run, popup->linear_copy_rise));
+                    } else {
+                        if ((prev_linear_copy_length != popup->linear_copy_length) || (prev_linear_copy_angle != popup->linear_copy_angle)) {
+                            popup->linear_copy_run = popup->linear_copy_length * COS(RAD(popup->linear_copy_angle));
+                            popup->linear_copy_rise = popup->linear_copy_length * SIN(RAD(popup->linear_copy_angle));
+                        } else if ((prev_linear_copy_run != popup->linear_copy_run) || (prev_linear_copy_rise != popup->linear_copy_rise)) {
+                            popup->linear_copy_length = SQRT(popup->linear_copy_run * popup->linear_copy_run + popup->linear_copy_rise * popup->linear_copy_rise);
+                            popup->linear_copy_angle = DEG(ATAN2(popup->linear_copy_rise, popup->linear_copy_run));
                         }
                     }
                 } else if (state_Draw_command_is_(Polygon)) {

@@ -242,8 +242,8 @@ void conversation_draw() {
         };
 
         bool moving = state_Draw_command_is_(Move);
-        bool linear_copying = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Copy));
-        bool rotating = (two_click_command->awaiting_second_click) && (state_Draw_command_is_(Rotate));
+        bool linear_copying = (state_Draw_command_is_(Copy));
+        bool rotating = (state_Draw_command_is_(Rotate));
         // bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
 
         auto DRAW_ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED = [&](vec2 click_1, vec2 click_2, vec3 color) {
@@ -350,7 +350,7 @@ void conversation_draw() {
 
 
             vec2 Draw_Enter; {
-                Draw_Enter = *first_click;
+                Draw_Enter = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click;
                 // if (popup->manager.focus_group == ToolboxGroup::Draw) {
                 if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
                 if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
@@ -358,11 +358,7 @@ void conversation_draw() {
                 if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
                 if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
                 if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
-                if (state_Draw_command_is_(Rotate)) {
-                    if (!IS_ZERO(popup->rotate_angle)) { // FORNOW
-                        Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
-                    }
-                }
+                if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
                 // }
             }
             vec2 Snap_Enter; {
@@ -462,16 +458,16 @@ void conversation_draw() {
                 #define ANNOTATION(Name, NAME) \
                 do { \
                     if (state_Draw_command_is_(Name)) { \
-                        if (two_click_command->awaiting_second_click) { \
-                            DRAW_##NAME(*first_click, mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active, GRAY_or_PINK_depending_on_whether_snap_is_active); \
+                        if (!two_click_command->awaiting_second_click) { \
                         } else { \
-                            DRAW_##NAME({}, {}, GRAY); /*NOTE: this only actually shows up for Move and Copy (length lines/circles are invisible -- because no POINTS) */ \
+                            DRAW_##NAME(*first_click, mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active, GRAY_or_PINK_depending_on_whether_snap_is_active); \
                         } \
-                        vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0) : *first_click; \
+                        vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click; \
                         DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
                         if (state_Snap_command_is_(XY)) { \
                             DRAW_##NAME(tmp, preview->xy_xy, PINK); \
                         } \
+                        DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); /*NOTE: this only actually shows up for Move and Copy (length lines/circles are invisible -- because no POINTS) */ \
                     } \
                 } while (0)
 
@@ -485,11 +481,11 @@ void conversation_draw() {
                     ANNOTATION(Move, LINE);
                     ANNOTATION(Copy, LINE);
                     ANNOTATION(Rotate, LINE);
-                    // NOTE: this is still kinda broken
-                    ANNOTATION(Copy, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
-                    ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
+
                 } 
                 ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
+                    ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
+                ANNOTATION(Copy, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
 
 
                 { // entity snapped to
