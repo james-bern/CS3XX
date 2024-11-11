@@ -1,3 +1,4 @@
+#define NATE
 #if 0
 
 #include "basics.cpp"
@@ -98,8 +99,11 @@ char *startup_script = "";
 #if 1 // flip
 run_before_main {
     startup_script =
+        "^."
+        "^G"
         "^odemo.dxf\n"
-        "sq1y[5\n"
+        "sq1m"
+        // "sq1y[5\n"
         // "<m3d 0 100 15 0 -1 0>"
         // "sc<m2d 30 15><m2d 30 -15>"
         ;
@@ -370,6 +374,9 @@ void CLEAR_CANVAS() {
     gl_scissor_Pixel(x, 0, w, h);
 
     real r = 0.875f;
+    #ifdef NATE
+    r = 0.0f;
+    #endif
     glClearColor(r, r, r, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 

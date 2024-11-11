@@ -15,12 +15,12 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);
     vec3 down = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f, 0.0f, 1.0f * SGN(dot_product)) : V3(0.0f, -1.0f, 0.0f);
-    
+
     vec3 z = feature_plane->normal;
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
     vec3 o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
-    
+
     if (for_drawing) {
         // FINITE_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
         // FINITE_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
@@ -351,27 +351,27 @@ void conversation_draw() {
 
             vec2 Draw_Enter; {
                 Draw_Enter = *first_click;
-                if (popup->manager.focus_group == ToolboxGroup::Draw) {
-                    if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
-                    if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
-                    if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
-                    if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
-                    if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
-                    if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
-                    if (state_Draw_command_is_(Rotate)) {
-                        if (!IS_ZERO(popup->rotate_angle)) { // FORNOW
-                            Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
-                        }
+                // if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
+                if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
+                if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
+                if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
+                if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
+                if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
+                if (state_Draw_command_is_(Rotate)) {
+                    if (!IS_ZERO(popup->rotate_angle)) { // FORNOW
+                        Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
                     }
                 }
+                // }
             }
             vec2 Snap_Enter; {
                 Snap_Enter = *first_click;
-                if (popup->manager.focus_group == ToolboxGroup::Snap) {
-                    if (state_Snap_command_is_(XY)) {
-                        Snap_Enter = V2(popup->xy_x_coordinate, popup->xy_y_coordinate);
-                    }
+                // if (popup->manager.focus_group == ToolboxGroup::Snap) {
+                if (state_Snap_command_is_(XY)) {
+                    Snap_Enter = V2(popup->xy_x_coordinate, popup->xy_y_coordinate);
                 }
+                // }
             }
 
 
@@ -457,19 +457,25 @@ void conversation_draw() {
             }
 
             { // annotations
-
-                // new-style annotations
-                // FORNOW (this is sloppy and bad) nate: just made it more sloppy and bad
+              // new-style annotations
+              // FORNOW (this is sloppy and bad) nate: just made it more sloppy and bad
                 #define ANNOTATION(Name, NAME) \
                 do { \
                     if (state_Draw_command_is_(Name)) { \
                         if (two_click_command->awaiting_second_click) { \
                             DRAW_##NAME(*first_click, mouse_GRAY_or_PINK_position__depending_on_whether_snap_is_active, GRAY_or_PINK_depending_on_whether_snap_is_active); \
-                            if (!IS_ZERO(squaredNorm(*first_click - preview->xy_xy))) { \
-                                DRAW_##NAME(*first_click, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
-                            } \
+                        } else { \
+                            DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); \
                         } \
-                        DRAW_##NAME(*first_click, preview->xy_xy, PINK); \
+                        vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0) : *first_click; \
+                        /*if (!ARE_EQUAL(tmp, preview->mouse_from_Draw_Enter__BLUE_position)) { */\
+                        DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
+                        /*} */\
+                        if (state_Snap_command_is_(XY)) { \
+                            /*if (!ARE_EQUAL(tmp, preview->xy_xy)) { */\
+                            DRAW_##NAME(tmp, preview->xy_xy, PINK); \
+                            /*} */\
+                        } \
                     } \
                 } while (0)
 
@@ -507,7 +513,7 @@ void conversation_draw() {
                         if (popup->manager.focus_group == ToolboxGroup::Snap) {
                             if (!Snap_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
-                        if (Snap_eating_Enter) DRAW_CROSSHAIR(preview->xy_xy, PINK);
+                        DRAW_CROSSHAIR(preview->xy_xy, PINK);
                     } else if (!state_Snap_command_is_(None)) {
                         DRAW_CROSSHAIR(preview->mouse_transformed__PINK_position, PINK);
                     }
@@ -516,7 +522,7 @@ void conversation_draw() {
                         if (popup->manager.focus_group == ToolboxGroup::Draw) {
                             if (!Draw_eating_Enter) other.time_since_popup_second_click_not_the_same = 0.0f;
                         }
-                        if (Draw_eating_Enter) DRAW_CROSSHAIR(preview->mouse_from_Draw_Enter__BLUE_position, BLUE);
+                        DRAW_CROSSHAIR(preview->mouse_from_Draw_Enter__BLUE_position, BLUE);
                     }
                 }
 

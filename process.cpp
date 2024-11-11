@@ -566,7 +566,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             preview->mouse_transformed__PINK_position = preview->mouse_no_snap_potentially_15_deg__GRAY_position; // FORNOW
                         }
 
-                        if (GUIBUTTON(commands.XY)) preview->xy_xy = preview->mouse_no_snap_potentially_15_deg__GRAY_position; // FORNOW
+                        if (GUIBUTTON(commands.XY)) {
+                            // this is the only good code in the codebase
+                            preview->xy_xy = (!two_click_command->awaiting_second_click) ? V2(0) : preview->mouse_no_snap_potentially_15_deg__GRAY_position;
+                        }
                         if (GUIBUTTON(commands.Zero)) {
                             state.Snap_command = commands.None;
 
@@ -2062,7 +2065,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("angle"), &popup->move_angle
                          );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
-                        *first_click = V2(0, 0);
+                        *first_click = V2(0, 0); // *
                         two_click_command->awaiting_second_click = true;
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->move_run, popup->move_rise));
                     } else {
