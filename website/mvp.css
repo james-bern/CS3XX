@@ -617,6 +617,9 @@ blockquote footer {
 }
 
 iframe {
+    display: flex;
+    max-width: var(--width-content);
+    overflow: auto;
     border: 1px solid var(--color-bg-secondary);
     border-radius: var(--border-radius);
     box-shadow: var(--box-shadow) var(--color-shadow);
