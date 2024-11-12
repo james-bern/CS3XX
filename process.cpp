@@ -180,9 +180,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (group == ToolboxGroup::Snap) {
                         pen = &Snap_pen;
                         pen2 = &Snap_pen2;
+                        w = 64.0f;
                     } else if (group == ToolboxGroup::Colo) {
                         pen = &Colo_pen;
                         pen2 = &Colo_pen2;
+                        w = 64.0f;
                     } else if (group == ToolboxGroup::Both) {
                         pen = &Both_pen;
                         pen2 = &Both_pen2;
@@ -297,10 +299,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         // if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
                         // if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
                         // if (!hovering) {
-                            // easy_text_draw(pen, fornow_hack);
-                            easy_text_draw(pen, name);
+                        // easy_text_draw(pen, fornow_hack);
+                        easy_text_draw(pen, name);
                         // } else {
-                            // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                        // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
                         // }
                     }
                     pen2->offset_Pixel.y = pen->offset_Pixel.y;
@@ -1130,13 +1132,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 do_once { messagef(pallete.red, "FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD"); };
                                 Draw_Enter = (!two_click_command->awaiting_second_click) ? V2(0, 0) : two_click_command->first_click;
                                 // if (popup->manager.focus_group == ToolboxGroup::Draw) {
-                                if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
-                                if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
-                                if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
-                                if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
-                                if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
-                                if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
-                                if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
+                                // if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
+                                // if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
+                                // if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
+                                // if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
+                                // if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
+                                // if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
+                                // if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
                                 // }
                             }
 
@@ -2081,6 +2083,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                          );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
                         two_click_command->awaiting_second_click = true;
+                        two_click_command->first_click = {};
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->move_run, popup->move_rise));
                     } else {
                         if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
@@ -2097,8 +2100,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("angle"), &popup->rotate_angle
                          );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
+                        if (!two_click_command->awaiting_second_click) two_click_command->first_click = {};
                         two_click_command->awaiting_second_click = true;
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(e_theta(RAD(popup->rotate_angle))));
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(two_click_command->first_click + e_theta(RAD(popup->rotate_angle))));
                     }
                 } else if (state_Draw_command_is_(RCopy)) {
                     if (two_click_command->awaiting_second_click) {
@@ -2134,6 +2138,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies
                          );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
+                        two_click_command->first_click = {};
                         two_click_command->awaiting_second_click = true;
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->linear_copy_run, popup->linear_copy_rise));
                     } else {

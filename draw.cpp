@@ -128,7 +128,7 @@ void conversation_draw() {
         bool dragging = (other.mouse_left_drag_pane == Pane::Separator);
         bool hovering = ((other.mouse_left_drag_pane == Pane::None) && (other.hot_pane == Pane::Separator));
         eso_begin(M4_Identity(), SOUP_LINES);
-        eso_overlay(true);
+        // eso_overlay(true);
         eso_size(dragging ? 1.0f
                 : hovering ? 2.0f
                 : 1.5f);
@@ -505,7 +505,7 @@ void conversation_draw() {
                         DRAW_CROSSHAIR(preview->mouse_transformed__PINK_position, PINK);
                     }
 
-                    if (!state_Draw_command_is_(None)) {
+                    if (!state_Draw_command_is_(None) && (popup->manager.get_tag(ToolboxGroup::Draw) != NULL)) {
                         DRAW_CROSSHAIR(preview->mouse_from_Draw_Enter__BLUE_position, BLUE);
                     }
                 }
