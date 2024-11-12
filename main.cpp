@@ -1,4 +1,4 @@
-#define NATE
+// #define NATE
 #if 0
 
 #include "basics.cpp"
@@ -100,7 +100,7 @@ char *startup_script = "";
 run_before_main {
     startup_script =
         "^."
-        "^G"
+        // "^G"
         "^odemo.dxf\n"
         "sq1m"
         // "sq1y[5\n"
@@ -373,7 +373,7 @@ void CLEAR_CANVAS() {
     glEnable(GL_SCISSOR_TEST);
     gl_scissor_Pixel(x, 0, w, h);
 
-    real r = 0.875f;
+    real r = 0.825f;
     #ifdef NATE
     r = 0.0f;
     #endif

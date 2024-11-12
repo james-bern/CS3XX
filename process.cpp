@@ -120,7 +120,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EasyTextPen Mesh_pen = Draw_pen;
             EasyTextPen Mesh_pen2 = Draw_pen2;
             Mesh_pen.origin.x = window_get_width_Pixel() - (w + padding);
-            Mesh_pen.origin.y += 64.0f;
+            // Mesh_pen.origin.y += 64.0f;
             Mesh_pen2.origin = Mesh_pen.origin;
 
 
@@ -145,7 +145,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
 
 
-                real w = 60.0f;
+                real w = 80.0f;
                 ToolboxGroup group = command.group;
                 bool is_mode = command.is_mode;
                 u64 flags = command.flags;
@@ -177,15 +177,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (group == ToolboxGroup::Xsel) {
                         pen = &Xsel_pen;
                         pen2 = &Xsel_pen2;
-                        w = 64.0f;
                     } else if (group == ToolboxGroup::Snap) {
                         pen = &Snap_pen;
                         pen2 = &Snap_pen2;
-                        w = 64.0f;
                     } else if (group == ToolboxGroup::Colo) {
                         pen = &Colo_pen;
                         pen2 = &Colo_pen2;
-                        w = 64.0f;
                     } else if (group == ToolboxGroup::Both) {
                         pen = &Both_pen;
                         pen2 = &Both_pen2;
@@ -292,19 +289,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
-                    // pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
-                    pen->offset_Pixel.x = 4;
+                    pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                    // pen->offset_Pixel.x = 4;
                     pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
                     {
                         // String fornow_hack = name;
                         // if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
                         // if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
-                        if (!hovering) {
+                        // if (!hovering) {
                             // easy_text_draw(pen, fornow_hack);
                             easy_text_draw(pen, name);
-                        } else {
-                            easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
-                        }
+                        // } else {
+                            // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                        // }
                     }
                     pen2->offset_Pixel.y = pen->offset_Pixel.y;
                     pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));

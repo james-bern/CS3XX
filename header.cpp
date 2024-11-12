@@ -721,7 +721,7 @@ vec3 get_accent_color(ToolboxGroup group) {
     } else if (group == ToolboxGroup::Both) {
         result = V3(0.75f, 1.0f, 0.75f);
     } else if (group == ToolboxGroup::Mesh) {
-        result = V3(1.0f, 1.0f, 0.5f);
+        result = V3(0.0f, 0.8f, 0.0f);
     } else if (group == ToolboxGroup::Snap) {
         result = V3(1.0f, 0.5f, 1.0f);
     } else if (group == ToolboxGroup::Xsel) {
