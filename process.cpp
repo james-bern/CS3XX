@@ -193,8 +193,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         pen2 = &Mesh_pen2;
                     }
 
+                    real eps = 6.0;
+
                     real y = pen->get_y_Pixel();
-                    bbox2 bbox = { pen->origin.x, y - 2, pen->origin.x + w, y + h };
+                    bbox2 bbox = { pen->origin.x, y - 2 - eps / 2, pen->origin.x + w, y + h + eps / 2 + 1 };
 
                     bool hovering = bbox_contains(bbox, other.mouse_Pixel);
 
@@ -254,7 +256,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
                             eso_overlay(true);
                             eso_color(color);
-                            real r = h / 2;
+                            real r = h / 2 + eps / 2;
                             eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { -r, 0.0f }));
                             eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { 0.0f, -r }));
                             eso_end();
@@ -305,7 +307,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
                         // }
                     }
-                    pen2->offset_Pixel.y = pen->offset_Pixel.y;
+                    pen2->offset_Pixel.y = pen->offset_Pixel.y + eps;
                     pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
                     pen2->offset_Pixel.x = ROUND(pen2->offset_Pixel.x);
                     // if (!gray_out_shortcut) {
@@ -2048,11 +2050,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     real prev_drag_rise = popup->drag_rise;
                     POPUP(state.Draw_command,
                             true,
-                            CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
                             CellType::Real, STRING("run (dx)"), &popup->drag_run,
                             CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
                             CellType::Real, STRING("length"), &popup->drag_length,
                             CellType::Real, STRING("angle"), &popup->drag_angle
+                            // CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line
                          );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
                         *first_click = V2(0, 0);
@@ -2100,7 +2102,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("angle"), &popup->rotate_angle
                          );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
-                        if (!two_click_command->awaiting_second_click) two_click_command->first_click = {};
+                        if (!two_click_command->awaiting_second_click) {
+                            two_click_command->first_click = {};
+                        }
                         two_click_command->awaiting_second_click = true;
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(two_click_command->first_click + e_theta(RAD(popup->rotate_angle))));
                     }
