@@ -241,6 +241,21 @@ void conversation_draw() {
             }
         };
 
+        // TODO: COPY
+
+        auto DRAW_RCOPY = [&](vec2 click_1, vec2, vec3 color) {
+            uint num_total_copies = uint(preview->rcopy_num_total_copies);
+            real angle = preview->rcopy_angle;
+            for_(i, num_total_copies) {
+                mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis((i + 1) * RAD(angle)) * M4_Translation(-click_1);
+
+                eso_begin(PV_2D * M, SOUP_LINES);
+                eso_color(color);
+                _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+                eso_end();
+            }
+        };
+
         bool moving = state_Draw_command_is_(Move);
         bool linear_copying = (state_Draw_command_is_(Copy));
         bool rotating = (state_Draw_command_is_(Rotate));
@@ -378,6 +393,9 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->mouse_transformed__PINK_position, mouse_transformed__PINK.mouse_position, 1.0f);
 
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
+
+                JUICEIT_EASYTWEEN(&preview->rcopy_num_total_copies, real(popup->rcopy_num_total_copies));
+                JUICEIT_EASYTWEEN(&preview->rcopy_angle, real(popup->rcopy_angle));
             }
             bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
             // bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
@@ -484,6 +502,7 @@ void conversation_draw() {
                 ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                 ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
                 ANNOTATION(Copy, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
+                    ANNOTATION(RCopy, RCOPY);
 
 
                 { // entity snapped to

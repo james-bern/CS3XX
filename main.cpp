@@ -96,7 +96,15 @@ int main() {
 
 char *startup_script = "";
 
-#if 1 // flip
+#if 1 // talk
+run_before_main {
+    startup_script =
+        "^."
+        ;
+};
+#endif
+
+#if 0 // flip
 run_before_main {
     startup_script =
         "^."

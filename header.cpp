@@ -513,8 +513,8 @@ struct PopupState {
     real revolve_cut_in_angle;
     real revolve_cut_out_angle;
     real rotate_angle;
-    uint rotate_copy_num_total_copies;
-    real rotate_copy_angle;
+    uint rcopy_num_total_copies;
+    real rcopy_angle;
     real scale_factor;
     _STRING_CALLOC(open_dxf_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_dxf_filename, POPUP_CELL_LENGTH);
@@ -567,6 +567,9 @@ struct PreviewState {
 
     vec2 xy_xy;
     real polygon_num_sides;
+
+    real rcopy_num_total_copies;
+    real rcopy_angle;
 
     vec2 offset_entity_start;
     vec2 offset_entity_end;

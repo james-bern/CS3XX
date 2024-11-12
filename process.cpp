@@ -1378,19 +1378,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 *entity = entity_rotated(entity, first_click, click_theta);
                             }
                         } else if (state_Draw_command_is_(RCopy)) {
-                            if (popup->rotate_copy_num_total_copies < 2) {
+                            if (popup->rcopy_num_total_copies < 2) {
                                 messagef(pallete.orange, "RCopy: must have at least 2 total copies");
                             } else {
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
 
-                                real dtheta_deg = popup->rotate_copy_angle;
+                                real dtheta_deg = popup->rcopy_angle;
                                 if (IS_ZERO(dtheta_deg)) dtheta_deg = 180.0f;
                                 real dtheta = RAD(dtheta_deg);
 
                                 _for_each_selected_entity_ {
-                                    for_(j, popup->rotate_copy_num_total_copies - 1) {
+                                    for_(j, popup->rcopy_num_total_copies - 1) {
                                         real theta = (j + 1) * dtheta;
 
                                         cookbook._buffer_add_entity(entity_rotated(entity, first_click, theta));
@@ -2109,21 +2109,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(two_click_command->first_click + e_theta(RAD(popup->rotate_angle))));
                     }
                 } else if (state_Draw_command_is_(RCopy)) {
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_rotate_copy_angle_in_degrees = popup->rotate_copy_angle;
-                        uint prev_rotate_copy_num_copies = popup->rotate_copy_num_total_copies;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
-                                CellType::Real, STRING("angle"), &popup->rotate_copy_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
-                        } else {
-                            if (prev_rotate_copy_angle_in_degrees != popup->rotate_copy_angle) {
-                                popup->rotate_copy_num_total_copies = MAX(2U, uint(360.0f / popup->rotate_copy_angle));
-                            } else if (prev_rotate_copy_num_copies != popup->rotate_copy_num_total_copies) {
-                                popup->rotate_copy_angle = 360.0f / popup->rotate_copy_num_total_copies;
+                    real prev_rotate_copy_angle_in_degrees = popup->rcopy_angle;
+                    uint prev_rotate_copy_num_copies = popup->rcopy_num_total_copies;
+                    POPUP(state.Draw_command,
+                            true,
+                            CellType::Uint, STRING("num_total_copies"), &popup->rcopy_num_total_copies,
+                            CellType::Real, STRING("angle"), &popup->rcopy_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        if (!two_click_command->awaiting_second_click) {
+                            two_click_command->first_click = {};
+                        }
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
+                    } else {
+                        if (prev_rotate_copy_angle_in_degrees != popup->rcopy_angle) {
+                            popup->rcopy_num_total_copies = MAX(2U, uint(360.0f / popup->rcopy_angle));
+                        } else if (prev_rotate_copy_num_copies != popup->rcopy_num_total_copies) {
+                            if (popup->rcopy_num_total_copies != 0) {
+                                popup->rcopy_angle = 360.0f / popup->rcopy_num_total_copies;
+                            } else {
+                                popup->rcopy_angle = 0.0f;
                             }
                         }
                     }
