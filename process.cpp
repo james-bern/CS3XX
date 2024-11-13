@@ -107,7 +107,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EasyTextPen Colo_pen = Snap_pen;
             EasyTextPen Colo_pen2 = Snap_pen2;
             if (command_equals(state.Xsel_command, commands.ByColor)) {
-                Colo_pen.origin.y += 116.0f;
+                Colo_pen.origin.y += 92.0f;
             }
             Colo_pen2.origin = Colo_pen.origin;
 
