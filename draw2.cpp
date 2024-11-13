@@ -44,13 +44,12 @@ struct {
 
 run_before_main {
     glGenFramebuffers(1, &GL2.FBO);
-    glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
-
+    glGenRenderbuffers(1, &GL2.RBO);
     glGenTextures(1, &GL2.TextureID);
 
+    glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
     uint width = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_width_Pixel();
     uint height = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_height_Pixel();
-
     glActiveTexture(GL_TEXTURE0); // ?
     glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
@@ -60,14 +59,10 @@ run_before_main {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); 
     glBindTexture(GL_TEXTURE_2D, 0);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GL2.TextureID, 0);  
-
-    glGenRenderbuffers(1, &GL2.RBO);
     glBindRenderbuffer(GL_RENDERBUFFER, GL2.RBO);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GL2.RBO);
-
     ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 };
 
@@ -180,8 +175,8 @@ struct {
                     float diffuse = max(0.0, LN);
                     float specular = pow(max(0.0, dot(N, H)), 256);
                     float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-                    rgb += 0.65;
-                    rgb += 0.25 * diffuse;
+                    rgb += 0.35;
+                    rgb += 0.55 * diffuse;
                     // rgb += 0.2 * diffuse * rgb_gooch3;
                     rgb += 0.3 * specular;
                     rgb += 0.3 * fresnel;

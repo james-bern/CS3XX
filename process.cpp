@@ -767,11 +767,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     //     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                     // }
 
-                    if (GUIBUTTON(commands.DivideNearest)) {
-                        set_state_Draw_command(DivideNearest);
-                        set_state_Snap_command(None);
+                    // if (GUIBUTTON(commands.DivideNearest)) {
+                    //     set_state_Draw_command(DivideNearest);
+                    //     set_state_Snap_command(None);
 
-                    }
+                    // }
 
 
 
@@ -1334,7 +1334,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             messagef(pallete.cyan, "Angle is %gdeg.", angle);
                             messagef(pallete.cyan, "Length is %gmm.", length);
 
-                            messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
+                            // messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
                             _POPUP_MEASURE_HOOK(length);
                         } else if (state_Draw_command_is_(Mirror2)) {
 
@@ -2413,7 +2413,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
 
                             other.tween_extrude_add_feature_plane = *feature_plane;
-                            preview->tween_extrude_add_scale      = 0.0f;
+                            do_once {
+                                preview->tween_extrude_add_scale      = 0.0f;
+                            };
                         }
                     }
                 } else if (state_Mesh_command_is_(ExtrudeCut)) {

@@ -224,8 +224,28 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
     }
 }
 
-void callback_framebuffer_size(GLFWwindow *, int width, int height) {
-    glViewport(0, 0, width, height);
+void callback_framebuffer_size(GLFWwindow *, int _width, int _height) {
+    glViewport(0, 0, _width, _height);
+
+
+    // FORNOW FORNOW FORNOW FORNOW FORNOW FORNOW
+    glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
+    uint width = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_width_Pixel();
+    uint height = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_height_Pixel();
+    glActiveTexture(GL_TEXTURE0); // ?
+    glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); 
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GL2.TextureID, 0);  
+    glBindRenderbuffer(GL_RENDERBUFFER, GL2.RBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GL2.RBO);
+    ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void callback_drop(GLFWwindow *, int count, const char **paths) {

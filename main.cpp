@@ -99,6 +99,7 @@ char *startup_script = "";
 #if 1 // talk
 run_before_main {
     startup_script =
+        "y;" // FORNOW: makes glorbo-red show up on load
         "^."
         ;
 };

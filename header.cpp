@@ -568,6 +568,10 @@ struct PreviewState {
     vec2 xy_xy;
     real polygon_num_sides;
 
+    real linear_copy_run;
+    real linear_copy_rise;
+    real linear_copy_num_additional_copies;
+
     real rcopy_num_total_copies;
     real rcopy_angle;
 
@@ -646,6 +650,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     real size_snap_divide_dot;
 
     PreviewState preview;
+
 
 };
 

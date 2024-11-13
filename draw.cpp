@@ -243,11 +243,27 @@ void conversation_draw() {
 
         // TODO: COPY
 
+
+        // TODO: use trick from two functions down
+
+        auto DRAW_LCOPY = [&](vec2, vec2, vec3 color) {
+            uint num_additional_copies = uint(preview->linear_copy_num_additional_copies);
+            vec2 translation = { preview->linear_copy_run, preview->linear_copy_rise };
+            for_(i, num_additional_copies) {
+                mat4 M = M4_Translation((i + 1) * translation);
+
+                eso_begin(PV_2D * M, SOUP_LINES);
+                eso_color(color);
+                _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+                eso_end();
+            }
+        };
+
         auto DRAW_RCOPY = [&](vec2 click_1, vec2, vec3 color) {
             uint num_total_copies = uint(preview->rcopy_num_total_copies);
             real angle = preview->rcopy_angle;
-            for_(i, num_total_copies) {
-                mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis((i + 1) * RAD(angle)) * M4_Translation(-click_1);
+            for (uint i = 1; i <= num_total_copies; ++i) { // FONOW: this should be < but other problems
+                mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis(i * RAD(angle)) * M4_Translation(-click_1);
 
                 eso_begin(PV_2D * M, SOUP_LINES);
                 eso_color(color);
@@ -395,7 +411,11 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
 
                 JUICEIT_EASYTWEEN(&preview->rcopy_num_total_copies, real(popup->rcopy_num_total_copies));
-                JUICEIT_EASYTWEEN(&preview->rcopy_angle, real(popup->rcopy_angle));
+                JUICEIT_EASYTWEEN(&preview->rcopy_angle, popup->rcopy_angle);
+
+                JUICEIT_EASYTWEEN(&preview->linear_copy_run, popup->linear_copy_run);
+                JUICEIT_EASYTWEEN(&preview->linear_copy_rise, popup->linear_copy_rise);
+                JUICEIT_EASYTWEEN(&preview->linear_copy_num_additional_copies, real(popup->linear_copy_num_additional_copies));
             }
             bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
             // bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
@@ -477,7 +497,9 @@ void conversation_draw() {
                         DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); /*NOTE: this only actually shows up for Move and Copy and Rotate and probably some other stuff we're forgetting lol whoops (length lines/circles are invisible -- because no POINTS) */ \
                         if (!two_click_command->awaiting_second_click) { \
                         } else { \
-                            DRAW_##NAME(*first_click, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, WHITE_or_PINK_depending_on_whether_snap_is_active); \
+                            if (other.time_since_mouse_moved < 1.0f) { \
+                                DRAW_##NAME(*first_click, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, WHITE_or_PINK_depending_on_whether_snap_is_active); \
+                            } \
                         } \
                         vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click; \
                         DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
@@ -501,8 +523,8 @@ void conversation_draw() {
                 } 
                 ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                 ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
-                ANNOTATION(Copy, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
-                    ANNOTATION(RCopy, RCOPY);
+                ANNOTATION(Copy, LCOPY);
+                ANNOTATION(RCopy, RCOPY);
 
 
                 { // entity snapped to
@@ -728,6 +750,42 @@ void conversation_draw() {
             vec3 feature_plane_center = plane.normal * plane.signed_distance_to_world_origin;
             mat4 S_tween = inverse(M_3D_from_2D) * M4_Scaling(1.0f, 1.0f, preview->tween_extrude_add_scale) * M_3D_from_2D;
             mat4 M_tween = M4_Translation(feature_plane_center) * S_tween * M4_Translation(-feature_plane_center);
+
+
+            { // GL; FORNOW FORNOW pushing data to GPU every frame
+                DrawMesh *mesh = &meshes->draw;
+                if (mesh->num_vertices) {
+                    glBindVertexArray(GL.VAO);
+                    POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+                    POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+                    POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
+                    { // FORNOW: gross explosion of triangle_normal from the work mesh
+                    }
+                    {
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
+                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
+                    }
+                    { // gross explosion from triangles to edges
+                      // if there is a better way to do this please lmk :(
+                        uint size = 3 * mesh->num_triangles * sizeof(uint2);
+                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
+                        uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
+                        defer { free(mesh_edge_tuples); };
+                        uint k = 0;
+                        for_(i, mesh->num_triangles) {
+                            for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
+                        }
+                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
+                    }
+                }
+                {
+                    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
+                    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
+                }
+            }
+
+
+
             fancy_draw(P_3D, V_3D, M_tween, &meshes->draw);
         }
 
@@ -888,8 +946,10 @@ void conversation_draw() {
             JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
 
             #if 1
+            mat4 T_o = M4_Translation(preview->drawing_origin);
+            mat4 inv_T_o = inverse(T_o);
             glDisable(GL_DEPTH_TEST);
-            eso_begin(PV_3D * M_3D_from_2D, SOUP_LINES); {
+            eso_begin(PV_3D * M_3D_from_2D * inv_T_o, SOUP_LINES); {
                 eso_overlay(true);
                 _for_each_selected_entity_ {
                     real alpha;
