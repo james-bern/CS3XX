@@ -101,9 +101,20 @@ run_before_main {
     startup_script =
         "y;" // FORNOW: makes glorbo-red show up on load
         "^."
+        "cz30\ncx10\n3.4\ns<m2d 10 0>R6\nsay[3\n"
         ;
 };
 #endif
+
+
+
+
+
+
+
+
+
+
 
 #if 0 // flip
 run_before_main {

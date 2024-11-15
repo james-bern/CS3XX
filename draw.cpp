@@ -960,6 +960,40 @@ void conversation_draw() {
                     eso_entity__SOUP_LINES(entity, extruding, preview->extrude_out_length, -preview->extrude_in_length);
                 } eso_end();
             }
+
+            if (revolving) {
+                real a = -RAD(preview->revolve_out_angle);
+                real b = RAD(preview->revolve_in_angle);
+                real L = b - a;
+                uint NUM_TUBE_STACKS_INCLUSIVE = MIN(64U, uint(ROUND(L / 0.1f)) + 2);
+                vec3 axis = V3(e_theta(PI / 2 + preview_dxf_axis_angle_from_y), 0.0f);
+                mat4 R_0 = M4_RotationAbout(axis, a);
+                mat4 R_inc = M4_RotationAbout(axis, L / (NUM_TUBE_STACKS_INCLUSIVE - 1));
+                mat4 T_a = M4_Translation(V3(preview_dxf_axis_base_point, 0.0f));
+                mat4 inv_T_a = inverse(T_a);
+                // M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
+                mat4 M_incr = T_a * R_inc * inv_T_a;
+                mat4 M = M_3D_from_2D * inv_T_o * T_a * R_0 * inv_T_a;
+                for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
+                    eso_begin(PV_3D * M, SOUP_LINES); {
+                        eso_overlay(true);
+                        _for_each_selected_entity_ {
+                            real alpha;
+                            vec3 color;
+                            // if (entity->is_selected) {
+                            alpha = CLAMP(-0.2f + 3.0f * MIN(entity->time_since_is_selected_changed, other.time_since_plane_selected), 0.0f, 1.0f);
+                            color = CLAMPED_LERP(-0.5f + SQRT(2.0f * entity->time_since_is_selected_changed), pallete.black, preview->tubes_color);
+                            // } else {
+                            //     alpha = CLAMPED_LERP(5.0f * entity->time_since_is_selected_changed, 1.0f, 0.0f);
+                            //     color = get_color(color);
+                            // }
+                            eso_color(color, alpha);
+                            eso_entity__SOUP_LINES(entity);
+                        }
+                    } eso_end();
+                    M *= M_incr;
+                }
+            }
             glEnable(GL_DEPTH_TEST);
             #else
             uint NUM_TUBE_STACKS_INCLUSIVE;

@@ -2124,7 +2124,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
                     } else {
                         if (prev_rotate_copy_angle_in_degrees != popup->rcopy_angle) {
-                            popup->rcopy_num_total_copies = MAX(2U, uint(360.0f / popup->rcopy_angle));
+                            if (!IS_ZERO(popup->rcopy_angle)) { // this prevents bad problems
+                                popup->rcopy_num_total_copies = MAX(2U, uint(360.0f / popup->rcopy_angle));
+                            }
                         } else if (prev_rotate_copy_num_copies != popup->rcopy_num_total_copies) {
                             if (popup->rcopy_num_total_copies != 0) {
                                 popup->rcopy_angle = 360.0f / popup->rcopy_num_total_copies;
