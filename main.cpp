@@ -97,6 +97,7 @@ int main() {
 char *startup_script = "";
 
 // ISSUE: negative extrude crashes program`;
+// ISSUE: undo graphics broken again but not sure why
 
 #if 1 // talk
 run_before_main {
@@ -104,8 +105,8 @@ run_before_main {
         "y;" // FORNOW: makes glorbo-red show up on load
         "^."
         // "cz30\ncx10\n3.4\ns<m2d 10 0>R6\nsay[3\n"
-        // "^odemo.dxf\nysq1[5\nyn5\nsq3[30"
-        "bz10\t10\nysa[10\n"
+        "^odemo.dxf\nysq1[5\nyn5\nsq3[30"
+        // "bz10\t10\nysa[10\n"
         ;
 };
 #endif
