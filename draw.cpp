@@ -506,7 +506,8 @@ void conversation_draw() {
                         DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); /*NOTE: this only actually shows up for Move and Copy and Rotate and probably some other stuff we're forgetting lol whoops (length lines/circles are invisible -- because no POINTS) */ \
                         if (!two_click_command->awaiting_second_click) { \
                         } else { \
-                            if (other.time_since_mouse_moved < 1.0f) { \
+                            bool Snap_is_active = !state_Snap_command_is_(None); \
+                            if ((Snap_is_active) || (other.time_since_mouse_moved < 1.0f)) { \
                                 DRAW_##NAME(*first_click, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, WHITE_or_PINK_depending_on_whether_snap_is_active); \
                             } \
                         } \
@@ -524,17 +525,15 @@ void conversation_draw() {
                     ANNOTATION(Box, BOX);
                     ANNOTATION(Circle, CIRCLE);
                     ANNOTATION(Polygon, POLYGON);
-
-
                 } 
 
                 ANNOTATION(Move, DOTTED_LINE);
-                ANNOTATION(Copy, DOTTED_LINE);
                 ANNOTATION(Rotate, DOTTED_LINE);
 
                 ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                 ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
                 ANNOTATION(Copy, LCOPY);
+                ANNOTATION(Copy, DOTTED_LINE);
                 ANNOTATION(RCopy, RCOPY);
 
 
