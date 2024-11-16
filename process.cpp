@@ -2338,7 +2338,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 { // conversation_stl_load(...)
                                     ASSERT(FILE_EXISTS(popup->open_stl_filename));
                                     // ?
-                                    stl_load(popup->open_stl_filename, meshes);
+                                    WARN_ONCE("TODO: we should be freeing here");
+                                    *meshes = stl_load(popup->open_stl_filename);
                                     init_camera_mesh();
                                 }
                                 set_state_Mesh_command(None);

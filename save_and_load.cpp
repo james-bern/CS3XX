@@ -243,12 +243,13 @@ bool mesh_save_stl(WorkMesh *mesh_to_save, String filename) {
     return true;
 }
 
-void stl_load(String filename, MeshesReadOnly *meshes_to_load) {
+MeshesReadOnly stl_load(String filename) {
     // history_record_state(history, manifold_manifold, mesh); // FORNOW
 
     { // mesh
         uint num_triangles;
         vec3 *triangle_soup;
+        defer { free(triangle_soup); };
         {
             #define MAX_LINE_LENGTH 1024
             static _STRING_CALLOC(line_of_file, MAX_LINE_LENGTH);
@@ -315,6 +316,7 @@ void stl_load(String filename, MeshesReadOnly *meshes_to_load) {
         uint num_vertices;
         vec3 *vertex_positions;
         uint3 *triangle_tuples;
+        Arena arena = NEW_BUMP_ALLOCATED_ARENA();
         { // merge vertices (NOTE: only merges vertices that overlap exactly)
             num_vertices = 0;
             Map<vec3, uint> map = {};
@@ -332,19 +334,18 @@ void stl_load(String filename, MeshesReadOnly *meshes_to_load) {
                 }
                 {
                     uint size = list.length * sizeof(vec3);
-                    vertex_positions = (vec3 *) malloc(size);
+                    vertex_positions = (vec3 *) arena.malloc(size);
                     memcpy(vertex_positions, list.array, size);
                 }
                 list_free_AND_zero(&list);
             }
-            triangle_tuples = (uint3 *) malloc(num_triangles * sizeof(uint3));
+            triangle_tuples = (uint3 *) arena.malloc(num_triangles * sizeof(uint3));
             for_(k, _3__times__num_triangles) triangle_tuples[k / 3][k % 3] = map_get(&map, triangle_soup[k]);
             map_free_and_zero(&map);
         }
 
-        free(triangle_soup);
 
-        meshes_init(meshes_to_load, num_vertices, num_triangles, vertex_positions, triangle_tuples);
+        return meshes_init(arena, num_vertices, num_triangles, vertex_positions, triangle_tuples);
     }
 }
 

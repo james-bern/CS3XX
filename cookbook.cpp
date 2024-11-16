@@ -749,7 +749,7 @@ struct Cookbook {
                 defer { cross_section_free(&cross_section); };
 
                 MeshesReadOnly tmp = manifold_wrapper(
-                        &state.meshes,
+                        &state.meshes.work,
                         cross_section.num_polygonal_loops,
                         cross_section.num_vertices_in_polygonal_loops,
                         cross_section.polygonal_loops,
@@ -760,9 +760,7 @@ struct Cookbook {
                         drawing->origin,
                         drawing->axis_base_point,
                         drawing->axis_angle_from_y);
-
                 meshes_free_AND_zero(&state.meshes); // FORNOW
-
                 state.meshes = tmp; // FORNOW
             }
         }

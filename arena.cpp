@@ -142,6 +142,7 @@ void *_arena_malloc(Arena *arena, uint size) {
         //    _malloc_write_head                               _malloc_write_head + size 
 
         uint num_pages_to_commit = (((arena->_malloc_write_head + size) - _one_past_end_of_committed_memory) / arena->_page_size + 1);
+
         uint num_bytes_to_commit = num_pages_to_commit * arena->_page_size;
         #ifdef OPERATING_SYSTEM_APPLE
         int mprotect_result = mprotect(

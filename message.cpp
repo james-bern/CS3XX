@@ -51,6 +51,8 @@ void messagef(char *format, ...) {
     va_end(args);
 }
 
+#define WARN_ONCE(format) do { do_once { messagef(V3(1, 0, 0), format); }; } while (0);
+
 void _messages_update() {
     for_(i, MESSAGE_MAX_NUM_MESSAGES) {
         Message *message = &messages[i];

@@ -643,6 +643,14 @@ tuD void pprint(vecD A) {
     }
     printf(")\n");
 }
+tuD void pprint(SnailTupleOfUnsignedInts<D> A) {
+    printf("U%d(", D);
+    for_(i, D) {
+        printf("%d", A[i]);
+        if (i != D - 1) printf(", ");
+    }
+    printf(")\n");
+}
 tuD void pprint(matD M) {
     for_(row, D) {
         printf("| ");
