@@ -755,37 +755,6 @@ void conversation_draw() {
             mat4 M_tween = M4_Translation(feature_plane_center) * S_tween * M4_Translation(-feature_plane_center);
 
 
-            { // GL; FORNOW FORNOW pushing data to GPU every frame
-                DrawMesh *mesh = &meshes->draw;
-                if (mesh->num_vertices) {
-                    glBindVertexArray(GL.VAO);
-                    POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
-                    POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
-                    POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
-                    { // FORNOW: gross explosion of triangle_normal from the work mesh
-                    }
-                    {
-                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
-                    }
-                    { // gross explosion from triangles to edges
-                      // if there is a better way to do this please lmk :(
-                        uint size = 3 * mesh->num_triangles * sizeof(uint2);
-                        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
-                        uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
-                        defer { free(mesh_edge_tuples); };
-                        uint k = 0;
-                        for_(i, mesh->num_triangles) {
-                            for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
-                        }
-                        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
-                    }
-                }
-                {
-                    // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
-                    // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
-                }
-            }
 
 
 

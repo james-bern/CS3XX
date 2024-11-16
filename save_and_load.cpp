@@ -243,7 +243,7 @@ bool mesh_save_stl(WorkMesh *mesh_to_save, String filename) {
     return true;
 }
 
-void stl_load(String filename, Meshes *meshes_to_load) {
+void stl_load(String filename, MeshesReadOnly *meshes_to_load) {
     // history_record_state(history, manifold_manifold, mesh); // FORNOW
 
     { // mesh

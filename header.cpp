@@ -1,3 +1,40 @@
+// TODO: what is the simplest way we can allocate memory
+
+// WorldState is a giant struct that occasionally needs to be snapshotted
+// the memory that has to be stored not directly in the struct is
+// - the drawing
+// - the work mesh
+// - the draw mesh
+// -- NOTE: this may end up being like 3 different meshes (curr, prev, prev_tool)
+
+// the simplest thing may be to just have one giant arena for the entire world state
+// it's probably pretty space-inefficient, etc., but it's also very simple
+
+// clearing the mesh is now a little weird (it's still...there in the arena)
+
+// so maybe two arenas?
+// - the main thing the arena will be doing for us with the mesh(es) is that there is just soo much alloc'd data, and we don't want to deal with freeing it all
+
+// the thing we still need to figure out is snapshotting
+// let's try adding a basic mesh arena
+// tttttttt
+// what things do we need to do with the meshes?
+// - base level: snapshot and then read out of snap shot
+
+// do we really need to snapshot the drawings?--we do, unless you want to start
+// repeating stuff from the very beginning
+// some drawing stuff can potentially be slow too
+// i think assuming all drawing stuff is super fast is potentially a bad idea
+
+// on the other hand, let's think about drawing vs meshes
+// drawing is small, changes super often, but changes are generally super quick
+// meshes  is large, changes infrequently, but changes are generally super slow
+// - turtle is 500 KB and can certainly be made smaller
+
+
+
+// FORNOW: let's assume we push the OpenGL crap to the GPU every frame (TODOLATER)
+
 real HARD_EDGE_THRESHOLD_IN_DEGREES = 30.0f;
 
 // gl
@@ -214,7 +251,6 @@ struct Entity {
 
     ColorCode color_code;
     bool is_selected;
-    vec3 preview_color;
     real time_since_is_selected_changed;
 
     LineEntity line;
@@ -273,10 +309,18 @@ run_before_main {
 
 
 
-struct Meshes {
-    // TODO: Arena *arena
+struct MeshesReadOnly {
+    Arena arena;
+
     WorkMesh work;
+
     DrawMesh draw;
+
+    DrawMesh prev;
+    DrawMesh prev_tool;
+    bool prev_was_extrude;
+    bool prev_was_add;
+    DrawMesh curr;
 };
 
 struct RawKeyEvent {
@@ -530,7 +574,7 @@ struct ToolboxState {
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
-    Meshes meshes;
+    MeshesReadOnly meshes;
     Drawing drawing;
     FeaturePlaneState feature_plane;
     TwoClickCommandState two_click_command;
@@ -1467,7 +1511,7 @@ void mesh_triangle_normals_calculate(WorkMesh *mesh) {
 // TODO: make a better map
 
 
-// void mesh_hard_edges_calculate(Meshes *meshes) {
+// void mesh_hard_edges_calculate(MeshesReadOnly *meshes) {
 //     // prep a map from edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
 //     // iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
 //     // then go back and if passes some heuristic add that index to a stretchy buffer
@@ -1519,7 +1563,7 @@ void mesh_triangle_normals_calculate(WorkMesh *mesh) {
 //     // queue_free_AND_zero(&queue);
 //     // free(visited);
 // };
-void mesh_divide_into_patches(Meshes *meshes) {
+void mesh_divide_into_patches(MeshesReadOnly *meshes) {
     {
         WorkMesh *work = &meshes->work;
         DrawMesh *draw = &meshes->draw;
@@ -1984,7 +2028,7 @@ void mesh_divide_into_patches(Meshes *meshes) {
     #endif
 }
 
-void mesh_vertex_normals_calculate(Meshes *meshes) {
+void mesh_vertex_normals_calculate(MeshesReadOnly *meshes) {
     DrawMesh *mesh = &meshes->draw;
     mesh->vertex_normals = (vec3 *) calloc(mesh->num_vertices, sizeof(vec3));
     for_(triangle_index, mesh->num_triangles) {
@@ -2009,7 +2053,7 @@ void mesh_vertex_normals_calculate(Meshes *meshes) {
 }
 
 
-void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vertex_positions, uint3 *triangle_tuples) {
+void meshes_init(MeshesReadOnly *meshes, int num_vertices, int num_triangles, vec3 *vertex_positions, uint3 *triangle_tuples) {
     {
         WorkMesh *mesh = &meshes->work;
 
@@ -2053,38 +2097,11 @@ void meshes_init(Meshes *meshes, int num_vertices, int num_triangles, vec3 *vert
     {
         mesh_vertex_normals_calculate(meshes);
     }
-    { // GL
-        DrawMesh *mesh = &meshes->draw;
-        glBindVertexArray(GL.VAO);
-        POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
-        POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
-        POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
-        { // FORNOW: gross explosion of triangle_normal from the work mesh
-        }
-        {
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
-        }
-        { // gross explosion from triangles to edges
-          // if there is a better way to do this please lmk :(
-            uint size = 3 * mesh->num_triangles * sizeof(uint2);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
-            uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
-            defer { free(mesh_edge_tuples); };
-            uint k = 0;
-            for_(i, mesh->num_triangles) {
-                for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
-            }
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
-        }
-        {
-            // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
-            // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
-        }
-    }
+
+    // FORNOW: GL stuff moved into fancy draw
 }
 
-void meshes_free_AND_zero(Meshes *meshes) {
+void meshes_free_AND_zero(MeshesReadOnly *meshes) {
     {
         WorkMesh *mesh = &meshes->work;
         GUARDED_free(mesh->vertex_positions);
@@ -2113,7 +2130,7 @@ void meshes_free_AND_zero(Meshes *meshes) {
         } \
     } while (0);
 
-void meshes_deep_copy(Meshes *_dst, Meshes *_src) {
+void meshes_deep_copy(MeshesReadOnly *_dst, MeshesReadOnly *_src) {
     *_dst = *_src;
 
     {
@@ -2172,8 +2189,8 @@ vec2 *fornow_global_selection_vertex_positions;
 
 // TODO: don't overwrite  mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
-Meshes manifold_wrapper(
-        Meshes *meshes, // dest__NOTE_GETS_OVERWRITTEN,
+MeshesReadOnly manifold_wrapper(
+        MeshesReadOnly *meshes, // dest__NOTE_GETS_OVERWRITTEN,
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         ManifoldVec2 **polygonal_loops,
@@ -2305,7 +2322,7 @@ Meshes manifold_wrapper(
         manifold_delete_polygons(_polygons);
     }
 
-    Meshes result; { // C <- f(A, B)
+    MeshesReadOnly result; { // C <- f(A, B)
         ManifoldMeshGL *meshgl; {
             ManifoldManifold *manifold_C;
             if (manifold_A == NULL) {

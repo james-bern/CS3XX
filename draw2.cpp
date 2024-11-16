@@ -126,7 +126,7 @@ struct {
             vec3 N = normalize(fs_in.normal_World);
             vec3 rgb = vec3(0.0);
             float a = 1.0;
-            
+
 
             if (mode == 0) {
 
@@ -175,23 +175,23 @@ struct {
                     float diffuse = max(0.0, LN);
                     float specular = pow(max(0.0, dot(N, H)), 256);
                     float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-                    rgb += 0.35;
-                    rgb += 0.55 * diffuse;
-                    // rgb += 0.2 * diffuse * rgb_gooch3;
-                    rgb += 0.3 * specular;
-                    rgb += 0.3 * fresnel;
-                    rgb = mix(rgb, vec3(1.0), 0.5f);
-                }
+    rgb += 0.35;
+    rgb += 0.55 * diffuse;
+    // rgb += 0.2 * diffuse * rgb_gooch3;
+    rgb += 0.3 * specular;
+    rgb += 0.3 * fresnel;
+    rgb = mix(rgb, vec3(1.0), 0.5f);
+}
 
-                if (feature_plane_is_active != 0) { // feature plane override
-                    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
-                        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
-                            rgb = mix(rgb, vec3(1.0), 0.8);
-                        }
-                    }
-                }
+if (feature_plane_is_active != 0) { // feature plane override
+    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
+        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
+            rgb = mix(rgb, vec3(1.0), 0.8);
+        }
+    }
+}
 
-                    // rgb = clamp(vec3(0.0f), vec3(0.9f), rgb);
+// rgb = clamp(vec3(0.0f), vec3(0.9f), rgb);
 } else if ((mode == 1) || (mode == 3)) {
     int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
     rgb.r = (i % 256);
@@ -543,6 +543,36 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+    { // GL; FORNOW FORNOW pushing data to GPU every frame
+        if (mesh->num_vertices) {
+            glBindVertexArray(GL.VAO);
+            POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+            POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+            POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
+            { // FORNOW: gross explosion of triangle_normal from the work mesh
+            }
+            {
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
+            }
+            { // gross explosion from triangles to edges
+              // if there is a better way to do this please lmk :(
+                uint size = 3 * mesh->num_triangles * sizeof(uint2);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
+                uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
+                defer { free(mesh_edge_tuples); };
+                uint k = 0;
+                for_(i, mesh->num_triangles) {
+                    for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
+                }
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
+            }
+        }
+        {
+            // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
+            // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
+        }
+    }
 
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
 

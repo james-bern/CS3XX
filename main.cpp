@@ -96,12 +96,15 @@ int main() {
 
 char *startup_script = "";
 
+// ISSUE: negative extrude crashes program`;
+
 #if 1 // talk
 run_before_main {
     startup_script =
         "y;" // FORNOW: makes glorbo-red show up on load
         "^."
-        "cz30\ncx10\n3.4\ns<m2d 10 0>R6\nsay[3\n"
+        // "cz30\ncx10\n3.4\ns<m2d 10 0>R6\nsay[3\n"
+        "^odemo.dxf\nysq1[5\nyn5\nsq3[30"
         ;
 };
 #endif
@@ -365,7 +368,7 @@ ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other other;
 // convenient pointers to shorten xxx.foo.bar into foo->bar
 Drawing *drawing = &state.drawing;
 FeaturePlaneState *feature_plane = &state.feature_plane;
-Meshes *meshes = &state.meshes;
+MeshesReadOnly *meshes = &state.meshes;
 PopupState *popup = &state.popup;
 ToolboxState *toolbox = &state.toolbox;
 TwoClickCommandState *two_click_command = &state.two_click_command;
@@ -563,7 +566,6 @@ int main() {
                 _for_each_entity_ {
                     vec3 target_color = get_color((entity->is_selected) ? ColorCode::Selection : entity->color_code);
                     if (entity->is_selected) target_color = CLAMPED_LERP(3.0f * entity->time_since_is_selected_changed - 0.1f, AVG(pallete.white, target_color), target_color);
-                    JUICEIT_EASYTWEEN(&entity->preview_color, target_color, 3.0f);
                 }
             }
 
@@ -586,6 +588,8 @@ int main() {
             glfwPollEvents();
             ;
         }
+
+        // messagef(pallete.white, "%d KB", (drawing->entities.length * sizeof(drawing->entities.array[0])) / 1024);
 
         { // draw
             conversation_draw();

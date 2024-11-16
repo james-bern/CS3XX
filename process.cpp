@@ -653,7 +653,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearDrawing)) {
                         result.checkpoint_me = true;
-                        result.snapshot_me = true;
+                        // result.snapshot_me = true;
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
                         messagef(pallete.light_gray, "ClearDrawing");
@@ -2418,9 +2418,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
 
                             other.tween_extrude_add_feature_plane = *feature_plane;
-                            do_once {
-                                preview->tween_extrude_add_scale      = 0.0f;
-                            };
+                            preview->tween_extrude_add_scale      = 0.0f;
                         }
                     }
                 } else if (state_Mesh_command_is_(ExtrudeCut)) {
