@@ -682,13 +682,6 @@ void conversation_draw() {
                         eso_vertex(mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                         eso_end();
                     }
-                    if (state_Draw_command_is_(Rotate)) {
-                        eso_begin(PV_2D, SOUP_LINES);
-                        eso_color(get_color(ColorCode::Emphasis));
-                        eso_vertex(two_click_command->first_click);
-                        eso_vertex(mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
-                        eso_end();
-                    }
                     if (state_Draw_command_is_(DiamCircle)) {
                         vec2 edge_one = two_click_command->first_click;
                         vec2 edge_two = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
