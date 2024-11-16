@@ -631,7 +631,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Scale);
                     SEPERATOR();
                     GUIBUTTON(commands.Copy);
-                    GUIBUTTON(commands.RCopy);
+                    if (GUIBUTTON(commands.RCopy)) {
+                        preview->rcopy_num_total_copies = 0;
+                        preview->rcopy_angle = 0;
+                    }
                     SEPERATOR();
                     GUIBUTTON(commands.MirrorX);
                     GUIBUTTON(commands.MirrorY);

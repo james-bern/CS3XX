@@ -204,6 +204,15 @@ void conversation_draw() {
             eso_end();
         };
 
+        auto DRAW_DOTTED_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            eso_begin(PV_2D, SOUP_LINES);
+            eso_stipple(true);
+            eso_color(color);
+            eso_vertex(click_1);
+            eso_vertex(click_2);
+            eso_end();
+        };
+
         auto DRAW_CENTERLINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
             eso_begin(PV_2D, SOUP_LINES);
             eso_color(color);
@@ -516,11 +525,13 @@ void conversation_draw() {
                     ANNOTATION(Circle, CIRCLE);
                     ANNOTATION(Polygon, POLYGON);
 
-                    ANNOTATION(Move, LINE);
-                    ANNOTATION(Copy, LINE);
-                    ANNOTATION(Rotate, LINE);
 
                 } 
+
+                ANNOTATION(Move, DOTTED_LINE);
+                ANNOTATION(Copy, DOTTED_LINE);
+                ANNOTATION(Rotate, DOTTED_LINE);
+
                 ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
                 ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
                 ANNOTATION(Copy, LCOPY);
