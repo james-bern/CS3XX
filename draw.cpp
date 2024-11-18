@@ -657,28 +657,35 @@ void conversation_draw() {
                         eso_end();
                     }
                     if (state_Draw_command_is_(Divide2)) {
-                        if (two_click_command->awaiting_second_click) {
-                            eso_begin(PV_2D, SOUP_LINES);
-                            eso_color(get_color(ColorCode::Emphasis));
-                            eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
-                            eso_end();
-                        }
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(get_color(ColorCode::Emphasis));
+                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        eso_end();
                     }
                     if (state_Draw_command_is_(Fillet)) {
-                        if (two_click_command->awaiting_second_click) {
-                            eso_begin(PV_2D, SOUP_LINES);
-                            eso_color(get_color(ColorCode::Emphasis));
-                            eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
-                            eso_end();
+                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(get_color(ColorCode::Traverse));
+                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        vec2 average_click = AVG(two_click_command->first_click, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
+                        if (closest_result.success) {
+                            FilletResult fillet_result = preview_fillet(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, average_click, popup->fillet_radius);
+                            if (fillet_result.fillet_success) {
+                                eso_color(get_color(ColorCode::Emphasis));
+                                eso_entity__SOUP_LINES(&fillet_result.ent_one);
+                                eso_entity__SOUP_LINES(&fillet_result.ent_two);
+                                eso_entity__SOUP_LINES(&fillet_result.fillet_arc);
+                            }
                         }
+                        Entity t = _make_line(V2(0), average_click);
+                        eso_entity__SOUP_LINES(&t);
+                        eso_end();
                     }
                     if (state_Draw_command_is_(DogEar)) {
-                        if (two_click_command->awaiting_second_click) {
-                            eso_begin(PV_2D, SOUP_LINES);
-                            eso_color(get_color(ColorCode::Emphasis));
-                            eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
-                            eso_end();
-                        }
+                        eso_begin(PV_2D, SOUP_LINES);
+                        eso_color(get_color(ColorCode::Emphasis));
+                        eso_entity__SOUP_LINES(two_click_command->entity_closest_to_first_click);
+                        eso_end();
                     }
                 }
             }

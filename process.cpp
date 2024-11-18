@@ -1216,7 +1216,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = two_click_command->entity_closest_to_second_click;
-                                Cookbook::FilletResult fillet_result = cookbook.preview_fillet(E, F, average_click, popup->fillet_radius);
+                                FilletResult fillet_result = preview_fillet(E, F, average_click, popup->fillet_radius);
                                 if (fillet_result.fillet_success) {
                                     cookbook._buffer_add_entity(fillet_result.ent_one);
                                     cookbook._buffer_add_entity(fillet_result.ent_two);
@@ -1237,7 +1237,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             set_state_Snap_command(None);
                             if (two_click_command->entity_closest_to_second_click) {
-                                Cookbook::DogEarResult dogear_result = cookbook.preview_dogear(
+                                DogEarResult dogear_result = preview_dogear(
                                         two_click_command->entity_closest_to_first_click, 
                                         two_click_command->entity_closest_to_second_click, 
                                         average_click, 
