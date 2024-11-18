@@ -26,48 +26,81 @@ struct Arena {
 
     void *malloc(uint);
     void *calloc(uint, uint);
-    void free();
 };
 
-Arena NEW_BUMP_ALLOCATED_ARENA() {
-    Arena result = {};
-    result._num_reserved_pages = 1024 * 1024;
+#define ARENA_MAX_NUM_ARENAS 128
+Arena _arena_pool[ARENA_MAX_NUM_ARENAS];
+
+Arena *ARENA_ACQUIRE() {
+    Arena *result; {
+        Arena *one_past_end_of_arena_pool = _arena_pool + ARENA_MAX_NUM_ARENAS;
+        for (
+                result = _arena_pool;
+                result < one_past_end_of_arena_pool;
+                ++result) {
+            if (!result->_reserved_memory) break;
+        }
+        ASSERT(result != one_past_end_of_arena_pool);
+    }
+
+    *result = {};
+    result->_num_reserved_pages = 1024 * 1024;
 
     #ifdef OPERATING_SYSTEM_APPLE
-    result._page_size = sysconf(_SC_PAGESIZE);
+    result->_page_size = sysconf(_SC_PAGESIZE);
     #else
     {
         SYSTEM_INFO si;
         GetSystemInfo(&si);
-        result._page_size = si.dwPageSize;
+        result->_page_size = si.dwPageSize;
     }
     #endif
 
     #ifdef OPERATING_SYSTEM_APPLE
-    result._reserved_memory = (char *)
+    result->_reserved_memory = (char *)
         mmap(
                 NULL,
-                result._num_reserved_pages * result._page_size,
+                result->_num_reserved_pages * result->_page_size,
                 PROT_NONE,
                 MAP_PRIVATE | MAP_ANONYMOUS,
                 -1,
                 0
             );
-    ASSERT(result._reserved_memory != MAP_FAILED);
+    ASSERT(result->_reserved_memory != MAP_FAILED);
     #else
-    result._reserved_memory = (char *)
-    VirtualAlloc(
-        NULL,
-        result._num_reserved_pages * result._page_size,
-        MEM_RESERVE,
-        PAGE_NOACCESS
-     );
-    ASSERT(result._reserved_memory);
+    result->_reserved_memory = (char *)
+        VirtualAlloc(
+                NULL,
+                result->_num_reserved_pages * result->_page_size,
+                MEM_RESERVE,
+                PAGE_NOACCESS
+                );
+    ASSERT(result->_reserved_memory);
     #endif
-    result._malloc_write_head = result._reserved_memory;
+    result->_malloc_write_head = result->_reserved_memory;
 
     return result;
 }
+
+void ARENA_RELEASE(Arena *arena) {
+    ASSERT(arena);
+    ASSERT(arena->_reserved_memory);
+    #ifdef OPERATING_SYSTEM_APPLE
+    munmap(
+            arena->_reserved_memory,
+            arena->_num_reserved_pages * arena->_page_size
+          );
+    #else
+    VirtualFree(
+            arena->_reserved_memory,
+            arena->_num_reserved_pages *arena->_page_size,
+            MEM_RELEASE
+            );
+    #endif
+    *arena = {};
+}
+
+// TODO: arena_arena
 
 void *_arena_malloc(Arena *arena, uint size) {
     // NOTE: must mprotect on page boundaries
@@ -95,11 +128,11 @@ void *_arena_malloc(Arena *arena, uint size) {
         ASSERT(mprotect_result == 0);
         #else
         LPVOID VirtualAlloc_result = VirtualAlloc(
-            _one_past_end_of_committed_memory,
-            num_bytes_to_commit,
-            MEM_COMMIT,
-            PAGE_READWRITE
-            );
+                _one_past_end_of_committed_memory,
+                num_bytes_to_commit,
+                MEM_COMMIT,
+                PAGE_READWRITE
+                );
         ASSERT(VirtualAlloc_result);
         #endif
         arena->_num_committed_pages += num_pages_to_commit;
@@ -118,25 +151,6 @@ void *_arena_calloc(Arena *arena, uint count, uint size_per_element) {
     return result;
 }
 
-void _arena_free(Arena *arena) {
-    ASSERT(arena->_reserved_memory);
-    #ifdef OPERATING_SYSTEM_APPLE
-    munmap(
-        arena->_reserved_memory,
-        arena->_num_reserved_pages * arena->_page_size
-        );
-    #else
-        VirtualFree(
-                       arena->_reserved_memory,
-                       arena->_num_reserved_pages *arena->_page_size,
-                       MEM_RELEASE
-                       );
-    #endif
-    *arena = {};
-}
-
-
-// TODO: arena_arena
 
 
 // // containers2.cpp ////////////////////////////////////////
@@ -177,7 +191,6 @@ template <typename T> void _list_push_back(ArenaList<T> *list, T element) {
 
 void *Arena::malloc(uint a) { return _arena_malloc(this, a); }
 void *Arena::calloc(uint a, uint b) { return _arena_calloc(this, a, b); }
-void Arena::free() { _arena_free(this); }
 template <typename T> void ArenaList<T>::push_back(T a) { _list_push_back(this, a); }
 
 
