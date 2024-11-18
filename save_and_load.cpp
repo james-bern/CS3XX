@@ -316,7 +316,7 @@ MeshesReadOnly stl_load(String filename) {
         uint num_vertices;
         vec3 *vertex_positions;
         uint3 *triangle_tuples;
-        Arena arena = NEW_BUMP_ALLOCATED_ARENA();
+        Arena *arena = ARENA_ACQUIRE();
         { // merge vertices (NOTE: only merges vertices that overlap exactly)
             num_vertices = 0;
             Map<vec3, uint> map = {};
@@ -334,12 +334,12 @@ MeshesReadOnly stl_load(String filename) {
                 }
                 {
                     uint size = list.length * sizeof(vec3);
-                    vertex_positions = (vec3 *) arena.malloc(size);
+                    vertex_positions = (vec3 *) arena->malloc(size);
                     memcpy(vertex_positions, list.array, size);
                 }
                 list_free_AND_zero(&list);
             }
-            triangle_tuples = (uint3 *) arena.malloc(num_triangles * sizeof(uint3));
+            triangle_tuples = (uint3 *) arena->malloc(num_triangles * sizeof(uint3));
             for_(k, _3__times__num_triangles) triangle_tuples[k / 3][k % 3] = map_get(&map, triangle_soup[k]);
             map_free_and_zero(&map);
         }

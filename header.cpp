@@ -301,11 +301,9 @@ run_before_main {
 
 
 
-struct MeshesReadOnly {
-    Arena arena;
-
+struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how snapshooting in history works
+    Arena *arena;
     WorkMesh work;
-
     DrawMesh draw;
 
     //     DrawMesh prev;
@@ -1535,8 +1533,8 @@ DrawMesh build_draw_mesh(
     { // mesh_divide_into_patches
         #if 1
         {
-            Arena function_scratch_arena = NEW_BUMP_ALLOCATED_ARENA();
-            defer { function_scratch_arena.free(); };
+            Arena *function_scratch_arena = ARENA_ACQUIRE();
+            defer { ARENA_RELEASE(function_scratch_arena); };
 
             struct PairPatchIndexOldVertexIndex {
                 uint patch_index;
@@ -1546,7 +1544,7 @@ DrawMesh build_draw_mesh(
             // prep -- O(t)
             // ------------
             // iterate over all triangles building triangle_index_from_old_half_edge map -- O(t)
-            ArenaMap<uint2, uint> triangle_index_from_old_half_edge = { &function_scratch_arena };
+            ArenaMap<uint2, uint> triangle_index_from_old_half_edge = { function_scratch_arena };
             map_reserve_for_expected_num_entries(&triangle_index_from_old_half_edge, 3 * num_triangles);
             {
                 for_(triangle_index, num_triangles) {
@@ -1573,15 +1571,15 @@ DrawMesh build_draw_mesh(
             // NOTE: patch_indices_from_old_vertex_index is for the next step
             // TODO: SmallList
 
-            ArenaMap<uint, uint> patch_index_from_triangle_index = { &function_scratch_arena };
+            ArenaMap<uint, uint> patch_index_from_triangle_index = { function_scratch_arena };
             map_reserve_for_expected_num_entries(&patch_index_from_triangle_index, num_triangles);
 
             // TODO: ArenaSmallList
-            ArenaMap<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = { &function_scratch_arena };
+            ArenaMap<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = { function_scratch_arena };
             map_reserve_for_expected_num_entries(&patch_indices_from_old_vertex_index, work_num_vertices);
             {
                 for_(old_vertex_index, work_num_vertices) {
-                    map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { &function_scratch_arena });
+                    map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { function_scratch_arena });
                 }
             }
 
@@ -1660,7 +1658,7 @@ DrawMesh build_draw_mesh(
             //       but we didn't know how many patches there were back when we were flooding
             //       (but we do have an upper bound, which is the number of triangles)
             // TODO: consider trading space for time here (after profiling)
-            uint *patch_num_vertices = (uint *) function_scratch_arena.calloc(num_patches, sizeof(uint)); {
+            uint *patch_num_vertices = (uint *) function_scratch_arena->calloc(num_patches, sizeof(uint)); {
                 for_(old_vertex_index, work_num_vertices) {
                     ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
                     for_(_patch_index_index, patch_indices.length) {
@@ -1698,13 +1696,13 @@ DrawMesh build_draw_mesh(
             uint new_num_vertices;
             vec3 *new_vertex_positions;
             uint *new_vertex_patch_indices;
-            ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { &function_scratch_arena };
+            ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { function_scratch_arena };
             // FORNOW: This is a huge overestimate; TODO: map that can grow
             map_reserve_for_expected_num_entries(&new_vertex_index_from_pair_patch_index_old_vertex_index, num_patches * work_num_vertices);
             {
                 uint *patch_new_vetex_index_fingers; // [ 0, |PATCH0|, |PATCH0| + |PATCH1|, ... ]
                 {
-                    patch_new_vetex_index_fingers = (uint *) function_scratch_arena.calloc(num_patches, sizeof(uint));
+                    patch_new_vetex_index_fingers = (uint *) function_scratch_arena->calloc(num_patches, sizeof(uint));
                     for_(patch_index, num_patches - 1) {
                         patch_new_vetex_index_fingers[patch_index + 1] += patch_new_vetex_index_fingers[patch_index];
                         patch_new_vetex_index_fingers[patch_index + 1] += patch_num_vertices[patch_index];
@@ -1806,17 +1804,15 @@ DrawMesh build_draw_mesh(
 //       but then where does the arena live?
 //       do we need an arena arena?--i think maybe we do.
 //       (could be a free list)
-//       ARENA_CREATE
-//       ARENA_DELETE
-MeshesReadOnly build_meshes(Arena _arena, int num_vertices, vec3 *vertex_positions, int num_triangles, uint3 *triangle_tuples) {
-    MeshesReadOnly meshes = { _arena };
-    meshes.work = build_work_mesh(&meshes.arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
-    meshes.draw = build_draw_mesh(&meshes.arena, num_vertices, vertex_positions, num_triangles, triangle_tuples, meshes.work.triangle_normals);
+MeshesReadOnly build_meshes(Arena *arena, int num_vertices, vec3 *vertex_positions, int num_triangles, uint3 *triangle_tuples) {
+    MeshesReadOnly meshes = { arena };
+    meshes.work = build_work_mesh(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+    meshes.draw = build_draw_mesh(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples, meshes.work.triangle_normals);
     return meshes;
 }
 
 void meshes_free_AND_zero(MeshesReadOnly *meshes) {
-    if (meshes->arena._reserved_memory) meshes->arena.free(); // FORNOW
+    if (meshes->arena) ARENA_RELEASE(meshes->arena); // FORNOW
     *meshes = {};
 }
 
@@ -1832,8 +1828,8 @@ void meshes_free_AND_zero(MeshesReadOnly *meshes) {
 // FORNOW porting this to arenas but hopefully the need for it goes away
 void meshes_deep_copy(MeshesReadOnly *_dst, MeshesReadOnly *_src) {
     *_dst = *_src;
-    _dst->arena = NEW_BUMP_ALLOCATED_ARENA();
-    Arena *arena = &_dst->arena;
+    _dst->arena = ARENA_ACQUIRE();
+    Arena *arena = _dst->arena;
 
     {
         WorkMesh *dst = &_dst->work;
@@ -2026,9 +2022,9 @@ MeshesReadOnly manifold_wrapper(
         { // result <- meshgl
             uint num_vertices = manifold_meshgl_num_vert(meshgl);
             uint num_triangles = manifold_meshgl_num_tri(meshgl);
-            Arena arena = NEW_BUMP_ALLOCATED_ARENA();
-            vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(arena.malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-            uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(arena.malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
+            Arena *arena = ARENA_ACQUIRE();
+            vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
+            uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
             result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
         }
 
