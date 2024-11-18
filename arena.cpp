@@ -26,7 +26,6 @@ struct Arena {
 
     void *malloc(uint);
     void *calloc(uint, uint);
-    void free();
 };
 
 #define ARENA_MAX_NUM_ARENAS 128
