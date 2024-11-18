@@ -6,67 +6,9 @@
 #endif
 
 
-// // hash.cpp ///////////////////////////////////////////////
-
-// http://www.azillionmonkeys.com/qed/hash.html
-#undef get16bits
-#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__) || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
-#define get16bits(d) (*((const uint16_t *) (d)))
-#endif
-#if !defined (get16bits)
-#define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8) +(uint32_t)(((const uint8_t *)(d))[0]) )
-#endif
-uint32_t _paul_hsieh_SuperFastHash(void *_data, size_t size) {
-    char *data = (char *) _data;
-
-    uint32_t hash = size, tmp;
-    int rem;
-
-    if (size <= 0 || data == NULL) return 0;
-
-    rem = size & 3;
-    size >>= 2;
-
-    /* Main loop */
-    for (;size > 0; size--) {
-        hash  += get16bits (data);
-        tmp    = (get16bits (data+2) << 11) ^ hash;
-        hash   = (hash << 16) ^ tmp;
-        data  += 2*sizeof (uint16_t);
-        hash  += hash >> 11;
-    }
-
-    /* Handle end cases */
-    switch (rem) {
-        case 3: hash += get16bits (data);
-                hash ^= hash << 16;
-                hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
-                hash += hash >> 11;
-                break;
-        case 2: hash += get16bits (data);
-                hash ^= hash << 11;
-                hash += hash >> 17;
-                break;
-        case 1: hash += (signed char)*data;
-                hash ^= hash << 10;
-                hash += hash >> 1;
-    }
-
-    /* Force "avalanching" of final 127 bits */
-    hash ^= hash << 3;
-    hash += hash >> 5;
-    hash ^= hash << 4;
-    hash += hash >> 17;
-    hash ^= hash << 25;
-    hash += hash >> 6;
-
-    return hash;
-}
-
 // // arena.cpp //////////////////////////////////////////////
 
 // TODO: implement a map with linear probing
-
 
 // TODO
 // #define VIRTUAL_MEMORY_PAGE_SIZE()
@@ -142,6 +84,7 @@ void *_arena_malloc(Arena *arena, uint size) {
         //    _malloc_write_head                               _malloc_write_head + size 
 
         uint num_pages_to_commit = (((arena->_malloc_write_head + size) - _one_past_end_of_committed_memory) / arena->_page_size + 1);
+
         uint num_bytes_to_commit = num_pages_to_commit * arena->_page_size;
         #ifdef OPERATING_SYSTEM_APPLE
         int mprotect_result = mprotect(
@@ -193,6 +136,8 @@ void _arena_free(Arena *arena) {
 }
 
 
+// TODO: arena_arena
+
 
 // // containers2.cpp ////////////////////////////////////////
 
@@ -241,6 +186,8 @@ template <typename T> void ArenaList<T>::push_back(T a) { _list_push_back(this, 
 
 
 // TODO: let me access with the []
+
+uint32_t _paul_hsieh_SuperFastHash(void *_data, size_t size);
 
 template <typename Key, typename Value> struct PairKeyValue {
     bool in_use;
@@ -343,4 +290,61 @@ template <typename Key, typename Value> bool map_contains_key(ArenaMap<Key, Valu
         slot_index = (slot_index + 1) % map->_capacity;
     }
     return false;
+}
+
+// // hash.cpp ///////////////////////////////////////////////
+
+// http://www.azillionmonkeys.com/qed/hash.html
+#undef get16bits
+#if (defined(__GNUC__) && defined(__i386__)) || defined(__WATCOMC__) || defined(_MSC_VER) || defined (__BORLANDC__) || defined (__TURBOC__)
+#define get16bits(d) (*((const uint16_t *) (d)))
+#endif
+#if !defined (get16bits)
+#define get16bits(d) ((((uint32_t)(((const uint8_t *)(d))[1])) << 8) +(uint32_t)(((const uint8_t *)(d))[0]) )
+#endif
+uint32_t _paul_hsieh_SuperFastHash(void *_data, size_t size) {
+    char *data = (char *) _data;
+
+    uint32_t hash = size, tmp;
+    int rem;
+
+    if (size <= 0 || data == NULL) return 0;
+
+    rem = size & 3;
+    size >>= 2;
+
+    /* Main loop */
+    for (;size > 0; size--) {
+        hash  += get16bits (data);
+        tmp    = (get16bits (data+2) << 11) ^ hash;
+        hash   = (hash << 16) ^ tmp;
+        data  += 2*sizeof (uint16_t);
+        hash  += hash >> 11;
+    }
+
+    /* Handle end cases */
+    switch (rem) {
+        case 3: hash += get16bits (data);
+                hash ^= hash << 16;
+                hash ^= ((signed char)data[sizeof (uint16_t)]) << 18;
+                hash += hash >> 11;
+                break;
+        case 2: hash += get16bits (data);
+                hash ^= hash << 11;
+                hash += hash >> 17;
+                break;
+        case 1: hash += (signed char)*data;
+                hash ^= hash << 10;
+                hash += hash >> 1;
+    }
+
+    /* Force "avalanching" of final 127 bits */
+    hash ^= hash << 3;
+    hash += hash >> 5;
+    hash ^= hash << 4;
+    hash += hash >> 17;
+    hash ^= hash << 25;
+    hash += hash >> 6;
+
+    return hash;
 }
