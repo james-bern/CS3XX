@@ -2345,7 +2345,7 @@ real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
 Entity _make_line(vec2 start, vec2 end, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = {};
     entity.type = EntityType::Line;
-    entity.preview_color = get_color(ColorCode::Emphasis);
+    entity.color_code = ColorCode::Emphasis;
     LineEntity *line = &entity.line;
     line->start = start;
     line->end = end;
@@ -2357,7 +2357,7 @@ Entity _make_line(vec2 start, vec2 end, bool is_selected = false, ColorCode colo
 Entity _make_arc(vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = {};
     entity.type = EntityType::Arc;
-    entity.preview_color = get_color(ColorCode::Emphasis);
+    entity.color_code= ColorCode::Emphasis;
     ArcEntity *arc = &entity.arc;
     arc->center = center;
     arc->radius = radius;
@@ -2371,7 +2371,7 @@ Entity _make_arc(vec2 center, real radius, real start_angle_in_degrees, real end
 Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
     Entity entity = {};
     entity.type = EntityType::Circle;
-    entity.preview_color = get_color(ColorCode::Emphasis);
+    entity.color_code = ColorCode::Emphasis;
     CircleEntity *circle = &entity.circle;
     circle->center = center;
     circle->radius = radius;
@@ -2496,10 +2496,6 @@ FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 ref
             d = x - (L * e_cd);
             Entity new_E = _make_line(a, b, E->is_selected, E->color_code);
             Entity new_F = _make_line(c, d, F->is_selected, F->color_code);
-
-            // lowkey no idea what this does but copied for consistency 
-            new_E.preview_color = get_color(ColorCode::Emphasis);
-            new_F.preview_color = get_color(ColorCode::Emphasis);
 
             fillet_result.ent_one = new_E;
             fillet_result.ent_two = new_F;
