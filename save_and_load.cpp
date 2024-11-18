@@ -345,7 +345,7 @@ MeshesReadOnly stl_load(String filename) {
         }
 
 
-        return meshes_init(arena, num_vertices, num_triangles, vertex_positions, triangle_tuples);
+        return build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
     }
 }
 
