@@ -2224,7 +2224,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (string_matches_suffix(popup->open_dxf_filename, STRING(".dxf"))) {
                                 result.record_me = true;
                                 result.checkpoint_me = true;
-                                result.snapshot_me = true;
+                                // result.snapshot_me = true;
 
                                 { // conversation_dxf_load
                                     ASSERT(FILE_EXISTS(popup->open_dxf_filename));

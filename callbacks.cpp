@@ -249,15 +249,25 @@ void callback_framebuffer_size(GLFWwindow *, int _width, int _height) {
 }
 
 void callback_drop(GLFWwindow *, int count, const char **paths) {
+    // FORNOW: this is cursed for two reasons, but okay fornow
     if (count > 0) {
         void script_process(String);
 
         char *filename = (char *) paths[0];
         String string_filename = STRING(filename);
-        script_process(STRING("\033"));
-        script_process(STRING("^o"));
-        script_process(string_filename);
-        script_process(STRING("\n"));
+        if (string_matches_suffix(string_filename, ".dxf")) {
+            script_process(STRING("\033"));
+            script_process(STRING("^o"));
+            script_process(string_filename);
+            script_process(STRING("\n"));
+        } else if (string_matches_suffix(string_filename, ".stl")) {
+            script_process(STRING("\033"));
+            script_process(STRING("^O"));
+            script_process(string_filename);
+            script_process(STRING("\n"));
+        } else {
+            messagef(pallete.orange, "DragAndDrop must be *.dxf or *.stl");
+        }
     }
 }
 

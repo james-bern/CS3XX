@@ -1819,10 +1819,9 @@ void meshes_free_AND_zero(MeshesReadOnly *meshes) {
 //oh no
 #define GUARDED_MALLOC_MEMCPY(arena, dst, src, count, type) \
     do { \
-        if (src) { \
-            dst = (type *) arena->malloc(count * sizeof(type)); \
-            memcpy(dst, src, count * sizeof(type)); \
-        } \
+        ASSERT(src); \
+        dst = (type *) arena->malloc(count * sizeof(type)); \
+        memcpy(dst, src, count * sizeof(type)); \
     } while (0);
 
 // FORNOW porting this to arenas but hopefully the need for it goes away
