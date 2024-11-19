@@ -756,16 +756,8 @@ void conversation_draw() {
         {
             real *scale = &preview->tween_extrude_add_scale;
             JUICEIT_EASYTWEEN(scale, 1.0f);
-            FeaturePlaneState plane = other.tween_extrude_add_feature_plane; 
-            vec3 feature_plane_center = plane.normal * plane.signed_distance_to_world_origin;
-            mat4 S_tween = inverse(M_3D_from_2D) * M4_Scaling(1.0f, 1.0f, preview->tween_extrude_add_scale) * M_3D_from_2D;
-            mat4 M_tween = M4_Translation(feature_plane_center) * S_tween * M4_Translation(-feature_plane_center);
-
-
-
-
-
-            fancy_draw(P_3D, V_3D, M_tween, &meshes->draw);
+            mat4 M = meshes->M_3D_from_2D * M4_Scaling(1.0f, 1.0f, preview->tween_extrude_add_scale) * inverse(meshes->M_3D_from_2D);
+            fancy_draw(P_3D, V_3D, M, &meshes->draw);
         }
 
         mat4 PVM_feature_plane = PV_3D * M_3D_from_2D;

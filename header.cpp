@@ -278,7 +278,6 @@ struct DrawMesh {
     uint  *vertex_patch_indices;
 
     vec3  *vertex_normals;
-
 };
 
 
@@ -305,6 +304,7 @@ struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how
     Arena *arena;
     WorkMesh work;
     DrawMesh draw;
+    mat4 M_3D_from_2D;
 
     //     DrawMesh prev;
     //     DrawMesh prev_tool;
@@ -1817,36 +1817,30 @@ void meshes_free_AND_zero(MeshesReadOnly *meshes) {
 }
 
 //oh no
-#define GUARDED_MALLOC_MEMCPY(arena, dst, src, count, type) \
-    do { \
-        ASSERT(src); \
-        dst = (type *) arena->malloc(count * sizeof(type)); \
-        memcpy(dst, src, count * sizeof(type)); \
-    } while (0);
 
 // FORNOW porting this to arenas but hopefully the need for it goes away
-void meshes_deep_copy(MeshesReadOnly *_dst, MeshesReadOnly *_src) {
-    *_dst = *_src;
-    _dst->arena = ARENA_ACQUIRE();
-    Arena *arena = _dst->arena;
+void meshes_deep_copy(MeshesReadOnly *dst, MeshesReadOnly *src) {
+    *dst = *src;
+    dst->arena = ARENA_ACQUIRE();
 
-    {
-        WorkMesh *dst = &_dst->work;
-        WorkMesh *src = &_src->work;
-        GUARDED_MALLOC_MEMCPY(arena, dst->vertex_positions, src->vertex_positions, src->num_vertices , vec3 );
-        GUARDED_MALLOC_MEMCPY(arena, dst->triangle_tuples,  src->triangle_tuples,  src->num_triangles, uint3);
-        GUARDED_MALLOC_MEMCPY(arena, dst->triangle_normals, src->triangle_normals, src->num_triangles, vec3 );
-    }
+    #define _DEEP_COPY(name, count, type) \
+    do { \
+        ASSERT(src); \
+        dst->name = (type *) dst->arena->malloc(src->count * sizeof(type)); \
+        memcpy(dst->name, src->name, src->count * sizeof(type)); \
+    } while (0);
 
-    {
-        DrawMesh *dst = &_dst->draw;
-        DrawMesh *src = &_src->draw;
-        GUARDED_MALLOC_MEMCPY(arena, dst->vertex_positions, src->vertex_positions, src->num_vertices , vec3 );
-        GUARDED_MALLOC_MEMCPY(arena, dst->triangle_tuples,  src->triangle_tuples,  src->num_triangles, uint3);
-        GUARDED_MALLOC_MEMCPY(arena, dst->vertex_patch_indices,  src->vertex_patch_indices,  src->num_vertices, uint);
-        GUARDED_MALLOC_MEMCPY(arena, dst->vertex_normals,   src->vertex_normals,   src->num_vertices , vec3 );
+    _DEEP_COPY(work.vertex_positions, work.num_vertices,   vec3);
+    _DEEP_COPY(work.triangle_tuples,  work.num_triangles, uint3);
+    _DEEP_COPY(work.triangle_normals, work.num_triangles,  vec3);
 
-    }
+    _DEEP_COPY(draw.vertex_positions,     draw.num_vertices ,  vec3);
+    _DEEP_COPY(draw.triangle_tuples,      draw.num_triangles, uint3);
+    _DEEP_COPY(draw.vertex_patch_indices, draw.num_vertices,   uint);
+    _DEEP_COPY(draw.vertex_normals,       draw.num_vertices ,  vec3);
+
+    #undef _DEEP_COPY
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2027,6 +2021,7 @@ MeshesReadOnly manifold_wrapper(
             vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
             uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
             result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+            result.M_3D_from_2D = M_3D_from_2D;
         }
 
     }

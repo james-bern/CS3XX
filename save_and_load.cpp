@@ -345,7 +345,9 @@ MeshesReadOnly stl_load(String filename) {
         }
 
 
-        return build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+        MeshesReadOnly result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+        result.M_3D_from_2D = M4_xyzo(V3(1,0,0), V3(0,0,-1), V3(0,1,0), V3(0,0,0)); // FORNOW; TODO: this should call get_M_3D_from_2D
+        return result;
     }
 }
 
