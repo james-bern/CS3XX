@@ -128,7 +128,6 @@
     COMMANDS_INNER(PREVIOUS_HOT_KEY_3D,              ' ', 0b001, None, 0, 0);  \
     COMMANDS_INNER(PRINT_HISTORY,                    'H', 0b010, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(PowerFillet,                      'F', 0b001, None, 0, 0);  \
-    COMMANDS_INNER(HELP_MENU,                        '/', 0b010, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(DivideNearest,                    'X', 0b000, None, 0, 0);  \
     // COMMANDS_INNER(NEXT_POPUP_BAR,                  TAB,  0b000, None, 0, 0);/* secretly supported but scary */ \
 

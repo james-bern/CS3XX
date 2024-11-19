@@ -473,13 +473,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         }
                     }
+
                     SEPERATOR();
+
                     if (GUIBUTTON(commands.ToggleConsole)) { 
                         other.show_console = !other.show_console;
                     }
+
                     if (GUIBUTTON(commands.ToggleDetails)) { 
                         other.show_details = !other.show_details;
                     }
+
                 }
 
                 { // Colo
@@ -802,13 +806,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-
-
-
-                    if (GUIBUTTON(commands.HELP_MENU)) {
-                        other.show_help = !other.show_help;
-
-                    }
 
 
                     if (GUIBUTTON(commands.TOGGLE_LIGHT_MODE)) { // FORNOW

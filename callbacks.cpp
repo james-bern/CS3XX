@@ -26,6 +26,15 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         bool toggle_slowmo = ((key == 'P') && (control) && (shift));
         bool step = (other.paused) && ((key == '.') && (!control) && (!shift));
         bool quit = ((key == 'Q') && (control) && (!shift));
+        bool kitchen_sink = ((key == 'K') && (control) && (shift));
+
+        #ifdef SHIP
+        toggle_pause = false;
+        toggle_slomo = false;
+        kitchen_sink = false;
+        #endif
+
+
         if (toggle_pause) {
             other.paused = !other.paused;
         } else if (toggle_slowmo) {
@@ -34,6 +43,9 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
             other.stepping_one_frame_while_paused = true;
         } else if (quit) {
             glfwSetWindowShouldClose(glfw_window, true);
+        } else if (kitchen_sink) {
+            void script_process(String string);
+            script_process(_string_from_cstring(kitchen_sink_script));
         } else {
             RawEvent raw_event = {}; {
                 raw_event.type = EventType::Key;
