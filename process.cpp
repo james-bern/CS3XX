@@ -2342,8 +2342,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     *meshes = stl_load(popup->open_stl_filename);
                                     init_camera_mesh();
                                 }
-                                set_state_Mesh_command(None);
                                 messagef(pallete.light_gray, "OpenSTL \"%s\"", popup->open_stl_filename.data);
+
+                                set_state_Mesh_command(None);
+
+                                preview->tween_extrude_add_scale      = 0.0f;
                             } else {
                                 messagef(pallete.orange, "OpenSTL: \"%s\" must be *.stl", popup->open_stl_filename.data);
                             }
