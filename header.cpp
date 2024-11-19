@@ -1843,8 +1843,10 @@ void meshes_deep_copy(MeshesReadOnly *_dst, MeshesReadOnly *_src) {
         DrawMesh *dst = &_dst->draw;
         DrawMesh *src = &_src->draw;
         GUARDED_MALLOC_MEMCPY(arena, dst->vertex_positions, src->vertex_positions, src->num_vertices , vec3 );
-        GUARDED_MALLOC_MEMCPY(arena, dst->vertex_normals,   src->vertex_normals,   src->num_vertices , vec3 );
         GUARDED_MALLOC_MEMCPY(arena, dst->triangle_tuples,  src->triangle_tuples,  src->num_triangles, uint3);
+        GUARDED_MALLOC_MEMCPY(arena, dst->vertex_patch_indices,  src->vertex_patch_indices,  src->num_vertices, uint);
+        GUARDED_MALLOC_MEMCPY(arena, dst->vertex_normals,   src->vertex_normals,   src->num_vertices , vec3 );
+
     }
 }
 
