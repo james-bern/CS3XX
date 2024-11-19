@@ -2336,8 +2336,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 result.checkpoint_me = true;
                                 result.snapshot_me = true;
                                 { // conversation_stl_load(...)
-                                    ASSERT(FILE_EXISTS(popup->open_stl_filename));
-                                    // ?
                                     WARN_ONCE("TODO: we should be freeing here");
                                     *meshes = stl_load(popup->open_stl_filename);
                                     init_camera_mesh();

@@ -103,8 +103,7 @@ char *startup_script = "";
 run_before_main {
     startup_script =
         ""
-        // "y;" // FORNOW: makes glorbo-red show up on load
-        // "^."
+        "^."
         // "cz30\ncx10\n3.4\ns<m2d 10 0>R6\nsay[3\n"
         "^odemo.dxf\nysq1[5\nyn5\nsq3[30\n"
         // "bz10\t10\nysa[10\n"
