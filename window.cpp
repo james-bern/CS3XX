@@ -38,6 +38,7 @@ run_before_main {
     glfwSetWindowAttrib(glfw_window, GLFW_FLOATING, false);
     glfwSetWindowAttrib(glfw_window, GLFW_DECORATED, true);
 
+
     #ifdef OPERATING_SYSTEM_WINDOWS
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     #endif

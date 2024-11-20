@@ -1266,11 +1266,32 @@ void conversation_draw() {
             }
         }
 
-        if (other.show_details) { // number of elements, etc.
+        { // number of elements, etc. fps
+          // FORNOW: ew
+
             real height = 12.0f;
-            EasyTextPen pen = { V2(96.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Draw) };
-            easy_text_drawf(&pen, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
-            pen = { V2(get_x_divider_drawing_mesh_Pixel() + 7.0f, window_get_height_Pixel() - 13.0f), height, 0.5f * get_accent_color(ToolboxGroup::Mesh) };
+            real eps = 4.0f;
+            static char scratch_buffer[1024];
+
+            if (other.show_details) {
+                {
+                    EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height - eps), height, pallete.white };
+                    sprintf(scratch_buffer, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
+                    real w = _easy_text_dx(&pen, scratch_buffer);
+                    real W = get_x_divider_drawing_mesh_Pixel();
+                    pen.origin.x = (W - w) / 2;
+                    easy_text_drawf(&pen, scratch_buffer);
+                }
+
+                {
+                    EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height - eps), height, pallete.black };
+                    sprintf(scratch_buffer, "%d triangles %d vertices", meshes->work.num_triangles, meshes->work.num_vertices);
+                    real w = _easy_text_dx(&pen, scratch_buffer);
+                    real W = window_get_width_Pixel() - get_x_divider_drawing_mesh_Pixel();
+                    pen.origin.x = get_x_divider_drawing_mesh_Pixel() + (W - w) / 2;
+                    easy_text_drawf(&pen, scratch_buffer);
+                }
+            }
 
 
             static int fps; {
@@ -1300,7 +1321,13 @@ void conversation_draw() {
                 }
             }
 
-            easy_text_drawf(&pen, "%d triangles %d vertices  %d fps", meshes->work.num_triangles, meshes->work.num_vertices, fps);
+            if (other.show_debug) {
+                EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height - eps), height, pallete.black };
+                sprintf(scratch_buffer, "%d fps", fps);
+                real w = _easy_text_dx(&pen, scratch_buffer);
+                pen.origin.x = window_get_width_Pixel() - w - eps - eps;
+                easy_text_drawf(&pen, scratch_buffer);
+            }
         }
     }
 

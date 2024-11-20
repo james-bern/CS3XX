@@ -484,6 +484,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         other.show_details = !other.show_details;
                     }
 
+                    if (GUIBUTTON(commands.ToggleDebug)) { 
+                        other.show_debug = !other.show_debug;
+                    }
                 }
 
                 { // Colo
