@@ -76,6 +76,7 @@ void _messages_draw() {
         x_right = window_get_width_Pixel() - epsilon;
         y_bottom = window_get_height_Pixel() - epsilon;
         y_top = y_bottom - 96.0f;
+        if (other.show_details || other.show_debug) y_bottom -= epsilon;
         bbox = { x_left, y_top, x_right, y_bottom };
     }
 
@@ -123,12 +124,12 @@ void _messages_draw() {
     // TODO: stencil test to the transition in beautiful
     bbox2 inflated_bbox = bbox_inflate(bbox, epsilon / 2); 
     eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
-    eso_color(pallete.black, 0.3f);
+    eso_color(pallete.white, 1.0f);
     eso_bbox_SOUP_QUADS(inflated_bbox);
     eso_end();
     eso_begin(other.OpenGL_from_Pixel, SOUP_LINE_LOOP);
     eso_size(1.0f);
-    eso_color(pallete.dark_gray);
+    eso_color(pallete.black);
     eso_bbox_SOUP_QUADS(inflated_bbox);
     eso_end();
 }

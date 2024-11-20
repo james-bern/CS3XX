@@ -1269,13 +1269,13 @@ void conversation_draw() {
         { // number of elements, etc. fps
           // FORNOW: ew
 
-            real height = 12.0f;
             real eps = 4.0f;
+            real height = 12.0f;
             static char scratch_buffer[1024];
 
             if (other.show_details) {
                 {
-                    EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height - eps), height, pallete.white };
+                    EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height), height, pallete.white };
                     sprintf(scratch_buffer, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
                     real w = _easy_text_dx(&pen, scratch_buffer);
                     real W = get_x_divider_drawing_mesh_Pixel();
@@ -1284,7 +1284,7 @@ void conversation_draw() {
                 }
 
                 {
-                    EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height - eps), height, pallete.black };
+                    EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height), height, pallete.black };
                     sprintf(scratch_buffer, "%d triangles %d vertices", meshes->work.num_triangles, meshes->work.num_vertices);
                     real w = _easy_text_dx(&pen, scratch_buffer);
                     real W = window_get_width_Pixel() - get_x_divider_drawing_mesh_Pixel();
@@ -1292,7 +1292,6 @@ void conversation_draw() {
                     easy_text_drawf(&pen, scratch_buffer);
                 }
             }
-
 
             static int fps; {
                 static int measured_fps;
@@ -1322,7 +1321,7 @@ void conversation_draw() {
             }
 
             if (other.show_debug) {
-                EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height - eps), height, pallete.black };
+                EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height), height, pallete.black };
                 sprintf(scratch_buffer, "%d fps", fps);
                 real w = _easy_text_dx(&pen, scratch_buffer);
                 pen.origin.x = window_get_width_Pixel() - w - eps - eps;
