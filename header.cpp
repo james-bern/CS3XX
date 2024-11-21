@@ -1896,7 +1896,6 @@ MeshesReadOnly manifold_wrapper(
         vec2 dxf_axis_base_point,
         real dxf_axis_angle_from_y
         ) {
-
     bool add     = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
     bool cut     = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
     bool extrude = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.ExtrudeCut));
@@ -2014,7 +2013,6 @@ MeshesReadOnly manifold_wrapper(
                 ASSERT(!cut);
                 meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_TOOL);
             } else {
-                // TODO: ? manifold_delete_manifold(manifold_PREV);
                 ManifoldManifold *manifold_result;
                 defer { manifold_delete_manifold(manifold_result); };
                 {
@@ -2026,23 +2024,22 @@ MeshesReadOnly manifold_wrapper(
                                 (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
                                 );
                 }
+
                 meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_result);
             }
 
         }
 
-        { // result <- meshgl
-            Arena *arena = ARENA_ACQUIRE();
+        Arena *arena = ARENA_ACQUIRE();
 
-            uint num_vertices = manifold_meshgl_num_vert(meshgl);
-            vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-            uint num_triangles = manifold_meshgl_num_tri(meshgl);
-            uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
+        uint num_vertices = manifold_meshgl_num_vert(meshgl);
+        vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
+        uint num_triangles = manifold_meshgl_num_tri(meshgl);
+        uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
 
-            result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+        result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
 
-            result.M_3D_from_2D = M_3D_from_2D;
-        }
+        result.M_3D_from_2D = M_3D_from_2D;
     }
 
     return result;
