@@ -1897,18 +1897,19 @@ MeshesReadOnly manifold_wrapper(
         real dxf_axis_angle_from_y
         ) {
 
-
-    // DEBUGBREAK();
-    bool add = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
-    bool cut = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
+    bool add     = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
+    bool cut     = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
     bool extrude = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.ExtrudeCut));
     bool revolve = (command_equals(Mesh_command, commands.RevolveAdd)) || (command_equals(Mesh_command, commands.RevolveCut));
-    ASSERT(add || cut);
+
+    ASSERT(    add ||     cut);
     ASSERT(extrude || revolve);
 
-    ManifoldManifold *manifold_A; {
+    ManifoldManifold *manifold_PREV;
+    defer { if (manifold_PREV) manifold_delete_manifold(manifold_PREV); };
+    {
         if (curr->num_vertices == 0) {
-            manifold_A = NULL;
+            manifold_PREV = NULL;
         } else { // manifold <- mesh
             ManifoldMeshGL *meshgl = manifold_meshgl(
                     manifold_alloc_meshgl(),
@@ -1916,29 +1917,49 @@ MeshesReadOnly manifold_wrapper(
                     curr->num_vertices,
                     3,
                     (uint *) curr->triangle_tuples,
-                    curr->num_triangles);
+                    curr->num_triangles
+                    );
+            defer { manifold_delete_meshgl(meshgl); };
 
-            manifold_A = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
-
-            manifold_delete_meshgl(meshgl);
+            manifold_PREV = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
         }
     }
 
-    ManifoldManifold *manifold_B; {
-        ManifoldSimplePolygon **simple_polygon_array; {
+    ManifoldManifold *manifold_TOOL;
+    defer { manifold_delete_manifold(manifold_TOOL); };
+    {
+        ManifoldSimplePolygon **simple_polygon_array;
+        defer {
+            for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
+            free(simple_polygon_array);
+        };
+        {
             simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
             for_(i, num_polygonal_loops) {
-                simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
+                simple_polygon_array[i] = manifold_simple_polygon(
+                        manifold_alloc_simple_polygon(),
+                        (ManifoldVec2 *) polygonal_loops[i],
+                        num_vertices_in_polygonal_loops[i]
+                        );
             }
         } 
 
-        ManifoldPolygons *_polygons; {
-            _polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
+        ManifoldPolygons *_polygons;
+        defer { manifold_delete_polygons(_polygons); };
+        {
+            _polygons = manifold_polygons(
+                    manifold_alloc_polygons(),
+                    simple_polygon_array,
+                    num_polygonal_loops
+                    );
         }
 
 
-        ManifoldCrossSection *cross_section; {
+        ManifoldCrossSection *cross_section;
+        defer { manifold_delete_cross_section(cross_section); };
+        {
             cross_section = manifold_cross_section_of_polygons(manifold_alloc_cross_section(), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+
             // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
 
             if (revolve) {
@@ -1947,11 +1968,13 @@ MeshesReadOnly manifold_wrapper(
             }
         }
 
-        ManifoldPolygons *polygons = manifold_cross_section_to_polygons(manifold_alloc_polygons(), cross_section);
+        ManifoldPolygons *polygons;
+        defer { manifold_delete_polygons(polygons); };
+        {
+            polygons = manifold_cross_section_to_polygons(manifold_alloc_polygons(), cross_section);
+        }
 
-
-
-        { // manifold_B
+        { // manifold_TOOL
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {
                 do_once { messagef(pallete.red, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
@@ -1963,68 +1986,63 @@ MeshesReadOnly manifold_wrapper(
 
             if (extrude) {
                 real length = in_quantity + out_quantity;
-                manifold_B = manifold_extrude(manifold_alloc_manifold(), polygons, length, 0, 0.0f, 1.0f, 1.0f);
-                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -in_quantity);
+                manifold_TOOL = manifold_extrude(manifold_alloc_manifold(), polygons, length, 0, 0.0f, 1.0f, 1.0f);
+                manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, 0.0f, 0.0f, -in_quantity);
             } else { ASSERT(revolve);
                 // TODO: M_3D_from_2D 
                 real angle_in_degrees = in_quantity + out_quantity;
-                manifold_B = manifold_revolve(manifold_alloc_manifold(), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
-                manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, 0.0, -out_quantity); // *
-                manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
-                manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
-                manifold_B = manifold_translate(manifold_B, manifold_B, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
+                manifold_TOOL = manifold_revolve(manifold_alloc_manifold(), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
+                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, 0.0, -out_quantity); // *
+                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
+                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, -90.0f, 0.0f, 0.0f);
+                manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
             }
-            manifold_B = manifold_translate(manifold_B, manifold_B, -dxf_origin.x, -dxf_origin.y, 0.0f);
-            manifold_B = manifold_transform(manifold_B, manifold_B,
+            manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, -dxf_origin.x, -dxf_origin.y, 0.0f);
+            manifold_TOOL = manifold_transform(manifold_TOOL, manifold_TOOL,
                     M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
                     M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
                     M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
                     M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
         }
-
-        { // free(simple_polygon_array)
-            for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
-            free(simple_polygon_array);
-        }
-        manifold_delete_polygons(polygons);
-        manifold_delete_cross_section(cross_section);
-        manifold_delete_polygons(_polygons);
     }
 
-    MeshesReadOnly result; { // C <- f(A, B)
+    MeshesReadOnly result; {
         ManifoldMeshGL *meshgl;
         defer { manifold_delete_meshgl(meshgl); };
         {
-            ManifoldManifold *manifold_C;
-            if (manifold_A == NULL) {
+            if (manifold_PREV == NULL) {
                 ASSERT(!cut);
-                manifold_C = manifold_B;
+                meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_TOOL);
             } else {
-                // TODO: ? manifold_delete_manifold(manifold_A);
-                manifold_C =
-                    manifold_boolean(
-                            manifold_alloc_manifold(),
-                            manifold_A,
-                            manifold_B,
-                            (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
-                            );
-                manifold_delete_manifold(manifold_A);
-                manifold_delete_manifold(manifold_B);
+                // TODO: ? manifold_delete_manifold(manifold_PREV);
+                ManifoldManifold *manifold_result;
+                defer { manifold_delete_manifold(manifold_result); };
+                {
+                    manifold_result =
+                        manifold_boolean(
+                                manifold_alloc_manifold(),
+                                manifold_PREV,
+                                manifold_TOOL,
+                                (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                                );
+                }
+                meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_result);
             }
 
-            meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_C);
         }
 
         { // result <- meshgl
-            uint num_vertices = manifold_meshgl_num_vert(meshgl);
-            uint num_triangles = manifold_meshgl_num_tri(meshgl);
             Arena *arena = ARENA_ACQUIRE();
+
+            uint num_vertices = manifold_meshgl_num_vert(meshgl);
             vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
+            uint num_triangles = manifold_meshgl_num_tri(meshgl);
             uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
+
             result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+
             result.M_3D_from_2D = M_3D_from_2D;
         }
-
     }
 
     return result;

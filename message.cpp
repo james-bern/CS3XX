@@ -44,6 +44,13 @@ void messagef(vec3 color, char *format, ...) {
     va_end(args);
 }
 
+// void MESSAGE_WARN(char *format, ...) {
+//     va_list args;
+//     va_start(args, format);
+//     _messagef(color, format, args);
+//     va_end(args);
+// }
+
 void messagef(char *format, ...) {
     va_list args;
     va_start(args, format);
