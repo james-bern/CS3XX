@@ -388,6 +388,8 @@ int main() {
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
+
+
         if (other.slowmo) SLEEP(100);
         glfwSwapBuffers(glfw_window);
         glFinish(); // 69363856
