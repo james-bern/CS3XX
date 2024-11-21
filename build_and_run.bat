@@ -135,6 +135,7 @@ else
         -Wno-write-strings \
         -I./manifold \
         -I./opengl   \
+        $ARCH \
 
     clang++ \
         -g -o executable $(basename $1 .cpp).o \

@@ -21,7 +21,8 @@
     COMMANDS_INNER(ToggleConsole,   ',', 0b000, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleDetails,   '.', 0b000, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleGUI,       '.', 0b010, Both, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(ToggleDebug,     '/', 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleFPS,     '/', 0b000, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleHistory,   'H', 0b011, None, 0, 0 | NO_RECORD);  \
     \
     COMMANDS_INNER(Center,          'C', 0b000, Snap, 1, 0); \
     COMMANDS_INNER(End,             'E', 0b000, Snap, 1, 0); \
@@ -123,7 +124,6 @@
     \
     COMMANDS_INNER(ConfirmClose,                     0,   0b000, Draw, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(TOGGLE_BUTTONS,          GLFW_KEY_TAB, 0b001, None, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(TOGGLE_EVENT_STACK,               'K', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_LIGHT_MODE,                'L', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_2D,              ' ', 0b000, None, 0, 0);  \

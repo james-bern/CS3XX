@@ -645,7 +645,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool show_details;
     bool show_console;
     bool show_help;
-    bool show_event_stack;
+    bool show_history;
     bool hide_toolbox;
     bool show_debug;
 

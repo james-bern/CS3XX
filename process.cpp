@@ -476,17 +476,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     SEPERATOR();
 
-                    if (GUIBUTTON(commands.ToggleConsole)) { 
-                        other.show_console = !other.show_console;
-                    }
-
-                    if (GUIBUTTON(commands.ToggleDetails)) { 
-                        other.show_details = !other.show_details;
-                    }
-
-                    if (GUIBUTTON(commands.ToggleDebug)) { 
-                        other.show_debug = !other.show_debug;
-                    }
+                    if (GUIBUTTON(commands.ToggleConsole)) other.show_console = !other.show_console;
+                    if (GUIBUTTON(commands.ToggleDetails)) other.show_details = !other.show_details;
+                    if (GUIBUTTON(commands.ToggleFPS)) other.show_debug = !other.show_debug;
+                    if (GUIBUTTON(commands.ToggleHistory)) other.show_history = !other.show_history;
                 }
 
                 { // Colo
@@ -795,9 +788,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
-                    if (GUIBUTTON(commands.TOGGLE_EVENT_STACK)) { 
-                        other.show_event_stack = !other.show_event_stack;
-                    }
 
 
 

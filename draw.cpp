@@ -1214,7 +1214,7 @@ void conversation_draw() {
 
 
 
-    if (other.show_event_stack) history_debug_draw();
+    if (other.show_history) history_debug_draw();
 
     { // paused; slowmo
         real x = 12.0f;
