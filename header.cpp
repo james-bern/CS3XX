@@ -1904,25 +1904,7 @@ MeshesReadOnly manifold_wrapper(
     ASSERT(    add ||     cut);
     ASSERT(extrude || revolve);
 
-    ManifoldManifold *manifold_PREV;
-    defer { if (manifold_PREV) manifold_delete_manifold(manifold_PREV); };
-    {
-        if (curr->num_vertices == 0) {
-            manifold_PREV = NULL;
-        } else { // manifold <- mesh
-            ManifoldMeshGL *meshgl = manifold_meshgl(
-                    manifold_alloc_meshgl(),
-                    (real *) curr->vertex_positions,
-                    curr->num_vertices,
-                    3,
-                    (uint *) curr->triangle_tuples,
-                    curr->num_triangles
-                    );
-            defer { manifold_delete_meshgl(meshgl); };
-
-            manifold_PREV = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
-        }
-    }
+    bool CURR_is_empty = (curr->num_vertices == 0);
 
     ManifoldManifold *manifold_TOOL;
     defer { manifold_delete_manifold(manifold_TOOL); };
@@ -2005,44 +1987,64 @@ MeshesReadOnly manifold_wrapper(
         }
     }
 
-    MeshesReadOnly result; {
-        ManifoldMeshGL *meshgl;
-        defer { manifold_delete_meshgl(meshgl); };
+    MeshesReadOnly next; {
+        Arena *arena = ARENA_ACQUIRE();
+        uint num_vertices;
+        vec3 *vertex_positions;
+        uint num_triangles;
+        uint3 *triangle_tuples;
         {
-            if (manifold_PREV == NULL) {
-                ASSERT(!cut);
-                meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_TOOL);
-            } else {
-                ManifoldManifold *manifold_result;
-                defer { manifold_delete_manifold(manifold_result); };
-                {
-                    manifold_result =
-                        manifold_boolean(
-                                manifold_alloc_manifold(),
-                                manifold_PREV,
-                                manifold_TOOL,
-                                (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+            ManifoldMeshGL *meshgl = manifold_alloc_meshgl();
+            defer { manifold_delete_meshgl(meshgl); };
+            {
+                if (CURR_is_empty) {
+                    ASSERT(!cut);
+                    meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_TOOL);
+                } else {
+                    ManifoldManifold *manifold_CURR;
+                    defer { manifold_delete_manifold(manifold_CURR); };
+                    { // manifold <- mesh
+                        meshgl = manifold_meshgl(
+                                meshgl,
+                                (real *) curr->vertex_positions,
+                                (size_t) curr->num_vertices,
+                                3,
+                                (uint *) curr->triangle_tuples,
+                                curr->num_triangles
                                 );
+
+                        manifold_CURR = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
+                    }
+
+                    ManifoldManifold *manifold_result;
+                    defer { manifold_delete_manifold(manifold_result); };
+                    {
+                        manifold_result =
+                            manifold_boolean(
+                                    manifold_alloc_manifold(),
+                                    manifold_CURR,
+                                    manifold_TOOL,
+                                    (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                                    );
+                    }
+
+                    meshgl = manifold_get_meshgl(
+                            meshgl,
+                            manifold_result
+                            );
                 }
 
-                meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_result);
             }
-
+            num_vertices      = (uint) manifold_meshgl_num_vert(meshgl);
+            vertex_positions  = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
+            num_triangles     = (uint) manifold_meshgl_num_tri(meshgl);
+            triangle_tuples   = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
         }
-
-        Arena *arena = ARENA_ACQUIRE();
-
-        uint num_vertices = manifold_meshgl_num_vert(meshgl);
-        vec3 *vertex_positions = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-        uint num_triangles = manifold_meshgl_num_tri(meshgl);
-        uint3 *triangle_tuples = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
-
-        result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
-
-        result.M_3D_from_2D = M_3D_from_2D;
+        next = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+        next.M_3D_from_2D = M_3D_from_2D;
     }
 
-    return result;
+    return next;
 }
 
 char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) { // inline
