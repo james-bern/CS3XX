@@ -258,6 +258,13 @@ struct Entity {
     CircleEntity circle;
 };
 
+struct ProtoMesh {
+    uint num_vertices;
+    uint num_triangles;
+    vec3  *vertex_positions;
+    uint3 *triangle_tuples;
+};
+
 struct WorkMesh {
     uint num_vertices;
     uint num_triangles;
@@ -304,7 +311,12 @@ struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how
     Arena *arena;
     WorkMesh work;
     DrawMesh draw;
+
+    DrawMesh tool_draw;
+    DrawMesh prev_draw;
+
     mat4 M_3D_from_2D;
+    bool was_cut;
 
     //     DrawMesh prev;
     //     DrawMesh prev_tool;
@@ -616,7 +628,7 @@ struct PreviewState {
 
     real bbox_min_y;
 
-    real tween_extrude_add_scale;
+    real manifold_wrapper_tweener;
 };
 
 struct Cursors {
@@ -632,7 +644,6 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
 
-    FeaturePlaneState tween_extrude_add_feature_plane;
 
     Cursors cursors;
 
@@ -1476,7 +1487,7 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 // Mesh, Mesh //////////////////////
 ////////////////////////////////////////
 
-WorkMesh build_work_mesh(
+WorkMesh build_work_mesh_NOTE_shallow_copies_args(
         Arena *arena,
         int num_vertices,
         vec3 *vertex_positions,
@@ -1518,6 +1529,7 @@ WorkMesh build_work_mesh(
 
     return result;
 }
+
 
 DrawMesh build_draw_mesh(
         Arena *arena,
@@ -1801,13 +1813,14 @@ DrawMesh build_draw_mesh(
 }
 
 
+
 // TODO: it would feel better to pass around arena pointers instead of values
 //       but then where does the arena live?
 //       do we need an arena arena?--i think maybe we do.
 //       (could be a free list)
 MeshesReadOnly build_meshes(Arena *arena, int num_vertices, vec3 *vertex_positions, int num_triangles, uint3 *triangle_tuples) {
     MeshesReadOnly meshes = { arena };
-    meshes.work = build_work_mesh(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+    meshes.work = build_work_mesh_NOTE_shallow_copies_args(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
     meshes.draw = build_draw_mesh(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples, meshes.work.triangle_normals);
     return meshes;
 }
@@ -1839,6 +1852,18 @@ void meshes_deep_copy(MeshesReadOnly *dst, MeshesReadOnly *src) {
     _DEEP_COPY(draw.triangle_tuples,      draw.num_triangles, uint3);
     _DEEP_COPY(draw.vertex_patch_indices, draw.num_vertices,   uint);
     _DEEP_COPY(draw.vertex_normals,       draw.num_vertices ,  vec3);
+
+    // TODO: these should be guarded
+
+    _DEEP_COPY(tool_draw.vertex_positions,     tool_draw.num_vertices ,  vec3);
+    _DEEP_COPY(tool_draw.triangle_tuples,      tool_draw.num_triangles, uint3);
+    _DEEP_COPY(tool_draw.vertex_patch_indices, tool_draw.num_vertices,   uint);
+    _DEEP_COPY(tool_draw.vertex_normals,       tool_draw.num_vertices ,  vec3);
+
+    _DEEP_COPY(prev_draw.vertex_positions,     prev_draw.num_vertices ,  vec3);
+    _DEEP_COPY(prev_draw.triangle_tuples,      prev_draw.num_triangles, uint3);
+    _DEEP_COPY(prev_draw.vertex_patch_indices, prev_draw.num_vertices,   uint);
+    _DEEP_COPY(prev_draw.vertex_normals,       prev_draw.num_vertices ,  vec3);
 
     #undef _DEEP_COPY
 
@@ -1881,10 +1906,35 @@ uint fornow_global_selection_num_triangles;
 uint3 *fornow_global_selection_triangle_tuples;
 vec2 *fornow_global_selection_vertex_positions;
 
+
+ProtoMesh extract_from_manifold(Arena *arena, ManifoldManifold *manifold) {
+    ASSERT(manifold);
+
+    ManifoldMeshGL *meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold);
+    defer { manifold_delete_meshgl(meshgl); };
+
+    ProtoMesh result = {};
+
+    result.num_vertices      = (uint  ) manifold_meshgl_num_vert(meshgl);
+    result.vertex_positions  = (vec3 *) manifold_meshgl_vert_properties(
+            arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)),
+            meshgl
+            );
+
+    result.num_triangles     = (uint   ) manifold_meshgl_num_tri(meshgl);
+    result.triangle_tuples   = (uint3 *) manifold_meshgl_tri_verts(
+            arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)),
+            meshgl
+            );
+
+    return result;
+}
+
 // TODO: don't overwrite  mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
 MeshesReadOnly manifold_wrapper(
         WorkMesh *curr,
+        DrawMesh *_curr_draw,
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         ManifoldVec2 **polygonal_loops,
@@ -1896,6 +1946,7 @@ MeshesReadOnly manifold_wrapper(
         vec2 dxf_axis_base_point,
         real dxf_axis_angle_from_y
         ) {
+
     bool add     = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
     bool cut     = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
     bool extrude = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.ExtrudeCut));
@@ -1906,145 +1957,192 @@ MeshesReadOnly manifold_wrapper(
 
     bool CURR_is_empty = (curr->num_vertices == 0);
 
-    ManifoldManifold *manifold_TOOL;
-    defer { manifold_delete_manifold(manifold_TOOL); };
+    if (CURR_is_empty) ASSERT(!cut);
+
+    // TODO: OK to regress outlining fornow
+    ManifoldManifold *manifold_TOOL; // TODO: for visualization, should actually be the intersection of the TOOL and CURR
+    ManifoldManifold *manifold_CURR = NULL;
+    ManifoldManifold *manifold_NEXT = NULL;
+    defer {
+        manifold_delete_manifold(manifold_TOOL);
+        if (manifold_CURR) manifold_delete_manifold(manifold_CURR);
+        if (manifold_NEXT) manifold_delete_manifold(manifold_NEXT);
+    };
     {
-        ManifoldSimplePolygon **simple_polygon_array;
-        defer {
-            for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
-            free(simple_polygon_array);
-        };
-        {
-            simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
-            for_(i, num_polygonal_loops) {
-                simple_polygon_array[i] = manifold_simple_polygon(
-                        manifold_alloc_simple_polygon(),
-                        (ManifoldVec2 *) polygonal_loops[i],
-                        num_vertices_in_polygonal_loops[i]
-                        );
-            }
-        } 
-
-        ManifoldPolygons *_polygons;
-        defer { manifold_delete_polygons(_polygons); };
-        {
-            _polygons = manifold_polygons(
-                    manifold_alloc_polygons(),
-                    simple_polygon_array,
-                    num_polygonal_loops
-                    );
-        }
-
-
-        ManifoldCrossSection *cross_section;
-        defer { manifold_delete_cross_section(cross_section); };
-        {
-            cross_section = manifold_cross_section_of_polygons(manifold_alloc_cross_section(), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
-
-            // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
-
-            if (revolve) {
-                manifold_cross_section_translate(cross_section, cross_section, -dxf_axis_base_point.x, -dxf_axis_base_point.y);
-                manifold_cross_section_rotate(cross_section, cross_section, DEG(-dxf_axis_angle_from_y)); // * has both the 90 y-up correction and the angle
-            }
-        }
-
-        ManifoldPolygons *polygons;
-        defer { manifold_delete_polygons(polygons); };
-        {
-            polygons = manifold_cross_section_to_polygons(manifold_alloc_polygons(), cross_section);
-        }
-
         { // manifold_TOOL
-            if (command_equals(Mesh_command, commands.ExtrudeCut)) {
-                do_once { messagef(pallete.red, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
-                in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
-                out_quantity += SGN(out_quantity) * TOLERANCE_DEFAULT;
-            }
-
-            // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
-            //       but we support (30, 40) -- which is equivalent to (40, 0)
-
-            if (extrude) {
-                real length = in_quantity + out_quantity;
-                manifold_TOOL = manifold_extrude(manifold_alloc_manifold(), polygons, length, 0, 0.0f, 1.0f, 1.0f);
-                manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, 0.0f, 0.0f, -in_quantity);
-            } else { ASSERT(revolve);
-                // TODO: M_3D_from_2D 
-                real angle_in_degrees = in_quantity + out_quantity;
-                manifold_TOOL = manifold_revolve(manifold_alloc_manifold(), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
-                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, 0.0, -out_quantity); // *
-                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
-                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, -90.0f, 0.0f, 0.0f);
-                manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
-            }
-            manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, -dxf_origin.x, -dxf_origin.y, 0.0f);
-            manifold_TOOL = manifold_transform(manifold_TOOL, manifold_TOOL,
-                    M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
-                    M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
-                    M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
-                    M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
-        }
-    }
-
-    MeshesReadOnly next; {
-        Arena *arena = ARENA_ACQUIRE();
-        uint num_vertices;
-        vec3 *vertex_positions;
-        uint num_triangles;
-        uint3 *triangle_tuples;
-        {
-            ManifoldMeshGL *meshgl = manifold_alloc_meshgl();
-            defer { manifold_delete_meshgl(meshgl); };
+            ManifoldSimplePolygon **simple_polygon_array;
+            defer {
+                for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
+                free(simple_polygon_array);
+            };
             {
-                if (CURR_is_empty) {
-                    ASSERT(!cut);
-                    meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_TOOL);
-                } else {
-                    ManifoldManifold *manifold_CURR;
-                    defer { manifold_delete_manifold(manifold_CURR); };
-                    { // manifold <- mesh
-                        meshgl = manifold_meshgl(
-                                meshgl,
-                                (real *) curr->vertex_positions,
-                                (size_t) curr->num_vertices,
-                                3,
-                                (uint *) curr->triangle_tuples,
-                                curr->num_triangles
-                                );
-
-                        manifold_CURR = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
-                    }
-
-                    ManifoldManifold *manifold_result;
-                    defer { manifold_delete_manifold(manifold_result); };
-                    {
-                        manifold_result =
-                            manifold_boolean(
-                                    manifold_alloc_manifold(),
-                                    manifold_CURR,
-                                    manifold_TOOL,
-                                    (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
-                                    );
-                    }
-
-                    meshgl = manifold_get_meshgl(
-                            meshgl,
-                            manifold_result
+                simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
+                for_(i, num_polygonal_loops) {
+                    simple_polygon_array[i] = manifold_simple_polygon(
+                            manifold_alloc_simple_polygon(),
+                            (ManifoldVec2 *) polygonal_loops[i],
+                            num_vertices_in_polygonal_loops[i]
                             );
                 }
+            } 
 
+            ManifoldPolygons *_polygons;
+            defer { manifold_delete_polygons(_polygons); };
+            {
+                _polygons = manifold_polygons(
+                        manifold_alloc_polygons(),
+                        simple_polygon_array,
+                        num_polygonal_loops
+                        );
             }
-            num_vertices      = (uint) manifold_meshgl_num_vert(meshgl);
-            vertex_positions  = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-            num_triangles     = (uint) manifold_meshgl_num_tri(meshgl);
-            triangle_tuples   = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
+
+
+            ManifoldCrossSection *cross_section;
+            defer { manifold_delete_cross_section(cross_section); };
+            {
+                cross_section = manifold_cross_section_of_polygons(manifold_alloc_cross_section(), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+
+                // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
+
+                if (revolve) {
+                    manifold_cross_section_translate(cross_section, cross_section, -dxf_axis_base_point.x, -dxf_axis_base_point.y);
+                    manifold_cross_section_rotate(cross_section, cross_section, DEG(-dxf_axis_angle_from_y)); // * has both the 90 y-up correction and the angle
+                }
+            }
+
+            ManifoldPolygons *polygons;
+            defer { manifold_delete_polygons(polygons); };
+            {
+                polygons = manifold_cross_section_to_polygons(manifold_alloc_polygons(), cross_section);
+            }
+
+            { // manifold_TOOL
+                if (command_equals(Mesh_command, commands.ExtrudeCut)) {
+                    do_once { messagef(pallete.red, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
+                    in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
+                    out_quantity += SGN(out_quantity) * TOLERANCE_DEFAULT;
+                }
+
+                // NOTE: params are arbitrary sign (and can be same sign)--a typical thing would be like (30, -30)
+                //       but we support (30, 40) -- which is equivalent to (40, 0)
+
+                if (extrude) {
+                    real length = in_quantity + out_quantity;
+                    manifold_TOOL = manifold_extrude(manifold_alloc_manifold(), polygons, length, 0, 0.0f, 1.0f, 1.0f);
+                    manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, 0.0f, 0.0f, -in_quantity);
+                } else { ASSERT(revolve);
+                    // TODO: M_3D_from_2D 
+                    real angle_in_degrees = in_quantity + out_quantity;
+                    manifold_TOOL = manifold_revolve(manifold_alloc_manifold(), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
+                    manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, 0.0, -out_quantity); // *
+                    manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
+                    manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, -90.0f, 0.0f, 0.0f);
+                    manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
+                }
+                manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, -dxf_origin.x, -dxf_origin.y, 0.0f);
+                manifold_TOOL = manifold_transform(manifold_TOOL, manifold_TOOL,
+                        M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
+                        M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
+                        M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
+                        M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
+            }
         }
-        next = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
-        next.M_3D_from_2D = M_3D_from_2D;
+
+
+        if (!CURR_is_empty) { // manifold_CURR, manifold_NEXT
+            { // manifold_CURR
+                ManifoldMeshGL *meshgl;
+                defer { manifold_delete_meshgl(meshgl); };
+                meshgl = manifold_meshgl(
+                        manifold_alloc_meshgl(),
+                        (real *) curr->vertex_positions,
+                        (size_t) curr->num_vertices,
+                        3,
+                        (uint *) curr->triangle_tuples,
+                        curr->num_triangles
+                        );
+
+                manifold_CURR = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
+            }
+            { // manifold_NEXT
+                manifold_NEXT =
+                    manifold_boolean(
+                            manifold_alloc_manifold(),
+                            manifold_CURR,
+                            manifold_TOOL,
+                            (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                            );
+            }
+        }
     }
 
-    return next;
+
+    MeshesReadOnly result; {
+        Arena *arena = ARENA_ACQUIRE();
+        result = { arena };
+
+        if (CURR_is_empty) {
+            ProtoMesh tool_proto = extract_from_manifold(arena, manifold_TOOL);
+
+            result.work = build_work_mesh_NOTE_shallow_copies_args(arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples);
+            result.draw = build_draw_mesh(arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples, result.work.triangle_normals);
+            result.tool_draw = result.draw;
+            result.prev_draw = {};
+        } else {
+            { // next
+                ProtoMesh next_proto = extract_from_manifold(arena, manifold_NEXT);
+                result.work = build_work_mesh_NOTE_shallow_copies_args(arena, next_proto.num_vertices, next_proto.vertex_positions, next_proto.num_triangles, next_proto.triangle_tuples);
+                result.draw = build_draw_mesh(arena, next_proto.num_vertices, next_proto.vertex_positions, next_proto.num_triangles, next_proto.triangle_tuples, result.work.triangle_normals);
+            }
+
+            { // tool
+                Arena *scratch_arena = ARENA_ACQUIRE();
+                defer { ARENA_RELEASE(scratch_arena); };
+
+                ProtoMesh tool_proto = extract_from_manifold(scratch_arena, manifold_TOOL);
+                WorkMesh tool_work = build_work_mesh_NOTE_shallow_copies_args(scratch_arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples);
+                result.tool_draw = build_draw_mesh(arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples, tool_work.triangle_normals);
+            }
+
+            // prev
+            {
+                { // FORNOW so much repeated computation
+                    Arena *scratch_arena = ARENA_ACQUIRE();
+                    defer { ARENA_RELEASE(scratch_arena); };
+
+                    ProtoMesh curr_proto = extract_from_manifold(scratch_arena, manifold_CURR);
+                    WorkMesh curr_work = build_work_mesh_NOTE_shallow_copies_args(scratch_arena, curr_proto.num_vertices, curr_proto.vertex_positions, curr_proto.num_triangles, curr_proto.triangle_tuples);
+                    result.prev_draw = build_draw_mesh(arena, curr_proto.num_vertices, curr_proto.vertex_positions, curr_proto.num_triangles, curr_proto.triangle_tuples, curr_work.triangle_normals);
+                }
+                // this crap doesn't work let's just do ^ an extraction and come back to this
+                #if 0
+                result.prev_draw = *_curr_draw; // TODO shallow copy be very careful with history
+                { // FORNOW deepcopy
+
+                    #define _DEEP_COPY(arena, src, dst, field, count, type) \
+                    do { \
+                        ASSERT(src); \
+                        dst->field = (type *) arena->malloc(src->count * sizeof(type)); \
+                        memcpy(dst->field, src->field, src->count * sizeof(type)); \
+                    } while (0);
+
+                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, vertex_positions, num_vertices, vec3);
+                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, triangle_tuples, num_triangles, uint3);
+                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, vertex_patch_indices, num_vertices, uint);
+                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, vertex_normals, num_vertices, vec3);
+
+                    #undef _DEEP_COPY
+                }
+                #endif
+            }
+        }
+
+        result.M_3D_from_2D = M_3D_from_2D;
+        result.was_cut = cut;
+        // TODO: revolve stuff
+    }
+
+    return result;
 }
 
 char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) { // inline

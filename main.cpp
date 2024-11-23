@@ -1,32 +1,16 @@
 // #define NATE
 #if 0
-
-#include "basics.cpp"
-#include "arena.cpp"
-
 int main() {
-    Arena arena = arena_create();
-    void *foo = arena_malloc(&arena, 123);
-    void *bar = arena_malloc(&arena, 456);
-    void *baz = arena_malloc(&arena, 10001);
-    FORNOW_UNUSED(foo);
-    FORNOW_UNUSED(bar);
-    FORNOW_UNUSED(baz);
-
-
-    ArenaList<uint> list = { &arena };
-    for_(i, 10000) list_push_back(&list, i);
-
-    ArenaMap<uint, uint> map = { &arena };
-    map_put(&map, 1U, 5U);
-    // printf("%d\n", map_get(1));
-
-    arena_free(&arena);
+    int a = 0;
+    ++a;
+    ++a;
+    ++a;
+    ++a;
+    ++a;
+    ++a;
+    return 0;
 }
-
-
 #else
-
 // BETA
 // TODO: first and second clicks of FGHI should be hinted (even first!)
 // TODO: Pressing enter should spawn a ghost of the pink or blue crosshairs
@@ -96,6 +80,10 @@ int main() {
 #include "kitchen.cpp"
 
 char *startup_script = "";
+
+run_before_main {
+    startup_script = "^odemo.dxf\nysq1[5\n<m3d 0 100 15 0 -1 0>sq2[5";
+};
 
 // ISSUE: negative extrude crashes program`;
 // ISSUE: undo graphics broken again but not sure why
@@ -306,7 +294,7 @@ run_before_main {
 };
 #endif
 
-#endif
+
 #ifdef SHIP
 run_before_main {
     startup_script = "";
@@ -563,4 +551,4 @@ int main() {
 
     }
 }
-
+#endif

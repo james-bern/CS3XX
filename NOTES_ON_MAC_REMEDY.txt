@@ -1,0 +1,59 @@
+build manifold on windows
+make sure conversation runs on windows
+see if conversation runs on parallels
+see if conversation debugs in remedy in parallels
+give parallels all the money so we can use prlctrl
+ask chat how to do the thing
+
+open x64 Dev Promp
+pushd \\Mac\Home\Desktop\CS3XX
+_build_and_run_SIMPLE.bat main.cpp --debug
+
+===
+
+prlctl is a command-line tool used to manage Parallels virtual machines (VMs) on your computer. Think of Parallels as a way to run another operating system, like Windows or Linux, on your Mac without restarting your computer.
+
+Here’s what prlctl can do:
+
+Start or stop VMs - It’s like pressing the power button on a computer but using a command.
+Example: prlctl start MyVM turns on a virtual machine called "MyVM."
+Create new VMs - You can set up new virtual machines.
+Example: prlctl create NewVM starts a new virtual computer.
+Configure settings - Adjust things like how much memory or CPU the VM gets.
+Example: prlctl set MyVM --cpus 2 gives the VM two processors.
+Monitor or list VMs - See what’s running and check their status.
+Example: prlctl list shows all the virtual machines on your system.
+Think of it as a way to control your virtual computers with text commands instead of clicking through menus.
+
+
+
+
+
+
+You said:
+now pretend i have a phd in computers, and tell me how to start a windows program from the mac terminal using prlctl
+ChatGPT said:
+
+ChatGPT
+To start a Windows program from the Mac terminal using prlctl, you'll leverage the Parallels Shared Applications feature. Here's the process:
+
+Ensure Shared Applications is Enabled:
+In Parallels Desktop, make sure "Share Windows applications with Mac" is turned on for the VM.
+Find the Windows Application Path:
+Use prlctl exec to inspect your VM. For example:
+prlctl exec "MyWindowsVM" dir "C:\Path\To\Program.exe"
+This verifies the existence of the program on the Windows VM.
+Run the Program: Use prlctl exec to launch the program within the Windows VM. For instance:
+prlctl exec "MyWindowsVM" "C:\Path\To\Program.exe"
+Optional Arguments:
+If the program takes arguments, append them after the .exe path. Example:
+prlctl exec "MyWindowsVM" "C:\Path\To\Program.exe" --some-argument
+Practical Example
+If you want to launch Notepad:
+
+prlctl exec "MyWindowsVM" "C:\Windows\System32\notepad.exe"
+This assumes:
+
+"MyWindowsVM" is the name of your virtual machine.
+You have proper permissions and the VM is running. If it's not, you can start it first:
+prlctl start "MyWindowsVM"

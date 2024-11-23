@@ -754,10 +754,35 @@ void conversation_draw() {
 
 
         {
-            real *scale = &preview->tween_extrude_add_scale;
-            JUICEIT_EASYTWEEN(scale, 1.0f);
-            mat4 M = meshes->M_3D_from_2D * M4_Scaling(1.0f, 1.0f, preview->tween_extrude_add_scale) * inverse(meshes->M_3D_from_2D);
-            fancy_draw(P_3D, V_3D, M, &meshes->draw);
+            // TODO: revolve crap
+
+            JUICEIT_EASYTWEEN(&preview->manifold_wrapper_tweener, 1.0f);
+            mat4 I = M4_Identity();
+
+
+            // TODO: do the tool mesh drawing with two clip planes
+            //       (will work roughly the same for revolve)
+            // TODO: tool_* -> tool_prev_intersection_* (
+            // TODO: think about this on paper (there may be a simpler solution that's just clip planes
+            //       on prev and curr)
+            if (!meshes->was_cut) {
+                mat4 S = meshes->M_3D_from_2D * M4_Scaling(1.0f, 1.0f, preview->manifold_wrapper_tweener) * inverse(meshes->M_3D_from_2D);
+                fancy_draw(P_3D, V_3D, I, &meshes->prev_draw);
+                fancy_draw(P_3D, V_3D, S, &meshes->tool_draw);
+            } else {
+                // TODO: this is better accomplished via clip planes
+                // (NOTE: cutting (if we're going in both directions) will actually produce two disjoint meshes)
+                // ====      ====            
+                // ====      ^^^^            
+                // ====  ->                  
+                // ====      vvvv            
+                // ====      ====            
+
+
+                mat4 S = meshes->M_3D_from_2D * M4_Scaling(1.0f, 1.0f, (1.0f - preview->manifold_wrapper_tweener)) * inverse(meshes->M_3D_from_2D); // TODO: not quite the right transform
+                fancy_draw(P_3D, V_3D, I, &meshes->draw);
+                if (ABS(preview->manifold_wrapper_tweener) < 0.97f) fancy_draw(P_3D, V_3D, S, &meshes->tool_draw);
+            }
         }
 
         mat4 PVM_feature_plane = PV_3D * M_3D_from_2D;
