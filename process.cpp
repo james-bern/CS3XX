@@ -2334,7 +2334,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                 set_state_Mesh_command(None);
 
-                                preview->tween_extrude_add_scale      = 0.0f;
+                                preview->manifold_wrapper_tweener      = 0.0f;
                             } else {
                                 messagef(pallete.orange, "OpenSTL: \"%s\" must be *.stl", popup->open_stl_filename.data);
                             }
@@ -2409,8 +2409,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 messagef(pallete.light_gray, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
                             }
 
-                            other.tween_extrude_add_feature_plane = *feature_plane;
-                            preview->tween_extrude_add_scale      = 0.0f;
+                            preview->manifold_wrapper_tweener      = 0.0f;
                         }
                     }
                 } else if (state_Mesh_command_is_(ExtrudeCut)) {
@@ -2434,6 +2433,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             } else {
                                 messagef(pallete.light_gray, "ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
                             }
+
+                            preview->manifold_wrapper_tweener      = 0.0f;
                         }
                     }
                 } else if (state_Mesh_command_is_(RevolveAdd)) {

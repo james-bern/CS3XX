@@ -216,6 +216,7 @@ struct Cookbook {
 
                 MeshesReadOnly tmp = manifold_wrapper(
                         &state.meshes.work,
+                        &state.meshes.draw,
                         cross_section.num_polygonal_loops,
                         cross_section.num_vertices_in_polygonal_loops,
                         cross_section.polygonal_loops,
