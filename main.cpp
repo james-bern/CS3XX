@@ -331,6 +331,7 @@ bool already_processed_event_passed_to_popups;
 #include "boolean.cpp"
 #include "misc.cpp"
 #include "draw2.cpp"
+#include "history.cpp"
 #include "draw.cpp"
 
 void CLEAR_CANVAS() {
@@ -370,7 +371,6 @@ void CLEAR_CANVAS() {
 #include "save_and_load.cpp"
 #include "message.cpp"
 #include "popup.cpp"
-#include "history.cpp"
 #include "callbacks.cpp"
 #include "bake.cpp"
 #include "cookbook.cpp"
