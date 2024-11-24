@@ -67,7 +67,19 @@
 
 char *startup_script = "";
 
-#if 1 // flip
+#if 1 // bracket (with seam issue)
+run_before_main {
+    startup_script =
+        "^ominimal-l-bracket.dxf\n"
+        "sc<m2d 0 0>dq2"
+        "yy[20\n"
+        "s<m2d 5 10><m2d 10 5><m2d 20 20>"
+        "[5\n"
+        ;
+};
+#endif
+
+#if 0 // flip
 run_before_main {
     startup_script =
         "^odemo.dxf\n"

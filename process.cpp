@@ -1848,7 +1848,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             vec3 first_click = mesh_two_click_command->first_click;
                             vec3 second_click = snap_result.mouse_position;
 
-                            messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
+                            messagef(pallete.white, "First: %f %f %f\nSecond: %f %f %f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
                             if (0) {
                             } else if (state_Mesh_command_is_(Measure3D)) {
                                 messagef(pallete.cyan, "Length is %gmm.", norm(second_click - first_click));
