@@ -685,11 +685,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     if (GUIBUTTON(commands.MirrorPlaneX)) {
                         result.record_me = true;
-                        printf("BEFORE: \n");
-                                pprint(get_M_3D_from_2D());
                         feature_plane->mirror_x = !feature_plane->mirror_x;
-                                                printf("AFTER: \n");
-                                pprint(get_M_3D_from_2D());
 
                     }
                     if (GUIBUTTON(commands.MirrorPlaneY)) {
