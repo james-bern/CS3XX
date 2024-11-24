@@ -305,6 +305,17 @@ run_before_main {
 };
 
 
+struct FeaturePlaneState { // Only affect display
+    real x_angle;
+    real y_angle;
+    real offset;
+
+    bool is_active;
+    bool mirror_x;
+    bool mirror_y;
+    vec3 normal;
+    real signed_distance_to_world_origin;
+};
 
 
 struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how snapshooting in history works
@@ -312,17 +323,12 @@ struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how
     WorkMesh work;
     DrawMesh draw;
 
-    DrawMesh tool_draw;
-    DrawMesh prev_draw;
-
+    // ? FeaturePlaneState feature_plane;
     mat4 M_3D_from_2D;
+    real out_quantity;
+    real in_quantity;
     bool was_cut;
-
-    //     DrawMesh prev;
-    //     DrawMesh prev_tool;
-    //     bool prev_was_extrude;
-    //     bool prev_was_add;
-    //     DrawMesh curr;
+    bool was_revolve;
 };
 
 struct RawKeyEvent {
@@ -427,18 +433,6 @@ struct Drawing {
     real axis_angle_from_y;
 };
 
-struct FeaturePlaneState {
-    // Only affect display
-    real x_angle;
-    real y_angle;
-    real offset;
-
-    bool is_active;
-    bool mirror_x;
-    bool mirror_y;
-    vec3 normal;
-    real signed_distance_to_world_origin;
-};
 
 struct TwoClickCommandState {
     bool awaiting_second_click;
@@ -1852,19 +1846,6 @@ void meshes_deep_copy(MeshesReadOnly *dst, MeshesReadOnly *src) {
     _DEEP_COPY(draw.triangle_tuples,      draw.num_triangles, uint3);
     _DEEP_COPY(draw.vertex_patch_indices, draw.num_vertices,   uint);
     _DEEP_COPY(draw.vertex_normals,       draw.num_vertices ,  vec3);
-
-    // TODO: these should be guarded
-
-    _DEEP_COPY(tool_draw.vertex_positions,     tool_draw.num_vertices ,  vec3);
-    _DEEP_COPY(tool_draw.triangle_tuples,      tool_draw.num_triangles, uint3);
-    _DEEP_COPY(tool_draw.vertex_patch_indices, tool_draw.num_vertices,   uint);
-    _DEEP_COPY(tool_draw.vertex_normals,       tool_draw.num_vertices ,  vec3);
-
-    _DEEP_COPY(prev_draw.vertex_positions,     prev_draw.num_vertices ,  vec3);
-    _DEEP_COPY(prev_draw.triangle_tuples,      prev_draw.num_triangles, uint3);
-    _DEEP_COPY(prev_draw.vertex_patch_indices, prev_draw.num_vertices,   uint);
-    _DEEP_COPY(prev_draw.vertex_normals,       prev_draw.num_vertices ,  vec3);
-
     #undef _DEEP_COPY
 
 }
@@ -1934,7 +1915,6 @@ ProtoMesh extract_from_manifold(Arena *arena, ManifoldManifold *manifold) {
 // TODO: could this take a printf function pointer?
 MeshesReadOnly manifold_wrapper(
         WorkMesh *curr,
-        DrawMesh *_curr_draw,
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         ManifoldVec2 **polygonal_loops,
@@ -2079,66 +2059,16 @@ MeshesReadOnly manifold_wrapper(
 
     MeshesReadOnly result; {
         Arena *arena = ARENA_ACQUIRE();
-        result = { arena };
 
-        if (CURR_is_empty) {
-            ProtoMesh tool_proto = extract_from_manifold(arena, manifold_TOOL);
-
-            result.work = build_work_mesh_NOTE_shallow_copies_args(arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples);
-            result.draw = build_draw_mesh(arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples, result.work.triangle_normals);
-            result.tool_draw = result.draw;
-            result.prev_draw = {};
-        } else {
-            { // next
-                ProtoMesh next_proto = extract_from_manifold(arena, manifold_NEXT);
-                result.work = build_work_mesh_NOTE_shallow_copies_args(arena, next_proto.num_vertices, next_proto.vertex_positions, next_proto.num_triangles, next_proto.triangle_tuples);
-                result.draw = build_draw_mesh(arena, next_proto.num_vertices, next_proto.vertex_positions, next_proto.num_triangles, next_proto.triangle_tuples, result.work.triangle_normals);
-            }
-
-            { // tool
-                Arena *scratch_arena = ARENA_ACQUIRE();
-                defer { ARENA_RELEASE(scratch_arena); };
-
-                ProtoMesh tool_proto = extract_from_manifold(scratch_arena, manifold_TOOL);
-                WorkMesh tool_work = build_work_mesh_NOTE_shallow_copies_args(scratch_arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples);
-                result.tool_draw = build_draw_mesh(arena, tool_proto.num_vertices, tool_proto.vertex_positions, tool_proto.num_triangles, tool_proto.triangle_tuples, tool_work.triangle_normals);
-            }
-
-            // prev
-            {
-                { // FORNOW so much repeated computation
-                    Arena *scratch_arena = ARENA_ACQUIRE();
-                    defer { ARENA_RELEASE(scratch_arena); };
-
-                    ProtoMesh curr_proto = extract_from_manifold(scratch_arena, manifold_CURR);
-                    WorkMesh curr_work = build_work_mesh_NOTE_shallow_copies_args(scratch_arena, curr_proto.num_vertices, curr_proto.vertex_positions, curr_proto.num_triangles, curr_proto.triangle_tuples);
-                    result.prev_draw = build_draw_mesh(arena, curr_proto.num_vertices, curr_proto.vertex_positions, curr_proto.num_triangles, curr_proto.triangle_tuples, curr_work.triangle_normals);
-                }
-                // this crap doesn't work let's just do ^ an extraction and come back to this
-                #if 0
-                result.prev_draw = *_curr_draw; // TODO shallow copy be very careful with history
-                { // FORNOW deepcopy
-
-                    #define _DEEP_COPY(arena, src, dst, field, count, type) \
-                    do { \
-                        ASSERT(src); \
-                        dst->field = (type *) arena->malloc(src->count * sizeof(type)); \
-                        memcpy(dst->field, src->field, src->count * sizeof(type)); \
-                    } while (0);
-
-                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, vertex_positions, num_vertices, vec3);
-                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, triangle_tuples, num_triangles, uint3);
-                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, vertex_patch_indices, num_vertices, uint);
-                    _DEEP_COPY(arena, (&(result.prev_draw)), _curr_draw, vertex_normals, num_vertices, vec3);
-
-                    #undef _DEEP_COPY
-                }
-                #endif
-            }
-        }
+        ManifoldManifold *to_extract = (CURR_is_empty) ? manifold_TOOL : manifold_NEXT;
+        ProtoMesh proto = extract_from_manifold(arena, to_extract);
+        result = build_meshes(arena, proto.num_vertices, proto.vertex_positions, proto.num_triangles, proto.triangle_tuples);
 
         result.M_3D_from_2D = M_3D_from_2D;
+        result.out_quantity = out_quantity;
+        result.in_quantity = in_quantity;
         result.was_cut = cut;
+        result.was_revolve = revolve;
         // TODO: revolve stuff
     }
 
