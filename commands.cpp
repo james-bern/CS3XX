@@ -10,6 +10,15 @@
 #define _UNSUED_FLAG8 (1 << 8)
 #define _UNSUED_FLAG9 (1 << 9)
 
+//      alt/option      
+//      |               
+//      | control/super 
+//      |/              
+//      || shift        
+//      ||/             
+//      vvv             
+//    0b000             
+
 
 #define COMMANDS_OUTER \
     COMMANDS_INNER(None, 0, 0, None, 0, 0); \

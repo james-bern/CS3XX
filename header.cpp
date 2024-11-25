@@ -1848,7 +1848,7 @@ void meshes_deep_copy(MeshesReadOnly *dst, MeshesReadOnly *src) {
 // key_lambda //////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift = false, bool alt = false) {
+bool _key_lambda(KeyEvent *key_event, uint key, bool control, bool shift, bool alt) {
     ASSERT(!(('a' <= key) && (key <= 'z')));
     bool key_match = (key_event->key == key);
     bool super_match = ((key_event->control && control) || (!key_event->control && !control)); // * bool

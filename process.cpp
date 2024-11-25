@@ -345,7 +345,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         inner_result |= (name.data == event.mouse_event.mouse_event_toolbox_button.name);
                     } else if (!deactivate_hotkey) {
                         for (Shortcut *shortcut = command.shortcuts; shortcut < command.shortcuts + COMMAND_MAX_NUM_SHORTCUTS; ++shortcut) {
-                            bool tmp = _key_lambda(key_event, shortcut->key, (shortcut->mods & GLFW_MOD_CONTROL), (shortcut->mods & GLFW_MOD_SHIFT));
+                            bool tmp = _key_lambda(key_event, shortcut->key, (shortcut->mods & GLFW_MOD_CONTROL), (shortcut->mods & GLFW_MOD_SHIFT), (shortcut->mods & GLFW_MOD_ALT));
                             inner_result |= tmp;
                             hotkey_consumed_by_GUIBUTTON |= tmp;
                         }
