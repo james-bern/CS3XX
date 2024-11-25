@@ -2101,7 +2101,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         two_click_command->awaiting_second_click = true;
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(two_click_command->first_click + e_theta(RAD(popup->rotate_angle))));
                     }
-                } else if (state_Draw_command_is_(RCopy)) {
+                } else if (state_Draw_command_is_(RCopy)) { // NOTE: capped at 180
                     real prev_rotate_copy_angle_in_degrees = popup->rcopy_angle;
                     uint prev_rotate_copy_num_copies = popup->rcopy_num_total_copies;
                     POPUP(state.Draw_command,
@@ -2109,6 +2109,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Uint, STRING("num_total_copies"), &popup->rcopy_num_total_copies,
                             CellType::Real, STRING("angle"), &popup->rcopy_angle
                          );
+                    if (popup->rcopy_num_total_copies > 180) popup->rcopy_num_total_copies = 180; // super amazing bulletproofing
                     if (gui_key_enter(ToolboxGroup::Draw)) {
                         if (!two_click_command->awaiting_second_click) {
                             two_click_command->first_click = {};
@@ -2128,7 +2129,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
                     }
-                } else if (state_Draw_command_is_(Copy)) {
+                } else if (state_Draw_command_is_(Copy)) { // NOTE: capped at 180
                     real prev_linear_copy_length = popup->linear_copy_length;
                     real prev_linear_copy_angle = popup->linear_copy_angle;
                     real prev_linear_copy_run = popup->linear_copy_run;
@@ -2142,6 +2143,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Real, STRING("angle"), &popup->linear_copy_angle,
                             CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies
                          );
+                    if (popup->linear_copy_num_additional_copies > 180) popup->linear_copy_num_additional_copies = 180; // super amazing bulletproofing
                     if (gui_key_enter(ToolboxGroup::Draw)) {
                         two_click_command->first_click = {};
                         two_click_command->awaiting_second_click = true;
