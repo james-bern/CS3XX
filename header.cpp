@@ -1915,6 +1915,7 @@ ProtoMesh extract_from_manifold(Arena *arena, ManifoldManifold *manifold) {
 // TODO: could this take a printf function pointer?
 MeshesReadOnly manifold_wrapper(
         WorkMesh *curr,
+
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         ManifoldVec2 **polygonal_loops,
@@ -1940,7 +1941,7 @@ MeshesReadOnly manifold_wrapper(
     if (CURR_is_empty) ASSERT(!cut);
 
     // TODO: OK to regress outlining fornow
-    ManifoldManifold *manifold_TOOL; // TODO: for visualization, should actually be the intersection of the TOOL and CURR
+    ManifoldManifold *manifold_TOOL;
     ManifoldManifold *manifold_CURR = NULL;
     ManifoldManifold *manifold_NEXT = NULL;
     defer {
