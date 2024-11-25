@@ -27,8 +27,6 @@ search for *.lib with windows search and all 6 will show up
 mac
 ---
 
-you need to open manifold\bindings\c\CmakeLists.txt and change SHARED to STATIC
-
 git clone --recurse-submodules https://github.com/elalish/manifold.git
 cd manifold
 mkdir build
