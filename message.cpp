@@ -44,12 +44,24 @@ void messagef(vec3 color, char *format, ...) {
     va_end(args);
 }
 
-// void MESSAGE_WARN(char *format, ...) {
-//     va_list args;
-//     va_start(args, format);
-//     _messagef(color, format, args);
-//     va_end(args);
-// }
+void MESSAGE_FAILURE(char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    _messagef(pallete.red, format, args);
+    va_end(args);
+}
+void MESSAGE_SUCCESS(char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    _messagef(pallete.green, format, args);
+    va_end(args);
+}
+void MESSAGE_INFO(char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    _messagef(pallete.orange, format, args);
+    va_end(args);
+}
 
 void messagef(char *format, ...) {
     va_list args;
@@ -95,9 +107,9 @@ void _messages_draw() {
         real FADE_OUT_TIME = 1.0f;
 
         real alpha; { // ramp on ramp off
-            // alpha = 0
-                // + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_IN_TIME, 0.0f, 1.0f)
-                // - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
+                      // alpha = 0
+                      // + CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME, MESSAGE_MAX_TIME - FADE_IN_TIME, 0.0f, 1.0f)
+                      // - CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, 0.0f, 1.0f);
             alpha = 1;
         }
 
@@ -128,7 +140,7 @@ void _messages_draw() {
         }
     }
     glDisable(GL_SCISSOR_TEST);
-    
+
     // TODO: stencil test to the transition in beautiful
     eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
     eso_color(pallete.white, 1.0f);
