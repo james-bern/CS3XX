@@ -28,8 +28,6 @@ real get_x_divider_drawing_mesh_Pixel() {
     return LINEAR_REMAP(other.x_divider_drawing_mesh_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
 }
 
-#define __snap_for__ _for_each_entity_
-
 // NOTE: this is the function formerly known as magic_snap
 TransformMouseDrawingPositionResult transform_mouse_drawing_position(
         vec2 unsnapped_position,
@@ -65,7 +63,7 @@ TransformMouseDrawingPositionResult transform_mouse_drawing_position(
                ) {
                 real min_squared_distance = HUGE_VAL;
                 Entity *temp_entity = NULL;
-                __snap_for__ {
+                _for_each_entity_ {
                     if (entity->type == EntityType::Line) {
                         continue;
                     } else if (entity->type == EntityType::Arc) {
@@ -134,7 +132,7 @@ TransformMouseDrawingPositionResult transform_mouse_drawing_position(
                     }
                 } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
-                    __snap_for__ {
+                    _for_each_entity_ {
                         uint count = 0;
                         vec2 p[2] = {};
                         if (entity->type == EntityType::Circle) {
@@ -160,7 +158,7 @@ TransformMouseDrawingPositionResult transform_mouse_drawing_position(
                                                                 // TODO Circle
                     real min_squared_distance = HUGE_VAL;
                     Entity *temp_entity = NULL;
-                    __snap_for__ {
+                    _for_each_entity_ {
                         real squared_distance = squared_distance_point_entity(before, entity);
                         if (squared_distance < min_squared_distance && entity != closest_entity) {
                             min_squared_distance = squared_distance;
