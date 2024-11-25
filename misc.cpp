@@ -30,7 +30,6 @@ real get_x_divider_drawing_mesh_Pixel() {
 
 #define __snap_for__ _for_each_entity_ if (!( \
             1 \
-            && (state.Draw_command.flags & EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP) \
             && (two_click_command->awaiting_second_click) \
             && (entity->is_selected) \
             ))

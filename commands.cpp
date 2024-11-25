@@ -4,7 +4,6 @@
 #define SNAPPER       (1 << 2)
 #define SHIFT_15      (1 << 3)
 #define NO_RECORD     (1 << 4)
-#define EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP (1 << 5)
 #define HIDE_FEATURE_PLANE (1 << 6)
 #define _UNSUED_FLAG7 (1 << 7)
 #define _UNSUED_FLAG8 (1 << 8)
