@@ -15,29 +15,27 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);
     vec3 down = (ARE_EQUAL(ABS(dot_product), 1.0f)) ? V3(0.0f, 0.0f, 1.0f * SGN(dot_product)) : V3(0.0f, -1.0f, 0.0f);
-    
+
     vec3 z = feature_plane->normal;
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
     vec3 o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
-    
-    if (for_drawing) {
-        // FINITE_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
-        // FINITE_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
-        JUICEIT_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f);
-        JUICEIT_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f);
-        // TODO: Change 10 to function of feature_plane size
-        JUICEIT_EASYTWEEN(&feature_plane->offset, 10 * MAX(SIN(feature_plane->x_angle), SIN(feature_plane->y_angle)));
 
-        x = transformVector(M4_RotationAbout(y, feature_plane->x_angle), x);
-        y = transformVector(M4_RotationAbout(x, feature_plane->y_angle), y);
-        o += feature_plane->offset * feature_plane->normal;
+    mat4 M_2D = M4_Identity(); // FORNOW
+
+    if (for_drawing) {
+        // TODO: move sketch and rotate sketch goes in here too
+        x = transformVector(M4_RotationAbout(y, preview->feature_plane_mirror_x_angle), x);
+        y = transformVector(M4_RotationAbout(x, preview->feature_plane_mirror_y_angle), y);
+        o += preview->feature_plane_mirror_XXX_bump * feature_plane->normal;
+        o += preview->feature_plane_nudge_offset * feature_plane->normal;
     } else {
         if (feature_plane->mirror_x) x *= - 1;
         if (feature_plane->mirror_y) y *= - 1;
     }
 
-    return M4_xyzo(x, y, z, o);
+
+    return M4_xyzo(x, y, z, o) * M_2D;
 }
 
 bbox2 mesh_draw(mat4 P_3D, mat4 V_3D, mat4 M_3D) {
@@ -164,9 +162,17 @@ void conversation_draw() {
     }
 
     // TODO
-    { // preview_feature_plane_offset
-        real target = (state_Mesh_command_is_(NudgePlane)) ? popup->feature_plane_nudge : 0.0f;
-        JUICEIT_EASYTWEEN(&preview->feature_plane_offset, target);
+    { // feature plane
+        { // preview_feature_plane_offset
+            real target = (state_Mesh_command_is_(NudgePlane)) ? popup->feature_plane_nudge : 0.0f;
+            JUICEIT_EASYTWEEN(&preview->feature_plane_nudge_offset, target);
+        }
+        // FINITE_EASYTWEEN(&preview->feature_plane_mirror_x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
+        // FINITE_EASYTWEEN(&preview->feature_plane_mirror_y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
+        JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_x_angle, feature_plane->mirror_x ? PI : 0.0f);
+        JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_y_angle, feature_plane->mirror_y ? PI : 0.0f);
+        // TODO: Change 10 to function of feature_plane size
+        JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_XXX_bump, 10 * MAX(SIN(preview->feature_plane_mirror_x_angle), SIN(preview->feature_plane_mirror_y_angle)));
     }
 
     // preview
@@ -254,9 +260,9 @@ void conversation_draw() {
     bool moving_selected_entities = (
             (state_Draw_command_is_(Move)) || 
             ((two_click_command->awaiting_second_click)
-            && (0 
-                || (state_Draw_command_is_(Rotate))
-                || (state_Draw_command_is_(Copy)))
+             && (0 
+                 || (state_Draw_command_is_(Rotate))
+                 || (state_Draw_command_is_(Copy)))
             )); // TODO: loft up
 
     { // draw 2D draw 2d draw
@@ -852,7 +858,7 @@ void conversation_draw() {
                     M_incr = M4_Identity();
                 } else if (state_Mesh_command_is_(NudgePlane)) {
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
-                    M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview->feature_plane_offset + Z_FIGHT_EPS);
+                    M = M_3D_from_2D * inv_T_o;
                     M_incr = M4_Identity();
                 } else { // default
                     NUM_TUBE_STACKS_INCLUSIVE = 1;
@@ -989,8 +995,8 @@ void conversation_draw() {
                     target_bbox.min -= V2(10.0f);
                     target_bbox.max += V2(10.0f);
                 }
-                JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
-                JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
+                JUICEIT_EASYTWEEN(&preview->feature_plane_bbox.min, target_bbox.min);
+                JUICEIT_EASYTWEEN(&preview->feature_plane_bbox.max, target_bbox.max);
                 // if (other.time_since_plane_selected == 0.0f) { // FORNOW
                 //     preview->feature_plane = target_bbox;
                 // }
@@ -1001,7 +1007,6 @@ void conversation_draw() {
                 vec3 target_feature_plane_color = get_color(ColorCode::Selection);
                 {
                     if (state_Mesh_command_is_(NudgePlane)) {
-                        PVM *= M4_Translation(0.0f, 0.0f, preview->feature_plane_offset);
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
                     } else if (state_Draw_command_is_(SetOrigin)) {
                         target_feature_plane_color = get_color(ColorCode::Emphasis); 
@@ -1019,7 +1024,7 @@ void conversation_draw() {
                     // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
                     eso_begin(PVM * M4_Translation(0.0f, 0.0f, Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
                     eso_color(preview->feature_plane_color, f * 0.4f);
-                    eso_bbox_SOUP_QUADS(preview->feature_plane);
+                    eso_bbox_SOUP_QUADS(preview->feature_plane_bbox);
                     eso_end();
                 }
             }

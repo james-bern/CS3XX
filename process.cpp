@@ -672,7 +672,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     if (GUIBUTTON(commands.NudgePlane)) {
                         if (feature_plane->is_active) {
-                            preview->feature_plane_offset = 0.0f; // FORNOW
+                            preview->feature_plane_nudge_offset = 0.0f; // FORNOW
                         } else {
                             messagef(pallete.orange, "NudgePlane: no feature plane selected");
                             set_state_Mesh_command(None); // FORNOW

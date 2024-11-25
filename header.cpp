@@ -301,16 +301,11 @@ struct Drawing {
 };
 
 struct FeaturePlaneState {
-    // Only affect display
-    real x_angle;
-    real y_angle;
-    real offset;
-
     bool is_active;
-    bool mirror_x;
-    bool mirror_y;
     vec3 normal;
     real signed_distance_to_world_origin;
+    bool mirror_x;
+    bool mirror_y;
 };
 
 struct TwoClickCommandState {
@@ -467,14 +462,21 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
 };
 
 struct PreviewState {
-    bbox2 feature_plane;
+    bbox2 feature_plane_bbox;
+    real feature_plane_mirror_x_angle;
+    real feature_plane_mirror_y_angle;
+    real feature_plane_mirror_XXX_bump;
+    real feature_plane_nudge_offset;
+
+
+
+
     real extrude_in_length;
     real extrude_out_length;
     real revolve_in_angle;
     real revolve_out_angle;
     vec3 tubes_color;
     vec3 feature_plane_color;
-    real feature_plane_offset;
     vec2 drawing_origin;
     vec2 mouse;
     real cursor_subtext_alpha;
