@@ -1915,6 +1915,7 @@ ProtoMesh extract_from_manifold(Arena *arena, ManifoldManifold *manifold) {
 // TODO: could this take a printf function pointer?
 MeshesReadOnly manifold_wrapper(
         WorkMesh *curr,
+
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
         ManifoldVec2 **polygonal_loops,
