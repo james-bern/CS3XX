@@ -28,11 +28,8 @@ real get_x_divider_drawing_mesh_Pixel() {
     return LINEAR_REMAP(other.x_divider_drawing_mesh_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
 }
 
-#define __snap_for__ _for_each_entity_ if (!( \
-            1 \
-            && (two_click_command->awaiting_second_click) \
-            && (entity->is_selected) \
-            ))
+#define __snap_for__ _for_each_entity_
+
 // NOTE: this is the function formerly known as magic_snap
 TransformMouseDrawingPositionResult transform_mouse_drawing_position(
         vec2 unsnapped_position,
