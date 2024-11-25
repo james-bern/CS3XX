@@ -82,7 +82,8 @@ int main() {
 char *startup_script = "";
 
 run_before_main {
-    startup_script = "^odemo.dxf\nysq1[5\n<m3d 0 100 15 0 -1 0>sq2[5";
+    // startup_script = "^odemo.dxf\nysq1[5\n<m3d 0 100 15 0 -1 0>sq2[5";
+    startup_script = "^odemo.dxf\n<esc><esc><esc>^.";
 };
 
 // ISSUE: negative extrude crashes program`;

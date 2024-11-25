@@ -259,7 +259,7 @@ MeshesReadOnly stl_load(String filename) {
             #define STL_FILETYPE_BINARY  2
             uint filetype; {
                 FILE *file = FILE_OPEN(filename, "r");
-                string_read_line_from_file(&line_of_file, 80, file);
+                string_read_line_from_file(&line_of_file, MAX_LINE_LENGTH, file);
                 filetype = (string_matches_prefix(line_of_file, STRING("solid"))) ? STL_FILETYPE_ASCII : STL_FILETYPE_BINARY;
                 fclose(file);
             }

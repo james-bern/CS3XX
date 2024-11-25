@@ -277,6 +277,23 @@ void callback_drop(GLFWwindow *, int count, const char **paths) {
             script_process(STRING("^O"));
             script_process(string_filename);
             script_process(STRING("\n"));
+        } else if (string_matches_suffix(string_filename, ".convo")) {
+            WARN_ONCE(".convo only reads first line of file");
+            String script = {};
+            defer { free(script.data); };
+            {
+                FILE *file = FILE_OPEN(string_filename, "r");
+                defer { fclose(file); };
+
+                fseek(file, 0, SEEK_END);
+                script.length = ftell(file);
+                fseek(file, 0, SEEK_SET);
+
+                script.data = (char *) malloc(script.length); ASSERT(script.data);
+
+                fread(script.data, 1, script.length, file);
+            }
+            script_process(script);
         } else {
             messagef(pallete.orange, "DragAndDrop must be *.dxf or *.stl");
         }
