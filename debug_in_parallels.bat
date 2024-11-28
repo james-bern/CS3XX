@@ -1,0 +1,1 @@
+pushd \\Mac\Home\Desktop\CS3XX && "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" && build_and_run.bat main.cpp

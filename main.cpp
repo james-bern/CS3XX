@@ -97,6 +97,12 @@ int main() {
 
 char *startup_script = "";
 
+#if 1 // fornow
+run_before_main {
+startup_script = "^.^odemo.dxf\nsao";
+};
+#endif
+
 // ISSUE: negative extrude crashes program`;
 // ISSUE: undo graphics broken again but not sure why
 

@@ -66,6 +66,24 @@ Entity entity_rotated(const Entity *_entity, vec2 center, real theta) {
     return result;
 }
 
+Entity entity_scaled(const Entity *_entity, vec2 center, real factor) {
+    Entity result = *_entity;
+    if (result.type == EntityType::Line) {
+        LineEntity *line = &result.line;
+        line->start = scaled_about(line->start, center, factor);
+        line->end = scaled_about(line->end, center, factor);
+    } else if (result.type == EntityType::Arc) {
+        ArcEntity *arc = &result.arc;
+        arc->center = scaled_about(arc->center, center, factor);
+        arc->radius *= factor;
+    } else { ASSERT(result.type == EntityType::Circle);
+        CircleEntity *circle = &result.circle;
+        circle->center = scaled_about(circle->center, center, factor);
+        circle->radius *= factor;
+    }
+    return result;
+}
+
 Entity entity_offsetted(const Entity *_entity, real offset_distance, vec2 reference_point) {
     Entity result = *_entity;
     if (result.type == EntityType::Line) {

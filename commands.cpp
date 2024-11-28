@@ -69,7 +69,7 @@
     COMMANDS_INNER(RCopy,           'R', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Rotate,          'R', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(SaveDXF,         'S', 0b010, Draw, 1, 0 | FOCUS_THIEF | NO_RECORD); \
-    COMMANDS_INNER(Scale,           'S', 0b001, Draw, 1, 0 | NO_RECORD); \
+    COMMANDS_INNER(Scale,           'S', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(Select,          'S', 0b000, Draw, 1, 0); \
     COMMANDS_INNER(MirrorX,         'X', 0b001, Draw, 1, 0 | SNAPPER); \
     COMMANDS_INNER(MirrorY,         'Y', 0b001, Draw, 1, 0 | SNAPPER); \

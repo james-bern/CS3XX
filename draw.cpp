@@ -250,16 +250,68 @@ void conversation_draw() {
             }
         };
 
-        // TODO: COPY
 
 
-        // TODO: use trick from two functions down
 
-        auto DRAW_LCOPY = [&](vec2, vec2, vec3 color) {
-            uint num_additional_copies = uint(preview->linear_copy_num_additional_copies);
-            vec2 translation = { preview->linear_copy_run, preview->linear_copy_rise };
-            for_(i, num_additional_copies) {
-                mat4 M = M4_Translation((i + 1) * translation);
+        bool moving = state_Draw_command_is_(Move);
+        // bool linear_copying = (state_Draw_command_is_(Copy));
+        bool rotating = (state_Draw_command_is_(Rotate));
+        // bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
+
+
+
+        auto DRAW_MOVE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            vec2 click_vector_12 = click_2 - click_1;
+
+            mat4 M = M4_Translation(click_vector_12);
+
+            eso_begin(PV_2D * M, SOUP_LINES);
+            eso_color(color);
+            _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+            eso_end();
+        };
+
+        auto DRAW_ROTATE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            vec2 click_vector_12 = click_2 - click_1;
+            real click_theta_12 = ATAN2(click_vector_12);
+
+            mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_theta_12) * M4_Translation(-click_1);
+
+            eso_begin(PV_2D * M, SOUP_LINES);
+            eso_color(color);
+            _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+            eso_end();
+        };
+
+        auto DRAW_SCALE = [&](vec2 click_1, vec2, vec3 color) {
+            // FORNOW
+            if (!two_click_command->awaiting_second_click) {
+                bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                vec2 bbox_center = AVG(bbox.min, bbox.max);
+                click_1 = bbox_center;
+            }
+
+            mat4 M = M4_Translation(click_1) * M4_Scaling(preview->scale_factor) * M4_Translation(-click_1);
+
+            eso_begin(PV_2D * M, SOUP_LINES);
+            eso_color(color);
+            _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+            eso_end();
+        };
+
+        auto DRAW_LCOPY = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            // TODO: tween position of last one?
+
+            vec2 click_vector_12 = click_2 - click_1;
+
+            // TODO: these 1's need to show up earlier in the code
+            real preview_num_additional_copies = MAX(1.0f, preview->linear_copy_num_additional_copies);
+            uint num_additional_copies = MAX(1, popup->linear_copy_num_additional_copies);
+
+            vec2 total_translation = preview_num_additional_copies * click_vector_12;
+            vec2 fractional_translation = total_translation / num_additional_copies;
+            for_(i, num_additional_copies + 1) {
+                mat4 M = M4_Translation(i * fractional_translation);
 
                 eso_begin(PV_2D * M, SOUP_LINES);
                 eso_color(color);
@@ -269,41 +321,17 @@ void conversation_draw() {
         };
 
         auto DRAW_RCOPY = [&](vec2 click_1, vec2, vec3 color) {
-            uint num_total_copies = uint(preview->rcopy_num_total_copies);
-            real angle = preview->rcopy_angle;
-            for (uint i = 1; i <= num_total_copies; ++i) { // FONOW: this should be < but other problems
-                mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis(i * RAD(angle)) * M4_Translation(-click_1);
+            uint num_total_copies = MAX(1, popup->rcopy_num_total_copies);
+            real total_angle = preview->rcopy_last_angle;
+            real fractional_angle = total_angle / MAX(1, num_total_copies - 1);
 
+            for_(i, num_total_copies) {
+                mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis(i * fractional_angle) * M4_Translation(-click_1);
                 eso_begin(PV_2D * M, SOUP_LINES);
                 eso_color(color);
                 _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
                 eso_end();
             }
-        };
-
-        bool moving = state_Draw_command_is_(Move);
-        bool linear_copying = (state_Draw_command_is_(Copy));
-        bool rotating = (state_Draw_command_is_(Rotate));
-        // bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
-
-        auto DRAW_ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED = [&](vec2 click_1, vec2 click_2, vec3 color) {
-            // TODO: do this like crosshairs where they disappear more immediatelly
-
-            //if (IS_ZERO(squaredNorm(click_1 - click_2))) return; // NOTE: you want this (we're attempthing this call three times!)
-            // changed how the call structure worked so maybe we dont need it
-            vec2 click_vector_12 = click_2 - click_1;
-            real click_theta_12 = ATAN2(click_vector_12);
-            mat4 M; {
-                if (moving || linear_copying) {
-                    M = M4_Translation(click_vector_12);
-                } else { ASSERT(rotating);
-                    M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_theta_12) * M4_Translation(-click_1);
-                }
-            }
-            eso_begin(PV_2D * M, SOUP_LINES);
-            eso_color(color);
-            _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
-            eso_end();
         };
 
 
@@ -419,8 +447,9 @@ void conversation_draw() {
 
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
 
-                JUICEIT_EASYTWEEN(&preview->rcopy_num_total_copies, real(popup->rcopy_num_total_copies));
-                JUICEIT_EASYTWEEN(&preview->rcopy_angle, popup->rcopy_angle);
+                JUICEIT_EASYTWEEN(&preview->scale_factor, popup->scale_factor);
+
+                JUICEIT_EASYTWEEN(&preview->rcopy_last_angle, TAU - TAU / MAX(1, popup->rcopy_num_total_copies));
 
                 JUICEIT_EASYTWEEN(&preview->linear_copy_run, popup->linear_copy_run);
                 JUICEIT_EASYTWEEN(&preview->linear_copy_rise, popup->linear_copy_rise);
@@ -455,6 +484,18 @@ void conversation_draw() {
 
             // vec2 click_vector = (mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active - *first_click);
             // real click_theta = ATAN2(click_vector);
+
+
+
+            // TODO: GRAY is literally just a reference sketch; it shouldn't be passed to ANNOTATION, right?
+            { // GRAY
+                eso_begin(PV_2D, SOUP_LINES);
+                eso_color(GRAY);
+                _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+                eso_end();
+            }
+
+
 
             { // entities
                 eso_begin(PV_2D, SOUP_LINES); {
@@ -497,13 +538,18 @@ void conversation_draw() {
                 }
             }
 
+
             { // annotations
               // new-style annotations
               // FORNOW (this is sloppy and bad) nate: just made it more sloppy and bad
                 #define ANNOTATION(Name, NAME) \
                 do { \
                     if (state_Draw_command_is_(Name)) { \
-                        DRAW_##NAME(V2(0, 0), V2(0, 0), GRAY); /*NOTE: this only actually shows up for Move and Copy and Rotate and probably some other stuff we're forgetting lol whoops (length lines/circles are invisible -- because no POINTS) */ \
+                        vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click; \
+                        DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
+                        if (state_Snap_command_is_(XY)) { \
+                            DRAW_##NAME(tmp, preview->xy_xy, PINK); \
+                        } \
                         if (!two_click_command->awaiting_second_click) { \
                         } else { \
                             bool Snap_is_active = !state_Snap_command_is_(None); \
@@ -511,13 +557,9 @@ void conversation_draw() {
                                 DRAW_##NAME(*first_click, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, WHITE_or_PINK_depending_on_whether_snap_is_active); \
                             } \
                         } \
-                        vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click; \
-                        DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
-                        if (state_Snap_command_is_(XY)) { \
-                            DRAW_##NAME(tmp, preview->xy_xy, PINK); \
-                        } \
                     } \
                 } while (0)
+
 
                 if (two_click_command->awaiting_second_click) {
                     ANNOTATION(Line, LINE);
@@ -527,14 +569,19 @@ void conversation_draw() {
                     ANNOTATION(Polygon, POLYGON);
                 } 
 
+                ANNOTATION(Move, MOVE);
                 ANNOTATION(Move, DOTTED_LINE);
+
+                ANNOTATION(Rotate, ROTATE);
                 ANNOTATION(Rotate, DOTTED_LINE);
 
-                ANNOTATION(Move, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED);
-                ANNOTATION(Rotate, ENTITIES_BEING_MOVED_LINEAR_COPIED_OR_ROTATED); // NOTE: don't move this outside no matter how much you want to
+                ANNOTATION(Scale, SCALE);
+
                 ANNOTATION(Copy, LCOPY);
                 ANNOTATION(Copy, DOTTED_LINE);
+
                 ANNOTATION(RCopy, RCOPY);
+
 
 
                 { // entity snapped to
@@ -1251,19 +1298,30 @@ void conversation_draw() {
         uint num_lines;
         uint num_arcs;
         uint num_circles;
+        uint num_selected_lines;
+        uint num_selected_arcs;
+        uint num_selected_circles;
+        bool any_entities_selected;
         {
             num_lines = 0;
             num_arcs = 0;
             num_circles = 0;
+            num_selected_lines = 0;
+            num_selected_arcs = 0;
+            num_selected_circles = 0;
             _for_each_entity_ {
                 if (entity->type == EntityType::Line) {
                     ++num_lines;
+                    if (entity->is_selected) ++num_selected_lines;
                 } else if (entity->type == EntityType::Arc) {
                     ++num_arcs;
+                    if (entity->is_selected) ++num_selected_arcs;
                 } else { ASSERT(entity->type == EntityType::Circle);
                     ++num_circles;
+                    if (entity->is_selected) ++num_selected_circles;
                 }
             }
+            any_entities_selected = ((num_selected_lines != 0) || (num_selected_arcs != 0) || (num_selected_circles != 0));
         }
 
         { // number of elements, etc. fps
@@ -1276,7 +1334,18 @@ void conversation_draw() {
             if (other.show_details) {
                 {
                     EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height), height, pallete.white };
-                    sprintf(scratch_buffer, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
+                    if (!any_entities_selected) {
+                        sprintf(scratch_buffer, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
+                    } else {
+                        sprintf(scratch_buffer, "%d/%d lines  %d/%d arcs  %d/%d circles",
+                                num_selected_lines,
+                                num_lines,
+                                num_selected_arcs,
+                                num_arcs,
+                                num_selected_circles,
+                                num_circles
+                               );
+                    }
                     real w = _easy_text_dx(&pen, scratch_buffer);
                     real W = get_x_divider_drawing_mesh_Pixel();
                     pen.origin.x = (W - w) / 2;

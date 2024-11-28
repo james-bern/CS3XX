@@ -628,12 +628,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Move);
                     GUIBUTTON(commands.Drag);
                     GUIBUTTON(commands.Rotate);
-                    GUIBUTTON(commands.Scale);
+                    if (GUIBUTTON(commands.Scale)) {
+                        preview->scale_factor = 1.0f;
+                    }
                     SEPERATOR();
                     GUIBUTTON(commands.Copy);
                     if (GUIBUTTON(commands.RCopy)) {
-                        preview->rcopy_num_total_copies = 0;
-                        preview->rcopy_angle = 0;
+                        preview->rcopy_last_angle = 0;
                     }
                     SEPERATOR();
                     GUIBUTTON(commands.MirrorX);
@@ -1363,6 +1364,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                                 entity->is_selected = false;
                             }
+                        } else if (state_Draw_command_is_(Move)) {
+                            result.checkpoint_me = true;
+                            set_state_Draw_command(None);
+                            set_state_Snap_command(None);
+                            _for_each_selected_entity_ {
+                                *entity = entity_translated(entity, click_vector);
+                            }
                         } else if (state_Draw_command_is_(Rotate)) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1370,6 +1378,33 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             _for_each_selected_entity_ {
                                 *entity = entity_rotated(entity, first_click, click_theta);
                             }
+                        } else if (state_Draw_command_is_(Scale)) {
+                            if (IS_ZERO(popup->scale_factor)) {
+                                MESSAGE_FAILURE("Scale: must have non-zero factor");
+                            } else {
+                                result.checkpoint_me = true;
+                                set_state_Draw_command(None);
+                                set_state_Snap_command(None);
+
+                                _for_each_selected_entity_ {
+                                    *entity = entity_scaled(entity, first_click, popup->scale_factor);
+                                }
+                            }
+                        } else if (state_Draw_command_is_(Copy)) {
+                            result.checkpoint_me = true;
+                            set_state_Draw_command(None);
+                            set_state_Snap_command(None);
+                            uint num_additional_copies = MAX(1U, popup->linear_copy_num_additional_copies);
+                            for_(i, num_additional_copies) {
+                                vec2 translation_vector = real(i + 1) * click_vector;
+                                bool is_selected = (i == num_additional_copies - 1);
+                                _for_each_selected_entity_ {
+                                    Entity new_entity = entity_translated(entity, translation_vector);
+                                    new_entity.is_selected = is_selected;
+                                    cookbook._buffer_add_entity(new_entity);
+                                }
+                            }
+                            _for_each_selected_entity_ entity->is_selected = false;
                         } else if (state_Draw_command_is_(RCopy)) {
                             if (popup->rcopy_num_total_copies < 2) {
                                 MESSAGE_FAILURE("RCopy: must have at least 2 total copies");
@@ -1421,7 +1456,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 GridPointSlot slots[5];
                             };
 
-                            Map<vec2, GridCell> grid; { // TODO: build grid
+                            Map<vec2, GridCell> grid; {
                                 grid = {};
 
                                 auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](vec2 p, uint entity_index, bool end_NOT_start) {
@@ -1660,28 +1695,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             free(endpoint_marks);
                             queue_free_AND_zero(&movePairs);
                             map_free_and_zero(&grid);
-                        } else if (state_Draw_command_is_(Move)) {
-                            result.checkpoint_me = true;
-                            set_state_Draw_command(None);
-                            set_state_Snap_command(None);
-                            _for_each_selected_entity_ {
-                                *entity = entity_translated(entity, click_vector);
-                            }
-                        } else if (state_Draw_command_is_(Copy)) {
-                            result.checkpoint_me = true;
-                            set_state_Draw_command(None);
-                            set_state_Snap_command(None);
-                            uint num_additional_copies = MAX(1U, popup->linear_copy_num_additional_copies);
-                            for_(i, num_additional_copies) {
-                                vec2 translation_vector = real(i + 1) * click_vector;
-                                bool is_selected = (i == num_additional_copies - 1);
-                                _for_each_selected_entity_ {
-                                    Entity new_entity = entity_translated(entity, translation_vector);
-                                    new_entity.is_selected = is_selected;
-                                    cookbook._buffer_add_entity(new_entity);
-                                }
-                            }
-                            _for_each_selected_entity_ entity->is_selected = false;
                         } else if (state_Draw_command_is_(Polygon)) {
                             uint polygon_num_sides = popup->polygon_num_sides;
                             if (clicks_are_same) {
@@ -2109,7 +2122,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             CellType::Uint, STRING("num_total_copies"), &popup->rcopy_num_total_copies,
                             CellType::Real, STRING("angle"), &popup->rcopy_angle
                          );
+
+                    // TODO: replace with MAX
                     if (popup->rcopy_num_total_copies > 180) popup->rcopy_num_total_copies = 180; // super amazing bulletproofing
+
                     if (gui_key_enter(ToolboxGroup::Draw)) {
                         if (!two_click_command->awaiting_second_click) {
                             two_click_command->first_click = {};
@@ -2225,7 +2241,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                     entities_load(popup->open_dxf_filename, &drawing->entities);
 
-                                    if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
+                                    { // TODO: guard this properly so it doesn't happen on undo/(redo)??
                                         init_camera_drawing();
                                         drawing->origin = {};
                                     }
@@ -2286,31 +2302,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                 } else if (state_Draw_command_is_(Scale)) {
-                    result.record_me = true;
                     POPUP(state.Draw_command,
-                            false,
+                            true,
                             CellType::Real, STRING("scale factor"), &popup->scale_factor);
+
                     if (gui_key_enter(ToolboxGroup::Draw)) {
-                        if (!IS_ZERO(popup->scale_factor)) {
+                        if (!two_click_command->awaiting_second_click) {
                             bbox2 bbox = entities_get_bbox(&drawing->entities, true);
                             vec2 bbox_center = AVG(bbox.min, bbox.max);
-                            _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
-                                    line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
-                                } else if (entity->type == EntityType::Arc) {
-                                    ArcEntity *arc = &entity->arc;
-                                    arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
-                                    arc->radius *= popup->scale_factor;
-                                } else { ASSERT(entity->type == EntityType::Circle);
-                                    CircleEntity *circle = &entity->circle;
-                                    circle->center = scaled_about(circle->center, bbox_center, popup->scale_factor);
-                                    circle->radius *= popup->scale_factor;
-                                }
-                            }
+                            two_click_command->first_click = bbox_center;
                         }
-                        set_state_Draw_command(None);
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
                     }
                 }
             }

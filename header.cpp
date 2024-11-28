@@ -606,8 +606,11 @@ struct PreviewState {
     real linear_copy_rise;
     real linear_copy_num_additional_copies;
 
-    real rcopy_num_total_copies;
-    real rcopy_angle;
+    real scale_factor;
+
+    // real rcopy_num_total_copies;
+    // real rcopy_angle;
+    real rcopy_last_angle;
 
     vec2 offset_entity_start;
     vec2 offset_entity_end;
