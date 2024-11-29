@@ -548,7 +548,6 @@ struct PopupState {
     real revolve_cut_out_angle;
     real rotate_angle;
     uint rcopy_num_total_copies;
-    real rcopy_angle;
     real scale_factor;
     _STRING_CALLOC(open_dxf_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_dxf_filename, POPUP_CELL_LENGTH);

@@ -1381,9 +1381,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
 
-                                real dtheta_deg = popup->rcopy_angle;
-                                if (IS_ZERO(dtheta_deg)) dtheta_deg = 180.0f;
-                                real dtheta = RAD(dtheta_deg);
+                                real dtheta = TAU / popup->rcopy_num_total_copies;
 
                                 _for_each_selected_entity_ {
                                     for_(j, popup->rcopy_num_total_copies - 1) {
@@ -1861,7 +1859,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
 
-            { // click_mode
+            { // Draw
                 vec2 *first_click = &two_click_command->first_click;
                 if (0) {
                 } else if (state_Draw_command_is_(Circle)) {
@@ -2074,27 +2072,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->lcopy_run, popup->lcopy_rise));
                     }
                 } else if (state_Draw_command_is_(RCopy)) {
-                    real prev_rotate_copy_angle_in_degrees = popup->rcopy_angle;
-                    uint prev_rotate_copy_num_copies = popup->rcopy_num_total_copies;
                     {
                         POPUP(state.Draw_command,
                                 true
                                 , CellType::Uint, STRING("num_total_copies"), &popup->rcopy_num_total_copies
-                                // , CellType::Real, STRING("angle"),            &popup->rcopy_angle
                              );
                         popup->rcopy_num_total_copies = CLAMP(popup->rcopy_num_total_copies, 1U, 128U);
-                    }
-                    if (prev_rotate_copy_angle_in_degrees != popup->rcopy_angle) {
-                        if (!IS_ZERO(popup->rcopy_angle)) { // this prevents bad problems
-                            popup->rcopy_num_total_copies = MAX(1U, uint(360.0f / popup->rcopy_angle));
-                        }
-                    }
-                    if (prev_rotate_copy_num_copies != popup->rcopy_num_total_copies) {
-                        if (popup->rcopy_num_total_copies != 0) {
-                            popup->rcopy_angle = 360.0f / popup->rcopy_num_total_copies;
-                        } else {
-                            popup->rcopy_angle = 0.0f;
-                        }
                     }
 
                     if (gui_key_enter(ToolboxGroup::Draw)) {
@@ -2104,6 +2087,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         two_click_command->awaiting_second_click = true;
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
                     }
+                } else if (state_Draw_command_is_(ElfHat)) {
+                    // TODO
                 } else if (state_Draw_command_is_(Fillet)) {
                     POPUP(state.Draw_command,
                             false
