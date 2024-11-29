@@ -49,7 +49,7 @@
     COMMANDS_INNER(CenterBox,       'B', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     COMMANDS_INNER(CenterLine,      'L', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Circle,          'C', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
-    COMMANDS_INNER(Copy,            'O', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
+    COMMANDS_INNER(LCopy,            'O', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Deselect,        'D', 0b000, Draw, 1, 0); \
     COMMANDS_INNER(DiamCircle,      'C', 0b010, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Divide2,         'I', 0b000, Draw, 1, 0 | TWO_CLICK); \

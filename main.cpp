@@ -434,7 +434,7 @@ int main() {
         messagef(pallete.red, "TODO: Center snap should visualize the entity (same for all of them i think)");
         messagef(pallete.red, "TODO: expand scripting to allow SHIFT+SPACE (just use what vimrc does)");
         messagef(pallete.red, "TODO: measure should populate the active Mesh field; this would be really nice");
-        messagef(pallete.red, "TODO: popup->linear_copy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
+        messagef(pallete.red, "TODO: popup->lcopy_num_additional_copies should default to 1 (ZERO_OUT is problem)");
         messagef(pallete.red, "TODO: make negative extrude and revolves work");
         messagef(pallete.red, "TODO: blue move/rotate/copy (certainly) still needs work");
         // messagef(pallete.red, "TODO: move shouldn't snap to entities being moved");

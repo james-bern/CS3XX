@@ -122,6 +122,7 @@ tuD bool ARE_EQUAL(vecD a, vecD b) { return IS_ZERO((a - b)); }
 bool IS_BETWEEN_LOOSE(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
 bool IS_BETWEEN_TIGHT(real p, real a, real b) { return (((a + TINY_VAL) < p) && (p < (b - TINY_VAL))); }
 // CLAMP
+uint CLAMP(uint t, uint a, uint b) { return MIN(MAX(t, a), b); }
 real CLAMP(real t, real a, real b) { return MIN(MAX(t, a), b); }
 real MAG_CLAMP(real t, real a) {
     ASSERT(a > 0.0f);

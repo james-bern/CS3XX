@@ -145,7 +145,7 @@ void conversation_draw() {
             ((two_click_command->awaiting_second_click)
              && (0 
                  || (state_Draw_command_is_(Rotate))
-                 || (state_Draw_command_is_(Copy)))
+                 || (state_Draw_command_is_(LCopy)))
             )); // TODO: loft up
 
     { // draw 2D draw 2d draw
@@ -254,9 +254,9 @@ void conversation_draw() {
 
 
         bool moving = state_Draw_command_is_(Move);
-        // bool linear_copying = (state_Draw_command_is_(Copy));
+        // bool lcopying = (state_Draw_command_is_(LCopy));
         bool rotating = (state_Draw_command_is_(Rotate));
-        // bool moving_linear_copying_or_rotating = (moving || rotating || linear_copying);
+        // bool moving_lcopying_or_rotating = (moving || rotating || lcopying);
 
 
 
@@ -323,8 +323,8 @@ void conversation_draw() {
             vec2 click_vector_12 = click_2 - click_1;
 
             // TODO: these 1's need to show up earlier in the code
-            real preview_num_additional_copies = MAX(1.0f, preview->linear_copy_num_additional_copies);
-            uint num_additional_copies = MAX(1, popup->linear_copy_num_additional_copies);
+            real preview_num_additional_copies = MAX(1.0f, preview->lcopy_num_additional_copies);
+            uint num_additional_copies = MAX(1, popup->lcopy_num_additional_copies);
 
             vec2 total_translation = preview_num_additional_copies * click_vector_12;
             vec2 fractional_translation = total_translation / num_additional_copies;
@@ -443,7 +443,7 @@ void conversation_draw() {
                 if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
                 if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
                 if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
-                if (state_Draw_command_is_(Copy)) Draw_Enter += V2(popup->linear_copy_run, popup->linear_copy_rise);
+                if (state_Draw_command_is_(LCopy)) Draw_Enter += V2(popup->lcopy_run, popup->lcopy_rise);
                 if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
                 // }
             }
@@ -469,9 +469,9 @@ void conversation_draw() {
 
                 JUICEIT_EASYTWEEN(&preview->rcopy_last_angle, TAU - TAU / MAX(1, popup->rcopy_num_total_copies));
 
-                JUICEIT_EASYTWEEN(&preview->linear_copy_run, popup->linear_copy_run);
-                JUICEIT_EASYTWEEN(&preview->linear_copy_rise, popup->linear_copy_rise);
-                JUICEIT_EASYTWEEN(&preview->linear_copy_num_additional_copies, real(popup->linear_copy_num_additional_copies));
+                JUICEIT_EASYTWEEN(&preview->lcopy_run, popup->lcopy_run);
+                JUICEIT_EASYTWEEN(&preview->lcopy_rise, popup->lcopy_rise);
+                JUICEIT_EASYTWEEN(&preview->lcopy_num_additional_copies, real(popup->lcopy_num_additional_copies));
             }
             bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
             // bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
@@ -602,8 +602,8 @@ void conversation_draw() {
 
                 ANNOTATION(Scale, SCALE);
 
-                ANNOTATION(Copy, LCOPY);
-                ANNOTATION(Copy, DOTTED_LINE);
+                ANNOTATION(LCopy, LCOPY);
+                ANNOTATION(LCopy, DOTTED_LINE);
 
                 ANNOTATION(RCopy, RCOPY);
 

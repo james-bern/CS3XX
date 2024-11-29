@@ -80,7 +80,7 @@ int main() {
 
                     if (draw_annotation_line) {
                         mat4 M; {
-                            if (moving || linear_copying) {
+                            if (moving || lcopying) {
                                 M = M4_Translation(click_vector);
                             } else { ASSERT(rotating);
                                 M = M4_Translation(*first_click) * M4_RotationAboutZAxis(click_theta) * M4_Translation(-*first_click);

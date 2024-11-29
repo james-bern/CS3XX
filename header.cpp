@@ -532,11 +532,11 @@ struct PopupState {
     real move_angle;
     real move_run;
     real move_rise;
-    real linear_copy_length;
-    real linear_copy_angle;
-    real linear_copy_run;
-    real linear_copy_rise;
-    uint linear_copy_num_additional_copies;
+    real lcopy_length;
+    real lcopy_angle;
+    real lcopy_run;
+    real lcopy_rise;
+    uint lcopy_num_additional_copies;
     real offset_distance;
     uint polygon_num_sides = 6;
     real polygon_distance_to_side;
@@ -602,9 +602,9 @@ struct PreviewState {
     vec2 xy_xy;
     real polygon_num_sides;
 
-    real linear_copy_run;
-    real linear_copy_rise;
-    real linear_copy_num_additional_copies;
+    real lcopy_run;
+    real lcopy_rise;
+    real lcopy_num_additional_copies;
 
     real scale_factor;
 

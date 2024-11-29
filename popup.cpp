@@ -18,7 +18,7 @@ void _POPUP_MEASURE_HOOK(real value) {
 void POPUP(
         Command command,
         bool zero_on_load_up,
-        CellType _cell_type0,                  String _name0,      void *_value0,
+        CellType _cell_type0,                  String _name0,      void *_value0,      
         CellType _cell_type1 = CellType::None, String _name1 = {}, void *_value1 = NULL,
         CellType _cell_type2 = CellType::None, String _name2 = {}, void *_value2 = NULL,
         CellType _cell_type3 = CellType::None, String _name3 = {}, void *_value3 = NULL,
