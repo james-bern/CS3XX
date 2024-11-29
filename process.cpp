@@ -1331,39 +1331,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             // messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
                             _POPUP_MEASURE_HOOK(length);
                         } else if (state_Draw_command_is_(Mirror2)) {
-
-                            // TODO: entity_mirrored
-
-                            result.checkpoint_me = true;
-                            set_state_Draw_command(None);
-                            set_state_Snap_command(None);
-
-                            real theta = ATAN2(click_vector);
-                            real theta_in_degrees = DEG(theta);
-
-                            auto Q = [theta, first_click](vec2 p) {
-                                p -= first_click;
-                                p = rotated(p, -theta);
-                                p = cwiseProduct(V2(1, -1), p);
-                                p = rotated(p, theta);
-                                p += first_click;
-                                return p;
-                            };
-
-                            auto R = [theta_in_degrees](real angle_in_degrees) {
-                                return -(angle_in_degrees - theta_in_degrees) + theta_in_degrees;
-                            };
-
-                            _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    cookbook.buffer_add_line(Q(line->start), Q(line->end), true, entity->color_code);
-                                } else { ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc = &entity->arc;
-                                    cookbook.buffer_add_arc(Q(arc->center), arc->radius, R(arc->end_angle_in_degrees), R(arc->start_angle_in_degrees), true, entity->color_code);
-                                }
-                                entity->is_selected = false;
-                            }
+                            ASSERT(false);
                         } else if (state_Draw_command_is_(Move)) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1784,68 +1752,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
                         _for_each_selected_entity_ {
-                            if (entity->type == EntityType::Line) {
-                                LineEntity *line = &entity->line;
-                                cookbook.buffer_add_line(
-                                        V2(-(line->start.x - mouse_transformed_position->x) + mouse_transformed_position->x, line->start.y),
-                                        V2(-(line->end.x - mouse_transformed_position->x) + mouse_transformed_position->x, line->end.y),
-                                        true,
-                                        entity->color_code
-                                        );
-                            } else if (entity->type == EntityType::Arc) {
-                                ArcEntity *arc = &entity->arc;
-                                cookbook.buffer_add_arc(
-                                        V2(-(arc->center.x - mouse_transformed_position->x) + mouse_transformed_position->x, arc->center.y),
-                                        arc->radius,
-                                        180 - arc->end_angle_in_degrees,
-                                        180 - arc->start_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            } else { ASSERT(entity->type == EntityType::Circle);
-                                CircleEntity *circle = &entity->circle;
-                                cookbook.buffer_add_circle(
-                                        V2(-(circle->center.x - mouse_transformed_position->x) + mouse_transformed_position->x, circle->center.y),
-                                        circle->radius,
-                                        circle->has_pseudo_point,
-                                        180.0f - circle->pseudo_point_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            }
-                            entity->is_selected = false;
+                            *entity = entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(0.0f, 1.0f));
                         }
                     } else if (state_Draw_command_is_(MirrorY)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
                         _for_each_selected_entity_ {
-                            if (entity->type == EntityType::Line) {
-                                LineEntity *line = &entity->line;
-                                cookbook.buffer_add_line(
-                                        V2(line->start.x, -(line->start.y - mouse_transformed_position->y) + mouse_transformed_position->y),
-                                        V2(line->end.x, -(line->end.y - mouse_transformed_position->y) + mouse_transformed_position->y),
-                                        true,
-                                        entity->color_code
-                                        );
-                            } else if (entity->type == EntityType::Arc) {
-                                ArcEntity *arc = &entity->arc;
-                                cookbook.buffer_add_arc(
-                                        V2(arc->center.x, -(arc->center.y - mouse_transformed_position->y) + mouse_transformed_position->y),
-                                        arc->radius,
-                                        -arc->end_angle_in_degrees,
-                                        -arc->start_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            } else { ASSERT(entity->type == EntityType::Circle);
-                                CircleEntity *circle = &entity->circle;
-                                cookbook.buffer_add_circle(
-                                        V2(circle->center.x, -(circle->center.y - mouse_transformed_position->y) + mouse_transformed_position->y),
-                                        circle->radius,
-                                        circle->has_pseudo_point,
-                                        -circle->pseudo_point_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            }
-                            entity->is_selected = false;
+                            *entity = entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(1.0f, 0.0f));
                         }
                     } else if (state_Draw_command_is_(Offset)) {
                         // TODO: entity_offseted (and preview drawing)

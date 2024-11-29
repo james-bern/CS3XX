@@ -299,6 +299,24 @@ void conversation_draw() {
             eso_end();
         };
 
+        auto DRAW_MIRRORX = [&](vec2 click_1, vec2, vec3 color) {
+            mat4 M = M4_Translation(click_1) * M4_Scaling(-1.0f, 1.0f) * M4_Translation(-click_1);
+
+            eso_begin(PV_2D * M, SOUP_LINES);
+            eso_color(color);
+            _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+            eso_end();
+        };
+
+        auto DRAW_MIRRORY = [&](vec2 click_1, vec2, vec3 color) {
+            mat4 M = M4_Translation(click_1) * M4_Scaling(1.0f, -1.0f) * M4_Translation(-click_1);
+
+            eso_begin(PV_2D * M, SOUP_LINES);
+            eso_color(color);
+            _for_each_selected_entity_ eso_entity__SOUP_LINES(entity);
+            eso_end();
+        };
+
         auto DRAW_LCOPY = [&](vec2 click_1, vec2 click_2, vec3 color) {
             // TODO: tween position of last one?
 
@@ -548,13 +566,20 @@ void conversation_draw() {
                         vec2 tmp = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click; \
                         DRAW_##NAME(tmp, preview->mouse_from_Draw_Enter__BLUE_position, BLUE); \
                         if (state_Snap_command_is_(XY)) { \
-                            DRAW_##NAME(tmp, preview->xy_xy, PINK); \
+                            if (state.Draw_command.flags & TWO_CLICK) { \
+                                DRAW_##NAME(tmp, preview->xy_xy, PINK); \
+                            } else { \
+                                DRAW_##NAME(preview->xy_xy, V2(0,0), PINK); \
+                            } \
                         } \
-                        if (!two_click_command->awaiting_second_click) { \
-                        } else { \
+                        if (two_click_command->awaiting_second_click || (!(state.Draw_command.flags & TWO_CLICK))) { \
                             bool Snap_is_active = !state_Snap_command_is_(None); \
                             if ((Snap_is_active) || (other.time_since_mouse_moved < 1.0f)) { \
-                                DRAW_##NAME(*first_click, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, WHITE_or_PINK_depending_on_whether_snap_is_active); \
+                                if (state.Draw_command.flags & TWO_CLICK) { \
+                                    DRAW_##NAME(*first_click, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, WHITE_or_PINK_depending_on_whether_snap_is_active); \
+                                } else { \
+                                    DRAW_##NAME(mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active, V2(0,0), WHITE_or_PINK_depending_on_whether_snap_is_active); \
+                                } \
                             } \
                         } \
                     } \
@@ -581,6 +606,12 @@ void conversation_draw() {
                 ANNOTATION(Copy, DOTTED_LINE);
 
                 ANNOTATION(RCopy, RCOPY);
+
+                ANNOTATION(MirrorX, MIRRORX);
+                // ANNOTATION(MirrorX, VERTICAL_LINE);
+
+                ANNOTATION(MirrorY, MIRRORY);
+                // ANNOTATION(MirrorX, HORIZONTAL_LINE);
 
 
 
