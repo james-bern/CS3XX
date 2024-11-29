@@ -18,7 +18,6 @@
 // TODO: this doesn't work if you resize the window
 // TODO: get rid of STENCIL
 // NOTE: VAO and VBO are about mesh data (don't connect them to shaders)
-
 struct {
     uint num_vertices = 6;
     uint VAO;
@@ -66,7 +65,6 @@ run_before_main {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 };
 
-
 struct {
     char *vert = R""(
         #version 330 core
@@ -82,6 +80,7 @@ struct {
 
         uniform mat4 PV;
         uniform mat4 M;
+        uniform vec4 clipPlane;
 
         void main() {
 
@@ -90,6 +89,7 @@ struct {
                 tmp = M * tmp;
                 vs_out.position_World = vec3(tmp);
                 gl_Position = PV * tmp;
+                gl_ClipDistance[0] = dot(vec4(vec3(tmp), 1.0), clipPlane);
             }
 
             {
@@ -175,34 +175,34 @@ struct {
                     float diffuse = max(0.0, LN);
                     float specular = pow(max(0.0, dot(N, H)), 256);
                     float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-    rgb += vec3(0.25, 0.35, 0.35);
-    rgb += 0.55 * diffuse;
-    // rgb += 0.2 * diffuse * rgb_gooch3;
-    rgb += 0.3 * specular;
-    rgb += 0.3 * fresnel;
-    rgb = mix(rgb, vec3(1.0), 0.5f);
-}
+                    rgb += vec3(0.25, 0.35, 0.35);
+                    rgb += 0.55 * diffuse;
+                    // rgb += 0.2 * diffuse * rgb_gooch3;
+                    rgb += 0.3 * specular;
+                    rgb += 0.3 * fresnel;
+                    rgb = mix(rgb, vec3(1.0), 0.5f);
+                }
 
-if (feature_plane_is_active != 0) { // feature plane override
-    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
-        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
-            rgb = mix(rgb, vec3(1.0), 0.8);
+                if (feature_plane_is_active != 0) { // feature plane override
+                    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
+                        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
+                            rgb = mix(rgb, vec3(1.0), 0.8);
+                        }
+                    }
+                }
+
+            // rgb = clamp(vec3(0.0f), vec3(0.9f), rgb);
+            } else if ((mode == 1) || (mode == 3)) {
+                int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
+                rgb.r = (i % 256);
+                rgb.g = ((i / 256) % 256);
+                rgb.b = ((i / (256 * 256)) % 256);
+                rgb /= 255.0;
+            }
+
+            _gl_FragColor = vec4(rgb, a);
         }
-    }
-}
-
-// rgb = clamp(vec3(0.0f), vec3(0.9f), rgb);
-} else if ((mode == 1) || (mode == 3)) {
-    int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
-    rgb.r = (i % 256);
-    rgb.g = ((i / 256) % 256);
-    rgb.b = ((i / (256 * 256)) % 256);
-    rgb /= 255.0;
-}
-
-_gl_FragColor = vec4(rgb, a);
-}
-)"";
+    )"";
 } face_pass_source;
 
 
@@ -467,7 +467,7 @@ uint DRAW_MESH_MODE_PATCH_ID       = 1;
 uint DRAW_MESH_MODE_PATCH_EDGES    = 2;
 uint DRAW_MESH_MODE_TRIANGLE_ID    = 3;
 uint DRAW_MESH_MODE_TRIANGLE_EDGES = 4;
-void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation = {0.0, 0.0, 0.0, 0.0}) { // default value has no clip plane
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -483,9 +483,15 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
        ) {
         uint num_vertices = 3 * mesh->num_triangles;
 
+        
         glBindVertexArray(GL.VAO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
         uint shader_program = face_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
+
+
+        GLint clipPlaneLocation = glGetUniformLocation(shader_program, "clipPlane");
+        glUniform4fv(clipPlaneLocation, 1, &plane_equation[0]);
+
         glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
         glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
         glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
@@ -499,7 +505,17 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniform3f(UNIFORM(shader_program, "feature_plane_normal"), feature_plane->normal.x, feature_plane->normal.y, feature_plane->normal.z);
         glUniform1f(UNIFORM(shader_program, "feature_plane_signed_distance_to_world_origin"), feature_plane->signed_distance_to_world_origin);
 
+        glEnable(GL_CLIP_DISTANCE0);
+
+        glCullFace(GL_FRONT);
         glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+
+        glCullFace(GL_BACK); 
+        glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+
+        glDisable(GL_CLIP_DISTANCE0);
+        
+
         // glBindTexture(GL_TEXTURE_2D, 0);
         // glActiveTexture(0); // ?
     } else if (
@@ -539,7 +555,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
 
-
+float fancy_draw_int_counter = 0;
 
 
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
@@ -574,7 +590,11 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         }
     }
 
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh);
+    fancy_draw_int_counter+= 0.01;
+    float val = 10 * SIN(fancy_draw_int_counter);
+    vec4 eq = V4(1.0, 0.0, 0.0, val);
+
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, eq);
 
 
     for_(pass, 2) {
@@ -585,7 +605,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         {
             glClearColor(1.0, 1.0, 1.0, 1.0);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh);
+            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh, eq);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glEnable(GL_SCISSOR_TEST);
@@ -605,7 +625,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
                 glBindTexture(GL_TEXTURE_2D, 0);
                 glUseProgram(0);
             } else {
-                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh);
+                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh, eq);
             }
         } glEnable(GL_DEPTH_TEST);
     }
