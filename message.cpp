@@ -59,7 +59,7 @@ void MESSAGE_SUCCESS(char *format, ...) {
 void MESSAGE_INFO(char *format, ...) {
     va_list args;
     va_start(args, format);
-    _messagef(pallete.orange, format, args);
+    _messagef(pallete.blue, format, args);
     va_end(args);
 }
 

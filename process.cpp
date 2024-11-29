@@ -618,14 +618,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Circle);
                     GUIBUTTON(commands.Box);
                     if (GUIBUTTON(commands.Polygon)) preview->polygon_num_sides = popup->polygon_num_sides;
-                    // SEPERATOR();
-                    // GUIBUTTON(commands.DiamCircle);
-                    // GUIBUTTON(commands.CenterLine);
-                    // GUIBUTTON(commands.CenterBox);
                     SEPERATOR();
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
-                    GUIBUTTON(commands.Move);
+                    GUIBUTTON(commands.Translate);
                     GUIBUTTON(commands.Drag);
                     GUIBUTTON(commands.Rotate);
                     if (GUIBUTTON(commands.Scale)) {
@@ -784,11 +780,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
-                    if (GUIBUTTON(commands.PRINT_HISTORY)) {
-                        history_printf_script();
-
-                    }
-
 
 
 
@@ -865,14 +856,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
             // TODO: commands.cpp flag
-            if (transform_mouse_drawing_position_result.snapped && ( 
-                        (state_Draw_command_is_(Box))
-                        || (state_Draw_command_is_(CenterBox))
-                        || (state_Draw_command_is_(CenterLine))
+            if (transform_mouse_drawing_position_result.snapped
+                    && ( 
+                        0
+                        || (state_Draw_command_is_(Box))
                         || (state_Draw_command_is_(Circle))
                         || (state_Draw_command_is_(Line))
                         || (state_Draw_command_is_(Polygon))
-                        || (state_Draw_command_is_(DiamCircle)))) {
+                       )
+               ) {
                 ASSERT(transform_mouse_drawing_position_result.entity_index_snapped_to >= 0);
                 ASSERT(transform_mouse_drawing_position_result.entity_index_snapped_to < drawing->entities.length);
                 cookbook.attempt_divide_entity_at_point(transform_mouse_drawing_position_result.entity_index_snapped_to, *mouse_transformed_position);
@@ -1132,7 +1124,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 // if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
                                 // if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
                                 // if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
-                                // if (state_Draw_command_is_(Move)) Draw_Enter += V2(popup->move_run, popup->move_rise);
+                                // if (state_Draw_command_is_(Translate)) Draw_Enter += V2(popup->move_run, popup->move_rise);
                                 // if (state_Draw_command_is_(LCopy)) Draw_Enter += V2(popup->lcopy_run, popup->lcopy_rise);
                                 // if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
                                 // }
@@ -1175,34 +1167,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(first_click,  other_corner_B);
                                 cookbook.buffer_add_line(second_click, other_corner_A);
                                 cookbook.buffer_add_line(second_click, other_corner_B);
-                            }
-                        } else if (state_Draw_command_is_(CenterBox)) {
-                            if (IS_ZERO(ABS(first_click.x - second_click.x))) {
-                                MESSAGE_FAILURE("Box: must have non-zero width ");
-                            } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
-                                MESSAGE_FAILURE("Box: must have non-zero height");
-                            } else {
-                                result.checkpoint_me = true;
-                                set_state_Draw_command(None);
-                                set_state_Snap_command(None);
-                                vec2 one_corner = second_click;
-                                vec2 center = first_click;
-                                real other_y = 2 * center.y - one_corner.y;
-                                real other_x = 2 * center.x - one_corner.x;
-                                cookbook.buffer_add_line(one_corner, V2(one_corner.x, other_y));
-                                cookbook.buffer_add_line(V2(one_corner.x, other_y),  V2(other_x, other_y));
-                                cookbook.buffer_add_line(V2(other_x, other_y), V2(other_x, one_corner.y));
-                                cookbook.buffer_add_line(V2(other_x, one_corner.y), one_corner);
-                            }
-                        } else if (state_Draw_command_is_(CenterLine)) {
-                            if (clicks_are_same) {
-                                MESSAGE_FAILURE("Line: must have non-zero length");
-                            } else {
-                                result.checkpoint_me = true;
-                                set_state_Draw_command(None);
-                                set_state_Snap_command(None);
-                                vec2 mirrored_click = first_click + (first_click - second_click);
-                                cookbook.buffer_add_line(mirrored_click, second_click);
                             }
                         } else if (state_Draw_command_is_(Fillet)) {
                             result.checkpoint_me = true;
@@ -1268,21 +1232,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_circle(first_click, r, false, {});
                                 #endif
                             }
-                        } else if (state_Draw_command_is_(DiamCircle)) {
-                            if (clicks_are_same) {
-                                MESSAGE_FAILURE("TwoEdgeCircle: must have non-zero diameter");
-                            } else {
-                                result.checkpoint_me = true;
-                                set_state_Draw_command(None);
-                                set_state_Snap_command(None);
-                                vec2 center = average_click;
-                                real theta_a_in_degrees = DEG(ATAN2(second_click - center));
-                                real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                                real radius = length_click_vector / 2;
-                                cookbook.buffer_add_arc(center, radius, theta_a_in_degrees, theta_b_in_degrees);
-                                cookbook.buffer_add_arc(center, radius, theta_b_in_degrees, theta_a_in_degrees);
-                                // messagef(pallete.light_gray, "Circle");
-                            }
                         } else if (state_Draw_command_is_(Divide2)) { 
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1332,7 +1281,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             _POPUP_MEASURE_HOOK(length);
                         } else if (state_Draw_command_is_(Mirror2)) {
                             ASSERT(false);
-                        } else if (state_Draw_command_is_(Move)) {
+                        } else if (state_Draw_command_is_(Translate)) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
@@ -1749,14 +1698,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
                         _for_each_selected_entity_ {
-                            *entity = entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(0.0f, 1.0f));
+                            cookbook._buffer_add_entity(entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(0.0f, 1.0f)));
+                            entity->is_selected = false;
                         }
                     } else if (state_Draw_command_is_(MirrorY)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
                         _for_each_selected_entity_ {
-                            *entity = entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(1.0f, 0.0f));
+                            cookbook._buffer_add_entity(entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(1.0f, 0.0f)));
+                            entity->is_selected = false;
                         }
                     } else if (state_Draw_command_is_(Offset)) {
                         // TODO: entity_offseted (and preview drawing)
@@ -1862,6 +1813,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             { // Draw
                 vec2 *first_click = &two_click_command->first_click;
                 if (0) {
+                } else if (state_Draw_command_is_(Box)) {
+                    if (two_click_command->awaiting_second_click) {
+                        POPUP(state.Draw_command, true
+                                , CellType::Real, STRING("width"),  &popup->box_width
+                                , CellType::Real, STRING("height"), &popup->box_height
+                             );
+
+                        if (gui_key_enter(ToolboxGroup::Draw)) {
+                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
+                        }
+                    }
                 } else if (state_Draw_command_is_(Circle)) {
                     if (two_click_command->awaiting_second_click) {
                         real prev_circle_diameter = popup->circle_diameter;
@@ -1915,17 +1877,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
                         }
                     }
-                } else if (state_Draw_command_is_(Box)) {
-                    if (two_click_command->awaiting_second_click) {
-                        POPUP(state.Draw_command, true
-                                , CellType::Real, STRING("width"),  &popup->box_width
-                                , CellType::Real, STRING("height"), &popup->box_height
-                             );
-
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
-                        }
-                    }
                 } else if (state_Draw_command_is_(Polygon)) {
                     if (two_click_command->awaiting_second_click) {
                         uint prev_polygon_num_sides = popup->polygon_num_sides;
@@ -1962,7 +1913,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
                         }
                     }
-                } else if (state_Draw_command_is_(Move)) {
+                } else if (state_Draw_command_is_(Translate)) {
                     // FORNOW: this is repeated from Line
                     real prev_move_length = popup->move_length;
                     real prev_move_angle = popup->move_angle;
@@ -2056,6 +2007,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 , CellType::Real, STRING("angle"),                 &popup->lcopy_angle
                                 , CellType::Uint, STRING("num_additional_copies"), &popup->lcopy_num_additional_copies
                              );
+
+                        // TODO
                         popup->lcopy_num_additional_copies = CLAMP(popup->lcopy_num_additional_copies, 1U, 1024U);
                     }
                     if ((prev_lcopy_length != popup->lcopy_length) || (prev_lcopy_angle != popup->lcopy_angle)) {
@@ -2077,6 +2030,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 true
                                 , CellType::Uint, STRING("num_total_copies"), &popup->rcopy_num_total_copies
                              );
+
+                        // TODO
                         popup->rcopy_num_total_copies = CLAMP(popup->rcopy_num_total_copies, 1U, 128U);
                     }
 

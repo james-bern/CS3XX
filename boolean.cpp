@@ -8,13 +8,12 @@ bool click_mode_SPACE_BAR_REPEAT_ELIGIBLE() {
         || (state_Draw_command_is_(Mirror2))
         || (state_Draw_command_is_(MirrorX))
         || (state_Draw_command_is_(MirrorY))
-        || (state_Draw_command_is_(Move))
+        || (state_Draw_command_is_(Translate))
         || (state_Draw_command_is_(SetOrigin))
         || (state_Draw_command_is_(Polygon))
         || (state_Draw_command_is_(Rotate))
         || (state_Draw_command_is_(RCopy))
         || (state_Draw_command_is_(Divide2))
-        || (state_Draw_command_is_(DiamCircle))
         ;
 }
 

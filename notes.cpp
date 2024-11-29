@@ -76,7 +76,7 @@
 
 // // things i feel weird/uncomfy about
 // i have a type variable and substructs in Entity and Event so i don't get confused; ryan fleury doesn't like this but i sure seem to (shrug)
-// i have some repetition (grug say hmmm...) HotkeyUserEvent and GUIKeyUserEvent are the same thing... popup Move and popup Line are the same thing...
+// i have some repetition (grug say hmmm...) HotkeyUserEvent and GUIKeyUserEvent are the same thing... popup Translate and popup Line are the same thing...
 
 // // misc
 // if order doesn't matter, go with alphabetical
