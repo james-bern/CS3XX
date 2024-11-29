@@ -80,7 +80,8 @@ struct {
 
         uniform mat4 PV;
         uniform mat4 M;
-        uniform vec4 clipPlane;
+        uniform vec4 clipPlane1;
+        uniform vec4 clipPlane2;
 
         void main() {
 
@@ -89,7 +90,8 @@ struct {
                 tmp = M * tmp;
                 vs_out.position_World = vec3(tmp);
                 gl_Position = PV * tmp;
-                gl_ClipDistance[0] = dot(vec4(vec3(tmp), 1.0), clipPlane);
+                gl_ClipDistance[0] = dot(vec4(vec3(tmp), 1.0), clipPlane1);
+                gl_ClipDistance[1] = dot(vec4(vec3(tmp), 1.0), clipPlane2);
             }
 
             {
@@ -467,7 +469,7 @@ uint DRAW_MESH_MODE_PATCH_ID       = 1;
 uint DRAW_MESH_MODE_PATCH_EDGES    = 2;
 uint DRAW_MESH_MODE_TRIANGLE_ID    = 3;
 uint DRAW_MESH_MODE_TRIANGLE_EDGES = 4;
-void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation = {0.0, 0.0, 0.0, 0.0}) { // default value has no clip plane
+void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1 = {0.0, 0.0, 0.0, 0.0}, vec4 plane_equation2 = {0.0, 0.0, 0.0, 0.0}) { // default value has no clip plane
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -489,8 +491,10 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
         uint shader_program = face_shader_program; ASSERT(shader_program); glUseProgram(shader_program);
 
 
-        GLint clipPlaneLocation = glGetUniformLocation(shader_program, "clipPlane");
-        glUniform4fv(clipPlaneLocation, 1, &plane_equation[0]);
+        GLint clipPlaneLocation1 = glGetUniformLocation(shader_program, "clipPlane1");
+        GLint clipPlaneLocation2 = glGetUniformLocation(shader_program, "clipPlane2");
+        glUniform4fv(clipPlaneLocation1, 1, &plane_equation1[0]);
+        glUniform4fv(clipPlaneLocation2, 1, &plane_equation2[0]);
 
         glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
         glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
@@ -506,6 +510,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
         glUniform1f(UNIFORM(shader_program, "feature_plane_signed_distance_to_world_origin"), feature_plane->signed_distance_to_world_origin);
 
         glEnable(GL_CLIP_DISTANCE0);
+        glEnable(GL_CLIP_DISTANCE1);
 
         glCullFace(GL_FRONT);
         glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
@@ -514,6 +519,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
         glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
 
         glDisable(GL_CLIP_DISTANCE0);
+        glDisable(GL_CLIP_DISTANCE1);
         
 
         // glBindTexture(GL_TEXTURE_2D, 0);
@@ -592,9 +598,10 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
     fancy_draw_int_counter+= 0.01;
     float val = 10 * SIN(fancy_draw_int_counter);
-    vec4 eq = V4(1.0, 0.0, 0.0, val);
+    vec4 eq1 = V4(1.0, 0.0, 0.0, 20+val);
+    vec4 eq2 = V4(-1.0, 0.0, 0.0, val+20);
 
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, eq);
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, eq1, eq2);
 
 
     for_(pass, 2) {
@@ -605,7 +612,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         {
             glClearColor(1.0, 1.0, 1.0, 1.0);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh, eq);
+            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh, eq1, eq2);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glEnable(GL_SCISSOR_TEST);
@@ -625,7 +632,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
                 glBindTexture(GL_TEXTURE_2D, 0);
                 glUseProgram(0);
             } else {
-                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh, eq);
+                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh, eq1, eq2);
             }
         } glEnable(GL_DEPTH_TEST);
     }
