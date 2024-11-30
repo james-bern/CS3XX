@@ -211,6 +211,8 @@ struct Cookbook {
             }
 
             { // result.mesh
+                fancy_draw_int_counter = 0;// this is stupid
+
                 CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&drawing->entities, true);
                 defer { cross_section_free(&cross_section); };
 

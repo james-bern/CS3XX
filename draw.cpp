@@ -775,13 +775,61 @@ void conversation_draw() {
             }
 
 
-            fancy_draw_int_counter+= 0.01;
-            float val = 10 * SIN(fancy_draw_int_counter);
+            fancy_draw_int_counter+= 0.01 * (1.05 - fancy_draw_int_counter);
+            float val = fancy_draw_int_counter;
             vec4 eq1 = V4(1.0, 0.0, 0.0, 20+val);
             vec4 eq2 = V4(0.0, 0.0, -1.0, val);
             bool OR_MESHES = false;
-            fancy_draw(P_3D, V_3D, I, &meshes->draw, eq1, eq2, OR_MESHES);
-            if (prev) fancy_draw(P_3D, V_3D, M4_Translation(0.0, 0.0, -70.0), prev, eq1, eq2, OR_MESHES);
+
+            vec3 plane_norm = meshes->feature_plane.normal;
+            vec4 starting_eq = { plane_norm.x, plane_norm.y, plane_norm.z, -meshes->feature_plane.signed_distance_to_world_origin };
+            vec4 in_eq = starting_eq - V4(0, 0, 0, -val * meshes->in_quantity);
+            vec4 out_eq = -starting_eq + V4(0, 0, 0, val * meshes->out_quantity);
+
+            auto DEBUG_DRAW_PLANE = [&](vec4 eq, vec3 color) {
+                vec3 eq_norm = { eq.x, eq.y, eq.z };
+                vec3 temp = (ABS(eq_norm.x) < 0.9f) ? vec3{1,0,0} : vec3{0,1,0};
+                vec3 u = normalized(cross(eq_norm, temp));
+                vec3 v = cross(eq_norm, u); 
+                vec3 center = -eq.w * normalized(eq_norm);
+                float scale = 50.0f;
+                vec3 corners[4] = {
+                    center - scale*u + scale*v,
+                    center + scale*u + scale*v,
+                    center + scale*u - scale*v,
+                    center - scale*u - scale*v
+                };
+
+                eso_begin(PV_3D, SOUP_QUADS);
+                eso_color(color);
+                for (int i = 0; i < 4; i++) {
+                    eso_vertex(corners[i]);
+                }
+                eso_end();
+
+            };
+
+            //DEBUG_DRAW_PLANE(starting_eq, pallete.red);
+            //DEBUG_DRAW_PLANE(-out_eq, pallete.blue);
+            //DEBUG_DRAW_PLANE(in_eq, pallete.blue);
+
+
+            if (prev && val < 0.98) {
+                if (meshes->was_cut) {
+                    in_eq = in_eq; 
+                    //DEBUG_DRAW_PLANE(-in_eq, pallete.green);
+                    fancy_draw(P_3D, V_3D, I, prev, V4(0.0), -in_eq, OR_MESHES);
+                    fancy_draw(P_3D, V_3D, I, &meshes->draw, V4(0.0), V4(0.0), OR_MESHES);
+
+                } else {
+                    fancy_draw(P_3D, V_3D, I, &meshes->draw, out_eq, in_eq, OR_MESHES);
+                    fancy_draw(P_3D, V_3D, I, prev, V4(0.0), V4(0.0), OR_MESHES);
+                }
+            } else if (prev) {
+                fancy_draw(P_3D, V_3D, I, &meshes->draw, V4(0.0), V4(0.0), OR_MESHES);
+            } else {
+                fancy_draw(P_3D, V_3D, I, &meshes->draw, out_eq, in_eq, OR_MESHES);
+            }
 
         }
 
