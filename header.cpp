@@ -323,7 +323,7 @@ struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how
     WorkMesh work;
     DrawMesh draw;
 
-    // ? FeaturePlaneState feature_plane;
+    FeaturePlaneState feature_plane;
     mat4 M_3D_from_2D;
     real out_quantity;
     real in_quantity;
@@ -1925,8 +1925,8 @@ MeshesReadOnly manifold_wrapper(
         real in_quantity,
         vec2 dxf_origin,
         vec2 dxf_axis_base_point,
-        real dxf_axis_angle_from_y
-        ) {
+        real dxf_axis_angle_from_y,
+        FeaturePlaneState feature_plane) {
 
     bool add     = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
     bool cut     = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
@@ -2070,6 +2070,7 @@ MeshesReadOnly manifold_wrapper(
         result.in_quantity = in_quantity;
         result.was_cut = cut;
         result.was_revolve = revolve;
+        result.feature_plane = feature_plane;
         // TODO: revolve stuff
     }
 

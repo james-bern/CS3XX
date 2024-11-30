@@ -225,7 +225,8 @@ struct Cookbook {
                         in_quantity,
                         drawing->origin,
                         drawing->axis_base_point,
-                        drawing->axis_angle_from_y);
+                        drawing->axis_angle_from_y,
+                        *feature_plane);
                 meshes_free_AND_zero(&state.meshes); // FORNOW
                 state.meshes = tmp; // FORNOW
             }
