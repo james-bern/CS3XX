@@ -442,6 +442,13 @@ struct MeshTwoClickCommandState {
 };
 
 struct PopupManager {
+
+    bool is_active(ToolboxGroup group) {
+        return (this->get_tag(group) != NULL);
+    }
+
+    //////////
+
     char *tags[uint(ToolboxGroup::NUMBER_OF)];
     //
     char *get_tag(ToolboxGroup group) { return tags[uint(group)]; }
@@ -764,13 +771,13 @@ vec3 Q_pallete[10] = {
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = V3(0.5f, 1.0f, 1.0f);
+        result = V3(0.0f, 1.0f, 1.0f);
     } else if (group == ToolboxGroup::Both) {
-        result = V3(0.75f, 1.0f, 0.75f);
+        result = V3(1.0f, 1.0f, 0.0f);
     } else if (group == ToolboxGroup::Mesh) {
         result = V3(0.0f, 0.8f, 0.0f);
     } else if (group == ToolboxGroup::Snap) {
-        result = V3(1.0f, 0.5f, 1.0f);
+        result = V3(1.0f, 0.0f, 1.0f);
     } else if (group == ToolboxGroup::Xsel) {
         result = V3(0.75f, 0.75f, 1.0f);
     } else if (group == ToolboxGroup::Colo) {

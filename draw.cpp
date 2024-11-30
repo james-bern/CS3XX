@@ -551,26 +551,46 @@ void conversation_draw() {
             }
 
 
-            #if 1
+            #if 1 // CHOWDER!
 
-            // NOTE: Currently just shimming this API with eso; TODO: implement properly with stew
-            auto chowder_begin = [](mat4 PV_2D) { eso_begin(PV_2D, SOUP_LINES); };
-            auto chowder_color = [](vec3 color) { eso_color(color); };
+            // // NOTE: Currently just shimming this API with eso; TODO: implement properly with stew
+            // BEGIN shimmed API
+            static vec3 _chowder_color;
+            auto chowder_color = [&](vec3 color) { _chowder_color = color; eso_color(color); };
+            auto chowder_begin = [&]() {
+                eso_begin(PV_2D, SOUP_LINES);
+                chowder_color(_chowder_color);
+            };
             auto chowder_vertex = [](vec2 p) { eso_vertex(p); };
             auto chowder_vertex2 = [](real x, real y) { eso_vertex(x, y); };
             auto chowder_end = []() { eso_end(); };
+            auto chowder_stipple = [&](bool b) {
+                chowder_end();
+                chowder_begin();
+                eso_stipple(b);
+            };
+            // END shimmed API
 
-            auto chowder_stipple = [](bool b) { eso_stipple(b); };
 
+            #define DRAW2D_PASS_Mouse     0
+            #define DRAW2D_PASS_DrawEnter 1
+            #define DRAW2D_PASS_XY        2
 
-            #define DRAW2D_PASS_DrawEnter 0
-            #define DRAW2D_PASS_XY        1
-            #define DRAW2D_PASS_Mouse     2
-
-            bool is_two_click = (state.Draw_command.flags & TWO_CLICK);
-
-            chowder_begin(PV_2D); // FORNOW: LINES only; FORNOW passing PV_2D
+            chowder_begin();
             for_(pass, 3) {
+
+                if ((pass == DRAW2D_PASS_DrawEnter) &&
+                        (
+                         0
+                         || (!popup->manager.is_active(ToolboxGroup::Draw))
+                         || (state.Draw_command.flags & FOCUS_THIEF) // NOTE: works FORNOW, but only incidentally
+                        )
+                   ) continue;
+
+                if ((pass == DRAW2D_PASS_XY) && (!state_Snap_command_is_(XY))) continue;
+
+                //
+
                 vec3 color;
                 {
                     if (pass == DRAW2D_PASS_DrawEnter) {
@@ -579,29 +599,34 @@ void conversation_draw() {
                         color = PINK;
                     } else { ASSERT(pass == DRAW2D_PASS_Mouse);
                         color = WHITE_or_PINK_depending_on_whether_snap_is_active;
+                        if ((state_Snap_command_is_(None) || state_Snap_command_is_(XY))) {
+                            color = V3(CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_mouse_moved - 1.7f), 1.0f, 0.0f));
+                        }
                     }
                 }
 
                 vec2 click_1;
-                vec2 click_2;
+                union {
+                    vec2 click_2;
+                    vec2 crosshair;
+                };
                 {
-                    if (two_click_command->awaiting_second_click) {
-                        click_1 = two_click_command->first_click;
+                    click_1 = two_click_command->first_click;
 
-                        if (pass == DRAW2D_PASS_DrawEnter) {
-                            click_2 = preview->mouse_from_Draw_Enter__BLUE_position;
-                        } else if (pass == DRAW2D_PASS_XY) {
-                            click_2 = preview->xy_xy;
-                        } else { ASSERT(pass == DRAW2D_PASS_Mouse);
-                            click_2 = mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
-                        }
+                    if (pass == DRAW2D_PASS_DrawEnter) {
+                        click_2 = preview->mouse_from_Draw_Enter__BLUE_position;
+                    } else if (pass == DRAW2D_PASS_XY) {
+                        click_2 = preview->xy_xy;
+                    } else { ASSERT(pass == DRAW2D_PASS_Mouse);
+                        click_2 = mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
                     }
                 }
+
                 vec2 click_vector_12 = click_2 - click_1;
                 real click_length_12 = norm(click_vector_12);
                 real click_angle_12 = ATAN2(click_vector_12);
 
-
+                //
 
                 chowder_color(color);
 
@@ -651,6 +676,37 @@ void conversation_draw() {
                                 chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
                                 chowder_vertex(click_2);
                             }
+                        }
+                    }
+                }
+
+                if (state_Draw_command_is_(Translate)) {
+                    // ANNOTATION(Translate, MOVE);
+                    // ANNOTATION(Translate, DOTTED_LINE);
+                }
+
+                { // crosshair
+                    bool not_drawing_on_top_of_system_cursor = ((pass != DRAW2D_PASS_Mouse) || Snap_eating_mouse);
+                    if (not_drawing_on_top_of_system_cursor) {
+                        real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+
+                        eso_color(pallete.black);
+                        eso_size(2.0f);
+                        {
+                            real r = 1.3 * funky_OpenGL_factor;
+                            eso_vertex(crosshair - V2(r, 0));
+                            eso_vertex(crosshair + V2(r, 0));
+                            eso_vertex(crosshair - V2(0, r));
+                            eso_vertex(crosshair + V2(0, r));
+                        }
+                        eso_color(color);
+                        eso_size(1.0f);
+                        {
+                            real r = 1.2 * funky_OpenGL_factor;
+                            eso_vertex(crosshair - V2(r, 0));
+                            eso_vertex(crosshair + V2(r, 0));
+                            eso_vertex(crosshair - V2(0, r));
+                            eso_vertex(crosshair + V2(0, r));
                         }
                     }
                 }
