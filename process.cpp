@@ -2173,9 +2173,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             cookbook.manifold_wrapper_wrapper();
 
                             if (IS_ZERO(popup->extrude_add_in_length)) {
-                                messagef(pallete.light_gray, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
+                                MESSAGE_SUCCESS("ExtrudeAdd %gmm", popup->extrude_add_out_length);
                             } else {
-                                messagef(pallete.light_gray, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
+                                MESSAGE_SUCCESS("ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
                             }
 
                             other.tween_extrude_add_feature_plane = *feature_plane;
@@ -2200,9 +2200,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else {
                             cookbook.manifold_wrapper_wrapper();
                             if (IS_ZERO(popup->extrude_cut_out_length)) {
-                                messagef(pallete.light_gray, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
+                                MESSAGE_SUCCESS("ExtrudeCut %gmm", popup->extrude_cut_in_length);
                             } else {
-                                messagef(pallete.light_gray, "ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
+                                MESSAGE_SUCCESS("ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
                             }
                         }
                     }
@@ -2237,7 +2237,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             MESSAGE_FAILURE("RevolveCut: current mesh empty");
                         } else {
                             cookbook.manifold_wrapper_wrapper();
-                            messagef(pallete.light_gray, "RevolveCut");
+                            MESSAGE_SUCCESS("RevolveCut");
                         }
                     }
                 } else if (state_Mesh_command_is_(OpenSTL)) {
@@ -2256,7 +2256,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     *meshes = stl_load(popup->open_stl_filename);
                                     init_camera_mesh();
                                 }
-                                messagef(pallete.light_gray, "OpenSTL \"%s\"", popup->open_stl_filename.data);
+                                MESSAGE_SUCCESS("OpenSTL \"%s\"", popup->open_stl_filename.data);
 
                                 set_state_Mesh_command(None);
 
@@ -2282,7 +2282,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     bool success = mesh_save_stl(&meshes->work, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
-                                messagef(pallete.light_gray, "SaveSTL \"%s\"", popup->save_stl_filename.data);
+                                MESSAGE_SUCCESS("SaveSTL \"%s\"", popup->save_stl_filename.data);
                             } else {
                                 MESSAGE_FAILURE("SaveSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
                             }
@@ -2304,7 +2304,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     ASSERT(success);
                                 }
                                 set_state_Mesh_command(None);
-                                messagef(pallete.light_gray, "OverwriteSTL \"%s\"", popup->save_stl_filename.data);
+                                MESSAGE_SUCCESS("OverwriteSTL \"%s\"", popup->save_stl_filename.data);
                             } else {
                                 MESSAGE_FAILURE("OverwriteSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
                             }
@@ -2312,7 +2312,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Mesh_command(None);
                             MESSAGE_FAILURE("OverwriteSTL declined");
                         } else {
-                            messagef(pallete.orange, "OverwriteSTL confirm with y or n");
+                            MESSAGE_INFO("OverwriteSTL confirm with y or n");
                         }
                     }
                 }
