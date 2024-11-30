@@ -774,37 +774,43 @@ void conversation_draw() {
                 }
             }
 
-
-            fancy_draw_int_counter+= 0.01 * (1.00 - fancy_draw_int_counter);
+            fancy_draw_int_counter+= 0.001 * (1.00 - fancy_draw_int_counter); // TODO; better lerping
             float val = fancy_draw_int_counter;
-            vec4 eq1 = V4(1.0, 0.0, 0.0, 20+val);
-            vec4 eq2 = V4(0.0, 0.0, -1.0, val);
             bool OR_MESHES = false;
 
-            vec3 plane_norm = meshes->feature_plane.normal;
-            vec4 starting_eq = { plane_norm.x, plane_norm.y, plane_norm.z, -meshes->feature_plane.signed_distance_to_world_origin };
-            vec4 in_eq = starting_eq - V4(0, 0, 0, -val * meshes->in_quantity);
-            vec4 out_eq = -starting_eq + V4(0, 0, 0, val * meshes->out_quantity);
+            vec4 in_eq, out_eq; {
+                vec3 plane_norm = meshes->feature_plane.normal;
+                if (meshes->was_revolve) {
+                    vec3 test_point = transformPoint(meshes->M_3D_from_2D, V3(meshes->axis_base_point, 0.0));
+                    vec2 dir_2D = e_theta(PI/2 + meshes->axis_angle_from_y);
+                    vec3 dir_3D = transformVector(meshes->M_3D_from_2D, V3(dir_2D, 0.0f));
 
-            vec3 test_point = transformPoint(meshes->M_3D_from_2D, V3(meshes->axis_base_point, 0.0));
-            vec2 dir_2D = e_theta(PI/2 + meshes->axis_angle_from_y);
-            vec3 dir_3D = transformVector(M_3D_from_2D, V3(dir_2D, 0.0f));
+                    vec3 plane_normal = normalized(cross(dir_3D, meshes->feature_plane.normal));
 
-            vec3 plane_normal = normalized(cross(dir_3D, feature_plane->normal));
-            float d = -dot(plane_normal, test_point);
-            vec4 debug_eq = V4(plane_normal.x, plane_normal.y, plane_normal.z, d);
+                    real cur_out_angle = -val * RAD(meshes->out_quantity) + PI / 2;
+                    real cur_in_angle = val * RAD(meshes->in_quantity) + PI / 2;
 
+                    vec3 k = normalized(dir_3D);
+                    vec3 rotated_out_normal = plane_normal * COS(cur_out_angle) + cross(k, plane_normal) * SIN(cur_out_angle) + k * dot(k, plane_normal) * (1 - COS(cur_out_angle));
+                    vec3 rotated_in_normal = plane_normal * COS(cur_in_angle) + cross(k, plane_normal) * SIN(cur_in_angle) + k * dot(k, plane_normal) * (1 - COS(cur_in_angle));
 
-            real cur_out_angle = -val * RAD(meshes->out_quantity) + PI / 2;
-            real cur_in_angle = val * RAD(meshes->in_quantity) + PI / 2;
+                    vec4 rotated_out_eq = V4(rotated_out_normal, -dot(rotated_out_normal, test_point));
+                    vec4 rotated_in_eq = V4(rotated_in_normal, -dot(rotated_in_normal, test_point));
 
-            vec3 k = normalized(dir_3D);
-            vec3 rotated_out_normal = plane_normal * COS(cur_out_angle) + cross(k, plane_normal) * SIN(cur_out_angle) + k * dot(k, plane_normal) * (1 - COS(cur_out_angle));
-            vec3 rotated_in_normal = plane_normal * COS(cur_in_angle) + cross(k, plane_normal) * SIN(cur_in_angle) + k * dot(k, plane_normal) * (1 - COS(cur_in_angle));
+                    out_eq = rotated_out_eq;
+                    in_eq = -rotated_in_eq;
 
-            vec4 rotated_out_eq = V4(rotated_out_normal, -dot(rotated_out_normal, test_point));
-            vec4 rotated_in_eq = V4(rotated_in_normal, -dot(rotated_in_normal, test_point));
+                    real angle_between_rot = ATAN2(dot(k, cross(rotated_out_normal, rotated_in_normal)), dot(rotated_out_normal, rotated_in_normal));
 
+                    if (angle_between_rot < 0) {
+                        OR_MESHES = true;
+                    }
+                } else {
+                    vec4 starting_eq = { plane_norm.x, plane_norm.y, plane_norm.z, -meshes->feature_plane.signed_distance_to_world_origin };
+                    in_eq = starting_eq - V4(0, 0, 0, -val * meshes->in_quantity);
+                    out_eq = -starting_eq + V4(0, 0, 0, val * meshes->out_quantity);
+                }
+            }
 
             auto DEBUG_DRAW_PLANE = [&](vec4 eq, vec3 color) {
                 vec3 eq_norm = { eq.x, eq.y, eq.z };
@@ -832,23 +838,8 @@ void conversation_draw() {
 
             };
 
-            //DEBUG_DRAW_PLANE(-out_eq, pallete.blue);
+            //DEBUG_DRAW_PLANE(out_eq, pallete.red);
             //DEBUG_DRAW_PLANE(in_eq, pallete.blue);
-
-            if (meshes->was_revolve) {
-                out_eq = rotated_out_eq;
-                in_eq = -rotated_in_eq;
-
-                real angle_between_rot = ATAN2(dot(k, cross(rotated_out_normal, rotated_in_normal)), dot(rotated_out_normal, rotated_in_normal));
-                
-                if (angle_between_rot < 0) {
-                    OR_MESHES = true;
-                }
-            }
-            messagef(pallete.red, "axis__base y: %f", meshes->axis_angle_from_y);
-            DEBUG_DRAW_PLANE(out_eq, pallete.red);
-            DEBUG_DRAW_PLANE(in_eq, pallete.blue);
-
 
             if (prev && val < 0.98) {
                 if (meshes->was_cut) {
