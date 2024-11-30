@@ -97,7 +97,13 @@ int main() {
 
 char *startup_script = "";
 
-#if 1 // fornow
+#if 1 // chowder
+run_before_main {
+startup_script = "^.bz10\t10x-10\t-10";
+};
+#endif
+
+#if 0 // fornow
 run_before_main {
 startup_script = "^.^odemo.dxf\nsao";
 };

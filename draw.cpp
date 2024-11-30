@@ -184,6 +184,15 @@ void conversation_draw() {
             eso_end();
         };
 
+        auto DRAW_DOTTED_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
+            eso_begin(PV_2D, SOUP_LINES);
+            eso_stipple(true);
+            eso_color(color);
+            eso_vertex(click_1);
+            eso_vertex(click_2);
+            eso_end();
+        };
+
         auto DRAW_CIRCLE = [&](vec2 click_1, vec2 click_2, vec3 color) {
             vec2 center = click_1;
             real radius = distance(click_1, click_2);
@@ -204,14 +213,6 @@ void conversation_draw() {
             eso_end();
         };
 
-        auto DRAW_DOTTED_LINE = [&](vec2 click_1, vec2 click_2, vec3 color) {
-            eso_begin(PV_2D, SOUP_LINES);
-            eso_stipple(true);
-            eso_color(color);
-            eso_vertex(click_1);
-            eso_vertex(click_2);
-            eso_end();
-        };
 
 
         auto DRAW_POLYGON = [&](vec2 click_1, vec2 click_2, vec3 color) {
@@ -266,9 +267,9 @@ void conversation_draw() {
 
         auto DRAW_ROTATE = [&](vec2 click_1, vec2 click_2, vec3 color) {
             vec2 click_vector_12 = click_2 - click_1;
-            real click_theta_12 = ATAN2(click_vector_12);
+            real click_angle_12 = ATAN2(click_vector_12);
 
-            mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_theta_12) * M4_Translation(-click_1);
+            mat4 M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_angle_12) * M4_Translation(-click_1);
 
             eso_begin(PV_2D * M, SOUP_LINES);
             eso_color(color);
@@ -550,6 +551,113 @@ void conversation_draw() {
             }
 
 
+            #if 0
+
+            auto chowder_begin = [](mat4 PV_2D) { eso_begin(PV_2D, SOUP_LINES); };
+            auto chowder_color = [](vec3 color) { eso_color(color); };
+            auto chowder_vertex = [](vec2 p) { eso_vertex(p); };
+            auto chowder_vertex2 = [](real x, real y) { eso_vertex(x, y); };
+            auto chowder_stipple = [](bool b) { eso_stipple(b); };
+            auto chowder_end = []() { eso_end(); };
+
+            #define DRAW2D_PASS_DrawEnter 0
+            #define DRAW2D_PASS_XY        1
+            #define DRAW2D_PASS_Mouse     2
+
+            bool is_two_click = (state.Draw_command.flags & TWO_CLICK);
+
+            chowder_begin(PV_2D); // FORNOW: LINES only; FORNOW passing PV_2D
+            for_(pass, 3) {
+                vec3 color;
+                {
+                    if (pass == DRAW2D_PASS_DrawEnter) {
+                        color = BLUE;
+                    } else if (pass == DRAW2D_PASS_XY) {
+                        color = PINK;
+                    } else { ASSERT(pass == DRAW2D_PASS_Mouse);
+                        color = WHITE_or_PINK_depending_on_whether_snap_is_active;
+                    }
+                }
+
+                vec2 click_1;
+                vec2 click_2;
+                {
+                    if (two_click_command->awaiting_second_click) {
+                        click_1 = two_click_command->first_click;
+
+                        if (pass == DRAW2D_PASS_DrawEnter) {
+                            click_2 = preview->mouse_from_Draw_Enter__BLUE_position;
+                        } else if (pass == DRAW2D_PASS_XY) {
+                            click_2 = preview->xy_xy;
+                        } else { ASSERT(pass == DRAW2D_PASS_Mouse);
+                            click_2 = mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
+                        }
+                    }
+                }
+                vec2 click_vector_12 = click_2 - click_1;
+                real click_length_12 = norm(click_vector_12);
+                real click_angle_12 = ATAN2(click_vector_12);
+
+
+
+                chowder_color(color);
+
+                if (two_click_command->awaiting_second_click) {
+                    if (0) {
+                    } else if (state_Draw_command_is_(Box)) {
+                        chowder_vertex2(click_1.x, click_1.y);
+
+                        chowder_vertex2(click_1.x, click_2.y);
+                        chowder_vertex2(click_1.x, click_2.y);
+
+                        chowder_vertex2(click_2.x, click_2.y);
+                        chowder_vertex2(click_2.x, click_2.y);
+
+                        chowder_vertex2(click_2.x, click_1.y);
+                        chowder_vertex2(click_2.x, click_1.y);
+
+                        chowder_vertex2(click_1.x, click_1.y);
+                    } else if (state_Draw_command_is_(Circle)) {
+                        // FORNOW: 2x inefficient
+                        real angle = 0.0f;
+                        real dangle = (TAU / NUM_SEGMENTS_PER_CIRCLE);
+                        for_(i, NUM_SEGMENTS_PER_CIRCLE) {
+                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                            angle += dangle;
+                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                        }
+                    } else if (state_Draw_command_is_(Line)) {
+                        chowder_vertex(click_1);
+                        chowder_vertex(click_2);
+                    } else if (state_Draw_command_is_(Polygon)) {
+                        real dangle = -TAU / preview->polygon_num_sides;
+                        real angle = click_angle_12;
+
+                        chowder_stipple(true);
+                        chowder_vertex(click_1);
+                        chowder_vertex(click_2);
+
+                        // FORNOW: 2x inefficient
+                        chowder_stipple(false);
+                        uint num_sides = uint(preview->polygon_num_sides);
+                        for_(i, num_sides) {
+                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                            angle += dangle;
+                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                            if (i == (num_sides - 1)) {
+                                chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                                chowder_vertex(click_2);
+                            }
+                        }
+                    }
+                }
+
+                // chowder_transform();
+                // chowder_entity();
+            }
+            chowder_end();
+
+            #else
             { // annotations
               // new-style annotations
               // FORNOW (this is sloppy and bad) nate: just made it more sloppy and bad
@@ -768,6 +876,7 @@ void conversation_draw() {
                     }
                 }
             }
+            #endif
         }
         glDisable(GL_SCISSOR_TEST);
     }
