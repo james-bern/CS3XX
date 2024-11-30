@@ -23,7 +23,6 @@ conversation.obj
 ignore.stl
 jim/*	
 executable
-manifold.lib
 demo.txt
 .vscode/*
 combined.cpp

@@ -54,7 +54,7 @@ IF "%1"=="" (
     /LIBPATH:.\opengl ^
     /LIBPATH:.\manifold ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
-    Clipper2.lib cross_section.lib manifold.lib manifoldc.lib polygon.lib quickhull.lib ^
+    Clipper2.lib manifold.lib manifoldc.lib ^
     glfw3.lib
     
     
