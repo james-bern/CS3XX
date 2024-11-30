@@ -324,6 +324,9 @@ struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how
     DrawMesh draw;
 
     FeaturePlaneState feature_plane;
+    vec2 axis_base_point;
+    real axis_angle_from_y;
+
     mat4 M_3D_from_2D;
     real out_quantity;
     real in_quantity;
@@ -2065,12 +2068,16 @@ MeshesReadOnly manifold_wrapper(
         ProtoMesh proto = extract_from_manifold(arena, to_extract);
         result = build_meshes(arena, proto.num_vertices, proto.vertex_positions, proto.num_triangles, proto.triangle_tuples);
 
+        result.feature_plane = feature_plane;
+        result.axis_base_point = dxf_axis_base_point;
+        result.axis_angle_from_y = dxf_axis_angle_from_y;
+
+
         result.M_3D_from_2D = M_3D_from_2D;
         result.out_quantity = out_quantity;
         result.in_quantity = in_quantity;
         result.was_cut = cut;
         result.was_revolve = revolve;
-        result.feature_plane = feature_plane;
         // TODO: revolve stuff
     }
 
