@@ -554,17 +554,24 @@ void conversation_draw() {
             #if 0 // CHOWDER!
 
             // // NOTE: Currently just shimming this API with eso; TODO: implement properly with stew
+            // //       NOTE: it's an imperfect shim with the way size, color are carried over, but is close enough
             // BEGIN shimmed API
+            static real _chowder_size;
             static vec3 _chowder_color;
             static mat4 _chowder_PV;
             auto chowder_color = [&](vec3 color) {
                 _chowder_color = color;
                 eso_color(color);
             };
-            auto chowder_begin = [&](mat4 PV) {
+            auto chowder_size = [&](real size) {
+                _chowder_size = size;
+                eso_size(size);
+            };
+            auto chowder_begin = [&](mat4 PV, mat4 M = M4_Identity()) {
                 _chowder_PV = PV;
-                eso_begin(PV, SOUP_LINES);
+                eso_begin(PV * M, SOUP_LINES);
                 chowder_color(_chowder_color);
+                chowder_size(_chowder_size);
             };
             auto chowder_vertex = [](vec2 p) { eso_vertex(p); };
             auto chowder_vertex2 = [](real x, real y) { eso_vertex(x, y); };
@@ -577,9 +584,9 @@ void conversation_draw() {
             auto chowder_entity = [&](Entity *entity) {
                 eso_entity__SOUP_LINES(entity);
             };
-            auto chowder_set_M = [&](mat4 local_transform) { // FORNOW: NOTE: mat4 is ridiculous for this
+            auto chowder_set_M = [&](mat4 M) { // FORNOW: NOTE: mat4 is ridiculous for this
                 chowder_end();
-                chowder_begin(_chowder_PV * local_transform);
+                chowder_begin(_chowder_PV, M);
             };
             auto chowder_reset_M = [&]() { // FORNOW: NOTE: mat4 is ridiculous for this
                 chowder_set_M(M4_Identity());
@@ -626,7 +633,20 @@ void conversation_draw() {
                     vec2 crosshair;
                 };
                 {
-                    click_1 = two_click_command->first_click;
+                    if (two_click_command->awaiting_second_click) {
+                        click_1 = two_click_command->first_click;
+                    } else { // XXX: two click commands with option for shortcutting first-Enter 
+
+                        click_1 = {}; // NOTE: this is an assumption ("logic"/assumption is repeated in process on Draw_Enter)
+
+                        // Exceptions (repeated logic):
+                        if (state_Draw_command_is_(Scale) && (!two_click_command->awaiting_second_click)) {
+                            bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                            vec2 bbox_center = AVG(bbox.min, bbox.max);
+                            click_1 = bbox_center;
+                        }
+
+                    }
 
                     if (pass == DRAW2D_PASS_DrawEnter) {
                         click_2 = preview->mouse_from_Draw_Enter__BLUE_position;
@@ -645,73 +665,142 @@ void conversation_draw() {
 
                 chowder_color(color);
 
-                if (two_click_command->awaiting_second_click) {
-                    if (0) {
-                    } else if (state_Draw_command_is_(Box)) {
-                        chowder_vertex2(click_1.x, click_1.y);
+                { // vanilla two click commands
+                    if (two_click_command->awaiting_second_click) {
+                        if (0) {
+                        } else if (state_Draw_command_is_(Box)) {
+                            chowder_vertex2(click_1.x, click_1.y);
 
-                        chowder_vertex2(click_1.x, click_2.y);
-                        chowder_vertex2(click_1.x, click_2.y);
+                            chowder_vertex2(click_1.x, click_2.y);
+                            chowder_vertex2(click_1.x, click_2.y);
 
-                        chowder_vertex2(click_2.x, click_2.y);
-                        chowder_vertex2(click_2.x, click_2.y);
+                            chowder_vertex2(click_2.x, click_2.y);
+                            chowder_vertex2(click_2.x, click_2.y);
 
-                        chowder_vertex2(click_2.x, click_1.y);
-                        chowder_vertex2(click_2.x, click_1.y);
+                            chowder_vertex2(click_2.x, click_1.y);
+                            chowder_vertex2(click_2.x, click_1.y);
 
-                        chowder_vertex2(click_1.x, click_1.y);
-                    } else if (state_Draw_command_is_(Circle)) {
-                        // FORNOW: 2x inefficient
-                        real angle = 0.0f;
-                        real dangle = (TAU / NUM_SEGMENTS_PER_CIRCLE);
-                        for_(i, NUM_SEGMENTS_PER_CIRCLE) {
-                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
-                            angle += dangle;
-                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
-                        }
-                    } else if (state_Draw_command_is_(Line)) {
-                        chowder_vertex(click_1);
-                        chowder_vertex(click_2);
-                    } else if (state_Draw_command_is_(Polygon)) {
-                        real dangle = -TAU / preview->polygon_num_sides;
-                        real angle = click_angle_12;
-
-                        chowder_stipple(true);
-                        chowder_vertex(click_1);
-                        chowder_vertex(click_2);
-
-                        // FORNOW: 2x inefficient
-                        chowder_stipple(false);
-                        uint num_sides = uint(preview->polygon_num_sides);
-                        for_(i, num_sides) {
-                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
-                            angle += dangle;
-                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
-                            if (i == (num_sides - 1)) {
+                            chowder_vertex2(click_1.x, click_1.y);
+                        } else if (state_Draw_command_is_(Circle)) {
+                            // FORNOW: 2x inefficient
+                            real angle = 0.0f;
+                            real dangle = (TAU / NUM_SEGMENTS_PER_CIRCLE);
+                            for_(i, NUM_SEGMENTS_PER_CIRCLE) {
                                 chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
-                                chowder_vertex(click_2);
+                                angle += dangle;
+                                chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                            }
+                        } else if (state_Draw_command_is_(Line)) {
+                            chowder_vertex(click_1);
+                            chowder_vertex(click_2);
+                        } else if (state_Draw_command_is_(Polygon)) {
+                            real dangle = -TAU / preview->polygon_num_sides;
+                            real angle = click_angle_12;
+
+                            chowder_stipple(true);
+                            chowder_vertex(click_1);
+                            chowder_vertex(click_2);
+
+                            // FORNOW: 2x inefficient
+                            chowder_stipple(false);
+                            uint num_sides = uint(preview->polygon_num_sides);
+                            for_(i, num_sides) {
+                                chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                                angle += dangle;
+                                chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                                if (i == (num_sides - 1)) {
+                                    chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length_12, angle));
+                                    chowder_vertex(click_2);
+                                }
                             }
                         }
                     }
                 }
 
-                if (state_Draw_command_is_(Translate)) {
+                { // commands that draw transformed selected entities
+                    bool is_mirror_command = (state_Draw_command_is_(XMirror) || state_Draw_command_is_(YMirror));
+                    bool wonko_case = ((pass == DRAW2D_PASS_DrawEnter) != (is_mirror_command)); // *shrug*
+                    if (two_click_command->awaiting_second_click || wonko_case) {
+                        uint reps;
+                        mat4 M;
+                        {
+                            reps = 1;
+                            if (0) {
+                            } else if (state_Draw_command_is_(Translate)) {
+                                M = M4_Translation(click_vector_12);
+                            } else if (state_Draw_command_is_(Rotate)) {
+                                M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_angle_12) * M4_Translation(-click_1);
+                            } else if (state_Draw_command_is_(Scale)) {
+                                M = M4_Translation(click_1) * M4_Scaling(preview->scale_factor) * M4_Translation(-click_1);
+                            } else if (state_Draw_command_is_(XMirror)) {
+                                M = M4_Translation(crosshair) * M4_Scaling(-1.0f, 1.0f) * M4_Translation(-crosshair);
+                            } else if (state_Draw_command_is_(YMirror)) {
+                                M = M4_Translation(crosshair) * M4_Scaling(1.0f, -1.0f) * M4_Translation(-crosshair);
+                            } else if (state_Draw_command_is_(LCopy)) {
+                                real preview_num_additional_copies = MAX(1.0f, preview->lcopy_num_additional_copies);
+                                uint num_additional_copies = MAX(1, popup->lcopy_num_additional_copies);
+                                vec2 total_translation = preview_num_additional_copies * click_vector_12;
+                                vec2 fractional_translation = total_translation / num_additional_copies;
+                                M = M4_Translation(fractional_translation);
+                                reps = popup->lcopy_num_additional_copies;
+                            } else if (state_Draw_command_is_(RCopy)) {
+                                uint num_total_copies = MAX(1U, popup->rcopy_num_total_copies);
+                                real total_angle = preview->rcopy_last_angle;
+                                real fractional_angle = total_angle / MAX(1, num_total_copies - 1);
+                                M = M4_Translation(click_1) * M4_RotationAboutZAxis(fractional_angle) * M4_Translation(-click_1);
+                                reps = num_total_copies - 1;
+                            } else {
+                                reps = 0;
+                            }
+                        }
 
-                    chowder_set_M(M4_Translation(click_vector_12));
-                    _for_each_selected_entity_ chowder_entity(entity);
-                    chowder_reset_M();
+                        { // FORNOW: perhaps a bit silly on the CPU side, but i think worth for simplicity
+                            mat4 M_accumulator = M;
+                            for_(i, reps) {
+                                chowder_set_M(M_accumulator);
+                                _for_each_selected_entity_ chowder_entity(entity);
+                                chowder_reset_M();
+                                M_accumulator *= M;
+                            }
+                        }
 
-                    // ANNOTATION(Translate, MOVE);
-                    // ANNOTATION(Translate, DOTTED_LINE);
+                    }
                 }
 
-                { // crosshair
+                { // one-click commands
+
+                }
+
+                { // dotted lines
+                    chowder_stipple(true);
+                    if (0
+                            || state_Draw_command_is_(Translate)
+                            || state_Draw_command_is_(Rotate)
+                       ) {
+                        chowder_vertex(click_1);
+                        chowder_vertex(click_2);
+                    }
+                    {
+                        real R = 1024.0f;
+                        if (state_Draw_command_is_(XMirror)) {
+                            chowder_vertex(crosshair - V2(0.0f, R)) ;
+                            chowder_vertex(crosshair + V2(0.0f, R)) ;
+                        }
+                        if (state_Draw_command_is_(YMirror)) {
+                            chowder_vertex(crosshair - V2(R, 0.0f)) ;
+                            chowder_vertex(crosshair + V2(R, 0.0f)) ;
+                        }
+                    }
+                    chowder_stipple(false);
+                }
+
+                { // crosshairs
                     bool not_drawing_on_top_of_system_cursor = ((pass != DRAW2D_PASS_Mouse) || Snap_eating_mouse);
                     if (not_drawing_on_top_of_system_cursor) {
                         real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
 
                         eso_color(pallete.black);
-                        eso_size(2.0f);
+                        chowder_size(2.0f);
                         {
                             real r = 1.3 * funky_OpenGL_factor;
                             eso_vertex(crosshair - V2(r, 0));
@@ -720,7 +809,7 @@ void conversation_draw() {
                             eso_vertex(crosshair + V2(0, r));
                         }
                         eso_color(color);
-                        eso_size(1.0f);
+                        chowder_size(1.0f);
                         {
                             real r = 1.2 * funky_OpenGL_factor;
                             eso_vertex(crosshair - V2(r, 0));
@@ -730,9 +819,6 @@ void conversation_draw() {
                         }
                     }
                 }
-
-                // chowder_transform();
-                // chowder_entity();
             }
             chowder_end();
 
@@ -786,11 +872,11 @@ void conversation_draw() {
 
                 ANNOTATION(RCopy, RCOPY);
 
-                ANNOTATION(MirrorX, MIRRORX);
-                // ANNOTATION(MirrorX, VERTICAL_LINE);
+                ANNOTATION(XMirror, MIRRORX);
+                // ANNOTATION(XMirror, VERTICAL_LINE);
 
-                ANNOTATION(MirrorY, MIRRORY);
-                // ANNOTATION(MirrorX, HORIZONTAL_LINE);
+                ANNOTATION(YMirror, MIRRORY);
+                // ANNOTATION(XMirror, HORIZONTAL_LINE);
 
 
 

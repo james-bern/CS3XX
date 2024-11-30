@@ -53,8 +53,8 @@
     COMMANDS_INNER(Rotate,          'R', 0b000, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Scale,           'S', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER); \
     \
-    COMMANDS_INNER(MirrorX,         'X', 0b001, Draw, 1, 0 | SNAPPER); \
-    COMMANDS_INNER(MirrorY,         'Y', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(XMirror,         'X', 0b001, Draw, 1, 0 | SNAPPER); \
+    COMMANDS_INNER(YMirror,         'Y', 0b001, Draw, 1, 0 | SNAPPER); \
     \
     COMMANDS_INNER(SetAxis,         'A', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(SetColor,        'Q', 0b000, Draw, 1, 0); \

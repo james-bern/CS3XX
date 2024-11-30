@@ -99,7 +99,8 @@ char *startup_script = "";
 
 #if 1 // chowder
 run_before_main {
-startup_script = "^.bz10\t10x-10\t-10";
+// startup_script = "^.bz10\t10x-10\t-10";
+startup_script = "^.^odemo.dxf\n";
 };
 #endif
 

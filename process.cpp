@@ -633,8 +633,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         preview->rcopy_last_angle = 0;
                     }
                     SEPERATOR();
-                    GUIBUTTON(commands.MirrorX);
-                    GUIBUTTON(commands.MirrorY);
+                    GUIBUTTON(commands.XMirror);
+                    GUIBUTTON(commands.YMirror);
                     // GUIBUTTON(commands.Mirror2);
                     SEPERATOR();
                     GUIBUTTON(commands.Divide2);
@@ -1693,7 +1693,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }          
                         }
-                    } else if (state_Draw_command_is_(MirrorX)) {
+                    } else if (state_Draw_command_is_(XMirror)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
@@ -1701,7 +1701,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             cookbook._buffer_add_entity(entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(0.0f, 1.0f)));
                             entity->is_selected = false;
                         }
-                    } else if (state_Draw_command_is_(MirrorY)) {
+                    } else if (state_Draw_command_is_(YMirror)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
