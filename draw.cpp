@@ -551,14 +551,17 @@ void conversation_draw() {
             }
 
 
-            #if 0
+            #if 1
 
+            // NOTE: Currently just shimming this API with eso; TODO: implement properly with stew
             auto chowder_begin = [](mat4 PV_2D) { eso_begin(PV_2D, SOUP_LINES); };
             auto chowder_color = [](vec3 color) { eso_color(color); };
             auto chowder_vertex = [](vec2 p) { eso_vertex(p); };
             auto chowder_vertex2 = [](real x, real y) { eso_vertex(x, y); };
-            auto chowder_stipple = [](bool b) { eso_stipple(b); };
             auto chowder_end = []() { eso_end(); };
+
+            auto chowder_stipple = [](bool b) { eso_stipple(b); };
+
 
             #define DRAW2D_PASS_DrawEnter 0
             #define DRAW2D_PASS_XY        1
