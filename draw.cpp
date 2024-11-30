@@ -551,14 +551,19 @@ void conversation_draw() {
             }
 
 
-            #if 1 // CHOWDER!
+            #if 0 // CHOWDER!
 
             // // NOTE: Currently just shimming this API with eso; TODO: implement properly with stew
             // BEGIN shimmed API
             static vec3 _chowder_color;
-            auto chowder_color = [&](vec3 color) { _chowder_color = color; eso_color(color); };
-            auto chowder_begin = [&]() {
-                eso_begin(PV_2D, SOUP_LINES);
+            static mat4 _chowder_PV;
+            auto chowder_color = [&](vec3 color) {
+                _chowder_color = color;
+                eso_color(color);
+            };
+            auto chowder_begin = [&](mat4 PV) {
+                _chowder_PV = PV;
+                eso_begin(PV, SOUP_LINES);
                 chowder_color(_chowder_color);
             };
             auto chowder_vertex = [](vec2 p) { eso_vertex(p); };
@@ -566,8 +571,18 @@ void conversation_draw() {
             auto chowder_end = []() { eso_end(); };
             auto chowder_stipple = [&](bool b) {
                 chowder_end();
-                chowder_begin();
+                chowder_begin(_chowder_PV);
                 eso_stipple(b);
+            };
+            auto chowder_entity = [&](Entity *entity) {
+                eso_entity__SOUP_LINES(entity);
+            };
+            auto chowder_set_M = [&](mat4 local_transform) { // FORNOW: NOTE: mat4 is ridiculous for this
+                chowder_end();
+                chowder_begin(_chowder_PV * local_transform);
+            };
+            auto chowder_reset_M = [&]() { // FORNOW: NOTE: mat4 is ridiculous for this
+                chowder_set_M(M4_Identity());
             };
             // END shimmed API
 
@@ -576,7 +591,7 @@ void conversation_draw() {
             #define DRAW2D_PASS_DrawEnter 1
             #define DRAW2D_PASS_XY        2
 
-            chowder_begin();
+            chowder_begin(PV_2D);
             for_(pass, 3) {
 
                 if ((pass == DRAW2D_PASS_DrawEnter) &&
@@ -681,6 +696,11 @@ void conversation_draw() {
                 }
 
                 if (state_Draw_command_is_(Translate)) {
+
+                    chowder_set_M(M4_Translation(click_vector_12));
+                    _for_each_selected_entity_ chowder_entity(entity);
+                    chowder_reset_M();
+
                     // ANNOTATION(Translate, MOVE);
                     // ANNOTATION(Translate, DOTTED_LINE);
                 }
