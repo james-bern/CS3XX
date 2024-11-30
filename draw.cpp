@@ -774,8 +774,14 @@ void conversation_draw() {
                 }
             }
 
-            fancy_draw(P_3D, V_3D, I, &meshes->draw);
-            if (prev) fancy_draw(P_3D, V_3D, M4_Translation(0.0, 0.0, -70.0), prev);
+
+            fancy_draw_int_counter+= 0.01;
+            float val = 10 * SIN(fancy_draw_int_counter);
+            vec4 eq1 = V4(1.0, 0.0, 0.0, 20+val);
+            vec4 eq2 = V4(0.0, 0.0, -1.0, val);
+            bool OR_MESHES = false;
+            fancy_draw(P_3D, V_3D, I, &meshes->draw, eq1, eq2, OR_MESHES);
+            if (prev) fancy_draw(P_3D, V_3D, M4_Translation(0.0, 0.0, -70.0), prev, eq1, eq2, OR_MESHES);
 
         }
 

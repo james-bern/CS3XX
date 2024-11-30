@@ -469,7 +469,7 @@ uint DRAW_MESH_MODE_PATCH_ID       = 1;
 uint DRAW_MESH_MODE_PATCH_EDGES    = 2;
 uint DRAW_MESH_MODE_TRIANGLE_ID    = 3;
 uint DRAW_MESH_MODE_TRIANGLE_EDGES = 4;
-void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1 = {0.0, 0.0, 0.0, 0.0}, vec4 plane_equation2 = {0.0, 0.0, 0.0, 0.0}, bool AND = false) { // default value has no clip plane and uses or clipping
+void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, vec4 plane_equation2, bool OR_MESHES) { // default value has no clip plane and uses or clipping
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -494,7 +494,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
         GLint clipPlaneLocation1 = glGetUniformLocation(shader_program, "clipPlane1");
         glUniform4fv(clipPlaneLocation1, 1, &plane_equation1[0]);
 
-        if (AND) {
+        if (!OR_MESHES) {
             GLint clipPlaneLocation2 = glGetUniformLocation(shader_program, "clipPlane2");
             glUniform4fv(clipPlaneLocation2, 1, &plane_equation2[0]);
 
@@ -513,7 +513,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
         glUniform3f(UNIFORM(shader_program, "feature_plane_normal"), feature_plane->normal.x, feature_plane->normal.y, feature_plane->normal.z);
         glUniform1f(UNIFORM(shader_program, "feature_plane_signed_distance_to_world_origin"), feature_plane->signed_distance_to_world_origin);
 
-        if (AND) {
+        if (!OR_MESHES) {
             glEnable(GL_CLIP_DISTANCE0);
             glEnable(GL_CLIP_DISTANCE1);
 
@@ -582,14 +582,10 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
 }
 
 
-
-
-
-
 float fancy_draw_int_counter = 0;
 
 
-void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
+void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, vec4 plane_equation2, bool OR_MESHES) {
     { // GL; FORNOW FORNOW pushing data to GPU every frame
         if (mesh->num_vertices) {
             glBindVertexArray(GL.VAO);
@@ -621,13 +617,8 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         }
     }
 
-    fancy_draw_int_counter+= 0.01;
-    float val = 10 * SIN(fancy_draw_int_counter);
-    vec4 eq1 = V4(1.0, 0.0, 0.0, 20+val);
-    vec4 eq2 = V4(0.0, 0.0, -1.0, val);
-    bool AND = true;
 
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, eq1, eq2, AND);
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, OR_MESHES);
 
 
     for_(pass, 2) {
@@ -638,7 +629,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         {
             glClearColor(1.0, 1.0, 1.0, 1.0);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh, eq1, eq2, AND);
+            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh, plane_equation1, plane_equation2, OR_MESHES);
         }
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glEnable(GL_SCISSOR_TEST);
@@ -658,7 +649,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
                 glBindTexture(GL_TEXTURE_2D, 0);
                 glUseProgram(0);
             } else {
-                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh, eq1, eq2, AND);
+                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh, plane_equation1, plane_equation2, OR_MESHES);
             }
         } glEnable(GL_DEPTH_TEST);
     }
