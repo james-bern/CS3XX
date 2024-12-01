@@ -24,14 +24,23 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
     mat4 M_2D = M4_Identity(); // FORNOW
 
     if (for_drawing) {
+        o = preview->feature_plane_signed_distance_to_world_origin * feature_plane->normal;
+
         // TODO: move sketch and rotate sketch goes in here too
         x = transformVector(M4_RotationAbout(y, preview->feature_plane_mirror_x_angle), x);
         y = transformVector(M4_RotationAbout(x, preview->feature_plane_mirror_y_angle), y);
         o += preview->feature_plane_mirror_XXX_bump * feature_plane->normal;
-        o += preview->feature_plane_nudge_offset * feature_plane->normal;
+
+        mat4 R = M4_RotationAbout(z, preview->feature_plane_rotate_angle);
+        x = transformVector(R, x);
+        y = transformVector(R, y);
     } else {
         if (feature_plane->mirror_x) x *= - 1;
         if (feature_plane->mirror_y) y *= - 1;
+
+        mat4 R = M4_RotationAbout(z, feature_plane->rotate_angle);
+        x = transformVector(R, x);
+        y = transformVector(R, y);
     }
 
     return M4_xyzo(x, y, z, o) * M_2D;
@@ -77,16 +86,21 @@ void conversation_draw() {
 
     // TODO
     { // feature plane
-        { // preview_feature_plane_offset
-            real target = (state_Mesh_command_is_(NudgePlane)) ? popup->feature_plane_nudge : 0.0f;
-            JUICEIT_EASYTWEEN(&preview->feature_plane_nudge_offset, target);
+        { // preview->feature_plane_signed_distance_to_world_origin
+            real target = feature_plane->signed_distance_to_world_origin;
+            target += (state_Mesh_command_is_(NudgePlane)) ? popup->feature_plane_nudge : 0.0;
+            JUICEIT_EASYTWEEN(&preview->feature_plane_signed_distance_to_world_origin, target);
         }
-        // FINITE_EASYTWEEN(&preview->feature_plane_mirror_x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
-        // FINITE_EASYTWEEN(&preview->feature_plane_mirror_y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
-        JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_x_angle, feature_plane->mirror_x ? PI : 0.0f);
-        JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_y_angle, feature_plane->mirror_y ? PI : 0.0f);
-        // TODO: Change 10 to function of feature_plane size
-        JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_XXX_bump, 10 * MAX(SIN(preview->feature_plane_mirror_x_angle), SIN(preview->feature_plane_mirror_y_angle)));
+        { // preview->feature_plane_mirror_x_angle, preview->feature_plane_mirror_y_angle, preview->feature_plane_mirror_XXX_bump
+            JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_x_angle, feature_plane->mirror_x ? PI : 0.0f);
+            JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_y_angle, feature_plane->mirror_y ? PI : 0.0f);
+            // TODO: Change 10 to function of feature_plane size
+            JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_XXX_bump, 10 * MAX(SIN(preview->feature_plane_mirror_x_angle), SIN(preview->feature_plane_mirror_y_angle)));
+        }
+        { // preview->feature_plane_rotate_angle
+            real target = (state_Mesh_command_is_(RotatePlane)) ? RAD(popup->feature_plane_rotate_angle) : feature_plane->rotate_angle;
+            JUICEIT_EASYTWEEN(&preview->feature_plane_rotate_angle, target);
+        }
     }
 
 
@@ -1091,7 +1105,9 @@ void conversation_draw() {
                                 uint3 tuple = mesh->triangle_tuples[triangle_index];
                                 vec3 a = mesh->vertex_positions[tuple[0]];
                                 real sd = dot(a, n);
-                                if (ABS(sd - feature_plane->signed_distance_to_world_origin) < 0.01f) {
+                                real target_feature_plane_signed_distance_from_world_origin = feature_plane->signed_distance_to_world_origin;
+                                target_feature_plane_signed_distance_from_world_origin += state_Mesh_command_is_(NudgePlane) ? popup->feature_plane_nudge : 0.0f;
+                                if (ABS(sd - target_feature_plane_signed_distance_from_world_origin) < 0.01f) {
                                     for_(d, 3) {
                                         vec3 p_3D = mesh->vertex_positions[tuple[d]];
                                         vec2 p_2D = _V2(transformPoint(inv_M_3D_from_2D, p_3D));

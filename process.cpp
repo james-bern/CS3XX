@@ -701,13 +701,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         } else {
                             feature_plane->is_active = true;
                             feature_plane->signed_distance_to_world_origin = 0.0f;
+                            preview->feature_plane_signed_distance_to_world_origin = 0.0f;
                             feature_plane->normal = { 0.0f, 1.0f, 0.0f };
                         }
                     }
                     if (GUIBUTTON(commands.NudgePlane)) {
-                        if (feature_plane->is_active) {
-                            preview->feature_plane_nudge_offset = 0.0f; // FORNOW
-                        } else {
+                        if (!feature_plane->is_active) {
                             MESSAGE_FAILURE("NudgePlane: no feature plane selected");
                             set_state_Mesh_command(None); // FORNOW
                         }
@@ -718,13 +717,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         else other.time_since_plane_deselected = 0.0f;
                     }
                     if (GUIBUTTON(commands.MirrorPlaneX)) {
-                        result.record_me = true;
-                        feature_plane->mirror_x = !feature_plane->mirror_x;
-
+                        if (feature_plane->is_active) {
+                            feature_plane->mirror_x = !feature_plane->mirror_x;
+                        } else {
+                            MESSAGE_FAILURE("MirrorPlaneX: no feature plane selected");
+                        }
                     }
                     if (GUIBUTTON(commands.MirrorPlaneY)) {
-                        result.record_me = true;
-                        feature_plane->mirror_y = !feature_plane->mirror_y;
+                        if (feature_plane->is_active) {
+                            feature_plane->mirror_y = !feature_plane->mirror_y;
+                        } else {
+                            MESSAGE_FAILURE("MirrorPlaneY: no feature plane selected");
+                        }
+                    }
+                    if (GUIBUTTON(commands.RotatePlane)) {
+                        if (!feature_plane->is_active) {
+                            MESSAGE_FAILURE("RotatePlane: no feature plane selected");
+                            set_state_Mesh_command(None); // FORNOW
+                        }
                     }
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearMesh)) {
@@ -1742,6 +1752,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         feature_plane->normal = mesh->triangle_normals[snap_result.triangle_index];
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, snap_result.mouse_position);
+                        preview->feature_plane_signed_distance_to_world_origin = feature_plane->signed_distance_to_world_origin;
                     } 
 
                     if (state.Mesh_command.flags & TWO_CLICK) {
@@ -2157,6 +2168,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
                         set_state_Mesh_command(None);
                         messagef(pallete.light_gray, "NudgePlane %gmm", popup->feature_plane_nudge);
+                    }
+                } else if (state_Mesh_command_is_(RotatePlane)) {
+                    POPUP(state.Mesh_command,
+                            false
+                            , CellType::Real, STRING("angle"), &popup->feature_plane_rotate_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                        result.record_me = true;
+                        result.checkpoint_me = true;
+                        feature_plane->rotate_angle = RAD(popup->feature_plane_rotate_angle);
+                        set_state_Mesh_command(None);
+                        messagef(pallete.light_gray, "RotatePlane %gdegrees", popup->feature_plane_rotate_angle);
                     }
                 } else if (state_Mesh_command_is_(ExtrudeAdd)) {
                     POPUP(state.Mesh_command, true
