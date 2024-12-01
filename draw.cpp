@@ -149,18 +149,6 @@ void conversation_draw() {
             )); // TODO: loft up
 
     { // draw 2D draw 2d draw
-
-
-        (0
-         || state_Draw_command_is_(Translate)
-         || state_Draw_command_is_(Rotrate)
-             );
-
-
-
-
-
-
         glEnable(GL_SCISSOR_TEST);
         gl_scissor_Pixel(0, 0, x_divider_drawing_mesh_Pixel, window_height);
         {
@@ -232,16 +220,8 @@ void conversation_draw() {
                 // } eso_end();
             }
 
-
-
-            vec2 *first_click = &two_click_command->first_click;
-
-
-
-
             vec2 Draw_Enter; {
-                Draw_Enter = (!two_click_command->awaiting_second_click) ? V2(0, 0) : *first_click;
-                // if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                Draw_Enter = (!two_click_command->awaiting_second_click) ? V2(0, 0) : two_click_command->first_click;
                 if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
                 if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
                 if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
@@ -249,15 +229,13 @@ void conversation_draw() {
                 if (state_Draw_command_is_(Translate)) Draw_Enter += V2(popup->move_run, popup->move_rise);
                 if (state_Draw_command_is_(LCopy)) Draw_Enter += V2(popup->lcopy_run, popup->lcopy_rise);
                 if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
-                // }
             }
+
             vec2 Snap_Enter; {
-                Snap_Enter = *first_click;
-                // if (popup->manager.focus_group == ToolboxGroup::Snap) {
+                Snap_Enter = two_click_command->first_click;
                 if (state_Snap_command_is_(XY)) {
                     Snap_Enter = V2(popup->xy_x_coordinate, popup->xy_y_coordinate);
                 }
-                // }
             }
 
 
@@ -277,12 +255,12 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->lcopy_rise, popup->lcopy_rise);
                 JUICEIT_EASYTWEEN(&preview->lcopy_num_additional_copies, real(popup->lcopy_num_additional_copies));
             }
+
             bool Snap_eating_mouse = !(state_Snap_command_is_(None) || state_Snap_command_is_(XY));
             // bool Draw_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Draw) &&
             //         (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Draw_Enter)));
             // bool Snap_eating_Enter = ((popup->manager.focus_group == ToolboxGroup::Snap) && state_Snap_command_is_(XY) &&
             //         (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Snap_Enter)));
-
 
 
             vec3 BLUE = get_accent_color(ToolboxGroup::Draw);
@@ -302,47 +280,11 @@ void conversation_draw() {
                 }
             }
 
+            { // CHOWDER (LINES -- entities, annotations)
 
-
-            // vec2 click_vector = (mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active - *first_click);
-            // real click_theta = ATAN2(click_vector);
-
-
-
-
-
-            { // dots snap_divide_dot
-                if (other.show_details) { // dots
-                    eso_begin(PV_2D, SOUP_POINTS);
-                    eso_size(2.0f);
-                    eso_color(get_accent_color(ToolboxGroup::Snap));
-                    _for_each_entity_ {
-                        if (entity->is_selected && (rotating || moving)) continue;
-                        if (entity->type == EntityType::Circle) {
-                            CircleEntity *circle = &entity->circle;
-                            if (circle->has_pseudo_point) eso_vertex(circle->get_pseudo_point());
-                            continue;
-                        }
-                        eso_vertex(entity_get_start_point(entity));
-                        eso_vertex(entity_get_end_point(entity));
-                    }
-                    eso_end();
-                }
-
-                { // snap_divide_dot
-                    eso_begin(PV_2D, SOUP_POINTS);
-                    eso_color(pallete.light_gray);
-                    JUICEIT_EASYTWEEN(&other.size_snap_divide_dot, 0.0f, 0.5f);
-                    eso_size(other.size_snap_divide_dot);
-                    eso_vertex(other.snap_divide_dot);
-                    eso_end();
-                }
-            }
-
-
-            { // CHOWDER
                 // // NOTE: Currently just shimming this API with eso; TODO: implement properly with stew
                 // //       NOTE: it's an imperfect shim with the way size, color are carried over, but is close enough
+
                 // BEGIN shimmed API
                 static real _chowder_size;
                 static vec3 _chowder_color;
@@ -391,374 +333,409 @@ void conversation_draw() {
                         _for_each_selected_entity_ chowder_entity(entity);
                     }
 
-                    { // entities
+                    { // entities NOTE: just draw them all since blue 
                         _for_each_entity_ {
-                            if (entity->is_selected && (rotating || moving)) continue;
+                            if (
+                                    entity->is_selected
                             chowder_color((entity->is_selected) ? get_color(ColorCode::Selection) : get_color(entity->color_code));
                             chowder_entity(entity);
                         }
                     }
 
-                    #define DRAW2D_PASS_Mouse     0 // NOTE: this one goes black after inactivity FORNOW, so leave it on bottom
-                    #define DRAW2D_PASS_DrawEnter 1
-                    #define DRAW2D_PASS_XY        2
-                    for_(pass, 3) {
-                        if ((pass == DRAW2D_PASS_DrawEnter) &&
-                                (
-                                 0
-                                 || (!popup->manager.is_active(ToolboxGroup::Draw))
-                                 || (state.Draw_command.flags & FOCUS_THIEF) // NOTE: works FORNOW, but only incidentally
-                                )
-                           ) continue;
+                    { // annotations
+                        #define DRAW2D_PASS_Mouse     0 // NOTE: this one goes black after inactivity FORNOW, so leave it on bottom
+                        #define DRAW2D_PASS_DrawEnter 1
+                        #define DRAW2D_PASS_XY        2
+                        for_(pass, 3) {
+                            if ((pass == DRAW2D_PASS_DrawEnter) &&
+                                    (
+                                     0
+                                     || (!popup->manager.is_active(ToolboxGroup::Draw))
+                                     || (state.Draw_command.flags & FOCUS_THIEF) // NOTE: works FORNOW, but only incidentally
+                                    )
+                               ) continue;
 
-                        if ((pass == DRAW2D_PASS_XY) && (!state_Snap_command_is_(XY))) continue;
+                            if ((pass == DRAW2D_PASS_XY) && (!state_Snap_command_is_(XY))) continue;
 
 
-                        //
+                            //
 
-                        vec3 color;
-                        {
-                            if (pass == DRAW2D_PASS_DrawEnter) {
-                                color = BLUE;
-                            } else if (pass == DRAW2D_PASS_XY) {
-                                color = PINK;
-                            } else { ASSERT(pass == DRAW2D_PASS_Mouse);
-                                color = WHITE_or_PINK_depending_on_whether_snap_is_active;
-                                if ((state_Snap_command_is_(None) || state_Snap_command_is_(XY))) {
-                                    color = V3(1.0f, 1.0f, 1.0f) * CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_mouse_moved - 1.7f), 1.0f, 0.2f);
-                                }
-                            }
-                        }
-
-                        vec2 click_1;
-                        union {
-                            vec2 click_2;
-                            vec2 crosshair;
-                        };
-                        {
-                            if (two_click_command->awaiting_second_click) {
-                                click_1 = two_click_command->first_click;
-                            } else { // XXX: two click commands with option for shortcutting first-Enter 
-
-                                click_1 = {}; // NOTE: this is an assumption ("logic"/assumption is repeated in process on Draw_Enter)
-
-                                // Exceptions (repeated logic):
-                                if (state_Draw_command_is_(Scale) && (!two_click_command->awaiting_second_click)) {
-                                    bbox2 bbox = entities_get_bbox(&drawing->entities, true);
-                                    vec2 bbox_center = AVG(bbox.min, bbox.max);
-                                    click_1 = bbox_center;
-                                }
-
-                            }
-
-                            if (pass == DRAW2D_PASS_DrawEnter) {
-                                click_2 = preview->mouse_from_Draw_Enter__BLUE_position;
-                            } else if (pass == DRAW2D_PASS_XY) {
-                                click_2 = preview->xy_xy;
-                            } else { ASSERT(pass == DRAW2D_PASS_Mouse);
-                                click_2 = mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
-                            }
-                        }
-
-                        vec2 click_vector = click_2 - click_1;
-                        real click_length = norm(click_vector);
-                        real click_angle = ATAN2(click_vector);
-                        vec2 click_average_click = AVG(click_1, click_2);
-
-                        //
-
-                        chowder_color(color);
-
-                        { // vanilla two click commands
-                            if (two_click_command->awaiting_second_click) {
-                                if (0) {
-                                } else if (state_Draw_command_is_(Box) || state_Xsel_command_is_(Window)) {
-                                    chowder_vertex2(click_1.x, click_1.y);
-
-                                    chowder_vertex2(click_1.x, click_2.y);
-                                    chowder_vertex2(click_1.x, click_2.y);
-
-                                    chowder_vertex2(click_2.x, click_2.y);
-                                    chowder_vertex2(click_2.x, click_2.y);
-
-                                    chowder_vertex2(click_2.x, click_1.y);
-                                    chowder_vertex2(click_2.x, click_1.y);
-
-                                    chowder_vertex2(click_1.x, click_1.y);
-                                } else if (state_Draw_command_is_(Circle)) {
-                                    // FORNOW: 2x inefficient
-                                    real angle = 0.0f;
-                                    real dangle = (TAU / NUM_SEGMENTS_PER_CIRCLE);
-                                    for_(i, NUM_SEGMENTS_PER_CIRCLE) {
-                                        chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
-                                        angle += dangle;
-                                        chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
+                            vec3 color;
+                            {
+                                if (pass == DRAW2D_PASS_DrawEnter) {
+                                    color = BLUE;
+                                } else if (pass == DRAW2D_PASS_XY) {
+                                    color = PINK;
+                                } else { ASSERT(pass == DRAW2D_PASS_Mouse);
+                                    color = WHITE_or_PINK_depending_on_whether_snap_is_active;
+                                    if ((state_Snap_command_is_(None) || state_Snap_command_is_(XY))) {
+                                        color = V3(1.0f, 1.0f, 1.0f) * CLAMPED_LERP(_JUICEIT_EASYTWEEN(other.time_since_mouse_moved - 1.7f), 1.0f, 0.2f);
                                     }
-                                } else if (state_Draw_command_is_(Line)) {
-                                    chowder_vertex(click_1);
-                                    chowder_vertex(click_2);
-                                } else if (state_Draw_command_is_(Polygon)) {
-                                    real dangle = -TAU / preview->polygon_num_sides;
-                                    real angle = click_angle;
+                                }
+                            }
 
-                                    // FORNOW: 2x inefficient
-                                    uint num_sides = uint(preview->polygon_num_sides);
-                                    for_(i, num_sides) {
-                                        chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
-                                        angle += dangle;
-                                        chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
-                                        if (i == (num_sides - 1)) {
+                            vec2 click_1;
+                            union {
+                                vec2 click_2;
+                                vec2 crosshair;
+                            };
+                            {
+                                if (two_click_command->awaiting_second_click) {
+                                    click_1 = two_click_command->first_click;
+                                } else { // XXX: two click commands with option for shortcutting first-Enter 
+
+                                    click_1 = {}; // NOTE: this is an assumption ("logic"/assumption is repeated in process on Draw_Enter)
+
+                                    // Exceptions (repeated logic):
+                                    if (state_Draw_command_is_(Scale) && (!two_click_command->awaiting_second_click)) {
+                                        bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                                        vec2 bbox_center = AVG(bbox.min, bbox.max);
+                                        click_1 = bbox_center;
+                                    }
+
+                                }
+
+                                if (pass == DRAW2D_PASS_DrawEnter) {
+                                    click_2 = preview->mouse_from_Draw_Enter__BLUE_position;
+                                } else if (pass == DRAW2D_PASS_XY) {
+                                    click_2 = preview->xy_xy;
+                                } else { ASSERT(pass == DRAW2D_PASS_Mouse);
+                                    click_2 = mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
+                                }
+                            }
+
+                            vec2 click_vector = click_2 - click_1;
+                            real click_length = norm(click_vector);
+                            real click_angle = ATAN2(click_vector);
+                            vec2 click_average_click = AVG(click_1, click_2);
+
+                            //
+
+                            chowder_color(color);
+
+                            { // vanilla two click commands
+                                if (two_click_command->awaiting_second_click) {
+                                    if (0) {
+                                    } else if (state_Draw_command_is_(Box) || state_Xsel_command_is_(Window)) {
+                                        chowder_vertex2(click_1.x, click_1.y);
+
+                                        chowder_vertex2(click_1.x, click_2.y);
+                                        chowder_vertex2(click_1.x, click_2.y);
+
+                                        chowder_vertex2(click_2.x, click_2.y);
+                                        chowder_vertex2(click_2.x, click_2.y);
+
+                                        chowder_vertex2(click_2.x, click_1.y);
+                                        chowder_vertex2(click_2.x, click_1.y);
+
+                                        chowder_vertex2(click_1.x, click_1.y);
+                                    } else if (state_Draw_command_is_(Circle)) {
+                                        // FORNOW: 2x inefficient
+                                        real angle = 0.0f;
+                                        real dangle = (TAU / NUM_SEGMENTS_PER_CIRCLE);
+                                        for_(i, NUM_SEGMENTS_PER_CIRCLE) {
                                             chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
-                                            chowder_vertex(click_2);
+                                            angle += dangle;
+                                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
+                                        }
+                                    } else if (state_Draw_command_is_(Line)) {
+                                        chowder_vertex(click_1);
+                                        chowder_vertex(click_2);
+                                    } else if (state_Draw_command_is_(Polygon)) {
+                                        real dangle = -TAU / preview->polygon_num_sides;
+                                        real angle = click_angle;
+
+                                        // FORNOW: 2x inefficient
+                                        uint num_sides = uint(preview->polygon_num_sides);
+                                        for_(i, num_sides) {
+                                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
+                                            angle += dangle;
+                                            chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
+                                            if (i == (num_sides - 1)) {
+                                                chowder_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(click_1, click_length, angle));
+                                                chowder_vertex(click_2);
+                                            }
+                                        }
+                                    } else if (state_Draw_command_is_(Fillet) || state_Draw_command_is_(DogEar)) {
+                                        DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
+                                        if (closest_result.success) {
+                                            if (state_Draw_command_is_(Fillet)) {
+                                                FilletResult fillet_result = preview_fillet(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->fillet_radius);
+                                                if (fillet_result.fillet_success) {
+                                                    chowder_entity(&fillet_result.ent_one);
+                                                    chowder_entity(&fillet_result.ent_two);
+                                                    chowder_entity(&fillet_result.fillet_arc);
+                                                } else {
+                                                    chowder_entity(closest_result.closest_entity);
+                                                }
+                                            } else { ASSERT(state_Draw_command_is_(DogEar)); 
+                                                DogEarResult dogear_result = preview_dogear(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->dogear_radius);
+                                                if (dogear_result.dogear_success) {
+                                                    chowder_entity(&dogear_result.ent_one);
+                                                    chowder_entity(&dogear_result.ent_two);
+                                                    chowder_entity(&dogear_result.fillet_arc_one);
+                                                    chowder_entity(&dogear_result.fillet_arc_two);
+                                                    chowder_entity(&dogear_result.dogear_arc);
+                                                } else {
+                                                    chowder_entity(closest_result.closest_entity);
+                                                }
+                                            }
+                                        }
+
+                                        { // X
+                                            real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+
+                                            chowder_set_size(2.0f);
+                                            real r = 0.5f * funky_OpenGL_factor;
+                                            eso_vertex(click_average_click + V2( r,  r));
+                                            eso_vertex(click_average_click + V2(-r, -r));
+                                            eso_vertex(click_average_click + V2(-r,  r));
+                                            eso_vertex(click_average_click + V2( r, -r));
+                                            chowder_reset_size();
+                                        }
+                                    } else if (state_Draw_command_is_(Divide2)) {
+                                        chowder_entity(two_click_command->entity_closest_to_first_click);
+                                    }
+                                }
+                            }
+
+                            { // commands that draw transformed selected entities
+                              // TODO: Scale is still drawing DRAW2D_PASS_Mouse
+                                bool is_mirror_command = (state_Draw_command_is_(XMirror) || state_Draw_command_is_(YMirror));
+                                bool wonko_case = ((pass == DRAW2D_PASS_DrawEnter) != (is_mirror_command)); // *shrug*
+                                if (two_click_command->awaiting_second_click || wonko_case) {
+                                    uint reps;
+                                    mat4 M;
+                                    {
+                                        reps = 1;
+                                        if (0) {
+                                        } else if (state_Draw_command_is_(Translate)) {
+                                            M = M4_Translation(click_vector);
+                                        } else if (state_Draw_command_is_(Rotate)) {
+                                            M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_angle) * M4_Translation(-click_1);
+                                        } else if (state_Draw_command_is_(Scale)) {
+                                            M = M4_Translation(click_1) * M4_Scaling(preview->scale_factor) * M4_Translation(-click_1);
+                                        } else if (state_Draw_command_is_(XMirror)) {
+                                            M = M4_Translation(crosshair) * M4_Scaling(-1.0f, 1.0f) * M4_Translation(-crosshair);
+                                        } else if (state_Draw_command_is_(YMirror)) {
+                                            M = M4_Translation(crosshair) * M4_Scaling(1.0f, -1.0f) * M4_Translation(-crosshair);
+                                        } else if (state_Draw_command_is_(LCopy)) {
+                                            real preview_num_additional_copies = MAX(1.0f, preview->lcopy_num_additional_copies);
+                                            uint num_additional_copies = MAX(1, popup->lcopy_num_additional_copies);
+                                            vec2 total_translation = preview_num_additional_copies * click_vector;
+                                            vec2 fractional_translation = total_translation / num_additional_copies;
+                                            M = M4_Translation(fractional_translation);
+                                            reps = popup->lcopy_num_additional_copies;
+                                        } else if (state_Draw_command_is_(RCopy)) {
+                                            uint num_total_copies = MAX(1U, popup->rcopy_num_total_copies);
+                                            real total_angle = preview->rcopy_last_angle;
+                                            real fractional_angle = total_angle / MAX(1, num_total_copies - 1);
+                                            M = M4_Translation(click_1) * M4_RotationAboutZAxis(fractional_angle) * M4_Translation(-click_1);
+                                            reps = num_total_copies - 1;
+                                        } else {
+                                            reps = 0;
                                         }
                                     }
-                                } else if (state_Draw_command_is_(Fillet) || state_Draw_command_is_(DogEar)) {
+
+                                    { // FORNOW: perhaps a bit silly on the CPU side, but i think worth for simplicity
+                                        mat4 M_accumulator = M;
+                                        for_(i, reps) {
+                                            chowder_set_M(M_accumulator);
+                                            _for_each_selected_entity_ chowder_entity(entity);
+                                            chowder_reset_M();
+                                            M_accumulator *= M;
+                                        }
+                                    }
+
+                                }
+                            }
+
+
+                            { // one-click commands
+                                if (0) {
+                                } else if (state_Draw_command_is_(Offset)) {
                                     DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                                     if (closest_result.success) {
-                                        if (state_Draw_command_is_(Fillet)) {
-                                            FilletResult fillet_result = preview_fillet(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->fillet_radius);
-                                            if (fillet_result.fillet_success) {
-                                                chowder_entity(&fillet_result.ent_one);
-                                                chowder_entity(&fillet_result.ent_two);
-                                                chowder_entity(&fillet_result.fillet_arc);
-                                            } else {
-                                                chowder_entity(closest_result.closest_entity);
+                                        Entity *_closest_entity = closest_result.closest_entity;
+                                        Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
+                                        vec2 target_start, target_end, target_middle, target_opposite;
+                                        if (target_entity.type != EntityType::Circle) {
+                                            entity_get_start_and_end_points(&target_entity, &target_start, &target_end);
+                                            target_middle = entity_get_middle(&target_entity);
+                                            target_opposite = target_middle;
+                                        } else { ASSERT(target_entity.type == EntityType::Circle);
+                                            CircleEntity *circle = &target_entity.circle;
+                                            real angle; {
+                                                if (ARE_EQUAL(preview->offset_entity_end, preview->offset_entity_start)) {
+                                                    angle = 0.0;
+                                                } else {
+                                                    angle = (PI / 2) - ATAN2(normalized(preview->offset_entity_end - preview->offset_entity_start));
+                                                }
                                             }
-                                        } else { ASSERT(state_Draw_command_is_(DogEar)); 
-                                            DogEarResult dogear_result = preview_dogear(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->dogear_radius);
-                                            if (dogear_result.dogear_success) {
-                                                chowder_entity(&dogear_result.ent_one);
-                                                chowder_entity(&dogear_result.ent_two);
-                                                chowder_entity(&dogear_result.fillet_arc_one);
-                                                chowder_entity(&dogear_result.fillet_arc_two);
-                                                chowder_entity(&dogear_result.dogear_arc);
-                                            } else {
-                                                chowder_entity(closest_result.closest_entity);
+                                            // real angle = ATAN2(preview->offset_entity_middle - circle->center);
+                                            // real angle = ATAN2(mouse_no_snap_potentially_15_deg__WHITE - circle->center);
+                                            // TODO: something else?
+                                            target_middle   = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
+                                            target_start    = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - PI / 2);
+                                            target_end      = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI / 2);
+                                            target_opposite = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI);
+
+                                        }
+
+                                        // reasonable line <-> arc behavior
+                                        if (1) { // heuristic (FORNOW: minimize max distance)
+                                            real D2na = squaredDistance(preview->offset_entity_start, target_start);
+                                            real D2nb = squaredDistance(preview->offset_entity_end, target_end);
+                                            real D2ya = squaredDistance(preview->offset_entity_start, target_end);
+                                            real D2yb = squaredDistance(preview->offset_entity_end, target_start);
+                                            real max_D2_no_swap = MAX(D2na, D2nb);
+                                            real max_D2_yes_swap = MAX(D2ya, D2yb);
+                                            if (max_D2_no_swap > max_D2_yes_swap) {
+                                                SWAP(&target_start, &target_end);
                                             }
                                         }
-                                    }
 
-                                    { // X
-                                        real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+                                        JUICEIT_EASYTWEEN(&preview->offset_entity_start, target_start);
+                                        JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
+                                        JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
+                                        JUICEIT_EASYTWEEN(&preview->offset_entity_opposite, target_opposite);
 
-                                        chowder_set_size(2.0f);
-                                        real r = 0.5f * funky_OpenGL_factor;
-                                        eso_vertex(click_average_click + V2( r,  r));
-                                        eso_vertex(click_average_click + V2(-r, -r));
-                                        eso_vertex(click_average_click + V2(-r,  r));
-                                        eso_vertex(click_average_click + V2( r, -r));
-                                        chowder_reset_size();
+                                        // TODO: could try a crescent moon kind of a situation
+                                        // TODO: just need a three point arc lambda
+                                        //       (and could in theory fillet the arcs)
+
+                                        vec2 a = preview->offset_entity_start;
+                                        vec2 b = preview->offset_entity_middle;
+                                        vec2 c = preview->offset_entity_end;
+                                        vec2 d = preview->offset_entity_opposite;
+                                        Entity dummy = entity_make_three_point_arc_or_line(a, b, c);
+                                        Entity dummy2 = entity_make_three_point_arc_or_line(a, d, c);
+
+                                        chowder_entity(&dummy2);
+                                        chowder_entity(&dummy);
                                     }
-                                } else if (state_Draw_command_is_(Divide2)) {
-                                    chowder_entity(two_click_command->entity_closest_to_first_click);
                                 }
                             }
-                        }
 
-                        { // commands that draw transformed selected entities
-                          // TODO: Scale is still drawing DRAW2D_PASS_Mouse
-                            bool is_mirror_command = (state_Draw_command_is_(XMirror) || state_Draw_command_is_(YMirror));
-                            bool wonko_case = ((pass == DRAW2D_PASS_DrawEnter) != (is_mirror_command)); // *shrug*
-                            if (two_click_command->awaiting_second_click || wonko_case) {
-                                uint reps;
-                                mat4 M;
+                            { // dotted lines
+                                chowder_stipple(true);
+                                if (0
+                                        || (state_Draw_command_is_(Translate) && two_click_command->awaiting_second_click)
+                                        || (state_Draw_command_is_(Rotate))
+                                        || (state_Draw_command_is_(Polygon) && two_click_command->awaiting_second_click)
+                                        || (state_Draw_command_is_(Fillet) && two_click_command->awaiting_second_click)
+                                        || (state_Draw_command_is_(DogEar) && two_click_command->awaiting_second_click)
+                                        || (state_Draw_command_is_(Measure) && two_click_command->awaiting_second_click)
+                                   ) {
+                                    chowder_vertex(click_1);
+                                    chowder_vertex(click_2);
+                                }
                                 {
-                                    reps = 1;
-                                    if (0) {
-                                    } else if (state_Draw_command_is_(Translate)) {
-                                        M = M4_Translation(click_vector);
-                                    } else if (state_Draw_command_is_(Rotate)) {
-                                        M = M4_Translation(click_1) * M4_RotationAboutZAxis(click_angle) * M4_Translation(-click_1);
-                                    } else if (state_Draw_command_is_(Scale)) {
-                                        M = M4_Translation(click_1) * M4_Scaling(preview->scale_factor) * M4_Translation(-click_1);
-                                    } else if (state_Draw_command_is_(XMirror)) {
-                                        M = M4_Translation(crosshair) * M4_Scaling(-1.0f, 1.0f) * M4_Translation(-crosshair);
-                                    } else if (state_Draw_command_is_(YMirror)) {
-                                        M = M4_Translation(crosshair) * M4_Scaling(1.0f, -1.0f) * M4_Translation(-crosshair);
-                                    } else if (state_Draw_command_is_(LCopy)) {
-                                        real preview_num_additional_copies = MAX(1.0f, preview->lcopy_num_additional_copies);
-                                        uint num_additional_copies = MAX(1, popup->lcopy_num_additional_copies);
-                                        vec2 total_translation = preview_num_additional_copies * click_vector;
-                                        vec2 fractional_translation = total_translation / num_additional_copies;
-                                        M = M4_Translation(fractional_translation);
-                                        reps = popup->lcopy_num_additional_copies;
-                                    } else if (state_Draw_command_is_(RCopy)) {
-                                        uint num_total_copies = MAX(1U, popup->rcopy_num_total_copies);
-                                        real total_angle = preview->rcopy_last_angle;
-                                        real fractional_angle = total_angle / MAX(1, num_total_copies - 1);
-                                        M = M4_Translation(click_1) * M4_RotationAboutZAxis(fractional_angle) * M4_Translation(-click_1);
-                                        reps = num_total_copies - 1;
-                                    } else {
-                                        reps = 0;
+                                    real R = 1024.0f;
+                                    if (state_Draw_command_is_(XMirror)) {
+                                        chowder_vertex(crosshair - V2(0.0f, R)) ;
+                                        chowder_vertex(crosshair + V2(0.0f, R)) ;
+                                    }
+                                    if (state_Draw_command_is_(YMirror)) {
+                                        chowder_vertex(crosshair - V2(R, 0.0f)) ;
+                                        chowder_vertex(crosshair + V2(R, 0.0f)) ;
                                     }
                                 }
-
-                                { // FORNOW: perhaps a bit silly on the CPU side, but i think worth for simplicity
-                                    mat4 M_accumulator = M;
-                                    for_(i, reps) {
-                                        chowder_set_M(M_accumulator);
-                                        _for_each_selected_entity_ chowder_entity(entity);
-                                        chowder_reset_M();
-                                        M_accumulator *= M;
-                                    }
-                                }
-
+                                chowder_stipple(false);
                             }
-                        }
 
+                            { // crosshairs
+                                bool not_drawing_on_top_of_system_cursor = ((pass != DRAW2D_PASS_Mouse) || Snap_eating_mouse);
+                                if (not_drawing_on_top_of_system_cursor) {
+                                    real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
 
-                        { // one-click commands
-                            if (0) {
-                            } else if (state_Draw_command_is_(Offset)) {
-                                DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
-                                if (closest_result.success) {
-                                    Entity *_closest_entity = closest_result.closest_entity;
-                                    Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
-                                    vec2 target_start, target_end, target_middle, target_opposite;
-                                    if (target_entity.type != EntityType::Circle) {
-                                        entity_get_start_and_end_points(&target_entity, &target_start, &target_end);
-                                        target_middle = entity_get_middle(&target_entity);
-                                        target_opposite = target_middle;
-                                    } else { ASSERT(target_entity.type == EntityType::Circle);
-                                        CircleEntity *circle = &target_entity.circle;
-                                        real angle; {
-                                            if (ARE_EQUAL(preview->offset_entity_end, preview->offset_entity_start)) {
-                                                angle = 0.0;
-                                            } else {
-                                                angle = (PI / 2) - ATAN2(normalized(preview->offset_entity_end - preview->offset_entity_start));
-                                            }
-                                        }
-                                        // real angle = ATAN2(preview->offset_entity_middle - circle->center);
-                                        // real angle = ATAN2(mouse_no_snap_potentially_15_deg__WHITE - circle->center);
-                                        // TODO: something else?
-                                        target_middle   = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
-                                        target_start    = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle - PI / 2);
-                                        target_end      = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI / 2);
-                                        target_opposite = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle + PI);
+                                    eso_color(pallete.black);
+                                    chowder_set_size(2.0f);
+                                    real r = 1.3 * funky_OpenGL_factor;
+                                    eso_vertex(crosshair - V2(r, 0));
+                                    eso_vertex(crosshair + V2(r, 0));
+                                    eso_vertex(crosshair - V2(0, r));
+                                    eso_vertex(crosshair + V2(0, r));
+                                    chowder_reset_size();
 
-                                    }
-
-                                    // reasonable line <-> arc behavior
-                                    if (1) { // heuristic (FORNOW: minimize max distance)
-                                        real D2na = squaredDistance(preview->offset_entity_start, target_start);
-                                        real D2nb = squaredDistance(preview->offset_entity_end, target_end);
-                                        real D2ya = squaredDistance(preview->offset_entity_start, target_end);
-                                        real D2yb = squaredDistance(preview->offset_entity_end, target_start);
-                                        real max_D2_no_swap = MAX(D2na, D2nb);
-                                        real max_D2_yes_swap = MAX(D2ya, D2yb);
-                                        if (max_D2_no_swap > max_D2_yes_swap) {
-                                            SWAP(&target_start, &target_end);
-                                        }
-                                    }
-
-                                    JUICEIT_EASYTWEEN(&preview->offset_entity_start, target_start);
-                                    JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
-                                    JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
-                                    JUICEIT_EASYTWEEN(&preview->offset_entity_opposite, target_opposite);
-
-                                    // TODO: could try a crescent moon kind of a situation
-                                    // TODO: just need a three point arc lambda
-                                    //       (and could in theory fillet the arcs)
-
-                                    vec2 a = preview->offset_entity_start;
-                                    vec2 b = preview->offset_entity_middle;
-                                    vec2 c = preview->offset_entity_end;
-                                    vec2 d = preview->offset_entity_opposite;
-                                    Entity dummy = entity_make_three_point_arc_or_line(a, b, c);
-                                    Entity dummy2 = entity_make_three_point_arc_or_line(a, d, c);
-
-                                    chowder_entity(&dummy2);
-                                    chowder_entity(&dummy);
+                                    eso_color(color);
+                                    r = 1.2 * funky_OpenGL_factor;
+                                    eso_vertex(crosshair - V2(r, 0));
+                                    eso_vertex(crosshair + V2(r, 0));
+                                    eso_vertex(crosshair - V2(0, r));
+                                    eso_vertex(crosshair + V2(0, r));
                                 }
                             }
                         }
 
-                        { // dotted lines
-                            chowder_stipple(true);
+                        #if 0
+                        { // snapped (PINK) entity
+                            if (mouse_transformed__PINK.snapped) {
+                                chowder_color(PINK);
+                                chowder_entity(&drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to]);
+                            }
+                        }
+                        #endif
+
+                        #if 0
+                        { // nearest entity
                             if (0
-                                    || (state_Draw_command_is_(Translate) && two_click_command->awaiting_second_click)
-                                    || (state_Draw_command_is_(Rotate))
-                                    || (state_Draw_command_is_(Polygon) && two_click_command->awaiting_second_click)
-                                    || (state_Draw_command_is_(Fillet) && two_click_command->awaiting_second_click)
-                                    || (state_Draw_command_is_(DogEar) && two_click_command->awaiting_second_click)
-                                    || (state_Draw_command_is_(Measure) && two_click_command->awaiting_second_click)
+                                    || (state_Draw_command_is_(Fillet) && !two_click_command->awaiting_second_click)
+                                    // || (state_Draw_command_is_(Select))
+                                    // || (state_Draw_command_is_(Deselect))
                                ) {
-                                chowder_vertex(click_1);
-                                chowder_vertex(click_2);
-                            }
-                            {
-                                real R = 1024.0f;
-                                if (state_Draw_command_is_(XMirror)) {
-                                    chowder_vertex(crosshair - V2(0.0f, R)) ;
-                                    chowder_vertex(crosshair + V2(0.0f, R)) ;
+                                DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active);
+                                if (find_nearest_result.success) {
+                                    chowder_set_size(3.0f);
+
+                                    // TODO: function
+                                    if (!find_nearest_result.closest_entity->is_selected) {
+                                        chowder_color(get_color(find_nearest_result.closest_entity->color_code));
+                                    } else {
+                                        chowder_color(get_color(ColorCode::Emphasis));
+                                    }
+
+                                    chowder_entity(find_nearest_result.closest_entity);
+                                    chowder_reset_size();
                                 }
-                                if (state_Draw_command_is_(YMirror)) {
-                                    chowder_vertex(crosshair - V2(R, 0.0f)) ;
-                                    chowder_vertex(crosshair + V2(R, 0.0f)) ;
-                                }
-                            }
-                            chowder_stipple(false);
-                        }
-
-                        { // crosshairs
-                            bool not_drawing_on_top_of_system_cursor = ((pass != DRAW2D_PASS_Mouse) || Snap_eating_mouse);
-                            if (not_drawing_on_top_of_system_cursor) {
-                                real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
-
-                                eso_color(pallete.black);
-                                chowder_set_size(2.0f);
-                                real r = 1.3 * funky_OpenGL_factor;
-                                eso_vertex(crosshair - V2(r, 0));
-                                eso_vertex(crosshair + V2(r, 0));
-                                eso_vertex(crosshair - V2(0, r));
-                                eso_vertex(crosshair + V2(0, r));
-                                chowder_reset_size();
-
-                                eso_color(color);
-                                r = 1.2 * funky_OpenGL_factor;
-                                eso_vertex(crosshair - V2(r, 0));
-                                eso_vertex(crosshair + V2(r, 0));
-                                eso_vertex(crosshair - V2(0, r));
-                                eso_vertex(crosshair + V2(0, r));
                             }
                         }
+                        #endif
                     }
-
-                    #if 0
-                    { // nearest entity
-                        if (0
-                                || (state_Draw_command_is_(Fillet) && !two_click_command->awaiting_second_click)
-                                // || (state_Draw_command_is_(Select))
-                                // || (state_Draw_command_is_(Deselect))
-                           ) {
-                            DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active);
-                            if (find_nearest_result.success) {
-                                chowder_set_size(3.0f);
-
-                                // TODO: function
-                                if (!find_nearest_result.closest_entity->is_selected) {
-                                    chowder_color(get_color(find_nearest_result.closest_entity->color_code));
-                                } else {
-                                    chowder_color(get_color(ColorCode::Emphasis));
-                                }
-
-                                chowder_entity(find_nearest_result.closest_entity);
-                                chowder_reset_size();
-                            }
-                        }
-                    }
-                    #endif
-
-                    #if 0
-                    { // snapped (PINK) entity
-                        if (mouse_transformed__PINK.snapped) {
-                            chowder_color(PINK);
-                            chowder_entity(&drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to]);
-                        }
-                    }
-                    #endif
                 } chowder_end();
 
+            }
+
+            { // TODOLATER: dots snap_divide_dot
+                if (other.show_details) { // dots
+                    eso_begin(PV_2D, SOUP_POINTS);
+                    eso_size(2.0f);
+                    eso_color(get_accent_color(ToolboxGroup::Snap));
+                    _for_each_entity_ {
+                        if (0
+                                || state_Draw_command_is_(Translate)
+                                || state_Draw_command_is_(Rotate)
+                           ) continue;
+
+                        if (entity->type == EntityType::Circle) {
+                            CircleEntity *circle = &entity->circle;
+                            if (circle->has_pseudo_point) eso_vertex(circle->get_pseudo_point());
+                            continue;
+                        }
+                        eso_vertex(entity_get_start_point(entity));
+                        eso_vertex(entity_get_end_point(entity));
+                    }
+                    eso_end();
+                }
+
+                { // snap_divide_dot
+                    eso_begin(PV_2D, SOUP_POINTS);
+                    eso_color(pallete.light_gray);
+                    JUICEIT_EASYTWEEN(&other.size_snap_divide_dot, 0.0f, 0.5f);
+                    eso_size(other.size_snap_divide_dot);
+                    eso_vertex(other.snap_divide_dot);
+                    eso_end();
+                }
             }
         }
         glDisable(GL_SCISSOR_TEST);
