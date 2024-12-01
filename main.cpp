@@ -514,18 +514,23 @@ int main() {
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
             { // time_since
-              // FORNOW: HAAAAAACK TODO: time frames and actually increment time properly
-                real dt = 0.0167f;
-                #ifdef OPERATING_SYSTEM_WINDOWS
-                dt *= 2;
-                #endif
-                _for_each_entity_ entity->time_since_is_selected_changed += dt;
-                other.time_since_cursor_start += dt;
-                other.time_since_successful_feature += dt;
-                other.time_since_plane_selected += dt;
-                other.time_since_plane_deselected += dt;
-                other.time_since_mouse_moved += dt;
-                other.time_since_popup_second_click_not_the_same += dt;
+                // FORNOW: HAAAAAACK TODO: time frames and actually increment time properly
+                real current_frame_time = glfwGetTime();
+                other.delta_time = current_frame_time - other.time_of_previous_frame;
+                printf("%f\n", other.delta_time);
+                other.time_of_previous_frame = current_frame_time;
+
+                // I haven't tested that delta time works on windows yet
+                // #ifdef OPERATING_SYSTEM_WINDOWS
+                // dt *= 2;
+                // #endif
+                _for_each_entity_ entity->time_since_is_selected_changed += other.delta_time;
+                other.time_since_cursor_start += other.delta_time;
+                other.time_since_successful_feature += other.delta_time;
+                other.time_since_plane_selected += other.delta_time;
+                other.time_since_plane_deselected += other.delta_time;
+                other.time_since_mouse_moved += other.delta_time;
+                other.time_since_popup_second_click_not_the_same += other.delta_time;
                 // time_since_successful_feature = 1.0f;
 
                 bool going_inside = 0
@@ -534,7 +539,7 @@ int main() {
                 if (!going_inside) {
                     other.time_since_going_inside = 0.0f;
                 } else {
-                    other.time_since_going_inside += dt;
+                    other.time_since_going_inside += other.delta_time;
                 }
 
                 _for_each_entity_ {

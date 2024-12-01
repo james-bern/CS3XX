@@ -686,6 +686,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool paused;
     bool stepping_one_frame_while_paused;
 
+    real time_of_previous_frame;
+    real delta_time;
     real time_since_cursor_start;
     real time_since_successful_feature;
     real time_since_plane_selected;
