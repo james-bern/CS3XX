@@ -2773,8 +2773,7 @@ typedef struct {
     Entity ent_two;
     Entity fillet_arc_one;
     Entity fillet_arc_two;
-    Entity dogear_arc_one;
-    Entity dogear_arc_two;
+    Entity dogear_arc;
 } DogEarResult;
 
 DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
@@ -2795,6 +2794,11 @@ DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real rad
         messagef(pallete.orange, "DogEar: only line-line is supported");
         return dogear_result;
     }
+
+
+    // FORNOW just assuming success
+    dogear_result.dogear_success = true;
+
 
     //                                    ,--.
     //  a -- b      x          a -- b    e     x
@@ -2885,6 +2889,10 @@ DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real rad
     dogear_result.fillet_arc_two = fillet_two.fillet_arc;
 
 
+    #if 1
+    // // single arc version
+    dogear_result.dogear_arc = fillet_two.ent_two;
+    #else
     // // split arc version
     Entity G1;
     Entity G2;
@@ -2897,6 +2905,7 @@ DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real rad
     }
     dogear_result.dogear_arc_one = G1;
     dogear_result.dogear_arc_two = G2;
+    #endif
 
     return dogear_result;
 

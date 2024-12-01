@@ -1207,8 +1207,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook._buffer_add_entity(dogear_result.ent_two);
                                 cookbook._buffer_add_entity(dogear_result.fillet_arc_one);
                                 cookbook._buffer_add_entity(dogear_result.fillet_arc_two);
-                                cookbook._buffer_add_entity(dogear_result.dogear_arc_one);
-                                cookbook._buffer_add_entity(dogear_result.dogear_arc_two);
+                                cookbook._buffer_add_entity(dogear_result.dogear_arc);
 
                                 cookbook.buffer_delete_entity(two_click_command->entity_closest_to_first_click);
                                 cookbook.buffer_delete_entity(two_click_command->entity_closest_to_second_click);
@@ -1277,10 +1276,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             MESSAGE_FAILURE("Angle is %gdeg.", angle);
                             MESSAGE_FAILURE("Length is %gmm.", length);
 
-                            // messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
+                            MESSAGE_INFO("EXPERIMENTAL: Measure copies into field.");
                             _POPUP_MEASURE_HOOK(length);
-                        } else if (state_Draw_command_is_(Mirror2)) {
-                            ASSERT(false);
                         } else if (state_Draw_command_is_(Translate)) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
