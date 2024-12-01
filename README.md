@@ -1,111 +1,35 @@
-TODO: put a youtube video here (or...animated gif i guess?)
-TODO: put Mac app
-TOOD: put Windows app
-
----
-
-Disclaimer
-======================
-i am going to present just one (relatively) simple setup for doing 3D graphics
-- there are others!
-
-Summary of Rasterization
-========================
-we place some virtual geometry (points, line segments, triangles, ...) in a virtual world 
-- let's say a point is defined by one "vertex" (the point itself), a line segment by 2 (the endpoints), and a triangle by 3
-we define a virtual camera to obersve the geometry
-we project the geometry onto the camera's 2D "film plane"
-the film plane is drawn inside your app's window on your real-world computer monitor
-
-
-
-Coordinate Systems
-==================
-there are really only a few coordinate systems we need to do basic 2D and 3D graphics with OpenGL
-
-
-World coordinates
------------------
-this is where a vertex is "in the world" / "in the scene"
-- the y-axis pointing up
-
-
-Camera-coordinates
-------------------
-this is where a point is in the coordinate system of the (virtual) camera
-- the Camera's y-axis points up
-- the Camera's z-axis pointing out the back
-- the Camera's x-axis is determined by the right-hand rule
-  (z := cross(x, y); => in the picture below, x_Camera is pointing out of the Screen)
-- in Camera-coordinates, length is the same as in world coordinates
-
-               y_Camera
-  
-               ^
-               |
-  
-  z_Camera <- [o]<  ----> Camera is pointing this way
-
-
-Pixel-coordinates
------------------
-this is where a vertex is inside your app's window (the big rectangle in the picture below)
-- the Pixel-coordinates origin is in the top left corner
-- the Pixel-coordinates x-axis points to the right
-- the Pixel-coordinates y-axis points down
-- in Pixel-coordinates, length 1 is the length of one pixel
-  note: i abstracted away the macbook retina sub-pixel nonsense and will (hopefully) never think about it again
-
-o-> x_Pixel ----------------------  -
-|                                 | ^
-v                                 | |
-y_Pixel                           | |
-                                  |  
-|                                 | window_height_Pixel
-|                                 |  
-|                                 | |
-|                                 | |
-|                                 | v
- ---------------------------------  -
-
-|<----- window_get_width_Pixel ------>| 
-          
-
-OpenGL-coordinates (aka Normalized Device Coordinates -- NDC)
--------------------------------------------------------------
-we have to convert the vertex to this coordinate system for OpenGL to draw it the way we want
-- the OpenGL-coorindates origin is in the center of the window
-- the OpenGL-coorindates x-axis points to the right
-- the OpenGL-coorindates x-axis points to the right
-- in OpenGL-coordinates, the window width is length 2 and the window height is length 2
-  the upper-right corner is ( 1,  1)
-  the lower-left  corner is (-1, -1)
-  in OpenGL-coordinates your image is squooshed; this is fine :)
-
- ---------------------------------. -
-|                                 | ^
-|                y_OpenGL         | |
-|                ^                | |
-|                |                |  
-|                o--> x_OpenGL    | 2
-|                                 |  
-|                                 | |
-|                                 | |
-|                                 | v
- ---------------------------------  -
-
-|<-------------- 2 -------------->| 
-
-
-PVM
----
-Consider
-M is the **model matrix** M
-
-
-Example
+Objects
 -------
-when i'm not working in world-coordinates, i try to specify this in the variable name
-- foo_Pixel
-- foo_Camera
-- foo_NDC 
+i have two kinds of objects
+
+- objects that behave like primitives (in my head, i imagine they *are* primitives)
+  vec3 a = { 1.0f, 2.0f, 3.0f };
+  vec3 b = a; // works just like a was a float; no aliasing! i shouldn't have to think!
+  a += b; 
+
+- plain old data structs
+  (no constructors, no destructors, no operator overloading, no blah blah blah)
+  Mesh mesh = {}; // clears struct to default values*
+  Camera camera_2D = make_Camera2D(...); // fills struct with something nice
+
+  *i almost always use 0 (unspecified) default value, but String buffer members are a big exception
+  struct Foo {
+      // String bar = { (char *) calloc(1, BAR_LENGTH) };
+      STRING_STRUCT_CALLOC(bar, BAR_LENGTH);
+  }
+  
+
+asserts, etc.
+-------------
+- i love ASSERT(...);
+  ASSERT(2 + 2 == 5); // crash! tell me where! break if i'm in a debugger!
+
+- i like (automatic) bounds checks
+  vec3 v;
+  v[3] = 5; // crash!
+
+strings
+-------
+- prefer my String struct ({ char *data; uint length; }) over "C string" (null-terminated char *)
+- printf("hi!\n"), messagef("hello!"), etc. is okay tho (at least FORNOW)
+

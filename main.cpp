@@ -399,7 +399,6 @@ void CLEAR_CANVAS() {
 #include "callbacks.cpp"
 #include "bake.cpp"
 #include "cookbook.cpp"
-#include "button.cpp"
 #include "process.cpp"
 #include "script.cpp"
 
