@@ -206,7 +206,7 @@ bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
     return true;
 }
 
-bool mesh_save_stl(Mesh *mesh_to_save, String filename) {
+bool mesh_save_stl(WorkMesh *mesh_to_save, String filename) {
     FILE *file = FILE_OPEN(filename, "wb");
     if (!file) {
         return false;
@@ -227,7 +227,7 @@ bool mesh_save_stl(Mesh *mesh_to_save, String filename) {
             offset += 12;
             vec3 triangle_vertex_positions[3];
             for_(j, 3) {
-                triangle_vertex_positions[j] = mesh_to_save->vertex_positions[mesh_to_save->triangle_indices[i][j]];
+                triangle_vertex_positions[j] = mesh_to_save->vertex_positions[mesh_to_save->triangle_tuples[i][j]];
                 // 90 degree rotation about x: (x, y, z) <- (x, -z, y)
                 triangle_vertex_positions[j] = { triangle_vertex_positions[j].x, -triangle_vertex_positions[j].z, triangle_vertex_positions[j].y };
 
@@ -243,12 +243,13 @@ bool mesh_save_stl(Mesh *mesh_to_save, String filename) {
     return true;
 }
 
-void stl_load(String filename, Mesh *mesh_to_load) {
+MeshesReadOnly stl_load(String filename) {
     // history_record_state(history, manifold_manifold, mesh); // FORNOW
 
     { // mesh
         uint num_triangles;
         vec3 *triangle_soup;
+        defer { free(triangle_soup); };
         {
             #define MAX_LINE_LENGTH 1024
             static _STRING_CALLOC(line_of_file, MAX_LINE_LENGTH);
@@ -314,7 +315,8 @@ void stl_load(String filename, Mesh *mesh_to_load) {
 
         uint num_vertices;
         vec3 *vertex_positions;
-        uint3 *triangle_indices;
+        uint3 *triangle_tuples;
+        Arena *arena = ARENA_ACQUIRE();
         { // merge vertices (NOTE: only merges vertices that overlap exactly)
             num_vertices = 0;
             Map<vec3, uint> map = {};
@@ -332,25 +334,20 @@ void stl_load(String filename, Mesh *mesh_to_load) {
                 }
                 {
                     uint size = list.length * sizeof(vec3);
-                    vertex_positions = (vec3 *) malloc(size);
+                    vertex_positions = (vec3 *) arena->malloc(size);
                     memcpy(vertex_positions, list.array, size);
                 }
                 list_free_AND_zero(&list);
             }
-            triangle_indices = (uint3 *) malloc(num_triangles * sizeof(uint3));
-            for_(k, _3__times__num_triangles) triangle_indices[k / 3][k % 3] = map_get(&map, triangle_soup[k]);
+            triangle_tuples = (uint3 *) arena->malloc(num_triangles * sizeof(uint3));
+            for_(k, _3__times__num_triangles) triangle_tuples[k / 3][k % 3] = map_get(&map, triangle_soup[k]);
             map_free_and_zero(&map);
         }
 
-        free(triangle_soup);
 
-        mesh_to_load->num_vertices = num_vertices;
-        mesh_to_load->num_triangles = num_triangles;
-        mesh_to_load->vertex_positions = vertex_positions;
-        mesh_to_load->triangle_indices = triangle_indices;
-        mesh_triangle_normals_calculate(mesh_to_load);
-        mesh_cosmetic_edges_calculate(mesh_to_load);
-        mesh_bbox_calculate(mesh_to_load);
+        MeshesReadOnly result = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+        result.M_3D_from_2D = M4_xyzo(V3(1,0,0), V3(0,0,-1), V3(0,1,0), V3(0,0,0)); // FORNOW; TODO: this should call get_M_3D_from_2D
+        return result;
     }
 }
 

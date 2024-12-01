@@ -28,21 +28,22 @@ real get_x_divider_drawing_mesh_Pixel() {
     return LINEAR_REMAP(other.x_divider_drawing_mesh_OpenGL, -1.0f, 1.0f, 0.0f, window_get_size_Pixel().x);
 }
 
-#define __snap_for__ _for_each_entity_ if (!( \
-            1 \
-            && (state.Draw_command.flags & EXCLUDE_SELECTED_FROM_SECOND_CLICK_SNAP) \
-            && (two_click_command->awaiting_second_click) \
-            && (entity->is_selected) \
-            ))
-
-MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_preview = false) {
-    MagicSnapResult result = {};
+// NOTE: this is the function formerly known as magic_snap
+TransformMouseDrawingPositionResult transform_mouse_drawing_position(
+        vec2 unsnapped_position,
+        bool shift_held,
+        bool dont_actually_snap_just_potentially_do_the_15_deg_stuff
+        ) {
+    vec2 before = unsnapped_position;
+    TransformMouseDrawingPositionResult result = {};
     result.mouse_position = before;
     {
-        if (1
-                && (state.Draw_command.flags & SHIFT_15)
-                && (two_click_command->awaiting_second_click)
-                && (other.shift_held)) {
+        bool do_the_15_deg_stuff = 1
+            && (shift_held)
+            && (state.Draw_command.flags & SHIFT_15)
+            && (two_click_command->awaiting_second_click);
+
+        if (do_the_15_deg_stuff) {
             vec2 a = two_click_command->first_click;
             vec2 b = before;
             vec2 r = b - a; 
@@ -50,12 +51,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
             real factor = 360 / 15 / TAU;
             real theta = roundf(ATAN2(r) * factor) / factor;
             result.mouse_position = a + norm_r * e_theta(theta);
-        } else if (
-                (state_Draw_command_is_(Box))
-                && (two_click_command->awaiting_second_click)
-                && (other.shift_held)) { // TODO (Felipe): snap square
-            result.mouse_position = before;
-        } else if (!calling_this_function_for_drawing_preview) { // NOTE: this else does, in fact, match LAYOUT's behavior
+        } else if (!dont_actually_snap_just_potentially_do_the_15_deg_stuff) { // NOTE: this else does, in fact, match LAYOUT's behavior
             DXFFindClosestEntityResult closest_entity_info = {};
 
             // TODO: need to filter End and Middle as well to ignore circles
@@ -67,7 +63,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                ) {
                 real min_squared_distance = HUGE_VAL;
                 Entity *temp_entity = NULL;
-                __snap_for__ {
+                _for_each_entity_ {
                     if (entity->type == EntityType::Line) {
                         continue;
                     } else if (entity->type == EntityType::Arc) {
@@ -136,7 +132,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                     }
                 } else if (state_Snap_command_is_(End)) { // this one is a little custom
                     real min_squared_distance = HUGE_VAL;
-                    __snap_for__ {
+                    _for_each_entity_ {
                         uint count = 0;
                         vec2 p[2] = {};
                         if (entity->type == EntityType::Circle) {
@@ -162,7 +158,7 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                                                                 // TODO Circle
                     real min_squared_distance = HUGE_VAL;
                     Entity *temp_entity = NULL;
-                    __snap_for__ {
+                    _for_each_entity_ {
                         real squared_distance = squared_distance_point_entity(before, entity);
                         if (squared_distance < min_squared_distance && entity != closest_entity) {
                             min_squared_distance = squared_distance;
@@ -204,92 +200,16 @@ MagicSnapResult magic_snap(vec2 before, bool calling_this_function_for_drawing_p
                         result.mouse_position = distance(perp_one, before) < distance(perp_two, before) ? perp_one : perp_two;
                         result.snapped = true;
                     }
-                } /*else if (state_Snap_command_is_(Tangent)) {
-                // TODO TODO TODO
-                vec2 mouse = before;
-
-                if (two_click_command->awaiting_second_click) {
-                mouse = two_click_command->first_click;
                 }
-                if (two_click_command->awaiting_second_click && two_click_command->tangent_first_click) {
-                mouse = two_click_command->first_click;
-
-                ArcEntity c2 = closest_entity->arc;
-                ArcEntity c1 = two_click_command->entity_closest_to_first_click->arc;
-
-                vec2 center_diff = c2.center - c1.center;
-                real dist = distance(c1.center, c2.center);
-                real angle = ATAN2(center_diff);
-
-                real phi1 = acos((c1.radius - c2.radius) / dist);
-                real phi2 = acos((c1.radius + c2.radius) / dist);
-
-                real theta1a = angle + phi1;
-                real theta1b = angle - phi1;
-                real theta2a = angle + phi2;
-                real theta2b = angle - phi2;
-
-                vec2 p1a1 = c1.center + V2(c1.radius * COS(theta1a), c1.radius * SIN(theta1a));
-                vec2 p1a2 = c1.center + V2(c1.radius * COS(theta1b), c1.radius * SIN(theta1b));
-                if (distance(mouse, p1a1) > distance(mouse, p1a1)) {
-                p1a1 = p1a2;
-                theta1a = theta1b;
-                }
-                vec2 p1b = c2.center + V2(c2.radius * COS(theta1a), c2.radius * SIN(theta1a));
-
-                vec2 p2a1 = c1.center + V2(c1.radius * COS(theta2a), c1.radius * SIN(theta2a));
-                vec2 p2a2 = c1.center + V2(c1.radius * COS(theta2b), c1.radius * SIN(theta2b));
-                if (distance(mouse, p2a1) > distance(mouse, p2a2)) {
-                p2a1 = p2a2;
-                theta2a = theta2b;
-                }
-                vec2 p2b = c2.center - V2(c2.radius * COS(theta2a), c2.radius * SIN(theta2a));
-
-                if (distance(before, p1b) > distance(before, p2b)) {
-                two_click_command->first_click = p2a1;
-                result.mouse_position = p2b;
-                } else {
-                two_click_command->first_click = p1a1;
-                result.mouse_position = p1b;
-                }
-
-                two_click_command->tangent_first_click = false;
-                result.snapped = true;
-                result.split_tangent_2 = true;
-                result.entity_index_tangent_2 = uint(two_click_command->entity_closest_to_first_click - drawing->entities.array);
-
-                } else if (two_click_command->awaiting_second_click) {
-                vec2 center = closest_entity->arc.center;
-                real radius = closest_entity->arc.radius;
-                real d = distance(center, mouse);
-
-                if (d > radius) {
-                real t1 = ATAN2(mouse - center);
-                real t2 = acos(radius / d);
-                real theta1 = t1 + t2;
-                real theta2 = t1 - t2;
-                vec2 tan1 = { center.x + radius * COS(theta1), center.y + radius * SIN(theta1) };
-                vec2 tan2 = { center.x + radius * COS(theta2), center.y + radius * SIN(theta2) };
-                result.mouse_position = distance(before, tan1) < distance(before, tan2) ? tan1 : tan2;
-                result.snapped = true;
-                }
-                } else {
-                messagef(pallete.light_gray, "wowowwowowo");
-                two_click_command->tangent_first_click = true; 
-                two_click_command->entity_closest_to_first_click = closest_entity;
-                messagef(pallete.red, "%f %f", closest_entity->arc.center.x, closest_entity->arc.center.y);
-            }
-            }*/
             }
         }
     }
-
-
     return result;
 }
 
 MagicSnapResult3D magic_snap_raycast(vec3 origin, vec3 dir) {
     MagicSnapResult3D result{};
+    WorkMesh* mesh = &meshes->work;
 
     int index_of_first_triangle_hit_by_ray = -1;
     vec3 exact_hit_pos;
@@ -297,7 +217,7 @@ MagicSnapResult3D magic_snap_raycast(vec3 origin, vec3 dir) {
         real min_distance = HUGE_VAL;
         for_(i, mesh->num_triangles) {
             vec3 p[3]; {
-                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_indices[i][j]];
+                for_(j, 3) p[j] = mesh->vertex_positions[mesh->triangle_tuples[i][j]];
             }
             RayTriangleIntersectionResult ray_triangle_intersection_result = ray_triangle_intersection(origin, dir, p[0], p[1], p[2]);
             if (ray_triangle_intersection_result.hit) {
@@ -318,7 +238,7 @@ MagicSnapResult3D magic_snap_raycast(vec3 origin, vec3 dir) {
         if (!state_Snap_command_is_(None)) { // TODO: Change to 3D specific snap type?
             real min_distance = HUGE_VAL;
             for_(i, 3) {
-                vec3 vertex_pos = mesh->vertex_positions[mesh->triangle_indices[index_of_first_triangle_hit_by_ray][i]];
+                vec3 vertex_pos = mesh->vertex_positions[mesh->triangle_tuples[index_of_first_triangle_hit_by_ray][i]];
                 real dist = squaredDistance(exact_hit_pos, vertex_pos);
                 if (dist < min_distance) {
                     min_distance = dist;
@@ -336,11 +256,11 @@ void init_camera_drawing() {
     *camera_drawing = make_Camera2D(100.0f, {}, { AVG(-1.0f, other.x_divider_drawing_mesh_OpenGL), 0.0f });
     if (drawing->entities.length) {
         bbox2 bbox = entities_get_bbox(&drawing->entities);
-        real eps = 150.0f;
+        real eps = 0.0f;
         real f = ((get_x_divider_drawing_mesh_Pixel() - eps) / window_get_width_Pixel());
         vec2 L = (bbox.max - bbox.min);
         camera_drawing->ortho_screen_height_World = MAX((L.x / f) / window_get_aspect(), L.y);
-        camera_drawing->ortho_screen_height_World += 96.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
+        camera_drawing->ortho_screen_height_World += 400.0f * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel());
         camera_drawing->pre_nudge_World = V2(-(eps / 2) * (camera_drawing->ortho_screen_height_World / window_get_height_Pixel()), 0.0f) + AVG(bbox.min, bbox.max);
     }
 }

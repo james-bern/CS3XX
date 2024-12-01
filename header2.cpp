@@ -66,6 +66,61 @@ Entity entity_rotated(const Entity *_entity, vec2 center, real theta) {
     return result;
 }
 
+Entity entity_scaled(const Entity *_entity, vec2 center, real factor) {
+    Entity result = *_entity;
+    if (result.type == EntityType::Line) {
+        LineEntity *line = &result.line;
+        line->start = scaled_about(line->start, center, factor);
+        line->end = scaled_about(line->end, center, factor);
+    } else if (result.type == EntityType::Arc) {
+        ArcEntity *arc = &result.arc;
+        arc->center = scaled_about(arc->center, center, factor);
+        arc->radius *= factor;
+    } else { ASSERT(result.type == EntityType::Circle);
+        CircleEntity *circle = &result.circle;
+        circle->center = scaled_about(circle->center, center, factor);
+        circle->radius *= factor;
+    }
+    return result;
+}
+
+Entity entity_mirrored(const Entity *_entity, vec2 a, vec2 b) {
+    vec2 ab = (b - a);
+    real theta = ATAN2(ab);
+    real theta_in_degrees = DEG(theta);
+
+    auto Q = [theta, a](vec2 p) {
+        p -= a;
+        p = rotated(p, -theta);
+        p = cwiseProduct(V2(1, -1), p);
+        p = rotated(p, theta);
+        p += a;
+        return p;
+    };
+
+    auto R = [theta_in_degrees](real angle_in_degrees) {
+        return -(angle_in_degrees - theta_in_degrees) + theta_in_degrees;
+    };
+
+    Entity result = *_entity;
+    if (result.type == EntityType::Line) {
+        LineEntity *line = &result.line;
+        line->start = Q(line->start);
+        line->end = Q(line->end);
+    } else if (result.type == EntityType::Arc) {
+        ArcEntity *arc = &result.arc;
+        arc->center = Q(arc->center);
+        real tmp = arc->end_angle_in_degrees;
+        arc->end_angle_in_degrees = R(arc->start_angle_in_degrees);
+        arc->start_angle_in_degrees = R(tmp);
+    } else { ASSERT(result.type == EntityType::Circle);
+        CircleEntity *circle = &result.circle;
+        circle->center = Q(circle->center);
+        circle->pseudo_point_angle_in_degrees = R(circle->pseudo_point_angle_in_degrees);
+    }
+    return result;
+}
+
 Entity entity_offsetted(const Entity *_entity, real offset_distance, vec2 reference_point) {
     Entity result = *_entity;
     if (result.type == EntityType::Line) {
@@ -102,6 +157,8 @@ Entity entity_offsetted(const Entity *_entity, real offset_distance, vec2 refere
     }
     return result;
 }
+
+
 
 #if 0
 Entity entity_mirrored(const Entity *result, vec2 origin, real axis_angle) {

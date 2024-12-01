@@ -1,0 +1,3 @@
+https://askubuntu.com/questions/396883/how-to-simply-convert-video-files-i-e-mkv-to-mp4
+ffmpeg -i LostInTranslation.mkv -codec copy LostInTranslation.mp4
+

@@ -26,6 +26,15 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
         bool toggle_slowmo = ((key == 'P') && (control) && (shift));
         bool step = (other.paused) && ((key == '.') && (!control) && (!shift));
         bool quit = ((key == 'Q') && (control) && (!shift));
+        bool kitchen_sink = ((key == 'K') && (control) && (shift));
+
+        #ifdef SHIP
+        toggle_pause = false;
+        toggle_slomo = false;
+        kitchen_sink = false;
+        #endif
+
+
         if (toggle_pause) {
             other.paused = !other.paused;
         } else if (toggle_slowmo) {
@@ -34,6 +43,9 @@ void callback_key(GLFWwindow *, int key, int, int action, int mods) {
             other.stepping_one_frame_while_paused = true;
         } else if (quit) {
             glfwSetWindowShouldClose(glfw_window, true);
+        } else if (kitchen_sink) {
+            void script_process(String string);
+            script_process(_string_from_cstring(kitchen_sink_script));
         } else {
             RawEvent raw_event = {}; {
                 raw_event.type = EventType::Key;
@@ -153,6 +165,7 @@ void callback_cursor_position(GLFWwindow *, double xpos, double ypos) {
             camera_mesh->pre_nudge_World = tmp_2D.pre_nudge_World;
         }
     }
+
 }
 
 void callback_mouse_button(GLFWwindow *, int button, int action, int) {
@@ -201,7 +214,7 @@ void _callback_scroll_helper(Camera *camera_2D, double yoffset) {
     ASSERT(IS_ZERO(camera_2D->angle_of_view));
     ASSERT(IS_ZERO(camera_2D->euler_angles));
     vec2 mouse_position_World_before  = transformPoint(inverse(camera_2D->get_PV()), other.mouse_OpenGL);
-    camera_2D->ortho_screen_height_World *= (1.0f - 0.1f * real(yoffset));
+    camera_2D->ortho_screen_height_World *= (1.0f - 0.05f * real(yoffset));
     vec2 mouse_position_World_after = transformPoint(inverse(camera_2D->get_PV()), other.mouse_OpenGL);
     camera_2D->pre_nudge_World -= (mouse_position_World_after - mouse_position_World_before);
 }
@@ -223,20 +236,60 @@ void callback_scroll(GLFWwindow *, double, double yoffset) {
     }
 }
 
-void callback_framebuffer_size(GLFWwindow *, int width, int height) {
-    glViewport(0, 0, width, height);
+void callback_framebuffer_size(GLFWwindow *, int _width, int _height) {
+    glViewport(0, 0, _width, _height);
+
+
+    // FORNOW FORNOW FORNOW FORNOW FORNOW FORNOW
+    glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
+    uint width = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_width_Pixel();
+    uint height = _window_macbook_retina_fixer__VERY_MYSTERIOUS * window_get_height_Pixel();
+    glActiveTexture(GL_TEXTURE0); // ?
+    glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);   
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); 
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, GL2.TextureID, 0);  
+    glBindRenderbuffer(GL_RENDERBUFFER, GL2.RBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, GL2.RBO);
+    ASSERT(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void callback_drop(GLFWwindow *, int count, const char **paths) {
+    // FORNOW: this is cursed for two reasons, but okay fornow
     if (count > 0) {
         void script_process(String);
 
         char *filename = (char *) paths[0];
         String string_filename = STRING(filename);
-        script_process(STRING("\033"));
-        script_process(STRING("^o"));
-        script_process(string_filename);
-        script_process(STRING("\n"));
+        if (string_matches_suffix(string_filename, ".dxf")) {
+            script_process(STRING("\033"));
+            script_process(STRING("^o"));
+            script_process(string_filename);
+            script_process(STRING("\n"));
+        } else if (string_matches_suffix(string_filename, ".stl")) {
+            script_process(STRING("\033"));
+            script_process(STRING("^O"));
+            script_process(string_filename);
+            script_process(STRING("\n"));
+        } else {
+            messagef(pallete.orange, "DragAndDrop must be *.dxf or *.stl");
+        }
     }
 }
 
+void callback_window_close(GLFWwindow *) {
+    // if (!other.awaiting_close_confirmation) {
+
+    //     glfwSetWindowShouldClose(window, GLFW_FALSE);
+    //     other.awaiting_close_confirmation = true;
+
+    //     set_state_Draw_command(SaveDXF);
+    //     set_state_Mesh_command(SaveSTL);
+    // }
+}

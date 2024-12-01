@@ -54,7 +54,7 @@ IF "%1"=="" (
     /LIBPATH:.\opengl ^
     /LIBPATH:.\manifold ^
     OpenGL32.lib user32.lib gdi32.lib shell32.lib vcruntime.lib ^
-    Clipper2.lib cross_section.lib manifold.lib manifoldc.lib polygon.lib quickhull.lib ^
+    Clipper2.lib manifold.lib manifoldc.lib ^
     glfw3.lib
     
     
@@ -135,6 +135,7 @@ else
         -Wno-write-strings \
         -I./manifold \
         -I./opengl   \
+        $ARCH \
 
     clang++ \
         -g -o executable $(basename $1 .cpp).o \
@@ -142,7 +143,7 @@ else
         -L./opengl   \
         -lglfw3 \
         -framework Cocoa -framework OpenGL -framework IOKit -framework QuartzCore \
-        -lmanifoldc -lClipper2 -lmanifold -lpolygon\
+        -lmanifoldc -lClipper2 -lmanifold \
         $ARCH \
         # -mmacosx-version-min=13.5 \
         # -Wno-c++11-narrowing \

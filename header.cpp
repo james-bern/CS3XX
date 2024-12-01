@@ -1,10 +1,84 @@
+// TODO: what is the simplest way we can allocate memory
+
+// WorldState is a giant struct that occasionally needs to be snapshotted
+// the memory that has to be stored not directly in the struct is
+// - the drawing
+// - the work mesh
+// - the draw mesh
+// -- NOTE: this may end up being like 3 different meshes (curr, prev, prev_tool)
+
+// the simplest thing may be to just have one giant arena for the entire world state
+// it's probably pretty space-inefficient, etc., but it's also very simple
+
+// clearing the mesh is now a little weird (it's still...there in the arena)
+
+// so maybe two arenas?
+// - the main thing the arena will be doing for us with the mesh(es) is that there is just soo much alloc'd data, and we don't want to deal with freeing it all
+
+// the thing we still need to figure out is snapshotting
+// let's try adding a basic mesh arena
+// tttttttt
+// what things do we need to do with the meshes?
+// - base level: snapshot and then read out of snap shot
+
+// do we really need to snapshot the drawings?--we do, unless you want to start
+// repeating stuff from the very beginning
+// some drawing stuff can potentially be slow too
+// i think assuming all drawing stuff is super fast is potentially a bad idea
+
+// on the other hand, let's think about drawing vs meshes
+// drawing is small, changes super often, but changes are generally super quick
+// meshes  is large, changes infrequently, but changes are generally super slow
+// - turtle is 500 KB and can certainly be made smaller
+
+
+
+// FORNOW: let's assume we push the OpenGL crap to the GPU every frame (TODOLATER)
+
+real HARD_EDGE_THRESHOLD_IN_DEGREES = 30.0f;
+
+// gl
+
+void _POOSH(uint *VBO, uint i, uint num_verts, void *array, uint dim, uint GL_TYPE) {
+    ASSERT(VBO);
+    ASSERT(array);
+    ASSERT(num_verts);
+
+    uint sizeof_type; {
+        if (GL_TYPE == GL_FLOAT) {
+            sizeof_type = sizeof(real);
+        } else { ASSERT(GL_TYPE == GL_INT);
+            sizeof_type = sizeof(uint);
+        }
+    }
+
+    glDisableVertexAttribArray(i);
+    if (array) {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
+        glBufferData(GL_ARRAY_BUFFER, num_verts * dim * sizeof_type, array, GL_STATIC_DRAW);
+
+        if (GL_TYPE == GL_FLOAT) {
+            glVertexAttribPointer (i, dim, GL_TYPE, GL_FALSE, 0, NULL);
+        } else { ASSERT(GL_TYPE == GL_INT);
+            glVertexAttribIPointer(i, dim, GL_TYPE,           0, NULL);
+        }
+
+        glEnableVertexAttribArray(i);
+    }
+};
+void POOSH(uint *VBO, uint i, uint num_verts, vec3 *array) { _POOSH(VBO, i, num_verts, array, 3, GL_FLOAT); }
+void POOSH(uint *VBO, uint i, uint num_verts, vec2 *array) { _POOSH(VBO, i, num_verts, array, 2, GL_FLOAT); }
+void POOSH(uint *VBO, uint i, uint num_verts, uint *array) { _POOSH(VBO, i, num_verts, array, 1, GL_INT  ); }
+
+uint UNIFORM(uint shader_program, char *name) { return glGetUniformLocation(shader_program, name); };
+
 ////////////////////////////////////////
 // Forward-Declarations ////////////////
 ////////////////////////////////////////
 
 void messagef(vec3 color, char *format, ...);
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier = 1.0f);
-// TODO: take entire transform (same used for draw) for wrapper_manifold--strip out incremental nature into function
+// TODO: take entire transform (same used for draw) for manifold_wrapper--strip out incremental nature into function
 
 
 
@@ -177,7 +251,6 @@ struct Entity {
 
     ColorCode color_code;
     bool is_selected;
-    vec3 preview_color;
     real time_since_is_selected_changed;
 
     LineEntity line;
@@ -185,18 +258,59 @@ struct Entity {
     CircleEntity circle;
 };
 
-struct Mesh {
+struct WorkMesh {
     uint num_vertices;
     uint num_triangles;
-    vec3 *vertex_positions;
-    uint3 *triangle_indices;
-    vec3 *triangle_normals;
 
-    // ??
-    uint num_cosmetic_edges;
-    uint2 *cosmetic_edges;
+    vec3  *vertex_positions;
+    uint3 *triangle_tuples;
+    vec3  *triangle_normals;
 
     bbox3 bbox;
+};
+
+struct DrawMesh {
+    uint num_vertices;
+    uint num_triangles; // note: same as workmesh
+
+    vec3  *vertex_positions;
+    uint3 *triangle_tuples;
+    uint  *vertex_patch_indices;
+
+    vec3  *vertex_normals;
+};
+
+
+struct {
+    uint VAO;
+    uint VBO[3];
+    uint EBO_faces;
+    uint EBO_all_edges;
+    uint EBO_hard_edges;
+} GL;
+
+run_before_main {
+    glGenVertexArrays(1, &GL.VAO);
+    glGenBuffers(ARRAY_LENGTH(GL.VBO), GL.VBO);
+    glGenBuffers(1, &GL.EBO_faces);
+    glGenBuffers(1, &GL.EBO_all_edges);
+    glGenBuffers(1, &GL.EBO_hard_edges);
+};
+
+
+
+
+struct MeshesReadOnly { // FORNOW is this really read only? sort of based on how snapshooting in history works
+    Arena *arena;
+    WorkMesh work;
+    DrawMesh draw;
+    mat4 M_3D_from_2D;
+
+    //     DrawMesh prev;
+    //     DrawMesh prev_tool;
+    //     bool prev_was_extrude;
+    //     bool prev_was_add;
+    //     DrawMesh curr;
 };
 
 struct RawKeyEvent {
@@ -221,9 +335,9 @@ struct RawEvent {
     RawMouseEvent raw_mouse_event;
 };
 
-struct MagicSnapResult {
-    vec2 mouse_position;
-    bool snapped;
+struct TransformMouseDrawingPositionResult {
+    vec2 mouse_position; // TODO: change this name to position?
+    bool snapped; // TODO: carefully move this to be the first entry
     uint entity_index_snapped_to;
     uint entity_index_intersect;
     uint entity_index_tangent_2;
@@ -240,7 +354,8 @@ struct MagicSnapResult3D {
 };
 
 struct MouseEventDrawing {
-    MagicSnapResult snap_result;
+    vec2 unsnapped_position;
+    bool shift_held;
 };
 
 struct MouseEventMesh {
@@ -322,6 +437,13 @@ struct MeshTwoClickCommandState {
 };
 
 struct PopupManager {
+
+    bool is_active(ToolboxGroup group) {
+        return (this->get_tag(group) != NULL);
+    }
+
+    //////////
+
     char *tags[uint(ToolboxGroup::NUMBER_OF)];
     //
     char *get_tag(ToolboxGroup group) { return tags[uint(group)]; }
@@ -389,20 +511,30 @@ struct PopupState {
     real extrude_add_in_length;
     real extrude_cut_in_length;
     real extrude_cut_out_length;
+    real revolve_add_in_angle;
+    real revolve_add_out_angle;
+    real revolve_cut_in_angle;
+    real revolve_cut_out_angle;
+
+    real box_width;
+    real box_height;
     real circle_diameter;
     real circle_radius;
     real circle_circumference;
-    real fillet_radius;
-    real dogear_radius;
-    real box_width;
-    real box_height;
-    real xy_x_coordinate;
-    real xy_y_coordinate;
-    real feature_plane_nudge;
     real line_length;
     real line_angle;
     real line_run;
     real line_rise;
+    uint polygon_num_sides = 6;
+    real polygon_distance_to_side;
+    real polygon_distance_to_corner;
+    real polygon_side_length;
+
+    real fillet_radius;
+    real dogear_radius;
+    real xy_x_coordinate;
+    real xy_y_coordinate;
+    real feature_plane_nudge;
     real drag_length;
     real drag_angle;
     real drag_run;
@@ -412,23 +544,14 @@ struct PopupState {
     real move_angle;
     real move_run;
     real move_rise;
-    real linear_copy_length;
-    real linear_copy_angle;
-    real linear_copy_run;
-    real linear_copy_rise;
-    uint linear_copy_num_additional_copies;
+    real lcopy_length;
+    real lcopy_angle;
+    real lcopy_run;
+    real lcopy_rise;
+    uint lcopy_num_additional_copies;
     real offset_distance;
-    uint polygon_num_sides = 6;
-    real polygon_distance_to_side;
-    real polygon_distance_to_corner;
-    real polygon_side_length;
-    real revolve_add_in_angle;
-    real revolve_add_out_angle;
-    real revolve_cut_in_angle;
-    real revolve_cut_out_angle;
     real rotate_angle;
-    uint rotate_copy_num_total_copies;
-    real rotate_copy_angle;
+    uint rcopy_num_total_copies;
     real scale_factor;
     _STRING_CALLOC(open_dxf_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_dxf_filename, POPUP_CELL_LENGTH);
@@ -436,6 +559,7 @@ struct PopupState {
     _STRING_CALLOC(open_stl_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(save_stl_filename, POPUP_CELL_LENGTH);
     _STRING_CALLOC(overwrite_stl_yn_buffer, POPUP_CELL_LENGTH);
+    _STRING_CALLOC(close_confirmation, POPUP_CELL_LENGTH);
 };
 
 struct ToolboxState {
@@ -443,7 +567,7 @@ struct ToolboxState {
 };
 
 struct WorldState_ChangesToThisMustBeRecorded_state {
-    Mesh mesh;
+    MeshesReadOnly meshes;
     Drawing drawing;
     FeaturePlaneState feature_plane;
     TwoClickCommandState two_click_command;
@@ -476,21 +600,37 @@ struct PreviewState {
     real revolve_in_angle;
     real revolve_out_angle;
     vec3 tubes_color;
-    vec3 feature_plane_color;
+    real feature_plane_offset;
+    real feature_plane_alpha;
     vec2 drawing_origin;
-    vec2 mouse;
     real cursor_subtext_alpha;
 
-    vec2 popup_second_click;
+    vec2 mouse_transformed__PINK_position;
+    vec2 mouse_no_snap_potentially_15_deg__WHITE_position;
+    vec2 mouse_from_Draw_Enter__BLUE_position;
+    // TODO: restore beatiful color lerp from gray to pink when snap becomes active
+
     vec2 xy_xy;
-    vec2 mouse_snap;
     real polygon_num_sides;
-    vec3 color_mouse;
+
+    real lcopy_run;
+    real lcopy_rise;
+    real lcopy_num_additional_copies;
+
+    real scale_factor;
+
+    // real rcopy_num_total_copies;
+    // real rcopy_angle;
+    real rcopy_last_angle;
 
     vec2 offset_entity_start;
     vec2 offset_entity_end;
     vec2 offset_entity_middle;
     vec2 offset_entity_opposite;
+
+    real bbox_min_y;
+
+    real tween_extrude_add_scale;
 };
 
 struct Cursors {
@@ -506,16 +646,22 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
 
+    FeaturePlaneState tween_extrude_add_feature_plane;
+
     Cursors cursors;
 
     Camera camera_drawing;
     Camera camera_mesh;
 
+    bool awaiting_close_confirmation;
+
     bool hide_grid;
     bool show_details;
+    bool show_console;
     bool show_help;
-    bool show_event_stack;
+    bool show_history;
     bool hide_toolbox;
+    bool show_debug;
 
     bool should_feature_plane_be_active;
 
@@ -554,6 +700,7 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
 
     PreviewState preview;
 
+
 };
 
 struct StandardEventProcessResult {
@@ -590,6 +737,7 @@ struct {
     vec3 black = RGB255(0, 0, 0);
 
     vec3 white = RGB255(255, 255, 255);
+    vec3 lighter_gray = RGB255(235, 235, 235);
     vec3 light_gray = RGB255(160, 160, 160);
     vec3 gray = RGB255(115, 115, 115);
     vec3 dark_gray = RGB255(70, 70, 70);
@@ -626,13 +774,13 @@ vec3 Q_pallete[10] = {
 vec3 get_accent_color(ToolboxGroup group) {
     vec3 result;
     if (group == ToolboxGroup::Draw) {
-        result = V3(0.5f, 1.0f, 1.0f);
+        result = V3(0.0f, 1.0f, 1.0f);
     } else if (group == ToolboxGroup::Both) {
-        result = V3(0.75f, 1.0f, 0.75f);
+        result = V3(1.0f, 1.0f, 0.0f);
     } else if (group == ToolboxGroup::Mesh) {
-        result = V3(1.0f, 1.0f, 0.5f);
+        result = V3(0.0f, 0.8f, 0.0f);
     } else if (group == ToolboxGroup::Snap) {
-        result = V3(1.0f, 0.5f, 1.0f);
+        result = V3(1.0f, 0.0f, 1.0f);
     } else if (group == ToolboxGroup::Xsel) {
         result = V3(0.75f, 0.75f, 1.0f);
     } else if (group == ToolboxGroup::Colo) {
@@ -792,11 +940,32 @@ vec3 get_color(ColorCode color_code) {
     }
 }
 
-void eso_entity__SOUP_LINES(Entity *entity) {
+void eso_entity__SOUP_LINES(Entity *entity, bool cageit = false, real z0 = 0.0f, real z1 = 0.0f) {
+    auto Q = [&](vec2 a, vec2 b, bool exclude_vertical_a = false, bool exclude_vertical_b = false) {
+        if (!cageit) {
+            eso_vertex(a);
+            eso_vertex(b);
+        } else {
+            eso_vertex(a.x, a.y, z0);
+            eso_vertex(b.x, b.y, z0);
+
+            eso_vertex(a.x, a.y, z1);
+            eso_vertex(b.x, b.y, z1);
+
+            if (!exclude_vertical_a) {
+                eso_vertex(a.x, a.y, z0);
+                eso_vertex(a.x, a.y, z1);
+            }
+
+            if (!exclude_vertical_b) {
+                eso_vertex(b.x, b.y, z0);
+                eso_vertex(b.x, b.y, z1);
+            }
+        }
+    };
     if (entity->type == EntityType::Line) {
         LineEntity *line = &entity->line;
-        eso_vertex(line->start);
-        eso_vertex(line->end);
+        Q(line->start, line->end);
     } else if (entity->type == EntityType::Arc) {
         ArcEntity *arc = &entity->arc;
         real start_angle, end_angle;
@@ -806,9 +975,13 @@ void eso_entity__SOUP_LINES(Entity *entity) {
         real increment = delta_angle / num_segments;
         real current_angle = start_angle;
         for_(i, num_segments) {
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle));
+            Q(
+                    get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle),
+                    get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle + increment),
+                    (i != 0) && (i != num_segments / 2),
+                    (i != (num_segments - 1))
+             );
             current_angle += increment;
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle));
         }
     } else { ASSERT(entity->type == EntityType::Circle);
         CircleEntity *circle = &entity->circle;
@@ -816,9 +989,13 @@ void eso_entity__SOUP_LINES(Entity *entity) {
         real current_angle = 0.0;
         real increment = TAU / num_segments;
         for_(i, num_segments) {
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle));
+            Q(
+                    get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle), 
+                    get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle + increment),
+                    (i % (num_segments / 4) != 0),
+                    true
+             );
             current_angle += increment;
-            eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, current_angle));
         }
     }
 }
@@ -1179,7 +1356,7 @@ void dxf_loop_analysis_free(DXFLoopAnalysisResult *analysis) {
 struct CrossSectionEvenOdd {
     uint num_polygonal_loops;
     uint *num_vertices_in_polygonal_loops;
-    vec2 **polygonal_loops;
+    ManifoldVec2 **polygonal_loops;
 };
 
 CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities, bool only_consider_selected_entities) {
@@ -1209,7 +1386,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
     }
     #endif
     // populate List's
-    List<List<vec2>> stretchy_list = {}; {
+    List<List<ManifoldVec2>> stretchy_list = {}; {
         DXFLoopAnalysisResult analysis = dxf_loop_analysis_create_FORNOW_QUADRATIC(entities, only_consider_selected_entities);
         for_(loop_index, analysis.num_loops) {
             uint num_entities_in_loop = analysis.num_entities_in_loops[loop_index];
@@ -1237,7 +1414,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                     vec2 p;
                     for_(i, num_segments) {
                         p = get_point_on_circle_NOTE_pass_angle_in_radians(arc->center, arc->radius, current_angle);
-                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
+                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], { p.x, p.y });
                         current_angle += increment;
                     }
                 } else { ASSERT(entity->type == EntityType::Circle);
@@ -1246,7 +1423,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
                     for_(i, num_segments) {
                         real angle = real(i) / num_segments * TAU;
                         vec2 p = get_point_on_circle_NOTE_pass_angle_in_radians(circle->center, circle->radius, angle);
-                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], p);
+                        list_push_back(&stretchy_list.array[stretchy_list.length - 1], { p.x, p.y });
                     }
                 }
             }
@@ -1258,11 +1435,11 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
     CrossSectionEvenOdd result = {};
     result.num_polygonal_loops = stretchy_list.length;
     result.num_vertices_in_polygonal_loops = (uint *) calloc(result.num_polygonal_loops, sizeof(uint));
-    result.polygonal_loops = (vec2 **) calloc(result.num_polygonal_loops, sizeof(vec2 *));
+    result.polygonal_loops = (ManifoldVec2 **) calloc(result.num_polygonal_loops, sizeof(ManifoldVec2 *));
     for_(i, result.num_polygonal_loops) {
         result.num_vertices_in_polygonal_loops[i] = stretchy_list.array[i].length;
-        result.polygonal_loops[i] = (vec2 *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(vec2));
-        memcpy(result.polygonal_loops[i], stretchy_list.array[i].array, result.num_vertices_in_polygonal_loops[i] * sizeof(vec2));
+        result.polygonal_loops[i] = (ManifoldVec2 *) calloc(result.num_vertices_in_polygonal_loops[i], sizeof(ManifoldVec2));
+        memcpy(result.polygonal_loops[i], stretchy_list.array[i].array, result.num_vertices_in_polygonal_loops[i] * sizeof(ManifoldVec2));
     }
 
     // free List's
@@ -1276,7 +1453,7 @@ void cross_section_debug_draw(Camera *camera_drawing, CrossSectionEvenOdd *cross
     eso_begin(camera_drawing->get_PV(), SOUP_LINES);
     eso_color(pallete.white);
     for_(loop_index, cross_section->num_polygonal_loops) {
-        vec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
+        ManifoldVec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
         for (int j = 0, i = n - 1; j < n; i = j++) {
             real a_x = polygonal_loop[i].x;
@@ -1313,104 +1490,379 @@ void cross_section_free(CrossSectionEvenOdd *cross_section) {
 // Mesh, Mesh //////////////////////
 ////////////////////////////////////////
 
+WorkMesh build_work_mesh(
+        Arena *arena,
+        int num_vertices,
+        vec3 *vertex_positions,
+        int num_triangles,
+        uint3 *triangle_tuples
+        ) {
 
-void mesh_triangle_normals_calculate(Mesh *mesh) {
-    mesh->triangle_normals = (vec3 *) malloc(mesh->num_triangles * sizeof(vec3));
-    vec3 p[3];
-    for_(i, mesh->num_triangles) {
-        for_(d, 3) p[d] = mesh->vertex_positions[mesh->triangle_indices[i][d]];
-        vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
-        mesh->triangle_normals[i] = n;
+    WorkMesh result = {};
+
+    result.num_triangles = num_triangles; // TODO: store this on meshes
+
+    result.num_vertices = num_vertices;
+    result.vertex_positions = vertex_positions;
+    result.triangle_tuples = triangle_tuples;
+
+    { // mesh_bbox_calculate(...)
+        result.bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
+        for_(i, result.num_vertices) {
+            result.bbox += result.vertex_positions[i];
+        }
     }
+
+    { // mesh_triangle_normals_calculate(result);
+        result.triangle_normals = (vec3 *) arena->malloc(result.num_triangles * sizeof(vec3));
+        vec3 p[3];
+        for_(i, result.num_triangles) {
+            for_(d, 3) p[d] = result.vertex_positions[result.triangle_tuples[i][d]];
+            vec3 n = normalized(cross(p[1] - p[0], p[2] - p[0]));
+            result.triangle_normals[i] = n;
+        }
+    }
+
+    #if 0
+    { // mesh_translate_to_origin(...);
+        vec3 bbox_center = AVG(result.bbox.min, result.bbox.max);
+        for_(i, result.num_vertices) result.vertex_positions[i] -= bbox_center;
+    }
+    #endif
+
+    return result;
 }
 
-void mesh_cosmetic_edges_calculate(Mesh *mesh) {
-    // approach: prep a big array that maps edge -> cwiseProduct of face normals (start it at 1, 1, 1) // (faces that edge is part of)
-    //           iterate through all edges detministically (ccw in order, flipping as needed so lower_index->higher_index)
-    //           then go back and if passes some heuristic add that index to a stretchy buffer
-    List<uint2> list = {}; {
-        Map<uint2, vec3> map = {}; {
-            for_(i, mesh->num_triangles) {
-                vec3 n = mesh->triangle_normals[i];
-                for (uint jj0 = 0, jj1 = (3 - 1); jj0 < 3; jj1 = jj0++) {
-                    uint j0 = mesh->triangle_indices[i][jj0];
-                    uint j1 = mesh->triangle_indices[i][jj1];
-                    if (j0 > j1) {
-                        uint tmp = j0;
-                        j0 = j1;
-                        j1 = tmp;
-                    }
-                    uint2 key = { j0, j1 };
-                    map_put(&map, key, cwiseProduct(n, map_get(&map, key, V3(1.0f))));
-                }
-            }
-        }
+DrawMesh build_draw_mesh(
+        Arena *arena,
+        uint work_num_vertices,
+        vec3 *work_vertex_positions,
+        uint num_triangles,
+        uint3 *work_triangle_tuples,
+        vec3 *work_triangle_normals
+        ) {
+    DrawMesh result = {};
+
+    result.num_triangles = num_triangles; // TODO: store this on meshes
+
+    { // mesh_divide_into_patches
+        #if 1
         {
-            for (List<Pair<uint2, vec3>> *bucket = map.buckets; bucket < &map.buckets[map.num_buckets]; ++bucket) {
-                for (Pair<uint2, vec3> *pair = bucket->array; pair < &bucket->array[bucket->length]; ++pair) {
-                    vec3 n2 = pair->value;
-                    // pprint(n2);
-                    real angle = DEG(acos(n2.x + n2.y + n2.z)); // [0.0f, 180.0f]
-                    if (angle > 30.0f) {
-                        list_push_back(&list, pair->key); // FORNOW
+            Arena *function_scratch_arena = ARENA_ACQUIRE();
+            defer { ARENA_RELEASE(function_scratch_arena); };
+
+            struct PairPatchIndexOldVertexIndex {
+                uint patch_index;
+                uint old_vertex_index;
+            };
+
+            // prep -- O(t)
+            // ------------
+            // iterate over all triangles building triangle_index_from_old_half_edge map -- O(t)
+            ArenaMap<uint2, uint> triangle_index_from_old_half_edge = { function_scratch_arena };
+            map_reserve_for_expected_num_entries(&triangle_index_from_old_half_edge, 3 * num_triangles);
+            {
+                for_(triangle_index, num_triangles) {
+                    uint3 old_triangle_tuple = work_triangle_tuples[triangle_index];
+                    for_(d, 3) {
+                        uint old_i = old_triangle_tuple[ d         ];
+                        uint old_j = old_triangle_tuple[(d + 1) % 3];
+                        uint2 old_half_edge = { old_i, old_j }; // NOTE: DON'T sort the edge; we WANT a half-edge
+                        map_put(&triangle_index_from_old_half_edge, old_half_edge, triangle_index);
                     }
                 }
             }
+
+
+            // paint each triangle with its patch index -- O(t)
+            // -----------------------------------------------------
+            // for each patch warm started search for seed off of finger using patch_index_from_triangle_index for whether seen -- O(t)
+            // NOTE: only reads through the entire array of triangles at most once
+            //  ++num_patches; -- O(1)
+            // (for each triangle) -- O(t)
+            //  infect neighbors conditional on whether is hard edge -- O(1)
+            //  NOTE: can do the hard edge computation here using the triangle_index_from_old_half_edge map
+            //  TODOLATER: also store the hard_edges for tube drawing later
+            // NOTE: patch_indices_from_old_vertex_index is for the next step
+            // TODO: SmallList
+
+            ArenaMap<uint, uint> patch_index_from_triangle_index = { function_scratch_arena };
+            map_reserve_for_expected_num_entries(&patch_index_from_triangle_index, num_triangles);
+
+            // TODO: ArenaSmallList
+            ArenaMap<uint, ArenaList<uint>> patch_indices_from_old_vertex_index = { function_scratch_arena };
+            map_reserve_for_expected_num_entries(&patch_indices_from_old_vertex_index, work_num_vertices);
+            {
+                for_(old_vertex_index, work_num_vertices) {
+                    map_put(&patch_indices_from_old_vertex_index, old_vertex_index, { function_scratch_arena });
+                }
+            }
+
+            uint num_patches = 0;
+
+            {
+                // TODO: ArenaQueue
+                Queue<uint> queue = {};
+
+                auto QUEUE_ENQUEUE_AND_MARK = [&](uint triangle_index) {
+                    queue_enqueue(&queue, triangle_index);
+
+                    { // mark
+                        uint3 old_triangle_tuple = work_triangle_tuples[triangle_index];
+
+                        uint patch_index = num_patches;
+
+
+                        map_put(&patch_index_from_triangle_index, triangle_index, patch_index);
+
+                        { // patch_indices_from_old_vertex_index
+                            for_(d, 3) {
+                                uint old_vertex_index = old_triangle_tuple[d];
+                                ArenaList<uint> *patch_indices = _map_get_pointer(&patch_indices_from_old_vertex_index, old_vertex_index);
+                                // sorted unique push_back
+                                bool last_element_is_patch_index; {
+                                    bool is_empty = (patch_indices->length == 0);
+                                    if (is_empty) {
+                                        last_element_is_patch_index = false;
+                                    } else {
+                                        last_element_is_patch_index = (patch_indices->_array[patch_indices->length - 1] == patch_index);
+                                    }
+                                }
+                                if (!last_element_is_patch_index) patch_indices->push_back(patch_index);
+                            }
+                        }
+                    }
+                };
+
+                uint seed_triangle_index = 0;
+                while (true) {
+                    while (map_contains_key(&patch_index_from_triangle_index, seed_triangle_index)) ++seed_triangle_index;
+                    if (seed_triangle_index == num_triangles) break;
+                    QUEUE_ENQUEUE_AND_MARK(seed_triangle_index);
+                    while (queue.length) {
+                        uint triangle_index = queue_dequeue(&queue);
+                        uint3 old_triangle_tuple = work_triangle_tuples[triangle_index];
+                        for_(d, 3) {
+                            uint old_i = old_triangle_tuple[ d         ];
+                            uint old_j = old_triangle_tuple[(d + 1) % 3];
+                            uint2 old_half_edge = { old_i, old_j };
+                            FORNOW_UNUSED(old_half_edge);
+                            uint2 twin_old_half_edge = { old_j, old_i };
+                            uint twin_triangle_index; {
+                                // NOTE: if this crashes, the mesh wasn't manifold?
+                                twin_triangle_index = map_get(&triangle_index_from_old_half_edge, twin_old_half_edge);
+                            }
+                            bool is_not_already_marked = !map_contains_key(&patch_index_from_triangle_index, twin_triangle_index);
+                            bool is_soft_edge; {
+                                vec3 n1 = work_triangle_normals[triangle_index];
+                                vec3 n2 = work_triangle_normals[twin_triangle_index];
+                                // NOTE: clamp ver ver important
+                                real angle_in_degrees = DEG(acos(CLAMP(dot(n1, n2), 0.0, 1.0)));
+                                ASSERT(!IS_NAN(angle_in_degrees)); // TODO: define your own ACOS that checks
+                                is_soft_edge = (angle_in_degrees < HARD_EDGE_THRESHOLD_IN_DEGREES);
+                            }
+                            if (is_not_already_marked && is_soft_edge) QUEUE_ENQUEUE_AND_MARK(twin_triangle_index);
+                        }
+                    }
+
+                    ++num_patches;
+                }
+            }
+
+            // NOTE: this feels unnecessarily slow
+            //       but we didn't know how many patches there were back when we were flooding
+            //       (but we do have an upper bound, which is the number of triangles)
+            // TODO: consider trading space for time here (after profiling)
+            uint *patch_num_vertices = (uint *) function_scratch_arena->calloc(num_patches, sizeof(uint)); {
+                for_(old_vertex_index, work_num_vertices) {
+                    ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
+                    for_(_patch_index_index, patch_indices.length) {
+                        uint patch_index = patch_indices[_patch_index_index];
+                        patch_num_vertices[patch_index]++;
+                    }
+                }
+            }
+
+            #if 0 // DRAWING                                           
+                  //                                                         
+                  // triangle-order preserving division into patches         
+                  //                                                         
+                  //                      |         0    6-----8             
+                  //     0-----4          |        / \    \ C . \            
+                  //    / \ C . \         |       / A \    \ .   \           
+                  //   / A \ .   \        |      1-----2    7-----9          
+                  //  1-----2-----5       |                                  
+                  //   \ B /              |      3-----4                     
+                  //    \ /               |       \ B /                      
+                  //     3                |        \ /                       
+                  //                      |         5                        
+                  //                      |                                  
+                  //                      |          ...:::: patch           
+                  //                      |       0121230245 vertex          
+                  // V 012345             |    V  0123456789 new_vertex_index
+                  //   AAA                |       AAABBBCCCC                 
+                  //    BBB               |       ^  ^  ^    fingers         
+                  //   C C CC             |          ... ::: :::             
+                  //                      |      012 132 024 254             
+                  // T 012 132 024 254    |    T 012 465 678 798             
+                  //                                                         
+            #endif //                                                  
+
+            uint new_num_vertices;
+            vec3 *new_vertex_positions;
+            uint *new_vertex_patch_indices;
+            ArenaMap<PairPatchIndexOldVertexIndex, uint> new_vertex_index_from_pair_patch_index_old_vertex_index = { function_scratch_arena };
+            // FORNOW: This is a huge overestimate; TODO: map that can grow
+            map_reserve_for_expected_num_entries(&new_vertex_index_from_pair_patch_index_old_vertex_index, num_patches * work_num_vertices);
+            {
+                uint *patch_new_vetex_index_fingers; // [ 0, |PATCH0|, |PATCH0| + |PATCH1|, ... ]
+                {
+                    patch_new_vetex_index_fingers = (uint *) function_scratch_arena->calloc(num_patches, sizeof(uint));
+                    for_(patch_index, num_patches - 1) {
+                        patch_new_vetex_index_fingers[patch_index + 1] += patch_new_vetex_index_fingers[patch_index];
+                        patch_new_vetex_index_fingers[patch_index + 1] += patch_num_vertices[patch_index];
+                    }
+
+                    new_num_vertices = patch_new_vetex_index_fingers[num_patches - 1] + patch_num_vertices[num_patches - 1];
+                }
+
+                new_vertex_positions = (vec3 *) arena->malloc(new_num_vertices * sizeof(vec3));
+                new_vertex_patch_indices = (uint *) arena->malloc(new_num_vertices * sizeof(uint));
+
+                for_(old_vertex_index, work_num_vertices) {
+                    ArenaList<uint> patch_indices = map_get(&patch_indices_from_old_vertex_index, old_vertex_index);
+                    for_(_patch_index_index, patch_indices.length) {
+                        uint patch_index = patch_indices[_patch_index_index];
+                        uint new_vertex_index = (patch_new_vetex_index_fingers[patch_index])++;
+
+                        { // new_vertex_positions
+                            vec3 vertex_position = work_vertex_positions[old_vertex_index];
+                            new_vertex_positions[new_vertex_index] = vertex_position;
+                        }
+
+                        // new_vertex_index_from_pair_patch_index_old_vertex_index
+                        PairPatchIndexOldVertexIndex key;
+                        key.patch_index = patch_index;
+                        key.old_vertex_index = old_vertex_index;
+                        map_put(&new_vertex_index_from_pair_patch_index_old_vertex_index, key, new_vertex_index);
+
+                        new_vertex_patch_indices[new_vertex_index] = patch_index;
+                    }
+                }
+            }
+
+
+            // build massive new arrays -- O(t)
+            // ------------------------
+            // malloc huge arrays -- O(t)
+            //
+            // ?? how do we write the vertices
+            //
+            // for each triangle -- O(t)
+            //   write directly into arrays -- O(1)
+            {
+                result.num_vertices = new_num_vertices;
+                result.num_triangles = num_triangles;
+                result.vertex_positions = new_vertex_positions;
+                result.triangle_tuples = (uint3 *) arena->malloc(num_triangles * sizeof(uint3));
+                for_(triangle_index, num_triangles) {
+                    uint patch_index = map_get(&patch_index_from_triangle_index, triangle_index);
+                    uint3 old_triangle_tuple = work_triangle_tuples[triangle_index];
+                    for_(d, 3) {
+                        PairPatchIndexOldVertexIndex key;
+                        key.patch_index = patch_index;
+                        key.old_vertex_index = old_triangle_tuple[d];
+                        result.triangle_tuples[triangle_index][d] = map_get(&new_vertex_index_from_pair_patch_index_old_vertex_index, key);
+                    }
+                }
+                result.vertex_patch_indices = new_vertex_patch_indices;
+            }
         }
-        map_free_and_zero(&map);
+        #else
+        result.num_vertices = work_num_vertices;
+        result.vertex_positions = work_vertex_positions;
+        result.triangle_tuples = work_triangle_tuples;
+        result.vertex_patch_indices = (uint *) arena->calloc(result.num_vertices, sizeof(uint));
+        #endif
     }
-    {
-        mesh->num_cosmetic_edges = list.length;
-        mesh->cosmetic_edges = (uint2 *) calloc(mesh->num_cosmetic_edges, sizeof(uint2));
-        memcpy(mesh->cosmetic_edges, list.array, mesh->num_cosmetic_edges * sizeof(uint2)); 
+
+    { // mesh_vertex_normals_calculate
+        result.vertex_normals = (vec3 *) arena->calloc(result.num_vertices, sizeof(vec3));
+
+        for_(triangle_index, num_triangles) {
+            vec3 triangle_normal = work_triangle_normals[triangle_index];
+            uint3 triangle_ijk = result.triangle_tuples[triangle_index];
+            real triangle_double_area; {
+                vec3 a = result.vertex_positions[triangle_ijk[0]];
+                vec3 b = result.vertex_positions[triangle_ijk[1]];
+                vec3 c = result.vertex_positions[triangle_ijk[2]];
+                vec3 e = (b - a);
+                vec3 f = (c - a);
+                triangle_double_area = norm(cross(e, f));
+            }
+            for_(d, 3) {
+                uint vertex_index = triangle_ijk[d];
+                result.vertex_normals[vertex_index] += triangle_double_area * triangle_normal;
+            }
+        }
+        for_(vertex_index, result.num_vertices) {
+            result.vertex_normals[vertex_index] = normalized(result.vertex_normals[vertex_index]);
+        }
+
     }
-    list_free_AND_zero(&list);
+
+    return result;
 }
 
-void mesh_bbox_calculate(Mesh *mesh) {
-    mesh->bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<3>();
-    for_(i, mesh->num_vertices) {
-        mesh->bbox += mesh->vertex_positions[i];
-    }
+
+// TODO: it would feel better to pass around arena pointers instead of values
+//       but then where does the arena live?
+//       do we need an arena arena?--i think maybe we do.
+//       (could be a free list)
+MeshesReadOnly build_meshes(Arena *arena, int num_vertices, vec3 *vertex_positions, int num_triangles, uint3 *triangle_tuples) {
+    MeshesReadOnly meshes = { arena };
+    meshes.work = build_work_mesh(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+    meshes.draw = build_draw_mesh(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples, meshes.work.triangle_normals);
+    return meshes;
 }
 
-void mesh_free_AND_zero(Mesh *mesh) {
-    if (mesh->vertex_positions) free(mesh->vertex_positions);
-    if (mesh->triangle_indices) free(mesh->triangle_indices);
-    if (mesh->triangle_normals) free(mesh->triangle_normals);
-    if (mesh->cosmetic_edges)   free(mesh->cosmetic_edges);
-    *mesh = {};
+void meshes_free_AND_zero(MeshesReadOnly *meshes) {
+    if (meshes->arena) ARENA_RELEASE(meshes->arena); // FORNOW
+    *meshes = {};
 }
 
-void mesh_deep_copy(Mesh *dst, Mesh *src) {
+//oh no
+
+// FORNOW porting this to arenas but hopefully the need for it goes away
+void meshes_deep_copy(MeshesReadOnly *dst, MeshesReadOnly *src) {
     *dst = *src;
-    if (src->vertex_positions) {
-        uint size = src->num_vertices * sizeof(vec3);
-        dst->vertex_positions = (vec3 *) malloc(size);
-        memcpy(dst->vertex_positions, src->vertex_positions, size);
-    }
-    if (src->triangle_indices) {
-        uint size = src->num_triangles * sizeof(uint3);
-        dst->triangle_indices = (uint3 *) malloc(size);
-        memcpy(dst->triangle_indices, src->triangle_indices, size);
-    }
-    if (src->triangle_normals) {
-        uint size = src->num_triangles * sizeof(vec3); 
-        dst->triangle_normals = (vec3 *) malloc(size);
-        memcpy(dst->triangle_normals, src->triangle_normals, size);
-    }
-    if (src->cosmetic_edges) {
-        uint size = src->num_cosmetic_edges * sizeof(uint2);
-        dst->cosmetic_edges = (uint2 *) malloc(size);
-        memcpy(dst->cosmetic_edges, src->cosmetic_edges, size);
-    }
+    dst->arena = ARENA_ACQUIRE();
+
+    #define _DEEP_COPY(name, count, type) \
+    do { \
+        ASSERT(src); \
+        dst->name = (type *) dst->arena->malloc(src->count * sizeof(type)); \
+        memcpy(dst->name, src->name, src->count * sizeof(type)); \
+    } while (0);
+
+    _DEEP_COPY(work.vertex_positions, work.num_vertices,   vec3);
+    _DEEP_COPY(work.triangle_tuples,  work.num_triangles, uint3);
+    _DEEP_COPY(work.triangle_normals, work.num_triangles,  vec3);
+
+    _DEEP_COPY(draw.vertex_positions,     draw.num_vertices ,  vec3);
+    _DEEP_COPY(draw.triangle_tuples,      draw.num_triangles, uint3);
+    _DEEP_COPY(draw.vertex_patch_indices, draw.num_vertices,   uint);
+    _DEEP_COPY(draw.vertex_normals,       draw.num_vertices ,  vec3);
+
+    #undef _DEEP_COPY
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // key_lambda //////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift = false, bool alt = false) {
+bool _key_lambda(KeyEvent *key_event, uint key, bool control, bool shift, bool alt) {
     ASSERT(!(('a' <= key) && (key <= 'z')));
     bool key_match = (key_event->key == key);
     bool super_match = ((key_event->control && control) || (!key_event->control && !control)); // * bool
@@ -1426,12 +1878,12 @@ bool _key_lambda(KeyEvent *key_event, uint key, bool control = false, bool shift
 void world_state_deep_copy(WorldState_ChangesToThisMustBeRecorded_state *dst, WorldState_ChangesToThisMustBeRecorded_state *src) {
     *dst = *src;
     dst->drawing.entities = {};
-    list_clone(&dst->drawing.entities,    &src->drawing.entities   );
-    mesh_deep_copy(&dst->mesh, &src->mesh);
+    list_clone(&dst->drawing.entities, &src->drawing.entities);
+    meshes_deep_copy(&dst->meshes, &src->meshes);
 }
 
 void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *world_state) {
-    mesh_free_AND_zero(&world_state->mesh);
+    meshes_free_AND_zero(&world_state->meshes);
     list_free_AND_zero(&world_state->drawing.entities);
 }
 
@@ -1439,13 +1891,17 @@ void world_state_free_AND_zero(WorldState_ChangesToThisMustBeRecorded_state *wor
 // uh oh ///////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-// TODO: don't overwrite fancy mesh, let the calling code do what it will
+uint fornow_global_selection_num_triangles;
+uint3 *fornow_global_selection_triangle_tuples;
+vec2 *fornow_global_selection_vertex_positions;
+
+// TODO: don't overwrite  mesh, let the calling code do what it will
 // TODO: could this take a printf function pointer?
-Mesh wrapper_manifold(
-        Mesh *mesh, // dest__NOTE_GETS_OVERWRITTEN,
+MeshesReadOnly manifold_wrapper(
+        WorkMesh *curr,
         uint num_polygonal_loops,
         uint *num_vertices_in_polygonal_loops,
-        vec2 **polygonal_loops,
+        ManifoldVec2 **polygonal_loops,
         mat4 M_3D_from_2D,
         Command Mesh_command,
         real out_quantity,
@@ -1454,47 +1910,51 @@ Mesh wrapper_manifold(
         vec2 dxf_axis_base_point,
         real dxf_axis_angle_from_y
         ) {
-
-
-    bool add = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
-    bool cut = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
+    bool add     = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.RevolveAdd));
+    bool cut     = (command_equals(Mesh_command, commands.ExtrudeCut)) || (command_equals(Mesh_command, commands.RevolveCut));
     bool extrude = (command_equals(Mesh_command, commands.ExtrudeAdd)) || (command_equals(Mesh_command, commands.ExtrudeCut));
     bool revolve = (command_equals(Mesh_command, commands.RevolveAdd)) || (command_equals(Mesh_command, commands.RevolveCut));
-    ASSERT(add || cut);
+
+    ASSERT(    add ||     cut);
     ASSERT(extrude || revolve);
 
-    ManifoldManifold *manifold_A; {
-        if (mesh->num_vertices == 0) {
-            manifold_A = NULL;
-        } else { // manifold <- mesh
-            ManifoldMeshGL *meshgl = manifold_meshgl(
-                    malloc(manifold_meshgl_size()),
-                    (real *) mesh->vertex_positions,
-                    mesh->num_vertices,
-                    3,
-                    (uint *) mesh->triangle_indices,
-                    mesh->num_triangles);
+    bool CURR_is_empty = (curr->num_vertices == 0);
 
-            manifold_A = manifold_of_meshgl(malloc(manifold_manifold_size()), meshgl);
-
-            manifold_delete_meshgl(meshgl);
-        }
-    }
-
-    ManifoldManifold *manifold_B; {
-        ManifoldSimplePolygon **simple_polygon_array; {
+    ManifoldManifold *manifold_TOOL;
+    defer { manifold_delete_manifold(manifold_TOOL); };
+    {
+        ManifoldSimplePolygon **simple_polygon_array;
+        defer {
+            for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
+            free(simple_polygon_array);
+        };
+        {
             simple_polygon_array = (ManifoldSimplePolygon **) malloc(num_polygonal_loops * sizeof(ManifoldSimplePolygon *));
             for_(i, num_polygonal_loops) {
-                simple_polygon_array[i] = manifold_simple_polygon(malloc(manifold_simple_polygon_size()), (ManifoldVec2 *) polygonal_loops[i], num_vertices_in_polygonal_loops[i]);
+                simple_polygon_array[i] = manifold_simple_polygon(
+                        manifold_alloc_simple_polygon(),
+                        (ManifoldVec2 *) polygonal_loops[i],
+                        num_vertices_in_polygonal_loops[i]
+                        );
             }
         } 
 
-        ManifoldPolygons *_polygons; {
-            _polygons = manifold_polygons(malloc(manifold_polygons_size()), simple_polygon_array, num_polygonal_loops);
+        ManifoldPolygons *_polygons;
+        defer { manifold_delete_polygons(_polygons); };
+        {
+            _polygons = manifold_polygons(
+                    manifold_alloc_polygons(),
+                    simple_polygon_array,
+                    num_polygonal_loops
+                    );
         }
 
-        ManifoldCrossSection *cross_section; {
-            cross_section = manifold_cross_section_of_polygons(malloc(manifold_cross_section_size()), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+
+        ManifoldCrossSection *cross_section;
+        defer { manifold_delete_cross_section(cross_section); };
+        {
+            cross_section = manifold_cross_section_of_polygons(manifold_alloc_cross_section(), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
+
             // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
 
             if (revolve) {
@@ -1503,11 +1963,13 @@ Mesh wrapper_manifold(
             }
         }
 
-        ManifoldPolygons *polygons = manifold_cross_section_to_polygons(malloc(manifold_polygons_size()), cross_section);
+        ManifoldPolygons *polygons;
+        defer { manifold_delete_polygons(polygons); };
+        {
+            polygons = manifold_cross_section_to_polygons(manifold_alloc_polygons(), cross_section);
+        }
 
-
-
-        { // manifold_B
+        { // manifold_TOOL
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {
                 do_once { messagef(pallete.red, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
@@ -1519,71 +1981,84 @@ Mesh wrapper_manifold(
 
             if (extrude) {
                 real length = in_quantity + out_quantity;
-                manifold_B = manifold_extrude(malloc(manifold_manifold_size()), polygons, length, 0, 0.0f, 1.0f, 1.0f);
-                manifold_B = manifold_translate(manifold_B, manifold_B, 0.0f, 0.0f, -in_quantity);
+                manifold_TOOL = manifold_extrude(manifold_alloc_manifold(), polygons, length, 0, 0.0f, 1.0f, 1.0f);
+                manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, 0.0f, 0.0f, -in_quantity);
             } else { ASSERT(revolve);
                 // TODO: M_3D_from_2D 
                 real angle_in_degrees = in_quantity + out_quantity;
-                manifold_B = manifold_revolve(malloc(manifold_manifold_size()), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
-                manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, 0.0, -out_quantity); // *
-                manifold_B = manifold_rotate(manifold_B, manifold_B, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
-                manifold_B = manifold_rotate(manifold_B, manifold_B, -90.0f, 0.0f, 0.0f);
-                manifold_B = manifold_translate(manifold_B, manifold_B, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
+                manifold_TOOL = manifold_revolve(manifold_alloc_manifold(), polygons, NUM_SEGMENTS_PER_CIRCLE, angle_in_degrees);
+                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, 0.0, -out_quantity); // *
+                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, 0.0, DEG(-dxf_axis_angle_from_y), 0.0f); // *
+                manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, -90.0f, 0.0f, 0.0f);
+                manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
             }
-            manifold_B = manifold_translate(manifold_B, manifold_B, -dxf_origin.x, -dxf_origin.y, 0.0f);
-            manifold_B = manifold_transform(manifold_B, manifold_B,
+            manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, -dxf_origin.x, -dxf_origin.y, 0.0f);
+            manifold_TOOL = manifold_transform(manifold_TOOL, manifold_TOOL,
                     M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
                     M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
                     M_3D_from_2D(0, 2), M_3D_from_2D(1, 2), M_3D_from_2D(2, 2),
                     M_3D_from_2D(0, 3), M_3D_from_2D(1, 3), M_3D_from_2D(2, 3));
         }
-
-        { // free(simple_polygon_array)
-            for_(i, num_polygonal_loops) manifold_delete_simple_polygon(simple_polygon_array[i]);
-            free(simple_polygon_array);
-        }
-        manifold_delete_polygons(polygons);
-        manifold_delete_cross_section(cross_section);
-        manifold_delete_polygons(_polygons);
     }
 
-    Mesh result; { // C <- f(A, B)
-        ManifoldMeshGL *meshgl; {
-            ManifoldManifold *manifold_C;
-            if (manifold_A == NULL) {
-                ASSERT(!cut);
-                manifold_C = manifold_B;
-            } else {
-                // TODO: ? manifold_delete_manifold(manifold_A);
-                manifold_C =
-                    manifold_boolean(
-                            malloc(manifold_manifold_size()),
-                            manifold_A,
-                            manifold_B,
-                            (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+    MeshesReadOnly next; {
+        Arena *arena = ARENA_ACQUIRE();
+        uint num_vertices;
+        vec3 *vertex_positions;
+        uint num_triangles;
+        uint3 *triangle_tuples;
+        {
+            ManifoldMeshGL *meshgl = manifold_alloc_meshgl();
+            defer { manifold_delete_meshgl(meshgl); };
+            {
+                if (CURR_is_empty) {
+                    ASSERT(!cut);
+                    meshgl = manifold_get_meshgl(manifold_alloc_meshgl(), manifold_TOOL);
+                } else {
+                    ManifoldManifold *manifold_CURR;
+                    defer { manifold_delete_manifold(manifold_CURR); };
+                    { // manifold <- mesh
+                        meshgl = manifold_meshgl(
+                                meshgl,
+                                (real *) curr->vertex_positions,
+                                (size_t) curr->num_vertices,
+                                3,
+                                (uint *) curr->triangle_tuples,
+                                curr->num_triangles
+                                );
+
+                        manifold_CURR = manifold_of_meshgl(manifold_alloc_manifold(), meshgl);
+                    }
+
+                    ManifoldManifold *manifold_result;
+                    defer { manifold_delete_manifold(manifold_result); };
+                    {
+                        manifold_result =
+                            manifold_boolean(
+                                    manifold_alloc_manifold(),
+                                    manifold_CURR,
+                                    manifold_TOOL,
+                                    (add) ? ManifoldOpType::MANIFOLD_ADD : ManifoldOpType::MANIFOLD_SUBTRACT
+                                    );
+                    }
+
+                    meshgl = manifold_get_meshgl(
+                            meshgl,
+                            manifold_result
                             );
-                manifold_delete_manifold(manifold_A);
-                manifold_delete_manifold(manifold_B);
+                }
+
             }
-
-            meshgl = manifold_get_meshgl(malloc(manifold_meshgl_size()), manifold_C);
+            num_vertices      = (uint) manifold_meshgl_num_vert(meshgl);
+            vertex_positions  = (vec3 *) manifold_meshgl_vert_properties(arena->malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
+            num_triangles     = (uint) manifold_meshgl_num_tri(meshgl);
+            triangle_tuples   = (uint3 *) manifold_meshgl_tri_verts(arena->malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
         }
-
-        { // result <- meshgl
-            result = {};
-            result.num_vertices = manifold_meshgl_num_vert(meshgl);
-            result.num_triangles = manifold_meshgl_num_tri(meshgl);
-            result.vertex_positions = (vec3 *) manifold_meshgl_vert_properties(malloc(manifold_meshgl_vert_properties_length(meshgl) * sizeof(real)), meshgl);
-            result.triangle_indices = (uint3 *) manifold_meshgl_tri_verts(malloc(manifold_meshgl_tri_length(meshgl) * sizeof(uint)), meshgl);
-            mesh_triangle_normals_calculate(&result);
-            mesh_cosmetic_edges_calculate(&result);
-            mesh_bbox_calculate(&result);
-        }
-
-        manifold_delete_meshgl(meshgl);
+        next = build_meshes(arena, num_vertices, vertex_positions, num_triangles, triangle_tuples);
+        next.M_3D_from_2D = M_3D_from_2D;
     }
 
-    return result;
+    return next;
 }
 
 char *key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(KeyEvent *key_event) { // inline
@@ -1888,4 +2363,544 @@ real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
     real result = theta_q - theta_p;
     if (result < 0.0f) result += TAU;
     return result;
+}
+
+
+Entity _make_line(vec2 start, vec2 end, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+    Entity entity = {};
+    entity.type = EntityType::Line;
+    entity.color_code = ColorCode::Emphasis;
+    LineEntity *line = &entity.line;
+    line->start = start;
+    line->end = end;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
+    return entity;
+};
+
+Entity _make_arc(vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+    Entity entity = {};
+    entity.type = EntityType::Arc;
+    entity.color_code= ColorCode::Emphasis;
+    ArcEntity *arc = &entity.arc;
+    arc->center = center;
+    arc->radius = radius;
+    arc->start_angle_in_degrees = start_angle_in_degrees;
+    arc->end_angle_in_degrees = end_angle_in_degrees;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
+    return entity;
+};
+
+Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+    Entity entity = {};
+    entity.type = EntityType::Circle;
+    entity.color_code = ColorCode::Emphasis;
+    CircleEntity *circle = &entity.circle;
+    circle->center = center;
+    circle->radius = radius;
+    circle->has_pseudo_point = has_pseudo_point;
+    circle->pseudo_point_angle_in_degrees = pseudo_point_angle_in_degrees;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
+    return entity;
+};
+
+typedef struct {
+    bool fillet_success;
+    Entity ent_one;
+    Entity ent_two;
+    Entity fillet_arc;
+} FilletResult;
+
+FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 reference_point, real radius) {
+    FilletResult fillet_result = {};
+    const Entity *E = EntOne;
+    const Entity *F = EntTwo;
+
+    if (E == F) {
+        messagef(pallete.orange, "Fillet: clicked same entity twice");
+        return fillet_result;
+    }
+
+    bool pseudoE = false;
+    bool pseudoF = false;
+    Entity temp1;
+    Entity temp2; // it is 1am my brain is very awake
+    if (EntOne->type == EntityType::Circle) { // TODO: do better when awake
+        temp1 = _make_arc(EntOne->circle.center, EntOne->circle.radius, 0.0f, 359.99f);
+        E = &temp1;
+        pseudoE = EntOne->circle.has_pseudo_point;
+    }
+    if (EntTwo->type == EntityType::Circle) {
+        temp2 = _make_arc(EntTwo->circle.center, EntTwo->circle.radius, 0.0f, 359.99f);
+        F = &temp2;
+        pseudoF = EntTwo->circle.has_pseudo_point;
+    }
+
+
+
+    bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
+    bool is_line_arc_or_arc_line = (E->type == EntityType::Line && F->type == EntityType::Arc) || (E->type == EntityType::Arc && F->type == EntityType::Line);
+    bool is_arc_arc = (E->type == EntityType::Arc && F->type == EntityType::Arc);
+
+
+    if (is_line_line) {
+        if (distance(E->line.start, E->line.end) < radius) {
+            messagef(pallete.orange, "Fillet: first line too short for given radius");
+            return fillet_result;
+        }
+        if (distance(F->line.start, F->line.end) < radius) {
+            messagef(pallete.orange, "Fillet: second line too short for given radius");
+            return fillet_result;
+        }
+    }
+
+    if (is_line_line) {
+        //  a -- b   x          a -- B-.  
+        //                           |  - 
+        //           d    =>         X - D
+        //    p      |            p      |
+        //           c                   c
+
+        vec2 p = reference_point;
+        vec2 a;
+        vec2 b;
+        vec2 c;
+        vec2 d;
+        vec2 x;
+        vec2 e_ab;
+        vec2 e_cd;
+        {
+            a = E->line.start;
+            b = E->line.end;
+            c = F->line.start;
+            d = F->line.end;
+
+            LineLineXResult _x = line_line_intersection(a, b, c, d);
+            if (_x.lines_are_parallel) {
+                messagef(pallete.orange, "Fillet: lines are parallel");
+                return fillet_result;
+            }
+            x = _x.point;
+
+            e_ab = normalized(b - a);
+            e_cd = normalized(d - c);
+
+            bool swap_ab, swap_cd; {
+                vec2 v_xp_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (p - x);
+                swap_ab = (v_xp_in_edge_basis.x > 0.0f);
+                swap_cd = (v_xp_in_edge_basis.y > 0.0f);
+            }
+
+            if (swap_ab) {
+                {
+                    a = b;
+                    b = E->line.start;
+                }
+                e_ab *= -1;
+            }
+
+            if (swap_cd) {
+                {
+                    c = d;
+                    d = F->line.start;
+                }
+                e_cd *= -1;
+            }
+        }
+
+        { // add new lines and remove old ones
+            real L; {
+                real full_angle = get_three_point_angle(a, x, c);
+                if (full_angle > PI) full_angle = TAU - full_angle;
+                L = radius / TAN(full_angle / 2);
+            }
+            b = x - (L * e_ab);
+            d = x - (L * e_cd);
+            Entity new_E = _make_line(a, b, E->is_selected, E->color_code);
+            Entity new_F = _make_line(c, d, F->is_selected, F->color_code);
+
+            fillet_result.ent_one = new_E;
+            fillet_result.ent_two = new_F;
+        }
+
+        // deal with creating the fillet arc
+        vec2 X; {
+            LineLineXResult _X = line_line_intersection(b, b + perpendicularTo(e_ab), d, d + perpendicularTo(e_cd));
+            if (_X.lines_are_parallel) {
+                messagef(pallete.orange, "Fillet: ???");
+                return fillet_result;
+            }
+            X = _X.point;
+        }
+
+        if (!IS_ZERO(radius)) { // arc
+            real theta_b_in_degrees;
+            real theta_d_in_degrees;
+            {
+                theta_b_in_degrees = DEG(angle_from_0_TAU(X, b));
+                theta_d_in_degrees = DEG(angle_from_0_TAU(X, d));
+                if (get_three_point_angle(b, X, d) > PI) {
+                    SWAP(&theta_b_in_degrees, &theta_d_in_degrees);
+                }
+            }
+            fillet_result.fillet_arc = _make_arc(X, radius, theta_b_in_degrees, theta_d_in_degrees, false, E->color_code);
+        } 
+
+    } else if (is_line_arc_or_arc_line) { // this is a very straight forward function
+                                          // general idea
+                                          // 1. find where relative to line/arc intersection click is
+                                          // 2. use that to get the fillet point
+                                          // 3. ?????
+                                          // 4, perfect fillet
+
+        const Entity *EntL = E->type == EntityType::Line ? E : F;
+        LineEntity line = EntL->line;
+        bool swap_happened = EntL == E;
+
+        const Entity *EntA = E->type == EntityType::Arc  ? E : F;
+        ArcEntity arc = EntA->arc;
+
+        LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, reference_point);
+
+        if (intersection.no_possible_intersection) {
+            messagef(pallete.orange, "FILLET: no intersection found");
+            return fillet_result;
+        }
+
+        // Determine if fillet should be inside or outside the circle
+        real distance_second_click_center = distance(reference_point, arc.center);
+        bool fillet_inside_circle = intersection.point_is_on_line_segment && (distance_second_click_center < arc.radius);
+
+        // Get a line parallel to selected to determine where the fillet arc should be
+        vec2 line_vector = line.end - line.start;
+        bool line_left = cross(line_vector, reference_point - line.start) < 0;
+        vec2 line_adjust = radius * normalized(perpendicularTo(line_vector)) * (line_left ? 1.0f : -1.0f);
+
+        LineEntity new_line; // ! color, etc. undefined
+        new_line.start = line.start + line_adjust; 
+        new_line.end = line.end + line_adjust; 
+
+        // Same thing but for the arc 
+        real start_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.start)); 
+        real end_val = dot(normalized(intersection.point - arc.center), normalized(intersection.point - line.end));
+        bool start_inside_circle = start_val > -TINY_VAL;
+        bool end_inside_circle = end_val > -TINY_VAL;
+        if (abs(distance(intersection.point, line.start)) < 0.001f) {
+            start_inside_circle = end_inside_circle;
+        }
+        if (abs(distance(intersection.point, line.end)) < 0.001f) {
+            end_inside_circle = start_inside_circle;
+        }
+        if (start_inside_circle == end_inside_circle) { 
+            fillet_inside_circle = end_inside_circle;
+        }
+
+        ArcEntity new_arc = arc;
+        new_arc.radius += radius * (fillet_inside_circle ? -1 : 1);
+
+        // calculate fillet center and intersections
+        LineArcXClosestResult fillet_point = line_arc_intersection_closest(&new_line, &new_arc, reference_point);
+        vec2 fillet_center = fillet_point.point;
+        vec2 line_fillet_intersect = fillet_center - line_adjust;
+        vec2 arc_fillet_intersect = fillet_center - radius * (fillet_inside_circle ? -1 : 1) * normalized(fillet_center - arc.center);
+
+        // calculate fillet angles
+        real fillet_line_theta = ATAN2(line_fillet_intersect - fillet_center);
+        real fillet_arc_theta = ATAN2(arc_fillet_intersect - fillet_center);
+
+        if (fmod(TAU + fillet_line_theta - fillet_arc_theta, TAU) > PI) {
+            real temp = fillet_line_theta;
+            fillet_line_theta = fillet_arc_theta;
+            fillet_arc_theta = temp;
+        }
+
+        // make fillet arc
+        Entity fillet_arc = _make_arc(fillet_center, radius, DEG(fillet_arc_theta), DEG(fillet_line_theta), false, E->color_code);
+        fillet_result.fillet_arc = fillet_arc;
+
+        // determine which end of the line should be changed
+        bool end_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.end - intersection.point)) > 0);
+        bool start_in_direction = (dot(normalized(fillet_center - intersection.point), normalized(line.start - intersection.point)) > 0);
+        bool extend_start;
+        if (end_in_direction != start_in_direction) {
+            extend_start = end_in_direction;
+        } else {
+            extend_start = distance(intersection.point, line.end) > distance(intersection.point, line.start);
+        }
+
+        // handle zero radius case
+        if (radius == 0 && (end_inside_circle != start_inside_circle)) {
+            extend_start = fillet_inside_circle != start_inside_circle;
+        }
+
+        Entity line_to_add;
+        // add the new line
+        if (extend_start) {
+            line_to_add = _make_line(line_fillet_intersect, EntL->line.end, EntL->is_selected, EntL->color_code);
+        } else {
+            line_to_add = _make_line(EntL->line.start, line_fillet_intersect, EntL->is_selected, EntL->color_code);
+        }
+
+
+        // arc stuff
+        real divide_theta = DEG(ATAN2(fillet_center - arc.center));
+        real theta_where_line_was_tangent = DEG(ATAN2(line_fillet_intersect - arc.center));
+
+        // kinda weird but checks if divide theta > theta where line was tangent
+        vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+        real fillet_middle_arc = DEG(ATAN2(middle_angle_vec - arc.center));
+
+        // this is a slight nudge to ensure that the correct angle is adjusted
+        if (ARE_EQUAL(divide_theta, theta_where_line_was_tangent)) {
+            real offset = DEG(ATAN2(reference_point - arc.center)); 
+            fillet_middle_arc += ANGLE_IS_BETWEEN_CCW_DEGREES(offset, divide_theta, divide_theta + 180.0f) ? -1.0f : 1.0f; 
+        }
+
+        // good luck
+        const Entity *arc_or_circle = swap_happened ? EntTwo : EntOne;
+        Entity new_arc_or_circle;
+        if (arc_or_circle->type == EntityType::Circle && !arc_or_circle->circle.has_pseudo_point) {
+            new_arc_or_circle = _make_circle(arc_or_circle->circle.center, arc_or_circle->circle.radius, true, divide_theta, arc_or_circle->is_selected, arc_or_circle->color_code);
+        } else {
+            real start_angle = arc_or_circle->type == EntityType::Circle ? arc_or_circle->circle.pseudo_point_angle_in_degrees : arc_or_circle->arc.start_angle_in_degrees;
+            real end_angle = arc_or_circle->type == EntityType::Circle ? arc_or_circle->circle.pseudo_point_angle_in_degrees : arc_or_circle->arc.end_angle_in_degrees;
+            if (!(ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.end_angle_in_degrees - 0.001f, arc.end_angle_in_degrees + 0.001f) || 
+                        ANGLE_IS_BETWEEN_CCW_DEGREES(divide_theta, arc.start_angle_in_degrees - 0.001f, arc.start_angle_in_degrees + 0.001f))) {
+                if (ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc, arc.start_angle_in_degrees, divide_theta)) {
+                    new_arc_or_circle = _make_arc(arc.center, arc.radius, divide_theta, end_angle, arc_or_circle->is_selected, arc_or_circle->color_code);
+                } else {
+                    new_arc_or_circle = _make_arc(arc.center, arc.radius, start_angle, divide_theta, arc_or_circle->is_selected, arc_or_circle->color_code);
+                }
+            } else {
+                return fillet_result; // TODO: FORNOW: i have no idea what the if statement is for but am scared to delete it
+            }
+        }
+
+        fillet_result.ent_one = swap_happened ? line_to_add : new_arc_or_circle;
+        fillet_result.ent_two = swap_happened ? new_arc_or_circle : line_to_add;
+
+    } else { ASSERT(is_arc_arc);
+        ArcEntity arc_a = E->arc;
+        ArcEntity arc_b = F->arc;
+        real _other_fillet_radius = radius + (radius == 0 ? .001 : 0);
+
+        bool fillet_inside_arc_a = distance(arc_a.center, reference_point) < arc_a.radius;
+        bool fillet_inside_arc_b = distance(arc_b.center, reference_point) < arc_b.radius;
+
+        ArcEntity new_arc_a = arc_a;
+        new_arc_a.radius = arc_a.radius + (fillet_inside_arc_a ? -1 : 1) * _other_fillet_radius;
+
+        ArcEntity new_arc_b = arc_b;
+        new_arc_b.radius = arc_b.radius + (fillet_inside_arc_b ? -1 : 1) * _other_fillet_radius;
+
+
+        ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, reference_point);
+
+        if (fillet_point.no_possible_intersection) {
+            messagef(pallete.orange, "FILLET: no intersection found");
+            return fillet_result;
+        }
+
+        vec2 fillet_center = fillet_point.point;
+        vec2 arc_a_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_a ? -1 : 1) * normalized(fillet_center - arc_a.center);
+        vec2 arc_b_fillet_intersect = fillet_center - _other_fillet_radius * (fillet_inside_arc_b ? -1 : 1) * normalized(fillet_center - arc_b.center);
+        real fillet_arc_a_theta = ATAN2(arc_a_fillet_intersect - fillet_center);
+        real fillet_arc_b_theta = ATAN2(arc_b_fillet_intersect - fillet_center);
+
+        // a swap so the fillet goes the right way
+        // (smallest angle
+        if (fmod(TAU + fillet_arc_a_theta - fillet_arc_b_theta, TAU) < PI) {
+            real temp = fillet_arc_b_theta;
+            fillet_arc_b_theta = fillet_arc_a_theta;
+            fillet_arc_a_theta = temp;
+        }
+        Entity fillet_arc = _make_arc(fillet_center, _other_fillet_radius, DEG(fillet_arc_a_theta), DEG(fillet_arc_b_theta), false, E->color_code); // if this is changed to radius it breaks, dont ask me why
+        if (radius > TINY_VAL) {
+            fillet_result.fillet_arc = fillet_arc;
+        }
+
+        real divide_theta_a = DEG(ATAN2(fillet_center - arc_a.center));
+        real divide_theta_b = DEG(ATAN2(fillet_center - arc_b.center));
+        if (radius == 0) {
+            ArcArcXClosestResult zero_intersect = arc_arc_intersection_closest(&arc_a, &arc_b, reference_point);
+            divide_theta_a = zero_intersect.theta_a;
+            divide_theta_b = zero_intersect.theta_b;
+        }
+
+        vec2 middle_angle_vec = entity_get_middle(&fillet_arc);
+        real fillet_middle_arc_a = DEG(ATAN2(middle_angle_vec - arc_a.center));
+        real fillet_middle_arc_b = DEG(ATAN2(middle_angle_vec - arc_b.center));
+
+        Entity ent_one_to_add;
+        if (EntOne->type == EntityType::Circle && !pseudoE) {
+            ent_one_to_add = _make_circle(EntOne->circle.center, EntOne->circle.radius, true, divide_theta_a, EntOne->is_selected, EntOne->color_code); 
+        } else {
+            real start_angle = EntOne->type == EntityType::Circle ? EntOne->circle.pseudo_point_angle_in_degrees : E->arc.start_angle_in_degrees;
+            real end_angle = EntOne->type == EntityType::Circle ? EntOne->circle.pseudo_point_angle_in_degrees : E->arc.end_angle_in_degrees;
+            if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_a, arc_a.start_angle_in_degrees, divide_theta_a)) {
+                ent_one_to_add = _make_arc(E->arc.center, E->arc.radius, divide_theta_a, end_angle, E->is_selected, E->color_code);
+            } else {
+                ent_one_to_add = _make_arc(E->arc.center, E->arc.radius, start_angle, divide_theta_a, E->is_selected, E->color_code);
+            }
+        }
+        fillet_result.ent_one = ent_one_to_add;
+
+
+        Entity ent_two_to_add;
+        if (EntTwo->type == EntityType::Circle && !pseudoF) {
+            ent_two_to_add = _make_circle(EntTwo->circle.center, EntTwo->circle.radius, true, divide_theta_b, EntTwo->is_selected, EntTwo->color_code); 
+        } else {
+            real start_angle_in_degrees = EntTwo->type == EntityType::Circle ? EntTwo->circle.pseudo_point_angle_in_degrees : F->arc.start_angle_in_degrees;
+            real end_angle_in_degrees = EntTwo->type == EntityType::Circle ? EntTwo->circle.pseudo_point_angle_in_degrees : F->arc.end_angle_in_degrees;
+            if ((radius == 0) != ANGLE_IS_BETWEEN_CCW_DEGREES(fillet_middle_arc_b, arc_b.start_angle_in_degrees, divide_theta_b)) {
+                ent_two_to_add = _make_arc(F->arc.center, F->arc.radius, divide_theta_b, end_angle_in_degrees, F->is_selected, F->color_code);
+            } else {
+                ent_two_to_add = _make_arc(F->arc.center, F->arc.radius, start_angle_in_degrees, divide_theta_b, F->is_selected, F->color_code);
+            }
+        }
+        fillet_result.ent_two = ent_two_to_add;
+
+    }
+
+    // least sus thing ever
+    fillet_result.fillet_success = true;
+
+    return fillet_result;
+}
+
+typedef struct {
+    bool dogear_success;
+    Entity ent_one;
+    Entity ent_two;
+    Entity fillet_arc_one;
+    Entity fillet_arc_two;
+    Entity dogear_arc_one;
+    Entity dogear_arc_two;
+} DogEarResult;
+
+DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real radius) {
+    DogEarResult dogear_result = {};
+
+    if (E == F) {
+        messagef(pallete.orange, "DogEar: clicked same entity twice");
+        return dogear_result;
+    }
+
+    if (IS_ZERO(radius)) {
+        messagef(pallete.orange, "DogEar: FORNOW: must have non-zero radius");
+        return dogear_result;
+    }
+
+    bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
+    if (!is_line_line) {
+        messagef(pallete.orange, "DogEar: only line-line is supported");
+        return dogear_result;
+    }
+
+    //                                    ,--.
+    //  a -- b      x          a -- b    e     x
+    //                                  :   y  :
+    //                                  ,      f
+    //                   =>              +.__.'
+    //    p         d            p             d
+    //              |                          |
+    //              c                          c
+
+    // FORNOW: this block is repeated from fillet
+    vec2 p = reference_point;
+    vec2 a;
+    vec2 b;
+    vec2 c;
+    vec2 d;
+    vec2 x;
+    vec2 e_ab;
+    vec2 e_cd;
+    // vec2 *b_ptr;
+    // vec2 *d_ptr;
+    {
+        a     =  E->line.start;
+        b     =  E->line.end;
+        // b_ptr = &E->line.end;
+        c     =  F->line.start;
+        d     =  F->line.end;
+        // d_ptr = &F->line.end;
+
+        LineLineXResult _x = line_line_intersection(a, b, c, d);
+        if (_x.lines_are_parallel) {
+            messagef(pallete.orange, "DogEar: lines are parallel");
+            return dogear_result;
+        }
+        x = _x.point;
+
+        e_ab = normalized(b - a);
+        e_cd = normalized(d - c);
+
+        bool swap_ab, swap_cd; {
+            vec2 v_xp_in_edge_basis = inverse(hstack(e_ab, e_cd)) * (p - x);
+            swap_ab = (v_xp_in_edge_basis.x > 0.0f);
+            swap_cd = (v_xp_in_edge_basis.y > 0.0f);
+        }
+
+        if (swap_ab) {
+            SWAP(&a, &b);
+            e_ab *= -1;
+            // b_ptr = &E->line.start;
+        }
+
+        if (swap_cd) {
+            SWAP(&c, &d);
+            e_cd *= -1;
+            // d_ptr = &F->line.start;
+        }
+    }
+
+    vec2 y;
+    vec2 e_xy;
+    real theta_yx_in_degrees;
+    {
+        e_xy = -normalized(e_ab + e_cd);
+        y = x + radius * e_xy;
+        theta_yx_in_degrees = DEG(ATAN2(-e_xy));
+    }
+
+    Entity G = _make_arc(y, radius, theta_yx_in_degrees - 180.0f, theta_yx_in_degrees + 180.0f, false, E->color_code);
+
+    vec2 e;
+    vec2 f;
+    {
+        // FORNOW: sloppy (use of a, c is wrong i think)
+        LineArcXClosestResult _e = line_arc_intersection_closest(&E->line, &G.arc, a);
+        ASSERT(!_e.no_possible_intersection);
+        e = _e.point;
+        LineArcXClosestResult _f = line_arc_intersection_closest(&F->line, &G.arc, c);
+        ASSERT(!_f.no_possible_intersection);
+        f = _f.point;
+    }
+
+    FilletResult fillet_one = preview_fillet(E, &G, e + (e - y), radius);
+    FilletResult fillet_two = preview_fillet(F, &fillet_one.ent_two, f + (f - y), radius);
+
+    dogear_result.ent_one = fillet_one.ent_one;
+    dogear_result.ent_two = fillet_two.ent_one;
+    dogear_result.fillet_arc_one = fillet_one.fillet_arc;
+    dogear_result.fillet_arc_two = fillet_two.fillet_arc;
+
+
+    // // split arc version
+    Entity G1;
+    Entity G2;
+    {
+        G1 = fillet_two.ent_two;
+        G2 = fillet_two.ent_two;
+        real half_theta_in_degrees =  0.5f * _WRAP_TO_0_360_INTERVAL(fillet_two.ent_two.arc.end_angle_in_degrees - fillet_two.ent_two.arc.start_angle_in_degrees);
+        G1.arc.end_angle_in_degrees -= half_theta_in_degrees;
+        G2.arc.start_angle_in_degrees = G1.arc.end_angle_in_degrees;
+    }
+    dogear_result.dogear_arc_one = G1;
+    dogear_result.dogear_arc_two = G2;
+
+    return dogear_result;
+
 }

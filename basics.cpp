@@ -104,6 +104,7 @@ int SGN(float a) { return (a < 0) ? -1 : 1; }
 // ABS
 int  ABS( int a) { return (a < 0) ? -a : a; }
 real ABS(real a) { return (a < 0) ? -a : a; }
+tuDv ABS(vecD a) { return cwiseAbs(a); }
 // MIN
 // int  MIN( int a,  int b) { return (a < b) ? a : b; } // TODO: do we ever use this?
 uint MIN(uint a, uint b) { return (a < b) ? a : b; }
@@ -117,9 +118,11 @@ bool IS_ZERO(real a) { return (ABS(a) < TINY_VAL); }
 tuD bool IS_ZERO(vecD a) { for_(d, D) if (!IS_ZERO(a[d])) return false; return true; }
 bool ARE_EQUAL(real a, real b) { return IS_ZERO(ABS(a - b)); }
 tuD bool ARE_EQUAL(vecD a, vecD b) { return IS_ZERO((a - b)); }
+
 bool IS_BETWEEN_LOOSE(real p, real a, real b) { return (((a - TINY_VAL) < p) && (p < (b + TINY_VAL))); }
 bool IS_BETWEEN_TIGHT(real p, real a, real b) { return (((a + TINY_VAL) < p) && (p < (b - TINY_VAL))); }
 // CLAMP
+uint CLAMP(uint t, uint a, uint b) { return MIN(MAX(t, a), b); }
 real CLAMP(real t, real a, real b) { return MIN(MAX(t, a), b); }
 real MAG_CLAMP(real t, real a) {
     ASSERT(a > 0.0f);
@@ -169,10 +172,10 @@ int MODULO(int x, int N) { return ((x % N) + N) % N; }
 // IS_NAN
 #ifdef OPERATING_SYSTEM_APPLE
 #include <unistd.h>
-#define IS_NAN _isnan
+#define IS_NAN isnan
 #elif defined(OPERATING_SYSTEM_WINDOWS)
 #include <windows.h>
-#define IS_NAN(x) 
+#define IS_NAN _isnan
 #endif
 // SWAP
 template <typename T> void SWAP(T *a, T *b) {
@@ -190,3 +193,7 @@ long MILLIS() {
 run_before_main { setvbuf(stdout, NULL, _IONBF, 0); };
 // seed random number generator
 run_before_main { srand((unsigned int) time(NULL)); };
+// GUARDED_free
+void GUARDED_free(void *pointer) {
+    if (pointer) free(pointer);
+}

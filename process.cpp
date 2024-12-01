@@ -10,7 +10,7 @@
 // TODO: linear copy like layout
 // TODO: ???linear copy shouldn't be able to snap to the thing that 
 
-// TODO: mouse still pops on undo/redo
+// TODO: mouse_transformed_position still pops on undo/redo
 // ~~~~: snaps flicker when typing in the popup 
 
 // XXXX: click modifier belongs in other
@@ -94,7 +94,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             Draw_pen2.font_height_Pixel = 12.0f;
             Draw_pen2.color = pallete.light_gray;
 
-            real h = Draw_pen.font_height_Pixel + Draw_pen2.font_height_Pixel;
+            real h = Draw_pen.font_height_Pixel;// + Draw_pen2.font_height_Pixel;
 
             EasyTextPen Xsel_pen = Draw_pen;
             EasyTextPen Xsel_pen2 = Draw_pen2;
@@ -107,7 +107,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EasyTextPen Colo_pen = Snap_pen;
             EasyTextPen Colo_pen2 = Snap_pen2;
             if (command_equals(state.Xsel_command, commands.ByColor)) {
-                Colo_pen.origin.y += 116.0f;
+                Colo_pen.origin.y += 92.0f;
             }
             Colo_pen2.origin = Colo_pen.origin;
 
@@ -120,7 +120,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             EasyTextPen Mesh_pen = Draw_pen;
             EasyTextPen Mesh_pen2 = Draw_pen2;
             Mesh_pen.origin.x = window_get_width_Pixel() - (w + padding);
-            Mesh_pen.origin.y += 64.0f;
+            // Mesh_pen.origin.y += 64.0f;
             Mesh_pen2.origin = Mesh_pen.origin;
 
 
@@ -160,7 +160,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 bool draw_tool = name.data;
 
                 if (1
-                        && (!other.hide_toolbox || command_equals(command, commands.ToggleGUI))
+                        && (!other.hide_toolbox || (command_equals(command, commands.ToggleGUI)))
                         && (!other._please_suppress_drawing_popup_popup)
                         && (!hide_button)
                         && (group != ToolboxGroup::None)
@@ -177,7 +177,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     } else if (group == ToolboxGroup::Xsel) {
                         pen = &Xsel_pen;
                         pen2 = &Xsel_pen2;
-                        w = 64.0f;
                     } else if (group == ToolboxGroup::Snap) {
                         pen = &Snap_pen;
                         pen2 = &Snap_pen2;
@@ -194,8 +193,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         pen2 = &Mesh_pen2;
                     }
 
+                    real eps = 6.0;
+
                     real y = pen->get_y_Pixel();
-                    bbox2 bbox = { pen->origin.x, y - 2, pen->origin.x + w, y + h };
+                    bbox2 bbox = { pen->origin.x, y - 2 - eps / 2, pen->origin.x + w, y + h + eps / 2 + 1 };
 
                     bool hovering = bbox_contains(bbox, other.mouse_Pixel);
 
@@ -255,7 +256,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
                             eso_overlay(true);
                             eso_color(color);
-                            real r = h / 2;
+                            real r = h / 2 + eps / 2;
                             eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { -r, 0.0f }));
                             eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { 0.0f, -r }));
                             eso_end();
@@ -293,9 +294,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     KeyEvent tmp = { {}, key, control, shift, alt };
                     pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                    // pen->offset_Pixel.x = 4;
                     pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
-                    easy_text_draw(pen, name);
-                    pen2->offset_Pixel.y = pen->offset_Pixel.y;
+                    {
+                        // String fornow_hack = name;
+                        // if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
+                        // if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
+                        // if (!hovering) {
+                        // easy_text_draw(pen, fornow_hack);
+                        easy_text_draw(pen, name);
+                        // } else {
+                        // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                        // }
+                    }
+                    pen2->offset_Pixel.y = pen->offset_Pixel.y + eps;
                     pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
                     pen2->offset_Pixel.x = ROUND(pen2->offset_Pixel.x);
                     // if (!gray_out_shortcut) {
@@ -303,7 +315,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     // } else {
                     //     easy_text_drawf(pen2, "");
                     // }
-                    easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+
+                    //easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
 
                     pen->color = tmp_pen_color;
                     pen2->color = tmp_pen2_color;
@@ -332,7 +345,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         inner_result |= (name.data == event.mouse_event.mouse_event_toolbox_button.name);
                     } else if (!deactivate_hotkey) {
                         for (Shortcut *shortcut = command.shortcuts; shortcut < command.shortcuts + COMMAND_MAX_NUM_SHORTCUTS; ++shortcut) {
-                            bool tmp = _key_lambda(key_event, shortcut->key, (shortcut->mods & GLFW_MOD_CONTROL), (shortcut->mods & GLFW_MOD_SHIFT));
+                            bool tmp = _key_lambda(key_event, shortcut->key, (shortcut->mods & GLFW_MOD_CONTROL), (shortcut->mods & GLFW_MOD_SHIFT), (shortcut->mods & GLFW_MOD_ALT));
                             inner_result |= tmp;
                             hotkey_consumed_by_GUIBUTTON |= tmp;
                         }
@@ -347,6 +360,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         two_click_command->tangent_first_click = false;
 
                         mesh_two_click_command->awaiting_second_click = false;
+
+                        preview->mouse_from_Draw_Enter__BLUE_position = {}; // ohno NOTE:SEE001
                     }
                     if (flags & FOCUS_THIEF) {
                         popup->manager.manually_set_focus_group(group);
@@ -391,7 +406,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (group == ToolboxGroup::Draw) {
                     Draw_pen.offset_Pixel.y += eps;
                 } else if (group == ToolboxGroup::Snap) {
-                    messagef(pallete.red, "horrifying stuff with Snap pen origin/offset");
+                    MESSAGE_FAILURE("horrifying stuff with Snap pen origin/offset");
                 } else if (group == ToolboxGroup::Mesh) {
                     Mesh_pen.offset_Pixel.y += eps;
                 } else { ASSERT(group == ToolboxGroup::Both);
@@ -458,10 +473,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         }
                     }
+
                     SEPERATOR();
-                    if (GUIBUTTON(commands.ToggleDetails)) { 
-                        other.show_details = !other.show_details;
-                    }
+
+                    if (GUIBUTTON(commands.ToggleConsole)) other.show_console = !other.show_console;
+                    if (GUIBUTTON(commands.ToggleDetails)) other.show_details = !other.show_details;
+                    if (GUIBUTTON(commands.ToggleFPS)) other.show_debug = !other.show_debug;
+                    if (GUIBUTTON(commands.ToggleHistory)) other.show_history = !other.show_history;
                 }
 
                 { // Colo
@@ -538,15 +556,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 { // Snap 
                     if (state.Draw_command.flags & SNAPPER) {
-                        if (GUIBUTTON(commands.Center)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.End)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Intersect)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Middle)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Perp)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.Quad)) preview->mouse_snap = preview->mouse; // FORNOW
-                                                                                            //if (GUIBUTTON(commands.Tangent)) preview->mouse_snap = preview->mouse; // FORNOW
-                        if (GUIBUTTON(commands.XY)) preview->xy_xy = preview->mouse; // FORNOW
+
+                        bool snap_button_other_than_XY_or_Zero_pressed = 0
+                            | GUIBUTTON(commands.Center)
+                            | GUIBUTTON(commands.End)
+                            | GUIBUTTON(commands.Intersect)
+                            | GUIBUTTON(commands.Middle)
+                            | GUIBUTTON(commands.Perp)
+                            | GUIBUTTON(commands.Quad);
+
+                        if (snap_button_other_than_XY_or_Zero_pressed) {
+                            preview->mouse_transformed__PINK_position = preview->mouse_no_snap_potentially_15_deg__WHITE_position; // FORNOW
+                        }
+
+                        if (GUIBUTTON(commands.XY)) {
+                            // this is the only good code in the codebase
+
+                            // ohno NOTE:SEE001
+                            preview->xy_xy = (!two_click_command->awaiting_second_click) ? V2(0) : preview->mouse_no_snap_potentially_15_deg__WHITE_position;
+                        }
                         if (GUIBUTTON(commands.Zero)) {
+                            state.Snap_command = commands.None;
+
                             Event equivalent = {};
                             equivalent.type = EventType::Mouse;
                             equivalent.mouse_event.subtype = MouseEventSubtype::Drawing;
@@ -587,36 +618,39 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Circle);
                     GUIBUTTON(commands.Box);
                     if (GUIBUTTON(commands.Polygon)) preview->polygon_num_sides = popup->polygon_num_sides;
-                    // SEPERATOR();
-                    // GUIBUTTON(commands.DiamCircle);
-                    GUIBUTTON(commands.CenterLine);
-                    GUIBUTTON(commands.CenterBox);
                     SEPERATOR();
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
-                    GUIBUTTON(commands.Move);
+                    GUIBUTTON(commands.Translate);
                     GUIBUTTON(commands.Drag);
                     GUIBUTTON(commands.Rotate);
-                    GUIBUTTON(commands.Scale);
+                    if (GUIBUTTON(commands.Scale)) {
+                        preview->scale_factor = 1.0f;
+                    }
                     SEPERATOR();
-                    GUIBUTTON(commands.Copy);
-                    GUIBUTTON(commands.RCopy);
+                    GUIBUTTON(commands.LCopy);
+                    if (GUIBUTTON(commands.RCopy)) {
+                        preview->rcopy_last_angle = 0;
+                    }
                     SEPERATOR();
-                    GUIBUTTON(commands.MirrorX);
-                    GUIBUTTON(commands.MirrorY);
+                    GUIBUTTON(commands.XMirror);
+                    GUIBUTTON(commands.YMirror);
                     // GUIBUTTON(commands.Mirror2);
                     SEPERATOR();
+                    GUIBUTTON(commands.Divide2);
+                    GUIBUTTON(commands.Join2);
+                    SEPERATOR();
+                    GUIBUTTON(commands.ElfHat);
                     GUIBUTTON(commands.Fillet);
                     GUIBUTTON(commands.DogEar);
                     GUIBUTTON(commands.Offset);
-                    GUIBUTTON(commands.Divide2);
                     SEPERATOR();
                     GUIBUTTON(commands.SetOrigin);
                     GUIBUTTON(commands.SetAxis);
                     SEPERATOR();
                     if (GUIBUTTON(commands.ClearDrawing)) {
                         result.checkpoint_me = true;
-                        result.snapshot_me = true;
+                        // result.snapshot_me = true;
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
                         messagef(pallete.light_gray, "ClearDrawing");
@@ -674,7 +708,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         if (feature_plane->is_active) {
                             preview->feature_plane_nudge_offset = 0.0f; // FORNOW
                         } else {
-                            messagef(pallete.orange, "NudgePlane: no feature plane selected");
+                            MESSAGE_FAILURE("NudgePlane: no feature plane selected");
                             set_state_Mesh_command(None); // FORNOW
                         }
                     }
@@ -696,7 +730,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ClearMesh)) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
-                        mesh_free_AND_zero(mesh);
+                        meshes_free_AND_zero(meshes);
                         *feature_plane = {};
                         messagef(pallete.light_gray, "ClearMesh");
                     }
@@ -734,11 +768,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     //     other.camera_mesh.angle_of_view = CAMERA_3D_PERSPECTIVE_ANGLE_OF_VIEW - other.camera_mesh.angle_of_view;
                     // }
 
-                    if (GUIBUTTON(commands.DivideNearest)) {
-                        set_state_Draw_command(DivideNearest);
-                        set_state_Snap_command(None);
+                    // if (GUIBUTTON(commands.DivideNearest)) {
+                    //     set_state_Draw_command(DivideNearest);
+                    //     set_state_Snap_command(None);
 
-                    }
+                    // }
 
 
 
@@ -747,14 +781,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     }
 
-                    if (GUIBUTTON(commands.PRINT_HISTORY)) {
-                        history_printf_script();
-
-                    }
-
-                    if (GUIBUTTON(commands.TOGGLE_EVENT_STACK)) { 
-                        other.show_event_stack = !other.show_event_stack;
-                    }
 
 
 
@@ -766,13 +792,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-
-
-
-                    if (GUIBUTTON(commands.HELP_MENU)) {
-                        other.show_help = !other.show_help;
-
-                    }
 
 
                     if (GUIBUTTON(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
@@ -810,7 +829,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             && (key_event->key != 0)
                             && (key_event->key != 0)
                        ) {
-                        messagef(pallete.orange, "Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
+                        MESSAGE_FAILURE("Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
                     }
                 }
 
@@ -833,22 +852,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             if (state_Draw_command_is_(Measure)) result.record_me = false;
             if (mouse_event->mouse_held) result.record_me = false;
 
-            MagicSnapResult snap_result = mouse_event_drawing->snap_result;
-            vec2 *mouse = &snap_result.mouse_position;
+            TransformMouseDrawingPositionResult transform_mouse_drawing_position_result = transform_mouse_drawing_position(mouse_event_drawing->unsnapped_position, mouse_event_drawing->shift_held, false);
+            vec2 *mouse_transformed_position = &transform_mouse_drawing_position_result.mouse_position;
+
 
             // TODO: commands.cpp flag
-            if (snap_result.snapped && ( 
-                        (state_Draw_command_is_(Box))
-                        || (state_Draw_command_is_(CenterBox))
-                        || (state_Draw_command_is_(CenterLine))
+            if (transform_mouse_drawing_position_result.snapped
+                    && ( 
+                        0
+                        || (state_Draw_command_is_(Box))
                         || (state_Draw_command_is_(Circle))
                         || (state_Draw_command_is_(Line))
                         || (state_Draw_command_is_(Polygon))
-                        || (state_Draw_command_is_(DiamCircle)))) {
-                ASSERT(snap_result.entity_index_snapped_to >= 0);
-                ASSERT(snap_result.entity_index_snapped_to < drawing->entities.length);
-                cookbook.attempt_divide_entity_at_point(snap_result.entity_index_snapped_to, *mouse);
-                other.snap_divide_dot = *mouse;
+                       )
+               ) {
+                ASSERT(transform_mouse_drawing_position_result.entity_index_snapped_to >= 0);
+                ASSERT(transform_mouse_drawing_position_result.entity_index_snapped_to < drawing->entities.length);
+                cookbook.attempt_divide_entity_at_point(transform_mouse_drawing_position_result.entity_index_snapped_to, *mouse_transformed_position);
+                other.snap_divide_dot = *mouse_transformed_position;
                 other.size_snap_divide_dot = 7.0f;
             }
 
@@ -856,7 +877,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             // fornow window wonky case
             if (_non_WINDOW__SELECT_DESELECT___OR___SET_COLOR()) { // NOTES: includes sc and qc
                 result.record_me = false;
-                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
+                DXFFindClosestEntityResult dxf_find_closest_entity_result = dxf_find_closest_entity(&drawing->entities, transform_mouse_drawing_position_result.mouse_position);
                 if (dxf_find_closest_entity_result.success) {
                     Entity *hot_entity = dxf_find_closest_entity_result.closest_entity;
                     if (!state_Xsel_command_is_(Connected) && !state_Colo_command_is_(OfSelection)) {
@@ -1059,7 +1080,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             } else if (!mouse_event->mouse_held) {
                 if ((state.Draw_command.flags | state.Xsel_command.flags) & TWO_CLICK) { // FORNOW
                     if (!two_click_command->awaiting_second_click) {
-                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_event_drawing->snap_result.mouse_position);
+                        DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, transform_mouse_drawing_position_result.mouse_position);
                         bool first_click_accepted; {
                             if (!first_click_must_acquire_entity()) {
                                 first_click_accepted = true;
@@ -1069,10 +1090,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                         if (first_click_accepted) {
                             two_click_command->awaiting_second_click = true;
-                            two_click_command->first_click = mouse_event_drawing->snap_result.mouse_position;
-                            if (!two_click_command->tangent_first_click) { // ???
-                                two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
-                            }
+                            two_click_command->first_click = transform_mouse_drawing_position_result.mouse_position;
+                            // if (!two_click_command->tangent_first_click) { // ???
+                            two_click_command->entity_closest_to_first_click = find_nearest_result.closest_entity;
+                            // }
                             set_state_Snap_command(None);
                             if (!other._please_suppress_drawing_popup_popup) { // bump bumps cursor bump cursor bumps
                                 if (state_Draw_command_is_(Rotate)) {
@@ -1095,14 +1116,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }
 
-                            // FORNOW FORNOW
-                            preview->popup_second_click = two_click_command->first_click;
+                            // FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD
+                            vec2 Draw_Enter; {
+                                do_once { messagef(pallete.red, "FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD"); };
+                                Draw_Enter = (!two_click_command->awaiting_second_click) ? V2(0, 0) : two_click_command->first_click;
+                                // if (popup->manager.focus_group == ToolboxGroup::Draw) {
+                                // if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
+                                // if (state_Draw_command_is_(Circle)) Draw_Enter += V2(popup->circle_radius, 0.0f);
+                                // if (state_Draw_command_is_(Polygon)) Draw_Enter += V2(popup->polygon_distance_to_corner, 0.0f);
+                                // if (state_Draw_command_is_(Line)) Draw_Enter += V2(popup->line_run, popup->line_rise);
+                                // if (state_Draw_command_is_(Translate)) Draw_Enter += V2(popup->move_run, popup->move_rise);
+                                // if (state_Draw_command_is_(LCopy)) Draw_Enter += V2(popup->lcopy_run, popup->lcopy_rise);
+                                // if (state_Draw_command_is_(Rotate)) Draw_Enter += 10.0f * e_theta(RAD(popup->rotate_angle));
+                                // }
+                            }
+
+                            preview->mouse_from_Draw_Enter__BLUE_position = Draw_Enter;
                             preview->xy_xy = two_click_command->first_click;
-                            preview->color_mouse = pallete.black;
                         }
                     } else { // (two_click_command->awaiting_second_click)
                         vec2 first_click = two_click_command->first_click;
-                        vec2 second_click = *mouse;
+                        vec2 second_click = *mouse_transformed_position;
                         vec2 click_vector = (second_click - first_click);
                         vec2 average_click = AVG(first_click, second_click);
                         real click_theta = angle_from_0_TAU(first_click, second_click);
@@ -1121,9 +1155,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             drawing->axis_angle_from_y = (-PI / 2) + click_theta;
                         } else if (state_Draw_command_is_(Box)) {
                             if (IS_ZERO(ABS(first_click.x - second_click.x))) {
-                                messagef(pallete.orange, "Box: must have non-zero width ");
+                                MESSAGE_FAILURE("Box: must have non-zero width");
                             } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
-                                messagef(pallete.orange, "Box: must have non-zero height");
+                                MESSAGE_FAILURE("Box: must have non-zero height");
                             } else {
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
@@ -1135,34 +1169,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(second_click, other_corner_A);
                                 cookbook.buffer_add_line(second_click, other_corner_B);
                             }
-                        } else if (state_Draw_command_is_(CenterBox)) {
-                            if (IS_ZERO(ABS(first_click.x - second_click.x))) {
-                                messagef(pallete.orange, "Box: must have non-zero width ");
-                            } else if (IS_ZERO(ABS(first_click.y - second_click.y))) {
-                                messagef(pallete.orange, "Box: must have non-zero height");
-                            } else {
-                                result.checkpoint_me = true;
-                                set_state_Draw_command(None);
-                                set_state_Snap_command(None);
-                                vec2 one_corner = second_click;
-                                vec2 center = first_click;
-                                real other_y = 2 * center.y - one_corner.y;
-                                real other_x = 2 * center.x - one_corner.x;
-                                cookbook.buffer_add_line(one_corner, V2(one_corner.x, other_y));
-                                cookbook.buffer_add_line(V2(one_corner.x, other_y),  V2(other_x, other_y));
-                                cookbook.buffer_add_line(V2(other_x, other_y), V2(other_x, one_corner.y));
-                                cookbook.buffer_add_line(V2(other_x, one_corner.y), one_corner);
-                            }
-                        } else if (state_Draw_command_is_(CenterLine)) {
-                            if (clicks_are_same) {
-                                messagef(pallete.orange, "Line: must have non-zero length");
-                            } else {
-                                result.checkpoint_me = true;
-                                set_state_Draw_command(None);
-                                set_state_Snap_command(None);
-                                vec2 mirrored_click = first_click + (first_click - second_click);
-                                cookbook.buffer_add_line(mirrored_click, second_click);
-                            }
                         } else if (state_Draw_command_is_(Fillet)) {
                             result.checkpoint_me = true;
 
@@ -1170,7 +1176,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = two_click_command->entity_closest_to_second_click;
-                                cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(E, F, average_click, popup->fillet_radius);
+                                FilletResult fillet_result = preview_fillet(E, F, average_click, popup->fillet_radius);
+                                if (fillet_result.fillet_success) {
+                                    cookbook._buffer_add_entity(fillet_result.ent_one);
+                                    cookbook._buffer_add_entity(fillet_result.ent_two);
+
+                                    if (!IS_ZERO(popup->fillet_radius)) {
+                                        cookbook._buffer_add_entity(fillet_result.fillet_arc);
+                                    }
+
+                                    cookbook.buffer_delete_entity(E);
+                                    cookbook.buffer_delete_entity(F);
+
+                                }
+
                                 two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(DogEar)) {
@@ -1178,14 +1197,26 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             set_state_Snap_command(None);
                             if (two_click_command->entity_closest_to_second_click) {
-                                Entity *E = two_click_command->entity_closest_to_first_click;
-                                Entity *F = two_click_command->entity_closest_to_second_click;
-                                cookbook.attempt_dogear(E, F, average_click, popup->dogear_radius);
+                                DogEarResult dogear_result = preview_dogear(
+                                        two_click_command->entity_closest_to_first_click, 
+                                        two_click_command->entity_closest_to_second_click, 
+                                        average_click, 
+                                        popup->dogear_radius);
                                 two_click_command->awaiting_second_click = false;
+
+                                cookbook._buffer_add_entity(dogear_result.ent_one);
+                                cookbook._buffer_add_entity(dogear_result.ent_two);
+                                cookbook._buffer_add_entity(dogear_result.fillet_arc_one);
+                                cookbook._buffer_add_entity(dogear_result.fillet_arc_two);
+                                cookbook._buffer_add_entity(dogear_result.dogear_arc_one);
+                                cookbook._buffer_add_entity(dogear_result.dogear_arc_two);
+
+                                cookbook.buffer_delete_entity(two_click_command->entity_closest_to_first_click);
+                                cookbook.buffer_delete_entity(two_click_command->entity_closest_to_second_click);
                             }
                         } else if (state_Draw_command_is_(Circle)) {
                             if (clicks_are_same) {
-                                messagef(pallete.orange, "Circle: must have non-zero diameter");
+                                MESSAGE_FAILURE("Circle: must have non-zero diameter");
                             } else {
                                 // messagef(pallete.light_gray, "Circle");
                                 result.checkpoint_me = true;
@@ -1202,21 +1233,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_circle(first_click, r, false, {});
                                 #endif
                             }
-                        } else if (state_Draw_command_is_(DiamCircle)) {
-                            if (clicks_are_same) {
-                                messagef(pallete.orange, "TwoEdgeCircle: must have non-zero diameter");
-                            } else {
-                                result.checkpoint_me = true;
-                                set_state_Draw_command(None);
-                                set_state_Snap_command(None);
-                                vec2 center = average_click;
-                                real theta_a_in_degrees = DEG(ATAN2(second_click - center));
-                                real theta_b_in_degrees = theta_a_in_degrees + 180.0f;
-                                real radius = length_click_vector / 2;
-                                cookbook.buffer_add_arc(center, radius, theta_a_in_degrees, theta_b_in_degrees);
-                                cookbook.buffer_add_arc(center, radius, theta_b_in_degrees, theta_a_in_degrees);
-                                // messagef(pallete.light_gray, "Circle");
-                            }
                         } else if (state_Draw_command_is_(Divide2)) { 
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1226,24 +1242,28 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (two_click_command->entity_closest_to_second_click) {
                                 Entity *closest_entity_two = two_click_command->entity_closest_to_second_click;
                                 if (closest_entity_one == closest_entity_two) {
-                                    messagef(pallete.orange, "TwoClickDivide: clicked same entity twice");
+                                    MESSAGE_FAILURE("TwoClickDivide: clicked same entity twice");
                                 } else {
                                     ClosestIntersectionResult intersection = closest_intersection(closest_entity_one, closest_entity_two, second_click);
                                     if (intersection.no_possible_intersection) {
-                                        messagef(pallete.red, "NO INTERSECTION FOUND");
+                                        MESSAGE_FAILURE("NO INTERSECTION FOUND");
                                     } else {
                                         bool divided_first = cookbook.attempt_divide_entity_at_point(closest_entity_one, intersection.point);
                                         bool divided_second = cookbook.attempt_divide_entity_at_point(closest_entity_two, intersection.point);
 
                                         if (!divided_first && !divided_second) {
-                                            messagef(pallete.red, "NO INTERSECTION FOUND");
+                                            MESSAGE_FAILURE("NO INTERSECTION FOUND");
                                         }
                                     }
                                 }
                             }
+                        } else if (state_Draw_command_is_(Join2)) {
+                            result.checkpoint_me = true;
+                            set_state_Draw_command(None);
+                            set_state_Snap_command(None);
                         } else if (state_Draw_command_is_(Line)) {
                             if (clicks_are_same) {
-                                messagef(pallete.orange, "Line: must have non-zero length");
+                                MESSAGE_FAILURE("Line: must have non-zero length");
                             } else {
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
@@ -1255,44 +1275,19 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Snap_command(None);
                             real angle = DEG(click_theta);
                             real length = length_click_vector;
-                            messagef(pallete.cyan, "Angle is %gdeg.", angle);
-                            messagef(pallete.cyan, "Length is %gmm.", length);
+                            MESSAGE_FAILURE("Angle is %gdeg.", angle);
+                            MESSAGE_FAILURE("Length is %gmm.", length);
 
-                            messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
+                            // messagef(pallete.yellow, "EXPERIMENTAL: Measure copies into field.");
                             _POPUP_MEASURE_HOOK(length);
                         } else if (state_Draw_command_is_(Mirror2)) {
-
-                            // TODO: entity_mirrored
-
+                            ASSERT(false);
+                        } else if (state_Draw_command_is_(Translate)) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
-
-                            real theta = ATAN2(click_vector);
-                            real theta_in_degrees = DEG(theta);
-
-                            auto Q = [theta, first_click](vec2 p) {
-                                p -= first_click;
-                                p = rotated(p, -theta);
-                                p = cwiseProduct(V2(1, -1), p);
-                                p = rotated(p, theta);
-                                p += first_click;
-                                return p;
-                            };
-
-                            auto R = [theta_in_degrees](real angle_in_degrees) {
-                                return -(angle_in_degrees - theta_in_degrees) + theta_in_degrees;
-                            };
-
                             _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    cookbook.buffer_add_line(Q(line->start), Q(line->end), true, entity->color_code);
-                                } else { ASSERT(entity->type == EntityType::Arc);
-                                    ArcEntity *arc = &entity->arc;
-                                    cookbook.buffer_add_arc(Q(arc->center), arc->radius, R(arc->end_angle_in_degrees), R(arc->start_angle_in_degrees), true, entity->color_code);
-                                }
-                                entity->is_selected = false;
+                                *entity = entity_translated(entity, click_vector);
                             }
                         } else if (state_Draw_command_is_(Rotate)) {
                             result.checkpoint_me = true;
@@ -1301,22 +1296,46 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             _for_each_selected_entity_ {
                                 *entity = entity_rotated(entity, first_click, click_theta);
                             }
-                        } else if (state_Draw_command_is_(RCopy)) {
-                            if (popup->rotate_copy_num_total_copies < 2) {
-                                messagef(pallete.orange, "RCopy: must have at least 2 total copies");
+                        } else if (state_Draw_command_is_(Scale)) {
+                            if (IS_ZERO(popup->scale_factor)) {
+                                MESSAGE_FAILURE("Scale: must have non-zero factor");
                             } else {
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
 
-                                real dtheta_deg = popup->rotate_copy_angle;
-                                if (IS_ZERO(dtheta_deg)) dtheta_deg = 180.0f;
-                                real dtheta = RAD(dtheta_deg);
+                                _for_each_selected_entity_ {
+                                    *entity = entity_scaled(entity, first_click, popup->scale_factor);
+                                }
+                            }
+                        } else if (state_Draw_command_is_(LCopy)) {
+                            result.checkpoint_me = true;
+                            set_state_Draw_command(None);
+                            set_state_Snap_command(None);
+                            uint num_additional_copies = MAX(1U, popup->lcopy_num_additional_copies);
+                            for_(i, num_additional_copies) {
+                                vec2 translation_vector = real(i + 1) * click_vector;
+                                bool is_selected = (i == num_additional_copies - 1);
+                                _for_each_selected_entity_ {
+                                    Entity new_entity = entity_translated(entity, translation_vector);
+                                    new_entity.is_selected = is_selected;
+                                    cookbook._buffer_add_entity(new_entity);
+                                }
+                            }
+                            _for_each_selected_entity_ entity->is_selected = false;
+                        } else if (state_Draw_command_is_(RCopy)) {
+                            if (popup->rcopy_num_total_copies < 2) {
+                                MESSAGE_FAILURE("RCopy: must have at least 2 total copies");
+                            } else {
+                                result.checkpoint_me = true;
+                                set_state_Draw_command(None);
+                                set_state_Snap_command(None);
+
+                                real dtheta = TAU / popup->rcopy_num_total_copies;
 
                                 _for_each_selected_entity_ {
-                                    for_(j, popup->rotate_copy_num_total_copies - 1) {
+                                    for_(j, popup->rcopy_num_total_copies - 1) {
                                         real theta = (j + 1) * dtheta;
-
                                         cookbook._buffer_add_entity(entity_rotated(entity, first_click, theta));
                                     }
                                 }
@@ -1352,7 +1371,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 GridPointSlot slots[5];
                             };
 
-                            Map<vec2, GridCell> grid; { // TODO: build grid
+                            Map<vec2, GridCell> grid; {
                                 grid = {};
 
                                 auto push_into_grid_unless_cell_full__make_cell_if_none_exists = [&](vec2 p, uint entity_index, bool end_NOT_start) {
@@ -1591,32 +1610,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             free(endpoint_marks);
                             queue_free_AND_zero(&movePairs);
                             map_free_and_zero(&grid);
-                        } else if (state_Draw_command_is_(Move)) {
-                            result.checkpoint_me = true;
-                            set_state_Draw_command(None);
-                            set_state_Snap_command(None);
-                            _for_each_selected_entity_ {
-                                *entity = entity_translated(entity, click_vector);
-                            }
-                        } else if (state_Draw_command_is_(Copy)) {
-                            result.checkpoint_me = true;
-                            set_state_Draw_command(None);
-                            set_state_Snap_command(None);
-                            uint num_additional_copies = MAX(1U, popup->linear_copy_num_additional_copies);
-                            for_(i, num_additional_copies) {
-                                vec2 translation_vector = real(i + 1) * click_vector;
-                                bool is_selected = (i == num_additional_copies - 1);
-                                _for_each_selected_entity_ {
-                                    Entity new_entity = entity_translated(entity, translation_vector);
-                                    new_entity.is_selected = is_selected;
-                                    cookbook._buffer_add_entity(new_entity);
-                                }
-                            }
-                            _for_each_selected_entity_ entity->is_selected = false;
                         } else if (state_Draw_command_is_(Polygon)) {
                             uint polygon_num_sides = popup->polygon_num_sides;
                             if (clicks_are_same) {
-                                messagef(pallete.orange, "Polygon: must have non-zero size");
+                                MESSAGE_FAILURE("Polygon: must have non-zero size");
                             } else {
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
@@ -1657,9 +1654,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
-                        drawing->origin = *mouse;
+                        drawing->origin = *mouse_transformed_position;
                     } else if (state_Draw_command_is_(DivideNearest)) { 
-                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse); // TODO *closest* -> *nearest*
+                        DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse_transformed_position); // TODO *closest* -> *nearest*
                         if (closest_results.success) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
@@ -1697,126 +1694,32 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                             }          
                         }
-                    } else if (state_Draw_command_is_(PowerFillet)) {
-                        do_once { messagef(pallete.red, "(Jim) i maybe broke this by messing with fillet\nlet's take a look together :)"); };
-                        result.checkpoint_me = true;
-                        set_state_Draw_command(None);
-                        set_state_Snap_command(None);
-
-                        List<Entity*> selected_entities = {};
-                        selected_entities._capacity = 0;
-
-                        _for_each_selected_entity_ {
-                            if (entity->type == EntityType::Line) {
-                                entity->line.start -= *mouse;
-                                entity->line.end -= *mouse;
-                            } else {
-                                entity->arc.center -= *mouse;
-                            }
-                            list_push_back(&selected_entities, entity);
-                        }
-
-                        qsort(selected_entities.array, selected_entities.length, sizeof(Entity*), [](const void *a, const void *b) -> int {
-                                real a_angle = ATAN2(entity_get_middle(*(Entity **)a)); // why not Enity *? idk but it crashes otherwise
-                                real b_angle = ATAN2(entity_get_middle(*(Entity **)b)); 
-                                if (a_angle < b_angle) {
-                                return 1;
-                                } else if (b_angle > a_angle) {
-                                return -1;
-                                }
-                                return 0;
-                                }); // no this is not evil 
-                        for_(i, selected_entities.length) {
-                            Entity *entity = selected_entities.array[i];
-                            if (entity->type == EntityType::Line) {
-                                entity->line.start += *mouse;
-                                entity->line.end += *mouse;
-                            } else { ASSERT(entity->type == EntityType::Arc);
-                                entity->arc.center += *mouse;
-                            }
-                        }
-
-                        for_(i, selected_entities.length) {
-                            cookbook.attempt_fillet_ENTITIES_GET_DELETED_AT_END_OF_FRAME(selected_entities.array[i], selected_entities.array[(i+1) % selected_entities.length], *mouse, popup->fillet_radius);
-                        }
-                    } else if (state_Draw_command_is_(MirrorX)) {
+                    } else if (state_Draw_command_is_(XMirror)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
                         _for_each_selected_entity_ {
-                            if (entity->type == EntityType::Line) {
-                                LineEntity *line = &entity->line;
-                                cookbook.buffer_add_line(
-                                        V2(-(line->start.x - mouse->x) + mouse->x, line->start.y),
-                                        V2(-(line->end.x - mouse->x) + mouse->x, line->end.y),
-                                        true,
-                                        entity->color_code
-                                        );
-                            } else if (entity->type == EntityType::Arc) {
-                                ArcEntity *arc = &entity->arc;
-                                cookbook.buffer_add_arc(
-                                        V2(-(arc->center.x - mouse->x) + mouse->x, arc->center.y),
-                                        arc->radius,
-                                        180 - arc->end_angle_in_degrees,
-                                        180 - arc->start_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            } else { ASSERT(entity->type == EntityType::Circle);
-                                CircleEntity *circle = &entity->circle;
-                                cookbook.buffer_add_circle(
-                                        V2(-(circle->center.x - mouse->x) + mouse->x, circle->center.y),
-                                        circle->radius,
-                                        circle->has_pseudo_point,
-                                        180.0f - circle->pseudo_point_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            }
+                            cookbook._buffer_add_entity(entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(0.0f, 1.0f)));
                             entity->is_selected = false;
                         }
-                    } else if (state_Draw_command_is_(MirrorY)) {
+                    } else if (state_Draw_command_is_(YMirror)) {
                         result.checkpoint_me = true;
                         set_state_Draw_command(None);
                         set_state_Snap_command(None);
                         _for_each_selected_entity_ {
-                            if (entity->type == EntityType::Line) {
-                                LineEntity *line = &entity->line;
-                                cookbook.buffer_add_line(
-                                        V2(line->start.x, -(line->start.y - mouse->y) + mouse->y),
-                                        V2(line->end.x, -(line->end.y - mouse->y) + mouse->y),
-                                        true,
-                                        entity->color_code
-                                        );
-                            } else if (entity->type == EntityType::Arc) {
-                                ArcEntity *arc = &entity->arc;
-                                cookbook.buffer_add_arc(
-                                        V2(arc->center.x, -(arc->center.y - mouse->y) + mouse->y),
-                                        arc->radius,
-                                        -arc->end_angle_in_degrees,
-                                        -arc->start_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            } else { ASSERT(entity->type == EntityType::Circle);
-                                CircleEntity *circle = &entity->circle;
-                                cookbook.buffer_add_circle(
-                                        V2(circle->center.x, -(circle->center.y - mouse->y) + mouse->y),
-                                        circle->radius,
-                                        circle->has_pseudo_point,
-                                        -circle->pseudo_point_angle_in_degrees,
-                                        true,
-                                        entity->color_code);
-                            }
+                            cookbook._buffer_add_entity(entity_mirrored(entity, *mouse_transformed_position, *mouse_transformed_position + V2(1.0f, 0.0f)));
                             entity->is_selected = false;
                         }
                     } else if (state_Draw_command_is_(Offset)) {
                         // TODO: entity_offseted (and preview drawing)
                         if (IS_ZERO(popup->offset_distance)) {
-                            messagef(pallete.orange, "Offset: must have non-zero distance");
+                            MESSAGE_FAILURE("Offset: must have non-zero distance");
                         } else {
-                            DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse);
+                            DXFFindClosestEntityResult closest_results = dxf_find_closest_entity(&drawing->entities, *mouse_transformed_position);
                             if (closest_results.success) {
                                 result.checkpoint_me = true;
                                 set_state_Snap_command(None);
-                                cookbook._buffer_add_entity(entity_offsetted(closest_results.closest_entity, popup->offset_distance, *mouse));
+                                cookbook._buffer_add_entity(entity_offsetted(closest_results.closest_entity, popup->offset_distance, *mouse_transformed_position));
                             }
                         }
                     } else {
@@ -1829,6 +1732,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             result.record_me = false;
             if (!mouse_event->mouse_held) {
                 MagicSnapResult3D snap_result = magic_snap_raycast(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction);
+                WorkMesh* mesh = &meshes->work;
 
                 if (snap_result.hit_mesh) { // something hit
                     if (!(state.Mesh_command.flags & HIDE_FEATURE_PLANE)) {
@@ -1895,11 +1799,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
         { // POPUP
             { // Snap
                 if (state_Snap_command_is_(XY)) {
-                    // sus calling this a modifier but okay; make sure it's first or else bad bad
-                    POPUP(state.Snap_command,
-                            true,
-                            CellType::Real, STRING("x"), &popup->xy_x_coordinate,
-                            CellType::Real, STRING("y"), &popup->xy_y_coordinate);
+                    POPUP(state.Snap_command, true
+                            , CellType::Real, STRING("x"), &popup->xy_x_coordinate
+                            , CellType::Real, STRING("y"), &popup->xy_y_coordinate
+                         );
+
                     if (gui_key_enter(ToolboxGroup::Snap)) {
                         set_state_Snap_command(None);
                         return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->xy_x_coordinate, popup->xy_y_coordinate));
@@ -1907,214 +1811,71 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 }
             }
 
-            { // click_mode
+            { // Draw
                 vec2 *first_click = &two_click_command->first_click;
-                if (state_Draw_command_is_(Circle)) {
+                if (0) {
+                } else if (state_Draw_command_is_(Box)) {
+                    if (two_click_command->awaiting_second_click) {
+                        POPUP(state.Draw_command, true
+                                , CellType::Real, STRING("width"),  &popup->box_width
+                                , CellType::Real, STRING("height"), &popup->box_height
+                             );
+
+                        if (gui_key_enter(ToolboxGroup::Draw)) {
+                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
+                        }
+                    }
+                } else if (state_Draw_command_is_(Circle)) {
                     if (two_click_command->awaiting_second_click) {
                         real prev_circle_diameter = popup->circle_diameter;
                         real prev_circle_radius = popup->circle_radius;
                         real prev_circle_circumference = popup->circle_circumference;
-                        POPUP(state.Draw_command,
-                                false,
-                                CellType::Real, STRING("diameter"), &popup->circle_diameter,
-                                CellType::Real, STRING("radius"), &popup->circle_radius,
-                                CellType::Real, STRING("circumference"), &popup->circle_circumference);
+                        {
+                            POPUP(state.Draw_command, true 
+                                    , CellType::Real, STRING("diameter"), &popup->circle_diameter
+                                    , CellType::Real, STRING("radius"), &popup->circle_radius
+                                    , CellType::Real, STRING("circumference"), &popup->circle_circumference
+                                 );
+                        }
+                        if (prev_circle_diameter != popup->circle_diameter) {
+                            popup->circle_radius = popup->circle_diameter / 2;
+                            popup->circle_circumference = PI * popup->circle_diameter;
+                        } else if (prev_circle_radius != popup->circle_radius) {
+                            popup->circle_diameter = 2 * popup->circle_radius;
+                            popup->circle_circumference = PI * popup->circle_diameter;
+                        } else if (prev_circle_circumference != popup->circle_circumference) {
+                            popup->circle_diameter = popup->circle_circumference / PI;
+                            popup->circle_radius = popup->circle_diameter / 2;
+                        }
+
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->circle_radius, first_click->y));
-                        } else {
-                            if (prev_circle_diameter != popup->circle_diameter) {
-                                popup->circle_radius = popup->circle_diameter / 2;
-                                popup->circle_circumference = PI * popup->circle_diameter;
-                            } else if (prev_circle_radius != popup->circle_radius) {
-                                popup->circle_diameter = 2 * popup->circle_radius;
-                                popup->circle_circumference = PI * popup->circle_diameter;
-                            } else if (prev_circle_circumference != popup->circle_circumference) {
-                                popup->circle_diameter = popup->circle_circumference / PI;
-                                popup->circle_radius = popup->circle_diameter / 2;
-                            }
                         }
                     }
-                } else if (state_Draw_command_is_(DiamCircle)) {
-                    ;
                 } else if (state_Draw_command_is_(Line)) {
                     if (two_click_command->awaiting_second_click) {
                         real prev_line_length = popup->line_length;
                         real prev_line_angle  = popup->line_angle;
                         real prev_line_run    = popup->line_run;
                         real prev_line_rise   = popup->line_rise;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("run (dx)"),    &popup->line_run,
-                                CellType::Real, STRING("rise (dy)"),   &popup->line_rise,
-                                CellType::Real, STRING("length"), &popup->line_length,
-                                CellType::Real, STRING("angle"),  &popup->line_angle
-                             );
+                        {
+                            POPUP(state.Draw_command, true
+                                    , CellType::Real, STRING("run (dx)"),  &popup->line_run
+                                    , CellType::Real, STRING("rise (dy)"), &popup->line_rise
+                                    , CellType::Real, STRING("length"),    &popup->line_length
+                                    , CellType::Real, STRING("angle"),     &popup->line_angle
+                                 );
+                        }
+                        if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
+                            popup->line_run  = popup->line_length * COS(RAD(popup->line_angle));
+                            popup->line_rise = popup->line_length * SIN(RAD(popup->line_angle));
+                        } else if ((prev_line_run != popup->line_run) || (prev_line_rise != popup->line_rise)) {
+                            popup->line_length = SQRT(popup->line_run * popup->line_run + popup->line_rise * popup->line_rise);
+                            popup->line_angle = DEG(ATAN2(popup->line_rise, popup->line_run));
+                        }
+
                         if (gui_key_enter(ToolboxGroup::Draw)) {
                             return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
-                        } else {
-                            if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
-                                popup->line_run  = popup->line_length * COS(RAD(popup->line_angle));
-                                popup->line_rise = popup->line_length * SIN(RAD(popup->line_angle));
-                            } else if ((prev_line_run != popup->line_run) || (prev_line_rise != popup->line_rise)) {
-                                popup->line_length = SQRT(popup->line_run * popup->line_run + popup->line_rise * popup->line_rise);
-                                popup->line_angle = DEG(ATAN2(popup->line_rise, popup->line_run));
-                            }
-                        }
-                    }
-                } else if (state_Draw_command_is_(CenterLine)) {
-                    // Copied from Line
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_line_length = popup->line_length;
-                        real prev_line_angle  = popup->line_angle;
-                        real prev_line_run    = popup->line_run;
-                        real prev_line_rise   = popup->line_rise;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("run (dx)"),    &popup->line_run,
-                                CellType::Real, STRING("rise (dy)"),   &popup->line_rise,
-                                CellType::Real, STRING("length"), &popup->line_length,
-                                CellType::Real, STRING("angle"),  &popup->line_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->line_run, first_click->y + popup->line_rise));
-                        } else {
-                            if ((prev_line_length != popup->line_length) || (prev_line_angle != popup->line_angle)) {
-                                popup->line_run  = popup->line_length * COS(RAD(popup->line_angle));
-                                popup->line_rise = popup->line_length * SIN(RAD(popup->line_angle));
-                            } else if ((prev_line_run != popup->line_run) || (prev_line_rise != popup->line_rise)) {
-                                popup->line_length = SQRT(popup->line_run * popup->line_run + popup->line_rise * popup->line_rise);
-                                popup->line_angle = DEG(ATAN2(popup->line_rise, popup->line_run));
-                            }
-                        }
-                    }
-                } else if (state_Draw_command_is_(Box)) {
-                    if (two_click_command->awaiting_second_click) {
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("width"), &popup->box_width,
-                                CellType::Real, STRING("height"), &popup->box_height);
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width, first_click->y + popup->box_height));
-                        }
-                    }
-                } else if (state_Draw_command_is_(CenterBox)) {
-                    if (two_click_command->awaiting_second_click) {
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("width"), &popup->box_width,
-                                CellType::Real, STRING("height"), &popup->box_height);
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->box_width / 2.0f, first_click->y + popup->box_height / 2.0f));
-                        }
-                    }
-                } else if (state_Draw_command_is_(Drag)) {
-                    // FORNOW: this is repeated from Line
-                    real prev_drag_length = popup->drag_length;
-                    real prev_drag_angle = popup->drag_angle;
-                    real prev_drag_run = popup->drag_run;
-                    real prev_drag_rise = popup->drag_rise;
-                    POPUP(state.Draw_command,
-                            true,
-                            CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line,
-                            CellType::Real, STRING("run (dx)"), &popup->drag_run,
-                            CellType::Real, STRING("rise (dy)"), &popup->drag_rise,
-                            CellType::Real, STRING("length"), &popup->drag_length,
-                            CellType::Real, STRING("angle"), &popup->drag_angle
-                         );
-                    if (gui_key_enter(ToolboxGroup::Draw)) {
-                        *first_click = V2(0, 0);
-                        two_click_command->awaiting_second_click = true;
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->drag_run, popup->drag_rise));
-
-                    } else {
-                        if ((prev_drag_length != popup->drag_length) || (prev_drag_angle != popup->drag_angle)) {
-                            popup->drag_run = popup->drag_length * COS(RAD(popup->drag_angle));
-                            popup->drag_rise = popup->drag_length * SIN(RAD(popup->drag_angle));
-                        } else if ((prev_drag_run != popup->drag_run) || (prev_drag_rise != popup->drag_rise)) {
-                            popup->drag_length = SQRT(popup->drag_run * popup->drag_run + popup->drag_rise * popup->drag_rise);
-                            popup->drag_angle = DEG(ATAN2(popup->drag_rise, popup->drag_run));
-                        }
-                    }
-                } else if (state_Draw_command_is_(Move)) {
-                    // FORNOW: this is repeated from Line
-                    real prev_move_length = popup->move_length;
-                    real prev_move_angle = popup->move_angle;
-                    real prev_move_run = popup->move_run;
-                    real prev_move_rise = popup->move_rise;
-                    POPUP(state.Draw_command,
-                            true,
-                            CellType::Real, STRING("run (dx)"), &popup->move_run,
-                            CellType::Real, STRING("rise (dy)"), &popup->move_rise,
-                            CellType::Real, STRING("length"), &popup->move_length,
-                            CellType::Real, STRING("angle"), &popup->move_angle
-                         );
-                    if (gui_key_enter(ToolboxGroup::Draw)) {
-                        *first_click = V2(0, 0);
-                        two_click_command->awaiting_second_click = true;
-                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->move_run, popup->move_rise));
-                    } else {
-                        if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
-                            popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
-                            popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
-                        } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
-                            popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
-                            popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
-                        }
-                    }
-                } else if (state_Draw_command_is_(Rotate)) {
-                    if (two_click_command->awaiting_second_click) {
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Real, STRING("angle"), &popup->rotate_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(*first_click + e_theta(RAD(popup->rotate_angle))));
-                        }
-                    }
-                } else if (state_Draw_command_is_(RCopy)) {
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_rotate_copy_angle_in_degrees = popup->rotate_copy_angle;
-                        uint prev_rotate_copy_num_copies = popup->rotate_copy_num_total_copies;
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Uint, STRING("num_total_copies"), &popup->rotate_copy_num_total_copies,
-                                CellType::Real, STRING("angle"), &popup->rotate_copy_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
-                        } else {
-                            if (prev_rotate_copy_angle_in_degrees != popup->rotate_copy_angle) {
-                                popup->rotate_copy_num_total_copies = MAX(2U, uint(360.0f / popup->rotate_copy_angle));
-                            } else if (prev_rotate_copy_num_copies != popup->rotate_copy_num_total_copies) {
-                                popup->rotate_copy_angle = 360.0f / popup->rotate_copy_num_total_copies;
-                            }
-                        }
-                    }
-                } else if (state_Draw_command_is_(Copy)) {
-                    if (two_click_command->awaiting_second_click) {
-                        real prev_linear_copy_length = popup->linear_copy_length;
-                        real prev_linear_copy_angle = popup->linear_copy_angle;
-                        real prev_linear_copy_run = popup->linear_copy_run;
-                        real prev_linear_copy_rise = popup->linear_copy_rise;
-
-                        POPUP(state.Draw_command,
-                                true,
-                                CellType::Uint, STRING("num_additional_copies"), &popup->linear_copy_num_additional_copies,
-                                CellType::Real, STRING("run (dx)"), &popup->linear_copy_run,
-                                CellType::Real, STRING("rise (dy)"), &popup->linear_copy_rise,
-                                CellType::Real, STRING("length"), &popup->linear_copy_length,
-                                CellType::Real, STRING("angle"), &popup->linear_copy_angle
-                             );
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->linear_copy_run, first_click->y + popup->linear_copy_rise));
-                        } else {
-                            if ((prev_linear_copy_length != popup->linear_copy_length) || (prev_linear_copy_angle != popup->linear_copy_angle)) {
-                                popup->linear_copy_run = popup->linear_copy_length * COS(RAD(popup->linear_copy_angle));
-                                popup->linear_copy_rise = popup->linear_copy_length * SIN(RAD(popup->linear_copy_angle));
-                            } else if ((prev_linear_copy_run != popup->linear_copy_run) || (prev_linear_copy_rise != popup->linear_copy_rise)) {
-                                popup->linear_copy_length = SQRT(popup->linear_copy_run * popup->linear_copy_run + popup->linear_copy_rise * popup->linear_copy_rise);
-                                popup->linear_copy_angle = DEG(ATAN2(popup->linear_copy_rise, popup->linear_copy_run));
-                            }
                         }
                     }
                 } else if (state_Draw_command_is_(Polygon)) {
@@ -2123,18 +1884,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         real prev_polygon_distance_to_corner = popup->polygon_distance_to_corner;
                         real prev_polygon_distance_to_side = popup->polygon_distance_to_side;
                         real prev_polygon_side_length = popup->polygon_side_length;
-                        POPUP(state.Draw_command,
-                                false,
-                                CellType::Uint, STRING("num_sides"), &popup->polygon_num_sides, 
-                                CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner,
-                                CellType::Real, STRING("distance_to_side"), &popup->polygon_distance_to_side,
-                                CellType::Real, STRING("side_length"), &popup->polygon_side_length);
-
-                        popup->polygon_num_sides = MIN(MAX(3U, popup->polygon_num_sides), 256U);
-                        if (gui_key_enter(ToolboxGroup::Draw)) {
-                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
-                        } else {
-                            popup->polygon_num_sides = MAX(3U, popup->polygon_num_sides); // FORNOW
+                        {
+                            POPUP(state.Draw_command, false
+                                    , CellType::Uint, STRING("num_sides"), &popup->polygon_num_sides
+                                    , CellType::Real, STRING("distance_to_corner"), &popup->polygon_distance_to_corner
+                                    , CellType::Real, STRING("distance_to_side"), &popup->polygon_distance_to_side
+                                    , CellType::Real, STRING("side_length"), &popup->polygon_side_length
+                                 );
+                            popup->polygon_num_sides = MIN(MAX(3U, popup->polygon_num_sides), 256U);
+                        }
+                        {
                             real theta = PI / popup->polygon_num_sides;
                             if (prev_polygon_num_sides != popup->polygon_num_sides) {
                                 popup->polygon_distance_to_side = popup->polygon_distance_to_corner * COS(theta);
@@ -2150,33 +1909,168 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 popup->polygon_distance_to_side = popup->polygon_side_length / (2 * TAN(theta));
                             }
                         }
+
+                        if (gui_key_enter(ToolboxGroup::Draw)) {
+                            return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(first_click->x + popup->polygon_distance_to_corner, first_click->y));
+                        }
                     }
-                } else if (state_Draw_command_is_(Offset)) {
-                    POPUP(state.Draw_command,
-                            false,
-                            CellType::Real, STRING("distance"), &popup->offset_distance);
+                } else if (state_Draw_command_is_(Translate)) {
+                    // FORNOW: this is repeated from Line
+                    real prev_move_length = popup->move_length;
+                    real prev_move_angle = popup->move_angle;
+                    real prev_move_run = popup->move_run;
+                    real prev_move_rise = popup->move_rise;
+                    {
+                        POPUP(state.Draw_command, true
+                                , CellType::Real, STRING("run (dx)"),  &popup->move_run
+                                , CellType::Real, STRING("rise (dy)"), &popup->move_rise
+                                , CellType::Real, STRING("length"),    &popup->move_length
+                                , CellType::Real, STRING("angle"),     &popup->move_angle 
+                             );
+                    }
+                    if ((prev_move_length != popup->move_length) || (prev_move_angle != popup->move_angle)) {
+                        popup->move_run = popup->move_length * COS(RAD(popup->move_angle));
+                        popup->move_rise = popup->move_length * SIN(RAD(popup->move_angle));
+                    } else if ((prev_move_run != popup->move_run) || (prev_move_rise != popup->move_rise)) {
+                        popup->move_length = SQRT(popup->move_run * popup->move_run + popup->move_rise * popup->move_rise);
+                        popup->move_angle = DEG(ATAN2(popup->move_rise, popup->move_run));
+                    }
+
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        two_click_command->awaiting_second_click = true;
+                        two_click_command->first_click = {};
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->move_run, popup->move_rise));
+                    }
+                } else if (state_Draw_command_is_(Rotate)) {
+                    POPUP(state.Draw_command, true
+                            , CellType::Real, STRING("angle"), &popup->rotate_angle
+                         );
+
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        if (!two_click_command->awaiting_second_click) {
+                            two_click_command->first_click = {};
+                        }
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(two_click_command->first_click + e_theta(RAD(popup->rotate_angle))));
+                    }
+                } else if (state_Draw_command_is_(Scale)) {
+                    POPUP(state.Draw_command, true
+                            , CellType::Real, STRING("scale factor"), &popup->scale_factor
+                         );
+
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        if (!two_click_command->awaiting_second_click) {
+                            bbox2 bbox = entities_get_bbox(&drawing->entities, true);
+                            vec2 bbox_center = AVG(bbox.min, bbox.max);
+                            two_click_command->first_click = bbox_center;
+                        }
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
+                    }
+                } else if (state_Draw_command_is_(Drag)) {
+                    // FORNOW: this is repeated from Line
+                    real prev_drag_length = popup->drag_length;
+                    real prev_drag_angle = popup->drag_angle;
+                    real prev_drag_run = popup->drag_run;
+                    real prev_drag_rise = popup->drag_rise;
+                    {
+                        POPUP(state.Draw_command, true
+                                , CellType::Real, STRING("run (dx)"),  &popup->drag_run
+                                , CellType::Real, STRING("rise (dy)"), &popup->drag_rise
+                                , CellType::Real, STRING("length"),    &popup->drag_length
+                                , CellType::Real, STRING("angle"),     &popup->drag_angle 
+                                // , CellType::Uint, STRING("1 for extend line"), &popup->drag_extend_line
+                             );
+                    }
+                    if ((prev_drag_length != popup->drag_length) || (prev_drag_angle != popup->drag_angle)) {
+                        popup->drag_run = popup->drag_length * COS(RAD(popup->drag_angle));
+                        popup->drag_rise = popup->drag_length * SIN(RAD(popup->drag_angle));
+                    } else if ((prev_drag_run != popup->drag_run) || (prev_drag_rise != popup->drag_rise)) {
+                        popup->drag_length = SQRT(popup->drag_run * popup->drag_run + popup->drag_rise * popup->drag_rise);
+                        popup->drag_angle = DEG(ATAN2(popup->drag_rise, popup->drag_run));
+                    }
+
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        *first_click = V2(0, 0);
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->drag_run, popup->drag_rise));
+                    }
+                } else if (state_Draw_command_is_(LCopy)) {
+                    real prev_lcopy_length = popup->lcopy_length;
+                    real prev_lcopy_angle = popup->lcopy_angle;
+                    real prev_lcopy_run = popup->lcopy_run;
+                    real prev_lcopy_rise = popup->lcopy_rise;
+                    {
+                        POPUP(state.Draw_command, true
+                                , CellType::Real, STRING("run (dx)"),              &popup->lcopy_run
+                                , CellType::Real, STRING("rise (dy)"),             &popup->lcopy_rise
+                                , CellType::Real, STRING("length"),                &popup->lcopy_length
+                                , CellType::Real, STRING("angle"),                 &popup->lcopy_angle
+                                , CellType::Uint, STRING("num_additional_copies"), &popup->lcopy_num_additional_copies
+                             );
+
+                        // TODO
+                        popup->lcopy_num_additional_copies = CLAMP(popup->lcopy_num_additional_copies, 1U, 1024U);
+                    }
+                    if ((prev_lcopy_length != popup->lcopy_length) || (prev_lcopy_angle != popup->lcopy_angle)) {
+                        popup->lcopy_run = popup->lcopy_length * COS(RAD(popup->lcopy_angle));
+                        popup->lcopy_rise = popup->lcopy_length * SIN(RAD(popup->lcopy_angle));
+                    } else if ((prev_lcopy_run != popup->lcopy_run) || (prev_lcopy_rise != popup->lcopy_rise)) {
+                        popup->lcopy_length = SQRT(popup->lcopy_run * popup->lcopy_run + popup->lcopy_rise * popup->lcopy_rise);
+                        popup->lcopy_angle = DEG(ATAN2(popup->lcopy_rise, popup->lcopy_run));
+                    }
+
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        two_click_command->first_click = {};
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D(popup->lcopy_run, popup->lcopy_rise));
+                    }
+                } else if (state_Draw_command_is_(RCopy)) {
+                    {
+                        POPUP(state.Draw_command,
+                                true
+                                , CellType::Uint, STRING("num_total_copies"), &popup->rcopy_num_total_copies
+                             );
+
+                        // TODO
+                        popup->rcopy_num_total_copies = CLAMP(popup->rcopy_num_total_copies, 1U, 128U);
+                    }
+
+                    if (gui_key_enter(ToolboxGroup::Draw)) {
+                        if (!two_click_command->awaiting_second_click) {
+                            two_click_command->first_click = {};
+                        }
+                        two_click_command->awaiting_second_click = true;
+                        return _standard_event_process_NOTE_RECURSIVE(make_mouse_event_2D({})); // FORNOW
+                    }
+                } else if (state_Draw_command_is_(ElfHat)) {
+                    // TODO
                 } else if (state_Draw_command_is_(Fillet)) {
                     POPUP(state.Draw_command,
-                            false,
-                            CellType::Real, STRING("radius"), &popup->fillet_radius);
+                            false
+                            , CellType::Real, STRING("radius"), &popup->fillet_radius
+                         );
                 } else if (state_Draw_command_is_(DogEar)) {
                     POPUP(state.Draw_command,
-                            false,
-                            CellType::Real, STRING("radius"), &popup->dogear_radius);
-                } else if (state_Draw_command_is_(PowerFillet)) {
+                            false
+                            , CellType::Real, STRING("radius"), &popup->dogear_radius
+                         );
+                } else if (state_Draw_command_is_(Offset)) {
                     POPUP(state.Draw_command,
-                            false,
-                            CellType::Real, STRING("radius"), &popup->fillet_radius);
+                            false
+                            , CellType::Real, STRING("distance"), &popup->offset_distance
+                         );
                 } else if (state_Draw_command_is_(OpenDXF)) {
                     POPUP(state.Draw_command,
-                            false,
-                            CellType::String, STRING("filename"), &popup->open_dxf_filename);
+                            false
+                            , CellType::String, STRING("filename"), &popup->open_dxf_filename
+                         );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
                         if (FILE_EXISTS(popup->open_dxf_filename)) {
                             if (string_matches_suffix(popup->open_dxf_filename, STRING(".dxf"))) {
                                 result.record_me = true;
                                 result.checkpoint_me = true;
-                                result.snapshot_me = true;
+                                // result.snapshot_me = true;
 
                                 { // conversation_dxf_load
                                     ASSERT(FILE_EXISTS(popup->open_dxf_filename));
@@ -2185,7 +2079,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                                     entities_load(popup->open_dxf_filename, &drawing->entities);
 
-                                    if (!skip_mesh_generation_and_expensive_loads_because_the_caller_is_going_to_load_from_the_redo_stack) {
+                                    { // TODO: guard this properly so it doesn't happen on undo/(redo)??
                                         init_camera_drawing();
                                         drawing->origin = {};
                                     }
@@ -2193,41 +2087,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 set_state_Draw_command(None);
                                 messagef(pallete.light_gray, "OpenDXF \"%s\"", popup->open_dxf_filename.data);
                             } else {
-                                messagef(pallete.orange, "OpenDXF: \"%s\" must be *.dxf", popup->open_dxf_filename.data);
+                                MESSAGE_FAILURE("OpenDXF: \"%s\" must be *.dxf", popup->open_dxf_filename.data);
                             }
                         } else {
-                            messagef(pallete.orange, "Load: \"%s\" not found", popup->open_dxf_filename.data);
-                        }
-                    }
-                } else if (state_Draw_command_is_(OverwriteDXF)) {
-                    result.record_me = false;
-                    POPUP(state.Draw_command,
-                            true,
-                            CellType::String, STRING("confirm (y/n)"), &popup->overwrite_dxf_yn_buffer);
-                    if (gui_key_enter(ToolboxGroup::Draw)) {
-                        if (popup->overwrite_dxf_yn_buffer.data[0] == 'y') {
-                            if (string_matches_suffix(popup->save_dxf_filename, STRING(".dxf"))) {
-                                {
-                                    bool success = drawing_save_dxf(drawing, popup->save_dxf_filename);
-                                    ASSERT(success);
-                                }
-                                set_state_Draw_command(None);
-                                messagef(pallete.light_gray, "OverwriteDXF \"%s\"", popup->save_dxf_filename.data);
-                            } else {
-                                messagef(pallete.orange, "OverwriteDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
-                            }
-                        } else if (popup->overwrite_dxf_yn_buffer.data[0] == 'n') {
-                            set_state_Draw_command(None);
-                            messagef(pallete.orange, "OverwriteDXF declined");
-                        } else {
-                            messagef(pallete.orange, "OverwriteDXF confirm with y or n");
+                            MESSAGE_FAILURE("Load: \"%s\" not found", popup->open_dxf_filename.data);
                         }
                     }
                 } else if (state_Draw_command_is_(SaveDXF)) {
                     result.record_me = false;
                     POPUP(state.Draw_command,
-                            false,
-                            CellType::String, STRING("filename"), &popup->save_dxf_filename);
+                            false
+                            , CellType::String, STRING("filename"), &popup->save_dxf_filename
+                         );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
                         if (!FILE_EXISTS(popup->save_dxf_filename)) {
                             if (string_matches_suffix(popup->save_dxf_filename, STRING(".dxf"))) {
@@ -2238,49 +2109,143 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 }
                                 messagef(pallete.light_gray, "SaveDXF \"%s\"", popup->save_dxf_filename.data);
                             } else {
-                                messagef(pallete.orange, "SaveDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
+                                MESSAGE_FAILURE("SaveDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
                             }
                         } else {
-                            messagef(pallete.orange, "SaveDXF \"%s\" already exists", popup->save_dxf_filename.data);
+                            MESSAGE_FAILURE("SaveDXF \"%s\" already exists", popup->save_dxf_filename.data);
                             set_state_Draw_command(OverwriteDXF);
                         }
                     }
-                } else if (state_Draw_command_is_(Scale)) {
+                } else if (state_Draw_command_is_(OverwriteDXF)) {
                     result.record_me = false;
                     POPUP(state.Draw_command,
-                            false,
-                            CellType::Real, STRING("scale factor"), &popup->scale_factor);
+                            true
+                            , CellType::String, STRING("confirm (y/n)"), &popup->overwrite_dxf_yn_buffer
+                         );
                     if (gui_key_enter(ToolboxGroup::Draw)) {
-                        if (!IS_ZERO(popup->scale_factor)) {
-                            bbox2 bbox = entities_get_bbox(&drawing->entities, true);
-                            vec2 bbox_center = AVG(bbox.min, bbox.max);
-                            _for_each_selected_entity_ {
-                                if (entity->type == EntityType::Line) {
-                                    LineEntity *line = &entity->line;
-                                    line->start = scaled_about(line->start, bbox_center, popup->scale_factor);
-                                    line->end = scaled_about(line->end, bbox_center, popup->scale_factor);
-                                } else if (entity->type == EntityType::Arc) {
-                                    ArcEntity *arc = &entity->arc;
-                                    arc->center = scaled_about(arc->center, bbox_center, popup->scale_factor);
-                                    arc->radius *= popup->scale_factor;
-                                } else { ASSERT(entity->type == EntityType::Circle);
-                                    CircleEntity *circle = &entity->circle;
-                                    circle->center = scaled_about(circle->center, bbox_center, popup->scale_factor);
-                                    circle->radius *= popup->scale_factor;
+                        if (popup->overwrite_dxf_yn_buffer.data[0] == 'y') {
+                            if (string_matches_suffix(popup->save_dxf_filename, STRING(".dxf"))) {
+                                {
+                                    bool success = drawing_save_dxf(drawing, popup->save_dxf_filename);
+                                    ASSERT(success);
                                 }
+                                set_state_Draw_command(None);
+                                messagef(pallete.light_gray, "OverwriteDXF \"%s\"", popup->save_dxf_filename.data);
+                            } else {
+                                MESSAGE_FAILURE("OverwriteDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
                             }
+                        } else if (popup->overwrite_dxf_yn_buffer.data[0] == 'n') {
+                            set_state_Draw_command(None);
+                            MESSAGE_FAILURE("OverwriteDXF declined");
+                        } else {
+                            messagef(pallete.orange, "OverwriteDXF confirm with y or n");
                         }
-                        set_state_Draw_command(None);
                     }
                 }
             }
 
             { // Mesh
                 if (0) {
+                } else if (state_Mesh_command_is_(NudgePlane)) {
+                    POPUP(state.Mesh_command,
+                            true
+                            , CellType::Real, STRING("rise"), &popup->feature_plane_nudge
+                         );
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                        result.record_me = true;
+                        result.checkpoint_me = true;
+                        feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
+                        set_state_Mesh_command(None);
+                        messagef(pallete.light_gray, "NudgePlane %gmm", popup->feature_plane_nudge);
+                    }
+                } else if (state_Mesh_command_is_(ExtrudeAdd)) {
+                    POPUP(state.Mesh_command, true
+                            , CellType::Real, STRING("out_length"), &popup->extrude_add_out_length
+                            , CellType::Real, STRING("in_length"),  &popup->extrude_add_in_length
+                         );
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                        if (!dxf_anything_selected) {
+                            MESSAGE_FAILURE("ExtrudeAdd: selection empty");
+                        } else if (!feature_plane->is_active) {
+                            MESSAGE_FAILURE("ExtrudeAdd: no feature plane selected");
+                        } else if (IS_ZERO(popup->extrude_add_in_length) && IS_ZERO(popup->extrude_add_out_length)) {
+                            MESSAGE_FAILURE("ExtrudeAdd: total extrusion length zero");
+                        } else {
+                            cookbook.manifold_wrapper_wrapper();
+
+                            if (IS_ZERO(popup->extrude_add_in_length)) {
+                                MESSAGE_SUCCESS("ExtrudeAdd %gmm", popup->extrude_add_out_length);
+                            } else {
+                                MESSAGE_SUCCESS("ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
+                            }
+
+                            other.tween_extrude_add_feature_plane = *feature_plane;
+                            preview->tween_extrude_add_scale      = 0.0f;
+                        }
+                    }
+                } else if (state_Mesh_command_is_(ExtrudeCut)) {
+                    POPUP(state.Mesh_command,
+                            true
+                            , CellType::Real, STRING("in_length"),  &popup->extrude_cut_in_length
+                            , CellType::Real, STRING("out_length"), &popup->extrude_cut_out_length
+                         );
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                        if (!dxf_anything_selected) {
+                            MESSAGE_FAILURE("ExtrudeCut: selection empty");
+                        } else if (!feature_plane->is_active) {
+                            MESSAGE_FAILURE("ExtrudeCut: no feature plane selected");
+                        } else if (IS_ZERO(popup->extrude_cut_in_length) && IS_ZERO(popup->extrude_cut_out_length)) {
+                            MESSAGE_FAILURE("ExtrudeCut: total extrusion length zero");
+                        } else if (meshes->work.num_triangles == 0) {
+                            MESSAGE_FAILURE("ExtrudeCut: current mesh empty");
+                        } else {
+                            cookbook.manifold_wrapper_wrapper();
+                            if (IS_ZERO(popup->extrude_cut_out_length)) {
+                                MESSAGE_SUCCESS("ExtrudeCut %gmm", popup->extrude_cut_in_length);
+                            } else {
+                                MESSAGE_SUCCESS("ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
+                            }
+                        }
+                    }
+                } else if (state_Mesh_command_is_(RevolveAdd)) {
+                    POPUP(state.Mesh_command,
+                            true
+                            , CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle
+                            , CellType::Real, STRING("in_angle"),  &popup->revolve_add_in_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                        if (!dxf_anything_selected) {
+                            MESSAGE_FAILURE("RevolveAdd: selection empty");
+                        } else if (!feature_plane->is_active) {
+                            MESSAGE_FAILURE("RevolveAdd: no feature plane selected");
+                        } else {
+                            cookbook.manifold_wrapper_wrapper();
+                            messagef(pallete.light_gray, "RevolveAdd");
+                        }
+                    }
+                } else if (state_Mesh_command_is_(RevolveCut)) {
+                    POPUP(state.Mesh_command,
+                            true
+                            , CellType::Real, STRING("in_angle"),  &popup->revolve_cut_in_angle
+                            , CellType::Real, STRING("out_angle"), &popup->revolve_cut_out_angle
+                         );
+                    if (gui_key_enter(ToolboxGroup::Mesh)) {
+                        if (!dxf_anything_selected) {
+                            MESSAGE_FAILURE("RevolveCut: selection empty");
+                        } else if (!feature_plane->is_active) {
+                            MESSAGE_FAILURE("RevolveCut: no feature plane selected");
+                        } else if (meshes->work.num_triangles == 0) {
+                            MESSAGE_FAILURE("RevolveCut: current mesh empty");
+                        } else {
+                            cookbook.manifold_wrapper_wrapper();
+                            MESSAGE_SUCCESS("RevolveCut");
+                        }
+                    }
                 } else if (state_Mesh_command_is_(OpenSTL)) {
                     POPUP(state.Mesh_command,
-                            false,
-                            CellType::String, STRING("filename"), &popup->open_stl_filename);
+                            false
+                            , CellType::String, STRING("filename"), &popup->open_stl_filename
+                         );
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (FILE_EXISTS(popup->open_stl_filename)) {
                             if (string_matches_suffix(popup->open_stl_filename, STRING(".stl"))) {
@@ -2288,154 +2253,68 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 result.checkpoint_me = true;
                                 result.snapshot_me = true;
                                 { // conversation_stl_load(...)
-                                    ASSERT(FILE_EXISTS(popup->open_stl_filename));
-                                    // ?
-                                    stl_load(popup->open_stl_filename, mesh);
+                                    WARN_ONCE("TODO: we should be freeing here");
+                                    *meshes = stl_load(popup->open_stl_filename);
                                     init_camera_mesh();
                                 }
+                                MESSAGE_SUCCESS("OpenSTL \"%s\"", popup->open_stl_filename.data);
+
                                 set_state_Mesh_command(None);
-                                messagef(pallete.light_gray, "OpenSTL \"%s\"", popup->open_stl_filename.data);
+
+                                preview->tween_extrude_add_scale      = 0.0f;
                             } else {
-                                messagef(pallete.orange, "OpenSTL: \"%s\" must be *.stl", popup->open_stl_filename.data);
+                                MESSAGE_FAILURE("OpenSTL: \"%s\" must be *.stl", popup->open_stl_filename.data);
                             }
                         } else {
-                            messagef(pallete.orange, "Load: \"%s\" not found", popup->open_stl_filename.data);
-                        }
-                    }
-                } else if (state_Mesh_command_is_(OverwriteSTL)) {
-                    result.record_me = false;
-                    POPUP(state.Mesh_command,
-                            true,
-                            CellType::String, STRING("confirm (y/n)"), &popup->overwrite_stl_yn_buffer);
-                    if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        if (popup->overwrite_stl_yn_buffer.data[0] == 'y') {
-                            if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
-                                {
-                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
-                                    ASSERT(success);
-                                }
-                                set_state_Mesh_command(None);
-                                messagef(pallete.light_gray, "OverwriteSTL \"%s\"", popup->save_stl_filename.data);
-                            } else {
-                                messagef(pallete.orange, "OverwriteSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
-                            }
-                        } else if (popup->overwrite_stl_yn_buffer.data[0] == 'n') {
-                            set_state_Mesh_command(None);
-                            messagef(pallete.orange, "OverwriteSTL declined");
-                        } else {
-                            messagef(pallete.orange, "OverwriteSTL confirm with y or n");
+                            MESSAGE_FAILURE("Load: \"%s\" not found", popup->open_stl_filename.data);
                         }
                     }
                 } else if (state_Mesh_command_is_(SaveSTL)) {
                     result.record_me = false;
                     POPUP(state.Mesh_command,
-                            false,
-                            CellType::String, STRING("filename"), &popup->save_stl_filename);
+                            false
+                            , CellType::String, STRING("filename"), &popup->save_stl_filename
+                         );
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
                         if (!FILE_EXISTS(popup->save_stl_filename)) {
                             if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
                                 set_state_Mesh_command(None);
                                 {
-                                    bool success = mesh_save_stl(mesh, popup->save_stl_filename);
+                                    bool success = mesh_save_stl(&meshes->work, popup->save_stl_filename);
                                     ASSERT(success);
                                 }
-                                messagef(pallete.light_gray, "SaveSTL \"%s\"", popup->save_stl_filename.data);
+                                MESSAGE_SUCCESS("SaveSTL \"%s\"", popup->save_stl_filename.data);
                             } else {
-                                messagef(pallete.orange, "SaveSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
+                                MESSAGE_FAILURE("SaveSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
                             }
                         } else {
-                            messagef(pallete.orange, "SaveSTL \"%s\" already exists", popup->save_stl_filename.data);
+                            MESSAGE_FAILURE("SaveSTL \"%s\" already exists", popup->save_stl_filename.data);
                             set_state_Mesh_command(OverwriteSTL);
                         }
                     }
-                } else if (state_Mesh_command_is_(ExtrudeAdd)) {
-                    POPUP(state.Mesh_command,
-                            true,
-                            CellType::Real, STRING("out_length"), &popup->extrude_add_out_length,
-                            CellType::Real, STRING("in_length"),  &popup->extrude_add_in_length);
-                    if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        if (!dxf_anything_selected) {
-                            messagef(pallete.orange, "ExtrudeAdd: selection empty");
-                        } else if (!feature_plane->is_active) {
-                            messagef(pallete.orange, "ExtrudeAdd: no feature plane selected");
-                        } else if (IS_ZERO(popup->extrude_add_in_length) && IS_ZERO(popup->extrude_add_out_length)) {
-                            messagef(pallete.orange, "ExtrudeAdd: total extrusion length zero");
-                        } else {
-                            cookbook.manifold_wrapper();
-                            if (IS_ZERO(popup->extrude_add_in_length)) {
-                                messagef(pallete.light_gray, "ExtrudeAdd %gmm", popup->extrude_add_out_length);
-                            } else {
-                                messagef(pallete.light_gray, "ExtrudeAdd %gmm %gmm", popup->extrude_add_out_length, popup->extrude_add_in_length);
-                            }
-                        }
-                    }
-                } else if (state_Mesh_command_is_(ExtrudeCut)) {
-                    POPUP(state.Mesh_command,
-                            true,
-                            CellType::Real, STRING("in_length"), &popup->extrude_cut_in_length,
-                            CellType::Real, STRING("out_length"), &popup->extrude_cut_out_length);
-                    if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        if (!dxf_anything_selected) {
-                            messagef(pallete.orange, "ExtrudeCut: selection empty");
-                        } else if (!feature_plane->is_active) {
-                            messagef(pallete.orange, "ExtrudeCut: no feature plane selected");
-                        } else if (IS_ZERO(popup->extrude_cut_in_length) && IS_ZERO(popup->extrude_cut_out_length)) {
-                            messagef(pallete.orange, "ExtrudeCut: total extrusion length zero");
-                        } else if (mesh->num_triangles == 0) {
-                            messagef(pallete.orange, "ExtrudeCut: current mesh empty");
-                        } else {
-                            cookbook.manifold_wrapper();
-                            if (IS_ZERO(popup->extrude_cut_out_length)) {
-                                messagef(pallete.light_gray, "ExtrudeCut %gmm", popup->extrude_cut_in_length);
-                            } else {
-                                messagef(pallete.light_gray, "ExtrudeCut %gmm %gmm", popup->extrude_cut_in_length, popup->extrude_cut_out_length);
-                            }
-                        }
-                    }
-                } else if (state_Mesh_command_is_(RevolveAdd)) {
-                    POPUP(state.Mesh_command,
-                            true,
-                            CellType::Real, STRING("out_angle"), &popup->revolve_add_out_angle,
-                            CellType::Real, STRING("in_angle"), &popup->revolve_add_in_angle
+                } else if (state_Mesh_command_is_(OverwriteSTL)) {
+                    result.record_me = false;
+                    POPUP(state.Mesh_command, true
+                            , CellType::String, STRING("confirm (y/n)"), &popup->overwrite_stl_yn_buffer
                          );
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        if (!dxf_anything_selected) {
-                            messagef(pallete.orange, "RevolveAdd: selection empty");
-                        } else if (!feature_plane->is_active) {
-                            messagef(pallete.orange, "RevolveAdd: no feature plane selected");
+                        if (popup->overwrite_stl_yn_buffer.data[0] == 'y') {
+                            if (string_matches_suffix(popup->save_stl_filename, STRING(".stl"))) {
+                                {
+                                    bool success = mesh_save_stl(&meshes->work, popup->save_stl_filename);
+                                    ASSERT(success);
+                                }
+                                set_state_Mesh_command(None);
+                                MESSAGE_SUCCESS("OverwriteSTL \"%s\"", popup->save_stl_filename.data);
+                            } else {
+                                MESSAGE_FAILURE("OverwriteSTL \"%s\" must be *.stl", popup->save_stl_filename.data);
+                            }
+                        } else if (popup->overwrite_stl_yn_buffer.data[0] == 'n') {
+                            set_state_Mesh_command(None);
+                            MESSAGE_FAILURE("OverwriteSTL declined");
                         } else {
-                            cookbook.manifold_wrapper();
-                            messagef(pallete.light_gray, "RevolveAdd");
+                            MESSAGE_INFO("OverwriteSTL confirm with y or n");
                         }
-                    }
-                } else if (state_Mesh_command_is_(RevolveCut)) {
-                    POPUP(state.Mesh_command,
-                            true,
-                            CellType::Real, STRING("in_angle"), &popup->revolve_cut_in_angle,
-                            CellType::Real, STRING("out_angle"), &popup->revolve_cut_out_angle
-                         );
-                    if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        if (!dxf_anything_selected) {
-                            messagef(pallete.orange, "RevolveCut: selection empty");
-                        } else if (!feature_plane->is_active) {
-                            messagef(pallete.orange, "RevolveCut: no feature plane selected");
-                        } else if (mesh->num_triangles == 0) {
-                            messagef(pallete.orange, "RevolveCut: current mesh empty");
-                        } else {
-                            cookbook.manifold_wrapper();
-                            messagef(pallete.light_gray, "RevolveCut");
-                        }
-                    }
-                } else if (state_Mesh_command_is_(NudgePlane)) {
-                    POPUP(state.Mesh_command,
-                            true,
-                            CellType::Real, STRING("rise"), &popup->feature_plane_nudge);
-                    if (gui_key_enter(ToolboxGroup::Mesh)) {
-                        result.record_me = true;
-                        result.checkpoint_me = true;
-                        feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
-                        set_state_Mesh_command(None);
-                        messagef(pallete.light_gray, "NudgePlane %gmm", popup->feature_plane_nudge);
                     }
                 }
             }
