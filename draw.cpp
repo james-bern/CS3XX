@@ -312,20 +312,21 @@ void conversation_draw() {
 
 
                 chowder_begin(PV_2D); {
-                    { // GRAY underlay NOTE: GRAY is literally just a reference sketch; it shouldn't be passed to ANNOTATION, right?
-                        chowder_color(pallete.gray);
-                        _for_each_selected_entity_ chowder_entity(entity);
-                    }
-
-                    { // entities
+                    { // entities (including gray underlay
                         _for_each_entity_ {
                             if (
                                     entity->is_selected
                                     &&
-                                    (state_Draw_command_is_(Translate) || state_Draw_command_is_(Rotate))
-                               ) continue;
-
-                            chowder_color((entity->is_selected) ? get_color(ColorCode::Selection) : get_color(entity->color_code));
+                                    (0
+                                     || state_Draw_command_is_(Translate)
+                                     || state_Draw_command_is_(Rotate)
+                                     // NOTE: TODOLATER when XMirror and YMirror have toggle button to erase original entities
+                                    )
+                               ) {
+                                chowder_color(pallete.gray);
+                            } else {
+                                chowder_color((entity->is_selected) ? get_color(ColorCode::Selection) : get_color(entity->color_code));
+                            }
                             chowder_entity(entity);
                         }
                     }
@@ -623,13 +624,17 @@ void conversation_draw() {
 
                             { // dotted lines
                                 chowder_stipple(true);
-                                if (0
-                                        || (state_Draw_command_is_(Translate) && two_click_command->awaiting_second_click)
-                                        || (state_Draw_command_is_(Rotate))
-                                        || (state_Draw_command_is_(Polygon) && two_click_command->awaiting_second_click)
-                                        || (state_Draw_command_is_(Fillet) && two_click_command->awaiting_second_click)
-                                        || (state_Draw_command_is_(DogEar) && two_click_command->awaiting_second_click)
-                                        || (state_Draw_command_is_(Measure) && two_click_command->awaiting_second_click)
+                                if (
+                                        ((pass == DRAW2D_PASS_DrawEnter) || (two_click_command->awaiting_second_click))
+                                        &&
+                                        (0
+                                         || (state_Draw_command_is_(Translate))
+                                         || (state_Draw_command_is_(Rotate))
+                                         || (state_Draw_command_is_(Polygon))
+                                         || (state_Draw_command_is_(Fillet))
+                                         || (state_Draw_command_is_(DogEar))
+                                         || (state_Draw_command_is_(Measure))
+                                        )
                                    ) {
                                     chowder_vertex(click_1);
                                     chowder_vertex(click_2);
