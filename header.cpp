@@ -2436,7 +2436,7 @@ typedef struct {
     Entity fillet_arc;
 } FilletResult;
 
-FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 reference_point, real radius) {
+FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 reference_point, real radius) { // i hope that no one has to ever gaze upons the horrors contained within this fold
     FilletResult fillet_result = {};
     const Entity *E = EntOne;
     const Entity *F = EntTwo;
