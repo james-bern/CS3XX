@@ -421,7 +421,7 @@ struct FeaturePlaneState {
     real signed_distance_to_world_origin;
     bool mirror_x;
     bool mirror_y;
-    real rotate_angle;
+    real rotation_angle;
 };
 
 struct TwoClickCommandState {
@@ -518,7 +518,7 @@ struct PopupState {
     real revolve_cut_out_angle;
 
     real feature_plane_nudge;
-    real feature_plane_rotate_angle;
+    real feature_plane_rotate_plane_angle;
 
     real box_width;
     real box_height;
@@ -593,7 +593,7 @@ struct PreviewState {
     real feature_plane_mirror_x_angle;
     real feature_plane_mirror_y_angle;
     real feature_plane_mirror_XXX_bump;
-    real feature_plane_rotate_angle;
+    real feature_plane_rotation_angle;
     real feature_plane_signed_distance_to_world_origin;
 
     real extrude_in_length;

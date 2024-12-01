@@ -2172,14 +2172,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 } else if (state_Mesh_command_is_(RotatePlane)) {
                     POPUP(state.Mesh_command,
                             false
-                            , CellType::Real, STRING("angle"), &popup->feature_plane_rotate_angle
+                            , CellType::Real, STRING("angle"), &popup->feature_plane_rotate_plane_angle
                          );
                     if (gui_key_enter(ToolboxGroup::Mesh)) {
                         result.record_me = true;
                         result.checkpoint_me = true;
-                        feature_plane->rotate_angle = RAD(popup->feature_plane_rotate_angle);
+                        feature_plane->rotation_angle += RAD(popup->feature_plane_rotate_plane_angle);
                         set_state_Mesh_command(None);
-                        messagef(pallete.light_gray, "RotatePlane %gdegrees", popup->feature_plane_rotate_angle);
+                        messagef(pallete.light_gray, "RotatePlane %gdegrees", popup->feature_plane_rotate_plane_angle);
                     }
                 } else if (state_Mesh_command_is_(ExtrudeAdd)) {
                     POPUP(state.Mesh_command, true
