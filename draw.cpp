@@ -263,22 +263,6 @@ void conversation_draw() {
             //         (!two_click_command->awaiting_second_click || !ARE_EQUAL(*first_click, Snap_Enter)));
 
 
-            vec3 BLUE = get_accent_color(ToolboxGroup::Draw);
-            vec3 PINK = get_accent_color(ToolboxGroup::Snap);
-            vec3 WHITE = get_color(ColorCode::Emphasis);
-            vec3 GRAY = pallete.gray;
-
-            vec2 mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
-            vec3 WHITE_or_PINK_depending_on_whether_snap_is_active;
-            {
-                if (!Snap_eating_mouse) {
-                    WHITE_or_PINK_depending_on_whether_snap_is_active = WHITE;
-                    mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
-                } else {
-                    WHITE_or_PINK_depending_on_whether_snap_is_active = PINK;
-                    mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = preview->mouse_transformed__PINK_position;
-                }
-            }
 
             { // CHOWDER (LINES -- entities, annotations)
 
@@ -329,20 +313,40 @@ void conversation_draw() {
 
                 chowder_begin(PV_2D); {
                     { // GRAY underlay NOTE: GRAY is literally just a reference sketch; it shouldn't be passed to ANNOTATION, right?
-                        chowder_color(GRAY);
+                        chowder_color(pallete.gray);
                         _for_each_selected_entity_ chowder_entity(entity);
                     }
 
-                    { // entities NOTE: just draw them all since blue 
+                    { // entities
                         _for_each_entity_ {
                             if (
                                     entity->is_selected
+                                    &&
+                                    (state_Draw_command_is_(Translate) || state_Draw_command_is_(Rotate))
+                               ) continue;
+
                             chowder_color((entity->is_selected) ? get_color(ColorCode::Selection) : get_color(entity->color_code));
                             chowder_entity(entity);
                         }
                     }
 
-                    { // annotations
+                    { // annotations (BLUE, WHITE, PINK)
+                        vec3 BLUE = get_accent_color(ToolboxGroup::Draw);
+                        vec3 WHITE = get_color(ColorCode::Emphasis);
+                        vec3 PINK = get_accent_color(ToolboxGroup::Snap);
+
+                        vec2 mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active;
+                        vec3 WHITE_or_PINK_depending_on_whether_snap_is_active;
+                        {
+                            if (!Snap_eating_mouse) {
+                                WHITE_or_PINK_depending_on_whether_snap_is_active = WHITE;
+                                mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
+                            } else {
+                                WHITE_or_PINK_depending_on_whether_snap_is_active = PINK;
+                                mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = preview->mouse_transformed__PINK_position;
+                            }
+                        }
+
                         #define DRAW2D_PASS_Mouse     0 // NOTE: this one goes black after inactivity FORNOW, so leave it on bottom
                         #define DRAW2D_PASS_DrawEnter 1
                         #define DRAW2D_PASS_XY        2
@@ -668,39 +672,41 @@ void conversation_draw() {
                             }
                         }
 
-                        #if 0
-                        { // snapped (PINK) entity
-                            if (mouse_transformed__PINK.snapped) {
-                                chowder_color(PINK);
-                                chowder_entity(&drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to]);
-                            }
-                        }
-                        #endif
-
-                        #if 0
-                        { // nearest entity
-                            if (0
-                                    || (state_Draw_command_is_(Fillet) && !two_click_command->awaiting_second_click)
-                                    // || (state_Draw_command_is_(Select))
-                                    // || (state_Draw_command_is_(Deselect))
-                               ) {
-                                DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active);
-                                if (find_nearest_result.success) {
-                                    chowder_set_size(3.0f);
-
-                                    // TODO: function
-                                    if (!find_nearest_result.closest_entity->is_selected) {
-                                        chowder_color(get_color(find_nearest_result.closest_entity->color_code));
-                                    } else {
-                                        chowder_color(get_color(ColorCode::Emphasis));
-                                    }
-
-                                    chowder_entity(find_nearest_result.closest_entity);
-                                    chowder_reset_size();
+                        { // TODOLATER: other annotations
+                            #if 0
+                            { // snapped (PINK) entity
+                                if (mouse_transformed__PINK.snapped) {
+                                    chowder_color(PINK);
+                                    chowder_entity(&drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to]);
                                 }
                             }
+                            #endif
+
+                            #if 0
+                            { // nearest entity
+                                if (0
+                                        || (state_Draw_command_is_(Fillet) && !two_click_command->awaiting_second_click)
+                                        // || (state_Draw_command_is_(Select))
+                                        // || (state_Draw_command_is_(Deselect))
+                                   ) {
+                                    DXFFindClosestEntityResult find_nearest_result = dxf_find_closest_entity(&drawing->entities, mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active);
+                                    if (find_nearest_result.success) {
+                                        chowder_set_size(3.0f);
+
+                                        // TODO: function
+                                        if (!find_nearest_result.closest_entity->is_selected) {
+                                            chowder_color(get_color(find_nearest_result.closest_entity->color_code));
+                                        } else {
+                                            chowder_color(get_color(ColorCode::Emphasis));
+                                        }
+
+                                        chowder_entity(find_nearest_result.closest_entity);
+                                        chowder_reset_size();
+                                    }
+                                }
+                            }
+                            #endif
                         }
-                        #endif
                     }
                 } chowder_end();
 
