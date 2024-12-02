@@ -195,7 +195,8 @@ struct Cookbook {
             result->record_me = true;
             result->snapshot_me = true;
             result->checkpoint_me = true;
-            other.time_since_successful_feature = 0.0f;
+            other.time_since_successful_feature = 0.0f; // ?
+            preview->mesh_tween_01 = 0.0f;
 
             real out_quantity;
             real in_quantity;
@@ -211,7 +212,6 @@ struct Cookbook {
             }
 
             { // result.mesh
-                fancy_draw_int_counter = 0;// this is stupid
 
                 CrossSectionEvenOdd cross_section = cross_section_create_FORNOW_QUADRATIC(&drawing->entities, true);
                 defer { cross_section_free(&cross_section); };

@@ -626,6 +626,8 @@ struct PreviewState {
     real bbox_min_y;
 
     real manifold_wrapper_tweener;
+
+    real mesh_tween_01;
 };
 
 struct Cursors {

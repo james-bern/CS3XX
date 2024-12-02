@@ -1,23 +1,3 @@
-// TODO: re-read the paper to see what it says about curvy polygons (maybe they just didn't consider this case)
-// -- TODO: can pass corresponding triangle normals and see if that helps (the WorkMesh already has these computed; will have to do some work to hook them up, but not too much)
-// TODO: wait, does this even make sense? i don't think so. our triangles aren't actually exploded. we're just using ebos to go over the edges
-// there will be some weird geometry shader solution, but it's non-obvious fornow (passing around the third vertex
-
-// // !!!
-// NO this bad bad (see problem.stl) -- consider throwing away patch version and just using all edges but turning off some of them (modulating thickness) based on whether they're a patch edge. could pass into for each one to say whether it's a hard half edge or not
-// this is going to be an annoying change because i don't think you can pass whether it is a hard edge as a vertex attribute with the current pipeline
-// right now we just have all our vertices and we pass a triangle explode EBO as lines
-// we probably need to the data actually exploded into triangle soup labeled with "opposing edge is hard" or something like that, which isn't hard, just mildly annoying; or we could just go really inefficient and throw labeled line soup at the problem, which would require minimal modification to the current edge shader pipeline. this is probably the easiest thing to do; it's also a very straight forward idea. just upload a bunch of lines to the GPU, labeled with whether they're hard. no need for a patch ID buffer. and we can definitely single pass shade it. it's bad in terms of space, but that's also probably fine. so we need a massive bool *all_half_edges_soup_per_vertex_is_hard_half_edge; and then we'll also need all_half_edges_soup_vertex_positions; using an EBO with the same data used for smooth-shading the mesh was a cute idea, but I think we need to let it go
-// or actually, i think you could just use both textures. if it matches the patch id and it matches the face id, then you're golden
-
-// I think the obvious approach is backface culling (we need to look up when in the pipeline that happens)
-// - if it's early, then we rewrite this crap to make the geometry shader emit 3 lines per triangle (just a for loop)--but skip this if the triangle is facing away from us.
-// we might be able to condense the hard edges and all edges into a single pass if we do this, but let's not worry about that fornow. priority now is any hard edge solution that doesn't exhibit the problem we have now
-
-
-// TODO: this doesn't work if you resize the window
-// TODO: get rid of STENCIL
-// NOTE: VAO and VBO are about mesh data (don't connect them to shaders)
 struct {
     uint num_vertices = 6;
     uint VAO;
@@ -183,6 +163,7 @@ struct {
     rgb += 0.3 * specular;
     rgb += 0.3 * fresnel;
     rgb = mix(rgb, vec3(1.0), 0.5f);
+    rgb = 0.5 + 0.5 * N;
 }
 
 if (feature_plane_is_active != 0) { // feature plane override
@@ -469,7 +450,47 @@ uint DRAW_MESH_MODE_PATCH_ID       = 1;
 uint DRAW_MESH_MODE_PATCH_EDGES    = 2;
 uint DRAW_MESH_MODE_TRIANGLE_ID    = 3;
 uint DRAW_MESH_MODE_TRIANGLE_EDGES = 4;
-void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, vec4 plane_equation2, bool OR_MESHES) { // default value has no clip plane and uses or clipping
+void DRAW_MESH(
+        uint mode,
+        mat4 P,
+        mat4 V,
+        mat4 M,
+        DrawMesh *mesh,
+        vec4 plane_equation1,
+        vec4 plane_equation2,
+        bool use_mesh_boolean_or_instead_of_and
+        ) { // default value has no clip plane and uses or clipping
+
+    { // GL; FORNOW FORNOW pushing data to GPU multiple times per mesh every frame (wtf) -- "needed" for prototyping the plane endcaps for mesh tweening
+        if (mesh->num_vertices) {
+            glBindVertexArray(GL.VAO);
+            POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
+            POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
+            POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
+            { // FORNOW: gross explosion of triangle_normal from the work mesh
+            }
+            {
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
+            }
+            { // gross explosion from triangles to edges
+              // if there is a better way to do this please lmk :(
+                uint size = 3 * mesh->num_triangles * sizeof(uint2);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
+                uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
+                defer { free(mesh_edge_tuples); };
+                uint k = 0;
+                for_(i, mesh->num_triangles) {
+                    for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
+                }
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
+            }
+        }
+        {
+            // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
+            // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
+        }
+    }
     mat4 C = inverse(V);
     vec3 eye_World = { C(0, 3), C(1, 3), C(2, 3) };
     mat4 PV = P * V;
@@ -494,7 +515,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
         GLint clipPlaneLocation1 = glGetUniformLocation(shader_program, "clipPlane1");
         glUniform4fv(clipPlaneLocation1, 1, &plane_equation1[0]);
 
-        if (!OR_MESHES) {
+        if (!use_mesh_boolean_or_instead_of_and) {
             GLint clipPlaneLocation2 = glGetUniformLocation(shader_program, "clipPlane2");
             glUniform4fv(clipPlaneLocation2, 1, &plane_equation2[0]);
 
@@ -513,7 +534,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
         glUniform3f(UNIFORM(shader_program, "feature_plane_normal"), feature_plane->normal.x, feature_plane->normal.y, feature_plane->normal.z);
         glUniform1f(UNIFORM(shader_program, "feature_plane_signed_distance_to_world_origin"), feature_plane->signed_distance_to_world_origin);
 
-        if (!OR_MESHES) {
+        if (!use_mesh_boolean_or_instead_of_and) {
             glEnable(GL_CLIP_DISTANCE0);
             glEnable(GL_CLIP_DISTANCE1);
 
@@ -582,128 +603,66 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equ
 }
 
 
-float fancy_draw_int_counter = 0;
 
 
-void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, vec4 plane_equation2, bool OR_MESHES) {
-    { // GL; FORNOW FORNOW pushing data to GPU every frame
-        if (mesh->num_vertices) {
-            glBindVertexArray(GL.VAO);
-            POOSH(GL.VBO, 0, mesh->num_vertices, mesh->vertex_positions);
-            POOSH(GL.VBO, 1, mesh->num_vertices, mesh->vertex_normals);
-            POOSH(GL.VBO, 2, mesh->num_vertices, mesh->vertex_patch_indices);
-            { // FORNOW: gross explosion of triangle_normal from the work mesh
-            }
+void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, vec4 plane_equation2, bool use_mesh_boolean_or_instead_of_and) {
+    DrawMesh plane_1 = {};
+    {
+        static vec3  _vertex_positions[] = { { -1, -1, 0 }, { 1, -1, 0 }, { 1, 1, 0 }, { -1, 1, 0 }};
+        static uint3 _triangle_tuples[]  = { { 0, 1, 2 }, { 0, 2, 3 } };
+        static uint _vertex_patch_indices[]  = { 0, 0, 0, 0 }; // FORNOW 0 TODOLATER  a number larger than the largest vertex index so patch is unique
+        static vec3  _vertex_normals[] = { { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 }};
+        plane_1.num_vertices = 4;
+        plane_1.num_triangles = 2;
+        plane_1.vertex_positions = _vertex_positions;
+        plane_1.triangle_tuples = _triangle_tuples;
+        plane_1.vertex_patch_indices = _vertex_patch_indices;
+        plane_1.vertex_normals = _vertex_normals;
+    }
+
+    mat4 T = M4_Translation(0, 0, -plane_equation1.w); // TODO: check negative signs
+    mat4 R = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
+    mat4 S = M4_Scaling(100.0f);
+
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and);
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R * T * S, &plane_1, {}, {}, false);
+
+
+
+    #if 0
+    { // TODOLATER hard edges
+        for_(pass, 2) {
+            if ((pass == 1) && !other.show_details) continue;
+
+            glDisable(GL_SCISSOR_TEST);
+            glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
             {
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_faces);
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * mesh->num_triangles * sizeof(uint), mesh->triangle_tuples, GL_STATIC_DRAW);
+                glClearColor(1.0, 1.0, 1.0, 1.0);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+                DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and);
             }
-            { // gross explosion from triangles to edges
-              // if there is a better way to do this please lmk :(
-                uint size = 3 * mesh->num_triangles * sizeof(uint2);
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_all_edges);
-                uint2 *mesh_edge_tuples = (uint2 *) malloc(size);
-                defer { free(mesh_edge_tuples); };
-                uint k = 0;
-                for_(i, mesh->num_triangles) {
-                    for_(d, 3) mesh_edge_tuples[k++] = { mesh->triangle_tuples[i][d], mesh->triangle_tuples[i][(d + 1) % 3] };
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glEnable(GL_SCISSOR_TEST);
+
+            glDisable(GL_DEPTH_TEST); {
+                if (pass == 0) {
+                    uint shader_program = blit_full_screen_quad_shader_program;
+                    ASSERT(shader_program);
+                    glUseProgram(shader_program);
+                    glActiveTexture(GL_TEXTURE0);
+                    glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
+                    glUniform1i(UNIFORM(shader_program, "screenTexture"), 0);
+
+                    glBindVertexArray(FullScreenQuad.VAO);
+                    glDrawArrays(GL_TRIANGLES, 0, FullScreenQuad.num_vertices);
+
+                    glBindTexture(GL_TEXTURE_2D, 0);
+                    glUseProgram(0);
+                } else {
+                    DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and);
                 }
-                glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, mesh_edge_tuples, GL_STATIC_DRAW);
-            }
+            } glEnable(GL_DEPTH_TEST);
         }
-        {
-            // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, GL.EBO_hard_edges);
-            // glBufferData(GL_ELEMENT_ARRAY_BUFFER, 2 * mesh->num_hard_half_edges * sizeof(uint), mesh->hard_half_edge_tuples, GL_STATIC_DRAW);
-        }
-    }
-
-
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, OR_MESHES);
-
-
-    for_(pass, 2) {
-        if ((pass == 1) && !other.show_details) continue;
-
-        glDisable(GL_SCISSOR_TEST);
-        glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);
-        {
-            glClearColor(1.0, 1.0, 1.0, 1.0);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-            DRAW_MESH((pass == 0) ? DRAW_MESH_MODE_PATCH_ID : DRAW_MESH_MODE_TRIANGLE_ID, P, V, M, mesh, plane_equation1, plane_equation2, OR_MESHES);
-        }
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glEnable(GL_SCISSOR_TEST);
-
-        glDisable(GL_DEPTH_TEST); {
-            if (pass == 0) {
-                uint shader_program = blit_full_screen_quad_shader_program;
-                ASSERT(shader_program);
-                glUseProgram(shader_program);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
-                glUniform1i(UNIFORM(shader_program, "screenTexture"), 0);
-
-                glBindVertexArray(FullScreenQuad.VAO);
-                glDrawArrays(GL_TRIANGLES, 0, FullScreenQuad.num_vertices);
-
-                glBindTexture(GL_TEXTURE_2D, 0);
-                glUseProgram(0);
-            } else {
-                DRAW_MESH(DRAW_MESH_MODE_TRIANGLE_EDGES, P, V, M, mesh, plane_equation1, plane_equation2, OR_MESHES);
-            }
-        } glEnable(GL_DEPTH_TEST);
-    }
-
-
-
-
-    // DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M4_Translation( 00.0, 0.0, -60.0) * M, mesh);
-    // DRAW_MESH(DRAW_MESH_MODE_PATCH_ID, P, V, M, mesh);
-    // DRAW_MESH(DRAW_MESH_MODE_PATCH_EDGES, P, V, M, mesh);
-
-    // _fancy_draw_all_edge_pass(P, V, M, mesh);
-    // _fancy_draw_hard_edges_pass(P, V, M, mesh);
-    // TODO(?):_fancy_draw_silhouette_edge_pass(P, V, M, mesh);
+    } 
+    #endif
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#if 0
-static real __t01;
-static real _t01;
-__t01 += 0.0167f;
-_t01 = 0.5 - 0.5 * COS(__t01);
-glUniform1f(UNIFORM(shader_program, "_t01"), _t01);
-#endif

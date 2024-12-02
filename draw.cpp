@@ -774,21 +774,22 @@ void conversation_draw() {
                 }
             }
 
-            fancy_draw_int_counter+= 0.001 * (1.00 - fancy_draw_int_counter); // TODO; better lerping
-            float val = fancy_draw_int_counter;
-            bool OR_MESHES = false;
+            JUICEIT_EASYTWEEN(&preview->mesh_tween_01, 1.0f);
+            bool use_mesh_boolean_or_instead_of_and = false;
 
-            vec4 in_eq, out_eq; {
+            vec4 in_eq, out_eq; { // (x, y, z, w) for equation ax + by + cz = w
                 vec3 plane_norm = meshes->feature_plane.normal;
                 if (meshes->was_revolve) {
+                    // TODO: port to linalg.cpp
+
                     vec3 test_point = transformPoint(meshes->M_3D_from_2D, V3(meshes->axis_base_point, 0.0));
                     vec2 dir_2D = e_theta(PI/2 + meshes->axis_angle_from_y);
                     vec3 dir_3D = transformVector(meshes->M_3D_from_2D, V3(dir_2D, 0.0f));
 
                     vec3 plane_normal = normalized(cross(dir_3D, meshes->feature_plane.normal));
 
-                    real cur_out_angle = -val * RAD(meshes->out_quantity) + PI / 2;
-                    real cur_in_angle = val * RAD(meshes->in_quantity) + PI / 2;
+                    real cur_out_angle = -preview->mesh_tween_01 * RAD(meshes->out_quantity) + PI / 2;
+                    real cur_in_angle = preview->mesh_tween_01 * RAD(meshes->in_quantity) + PI / 2;
 
                     vec3 k = normalized(dir_3D);
                     vec3 rotated_out_normal = plane_normal * COS(cur_out_angle) + cross(k, plane_normal) * SIN(cur_out_angle) + k * dot(k, plane_normal) * (1 - COS(cur_out_angle));
@@ -803,12 +804,12 @@ void conversation_draw() {
                     real angle_between_rot = ATAN2(dot(k, cross(rotated_out_normal, rotated_in_normal)), dot(rotated_out_normal, rotated_in_normal));
 
                     if (angle_between_rot < 0) {
-                        OR_MESHES = true;
+                        use_mesh_boolean_or_instead_of_and = true;
                     }
                 } else {
                     vec4 starting_eq = { plane_norm.x, plane_norm.y, plane_norm.z, -meshes->feature_plane.signed_distance_to_world_origin };
-                    in_eq = starting_eq - V4(0, 0, 0, -val * meshes->in_quantity);
-                    out_eq = -starting_eq + V4(0, 0, 0, val * meshes->out_quantity);
+                    in_eq = starting_eq - V4(0, 0, 0, -preview->mesh_tween_01 * meshes->in_quantity);
+                    out_eq = -starting_eq + V4(0, 0, 0, preview->mesh_tween_01 * meshes->out_quantity);
                 }
             }
 
@@ -837,25 +838,25 @@ void conversation_draw() {
                 eso_end();
 
             };
+            FORNOW_UNUSED(DEBUG_DRAW_PLANE);
 
             //DEBUG_DRAW_PLANE(out_eq, pallete.red);
             //DEBUG_DRAW_PLANE(in_eq, pallete.blue);
 
-            if (prev && val < 0.98) {
-                if (meshes->was_cut) {
-                    //DEBUG_DRAW_PLANE(-in_eq, pallete.green);
-                    fancy_draw(P_3D, V_3D, I, prev, V4(0.0), -in_eq, OR_MESHES);
-                    fancy_draw(P_3D, V_3D, I, &meshes->draw, V4(0.0), V4(0.0), OR_MESHES);
-
-                } else {
-                    fancy_draw(P_3D, V_3D, I, &meshes->draw, out_eq, in_eq, OR_MESHES);
-                    fancy_draw(P_3D, V_3D, I, prev, V4(0.0), V4(0.0), OR_MESHES);
-                }
-            } else if (val < 0.98) {
-                fancy_draw(P_3D, V_3D, I, &meshes->draw, out_eq, in_eq, OR_MESHES);
+            // if (prev && preview->mesh_tween_01 < 0.98) {
+            if (meshes->was_cut) {
+                //DEBUG_DRAW_PLANE(-in_eq, pallete.green);
+                if (prev) fancy_draw(P_3D, V_3D, I, prev, V4(0.0), -in_eq, use_mesh_boolean_or_instead_of_and);
+                fancy_draw(P_3D, V_3D, I, &meshes->draw, V4(0.0), V4(0.0), use_mesh_boolean_or_instead_of_and);
             } else {
-                fancy_draw(P_3D, V_3D, I, &meshes->draw, V4(0.0), V4(0.0), OR_MESHES);
+                fancy_draw(P_3D, V_3D, I, &meshes->draw, out_eq, in_eq, use_mesh_boolean_or_instead_of_and);
+                if (prev) fancy_draw(P_3D, V_3D, I, prev, V4(0.0), V4(0.0), use_mesh_boolean_or_instead_of_and);
             }
+            // } else if (preview->mesh_tween_01 < 0.98) {
+            //     fancy_draw(P_3D, V_3D, I, &meshes->draw, out_eq, in_eq, use_mesh_boolean_or_instead_of_and);
+            // } else {
+            //     fancy_draw(P_3D, V_3D, I, &meshes->draw, V4(0.0), V4(0.0), use_mesh_boolean_or_instead_of_and);
+            // }
 
         }
 
