@@ -8,7 +8,7 @@
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
     real f = multiplier * 10.0f;
     if (IS_ZERO(multiplier)) f = 1.0f;
-    if (!other.paused && !other.slowmo) *a += (b - *a) * (1 - exp(-f * other.delta_time));
+    if (!other.paused) *a += (b - *a) * (1 - exp(-f * other.delta_time));
 }
 
 template <typename T> void FINITE_EASYTWEEN(T *a, T b, T threshold, real multiplier = 1.0f) {

@@ -703,6 +703,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             feature_plane->signed_distance_to_world_origin = 0.0f;
                             preview->feature_plane_signed_distance_to_world_origin = 0.0f;
                             feature_plane->normal = { 0.0f, 1.0f, 0.0f };
+                            feature_plane->rotation_angle = 0.0f;
                         }
                     }
                     if (GUIBUTTON(commands.NudgePlane)) {
@@ -1750,9 +1751,22 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         other.time_since_plane_selected = 0.0f;
                         feature_plane->is_active = true;
 
+                        // The default tolerance on this is too tight to prevent clicks on same plane from resetting things
+                        // real new_distance = dot(mesh->triangle_normals[snap_result.triangle_index], snap_result.mouse_position);
+                        // bool plane_changed = !ARE_EQUAL(feature_plane->normal, mesh->triangle_normals[snap_result.triangle_index])
+                        //     || !ARE_EQUAL(feature_plane->signed_distance_to_world_origin, new_distance);
                         feature_plane->normal = mesh->triangle_normals[snap_result.triangle_index];
                         feature_plane->signed_distance_to_world_origin = dot(feature_plane->normal, snap_result.mouse_position);
                         preview->feature_plane_signed_distance_to_world_origin = feature_plane->signed_distance_to_world_origin;
+                        feature_plane->mirror_x = false;
+                        feature_plane->mirror_y = false;
+                        feature_plane->rotation_angle = 0.0f;
+
+                        // TODO Decide whether to skip animation for these
+                        preview->feature_plane_mirror_x_angle = 0.0f;
+                        preview->feature_plane_mirror_y_angle = 0.0f;
+                        preview->feature_plane_mirror_XXX_bump = 0.0f;
+                        preview->feature_plane_rotation_angle = 0.0f;
                     } 
 
                     if (state.Mesh_command.flags & TWO_CLICK) {
@@ -2171,7 +2185,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 } else if (state_Mesh_command_is_(RotatePlane)) {
                     POPUP(state.Mesh_command,
-                            false
+                            true
                             , CellType::Real, STRING("angle"), &popup->feature_plane_rotate_plane_angle
                          );
                     if (gui_key_enter(ToolboxGroup::Mesh)) {

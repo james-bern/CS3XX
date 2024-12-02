@@ -514,10 +514,8 @@ int main() {
         if (other.stepping_one_frame_while_paused) other.paused = false;
         if (!other.paused) { // update
             { // time_since
-                // FORNOW: HAAAAAACK TODO: time frames and actually increment time properly
                 real current_frame_time = glfwGetTime();
                 other.delta_time = current_frame_time - other.time_of_previous_frame;
-                printf("%f\n", other.delta_time);
                 other.time_of_previous_frame = current_frame_time;
 
                 // I haven't tested that delta time works on windows yet

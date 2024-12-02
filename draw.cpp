@@ -27,7 +27,7 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
         o = preview->feature_plane_signed_distance_to_world_origin * feature_plane->normal;
 
         // TODO: move sketch and rotate sketch goes in here too
-        x = transformVector(M4_RotationAbout(y, preview->feature_plane_mirror_x_angle), x);
+        x = transformVector(M4_RotationAbout(y, -preview->feature_plane_mirror_x_angle), x);
         y = transformVector(M4_RotationAbout(x, preview->feature_plane_mirror_y_angle), y);
         o += preview->feature_plane_mirror_XXX_bump * feature_plane->normal;
 
@@ -1099,7 +1099,7 @@ void conversation_draw() {
                     face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
                     { // we want this to be done regardless for HidePlane tweening
 
-                        mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D(true));
+                        mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D(false)); // TODO choose true or false (or something else)
 
                         WorkMesh *mesh = &meshes->work;
                         for_(triangle_index, mesh->num_triangles) {
@@ -1109,8 +1109,8 @@ void conversation_draw() {
                                 vec3 a = mesh->vertex_positions[tuple[0]];
                                 real sd = dot(a, n);
                                 real target_feature_plane_signed_distance_from_world_origin = feature_plane->signed_distance_to_world_origin;
-                                if (state_Mesh_command_is_(NudgePlane))
-                                    target_feature_plane_signed_distance_from_world_origin += popup->feature_plane_nudge;
+                                // if (state_Mesh_command_is_(NudgePlane))
+                                //     target_feature_plane_signed_distance_from_world_origin += popup->feature_plane_nudge;
                                 if (ABS(sd - target_feature_plane_signed_distance_from_world_origin) < 0.01f) {
                                     for_(d, 3) {
                                         vec3 p_3D = mesh->vertex_positions[tuple[d]];
