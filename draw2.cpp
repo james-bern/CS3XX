@@ -633,6 +633,8 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
     mat4 R = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
     mat4 S = M4_Scaling(100.0f);
 
+    // NOTE: DRAW_MESH draws both A and B (A or B / A and B)
+    // THIS IS WRONG (fix it later) 
 
     { // set up the stencil buffer
         glEnable(GL_STENCIL_TEST);
