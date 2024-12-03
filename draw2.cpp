@@ -621,7 +621,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
         static vec3  _vertex_positions[] = { { -1, -1, 0 }, { 1, -1, 0 }, { 1, 1, 0 }, { -1, 1, 0 }};
         static uint3 _triangle_tuples[]  = { { 0, 1, 2 }, { 0, 2, 3 } };
         static uint _vertex_patch_indices[]  = { 0, 0, 0, 0 }; // FORNOW 0 TODOLATER  a number larger than the largest vertex index so patch is unique
-        static vec3  _vertex_normals[] = { { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 }};
+        static vec3  _vertex_normals[] = { { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }}; // wai nate
         plane_1.num_vertices = 4;
         plane_1.num_triangles = 2;
         plane_1.vertex_positions = _vertex_positions;
