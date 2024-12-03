@@ -164,6 +164,7 @@ struct {
     rgb += 0.3 * fresnel;
     rgb = mix(rgb, vec3(1.0), 0.5f);
     rgb = 0.5 + 0.5 * N;
+    // rgb = 0.5 + 0.5 * cos(fs_in.position_World);
 }
 
 if (feature_plane_is_active != 0) { // feature plane override
@@ -444,6 +445,9 @@ run_before_main {
     }
 };
 
+#define HACK_FRONT_BOTH 0
+#define HACK_FRONT_FACES_ONLY 1
+#define HACK_BACK_FACES_ONLY 2
 
 uint DRAW_MESH_MODE_LIT            = 0;
 uint DRAW_MESH_MODE_PATCH_ID       = 1;
@@ -458,7 +462,8 @@ void DRAW_MESH(
         DrawMesh *mesh,
         vec4 plane_equation1,
         vec4 plane_equation2,
-        bool use_mesh_boolean_or_instead_of_and
+        bool use_mesh_boolean_or_instead_of_and,
+        uint HACK_MODE = HACK_FRONT_BOTH
         ) { // default value has no clip plane and uses or clipping
 
     { // GL; FORNOW FORNOW pushing data to GPU multiple times per mesh every frame (wtf) -- "needed" for prototyping the plane endcaps for mesh tweening
@@ -538,16 +543,21 @@ void DRAW_MESH(
             glEnable(GL_CLIP_DISTANCE0);
             glEnable(GL_CLIP_DISTANCE1);
 
-            glCullFace(GL_FRONT);
-            glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            if (HACK_MODE != HACK_FRONT_FACES_ONLY) {
+                glCullFace(GL_FRONT);
+                glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            }
 
-            glCullFace(GL_BACK); 
-            glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            if (HACK_MODE != HACK_BACK_FACES_ONLY) {
+                glCullFace(GL_BACK); 
+                glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            }
 
             glDisable(GL_CLIP_DISTANCE0);
             glDisable(GL_CLIP_DISTANCE1);
 
         } else {
+            ASSERT(0); // TODOLATER (not going to bother to HACK this now)
             glEnable(GL_CLIP_DISTANCE0);
 
             glCullFace(GL_FRONT);
@@ -619,14 +629,44 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
         plane_1.vertex_patch_indices = _vertex_patch_indices;
         plane_1.vertex_normals = _vertex_normals;
     }
-
     mat4 T = M4_Translation(0, 0, -plane_equation1.w); // TODO: check negative signs
     mat4 R = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
     mat4 S = M4_Scaling(100.0f);
 
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and);
-    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R * T * S, &plane_1, {}, {}, false);
 
+    { // set up the stencil buffer
+        glEnable(GL_STENCIL_TEST);
+        glDisable(GL_DEPTH_TEST);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        {
+            glClear(GL_STENCIL_BUFFER_BIT); 
+
+            glStencilFunc(GL_ALWAYS, 0, 0x00);
+
+            // TODO: INCR for BACK faces, decr for FRONT facwes
+            // FORNOW: majorly hacked in
+            glStencilOp(GL_KEEP, GL_INCR, GL_INCR);
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and, HACK_BACK_FACES_ONLY);
+            glStencilOp(GL_KEEP, GL_DECR, GL_DECR);
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and, HACK_FRONT_FACES_ONLY);
+
+        }
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDisable(GL_STENCIL_TEST);
+        glEnable(GL_DEPTH_TEST);
+    }
+
+
+
+    glEnable(GL_STENCIL_TEST);
+    {
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        glStencilFunc(GL_NOTEQUAL, 0, 0xFF); 
+        DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R * T * S, &plane_1, {}, {}, false);
+    }
+    glDisable(GL_STENCIL_TEST);
+
+    DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and);
 
 
     #if 0
