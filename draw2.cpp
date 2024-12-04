@@ -549,7 +549,7 @@ void DRAW_MESH(
             }
 
             if (HACK_MODE != HACK_BACK_FACES_ONLY) {
-                glCullFace(GL_BACK); 
+                glCullFace(GL_BACK);
                 glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
             }
 
@@ -557,22 +557,30 @@ void DRAW_MESH(
             glDisable(GL_CLIP_DISTANCE1);
 
         } else {
-            ASSERT(0); // TODOLATER (not going to bother to HACK this now)
             glEnable(GL_CLIP_DISTANCE0);
 
-            glCullFace(GL_FRONT);
-            glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            if (HACK_MODE != HACK_FRONT_FACES_ONLY) {
+                glCullFace(GL_FRONT);
+                glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            }
 
-            glCullFace(GL_BACK); 
-            glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            if (HACK_MODE != HACK_BACK_FACES_ONLY) {
+                glCullFace(GL_BACK);
+                glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            }
 
             glUniform4fv(clipPlaneLocation1, 1, &plane_equation2[0]);
 
-            glCullFace(GL_FRONT);
-            glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            if (HACK_MODE != HACK_FRONT_FACES_ONLY) {
+                glCullFace(GL_FRONT);
+                glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            }
 
-            glCullFace(GL_BACK); 
-            glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            if (HACK_MODE != HACK_BACK_FACES_ONLY) {
+                glCullFace(GL_BACK);
+                glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
+            }
+
 
             glDisable(GL_CLIP_DISTANCE0);
         }
@@ -629,6 +637,11 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
         plane_1.vertex_patch_indices = _vertex_patch_indices;
         plane_1.vertex_normals = _vertex_normals;
     }
+
+    // TODO: ULTRA URGENT ONLY FOR TEH BEST OF GRAFIX PPL
+    //      for rrevolve adds (too lazy to even test what a cut looks like) we only want half of the plane based off of the axis of ratotion
+                // ultra secret: may not work idk i have much awakeness
+
     mat4 T1 = M4_Translation(0, 0, -plane_equation1.w); // TODO: check negative signs
     mat4 R1 = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
     mat4 S1 = M4_Scaling(100.0f); //TODO: this should not be a magic number
