@@ -629,44 +629,66 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
         plane_1.vertex_patch_indices = _vertex_patch_indices;
         plane_1.vertex_normals = _vertex_normals;
     }
-    mat4 T = M4_Translation(0, 0, -plane_equation1.w); // TODO: check negative signs
-    mat4 R = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
-    mat4 S = M4_Scaling(100.0f);
+    mat4 T1 = M4_Translation(0, 0, -plane_equation1.w); // TODO: check negative signs
+    mat4 R1 = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
+    mat4 S1 = M4_Scaling(100.0f); //TODO: this should not be a magic number
 
-    // NOTE: DRAW_MESH draws both A and B (A or B / A and B)
-    // THIS IS WRONG (fix it later) 
+    mat4 T2 = M4_Translation(0, 0, -plane_equation2.w); // TODO: check negative signs
+    mat4 R2 = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation2));
+    mat4 S2 = M4_Scaling(100.0f); //TODO: this should not be a magic number
+                                  // NOTE: DRAW_MESH draws both A and B (A or B / A and B)
+                                  // THIS IS WRONG (fix it later) 
 
     { // set up the stencil buffer
         glEnable(GL_STENCIL_TEST);
-        glDisable(GL_DEPTH_TEST);
-        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-        {
+        { // eq1 plane
             glClear(GL_STENCIL_BUFFER_BIT); 
+            glDisable(GL_DEPTH_TEST);
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
             glStencilFunc(GL_ALWAYS, 0, 0x00);
 
             // TODO: INCR for BACK faces, decr for FRONT facwes
             // FORNOW: majorly hacked in
             glStencilOp(GL_KEEP, GL_INCR, GL_INCR);
-            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and, HACK_BACK_FACES_ONLY);
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, {}, use_mesh_boolean_or_instead_of_and, HACK_BACK_FACES_ONLY);
             glStencilOp(GL_KEEP, GL_DECR, GL_DECR);
-            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and, HACK_FRONT_FACES_ONLY);
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, {}, use_mesh_boolean_or_instead_of_and, HACK_FRONT_FACES_ONLY);
 
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+            glEnable(GL_DEPTH_TEST);
+
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+            glStencilFunc(GL_NOTEQUAL, 0, 0xFF); 
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R1 * T1 * S1, &plane_1, {}, {}, false);
         }
-        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        { // eq1 plane
+            glClear(GL_STENCIL_BUFFER_BIT); 
+
+            glDisable(GL_DEPTH_TEST);
+            glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+            glStencilFunc(GL_ALWAYS, 0, 0x00);
+
+            // TODO: INCR for BACK faces, decr for FRONT facwes
+            // FORNOW: majorly hacked in
+            glStencilOp(GL_KEEP, GL_INCR, GL_INCR);
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, {}, plane_equation2, use_mesh_boolean_or_instead_of_and, HACK_BACK_FACES_ONLY);
+            glStencilOp(GL_KEEP, GL_DECR, GL_DECR);
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, {}, plane_equation2, use_mesh_boolean_or_instead_of_and, HACK_FRONT_FACES_ONLY);
+
+            glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+            glEnable(GL_DEPTH_TEST);
+
+            glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+            glStencilFunc(GL_NOTEQUAL, 0, 0xFF); 
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R2 * T2 * S2, &plane_1, {}, {}, false);
+        }
         glDisable(GL_STENCIL_TEST);
-        glEnable(GL_DEPTH_TEST);
     }
 
 
 
-    glEnable(GL_STENCIL_TEST);
-    {
-        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-        glStencilFunc(GL_NOTEQUAL, 0, 0xFF); 
-        DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R * T * S, &plane_1, {}, {}, false);
-    }
-    glDisable(GL_STENCIL_TEST);
 
     DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M, mesh, plane_equation1, plane_equation2, use_mesh_boolean_or_instead_of_and);
 
