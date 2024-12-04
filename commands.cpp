@@ -64,7 +64,7 @@
     COMMANDS_INNER(Fillet,          'F', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
     COMMANDS_INNER(ElfHat,          'E', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
     COMMANDS_INNER(DogEar,          'G', 0b000, Draw, 1, 0 | TWO_CLICK | FOCUS_THIEF); \
-    COMMANDS_INNER(Join2,           'J', 0b000, Draw, 1, 0 | TWO_CLICK ); \
+    COMMANDS_INNER(Join2,           'J', 0b000, Draw, 1, 0 | TWO_CLICK); \
     COMMANDS_INNER(Measure,         'M', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Drag,            'D', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(Offset,          'H', 0b000, Draw, 1, 0 | FOCUS_THIEF); \

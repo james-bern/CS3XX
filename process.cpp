@@ -1259,6 +1259,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             result.checkpoint_me = true;
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
+
+                            Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
                         } else if (state_Draw_command_is_(Line)) {
                             if (clicks_are_same) {
                                 MESSAGE_FAILURE("Line: must have non-zero length");
