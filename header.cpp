@@ -1115,7 +1115,7 @@ real squared_distance_point_dxf(vec2 p, List<Entity> *entities) {
 struct DXFFindClosestEntityResult {
     bool success;
     // uint index;
-    Entity *closest_entity;
+    Entity *closest_entity; // TODO: rename entity
     vec2 line_nearest_point;
     real arc_nearest_angle_in_degrees;
     // TODO: t
@@ -2317,7 +2317,7 @@ LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity 
 
 struct ClosestIntersectionResult {
     vec2 point;
-    bool no_possible_intersection;
+    bool no_possible_intersection; // TODO: rename !success
 };
 
 ArcEntity get_arc_entity(const Entity* entity) {

@@ -502,49 +502,70 @@ void conversation_draw() {
                             }
                             { // Fillet, DogEar, Divide2, Join2
                                 if (two_click_command->awaiting_second_click) { // FORNOW
-                                if (0) {
-                                } else if (state_Draw_command_is_(Fillet) || state_Draw_command_is_(DogEar)) {
                                     DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
-                                    if (closest_result.success) {
-                                        if (state_Draw_command_is_(Fillet)) {
-                                            FilletResult fillet_result = preview_fillet(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->fillet_radius);
-                                            if (fillet_result.fillet_success) {
-                                                chowder_entity(&fillet_result.ent_one);
-                                                chowder_entity(&fillet_result.ent_two);
-                                                chowder_entity(&fillet_result.fillet_arc);
-                                            } else {
-                                                chowder_entity(closest_result.closest_entity);
-                                            }
-                                        } else { ASSERT(state_Draw_command_is_(DogEar)); 
-                                            DogEarResult dogear_result = preview_dogear(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->dogear_radius);
-                                            if (dogear_result.dogear_success) {
-                                                chowder_entity(&dogear_result.ent_one);
-                                                chowder_entity(&dogear_result.ent_two);
-                                                chowder_entity(&dogear_result.fillet_arc_one);
-                                                chowder_entity(&dogear_result.fillet_arc_two);
-                                                chowder_entity(&dogear_result.dogear_arc);
-                                            } else {
-                                                chowder_entity(closest_result.closest_entity);
+
+                                    if (0) {
+                                    } else if (state_Draw_command_is_(Fillet) || state_Draw_command_is_(DogEar)) {
+                                        if (closest_result.success) {
+                                            if (state_Draw_command_is_(Fillet)) {
+                                                FilletResult fillet_result = preview_fillet(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->fillet_radius);
+                                                if (fillet_result.fillet_success) {
+                                                    chowder_entity(&fillet_result.ent_one);
+                                                    chowder_entity(&fillet_result.ent_two);
+                                                    chowder_entity(&fillet_result.fillet_arc);
+                                                } else {
+                                                    chowder_entity(closest_result.closest_entity);
+                                                }
+                                            } else { ASSERT(state_Draw_command_is_(DogEar)); 
+                                                DogEarResult dogear_result = preview_dogear(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->dogear_radius);
+                                                if (dogear_result.dogear_success) {
+                                                    chowder_entity(&dogear_result.ent_one);
+                                                    chowder_entity(&dogear_result.ent_two);
+                                                    chowder_entity(&dogear_result.fillet_arc_one);
+                                                    chowder_entity(&dogear_result.fillet_arc_two);
+                                                    chowder_entity(&dogear_result.dogear_arc);
+                                                } else {
+                                                    chowder_entity(closest_result.closest_entity);
+                                                }
                                             }
                                         }
-                                    }
 
-                                    { // X
-                                        real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+                                        { // X
+                                            real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
 
-                                        chowder_set_size(2.0f);
-                                        real r = 0.5f * funky_OpenGL_factor;
-                                        eso_vertex(click_average_click + V2( r,  r));
-                                        eso_vertex(click_average_click + V2(-r, -r));
-                                        eso_vertex(click_average_click + V2(-r,  r));
-                                        eso_vertex(click_average_click + V2( r, -r));
-                                        chowder_reset_size();
+                                            chowder_set_size(2.0f);
+                                            real r = 0.5f * funky_OpenGL_factor;
+                                            eso_vertex(click_average_click + V2( r,  r));
+                                            eso_vertex(click_average_click + V2(-r, -r));
+                                            eso_vertex(click_average_click + V2(-r,  r));
+                                            eso_vertex(click_average_click + V2( r, -r));
+                                            chowder_reset_size();
+                                        }
+                                    } else if (state_Draw_command_is_(Divide2)) {
+                                        chowder_entity(two_click_command->entity_closest_to_first_click);
+
+                                        if (closest_result.success) {
+                                            chowder_entity(closest_result.closest_entity);
+                                            ClosestIntersectionResult intersection_result =
+                                                closest_intersection(
+                                                        two_click_command->entity_closest_to_first_click,
+                                                        closest_result.closest_entity,
+                                                        mouse_no_snap_potentially_15_deg__WHITE.mouse_position
+                                                        );
+                                            if (!intersection_result.no_possible_intersection) {
+                                                // TODO: dotted lines to point
+                                                // TODO: FAILURE/WARNING color for point off entity
+                                                // TODO: SUCCESS color for point on entity
+                                                chowder_set_primitive(SOUP_POINTS);
+                                                chowder_set_size(5.0);
+                                                chowder_vertex(intersection_result.point);
+                                                chowder_reset_size();
+                                            }
+                                        }
+
+                                    } else if (state_Draw_command_is_(Join2)) {
+                                        chowder_entity(two_click_command->entity_closest_to_first_click);
                                     }
-                                } else if (state_Draw_command_is_(Divide2)) {
-                                    chowder_entity(two_click_command->entity_closest_to_first_click);
-                                } else if (state_Draw_command_is_(Join2)) {
-                                    chowder_entity(two_click_command->entity_closest_to_first_click);
-                                }
                                 }
                             }
 
