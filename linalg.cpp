@@ -546,6 +546,42 @@ mat4 M4_RotationFrom(vec3 a, vec3 b) {
             0.0,       0.0,       0.0, 1.0 };
 }
 
+mat4 M4_RotationFromWithUp(vec3 from_dir, vec3 to_dir, vec3 up) {
+    if (norm(from_dir) < 1e-5f || norm(to_dir) < 1e-5f || norm(up) < 1e-5f) {
+        return M4_Identity();
+    }
+
+    from_dir = normalized(from_dir);
+    to_dir = normalized(to_dir);
+    up = normalized(up);
+
+    if (dot(from_dir, to_dir) < -0.99f) {
+        return M4_RotationAbout(up, PI);
+    }
+
+    if (ABS(dot(up, from_dir)) > 0.99f) {
+        up = normalized(ABS(from_dir.x) < 0.99f ? 
+            V3(1, 0, 0) : V3(0, 1, 0));
+    }
+
+    vec3 to_right = normalized(cross(up, to_dir));
+
+    vec3 to_up = normalized(cross(to_dir, to_right));
+
+    mat3 R = {
+        to_right.x, to_up.x, to_dir.x,
+        to_right.y, to_up.y, to_dir.y,
+        to_right.z, to_up.z, to_dir.z
+    };
+
+    return {
+        R.data[0], R.data[1], R.data[2], 0.0,
+            R.data[3], R.data[4], R.data[5], 0.0,
+            R.data[6], R.data[7], R.data[8], 0.0,
+            0.0,       0.0,       0.0,       1.0
+    };
+}
+
 // optimization stuff //////////////////////////////////////////////////////////
 
 tuDm firstDerivativeofUnitVector(vecD v) {

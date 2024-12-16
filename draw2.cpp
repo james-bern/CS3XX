@@ -626,10 +626,10 @@ void DRAW_MESH(
 void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, vec4 plane_equation2, bool use_mesh_boolean_or_instead_of_and) {
     DrawMesh plane_1 = {};
     {
-        static vec3  _vertex_positions[] = { { -1, -1, 0 }, { 1, -1, 0 }, { 1, 1, 0 }, { -1, 1, 0 }};
+        static vec3  _vertex_positions[] = { { -1, 0, 0 }, { 1, 0, 0 }, { 1, 1, 0 }, { -1, 1, 0 }};
         static uint3 _triangle_tuples[]  = { { 0, 1, 2 }, { 0, 2, 3 } };
         static uint _vertex_patch_indices[]  = { 0, 0, 0, 0 }; // FORNOW 0 TODOLATER  a number larger than the largest vertex index so patch is unique
-        static vec3  _vertex_normals[] = { { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }}; // wai nate
+        static vec3  _vertex_normals[] = { { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 }, { 0, 0, 1 }}; // wai nate
         plane_1.num_vertices = 4;
         plane_1.num_triangles = 2;
         plane_1.vertex_positions = _vertex_positions;
@@ -638,19 +638,34 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
         plane_1.vertex_normals = _vertex_normals;
     }
 
+    DrawMesh plane_2 = {};
+    {
+        static vec3  _vertex_positions[] = { { -1, -1, 0 }, { 1, -1, 0 }, { 1, 1, 0 }, { -1, 1, 0 }};
+        static uint3 _triangle_tuples[]  = { { 0, 1, 2 }, { 0, 2, 3 } };
+        static uint _vertex_patch_indices[]  = { 0, 0, 0, 0 }; // FORNOW 0 TODOLATER  a number larger than the largest vertex index so patch is unique
+        static vec3  _vertex_normals[] = { { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }}; // wai nate
+        plane_2.num_vertices = 4;
+        plane_2.num_triangles = 2;
+        plane_2.vertex_positions = _vertex_positions;
+        plane_2.triangle_tuples = _triangle_tuples;
+        plane_2.vertex_patch_indices = _vertex_patch_indices;
+        plane_2.vertex_normals = _vertex_normals;
+    }
     // TODO: ULTRA URGENT ONLY FOR TEH BEST OF GRAFIX PPL
     //      for rrevolve adds (too lazy to even test what a cut looks like) we only want half of the plane based off of the axis of ratotion
-                // ultra secret: may not work idk i have much awakeness
+    // ultra secret: may not work idk i have much awakeness
 
     mat4 T1 = M4_Translation(0, 0, -plane_equation1.w); // TODO: check negative signs
-    mat4 R1 = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
-    mat4 S1 = M4_Scaling(100.0f); //TODO: this should not be a magic number
+                                                        //mat4 R1 = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation1));
+    mat4 R1 = M4_RotationFromWithUp(V3(0, 0, 1), _V3(plane_equation1), V3(0, 1, 0));
+    mat4 S1 = M4_Scaling(10.0f); //TODO: this should not be a magic number
 
     mat4 T2 = M4_Translation(0, 0, -plane_equation2.w); // TODO: check negative signs
-    mat4 R2 = M4_RotationFrom(V3(0, 0, 1), _V3(plane_equation2));
-    mat4 S2 = M4_Scaling(100.0f); //TODO: this should not be a magic number
-                                  // NOTE: DRAW_MESH draws both A and B (A or B / A and B)
-                                  // THIS IS WRONG (fix it later) 
+    messagef(pallete.orange, "x: %f, y: %f, z: %f", plane_equation2.x, plane_equation2.y, plane_equation2.z);
+    mat4 R2 = M4_RotationFromWithUp(V3(0, 0, 1), _V3(plane_equation2), V3(0, 1, 0));
+    mat4 S2 = M4_Scaling(0.0f); //TODO: this should not be a magic number
+                                // NOTE: DRAW_MESH draws both A and B (A or B / A and B)
+                                // THIS IS WRONG (fix it later) 
 
     { // set up the stencil buffer
         glEnable(GL_STENCIL_TEST);
@@ -675,7 +690,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
             glStencilFunc(GL_NOTEQUAL, 0, 0xFF); 
             DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R1 * T1 * S1, &plane_1, {}, {}, false);
         }
-        { // eq1 plane
+        { // eq2 plane
             glClear(GL_STENCIL_BUFFER_BIT); 
 
             glDisable(GL_DEPTH_TEST);
@@ -695,7 +710,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh, vec4 plane_equation1, ve
 
             glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
             glStencilFunc(GL_NOTEQUAL, 0, 0xFF); 
-            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R2 * T2 * S2, &plane_1, {}, {}, false);
+            DRAW_MESH(DRAW_MESH_MODE_LIT, P, V, M * R2 * T2 * S2, &plane_2, {}, {}, false);
         }
         glDisable(GL_STENCIL_TEST);
     }
