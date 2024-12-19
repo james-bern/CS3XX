@@ -292,5 +292,47 @@ void init_camera_mesh() {
 }
 
 
+////////////////////////////////////////
+// colors //////////////////////////////
+////////////////////////////////////////
+
+vec3 get_accent_color(ToolboxGroup group) {
+    vec3 result;
+    if (group == ToolboxGroup::Draw) {
+        result = pallete_2D->draw;
+    } else if (group == ToolboxGroup::Snap) {
+        result = pallete_2D->snap;
+    } else if (group == ToolboxGroup::Xsel) {
+        result = V3(0.75f, 0.75f, 1.0f);
+    } else if (group == ToolboxGroup::Both) {
+        result = V3(1.0f, 1.0f, 0.0f);
+    } else if (group == ToolboxGroup::Mesh) {
+        result = V3(0.0f, 0.8f, 0.0f);
+    } else if (group == ToolboxGroup::Colo) {
+        result = basic.white; // FORNOW
+    } else { ASSERT(group == ToolboxGroup::None);
+        result = {};
+    }
+    return result;
+}
+
+vec3 get_color_from_color_code(u8 color_code) {
+    if (color_code == 0) return pallete_2D->color_0;
+    if (color_code == 1) return pallete_2D->color_1;
+    if (color_code == 2) return pallete_2D->color_2;
+    if (color_code == 3) return pallete_2D->color_3;
+    if (color_code == 4) return pallete_2D->color_4;
+    if (color_code == 5) return pallete_2D->color_5;
+    if (color_code == 6) return pallete_2D->color_6;
+    if (color_code == 7) return pallete_2D->color_7;
+    if (color_code == 8) return pallete_2D->color_8;
+    if (color_code == 9) return pallete_2D->color_9;
+    else {
+        MESSAGE_FAILURE("get_color_from_color_code: color_code %d unknown", color_code);
+        return basic.magenta;
+    }
+}
+
+
 
 

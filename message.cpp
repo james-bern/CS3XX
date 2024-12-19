@@ -34,7 +34,7 @@ void _messagef(vec3 color, char *format, va_list arg) {
         }
     }
 
-    // printf("%s\n", message->buffer); // FORNOW print to terminal as well
+    printf("%s\n", message->string.data); // FORNOW print to terminal as well
 }
 
 void messagef(vec3 color, char *format, ...) {
@@ -47,26 +47,19 @@ void messagef(vec3 color, char *format, ...) {
 void MESSAGE_FAILURE(char *format, ...) {
     va_list args;
     va_start(args, format);
-    _messagef(pallete.red, format, args);
+    _messagef(basic.red, format, args);
     va_end(args);
 }
 void MESSAGE_SUCCESS(char *format, ...) {
     va_list args;
     va_start(args, format);
-    _messagef(pallete.green, format, args);
+    _messagef(basic.green, format, args);
     va_end(args);
 }
 void MESSAGE_INFO(char *format, ...) {
     va_list args;
     va_start(args, format);
-    _messagef(pallete.blue, format, args);
-    va_end(args);
-}
-
-void messagef(char *format, ...) {
-    va_list args;
-    va_start(args, format);
-    _messagef(pallete.red, format, args);
+    _messagef(basic.blue, format, args);
     va_end(args);
 }
 
@@ -113,8 +106,8 @@ void _messages_draw() {
             alpha = 1;
         }
 
-        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, pallete.yellow, message->base_color);
-        color = CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, color, pallete.white);
+        vec3 color = CLAMPED_LINEAR_REMAP(message->time_remaining, MESSAGE_MAX_TIME + FADE_IN_TIME, MESSAGE_MAX_TIME - 2.5f * FADE_IN_TIME, basic.yellow, message->base_color);
+        color = CLAMPED_LINEAR_REMAP(message->time_remaining, FADE_OUT_TIME, 0.0f, color, basic.white);
 
         real y_target = lines_drawn * font_height_Pixel + 4.0f;
         lines_drawn += message->height;
@@ -143,13 +136,13 @@ void _messages_draw() {
 
     // TODO: stencil test to the transition in beautiful
     eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
-    eso_color(pallete.white, 1.0f);
+    eso_color(basic.white, 1.0f);
     eso_bbox_SOUP_QUADS(bbox);
     eso_end();
     eso_begin(other.OpenGL_from_Pixel, SOUP_LINE_LOOP);
     eso_overlay(true);
     eso_size(1.0f);
-    eso_color(pallete.black);
+    eso_color(basic.black);
     eso_bbox_SOUP_QUADS(bbox);
     eso_end();
 }

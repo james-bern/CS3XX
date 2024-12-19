@@ -79,7 +79,7 @@ void entities_load(String filename, List<Entity> *entities) {
                     if (code == 62) {
                         int value;
                         sscanf(line_from_file.data, "%d", &value);
-                        entity.color_code = (ColorCode) value; 
+                        entity.color_code = (u8) value; 
                     } else {
                         float value;
                         sscanf(line_from_file.data, "%f", &value);
@@ -133,7 +133,7 @@ bool drawing_save_dxf(Drawing *drawing_to_save, String filename) {
 
     FILE* file = (FILE *) FILE_OPEN(filename, "w");
     if (!file) {
-        messagef(pallete.red, "Error opening file for writing: %s\n", filename);
+        MESSAGE_FAILURE("SaveDWF: error opening %s for writing \n", filename);
         return false;
     }
 

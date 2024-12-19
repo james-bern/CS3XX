@@ -278,7 +278,7 @@ void callback_drop(GLFWwindow *, int count, const char **paths) {
             script_process(string_filename);
             script_process(STRING("\n"));
         } else {
-            messagef(pallete.orange, "DragAndDrop must be *.dxf or *.stl");
+            MESSAGE_FAILURE("DragAndDrop must be *.dxf or *.stl");
         }
     }
 }

@@ -1,40 +1,3 @@
-// TODO: what is the simplest way we can allocate memory
-
-// WorldState is a giant struct that occasionally needs to be snapshotted
-// the memory that has to be stored not directly in the struct is
-// - the drawing
-// - the work mesh
-// - the draw mesh
-// -- NOTE: this may end up being like 3 different meshes (curr, prev, prev_tool)
-
-// the simplest thing may be to just have one giant arena for the entire world state
-// it's probably pretty space-inefficient, etc., but it's also very simple
-
-// clearing the mesh is now a little weird (it's still...there in the arena)
-
-// so maybe two arenas?
-// - the main thing the arena will be doing for us with the mesh(es) is that there is just soo much alloc'd data, and we don't want to deal with freeing it all
-
-// the thing we still need to figure out is snapshotting
-// let's try adding a basic mesh arena
-// tttttttt
-// what things do we need to do with the meshes?
-// - base level: snapshot and then read out of snap shot
-
-// do we really need to snapshot the drawings?--we do, unless you want to start
-// repeating stuff from the very beginning
-// some drawing stuff can potentially be slow too
-// i think assuming all drawing stuff is super fast is potentially a bad idea
-
-// on the other hand, let's think about drawing vs meshes
-// drawing is small, changes super often, but changes are generally super quick
-// meshes  is large, changes infrequently, but changes are generally super slow
-// - turtle is 500 KB and can certainly be made smaller
-
-
-
-// FORNOW: let's assume we push the OpenGL crap to the GPU every frame (TODOLATER)
-
 real HARD_EDGE_THRESHOLD_IN_DEGREES = 30.0f;
 
 // gl
@@ -79,10 +42,14 @@ uint UNIFORM(uint shader_program, char *name) { return glGetUniformLocation(shad
 void messagef(vec3 color, char *format, ...);
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier = 1.0f);
 // TODO: take entire transform (same used for draw) for manifold_wrapper--strip out incremental nature into function
+void MESSAGE_FAILURE(char *format, ...);
+void MESSAGE_SUCCESS(char *format, ...);
+void MESSAGE_INFO(char *format, ...);
 
 
 
 ///////////
+
 
 
 enum class ToolboxGroup {
@@ -188,28 +155,6 @@ enum class MouseEventSubtype {
     ToolboxButton,
 };
 
-enum class ColorCode {
-    Traverse,
-    Quality1,
-    Quality2,
-    Quality3,
-    Quality4,
-    Quality5,
-    Etch,
-    Unknown,
-    _WaterOnly,
-    LeadIO,
-    QualitySlit1 = 21,
-    QualitySlit2,
-    QualitySlit3,
-    QualitySlit4,
-    QualitySlit5,
-    Selection = 255,
-    Emphasis = 254,
-};
-
-/////////////////
-
 
 ////////////////////////////////////////
 // structs /////////////////////////////
@@ -249,7 +194,7 @@ struct CircleEntity {
 struct Entity {
     EntityType type;
 
-    ColorCode color_code;
+    u8 color_code;
     bool is_selected;
     real time_since_is_selected_changed;
 
@@ -591,6 +536,7 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
 };
 
 struct PreviewState {
+
     bbox2 feature_plane;
     real extrude_in_length;
     real extrude_out_length;
@@ -640,6 +586,9 @@ struct Cursors {
 };
 
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
+    Pallete pallete; 
+    Pallete target_pallete; 
+
     mat4 OpenGL_from_Pixel;
     mat4 transform_Identity = M4_Identity();
 
@@ -707,86 +656,6 @@ struct StandardEventProcessResult {
 };
 
 //////////////////////////////////
-
-////////////////////////////////////////
-// colors //////////////////////////////
-////////////////////////////////////////
-
-struct {
-    #if 0
-    vec3 red = RGB255(255, 0, 0);
-    vec3 orange = RGB255(204, 136, 1);
-    vec3 green = RGB255(83, 255,  85);
-    vec3 blue = RGB255(0, 85, 255);
-    vec3 purple = RGB255(170, 1, 255);
-    vec3 pink = RGB255(238, 0, 119);
-    #else
-    vec3 red = monokai.red;
-    vec3 orange = monokai.orange;
-    vec3 green = monokai.green;
-    vec3 blue = monokai.blue;
-    vec3 purple = monokai.purple;
-    vec3 brown = monokai.brown;
-    #endif
-    vec3 cyan = RGB255(0, 255, 255);
-    vec3 magenta = RGB255(255, 0, 255);
-    vec3 yellow = RGB255(255, 255, 0);
-    vec3 black = RGB255(0, 0, 0);
-
-    vec3 white = RGB255(255, 255, 255);
-    vec3 lighter_gray = RGB255(235, 235, 235);
-    vec3 light_gray = RGB255(160, 160, 160);
-    vec3 gray = RGB255(115, 115, 115);
-    vec3 dark_gray = RGB255(70, 70, 70);
-    vec3 darker_gray = RGB255(20, 20, 20);
-
-    vec3 dark_yellow = RGB255(200, 200, 0);
-} pallete;
-
-vec3 Q_pallete[10] = {
-    #if 0
-    pallete.green,
-    pallete.red,
-    pallete.pink,
-    pallete.magenta,
-    pallete.purple,
-    pallete.blue,
-    pallete.gray,
-    pallete.light_gray, // TODO: what is this
-    pallete.cyan,
-    pallete.orange,
-    #else
-    pallete.light_gray,
-    pallete.red,
-    pallete.orange,
-    pallete.yellow,
-    pallete.green,
-    pallete.blue,
-    pallete.purple,
-    pallete.brown,
-    pallete.dark_gray,
-    #endif
-};
-
-vec3 get_accent_color(ToolboxGroup group) {
-    vec3 result;
-    if (group == ToolboxGroup::Draw) {
-        result = V3(0.0f, 1.0f, 1.0f);
-    } else if (group == ToolboxGroup::Both) {
-        result = V3(1.0f, 1.0f, 0.0f);
-    } else if (group == ToolboxGroup::Mesh) {
-        result = V3(0.0f, 0.8f, 0.0f);
-    } else if (group == ToolboxGroup::Snap) {
-        result = V3(1.0f, 0.0f, 1.0f);
-    } else if (group == ToolboxGroup::Xsel) {
-        result = V3(0.75f, 0.75f, 1.0f);
-    } else if (group == ToolboxGroup::Colo) {
-        result = pallete.white;
-    } else { ASSERT(group == ToolboxGroup::None);
-        result = {};
-    }
-    return result;
-}
 
 
 ////////////////////////////////////////
@@ -920,22 +789,6 @@ vec2 entity_get_middle(Entity *entity) {
 // };
 
 
-vec3 get_color(ColorCode color_code) {
-    uint i = uint(color_code);
-    if (0 <= i && i <= 9) {
-        return Q_pallete[i];
-    } else if (20 <= i && i <= 29) {
-        do_once { messagef(pallete.orange, "WARNING: slits not implemented"); };
-        return Q_pallete[i - 20];
-    } else if (color_code == ColorCode::Selection) {
-        return pallete.white;
-    } else if (color_code == ColorCode::Emphasis) {
-        return pallete.white;
-    } else {
-        ASSERT(false);
-        return {};
-    }
-}
 
 void eso_entity__SOUP_LINES(Entity *entity, bool cageit = false, real z0 = 0.0f, real z1 = 0.0f) {
     auto Q = [&](vec2 a, vec2 b, bool exclude_vertical_a = false, bool exclude_vertical_b = false) {
@@ -1448,7 +1301,7 @@ CrossSectionEvenOdd cross_section_create_FORNOW_QUADRATIC(List<Entity> *entities
 
 void cross_section_debug_draw(Camera *camera_drawing, CrossSectionEvenOdd *cross_section) {
     eso_begin(camera_drawing->get_PV(), SOUP_LINES);
-    eso_color(pallete.white);
+    eso_color(basic.white);
     for_(loop_index, cross_section->num_polygonal_loops) {
         ManifoldVec2 *polygonal_loop = cross_section->polygonal_loops[loop_index];
         int n = cross_section->num_vertices_in_polygonal_loops[loop_index];
@@ -1968,7 +1821,7 @@ MeshesReadOnly manifold_wrapper(
 
         { // manifold_TOOL
             if (command_equals(Mesh_command, commands.ExtrudeCut)) {
-                do_once { messagef(pallete.red, "FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
+                do_once { MESSAGE_FAILURE("FORNOW ExtrudeCut: Inflating as naive solution to avoid thin geometry."); };
                 in_quantity += SGN(in_quantity) * TOLERANCE_DEFAULT;
                 out_quantity += SGN(out_quantity) * TOLERANCE_DEFAULT;
             }
@@ -2318,8 +2171,11 @@ LineArcXClosestResult line_arc_intersection_closest(LineEntity *line, ArcEntity 
 struct ClosestIntersectionResult {
     vec2 point;
     bool no_possible_intersection; // TODO: rename !success
+    bool point_is_on_entity_a;
+    bool point_is_on_entity_b;
 };
 
+// ?????
 ArcEntity get_arc_entity(const Entity* entity) {
     if (entity->type == EntityType::Circle) {
         return {
@@ -2333,25 +2189,46 @@ ArcEntity get_arc_entity(const Entity* entity) {
 }
 
 ClosestIntersectionResult closest_intersection(Entity *A, Entity *B, vec2 point) {
+    // TODO: this case out is kind of torturous but maybe okay
+    ClosestIntersectionResult result = {};
     if (A->type == EntityType::Line && B->type == EntityType::Line) {
-        LineLineXResult res = line_line_intersection(&A->line, &B->line);
-        return { res.point, res.lines_are_parallel}; 
-    } else if ((A->type == EntityType::Arc || A->type == EntityType::Circle) && (B->type == EntityType::Arc || B->type == EntityType::Circle)) {
-        ArcEntity arc_a = get_arc_entity(A);
-        ArcEntity arc_b = get_arc_entity(B);
-        ArcArcXClosestResult res = arc_arc_intersection_closest(&arc_a, &arc_b, point);
-        return { res.point, res.no_possible_intersection };
-    } else {
-        LineArcXClosestResult res; 
-        if (A->type == EntityType::Line) {
-            ArcEntity arc = get_arc_entity(B);
-            res = line_arc_intersection_closest(&A->line, &arc, point);
-        } else {
-            ArcEntity arc = get_arc_entity(A);
-            res = line_arc_intersection_closest(&B->line, &arc, point);
+        LineLineXResult tmp = line_line_intersection(&A->line, &B->line);
+        result.point = tmp.point;
+        result.no_possible_intersection = tmp.lines_are_parallel;
+        result.point_is_on_entity_a = tmp.point_is_on_segment_ab; // TODO: rename
+        result.point_is_on_entity_b = tmp.point_is_on_segment_cd;
+    } else if (
+            (A->type == EntityType::Arc || A->type == EntityType::Circle) &&
+            (B->type == EntityType::Arc || B->type == EntityType::Circle)
+            ) {
+        ArcArcXClosestResult tmp;
+        {
+            ArcEntity arc_a = get_arc_entity(A);
+            ArcEntity arc_b = get_arc_entity(B);
+            tmp = arc_arc_intersection_closest(&arc_a, &arc_b, point);
         }
-        return { res.point, res.no_possible_intersection };
+        result.point = tmp.point;
+        result.no_possible_intersection = tmp.no_possible_intersection;
+        result.point_is_on_entity_a = tmp.point_is_on_arc_a;
+        result.point_is_on_entity_b = tmp.point_is_on_arc_b;
+    } else {
+        LineArcXClosestResult tmp; {
+            if (A->type == EntityType::Line) {
+                ArcEntity arc = get_arc_entity(B);
+                tmp = line_arc_intersection_closest(&A->line, &arc, point);
+                result.point_is_on_entity_a = tmp.point_is_on_line_segment;
+                result.point_is_on_entity_b = tmp.point_is_on_arc;
+            } else {
+                ArcEntity arc = get_arc_entity(A);
+                tmp = line_arc_intersection_closest(&B->line, &arc, point);
+                result.point_is_on_entity_b = tmp.point_is_on_line_segment;
+                result.point_is_on_entity_a = tmp.point_is_on_arc;
+            }
+        }
+        result.point = tmp.point;
+        result.no_possible_intersection = tmp.no_possible_intersection;
     }
+    return result;
 }
 
 real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
@@ -2363,43 +2240,40 @@ real get_three_point_angle(vec2 p, vec2 center, vec2 q) {
 }
 
 
-Entity _make_line(vec2 start, vec2 end, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+Entity _make_line(vec2 start, vec2 end, bool is_selected = false, u8 color_code = 0) {
     Entity entity = {};
     entity.type = EntityType::Line;
-    entity.color_code = ColorCode::Emphasis;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
     LineEntity *line = &entity.line;
     line->start = start;
     line->end = end;
-    entity.is_selected = is_selected;
-    entity.color_code = color_code;
     return entity;
 };
 
-Entity _make_arc(vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+Entity _make_arc(vec2 center, real radius, real start_angle_in_degrees, real end_angle_in_degrees, bool is_selected = false, u8 color_code = 0) {
     Entity entity = {};
     entity.type = EntityType::Arc;
-    entity.color_code= ColorCode::Emphasis;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
     ArcEntity *arc = &entity.arc;
     arc->center = center;
     arc->radius = radius;
     arc->start_angle_in_degrees = start_angle_in_degrees;
     arc->end_angle_in_degrees = end_angle_in_degrees;
-    entity.is_selected = is_selected;
-    entity.color_code = color_code;
     return entity;
 };
 
-Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle_in_degrees, bool is_selected = false, ColorCode color_code = ColorCode::Traverse) {
+Entity _make_circle(vec2 center, real radius, bool has_pseudo_point, real pseudo_point_angle_in_degrees, bool is_selected = false, u8 color_code = 0) {
     Entity entity = {};
     entity.type = EntityType::Circle;
-    entity.color_code = ColorCode::Emphasis;
+    entity.is_selected = is_selected;
+    entity.color_code = color_code;
     CircleEntity *circle = &entity.circle;
     circle->center = center;
     circle->radius = radius;
     circle->has_pseudo_point = has_pseudo_point;
     circle->pseudo_point_angle_in_degrees = pseudo_point_angle_in_degrees;
-    entity.is_selected = is_selected;
-    entity.color_code = color_code;
     return entity;
 };
 
@@ -2416,7 +2290,7 @@ FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 ref
     const Entity *F = EntTwo;
 
     if (E == F) {
-        messagef(pallete.orange, "Fillet: clicked same entity twice");
+        MESSAGE_FAILURE("Fillet: clicked same entity twice");
         return fillet_result;
     }
 
@@ -2444,11 +2318,11 @@ FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 ref
 
     if (is_line_line) {
         if (distance(E->line.start, E->line.end) < radius) {
-            messagef(pallete.orange, "Fillet: first line too short for given radius");
+            MESSAGE_FAILURE("Fillet: first line too short for given radius");
             return fillet_result;
         }
         if (distance(F->line.start, F->line.end) < radius) {
-            messagef(pallete.orange, "Fillet: second line too short for given radius");
+            MESSAGE_FAILURE("Fillet: second line too short for given radius");
             return fillet_result;
         }
     }
@@ -2476,7 +2350,7 @@ FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 ref
 
             LineLineXResult _x = line_line_intersection(a, b, c, d);
             if (_x.lines_are_parallel) {
-                messagef(pallete.orange, "Fillet: lines are parallel");
+                MESSAGE_FAILURE("Fillet: lines are parallel");
                 return fillet_result;
             }
             x = _x.point;
@@ -2526,7 +2400,7 @@ FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 ref
         vec2 X; {
             LineLineXResult _X = line_line_intersection(b, b + perpendicularTo(e_ab), d, d + perpendicularTo(e_cd));
             if (_X.lines_are_parallel) {
-                messagef(pallete.orange, "Fillet: ???");
+                MESSAGE_FAILURE("Fillet: ???");
                 return fillet_result;
             }
             X = _X.point;
@@ -2562,7 +2436,7 @@ FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 ref
         LineArcXClosestResult intersection = line_arc_intersection_closest(&line, &arc, reference_point);
 
         if (intersection.no_possible_intersection) {
-            messagef(pallete.orange, "FILLET: no intersection found");
+            MESSAGE_FAILURE("Fillet: no intersection found");
             return fillet_result;
         }
 
@@ -2696,7 +2570,7 @@ FilletResult preview_fillet(const Entity *EntOne, const Entity *EntTwo, vec2 ref
         ArcArcXClosestResult fillet_point = arc_arc_intersection_closest(&new_arc_a, &new_arc_b, reference_point);
 
         if (fillet_point.no_possible_intersection) {
-            messagef(pallete.orange, "FILLET: no intersection found");
+            MESSAGE_FAILURE("Fillet: no intersection found");
             return fillet_result;
         }
 
@@ -2780,18 +2654,18 @@ DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real rad
     DogEarResult dogear_result = {};
 
     if (E == F) {
-        messagef(pallete.orange, "DogEar: clicked same entity twice");
+        MESSAGE_FAILURE("DogEar: clicked same entity twice");
         return dogear_result;
     }
 
     if (IS_ZERO(radius)) {
-        messagef(pallete.orange, "DogEar: FORNOW: must have non-zero radius");
+        MESSAGE_FAILURE("DogEar: FORNOW: must have non-zero radius");
         return dogear_result;
     }
 
     bool is_line_line = (E->type == EntityType::Line) && (F->type == EntityType::Line);
     if (!is_line_line) {
-        messagef(pallete.orange, "DogEar: only line-line is supported");
+        MESSAGE_FAILURE("DogEar: only line-line is supported");
         return dogear_result;
     }
 
@@ -2830,7 +2704,7 @@ DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real rad
 
         LineLineXResult _x = line_line_intersection(a, b, c, d);
         if (_x.lines_are_parallel) {
-            messagef(pallete.orange, "DogEar: lines are parallel");
+            MESSAGE_FAILURE("DogEar: lines are parallel");
             return dogear_result;
         }
         x = _x.point;
@@ -2910,3 +2784,43 @@ DogEarResult preview_dogear(Entity *E, Entity *F, vec2 reference_point, real rad
     return dogear_result;
 
 }
+
+// TODO: light mode and dark mode up top by ToggleGUI
+
+// TODO: what is the simplest way we can allocate memory
+
+// WorldState is a giant struct that occasionally needs to be snapshotted
+// the memory that has to be stored not directly in the struct is
+// - the drawing
+// - the work mesh
+// - the draw mesh
+// -- NOTE: this may end up being like 3 different meshes (curr, prev, prev_tool)
+
+// the simplest thing may be to just have one giant arena for the entire world state
+// it's probably pretty space-inefficient, etc., but it's also very simple
+
+// clearing the mesh is now a little weird (it's still...there in the arena)
+
+// so maybe two arenas?
+// - the main thing the arena will be doing for us with the mesh(es) is that there is just soo much alloc'd data, and we don't want to deal with freeing it all
+
+// the thing we still need to figure out is snapshotting
+// let's try adding a basic mesh arena
+// tttttttt
+// what things do we need to do with the meshes?
+// - base level: snapshot and then read out of snap shot
+
+// do we really need to snapshot the drawings?--we do, unless you want to start
+// repeating stuff from the very beginning
+// some drawing stuff can potentially be slow too
+// i think assuming all drawing stuff is super fast is potentially a bad idea
+
+// on the other hand, let's think about drawing vs meshes
+// drawing is small, changes super often, but changes are generally super quick
+// meshes  is large, changes infrequently, but changes are generally super slow
+// - turtle is 500 KB and can certainly be made smaller
+
+
+
+// FORNOW: let's assume we push the OpenGL crap to the GPU every frame (TODOLATER)
+

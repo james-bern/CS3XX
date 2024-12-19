@@ -89,10 +89,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             real w = 80.0f;
 
-            EasyTextPen Draw_pen = { V2(padding, padding), 12.0f, pallete.white, true };
+            EasyTextPen Draw_pen = { V2(padding, padding), 12.0f, basic.white, true };
             EasyTextPen Draw_pen2 = Draw_pen;
             Draw_pen2.font_height_Pixel = 12.0f;
-            Draw_pen2.color = pallete.light_gray;
+            Draw_pen2.color = basic.light_gray;
 
             real h = Draw_pen.font_height_Pixel;// + Draw_pen2.font_height_Pixel;
 
@@ -126,12 +126,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = (state.Draw_command.flags & SNAPPER);
 
+            // TODO: GUIBUTTON should be able to take a hardcoded bbox
+            //       (we still want the hot_name logic)
             // TODO: have the non-toggle-able buttons a different color (like before)
-            Map<Shortcut, bool> shortcut_already_checked = {};
+            Map<Shortcut, bool> shortcut_already_checked = {}; // TODO: arena
             defer { map_free_and_zero(&shortcut_already_checked); };
             bool hotkey_consumed_by_GUIBUTTON = false;
             ToolboxGroup most_recent_group_for_SEPERATOR = ToolboxGroup::None;
-            auto GUIBUTTON = [&](Command command, bool hide_button = false, bool deactivate_hotkey = false) -> bool {
+            auto GUIBUTTON = [&](
+                    Command command,
+                    bool hide_button = false,
+                    bool deactivate_hotkey = false
+                    ) -> bool {
                 most_recent_group_for_SEPERATOR = command.group;
                 bool gray_out_shortcut;
                 gray_out_shortcut = false; // SUPPRESS COMPILER WARNING
@@ -210,7 +216,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                         vec3 accent_color = get_accent_color(group); 
                         if (group == ToolboxGroup::Colo) {
-                            for_(i, 10) if (command_equals(command, commands_Color[i])) { accent_color = get_color(ColorCode(i)); break; }
+                            for_(i, 10) if (command_equals(command, commands_Color[i])) { accent_color = get_color_from_color_code(i); break; }
                         }
 
                         bool can_toggle = is_mode;
@@ -237,13 +243,13 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
 
                         // vec3 base_color = (can_toggle) ? AVG(pallete.black, pallete.dark_gray) : pallete.dark_gray;
-                        vec3 base_color = pallete.dark_gray;
+                        vec3 base_color = pallete_2D->button_background;
                         if (group == ToolboxGroup::Colo) {
-                            base_color = LERP(0.20f, pallete.darker_gray, accent_color);
+                            base_color = LERP(0.60f, base_color, accent_color);
                         }
 
                         color = (hovering)
-                            ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(pallete.white, accent_color) : accent_color)
+                            ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(pallete_2D->button_foreground, accent_color) : accent_color)
                             : ((toggled) ? accent_color : base_color);
 
                         if (can_toggle) {
@@ -302,6 +308,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         // if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
                         // if (!hovering) {
                         // easy_text_draw(pen, fornow_hack);
+
                         easy_text_draw(pen, name);
                         // } else {
                         // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
@@ -417,8 +424,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             Command prev_Draw_command = state.Draw_command;
             Command prev_Mesh_command = state.Mesh_command;
             { // GUIBUTTON
-
-                // NOTE: ordered by priority
+              // NOTE: ordered by priority
 
                 { // Both
                     if (GUIBUTTON(commands.ToggleGUI)) { 
@@ -429,7 +435,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     { // Escape
                         if (GUIBUTTON(commands.Escape)) {
-                            // do_once { messagef(pallete.orange, "ESCAPE maybe sus."); };
                             if (popup->manager.focus_group == ToolboxGroup::Draw) {
                                 if (!state_Draw_command_is_(None)) {
                                     set_state_Draw_command(None);
@@ -480,6 +485,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ToggleDetails)) other.show_details = !other.show_details;
                     if (GUIBUTTON(commands.ToggleFPS)) other.show_debug = !other.show_debug;
                     if (GUIBUTTON(commands.ToggleHistory)) other.show_history = !other.show_history;
+                    if (GUIBUTTON(commands.ToggleLightMode2D)) target_pallete->_2D = (target_pallete->_2D.id == PALLETE_2D_DARK) ?  _pallete_2D_light : _pallete_2D_dark;
+                    if (GUIBUTTON(commands.ToggleLightMode3D)) {
+                        ; // TODO
+                    }
                 }
 
                 { // Colo
@@ -501,10 +510,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             ;
                         if (true) {
                             bool hotkey_quality;
-                            uint digit = 0;
+                            u8 digit = 0;
                             {
                                 hotkey_quality = false;
-                                for_(color, 9) {
+                                for (u8 color = 0; color < 10; ++color) {
                                     Command command = commands_Color[color];
                                     if (spoof_is_mode_false) command.is_mode = false;
                                     if (GUIBUTTON(command, hide_buttons)) {
@@ -525,7 +534,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     set_state_Draw_command(None);
                                     set_state_Xsel_command(None);
                                 } else if ((state_Draw_command_is_(SetColor)) && (state_Colo_command_is_(OfSelection))) { // qs0
-                                    _for_each_selected_entity_ cookbook.entity_set_color(entity, ColorCode(digit));
+                                    _for_each_selected_entity_ cookbook.entity_set_color(entity, digit);
                                     set_state_Draw_command(None);
                                     set_state_Colo_command(None);
                                     _for_each_entity_ entity->is_selected = false;
@@ -653,7 +662,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         // result.snapshot_me = true;
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
-                        messagef(pallete.light_gray, "ClearDrawing");
+                        MESSAGE_SUCCESS("ClearDrawing");
                     }
                     if (GUIBUTTON(commands.ZoomDrawing)) {
                         init_camera_drawing();
@@ -731,7 +740,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.snapshot_me = true;
                         meshes_free_AND_zero(meshes);
                         *feature_plane = {};
-                        messagef(pallete.light_gray, "ClearMesh");
+                        MESSAGE_SUCCESS("ClearMesh");
                     }
                     if (GUIBUTTON(commands.ZoomMesh)) {
                         init_camera_mesh();
@@ -790,31 +799,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
 
 
-
-
-
-                    if (GUIBUTTON(commands.TOGGLE_LIGHT_MODE)) { // FORNOW
-                        {
-                            vec3 tmp = pallete.light_gray;
-                            pallete.light_gray = pallete.dark_gray;
-                            pallete.dark_gray = tmp;
-                        }
-                        {
-                            vec3 tmp = pallete.white;
-                            pallete.white = pallete.black;
-                            pallete.black = tmp;
-                        }
-                        {
-                            vec3 tmp = pallete.yellow;
-                            pallete.yellow = pallete.dark_yellow;
-                            pallete.dark_yellow = tmp;
-                        }
-
-                    }
-
-                    if (GUIBUTTON(commands.TOGGLE_BUTTONS)) { // FORNOW
-                        other.hide_toolbox = !other.hide_toolbox;
-                    }
                 }
                 #endif
 
@@ -831,8 +815,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         MESSAGE_FAILURE("Hotkey: %s not recognized", key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(key_event), key_event->control, key_event->shift, key_event->alt, key_event->key);
                     }
                 }
-
-
             }
             bool changed_click_mode = (!command_equals(prev_Draw_command, state.Draw_command));
             bool changed_enter_mode = (!command_equals(prev_Mesh_command, state.Mesh_command));
@@ -886,7 +868,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             bool found = false;
                             for_(digit, 10) {
                                 if (command_equals(state.Colo_command, commands_Color[digit])) {
-                                    cookbook.entity_set_color(hot_entity, ColorCode(digit));
+                                    cookbook.entity_set_color(hot_entity, digit);
                                     found = true;
                                     break;
                                 }
@@ -1117,7 +1099,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             // FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD
                             vec2 Draw_Enter; {
-                                do_once { messagef(pallete.red, "FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD"); };
+                                do_once { MESSAGE_FAILURE("FORNOW FORNOW FORNOW DUPLICATNG THIS CODE FROM PROCESS BAD BAD VERY BAD"); };
                                 Draw_Enter = (!two_click_command->awaiting_second_click) ? V2(0, 0) : two_click_command->first_click;
                                 // if (popup->manager.focus_group == ToolboxGroup::Draw) {
                                 // if (state_Draw_command_is_(Box)) Draw_Enter += V2(popup->box_width, popup->box_height);
@@ -1216,7 +1198,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             if (clicks_are_same) {
                                 MESSAGE_FAILURE("Circle: must have non-zero diameter");
                             } else {
-                                // messagef(pallete.light_gray, "Circle");
                                 result.checkpoint_me = true;
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
@@ -1260,7 +1241,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Draw_command(None);
                             set_state_Snap_command(None);
 
-                            Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
+                            // Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
                         } else if (state_Draw_command_is_(Line)) {
                             if (clicks_are_same) {
                                 MESSAGE_FAILURE("Line: must have non-zero length");
@@ -1750,10 +1731,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             vec3 first_click = mesh_two_click_command->first_click;
                             vec3 second_click = snap_result.mouse_position;
 
-                            messagef(pallete.white, "First: %.3f %.3f %.3f\nSecond: %.3f %.3f %.3f\n", first_click.x, first_click.y, first_click.z, second_click.x, second_click.y, second_click.z);
                             if (0) {
                             } else if (state_Mesh_command_is_(Measure3D)) {
-                                messagef(pallete.cyan, "Length is %gmm.", norm(second_click - first_click));
+                                MESSAGE_INFO("Length is %gmm.", norm(second_click - first_click));
                                 set_state_Mesh_command(None);
                                 feature_plane->is_active = other.should_feature_plane_be_active;
                                 if (feature_plane->is_active)
@@ -2083,7 +2063,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 set_state_Draw_command(None);
-                                messagef(pallete.light_gray, "OpenDXF \"%s\"", popup->open_dxf_filename.data);
+                                MESSAGE_SUCCESS("OpenDXF \"%s\"", popup->open_dxf_filename.data);
                             } else {
                                 MESSAGE_FAILURE("OpenDXF: \"%s\" must be *.dxf", popup->open_dxf_filename.data);
                             }
@@ -2105,7 +2085,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     bool success = drawing_save_dxf(drawing, popup->save_dxf_filename);
                                     ASSERT(success);
                                 }
-                                messagef(pallete.light_gray, "SaveDXF \"%s\"", popup->save_dxf_filename.data);
+                                MESSAGE_SUCCESS("SaveDXF \"%s\"", popup->save_dxf_filename.data);
                             } else {
                                 MESSAGE_FAILURE("SaveDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
                             }
@@ -2128,7 +2108,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     ASSERT(success);
                                 }
                                 set_state_Draw_command(None);
-                                messagef(pallete.light_gray, "OverwriteDXF \"%s\"", popup->save_dxf_filename.data);
+                                MESSAGE_SUCCESS("OverwriteDXF \"%s\"", popup->save_dxf_filename.data);
                             } else {
                                 MESSAGE_FAILURE("OverwriteDXF \"%s\" must be *.dxf", popup->save_dxf_filename.data);
                             }
@@ -2136,7 +2116,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             set_state_Draw_command(None);
                             MESSAGE_FAILURE("OverwriteDXF declined");
                         } else {
-                            messagef(pallete.orange, "OverwriteDXF confirm with y or n");
+                            MESSAGE_INFO("OverwriteDXF confirm with y or n");
                         }
                     }
                 }
@@ -2154,7 +2134,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         result.checkpoint_me = true;
                         feature_plane->signed_distance_to_world_origin += popup->feature_plane_nudge;
                         set_state_Mesh_command(None);
-                        messagef(pallete.light_gray, "NudgePlane %gmm", popup->feature_plane_nudge);
+                        MESSAGE_SUCCESS("NudgePlane %gmm", popup->feature_plane_nudge);
                     }
                 } else if (state_Mesh_command_is_(ExtrudeAdd)) {
                     POPUP(state.Mesh_command, true
@@ -2218,7 +2198,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             MESSAGE_FAILURE("RevolveAdd: no feature plane selected");
                         } else {
                             cookbook.manifold_wrapper_wrapper();
-                            messagef(pallete.light_gray, "RevolveAdd");
+                            MESSAGE_SUCCESS("RevolveAdd");
                         }
                     }
                 } else if (state_Mesh_command_is_(RevolveCut)) {
@@ -2323,18 +2303,18 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
     // FORNOW: remove zero length at end of loop TODO: don't allow their creation
     _for_each_entity_ {
         if (entity_length(entity) < GRID_CELL_WIDTH) {
-            messagef("WARNING: zero length entity detected and deleted");
+            MESSAGE_FAILURE("!!! zero length entity detected and deleted");
             cookbook.buffer_delete_entity(entity);
         }
         if (entity->type == EntityType::Circle) {
             if (entity->circle.radius < GRID_CELL_WIDTH) {
-                messagef("WARNING: zero length entity detected and deleted");
+                MESSAGE_FAILURE("!!! zero length entity detected and deleted");
                 cookbook.buffer_delete_entity(entity);
             }
         }
         if (entity->type == EntityType::Arc) {
             if (entity->arc.radius < GRID_CELL_WIDTH) {
-                messagef("WARNING: zero length entity detected and deleted");
+                MESSAGE_FAILURE("!!! zero length entity detected and deleted");
                 cookbook.buffer_delete_entity(entity);
             }
         }

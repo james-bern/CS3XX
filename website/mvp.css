@@ -625,3 +625,13 @@ iframe {
     box-shadow: var(--box-shadow) var(--color-shadow);
 }
 
+
+            .details,
+.show,
+.hide:target {
+  display: none;
+}
+.hide:target + .show,
+.hide:target ~ .details {
+  display: block;
+}

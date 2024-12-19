@@ -31,6 +31,8 @@
     COMMANDS_INNER(ToggleGUI,       '.', 0b010, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleFPS,       '/', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleHistory,   'H', 0b011, None, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleLightMode2D, 0, 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleLightMode3D, 0, 0b000, Both, 0, 0 | NO_RECORD);  \
     \
     \
     COMMANDS_INNER(Center,          'C', 0b000, Snap, 1, 0); \

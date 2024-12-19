@@ -1,16 +1,19 @@
 struct {
-    vec3 red = { 1.0f, 0.0f, 0.0f };
-    vec3 green = { 0.0f, 1.0f, 0.0f };
-    vec3 blue = { 0.0f, 0.0f, 1.0f };
-    vec3 yellow = { 1.0f, 1.0f, 0.0f };
-    vec3 cyan = { 0.0f, 1.0f, 1.0f };
+    vec3 red     = { 1.0f, 0.0f, 0.0f };
+    vec3 green   = { 0.0f, 1.0f, 0.0f };
+    vec3 blue    = { 0.0f, 0.0f, 1.0f };
+    vec3 yellow  = { 1.0f, 1.0f, 0.0f };
+    vec3 cyan    = { 0.0f, 1.0f, 1.0f };
     vec3 magenta = { 1.0f, 0.0f, 1.0f };
-    vec3 white = { 1.0f, 1.0f, 1.0f };
-    vec3 light_gray = { 0.75f, 0.75f, 0.75f };
-    vec3 gray = { 0.5f, 0.5f, 0.5f };
-    vec3 dark_gray = { 0.25f, 0.25f, 0.25f };
-    vec3 black = { 0.0f, 0.0f, 0.0f };
-    // TODO: add orange, brown, purple,
+    vec3 white         = V3(1.0f);
+    vec3 lightest_gray = V3(0.9375f);
+    vec3 lighter_gray  = V3(0.875f);
+    vec3 light_gray    = V3(0.75f);
+    vec3 gray          = V3(0.5f);
+    vec3 dark_gray     = V3(0.25f);
+    vec3 darker_gray   = V3(0.125f);
+    vec3 darkest_gray  = V3(0.0625f);
+    vec3 black         = V3(0.0f);
 } basic;
 
 vec3 RGB255(uint r, uint g, uint b) {
@@ -18,13 +21,14 @@ vec3 RGB255(uint r, uint g, uint b) {
 }
 
 struct {
+    // NOTE: not actual monokai yellow cause i don't like it
     vec3 red        = RGB255(249,  38, 114);
     vec3 orange     = RGB255(253, 151,  31);
-    // not actual monokai yellow cause i don't like it
     vec3 yellow     = RGB255(255, 255,  50);
     vec3 green      = RGB255(166, 226,  46);
     vec3 blue       = RGB255(102, 217, 239);
-    vec3 purple     = RGB255(174, 129, 255);
+    vec3 indigo     = RGB255(138, 173, 247);
+    vec3 violet     = RGB255(174, 129, 255);
     vec3 white      = RGB255(255, 255, 255); // *shrug*
     vec3 light_gray = RGB255(192, 192, 192); // *shrug*
     vec3 gray       = RGB255(127, 127, 127); // *shrug*
