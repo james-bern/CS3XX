@@ -31,12 +31,17 @@ struct Pallete2D {
 
 struct Pallete3D {
     uint id;
+    real mesh_light_mode_tween;
 
     vec3 background;
+    vec3 button_background;
+    vec3 button_foreground;
     vec3 foreground; // text
-    vec3 hard_edges;
     vec3 feature_plane;
     vec3 grid;
+
+    vec3 hard_edges;
+    vec3 mesh_ambient;
 };
 
 #define PALLETE_2D_LIGHT 0
@@ -49,7 +54,7 @@ union Pallete {
         Pallete2D _2D;
         Pallete3D _3D;
     };
-    real _data[128];
+    real _data[1024]; // FORNOW
 };
 
 Pallete2D _pallete_2D_light; 
@@ -77,8 +82,8 @@ run_before_main {
     _pallete_2D_dark.drawing_underlay = basic.gray;
     _pallete_2D_dark.emphasis = basic.white;
     _pallete_2D_dark.foreground = basic.white;
-    _pallete_2D_dark.grid = basic.darker_gray;
-    _pallete_2D_dark.grid_accent = basic.dark_gray;
+    _pallete_2D_dark.grid = basic.darkest_gray;
+    _pallete_2D_dark.grid_accent = basic.darker_gray;
     _pallete_2D_dark.selection = basic.white;
     _pallete_2D_dark.snap = basic.magenta;
 
@@ -106,11 +111,26 @@ run_before_main {
     _pallete_2D_light.grid_accent = basic.lightest_gray;
     _pallete_2D_light.selection = basic.black;
 
+    _pallete_3D_dark.id = PALLETE_3D_DARK;
+    _pallete_3D_dark.mesh_light_mode_tween = 0.0f;
+    _pallete_3D_dark.background = basic.black;
+    _pallete_3D_dark.button_background = basic.darker_gray;
+    _pallete_3D_dark.button_foreground = basic.white;
+    _pallete_3D_dark.foreground = basic.white;
+    _pallete_3D_dark.hard_edges = basic.white;
+    _pallete_3D_dark.mesh_ambient = basic.black;
+    _pallete_3D_dark.feature_plane = basic.yellow;
+    _pallete_3D_dark.grid = basic.white;
+
     _pallete_3D_light.id = PALLETE_3D_LIGHT;
+    _pallete_3D_light.mesh_light_mode_tween = 1.0f;
     _pallete_3D_light.background = basic.white;
-    _pallete_3D_light.foreground = basic.darker_gray;
+    _pallete_3D_light.button_background = basic.lightest_gray;
+    _pallete_3D_light.button_foreground = basic.black;
+    _pallete_3D_light.foreground = basic.black;
     _pallete_3D_light.hard_edges = basic.black;
-    _pallete_3D_light.feature_plane = basic.white;
+    _pallete_3D_light.mesh_ambient = basic.white;
+    _pallete_3D_light.feature_plane = basic.yellow;
     _pallete_3D_light.grid = basic.black;
 
     // TODO: other palletes

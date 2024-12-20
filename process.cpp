@@ -211,9 +211,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         toolbox->hot_name = name.data;
                     }
 
+                    vec3 button_background = (group != ToolboxGroup::Mesh) ? pallete_2D->button_background : pallete_3D->button_background;
+                    vec3 button_foreground = (group != ToolboxGroup::Mesh) ? pallete_2D->button_foreground : pallete_3D->button_foreground;
+
                     vec3 color;
                     {
-
                         vec3 accent_color = get_accent_color(group); 
                         if (group == ToolboxGroup::Colo) {
                             for_(i, 10) if (command_equals(command, commands_Color[i])) { accent_color = get_color_from_color_code(i); break; }
@@ -242,15 +244,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             }
                         }
 
-                        // vec3 base_color = (can_toggle) ? AVG(pallete.black, pallete.dark_gray) : pallete.dark_gray;
-                        vec3 base_color = pallete_2D->button_background;
+
                         if (group == ToolboxGroup::Colo) {
-                            base_color = LERP(0.60f, base_color, accent_color);
+                            button_background = LERP(0.80f, accent_color, button_background);
                         }
 
-                        color = (hovering)
-                            ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? AVG(pallete_2D->button_foreground, accent_color) : accent_color)
-                            : ((toggled) ? accent_color : base_color);
+                        color = (hovering) ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? LERP(0.2f, accent_color, button_foreground) : accent_color) : ((toggled) ? accent_color : button_background);
 
                         if (can_toggle) {
                             eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
@@ -283,12 +282,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     vec3 tmp_pen_color = pen->color;
                     vec3 tmp_pen2_color = pen2->color;
                     {
-                        // pen->color = V3(1.0f) - color;
-                        if (AVG(color) > 0.5f) {
-                            pen->color = V3(0.0f);
-                        } else {
-                            pen->color = V3(1.0f);
-                        }
+                        pen->color = button_foreground;
                     }
                     {
                         if (gray_out_shortcut) {
@@ -486,9 +480,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ToggleFPS)) other.show_debug = !other.show_debug;
                     if (GUIBUTTON(commands.ToggleHistory)) other.show_history = !other.show_history;
                     if (GUIBUTTON(commands.ToggleLightMode2D)) target_pallete->_2D = (target_pallete->_2D.id == PALLETE_2D_DARK) ?  _pallete_2D_light : _pallete_2D_dark;
-                    if (GUIBUTTON(commands.ToggleLightMode3D)) {
-                        ; // TODO
-                    }
+                    if (GUIBUTTON(commands.ToggleLightMode3D)) target_pallete->_3D = (target_pallete->_3D.id == PALLETE_3D_DARK) ?  _pallete_3D_light : _pallete_3D_dark;
                 }
 
                 { // Colo

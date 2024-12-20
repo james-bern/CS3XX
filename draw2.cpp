@@ -1,23 +1,3 @@
-// TODO: re-read the paper to see what it says about curvy polygons (maybe they just didn't consider this case)
-// -- TODO: can pass corresponding triangle normals and see if that helps (the WorkMesh already has these computed; will have to do some work to hook them up, but not too much)
-// TODO: wait, does this even make sense? i don't think so. our triangles aren't actually exploded. we're just using ebos to go over the edges
-// there will be some weird geometry shader solution, but it's non-obvious fornow (passing around the third vertex
-
-// // !!!
-// NO this bad bad (see problem.stl) -- consider throwing away patch version and just using all edges but turning off some of them (modulating thickness) based on whether they're a patch edge. could pass into for each one to say whether it's a hard half edge or not
-// this is going to be an annoying change because i don't think you can pass whether it is a hard edge as a vertex attribute with the current pipeline
-// right now we just have all our vertices and we pass a triangle explode EBO as lines
-// we probably need to the data actually exploded into triangle soup labeled with "opposing edge is hard" or something like that, which isn't hard, just mildly annoying; or we could just go really inefficient and throw labeled line soup at the problem, which would require minimal modification to the current edge shader pipeline. this is probably the easiest thing to do; it's also a very straight forward idea. just upload a bunch of lines to the GPU, labeled with whether they're hard. no need for a patch ID buffer. and we can definitely single pass shade it. it's bad in terms of space, but that's also probably fine. so we need a massive bool *all_half_edges_soup_per_vertex_is_hard_half_edge; and then we'll also need all_half_edges_soup_vertex_positions; using an EBO with the same data used for smooth-shading the mesh was a cute idea, but I think we need to let it go
-// or actually, i think you could just use both textures. if it matches the patch id and it matches the face id, then you're golden
-
-// I think the obvious approach is backface culling (we need to look up when in the pipeline that happens)
-// - if it's early, then we rewrite this crap to make the geometry shader emit 3 lines per triangle (just a for loop)--but skip this if the triangle is facing away from us.
-// we might be able to condense the hard edges and all edges into a single pass if we do this, but let's not worry about that fornow. priority now is any hard edge solution that doesn't exhibit the problem we have now
-
-
-// TODO: this doesn't work if you resize the window
-// TODO: get rid of STENCIL
-// NOTE: VAO and VBO are about mesh data (don't connect them to shaders)
 
 struct {
     uint num_vertices = 6;
@@ -113,6 +93,7 @@ struct {
         } fs_in;
 
         uniform vec3 eye_World;
+        uniform float mesh_light_mode_tween;
 
         uniform int feature_plane_is_active;
         uniform vec3 feature_plane_normal;
@@ -174,13 +155,12 @@ struct {
                     float F0 = 0.05;
                     float diffuse = max(0.0, LN);
                     float specular = pow(max(0.0, dot(N, H)), 256);
-                    float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-    rgb += 0.35;
-    rgb += 0.55 * diffuse;
-    // rgb += 0.2 * diffuse * rgb_gooch3;
-    rgb += 0.3 * specular;
-    rgb += 0.3 * fresnel;
-    rgb = mix(rgb, vec3(1.0), 0.5f);
+    float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
+    rgb += 0.0;
+    rgb += mix(0.1 , 0.55, mesh_light_mode_tween) * diffuse;
+    rgb += mix(0.1 , 0.3, mesh_light_mode_tween) * specular;
+    rgb += mix(0.15, 0.3, mesh_light_mode_tween) * fresnel;
+    rgb = mix(rgb, vec3(1.0), 0.5f * mesh_light_mode_tween);
 }
 
 if (feature_plane_is_active != 0) { // feature plane override
@@ -397,6 +377,7 @@ struct {
         in vec2 TexCoords;
 
         uniform sampler2D screenTexture;
+        uniform float mesh_light_mode_tween;
 
         float squaredLength(vec3 a) {
             return dot(a, a);
@@ -431,18 +412,18 @@ struct {
             vec2 G = vec2(Gx, Gy);
             float d = dot(G, G);
             // d = min(1.0, 100000 * fwidth(TexCoords).x);
-            _gl_FragColor = vec4(vec3(0), d / 5);
+            _gl_FragColor = vec4(vec3(mix(0.17, 0.0, mesh_light_mode_tween)), d / 5);
         }
     )"";
-} blit_full_screen_quad_source;
+} sobel_source;
 
 
-uint blit_full_screen_quad_shader_program;
+uint sobel_shader_program;
 
 run_before_main {
-    uint vert = shader_compile(blit_full_screen_quad_source.vert, GL_VERTEX_SHADER);
-    uint frag = shader_compile(blit_full_screen_quad_source.frag, GL_FRAGMENT_SHADER);
-    blit_full_screen_quad_shader_program = shader_build_program(vert, 0, frag);
+    uint vert = shader_compile(sobel_source.vert, GL_VERTEX_SHADER);
+    uint frag = shader_compile(sobel_source.frag, GL_FRAGMENT_SHADER);
+    sobel_shader_program = shader_build_program(vert, 0, frag);
 };
 
 
@@ -489,6 +470,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
         glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
         glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
+        glUniform1f       (UNIFORM(shader_program, "mesh_light_mode_tween"), pallete_3D->mesh_light_mode_tween);
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
 
         glActiveTexture(GL_TEXTURE0); // ?
@@ -592,12 +574,13 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
         glDisable(GL_DEPTH_TEST); {
             if (pass == 0) {
-                uint shader_program = blit_full_screen_quad_shader_program;
+                uint shader_program = sobel_shader_program;
                 ASSERT(shader_program);
                 glUseProgram(shader_program);
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
                 glUniform1i(UNIFORM(shader_program, "screenTexture"), 0);
+                glUniform1f(UNIFORM(shader_program, "mesh_light_mode_tween"), pallete_3D->mesh_light_mode_tween);
 
                 glBindVertexArray(FullScreenQuad.VAO);
                 glDrawArrays(GL_TRIANGLES, 0, FullScreenQuad.num_vertices);
