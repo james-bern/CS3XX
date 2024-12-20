@@ -119,7 +119,7 @@ run_before_main {
     _pallete_3D_dark.foreground = basic.white;
     _pallete_3D_dark.hard_edges = basic.white;
     _pallete_3D_dark.mesh_ambient = basic.black;
-    _pallete_3D_dark.feature_plane = basic.yellow;
+    _pallete_3D_dark.feature_plane = basic.white;
     _pallete_3D_dark.grid = basic.white;
 
     _pallete_3D_light.id = PALLETE_3D_LIGHT;
@@ -130,7 +130,7 @@ run_before_main {
     _pallete_3D_light.foreground = basic.black;
     _pallete_3D_light.hard_edges = basic.black;
     _pallete_3D_light.mesh_ambient = basic.white;
-    _pallete_3D_light.feature_plane = basic.yellow;
+    _pallete_3D_light.feature_plane = basic.black;
     _pallete_3D_light.grid = basic.black;
 
     // TODO: other palletes
