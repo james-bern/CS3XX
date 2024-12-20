@@ -11,25 +11,30 @@
 
     <body>
         <header>
+            <br>
             <nav>
-                <a href=""><img alt="Conversation" src="logo.png" height="70"></a>
+                <!-- <a href=""><img alt="Conversation" src="logo.png" height="70"></a> -->
                 <ul>
-                    <li>home</li>
-                    <li><a href="#about">about</a></li>
+                    <!-- <li>home</li> -->
+                    <!-- <li><a href="#about">about</a></li> -->
                     <li><a href="index.html">Jim ↗</a></li>
                 </ul>
             </nav>
 
-            <br>
+            <!-- <br> -->
+            <!-- <br> -->
+            <!-- <br> -->
+            <!-- <br> -->
             <h1>Conversation</h1>
-            <h4>a simple CAD program 🙂👍</h4>
+            <!-- <h4>a simple CAD program 🙂👍</h4> -->
+            <h4>simple CAD for 3D-printing 🙂👍</h4>
 
             <br>
 
             <section>
                 <form action="https://formspree.io/f/myzywzdv" method="post">
                     <center>
-                        <h3>Alpha coming soon!</h3>
+                        <h3>alpha coming soon!</h3>
                         <input name="Email" id="email" type="email" placeholder="Enter your email">
                         <button type="submit">Sign Up</button>
                     </center>
@@ -41,8 +46,8 @@
 
             <br>
 
-            <h2>Design a 3D-printable part in less time than it takes to open SolidWorks 🫠</h2>
             <section>
+            <h2>Design a 3D-printable part in less time than it takes to open SolidWorks 🫠</h2>
 
                 <!-- <video style="border:1px solid black;" width="320" height="320" autoplay loop mute> -->
                 <!--     <source src="video.mp4" type="video/mp4"> -->
@@ -53,42 +58,62 @@
             </section>
         </header>
         <main>
-            <a class="anchor" id="about"></a><h2>about</h2>
-            <p>
-            <b>Conversation</b> is a standalone desktop app for designing simple 3D-printed machines.
-            </p>
-
+            <h3>why Conversation?</h3>
             <ul>
-                <!-- <li> Conversation runs on Mac and Windows 🍏🤷‍♂️</li> -->
                 <li> 🐰 it's <b>fast</b> </li>
                 <li> 🐣 it's <b>tiny</b> </li>
-                <li> 😄 it's <b>fun </b> </li>
+                <li> 😄 it's <b>fun</b> </li>
+                <li> 🤷 it runs on Mac, Linux, and Windows </li>
+                <li> 🙅 it doesn't require an internet connection or any other nonsense </li>
             </ul>
+            <!-- <a class="anchor" id="about"></a><h2>about</h2> -->
+            <!-- <p> -->
+            <!-- <b>Conversation</b> is a standalone desktop app for designing simple 3D-printed machines. -->
+            <!-- <ul> -->
+                <!-- <li> Conversation runs on Mac and Windows 🍏🤷‍♂️</li> -->
+                <!-- <li> 🐰 it's <b>fast</b> </li> -->
+                <!-- <li> 🐣 it's <b>tiny</b> </li> -->
+                <!-- <li> 😄 it's <b>fun </b> </li> -->
+            <!-- </ul> -->
+            <!-- </p> -->
 
             <!-- <li> -->
             <!-- It has lots of (optional) Vim-like keyboard shortcuts. -->
             <!-- </li> -->
 
 
+            <!-- <br> -->
+
+            <!-- <h3>details</h3> -->
+
             <br>
-
-            <h3>details</h3>
-
+            <h3>features</h3>
             <p>
-            Conversation is a <a href="https://www.shapr3d.com/blog/how-does-direct-modeling-actually-work">direct-modeling program</a>.
-            Unlike SolidWorks, Conversation's sketching is not constraint-based (just draw stuff and move stuff).
-            Unlike SolidWorks, Conversation does not have a parametric feature tree (just basic undo/redo).
+            <h4>direct 2D sketching</h4>
+            <!-- Conversation is a <a href="https://www.shapr3d.com/blog/how-does-direct-modeling-actually-work">direct-modeling program</a>. -->
+            no constraint-based sketching; just intuitive draw and transform
             </p>
 
             <p>
-            Conversation maintains a strong separation between 2D and 3D.
-            Unlike SolidWorks, Conversation does not absorb 2D sketches into 3D geometry or base 2D sketches on 3D geometry.
+            <h4>direct 3D modeling</h4>
+            no parametric feature tree; just blazing fast undo/redo
             </p>
 
             <p>
-            Conversation works with "lowest common denominator" filetypes.
-            Conversation uses lines, arcs, and circles to represent 2D geometry and can import/export DXF's.
-            Conversation uses triangle meshes to represent 3D geometry and can import/export the STL's (3MF coming sooon).
+            <h4>completely separate 2D and 3D</h4>
+            <!-- Conversation maintains a <b>strong separation between 2D and 3D</b>. -->
+            <!-- Conversation does not absorb 2D sketches into 3D geometry or base 2D sketches on 3D geometry. -->
+            no absorbing 2D sketches into 3D geometry
+            <br>
+            no constraining 2D sketches off of 3D geometry
+            </p>
+
+            <p>
+            <h4>lowest common denominator filetypes</h4>
+            <!-- Conversation works with <b>"lowest common denominator" filetypes</b>. -->
+            lines, arcs, and circles for 2D geometry (DXF)
+            <br>
+            triangle meshes for 3D geometry (STL)
             </p>
 
             </p>
@@ -104,36 +129,25 @@
             <!-- Our compiled executable is ~1MB. -->
             <!-- </p> -->
 
-
             <br>
-
-            <h3>credits</h3>
-
-            <p>
-            Conversation is written by <a href="https://james-bern.github.io">Jim Bern</a>, <a href="https://navo.dev">Nathan Vosburg</a>, and others.
-            </p>
+            <h3>about</h3>
 
             <p>
             Conversation uses the amazing open source <a href="https://github.com/elalish/manifold">Manifold</a> library as its geometry kernel and was inspired by <a href="https://elalish.blogspot.com/2023/03/perseverance-history-of-manifold.html">this blog post</a> by Manifold author <a href="https://www.linkedin.com/in/emmett-lalish">Emmett Lalish</a> 🚀
-            Conversation draws additional inspiration from other CAD programs including OpenSCAD, ManifoldCAD, LAYOUT, QCAD, SketchUp, Shapr, SolidWorks, PowerPoint (jk but only sort of), and others.
+            <!--Conversation draws additional inspiration from other CAD programs including OpenSCAD, ManifoldCAD, LAYOUT, QCAD, SketchUp, Shapr, SolidWorks, PowerPoint (jk but only sort of), and others.-->
             </p>
 
             <p>
-            We are learning how to code in a "handmade-style" from articles and videos by <a href="https://caseymuratori.com/about">Casey Muratori</a>, <a href="https://www.rfleury.com">Ryan Fleury</a>, <a href="https://nothings.org">Sean Barrett</a>, <a href="https://handmade.network/m/vjekoslav">Vjekoslav Krajačić</a>, <a href="https://x.com/mike_acton?lang=en">Mike Acton</a> and others.
+            Conversation is written by <a href="https://james-bern.github.io">Jim Bern</a> and <a href="https://navo.dev">Nathan Vosburg</a>, with big thanks to our CS345 students for being such great guinea pigs 🐹
             </p>
+
 
             <!-- <p> -->
             <!-- Conversation uses <a href="https://www.glfw.org">GLFW</a> and <a href="https://github.com/nothings/stb/blob/master/stb_easy_font.h">stb_easy_font</a>. 🙃 -->
             <!-- This website uses <a href="https://andybrewer.github.io/mvp/">MVP.css</a>. -->
             <!-- </p> -->
 
-            <p>
-            All good mathematical code is written by <a href="https://people.sc.fsu.edu/~jburkardt/">John Burkardt</a>.
-            </p>
 
-            <p>
-            Big thanks to our CS345 students for being such great guinea pigs 🐹
-            </p>
 
 
 

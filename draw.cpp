@@ -157,7 +157,7 @@ void conversation_draw() {
         glEnable(GL_SCISSOR_TEST);
         gl_scissor_Pixel(0, 0, x_divider_drawing_mesh_Pixel, window_height);
         {
-            if (!other.hide_grid) { // grid 2D grid 2d grid // jim wtf are these supposed to mean
+            if (!other.hide_grid) { // grid 2D grid 2d grid
                 mat4 PVM = PV_2D * M4_Translation(-GRID_SIDE_LENGTH / 2, -GRID_SIDE_LENGTH / 2);
                 eso_begin(PVM, SOUP_LINES);
                 eso_color(pallete_2D->grid);

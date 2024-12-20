@@ -1,5 +1,8 @@
+// TODOLATER: all the JUICEIT_EASYTWEEN's could operate on a single massive array (with a corresponding target array)--like what we're doing with Pallete, but for literally every tweened parameter in the app
+
 struct Pallete2D {
     uint id;
+    real dark_light_tween;
 
     vec3 background;
     vec3 foreground;
@@ -31,7 +34,7 @@ struct Pallete2D {
 
 struct Pallete3D {
     uint id;
-    real mesh_light_mode_tween;
+    real dark_light_tween;
 
     vec3 background;
     vec3 button_background;
@@ -63,6 +66,7 @@ Pallete3D _pallete_3D_light;
 Pallete3D _pallete_3D_dark; 
 run_before_main {
     _pallete_2D_dark.id = PALLETE_2D_DARK;
+    _pallete_2D_dark.dark_light_tween = 0.0f;
     _pallete_2D_dark.axis = basic.white;
     _pallete_2D_dark.background = basic.black;
     _pallete_2D_dark.button_background = basic.darker_gray;
@@ -89,6 +93,7 @@ run_before_main {
 
     _pallete_2D_light = _pallete_2D_dark; // !
     _pallete_2D_light.id = PALLETE_2D_LIGHT;
+    _pallete_2D_light.dark_light_tween = 1.0f;
     _pallete_2D_light.axis = basic.black;
     _pallete_2D_light.background = basic.white;
     _pallete_2D_light.button_background = basic.lightest_gray;
@@ -112,7 +117,7 @@ run_before_main {
     _pallete_2D_light.selection = basic.black;
 
     _pallete_3D_dark.id = PALLETE_3D_DARK;
-    _pallete_3D_dark.mesh_light_mode_tween = 0.0f;
+    _pallete_3D_dark.dark_light_tween = 0.0f;
     _pallete_3D_dark.background = basic.black;
     _pallete_3D_dark.button_background = basic.darker_gray;
     _pallete_3D_dark.button_foreground = basic.white;
@@ -123,7 +128,7 @@ run_before_main {
     _pallete_3D_dark.grid = basic.white;
 
     _pallete_3D_light.id = PALLETE_3D_LIGHT;
-    _pallete_3D_light.mesh_light_mode_tween = 1.0f;
+    _pallete_3D_light.dark_light_tween = 1.0f;
     _pallete_3D_light.background = basic.white;
     _pallete_3D_light.button_background = basic.lightest_gray;
     _pallete_3D_light.button_foreground = basic.black;

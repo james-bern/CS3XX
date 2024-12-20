@@ -309,7 +309,7 @@ vec3 get_accent_color(ToolboxGroup group) {
     } else if (group == ToolboxGroup::Mesh) {
         result = V3(0.0f, 0.8f, 0.0f);
     } else if (group == ToolboxGroup::Colo) {
-        result = basic.white; // FORNOW
+        result = basic.gray; // FORNOW
     } else { ASSERT(group == ToolboxGroup::None);
         result = {};
     }

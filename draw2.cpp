@@ -93,7 +93,7 @@ struct {
         } fs_in;
 
         uniform vec3 eye_World;
-        uniform float mesh_light_mode_tween;
+        uniform float dark_light_tween;
 
         uniform int feature_plane_is_active;
         uniform vec3 feature_plane_normal;
@@ -157,10 +157,10 @@ struct {
                     float specular = pow(max(0.0, dot(N, H)), 256);
     float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
     rgb += 0.0;
-    rgb += mix(0.1 , 0.55, mesh_light_mode_tween) * diffuse;
-    rgb += mix(0.1 , 0.3, mesh_light_mode_tween) * specular;
-    rgb += mix(0.15, 0.3, mesh_light_mode_tween) * fresnel;
-    rgb = mix(rgb, vec3(1.0), 0.5f * mesh_light_mode_tween);
+    rgb += mix(0.1 , 0.55, dark_light_tween) * diffuse;
+    rgb += mix(0.1 , 0.3, dark_light_tween) * specular;
+    rgb += mix(0.15, 0.3, dark_light_tween) * fresnel;
+    rgb = mix(rgb, vec3(1.0), 0.5f * dark_light_tween);
 }
 
 if (feature_plane_is_active != 0) { // feature plane override
@@ -377,7 +377,7 @@ struct {
         in vec2 TexCoords;
 
         uniform sampler2D screenTexture;
-        uniform float mesh_light_mode_tween;
+        uniform float dark_light_tween;
 
         float squaredLength(vec3 a) {
             return dot(a, a);
@@ -412,7 +412,7 @@ struct {
             vec2 G = vec2(Gx, Gy);
             float d = dot(G, G);
             // d = min(1.0, 100000 * fwidth(TexCoords).x);
-            _gl_FragColor = vec4(vec3(mix(0.17, 0.0, mesh_light_mode_tween)), d / 5);
+            _gl_FragColor = vec4(vec3(mix(0.17, 0.0, dark_light_tween)), d / 5);
         }
     )"";
 } sobel_source;
@@ -470,7 +470,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniformMatrix4fv(UNIFORM(shader_program, "PV"), 1, GL_TRUE, PV.data);
         glUniformMatrix4fv(UNIFORM(shader_program, "M" ), 1, GL_TRUE, M.data);
         glUniform3f       (UNIFORM(shader_program, "eye_World"), eye_World.x, eye_World.y, eye_World.z);
-        glUniform1f       (UNIFORM(shader_program, "mesh_light_mode_tween"), pallete_3D->mesh_light_mode_tween);
+        glUniform1f       (UNIFORM(shader_program, "dark_light_tween"), pallete_3D->dark_light_tween);
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
 
         glActiveTexture(GL_TEXTURE0); // ?
@@ -580,7 +580,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, GL2.TextureID);
                 glUniform1i(UNIFORM(shader_program, "screenTexture"), 0);
-                glUniform1f(UNIFORM(shader_program, "mesh_light_mode_tween"), pallete_3D->mesh_light_mode_tween);
+                glUniform1f(UNIFORM(shader_program, "dark_light_tween"), pallete_3D->dark_light_tween);
 
                 glBindVertexArray(FullScreenQuad.VAO);
                 glDrawArrays(GL_TRIANGLES, 0, FullScreenQuad.num_vertices);

@@ -85,44 +85,44 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             *toolbox = {};
 
-            real padding = 8.0f;
+            real _w = 80.0f;
+            real h = 12.0f;
+            EasyTextPen Draw_pen,  Xsel_pen,  Snap_pen,  Colo_pen,  Both_pen,  Mesh_pen;
+            EasyTextPen Draw_pen2, Xsel_pen2, Snap_pen2, Colo_pen2, Both_pen2, Mesh_pen2;
+            {
+                real padding = 8.0f;
 
-            real w = 80.0f;
+                Draw_pen = { V2(padding, padding), h, basic.white, true };
+                Draw_pen2 = Draw_pen;
+                Draw_pen2.color = basic.light_gray;
 
-            EasyTextPen Draw_pen = { V2(padding, padding), 12.0f, basic.white, true };
-            EasyTextPen Draw_pen2 = Draw_pen;
-            Draw_pen2.font_height_Pixel = 12.0f;
-            Draw_pen2.color = basic.light_gray;
+                Xsel_pen = Draw_pen;
+                Xsel_pen2 = Draw_pen2;
+                Xsel_pen.origin.x += (_w + padding) - 4.0f;
+                Xsel_pen2.origin = Xsel_pen.origin;
 
-            real h = Draw_pen.font_height_Pixel;// + Draw_pen2.font_height_Pixel;
+                Snap_pen = Xsel_pen;
+                Snap_pen2 = Xsel_pen2;
 
-            EasyTextPen Xsel_pen = Draw_pen;
-            EasyTextPen Xsel_pen2 = Draw_pen2;
-            Xsel_pen.origin.x += (w + padding) - 4.0f;
-            Xsel_pen2.origin = Xsel_pen.origin;
+                Colo_pen = Snap_pen;
+                Colo_pen2 = Snap_pen2;
+                if (command_equals(state.Xsel_command, commands.ByColor)) {
+                    Colo_pen.origin.y += 92.0f;
+                }
+                Colo_pen2.origin = Colo_pen.origin;
 
-            EasyTextPen Snap_pen = Xsel_pen;
-            EasyTextPen Snap_pen2 = Xsel_pen2;
 
-            EasyTextPen Colo_pen = Snap_pen;
-            EasyTextPen Colo_pen2 = Snap_pen2;
-            if (command_equals(state.Xsel_command, commands.ByColor)) {
-                Colo_pen.origin.y += 92.0f;
+                Both_pen = Draw_pen;
+                Both_pen2 = Draw_pen2;
+                Both_pen.origin.x = get_x_divider_drawing_mesh_Pixel() - (_w / 2);
+                Both_pen2.origin = Both_pen.origin;
+
+                Mesh_pen = Draw_pen;
+                Mesh_pen2 = Draw_pen2;
+                Mesh_pen.origin.x = window_get_width_Pixel() - (_w + padding);
+                // Mesh_pen.origin.y += 64.0f;
+                Mesh_pen2.origin = Mesh_pen.origin;
             }
-            Colo_pen2.origin = Colo_pen.origin;
-
-
-            EasyTextPen Both_pen = Draw_pen;
-            EasyTextPen Both_pen2 = Draw_pen2;
-            Both_pen.origin.x = get_x_divider_drawing_mesh_Pixel() - (w / 2);
-            Both_pen2.origin = Both_pen.origin;
-
-            EasyTextPen Mesh_pen = Draw_pen;
-            EasyTextPen Mesh_pen2 = Draw_pen2;
-            Mesh_pen.origin.x = window_get_width_Pixel() - (w + padding);
-            // Mesh_pen.origin.y += 64.0f;
-            Mesh_pen2.origin = Mesh_pen.origin;
-
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = (state.Draw_command.flags & SNAPPER);
 
@@ -136,7 +136,9 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             auto GUIBUTTON = [&](
                     Command command,
                     bool hide_button = false,
-                    bool deactivate_hotkey = false
+                    bool deactivate_hotkey = false,
+                    bool use_custom_button = false,
+                    uint custom_button_id = 0
                     ) -> bool {
                 most_recent_group_for_SEPERATOR = command.group;
                 bool gray_out_shortcut;
@@ -150,8 +152,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                 }
 
-
-                real w = 80.0f;
+                real w = _w;
                 ToolboxGroup group = command.group;
                 bool is_mode = command.is_mode;
                 u64 flags = command.flags;
@@ -171,167 +172,201 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         && (!hide_button)
                         && (group != ToolboxGroup::None)
                         && draw_tool
-                        && !special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch
+                        && (!special_case_dont_draw_toolbox_NOTE_fixes_undo_graphical_glitch)
                         && ((group != ToolboxGroup::Snap) || special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch)
                    ) {
-                    EasyTextPen *pen;
-                    EasyTextPen *pen2;
-                    bool horz = false;
-                    if (group == ToolboxGroup::Draw) {
-                        pen = &Draw_pen;
-                        pen2 = &Draw_pen2;
-                    } else if (group == ToolboxGroup::Xsel) {
-                        pen = &Xsel_pen;
-                        pen2 = &Xsel_pen2;
-                    } else if (group == ToolboxGroup::Snap) {
-                        pen = &Snap_pen;
-                        pen2 = &Snap_pen2;
-                        w = 64.0f;
-                    } else if (group == ToolboxGroup::Colo) {
-                        pen = &Colo_pen;
-                        pen2 = &Colo_pen2;
-                        w = 64.0f;
-                    } else if (group == ToolboxGroup::Both) {
-                        pen = &Both_pen;
-                        pen2 = &Both_pen2;
-                    } else { ASSERT(group == ToolboxGroup::Mesh);
-                        pen = &Mesh_pen;
-                        pen2 = &Mesh_pen2;
-                    }
-
-                    real eps = 6.0;
-
-                    real y = pen->get_y_Pixel();
-                    bbox2 bbox = { pen->origin.x, y - 2 - eps / 2, pen->origin.x + w, y + h + eps / 2 + 1 };
-
-                    bool hovering = bbox_contains(bbox, other.mouse_Pixel);
-
-                    if (hovering) {
-                        *toolbox = {};
-                        toolbox->hot_name = name.data;
-                    }
-
-                    vec3 button_background = (group != ToolboxGroup::Mesh) ? pallete_2D->button_background : pallete_3D->button_background;
-                    vec3 button_foreground = (group != ToolboxGroup::Mesh) ? pallete_2D->button_foreground : pallete_3D->button_foreground;
-
-                    vec3 color;
+                    bbox2 bbox;
                     {
-                        vec3 accent_color = get_accent_color(group); 
-                        if (group == ToolboxGroup::Colo) {
-                            for_(i, 10) if (command_equals(command, commands_Color[i])) { accent_color = get_color_from_color_code(i); break; }
-                        }
+                        if (!use_custom_button) {
+                            EasyTextPen *pen;
+                            EasyTextPen *pen2;
+                            bool horz = false;
+                            if (group == ToolboxGroup::Draw) {
+                                pen = &Draw_pen;
+                                pen2 = &Draw_pen2;
+                            } else if (group == ToolboxGroup::Xsel) {
+                                pen = &Xsel_pen;
+                                pen2 = &Xsel_pen2;
+                            } else if (group == ToolboxGroup::Snap) {
+                                pen = &Snap_pen;
+                                pen2 = &Snap_pen2;
+                                w = 64.0f;
+                            } else if (group == ToolboxGroup::Colo) {
+                                pen = &Colo_pen;
+                                pen2 = &Colo_pen2;
+                                w = 64.0f;
+                            } else if (group == ToolboxGroup::Both) {
+                                pen = &Both_pen;
+                                pen2 = &Both_pen2;
+                            } else { ASSERT(group == ToolboxGroup::Mesh);
+                                pen = &Mesh_pen;
+                                pen2 = &Mesh_pen2;
+                            }
 
-                        bool can_toggle = is_mode;
-                        bool toggled;
-                        {
-                            toggled = false;
-                            if (can_toggle) {
+                            real eps = 6.0;
+
+                            real y = pen->get_y_Pixel();
+                            bbox = { pen->origin.x, y - 2 - eps / 2, pen->origin.x + w, y + h + eps / 2 + 1 };
+
+
+                            vec3 button_background = (group != ToolboxGroup::Mesh) ? pallete_2D->button_background : pallete_3D->button_background;
+                            vec3 button_foreground = (group != ToolboxGroup::Mesh) ? pallete_2D->button_foreground : pallete_3D->button_foreground;
+
+                            vec3 color;
+                            {
+                                vec3 accent_color = get_accent_color(group); 
+                                if (group == ToolboxGroup::Colo) {
+                                    for_(i, 10) if (command_equals(command, commands_Color[i])) { accent_color = get_color_from_color_code(i); break; }
+                                }
+
+                                bool can_toggle = is_mode;
+                                bool toggled;
                                 {
                                     toggled = false;
-                                    if (0) {
-                                    } else if (group == ToolboxGroup::Draw) {
-                                        toggled = command_equals(state.Draw_command, command);
-                                    } else if (group == ToolboxGroup::Snap) {
-                                        toggled = command_equals(state.Snap_command, command);
-                                    } else if (group == ToolboxGroup::Mesh) {
-                                        toggled = command_equals(state.Mesh_command, command);
-                                    } else if (group == ToolboxGroup::Colo) {
-                                        toggled = command_equals(state.Colo_command, command);
-                                    } else if (group == ToolboxGroup::Xsel) {
-                                        toggled = command_equals(state.Xsel_command, command);
+                                    if (can_toggle) {
+                                        {
+                                            toggled = false;
+                                            if (0) {
+                                            } else if (group == ToolboxGroup::Draw) {
+                                                toggled = command_equals(state.Draw_command, command);
+                                            } else if (group == ToolboxGroup::Snap) {
+                                                toggled = command_equals(state.Snap_command, command);
+                                            } else if (group == ToolboxGroup::Mesh) {
+                                                toggled = command_equals(state.Mesh_command, command);
+                                            } else if (group == ToolboxGroup::Colo) {
+                                                toggled = command_equals(state.Colo_command, command);
+                                            } else if (group == ToolboxGroup::Xsel) {
+                                                toggled = command_equals(state.Xsel_command, command);
+                                            }
+                                        }
                                     }
                                 }
+
+
+                                if (group == ToolboxGroup::Colo) {
+                                    button_background = LERP(0.80f, accent_color, button_background);
+                                }
+
+                                color = (bbox_contains(bbox, other.mouse_Pixel)) ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? LERP(0.2f, accent_color, button_foreground) : accent_color) : ((toggled) ? accent_color : button_background);
+
+                                if (can_toggle) {
+                                    eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
+                                    eso_overlay(true);
+                                    eso_color(color);
+                                    eso_bbox_SOUP_QUADS(bbox);
+                                    eso_end();
+                                } else {
+                                    eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
+                                    eso_overlay(true);
+                                    eso_color(color);
+                                    real r = h / 2 + eps / 2;
+                                    eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { -r, 0.0f }));
+                                    eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { 0.0f, -r }));
+                                    eso_end();
+                                    eso_begin(other.OpenGL_from_Pixel, SOUP_POINTS);
+                                    eso_size(2 * r);
+                                    eso_color(color);
+                                    eso_vertex(bbox.min + V2(r));
+                                    eso_vertex(bbox.max - V2(r));
+                                    eso_vertex(bbox.min.x + r, bbox.max.y - r);
+                                    eso_vertex(bbox.max.x - r, bbox.min.y + r);
+                                    eso_end();
+                                }
+                            }
+
+
+
+
+                            vec3 tmp_pen_color = pen->color;
+                            vec3 tmp_pen2_color = pen2->color;
+                            {
+                                pen->color = button_foreground;
+                            }
+                            {
+                                if (gray_out_shortcut) {
+                                    pen2->color = LERP(0.8f, pen->color, color);
+                                } else {
+                                    pen2->color = LERP(0.2f, pen->color, color);
+                                }
+                            }
+
+                            KeyEvent tmp = { {}, key, control, shift, alt };
+                            pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
+                            // pen->offset_Pixel.x = 4;
+                            pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
+                            {
+                                // String fornow_hack = name;
+                                // if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
+                                // if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
+                                // if (!hovering) {
+                                // easy_text_draw(pen, fornow_hack);
+
+                                easy_text_draw(pen, name);
+                                // } else {
+                                // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                                // }
+                            }
+                            pen2->offset_Pixel.y = pen->offset_Pixel.y + eps;
+                            pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
+                            pen2->offset_Pixel.x = ROUND(pen2->offset_Pixel.x);
+                            // if (!gray_out_shortcut) {
+                            //     easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                            // } else {
+                            //     easy_text_drawf(pen2, "");
+                            // }
+                            //easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
+                            pen->color = tmp_pen_color;
+                            pen2->color = tmp_pen2_color;
+
+                            pen->offset_Pixel.y = pen2->offset_Pixel.y + 4;
+                            if (horz) {
+                                pen->offset_Pixel = {};
+                                pen2->offset_Pixel = {};
+                                pen->origin.x += w + 2;
+                                pen2->origin.x += w + 2;
+                            }
+                        } else {
+                            if (custom_button_id == 0 || custom_button_id == 1) {
+                                int sign = (custom_button_id == 0) ? -1 : 1;
+                                real tween = (custom_button_id == 0) ? pallete_2D->dark_light_tween : pallete_3D->dark_light_tween;
+                                vec3 background = (custom_button_id == 0) ? pallete_2D->background : pallete_3D->background;
+                                real x = get_x_divider_drawing_mesh_Pixel() + sign * (0.8f * _w);
+                                real y = 16.0f;
+                                real half_bbox_side_length = 8.0f;
+                                bbox = { x - half_bbox_side_length, y - half_bbox_side_length, x + half_bbox_side_length, y + half_bbox_side_length };
+                                eso_begin(other.OpenGL_from_Pixel, SOUP_TRIANGLES);
+                                eso_overlay(true);
+                                for_(pass, 2) {
+                                    eso_color((pass == 0) ?
+                                            LERP(
+                                                ((!bbox_contains(bbox, other.mouse_Pixel)) ? 0.0f : 0.3f),
+                                                LERP(tween, basic.gray, 0.9f * basic.yellow),
+                                                basic.white)
+                                            : background);
+                                    // eso_color(basic.yellow);
+                                    uint N = 16;
+
+                                    real radius = half_bbox_side_length;
+                                    if (pass == 1) radius = 4 * half_bbox_side_length / 5;
+
+                                    vec2 center = { x, y };
+                                    if (pass == 1) center.x = LERP(tween, x + half_bbox_side_length / 2, x + half_bbox_side_length + radius);
+                                    for_(i, N) {
+                                        real theta_i = TAU * i / N;
+                                        real theta_ip1 = TAU * (i + 1) / N;
+                                        // TODOLATER: check handedness of culling
+                                        eso_vertex(center);
+                                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_ip1));
+                                        eso_vertex(get_point_on_circle_NOTE_pass_angle_in_radians(center, radius, theta_i));
+                                    }
+                                }
+                                eso_end();
                             }
                         }
-
-
-                        if (group == ToolboxGroup::Colo) {
-                            button_background = LERP(0.80f, accent_color, button_background);
-                        }
-
-                        color = (hovering) ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? LERP(0.2f, accent_color, button_foreground) : accent_color) : ((toggled) ? accent_color : button_background);
-
-                        if (can_toggle) {
-                            eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
-                            eso_overlay(true);
-                            eso_color(color);
-                            eso_bbox_SOUP_QUADS(bbox);
-                            eso_end();
-                        } else {
-                            eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
-                            eso_overlay(true);
-                            eso_color(color);
-                            real r = h / 2 + eps / 2;
-                            eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { -r, 0.0f }));
-                            eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { 0.0f, -r }));
-                            eso_end();
-                            eso_begin(other.OpenGL_from_Pixel, SOUP_POINTS);
-                            eso_size(2 * r);
-                            eso_color(color);
-                            eso_vertex(bbox.min + V2(r));
-                            eso_vertex(bbox.max - V2(r));
-                            eso_vertex(bbox.min.x + r, bbox.max.y - r);
-                            eso_vertex(bbox.max.x - r, bbox.min.y + r);
-                            eso_end();
-                        }
                     }
-
-
-
-
-                    vec3 tmp_pen_color = pen->color;
-                    vec3 tmp_pen2_color = pen2->color;
-                    {
-                        pen->color = button_foreground;
-                    }
-                    {
-                        if (gray_out_shortcut) {
-                            pen2->color = LERP(0.8f, pen->color, color);
-                        } else {
-                            pen2->color = LERP(0.2f, pen->color, color);
-                        }
-                    }
-
-                    KeyEvent tmp = { {}, key, control, shift, alt };
-                    pen->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen, name));
-                    // pen->offset_Pixel.x = 4;
-                    pen->offset_Pixel.x = ROUND(pen->offset_Pixel.x);
-                    {
-                        // String fornow_hack = name;
-                        // if (string_matches_prefix(name, "Clear")) fornow_hack.length = 5;
-                        // if (string_matches_prefix(name, "Zoom")) fornow_hack.length = 4;
-                        // if (!hovering) {
-                        // easy_text_draw(pen, fornow_hack);
-
-                        easy_text_draw(pen, name);
-                        // } else {
-                        // easy_text_drawf(pen, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
-                        // }
-                    }
-                    pen2->offset_Pixel.y = pen->offset_Pixel.y + eps;
-                    pen2->offset_Pixel.x = 0.5f * (w - _easy_text_dx(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp)));
-                    pen2->offset_Pixel.x = ROUND(pen2->offset_Pixel.x);
-                    // if (!gray_out_shortcut) {
-                    //     easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
-                    // } else {
-                    //     easy_text_drawf(pen2, "");
-                    // }
-
-                    //easy_text_drawf(pen2, key_event_get_cstring_for_printf_NOTE_ONLY_USE_INLINE(&tmp));
-
-                    pen->color = tmp_pen_color;
-                    pen2->color = tmp_pen2_color;
-
-
-
-
-
-                    pen->offset_Pixel.y = pen2->offset_Pixel.y + 4;
-                    if (horz) {
-                        pen->offset_Pixel = {};
-                        pen2->offset_Pixel = {};
-                        pen->origin.x += w + 2;
-                        pen2->origin.x += w + 2;
+                    if (bbox_contains(bbox, other.mouse_Pixel)) {
+                        *toolbox = {};
+                        toolbox->hot_name = name.data;
                     }
                 }
 
@@ -479,8 +514,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ToggleDetails)) other.show_details = !other.show_details;
                     if (GUIBUTTON(commands.ToggleFPS)) other.show_debug = !other.show_debug;
                     if (GUIBUTTON(commands.ToggleHistory)) other.show_history = !other.show_history;
-                    if (GUIBUTTON(commands.ToggleLightMode2D)) target_pallete->_2D = (target_pallete->_2D.id == PALLETE_2D_DARK) ?  _pallete_2D_light : _pallete_2D_dark;
-                    if (GUIBUTTON(commands.ToggleLightMode3D)) target_pallete->_3D = (target_pallete->_3D.id == PALLETE_3D_DARK) ?  _pallete_3D_light : _pallete_3D_dark;
+                    if (GUIBUTTON(commands.ToggleLightMode2D, false, false, true, 0)) target_pallete->_2D = (target_pallete->_2D.id == PALLETE_2D_DARK) ?  _pallete_2D_light : _pallete_2D_dark;
+                    if (GUIBUTTON(commands.ToggleLightMode3D, false, false, true, 1)) target_pallete->_3D = (target_pallete->_3D.id == PALLETE_3D_DARK) ?  _pallete_3D_light : _pallete_3D_dark;
                 }
 
                 { // Colo
