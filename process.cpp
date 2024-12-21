@@ -719,6 +719,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     if (GUIBUTTON(commands.MirrorPlaneX)) {
                         if (feature_plane->is_active) {
+                            result.checkpoint_me = true;
                             feature_plane->mirror_x = !feature_plane->mirror_x;
                         } else {
                             MESSAGE_FAILURE("MirrorPlaneX: no feature plane selected");
@@ -726,6 +727,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     }
                     if (GUIBUTTON(commands.MirrorPlaneY)) {
                         if (feature_plane->is_active) {
+                            result.checkpoint_me = true;
                             feature_plane->mirror_y = !feature_plane->mirror_y;
                         } else {
                             MESSAGE_FAILURE("MirrorPlaneY: no feature plane selected");
