@@ -6,9 +6,13 @@
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected) 
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
-    real f = multiplier * 10.0f;
+    real f = multiplier * 9.2f; // 6.9 = -ln(.0001), where .001 is the remaining percent after 1 second
     if (IS_ZERO(multiplier)) f = 1.0f;
-    if (!other.paused) *a += (b - *a) * (1 - exp(-f * other.delta_time));
+    if (other.slowmo) f *= 0.05;
+    if (!other.paused && !other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * other.delta_time));
+    else if (other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * 0.0167)); // Choose to use 60fps as framerate for paused stepping
+    // else *a += (b - *a) * (1 - exp(-f * 0.0167)); // Choose to use 60fps as framerate for slowmo
+    // else *a += (b - *a) * (1 - exp(-f * 0.0167)); // Choose to use 60fps as framerate for slowmo
 }
 
 template <typename T> void FINITE_EASYTWEEN(T *a, T b, T threshold, real multiplier = 1.0f) {

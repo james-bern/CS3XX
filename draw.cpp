@@ -19,10 +19,10 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 z = feature_plane->normal;
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
-    vec3 o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
 
     mat4 M_2D = M4_Identity(); // FORNOW
 
+    vec3 o;
     if (for_drawing) {
         o = preview->feature_plane_signed_distance_to_world_origin * feature_plane->normal;
 
@@ -35,6 +35,8 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
         x = transformVector(R, x);
         y = transformVector(R, y);
     } else {
+        o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
+
         if (feature_plane->mirror_x) x *= - 1;
         if (feature_plane->mirror_y) y *= - 1;
 
@@ -1099,7 +1101,9 @@ void conversation_draw() {
                     face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
                     { // we want this to be done regardless for HidePlane tweening
 
-                        mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D(false)); // TODO choose true or false (or something else)
+                        // TODO choose true or false (or something else)
+                        // Currently false because we already tween using this as target
+                        mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D(false));
 
                         WorkMesh *mesh = &meshes->work;
                         for_(triangle_index, mesh->num_triangles) {

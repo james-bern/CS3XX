@@ -1748,7 +1748,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (snap_result.hit_mesh) { // something hit
                     if (!(state.Mesh_command.flags & HIDE_FEATURE_PLANE)) {
                         result.checkpoint_me = result.record_me = true;
-                        other.time_since_plane_selected = 0.0f;
+                        if (!feature_plane->is_active)
+                            other.time_since_plane_selected = 0.0f;
                         feature_plane->is_active = true;
 
                         // The default tolerance on this is too tight to prevent clicks on same plane from resetting things
@@ -1763,10 +1764,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         feature_plane->rotation_angle = 0.0f;
 
                         // TODO Decide whether to skip animation for these
-                        preview->feature_plane_mirror_x_angle = 0.0f;
-                        preview->feature_plane_mirror_y_angle = 0.0f;
-                        preview->feature_plane_mirror_XXX_bump = 0.0f;
-                        preview->feature_plane_rotation_angle = 0.0f;
+                        // preview->feature_plane_mirror_x_angle = 0.0f;
+                        // preview->feature_plane_mirror_y_angle = 0.0f;
+                        // preview->feature_plane_mirror_XXX_bump = 0.0f;
+                        // preview->feature_plane_rotation_angle = 0.0f;
                     } 
 
                     if (state.Mesh_command.flags & TWO_CLICK) {
