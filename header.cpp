@@ -361,16 +361,12 @@ struct Drawing {
 };
 
 struct FeaturePlaneState {
-    // Only affect display
-    real x_angle;
-    real y_angle;
-    real offset;
-
     bool is_active;
-    bool mirror_x;
-    bool mirror_y;
     vec3 normal;
     real signed_distance_to_world_origin;
+    bool mirror_x;
+    bool mirror_y;
+    real rotation_angle;
 };
 
 struct TwoClickCommandState {
@@ -466,6 +462,9 @@ struct PopupState {
     real revolve_cut_in_angle;
     real revolve_cut_out_angle;
 
+    real feature_plane_nudge;
+    real feature_plane_rotate_plane_angle;
+
     real box_width;
     real box_height;
     real circle_diameter;
@@ -484,7 +483,6 @@ struct PopupState {
     real dogear_radius;
     real xy_x_coordinate;
     real xy_y_coordinate;
-    real feature_plane_nudge;
     real drag_length;
     real drag_angle;
     real drag_run;
@@ -536,14 +534,18 @@ struct WorldState_ChangesToThisMustBeRecorded_state {
 };
 
 struct PreviewState {
+    bbox2 feature_plane_bbox;
+    real feature_plane_mirror_x_angle;
+    real feature_plane_mirror_y_angle;
+    real feature_plane_mirror_XXX_bump;
+    real feature_plane_rotation_angle;
+    real feature_plane_signed_distance_to_world_origin;
 
-    bbox2 feature_plane;
     real extrude_in_length;
     real extrude_out_length;
     real revolve_in_angle;
     real revolve_out_angle;
     vec3 tubes_color;
-    real feature_plane_offset;
     real feature_plane_alpha;
     vec2 drawing_origin;
     real cursor_subtext_alpha;
@@ -632,6 +634,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool paused;
     bool stepping_one_frame_while_paused;
 
+    real time_of_previous_frame;
+    real delta_time;
     real time_since_cursor_start;
     real time_since_successful_feature;
     real time_since_plane_selected;

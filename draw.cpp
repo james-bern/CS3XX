@@ -19,25 +19,33 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 z = feature_plane->normal;
     vec3 x = normalized(cross(z, down));
     vec3 y = cross(z, x);
-    vec3 o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
 
+    mat4 M_2D = M4_Identity(); // FORNOW
+
+    vec3 o;
     if (for_drawing) {
-        // FINITE_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f, PI / 180 / 2);
-        // FINITE_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f, PI / 180 / 2);
-        JUICEIT_EASYTWEEN(&feature_plane->x_angle, feature_plane->mirror_x ? PI : 0.0f);
-        JUICEIT_EASYTWEEN(&feature_plane->y_angle, feature_plane->mirror_y ? PI : 0.0f);
-        // TODO: Change 10 to function of feature_plane size
-        JUICEIT_EASYTWEEN(&feature_plane->offset, 10 * MAX(SIN(feature_plane->x_angle), SIN(feature_plane->y_angle)));
+        o = preview->feature_plane_signed_distance_to_world_origin * feature_plane->normal;
 
-        x = transformVector(M4_RotationAbout(y, feature_plane->x_angle), x);
-        y = transformVector(M4_RotationAbout(x, feature_plane->y_angle), y);
-        o += feature_plane->offset * feature_plane->normal;
+        // TODO: move sketch and rotate sketch goes in here too
+        x = transformVector(M4_RotationAbout(y, -preview->feature_plane_mirror_x_angle), x);
+        y = transformVector(M4_RotationAbout(x, preview->feature_plane_mirror_y_angle), y);
+        o += preview->feature_plane_mirror_XXX_bump * feature_plane->normal;
+
+        mat4 R = M4_RotationAbout(z, preview->feature_plane_rotation_angle);
+        x = transformVector(R, x);
+        y = transformVector(R, y);
     } else {
+        o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
+
         if (feature_plane->mirror_x) x *= - 1;
         if (feature_plane->mirror_y) y *= - 1;
+
+        mat4 R = M4_RotationAbout(z, feature_plane->rotation_angle);
+        x = transformVector(R, x);
+        y = transformVector(R, y);
     }
 
-    return M4_xyzo(x, y, z, o);
+    return M4_xyzo(x, y, z, o) * M_2D;
 }
 
 
@@ -84,9 +92,25 @@ void conversation_draw() {
     }
 
     // TODO
-    { // preview_feature_plane_offset
-        real target = (state_Mesh_command_is_(NudgePlane)) ? popup->feature_plane_nudge : 0.0f;
-        JUICEIT_EASYTWEEN(&preview->feature_plane_offset, target);
+    { // feature plane
+        { // preview->feature_plane_signed_distance_to_world_origin
+            real target = feature_plane->signed_distance_to_world_origin;
+            if (state_Mesh_command_is_(NudgePlane))
+                target += popup->feature_plane_nudge;
+            JUICEIT_EASYTWEEN(&preview->feature_plane_signed_distance_to_world_origin, target);
+        }
+        { // preview->feature_plane_mirror_x_angle, preview->feature_plane_mirror_y_angle, preview->feature_plane_mirror_XXX_bump
+            JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_x_angle, feature_plane->mirror_x ? PI : 0.0f);
+            JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_y_angle, feature_plane->mirror_y ? PI : 0.0f);
+            // TODO: Change 10 to function of feature_plane size
+            JUICEIT_EASYTWEEN(&preview->feature_plane_mirror_XXX_bump, 10 * MAX(SIN(preview->feature_plane_mirror_x_angle), SIN(preview->feature_plane_mirror_y_angle)));
+        }
+        { // preview->feature_plane_rotation_angle
+            real target = feature_plane->rotation_angle;
+            if (state_Mesh_command_is_(RotatePlane))
+                target += RAD(popup->feature_plane_rotate_plane_angle);
+            JUICEIT_EASYTWEEN(&preview->feature_plane_rotation_angle, target);
+        }
     }
 
 
@@ -864,7 +888,9 @@ void conversation_draw() {
                     face_selection_bbox = BOUNDING_BOX_MAXIMALLY_NEGATIVE_AREA<2>();
                     { // we want this to be done regardless for HidePlane tweening
 
-                        mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D());
+                        // TODO choose true or false (or something else)
+                        // Currently false because we already tween using this as target
+                        mat4 inv_M_3D_from_2D = inverse(get_M_3D_from_2D(false));
 
                         WorkMesh *mesh = &meshes->work;
                         for_(triangle_index, mesh->num_triangles) {
@@ -873,7 +899,10 @@ void conversation_draw() {
                                 uint3 tuple = mesh->triangle_tuples[triangle_index];
                                 vec3 a = mesh->vertex_positions[tuple[0]];
                                 real sd = dot(a, n);
-                                if (ABS(sd - feature_plane->signed_distance_to_world_origin) < 0.01f) {
+                                real target_feature_plane_signed_distance_from_world_origin = feature_plane->signed_distance_to_world_origin;
+                                // if (state_Mesh_command_is_(NudgePlane))
+                                //     target_feature_plane_signed_distance_from_world_origin += popup->feature_plane_nudge;
+                                if (ABS(sd - target_feature_plane_signed_distance_from_world_origin) < 0.01f) {
                                     for_(d, 3) {
                                         vec3 p_3D = mesh->vertex_positions[tuple[d]];
                                         vec2 p_2D = _V2(transformPoint(inv_M_3D_from_2D, p_3D));
@@ -916,18 +945,18 @@ void conversation_draw() {
                 }
 
                 if (!feature_plane->is_active) {
-                    target_bbox = bbox_inflate(preview->feature_plane, 2.0f); // HACK
+                    target_bbox = bbox_inflate(preview->feature_plane_bbox, 2.0f); // HACK
                 }
 
-                JUICEIT_EASYTWEEN(&preview->feature_plane.min, target_bbox.min);
-                JUICEIT_EASYTWEEN(&preview->feature_plane.max, target_bbox.max);
+                JUICEIT_EASYTWEEN(&preview->feature_plane_bbox.min, target_bbox.min);
+                JUICEIT_EASYTWEEN(&preview->feature_plane_bbox.max, target_bbox.max);
                 if (other.time_since_plane_selected == 0.0f) { // FORNOW
-                    preview->feature_plane = face_selection_bbox;
+                    preview->feature_plane_bbox = face_selection_bbox;
                     preview->feature_plane_alpha = 0.0f;
 
                     // FORNOW
                     if (face_selection_bbox.min[0] > face_selection_bbox.max[0]) {
-                        preview->feature_plane = {};
+                        preview->feature_plane_bbox = {};
                     }
 
                     target_bbox = bbox_inflate(target_bbox, -10.0f);
@@ -944,11 +973,11 @@ void conversation_draw() {
         { // draw feature plane
             glDisable(GL_CULL_FACE); // FORNOW
 
-            // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
+            // vec2 center = (preview->feature_plane_bbox.max + preview->feature_plane_bbox.min) / 2.0f;
             // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
             eso_begin(PVM_feature_plane * M4_Translation(0.0f, 0.0f, 2 * Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
             eso_color(pallete_3D->feature_plane, preview->feature_plane_alpha);
-            eso_bbox_SOUP_QUADS(preview->feature_plane);
+            eso_bbox_SOUP_QUADS(preview->feature_plane_bbox);
             eso_end();
 
             glEnable(GL_CULL_FACE); // FORNOW
@@ -988,11 +1017,11 @@ void conversation_draw() {
         { // draw feature plane
             glDisable(GL_CULL_FACE); // FORNOW
 
-            // vec2 center = (preview->feature_plane.max + preview->feature_plane.min) / 2.0f;
+            // vec2 center = (preview->feature_plane_bbox.max + preview->feature_plane_bbox.min) / 2.0f;
             // mat4 scaling_about_center = M4_Translation(center) * M4_Scaling(f) * M4_Translation(-center);
             eso_begin(PVM_feature_plane * M4_Translation(0.0f, 0.0f, 2 * Z_FIGHT_EPS)/* * scaling_about_center*/, SOUP_QUADS);
             eso_color(pallete_3D->feature_plane, preview->feature_plane_alpha);
-            eso_bbox_SOUP_QUADS(preview->feature_plane);
+            eso_bbox_SOUP_QUADS(preview->feature_plane_bbox);
             eso_end();
 
             glEnable(GL_CULL_FACE); // FORNOW
@@ -1089,7 +1118,7 @@ void conversation_draw() {
                         M_incr = M4_Identity();
                     } else if (state_Mesh_command_is_(NudgePlane)) {
                         NUM_TUBE_STACKS_INCLUSIVE = 1;
-                        M = M_3D_from_2D * inv_T_o * M4_Translation(0.0f, 0.0f, preview->feature_plane_offset + Z_FIGHT_EPS);
+                        M = M_3D_from_2D * inv_T_o * M4_Translation(0, 0, Z_FIGHT_EPS);
                         M_incr = M4_Identity();
                     } else { // default
                         NUM_TUBE_STACKS_INCLUSIVE = 1;
