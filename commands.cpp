@@ -87,9 +87,10 @@
     COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(CyclePlane,      'Y', 0b000, Mesh, 0, 0); \
-    COMMANDS_INNER(TogglePlane,       ';', 0b000, Mesh, 0, 0);  \
+    COMMANDS_INNER(TogglePlane,     ';', 0b000, Mesh, 0, 0);  \
     COMMANDS_INNER(MirrorPlaneX,    'X', 0b011, Mesh, 0, 0);  \
     COMMANDS_INNER(MirrorPlaneY,    'Y', 0b011, Mesh, 0, 0);  \
+    COMMANDS_INNER(RotatePlane,     'R', 0b011, Mesh, 1, 0 | FOCUS_THIEF);  \
     \
     COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \

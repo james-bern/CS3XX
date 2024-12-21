@@ -6,22 +6,15 @@
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected) 
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
-    real f = multiplier * 0.1f;
+    real f = multiplier * 9.2f; // 6.9 = -ln(.0001), where .001 is the remaining percent after 1 second
     if (IS_ZERO(multiplier)) f = 1.0f;
-    if (!other.paused) *a += f * (b - *a);
+    if (other.slowmo) f *= 0.05;
+    if (!other.paused && !other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * other.delta_time));
+    else if (other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * 0.0083)); // Choose to use 120fps as framerate for paused stepping
 }
 
-template <typename T> void FINITE_EASYTWEEN(T *a, T b, T threshold, real multiplier = 1.0f) {
-    real f = multiplier * 0.1f;
-    if (IS_ZERO(multiplier)) f = 1.0f;
-    if (!other.paused) {
-        T signed_delta = b - *a;
-        if (-threshold < signed_delta && signed_delta < threshold) *a = b;
-        else *a += f * signed_delta;
-    } 
-}
-
-real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
+// NOTE: This doesn't use delta time (Commented out so ppl will notice if they start using it again, currenlty unused)
+// real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
 
 
 real get_x_divider_drawing_mesh_Pixel() {

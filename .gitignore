@@ -26,3 +26,4 @@ executable
 demo.txt
 .vscode/*
 combined.cpp
+combined
