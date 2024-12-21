@@ -352,7 +352,7 @@ void conversation_draw() {
                         chowder_end();
                         glDisable(GL_DEPTH_TEST);
                         eso_begin(M4_Identity(), SOUP_TRIANGLES);
-                        eso_color(0.0f, 0.0f, 0.0f, bbpr_alpha);
+                        eso_color(pallete_2D->background, bbpr_alpha);
                         eso_vertex(-1.0f, -1.0f);
                         eso_vertex( 1.0f, -1.0f);
                         eso_vertex( 1.0f,  1.0f);
