@@ -2176,6 +2176,7 @@ struct ClosestIntersectionResult {
 };
 
 // ?????
+// TODO: report bug for line circle Divide2 intersection -- (also this is sus)
 ArcEntity get_arc_entity(const Entity* entity) {
     if (entity->type == EntityType::Circle) {
         return {

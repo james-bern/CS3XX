@@ -12,6 +12,10 @@ struct Pallete2D {
     vec3 button_background;
     vec3 button_foreground;
 
+    vec3 two_click_first_click;
+    vec3 two_click_second_click;
+    vec3 two_click_blend;
+
     vec3 selection;
     vec3 dots;
 
@@ -90,6 +94,9 @@ run_before_main {
     _pallete_2D_dark.grid_accent = basic.darker_gray;
     _pallete_2D_dark.selection = basic.white;
     _pallete_2D_dark.snap = basic.magenta;
+    _pallete_2D_dark.two_click_first_click = basic.cyan;
+    _pallete_2D_dark.two_click_second_click = basic.magenta;
+    _pallete_2D_dark.two_click_blend = basic.gray;
 
     _pallete_2D_light = _pallete_2D_dark; // !
     _pallete_2D_light.id = PALLETE_2D_LIGHT;

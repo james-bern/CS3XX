@@ -1240,9 +1240,6 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 #endif
                             }
                         } else if (state_Draw_command_is_(Divide2)) { 
-                            result.checkpoint_me = true;
-                            set_state_Draw_command(None);
-                            set_state_Snap_command(None);
 
                             Entity *closest_entity_one = two_click_command->entity_closest_to_first_click; 
                             if (two_click_command->entity_closest_to_second_click) {
@@ -1251,15 +1248,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     MESSAGE_FAILURE("TwoClickDivide: clicked same entity twice");
                                 } else {
                                     ClosestIntersectionResult intersection = closest_intersection(closest_entity_one, closest_entity_two, second_click);
-                                    if (intersection.no_possible_intersection) {
-                                        MESSAGE_FAILURE("NO INTERSECTION FOUND");
-                                    } else {
+                                    bool success = false;
+                                    if (!intersection.no_possible_intersection) {
                                         bool divided_first = cookbook.attempt_divide_entity_at_point(closest_entity_one, intersection.point);
                                         bool divided_second = cookbook.attempt_divide_entity_at_point(closest_entity_two, intersection.point);
-
-                                        if (!divided_first && !divided_second) {
-                                            MESSAGE_FAILURE("NO INTERSECTION FOUND");
+                                        if (divided_first || divided_second) {
+                                            result.checkpoint_me = true;
+                                            set_state_Draw_command(None);
+                                            set_state_Snap_command(None);
                                         }
+                                    }
+                                    if (!success) {
+                                        MESSAGE_FAILURE("TwoClickDivide: no intersection found");
+                                    } else {
+                                        MESSAGE_SUCCESS("TwoClickDivide");
                                     }
                                 }
                             }

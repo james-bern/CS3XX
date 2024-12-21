@@ -543,6 +543,8 @@ void conversation_draw() {
                                             chowder_reset_size();
                                         }
                                     } else if (state_Draw_command_is_(Divide2)) {
+                                        // TODO animated dotted line
+                                        // TODO dotted arcs (here (easy) and glsl (hard))
 
                                         if (closest_result.success) {
                                             bbpr = true;
@@ -554,18 +556,20 @@ void conversation_draw() {
                                                         mouse_no_snap_potentially_15_deg__WHITE.mouse_position
                                                         );
 
-                                            vec3 pallete_failure = V3(1.0f, 0.0f, 0.0f);
+                                            // vec3 pallete_failure = V3(1.0f, 0.0f, 0.0f);
                                             // vec3 pallete_warning = V3(1.0f, 1.0f, 0.0f);
-                                            vec3 pallete_success = V3(0.0f, 1.0f, 0.0f);
 
                                             bool point_is_on_entity_a_or_b = (
-                                                    intersection_result.point_is_on_entity_a ||
-                                                    intersection_result.point_is_on_entity_b);
+                                                    intersection_result.point_is_on_entity_b
+                                                    // || intersection_result.point_is_on_entity_a
+                                                    );
                                             bool failure = (intersection_result.no_possible_intersection || (!point_is_on_entity_a_or_b));
                                             if (failure) {
-                                                chowder_set_color(pallete_failure);
-                                                chowder_entity(closest_result.closest_entity);
+                                                // chowder_set_color(pallete_failure);
+                                                chowder_set_color(get_color_from_color_code(two_click_command->entity_closest_to_first_click->color_code));
                                                 chowder_entity(two_click_command->entity_closest_to_first_click);
+                                                chowder_set_color(get_color_from_color_code(closest_result.closest_entity->color_code));
+                                                chowder_entity(closest_result.closest_entity);
                                             } else {
 
                                                 auto Q = [&](Entity *entity) {
@@ -576,16 +580,23 @@ void conversation_draw() {
                                                     }
                                                 };
 
-                                                // TODO: the intersection point has to be on at least one entity
 
-                                                chowder_set_color(pallete_success);
-
-                                                chowder_entity(closest_result.closest_entity);
+                                                // chowder_set_color(pallete_2D->two_click_first_click);
+                                                chowder_set_color(get_color_from_color_code(two_click_command->entity_closest_to_first_click->color_code));
                                                 chowder_entity(two_click_command->entity_closest_to_first_click);
+                                                // chowder_set_color(pallete_2D->two_click_second_click);
+                                                chowder_set_color(get_color_from_color_code(closest_result.closest_entity->color_code));
+                                                chowder_entity(closest_result.closest_entity);
+
 
                                                 chowder_set_stipple(true);
-                                                Q(closest_result.closest_entity);
-                                                Q(two_click_command->entity_closest_to_first_click);
+                                                {
+                                                    // chowder_set_color(pallete_2D->two_click_blend);
+                                                    // chowder_set_color(pallete_2D->two_click_first_click);
+                                                    chowder_set_color(get_color_from_color_code(two_click_command->entity_closest_to_first_click->color_code));
+                                                    Q(two_click_command->entity_closest_to_first_click);
+                                                    // Q(closest_result.closest_entity);
+                                                }
                                                 chowder_reset_stipple();
 
                                                 // TODO: dotted lines to point
@@ -662,12 +673,19 @@ void conversation_draw() {
                             }
 
 
+                            // TODO dotted line
+                            // TODO animated dotted line
                             { // one-click commands
                                 if (0) {
                                 } else if (state_Draw_command_is_(Offset)) {
+                                    bbpr = true;
                                     DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                                     if (closest_result.success) {
                                         Entity *_closest_entity = closest_result.closest_entity;
+                                        chowder_set_color(pallete_2D->two_click_first_click);
+                                        chowder_entity(_closest_entity);
+
+                                        chowder_set_color(pallete_2D->two_click_second_click);
                                         Entity target_entity = entity_offsetted(_closest_entity, popup->offset_distance, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
                                         vec2 target_start, target_end, target_middle, target_opposite;
                                         if (target_entity.type != EntityType::Circle) {
@@ -693,27 +711,25 @@ void conversation_draw() {
 
                                         }
 
-                                        // reasonable line <-> arc behavior
-                                        if (1) { // heuristic (FORNOW: minimize max distance)
-                                            real D2na = squaredDistance(preview->offset_entity_start, target_start);
-                                            real D2nb = squaredDistance(preview->offset_entity_end, target_end);
-                                            real D2ya = squaredDistance(preview->offset_entity_start, target_end);
-                                            real D2yb = squaredDistance(preview->offset_entity_end, target_start);
-                                            real max_D2_no_swap = MAX(D2na, D2nb);
-                                            real max_D2_yes_swap = MAX(D2ya, D2yb);
-                                            if (max_D2_no_swap > max_D2_yes_swap) {
-                                                SWAP(&target_start, &target_end);
+                                        {
+                                            // reasonable line <-> arc behavior
+                                            if (1) { // heuristic (FORNOW: minimize max distance)
+                                                real D2na = squaredDistance(preview->offset_entity_start, target_start);
+                                                real D2nb = squaredDistance(preview->offset_entity_end, target_end);
+                                                real D2ya = squaredDistance(preview->offset_entity_start, target_end);
+                                                real D2yb = squaredDistance(preview->offset_entity_end, target_start);
+                                                real max_D2_no_swap = MAX(D2na, D2nb);
+                                                real max_D2_yes_swap = MAX(D2ya, D2yb);
+                                                if (max_D2_no_swap > max_D2_yes_swap) {
+                                                    SWAP(&target_start, &target_end);
+                                                }
                                             }
+
+                                            JUICEIT_EASYTWEEN(&preview->offset_entity_start, target_start);
+                                            JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
+                                            JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
+                                            JUICEIT_EASYTWEEN(&preview->offset_entity_opposite, target_opposite);
                                         }
-
-                                        JUICEIT_EASYTWEEN(&preview->offset_entity_start, target_start);
-                                        JUICEIT_EASYTWEEN(&preview->offset_entity_end, target_end);
-                                        JUICEIT_EASYTWEEN(&preview->offset_entity_middle, target_middle);
-                                        JUICEIT_EASYTWEEN(&preview->offset_entity_opposite, target_opposite);
-
-                                        // TODO: could try a crescent moon kind of a situation
-                                        // TODO: just need a three point arc lambda
-                                        //       (and could in theory fillet the arcs)
 
                                         vec2 a = preview->offset_entity_start;
                                         vec2 b = preview->offset_entity_middle;
@@ -724,7 +740,10 @@ void conversation_draw() {
 
                                         chowder_entity(&dummy2);
                                         chowder_entity(&dummy);
+
                                     }
+                                    // TODO
+                                    chowder_set_color(pallete_2D->two_click_blend);
                                 }
                             }
 
@@ -793,7 +812,7 @@ void conversation_draw() {
                         }
                     }
 
-                    JUICEIT_EASYTWEEN(&bbpr_alpha, (bbpr ? 0.5f : 0.0f), (bbpr ? 2.0f : 4.0f));
+                    JUICEIT_EASYTWEEN(&bbpr_alpha, (bbpr ? 0.7f : 0.0f), (bbpr ? 2.0f : 4.0f));
                 } chowder_end();
 
             }
