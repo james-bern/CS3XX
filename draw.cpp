@@ -34,6 +34,8 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
         mat4 R = M4_RotationAbout(z, preview->feature_plane_rotation_angle);
         x = transformVector(R, x);
         y = transformVector(R, y);
+
+        M_2D *= M4_Translation(-preview->drawing_origin);
     } else {
         o = (feature_plane->signed_distance_to_world_origin) * feature_plane->normal;
 
@@ -43,6 +45,8 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
         mat4 R = M4_RotationAbout(z, feature_plane->rotation_angle);
         x = transformVector(R, x);
         y = transformVector(R, y);
+
+        M_2D *= M4_Translation(-drawing->origin);
     }
 
     return M4_xyzo(x, y, z, o) * M_2D;
@@ -113,10 +117,9 @@ void conversation_draw() {
         }
     }
 
-
-    vec2 target_preview_drawing_origin = (!state_Draw_command_is_(SetOrigin)) ? drawing->origin : mouse_no_snap_potentially_15_deg__WHITE.mouse_position; // NOTE: we use this so we don't double tween SetOrigin's effect on the preview entities on the right (or something like this ??)
-    {
-        JUICEIT_EASYTWEEN(&preview->drawing_origin, target_preview_drawing_origin);
+    { // preview->drawing_origin
+        vec2 target = (!state_Draw_command_is_(SetOrigin)) ? drawing->origin : mouse_transformed__PINK.mouse_position;
+        JUICEIT_EASYTWEEN(&preview->drawing_origin, target);
     }
 
     // TODO: lerp
@@ -210,7 +213,7 @@ void conversation_draw() {
                     eso_overlay(true);
                     eso_color(pallete_2D->axis);
                     eso_size(6.0f);
-                    eso_vertex(target_preview_drawing_origin - V2(0, 0));
+                    eso_vertex(preview->drawing_origin);
                 } eso_end();
                 vec2 v = r * e_theta(PI / 2 + preview_dxf_axis_angle_from_y);
                 eso_begin(PV_2D, SOUP_LINES); {
@@ -942,9 +945,6 @@ void conversation_draw() {
                         dxf_selection_bbox.min += T;
                         dxf_selection_bbox.max += T;
                     }
-
-                    dxf_selection_bbox.min -= target_preview_drawing_origin;
-                    dxf_selection_bbox.max -= target_preview_drawing_origin;
                 }
                 bbox2 target_bbox; {
                     target_bbox = face_selection_bbox + dxf_selection_bbox;
@@ -1061,10 +1061,10 @@ void conversation_draw() {
             JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
 
             #if 1
-            mat4 T_o = M4_Translation(preview->drawing_origin);
-            mat4 inv_T_o = inverse(T_o);
+            // mat4 T_o = M4_Translation(preview->drawing_origin);
+            // mat4 inv_T_o = inverse(T_o);
             glDisable(GL_DEPTH_TEST);
-            eso_begin(PV_3D * M_3D_from_2D * inv_T_o, SOUP_LINES); {
+            eso_begin(PV_3D * M_3D_from_2D, SOUP_LINES); {
                 eso_overlay(true);
                 _for_each_selected_entity_ {
                     real alpha;
@@ -1088,7 +1088,7 @@ void conversation_draw() {
                 mat4 inv_T_a = inverse(T_a);
                 // M_incr = T_o * T_a * R_a * inv_T_a * inv_T_o;
                 mat4 M_incr = T_a * R_inc * inv_T_a;
-                mat4 M = M_3D_from_2D * inv_T_o * T_a * R_0 * inv_T_a;
+                mat4 M = M_3D_from_2D * T_a * R_0 * inv_T_a;
                 for_(tube_stack_index, NUM_TUBE_STACKS_INCLUSIVE) {
                     eso_begin(PV_3D * M, SOUP_LINES); {
                         eso_overlay(true);

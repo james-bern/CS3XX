@@ -1760,7 +1760,6 @@ MeshesReadOnly manifold_wrapper(
         Command Mesh_command,
         real out_quantity,
         real in_quantity,
-        vec2 dxf_origin,
         vec2 dxf_axis_base_point,
         real dxf_axis_angle_from_y
         ) {
@@ -1809,8 +1808,6 @@ MeshesReadOnly manifold_wrapper(
         {
             cross_section = manifold_cross_section_of_polygons(manifold_alloc_cross_section(), _polygons, ManifoldFillRule::MANIFOLD_FILL_RULE_EVEN_ODD);
 
-            // cross_section = manifold_cross_section_translate(cross_section, cross_section, -dxf_origin.x, -dxf_origin.y);
-
             if (revolve) {
                 manifold_cross_section_translate(cross_section, cross_section, -dxf_axis_base_point.x, -dxf_axis_base_point.y);
                 manifold_cross_section_rotate(cross_section, cross_section, DEG(-dxf_axis_angle_from_y)); // * has both the 90 y-up correction and the angle
@@ -1846,7 +1843,6 @@ MeshesReadOnly manifold_wrapper(
                 manifold_TOOL = manifold_rotate(manifold_TOOL, manifold_TOOL, -90.0f, 0.0f, 0.0f);
                 manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, dxf_axis_base_point.x, dxf_axis_base_point.y, 0.0f);
             }
-            manifold_TOOL = manifold_translate(manifold_TOOL, manifold_TOOL, -dxf_origin.x, -dxf_origin.y, 0.0f);
             manifold_TOOL = manifold_transform(manifold_TOOL, manifold_TOOL,
                     M_3D_from_2D(0, 0), M_3D_from_2D(1, 0), M_3D_from_2D(2, 0),
                     M_3D_from_2D(0, 1), M_3D_from_2D(1, 1), M_3D_from_2D(2, 1),
