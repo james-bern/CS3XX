@@ -7,7 +7,8 @@ char *startup_script = "";
 #else
 // char *startup_script = "^.bz10\t10x-10\t-10";
 // char *startup_script = "^.^odemo.dxf\n";
-char *startup_script = "^osplash.dxf\n";
+// char *startup_script = "^osplash.dxf\n^Osplash.stl\n"; // BUG: this doesn't work
+char *startup_script = "^Osplash.stl\n^osplash.dxf\n"; // BUG: this doesn't work
 #endif
 
 #ifdef SHIP
@@ -31,6 +32,7 @@ ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other other;
 // convenient pointers to shorten xxx.foo.bar into foo->bar
 Drawing *drawing = &state.drawing;
 FeaturePlaneState *feature_plane = &state.feature_plane;
+FeaturePlaneState *hover_plane = &other.hover_plane;
 MeshesReadOnly *meshes = &state.meshes;
 PopupState *popup = &state.popup;
 ToolboxState *toolbox = &state.toolbox;
@@ -113,7 +115,7 @@ int main() {
         }
         {
             *pallete_2D = _pallete_2D_dark;
-            *pallete_3D = _pallete_3D_light;
+            *pallete_3D = _pallete_3D_dark;
             *target_pallete = *pallete;
         }
     }
@@ -137,6 +139,7 @@ int main() {
     glfwHideWindow(glfw_window); // to avoid one frame flicker 
     uint64_t frame = 0;
     while (!glfwWindowShouldClose(glfw_window)) {
+        global_time += 0.0167f; // FORNOW
 
 
         if (other.slowmo) SLEEP(100);

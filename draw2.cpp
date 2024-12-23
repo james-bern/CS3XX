@@ -84,105 +84,8 @@ struct {
         }
     )"";
 
-    char *frag = R""(
-        #version 330 core
-        in BLOCK {
-            vec3 position_World;
-            vec3 normal_World;
-            flat uint patch_index;
-        } fs_in;
+    #include "frag.glsl"
 
-        uniform vec3 eye_World;
-        uniform float dark_light_tween;
-
-        uniform int feature_plane_is_active;
-        uniform vec3 feature_plane_normal;
-        uniform float feature_plane_signed_distance_to_world_origin;
-
-        uniform int mode;
-
-        out vec4 _gl_FragColor;
-
-        void main() {
-            vec3 N = normalize(fs_in.normal_World);
-            vec3 rgb = vec3(0.0);
-            float a = 1.0;
-
-
-            if (mode == 0) {
-
-                vec3 rgb_gooch3 = vec3(0);
-                if (true) { // three way rainbow gooch
-                    for (int d = 0; d < 3; ++d) {
-                        vec3 warm_color = vec3(0.0);
-                        warm_color[d] = 1.0;
-
-                        vec3 cool_color = (vec3(1.0) - warm_color) / 1.5;
-
-                        vec3 L = vec3(0.0);
-                        L[d] = 1.0;
-
-                        float LN = dot(L, N);
-                        float t = LN; // 0.5 + 0.5 * LN;
-                        rgb_gooch3 += 0.3 * mix(vec3(1.0), mix(cool_color, warm_color, t), 0.8);
-                    }
-                }
-
-
-                if (false) { // sunlight gooch
-                    vec3 warm_color = vec3(1.0, 0.7, 0.3);
-                    vec3 cool_color = vec3(0.3, 0.7, 1.0);
-                    vec3 L = vec3(0.0, 1.0, 0.0);
-                    float LN = dot(L, N);
-                    float t = 0.5 + 0.5 * LN;
-                    rgb += 0.7 * mix(cool_color, warm_color, t);
-                }
-
-                if (false) { // eyelight gooch
-                    vec3 warm_color = vec3(1.0, 0.7, 0.3);
-                    vec3 cool_color = vec3(0.3, 0.7, 1.0);
-                    vec3 L = normalize(eye_World - fs_in.position_World);
-                    float LN = dot(L, N);
-                    float t = LN;
-                    rgb += 0.7 * mix(cool_color, warm_color, t);
-                }
-
-                if (true) { // eye light phong fresnel
-                    vec3 L = normalize(eye_World - fs_in.position_World);
-                    vec3 E = normalize(eye_World - fs_in.position_World);
-                    vec3 H = normalize(L + E);
-                    float LN = dot(L, N);
-                    float F0 = 0.05;
-                    float diffuse = max(0.0, LN);
-                    float specular = pow(max(0.0, dot(N, H)), 256);
-    float fresnel = F0 + (1 - F0) * pow(1.0 - max(0.0, dot(N, H)), 5);
-    rgb += 0.0;
-    rgb += mix(0.1 , 0.55, dark_light_tween) * diffuse;
-    rgb += mix(0.1 , 0.3, dark_light_tween) * specular;
-    rgb += mix(0.15, 0.3, dark_light_tween) * fresnel;
-    rgb = mix(rgb, vec3(1.0), 0.5f * dark_light_tween);
-}
-
-if (feature_plane_is_active != 0) { // feature plane override
-    if (dot(fs_in.normal_World, feature_plane_normal) > 0.99) {
-        if (abs(dot(fs_in.position_World, feature_plane_normal) - feature_plane_signed_distance_to_world_origin) < 0.01) {
-            rgb = mix(rgb, vec3(1.0), 0.8);
-        }
-    }
-}
-
-// rgb = clamp(vec3(0.0f), vec3(0.9f), rgb);
-} else if ((mode == 1) || (mode == 3)) {
-    int i = (mode == 1) ? int(fs_in.patch_index) : gl_PrimitiveID;
-    rgb.r = (i % 256);
-    rgb.g = ((i / 256) % 256);
-    rgb.b = ((i / (256 * 256)) % 256);
-    rgb /= 255.0;
-}
-
-_gl_FragColor = vec4(rgb, a);
-}
-)"";
 } face_pass_source;
 
 
@@ -317,6 +220,7 @@ char *frag = R""(#version 330 core
         uniform vec2 OpenGL_from_Pixel_scale;
         uniform int mode;
         uniform float _window_macbook_retina_fixer__VERY_MYSTERIOUS;
+        uniform float dark_light_tween;
 
         out vec4 _gl_FragColor;
         void main() {
@@ -343,7 +247,7 @@ char *frag = R""(#version 330 core
             vec2 hLx = vec2(0.5 * fs_in.L, 0);
             float d2 = squaredDistancePointLineSegment(fs_in.corner * (hLx + vec2(1.0)), -hLx, hLx);
             float I = 0.18 * exp2(-2 * min(d2, 1.8 * 1.8));
-            _gl_FragColor = vec4(vec3(0.0), I);
+            _gl_FragColor = vec4(vec3(1.0 - dark_light_tween), I);
             // _gl_FragColor = vec4(mix(vec3(1.0, 0.0, 0.0), vec3(0.0, 0.0, 1.0), I), 1.0); // FORNOW
             // _gl_FragColor.rgb = rgb;
         }
@@ -412,7 +316,7 @@ struct {
             vec2 G = vec2(Gx, Gy);
             float d = dot(G, G);
             // d = min(1.0, 100000 * fwidth(TexCoords).x);
-            _gl_FragColor = vec4(vec3(mix(0.17, 0.0, dark_light_tween)), d / 5);
+            _gl_FragColor = vec4(vec3(mix(0.50, 0.0, dark_light_tween)), d / 5);
         }
     )"";
 } sobel_source;
@@ -481,6 +385,10 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
         glUniform3f(UNIFORM(shader_program, "feature_plane_normal"), feature_plane->normal.x, feature_plane->normal.y, feature_plane->normal.z);
         glUniform1f(UNIFORM(shader_program, "feature_plane_signed_distance_to_world_origin"), feature_plane->signed_distance_to_world_origin);
 
+        glUniform1i(UNIFORM(shader_program, "hover_plane_is_active"), hover_plane->is_active);
+        glUniform3f(UNIFORM(shader_program, "hover_plane_normal"), hover_plane->normal.x, hover_plane->normal.y, hover_plane->normal.z);
+        glUniform1f(UNIFORM(shader_program, "hover_plane_signed_distance_to_world_origin"), hover_plane->signed_distance_to_world_origin);
+
         glDrawElements(GL_TRIANGLES, num_vertices, GL_UNSIGNED_INT, NULL);
         // glBindTexture(GL_TEXTURE_2D, 0);
         // glActiveTexture(0); // ?
@@ -507,6 +415,7 @@ void DRAW_MESH(uint mode, mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
         glUniformMatrix4fv(UNIFORM(shader_program, "PVM"), 1, GL_TRUE, PVM.data);
+        glUniform1f       (UNIFORM(shader_program, "dark_light_tween"), pallete_3D->dark_light_tween);
         glUniform2f(UNIFORM(shader_program, "OpenGL_from_Pixel_scale"), 2.0f / window_get_width_Pixel(), 2.0f / window_get_height_Pixel());
         glUniform1i(UNIFORM(shader_program, "mode"), mode);
         glUniform1f(UNIFORM(shader_program, "_window_macbook_retina_fixer__VERY_MYSTERIOUS"), _window_macbook_retina_fixer__VERY_MYSTERIOUS);

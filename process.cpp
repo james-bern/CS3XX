@@ -1,18 +1,7 @@
-// TODO: rz needs work
-
 // TODO: beautiful buttons; should indicate what's selected in green (persistent)
 // FORNOW: rotate copy's usage of second click is wonky
-
-// XXXX: popups should have titles
-
-// TODO: pressing F when Fillet already active should highlight popup field
-
-// TODO: linear copy like layout
-// TODO: ???linear copy shouldn't be able to snap to the thing that 
-
 // TODO: mouse_transformed_position still pops on undo/redo
 // ~~~~: snaps flicker when typing in the popup 
-
 // XXXX: click modifier belongs in other
 
 StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event);
@@ -114,6 +103,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 Both_pen = Draw_pen;
                 Both_pen2 = Draw_pen2;
+                Both_pen.origin.y += h + padding + h;
                 Both_pen.origin.x = get_x_divider_drawing_mesh_Pixel() - (_w / 2);
                 Both_pen2.origin = Both_pen.origin;
 
@@ -211,13 +201,15 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                             vec3 button_background = (group != ToolboxGroup::Mesh) ? pallete_2D->button_background : pallete_3D->button_background;
                             vec3 button_foreground = (group != ToolboxGroup::Mesh) ? pallete_2D->button_foreground : pallete_3D->button_foreground;
+                            if (group == ToolboxGroup::Colo) {
+                                for_(i, 10) if (command_equals(command, commands_Color[i])) {
+                                    button_background = LERP(0.1f, button_background, get_color_from_color_code(i)); break;
+                                }
+                            }
 
                             vec3 color;
                             {
-                                vec3 accent_color = get_accent_color(group); 
-                                if (group == ToolboxGroup::Colo) {
-                                    for_(i, 10) if (command_equals(command, commands_Color[i])) { accent_color = get_color_from_color_code(i); break; }
-                                }
+                                vec3 hover_color = LERP(0.1f, button_background, button_foreground);
 
                                 bool can_toggle = is_mode;
                                 bool toggled;
@@ -244,10 +236,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
                                 if (group == ToolboxGroup::Colo) {
-                                    button_background = LERP(0.80f, accent_color, button_background);
+                                    if (group == ToolboxGroup::Colo) {
+                                        for_(i, 10) if (command_equals(command, commands_Color[i])) {
+                                            button_background = hover_color;
+                                            hover_color = get_color_from_color_code(i);
+                                            break;
+                                        }
+                                    }
                                 }
 
-                                color = (bbox_contains(bbox, other.mouse_Pixel)) ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? LERP(0.2f, accent_color, button_foreground) : accent_color) : ((toggled) ? accent_color : button_background);
+                                color = (bbox_contains(bbox, other.mouse_Pixel)) ? ((other.mouse_left_drag_pane == Pane::Toolbox) ? LERP(0.2f, hover_color, button_foreground) : hover_color) : ((toggled) ? hover_color : button_background);
 
                                 if (can_toggle) {
                                     eso_begin(other.OpenGL_from_Pixel, SOUP_QUADS);
@@ -326,11 +324,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 pen2->origin.x += w + 2;
                             }
                         } else {
-                            if (custom_button_id == 0 || custom_button_id == 1) {
+                            if (custom_button_id == 0 || custom_button_id == 1) { // sun moon light mode dark mode toggle light mode
                                 int sign = (custom_button_id == 0) ? -1 : 1;
                                 real tween = (custom_button_id == 0) ? pallete_2D->dark_light_tween : pallete_3D->dark_light_tween;
                                 vec3 background = (custom_button_id == 0) ? pallete_2D->background : pallete_3D->background;
-                                real x = get_x_divider_drawing_mesh_Pixel() + sign * (0.8f * _w);
+                                real x = get_x_divider_drawing_mesh_Pixel() + sign * 16.0f;
                                 real y = 16.0f;
                                 real half_bbox_side_length = 8.0f;
                                 bbox = { x - half_bbox_side_length, y - half_bbox_side_length, x + half_bbox_side_length, y + half_bbox_side_length };
@@ -346,11 +344,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     // eso_color(basic.yellow);
                                     uint N = 16;
 
-                                    real radius = half_bbox_side_length;
-                                    if (pass == 1) radius = 4 * half_bbox_side_length / 5;
+                                    real radius = LERP(tween, 1.0f, 1.2f) *  half_bbox_side_length;
 
                                     vec2 center = { x, y };
-                                    if (pass == 1) center.x = LERP(tween, x + half_bbox_side_length / 2, x + half_bbox_side_length + radius);
+                                    if (pass == 1) center.x = LERP(tween, x + sign * 0.5 * radius, x + sign * (radius + radius));
                                     for_(i, N) {
                                         real theta_i = TAU * i / N;
                                         real theta_ip1 = TAU * (i + 1) / N;
@@ -1192,27 +1189,24 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 cookbook.buffer_add_line(second_click, other_corner_B);
                             }
                         } else if (state_Draw_command_is_(Fillet)) {
-                            result.checkpoint_me = true;
-
-                            set_state_Snap_command(None);
                             if (two_click_command->entity_closest_to_second_click) {
                                 Entity *E = two_click_command->entity_closest_to_first_click;
                                 Entity *F = two_click_command->entity_closest_to_second_click;
                                 FilletResult fillet_result = preview_fillet(E, F, average_click, popup->fillet_radius);
                                 if (fillet_result.fillet_success) {
+
+                                    result.checkpoint_me = true;
+                                    set_state_Snap_command(None);
+                                    two_click_command->awaiting_second_click = false;
+
                                     cookbook._buffer_add_entity(fillet_result.ent_one);
                                     cookbook._buffer_add_entity(fillet_result.ent_two);
-
                                     if (!IS_ZERO(popup->fillet_radius)) {
                                         cookbook._buffer_add_entity(fillet_result.fillet_arc);
                                     }
-
                                     cookbook.buffer_delete_entity(E);
                                     cookbook.buffer_delete_entity(F);
-
                                 }
-
-                                two_click_command->awaiting_second_click = false;
                             }
                         } else if (state_Draw_command_is_(DogEar)) {
                             result.checkpoint_me = true;
@@ -1261,11 +1255,17 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 if (closest_entity_one == closest_entity_two) {
                                     MESSAGE_FAILURE("TwoClickDivide: clicked same entity twice");
                                 } else {
-                                    ClosestIntersectionResult intersection = closest_intersection(closest_entity_one, closest_entity_two, second_click);
+                                    ClosestIntersectionResult intersection_result = closest_intersection(closest_entity_one, closest_entity_two, second_click);
+
+                                    bool other_condition = (
+                                            intersection_result.point_is_on_entity_b
+                                            // || intersection_result.point_is_on_entity_a
+                                            );
+
                                     bool success = false;
-                                    if (!intersection.no_possible_intersection) {
-                                        bool divided_first = cookbook.attempt_divide_entity_at_point(closest_entity_one, intersection.point);
-                                        bool divided_second = cookbook.attempt_divide_entity_at_point(closest_entity_two, intersection.point);
+                                    if (!intersection_result.no_possible_intersection && other_condition) {
+                                        bool divided_first = cookbook.attempt_divide_entity_at_point(closest_entity_one, intersection_result.point);
+                                        bool divided_second = cookbook.attempt_divide_entity_at_point(closest_entity_two, intersection_result.point);
                                         if (divided_first || divided_second) {
                                             result.checkpoint_me = true;
                                             set_state_Draw_command(None);
@@ -1754,7 +1754,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
             result.record_me = false;
             if (!mouse_event->mouse_held) {
                 MagicSnapResult3D snap_result = magic_snap_raycast(mouse_event_mesh->mouse_ray_origin, mouse_event_mesh->mouse_ray_direction);
-                WorkMesh* mesh = &meshes->work;
+                WorkMesh *mesh = &meshes->work;
 
                 if (snap_result.hit_mesh) { // something hit
                     if (!(state.Mesh_command.flags & HIDE_FEATURE_PLANE)) {

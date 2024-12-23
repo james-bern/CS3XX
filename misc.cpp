@@ -14,7 +14,10 @@ template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
 }
 
 // NOTE: This doesn't use delta time (Commented out so ppl will notice if they start using it again, currenlty unused)
-// real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
+real _JUICEIT_EASYTWEEN(real t) {
+    do_once { MESSAGE_FAILURE("_JUICEIT_EASYTWEEN"); };
+    return 0.287f * log(t) + 1.172f; // TODO: PORT
+}
 
 
 real get_x_divider_drawing_mesh_Pixel() {
@@ -201,7 +204,7 @@ TransformMouseDrawingPositionResult transform_mouse_drawing_position(
 }
 
 MagicSnapResult3D magic_snap_raycast(vec3 origin, vec3 dir) {
-    MagicSnapResult3D result{};
+    MagicSnapResult3D result = {};
     WorkMesh* mesh = &meshes->work;
 
     int index_of_first_triangle_hit_by_ray = -1;

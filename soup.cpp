@@ -9,6 +9,8 @@
 // soup ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
+    real global_time; // fornow
+
 #define SOUP_POINTS         GL_POINTS
 #define SOUP_LINES          GL_LINES
 #define SOUP_LINE_STRIP     GL_LINE_STRIP
@@ -154,6 +156,7 @@ struct {
 
     char *frag_LINES = R""(#version 330 core
         uniform bool stipple;
+        uniform float t_stipple;
 
         in BLOCK {
             vec4 color;
@@ -173,9 +176,9 @@ struct {
                 float s = sin(fs_in.angle);
                 float c = cos(fs_in.angle);
                 mat2 Rinv = mat2(c, -s, s, c);
-                vec2 uv = Rinv * (xy - fs_in.starting_point_Pixel);
+                vec2 uv = Rinv * (xy - fs_in.starting_point_Pixel); // FORNOW
 
-                if (int(uv.x + 99999) % 10 > 5) discard; // FORNOW
+                if (int(uv.x - 17 * t_stipple + 99999) % 10 > 5) discard; // FORNOW
             }
         }
     )"";
@@ -366,6 +369,7 @@ void soup_draw(
     vec2 OpenGL_from_Pixel_scale = (2.0f / window_get_size_Pixel());
 
     glUniform1ui(LOC("stipple"), stipple);
+    glUniform1f(LOC("t_stipple"), global_time);
     glUniform1ui(LOC("force_draw_on_top"), force_draw_on_top);
     glUniform2f(LOC("OpenGL_from_Pixel_scale"), OpenGL_from_Pixel_scale.x, OpenGL_from_Pixel_scale.y);
     glUniformMatrix4fv(LOC("transform"), 1, GL_TRUE, transform.data);
