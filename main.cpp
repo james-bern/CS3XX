@@ -7,8 +7,7 @@ char *startup_script = "";
 #else
 // char *startup_script = "^.bz10\t10x-10\t-10";
 // char *startup_script = "^.^odemo.dxf\n";
-// char *startup_script = "^osplash.dxf\n^Osplash.stl\n"; // BUG: this doesn't work
-char *startup_script = "^Osplash.stl\n^osplash.dxf\n"; // BUG: this doesn't work
+char *startup_script = "^osplash.dxf\n^Osplash.stl\n"; // BUG: this doesn't work
 #endif
 
 #ifdef SHIP
@@ -150,7 +149,7 @@ int main() {
         CLEAR_CANVAS(); // TODO: goes after poll events so that dragging the separator doesn't mess things up with an off by one frame error
 
 
-        eso_size(1.5f);
+        // eso_size(1.5f);
         other.OpenGL_from_Pixel = window_get_OpenGL_from_Pixel();
         other._please_suppress_drawing_popup_popup = false;
         other._please_suppress_drawing_toolbox = false;

@@ -1,4 +1,5 @@
 // // FUN PROJECTS FOR NATE and JIM
+// TODO: cooldown on bbpr restore so less flickery 
 // TODO: select window preview
 // TODO: select connected preview
 // TODO: Translate, Rotate, Scale etc. should refuse to activate if nothing is selected (their buttons should also be grayed out)
@@ -234,7 +235,7 @@ void conversation_draw() {
                 eso_vertex(GRID_SIDE_LENGTH, 0.0f);
                 eso_end();
             }
-            if (1) { // axes 2D axes 2d axes axis 2D axis 2d axes crosshairs cross hairs origin 2d origin 2D origin
+            if (1) { // axes 2D axes 2d axes axis 2D axis 2d axes origin 2d origin 2D origin
                 real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
                 real r = 3 * funky_OpenGL_factor;
                 // real LL = 1000 * funky_OpenGL_factor;
@@ -363,6 +364,7 @@ void conversation_draw() {
 
 
                 auto chowder_begin = [&]() {
+                    ASSERT(!_chowder.began);
                     _chowder.began = true;
                     eso_begin(M4_Identity(), SOUP_LINES); // FORNOW: just a dummy
                 };
@@ -394,6 +396,7 @@ void conversation_draw() {
                 chowder_set_PV(PV_2D);
                 chowder_set_M(M4_Identity());
                 chowder_set_primitive(SOUP_LINES);
+                chowder_set_size(1.0f);
                 {
                     { // entities
                         _for_each_entity_ {
@@ -431,9 +434,9 @@ void conversation_draw() {
                         || state_Draw_command_is_(XMirror)
                         || state_Draw_command_is_(YMirror)
                         ;
-                    JUICEIT_EASYTWEEN(&bbpr_alpha, (bbpr ? 0.50f : 0.0f), 0.5f);
+                    JUICEIT_EASYTWEEN(&bbpr_alpha, (bbpr ? 0.60f : 0.0f), 0.5f);
 
-                    { // BBPR big bad panic rectangle bbpr
+                    if (0) { // BBPR big bad panic rectangle bbpr
                         chowder_end();
                         glDepthMask(GL_FALSE);
                         eso_begin(M4_Identity(), SOUP_TRIANGLES);
@@ -495,6 +498,7 @@ void conversation_draw() {
                                      0
                                      || (!popup->manager.is_active(ToolboxGroup::Draw))
                                      || (state.Draw_command.flags & FOCUS_THIEF) // NOTE: works FORNOW, but only incidentally
+                                     || (state_Draw_command_is_(None)) // NOTE: works FORNOW, but only incidentally
                                     )
                                ) continue;
 

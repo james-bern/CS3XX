@@ -98,7 +98,7 @@ if (feature_plane_is_active != 0) { // feature plane override
 if (hover_plane_is_active != 0) { // hover plane override
     if (dot(fs_in.normal_World, hover_plane_normal) > 0.99) {
         if (abs(dot(fs_in.position_World, hover_plane_normal) - hover_plane_signed_distance_to_world_origin) < 0.01) {
-            rgb = mix(rgb, vec3(1.0 - dark_light_tween), 0.07);
+            rgb = mix(rgb, vec3(1.0 - dark_light_tween), 0.12);
         }
     }
 }
