@@ -396,7 +396,7 @@ void conversation_draw() {
                 chowder_set_PV(PV_2D);
                 chowder_set_M(M4_Identity());
                 chowder_set_primitive(SOUP_LINES);
-                chowder_set_size(1.0f);
+                chowder_reset_size();
                 {
                     { // entities
                         _for_each_entity_ {
@@ -942,7 +942,15 @@ void conversation_draw() {
                             { // snapped (PINK) entity
                                 if (mouse_transformed__PINK.snapped) {
                                     chowder_set_color(PINK);
+
+                                    chowder_set_stipple(true);
                                     chowder_entity(&drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to]);
+                                    chowder_reset_stipple();
+
+                                    chowder_set_primitive(SOUP_POINTS);
+                                    chowder_set_size(4.0f);
+                                    chowder_vertex(mouse_transformed__PINK.mouse_position);
+                                    chowder_reset_size();
                                 }
                             }
                         }
