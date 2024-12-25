@@ -28,24 +28,6 @@
 // TODO: 3D-picking is broken for non xyz planes
 // TODO: revisit extruded cut on the botton of box with name (why did the students need to flip their names)
 
-mat4 get_M_2D_preview() {
-    if (state_Draw_command_is_(Translate)) {
-        return M4_Translation(two_click_command->awaiting_second_click ? 
-            preview->mouse_transformed__PINK_position - two_click_command->first_click :
-            preview->mouse_from_Draw_Enter__BLUE_position);
-    } else if (state_Draw_command_is_(Rotate)) {
-        if (two_click_command->awaiting_second_click) {
-            return M4_Translation(two_click_command->first_click) 
-                * M4_RotationAboutZAxis(ATAN2(preview->mouse_transformed__PINK_position - two_click_command->first_click)) 
-                * M4_Translation(-two_click_command->first_click);
-        } else {
-            return M4_RotationAboutZAxis(ATAN2(preview->mouse_from_Draw_Enter__BLUE_position));
-        }
-    }
-
-    return M4_Identity();
-}
-
 mat4 get_M_3D_from_2D(bool for_drawing = false) {
     vec3 up = { 0.0f, 1.0f, 0.0f };
     real dot_product = dot(feature_plane->normal, up);
@@ -101,7 +83,6 @@ void conversation_draw() {
     mat4 inv_PV_2D = inverse(PV_2D);
     vec2 mouse_World_2D = transformPoint(inv_PV_2D, other.mouse_OpenGL);
     mat4 M_3D_from_2D = get_M_3D_from_2D(true);
-    mat4 M_2D_preview = get_M_2D_preview();
     mat4 P_3D = camera_mesh->get_P();
     mat4 V_3D = camera_mesh->get_V();
     mat4 PV_3D = P_3D * V_3D;
@@ -1237,7 +1218,7 @@ void conversation_draw() {
                             }
 
 
-                            if (!state_Snap_command_is_(None)) { // snapped (PINK) entity
+                            if (!state_Snap_command_is_(None) && !is_feature_plane_pass) { // snapped (PINK) entity
                                 if (mouse_transformed__PINK.snapped) {
                                     // chowder_set_color(PINK);
 
