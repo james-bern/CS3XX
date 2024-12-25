@@ -219,7 +219,6 @@ struct Cookbook {
                         state.Mesh_command,
                         out_quantity,
                         in_quantity,
-                        drawing->origin,
                         drawing->axis_base_point,
                         drawing->axis_angle_from_y);
                 meshes_free_AND_zero(&state.meshes); // FORNOW
