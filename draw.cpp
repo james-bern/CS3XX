@@ -1,4 +1,5 @@
 // // FUN PROJECTS FOR NATE and JIM
+// TODO: RevolveAdd and RevolveCut need to start at 360
 // TODO: cooldown on bbpr restore so less flickery 
 // TODO: select window preview
 // TODO: select connected preview
@@ -344,6 +345,7 @@ void conversation_draw() {
                     _chowder.primitive = primitive;
                     _CHOWDER_CYCLE_ESO();
                 };
+                auto chowder_reset_primitive = [&]() { chowder_set_primitive(SOUP_LINES); };
 
                 auto chowder_set_color = [&](vec3 color) {
                     _chowder.color = color;
@@ -404,6 +406,28 @@ void conversation_draw() {
                                 chowder_set_color_AND_chower_entity(entity);
                             }
                         }
+
+                        if (other.show_details_2D) { // dots
+                            chowder_set_size(2.0f);
+                            chowder_set_primitive(SOUP_POINTS);
+                            chowder_set_color(pallete_2D->dots);
+                            _for_each_entity_ {
+                                if (0
+                                        || state_Draw_command_is_(Translate)
+                                        || state_Draw_command_is_(Rotate)
+                                   ) continue;
+
+                                if (entity->type == EntityType::Circle) {
+                                    CircleEntity *circle = &entity->circle;
+                                    if (circle->has_pseudo_point) eso_vertex(circle->get_pseudo_point());
+                                    continue;
+                                }
+                                chowder_vertex(entity_get_start_point(entity));
+                                chowder_vertex(entity_get_end_point(entity));
+                            }
+                            chowder_reset_primitive();
+                            chowder_reset_size();
+                        }
                     }
 
                     { // gray underlay
@@ -433,10 +457,11 @@ void conversation_draw() {
                         || state_Draw_command_is_(LCopy)
                         || state_Draw_command_is_(XMirror)
                         || state_Draw_command_is_(YMirror)
+                        || (!state_Snap_command_is_(None))
                         ;
                     JUICEIT_EASYTWEEN(&bbpr_alpha, (bbpr ? 0.60f : 0.0f), 0.5f);
 
-                    if (0) { // BBPR big bad panic rectangle bbpr
+                    { // BBPR big bad panic rectangle bbpr
                         chowder_end();
                         glDepthMask(GL_FALSE);
                         eso_begin(M4_Identity(), SOUP_TRIANGLES);
@@ -914,45 +939,73 @@ void conversation_draw() {
                                 chowder_reset_stipple();
                             }
 
+
+                            if (!state_Snap_command_is_(None)) { // snapped (PINK) entity
+                                if (mouse_transformed__PINK.snapped) {
+                                    // chowder_set_color(PINK);
+
+                                    // chowder_set_stipple(true);
+                                    Entity *entity_snapped_to = &drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to];
+                                    chowder_set_color_AND_chower_entity(entity_snapped_to);
+
+                                    { // FORNOW: Center, End, Intersect additional annotations
+                                        _for_each_entity_ {
+                                            if (0
+                                                    || state_Snap_command_is_(End)
+                                                    || state_Snap_command_is_(Intersect)
+                                               ) {
+                                                if (IS_ZERO(squared_distance_point_entity(mouse_transformed__PINK.mouse_position, entity))) {
+                                                    chowder_set_color_AND_chower_entity(entity);
+                                                }
+                                            } else if (0
+                                                    || state_Snap_command_is_(Center)
+                                                    ) {
+                                                if (0
+                                                        || entity->type == EntityType::Arc
+                                                        || entity->type == EntityType::Circle
+                                                   ) {
+                                                    vec2 center = (entity->type == EntityType::Arc) ? entity->arc.center : entity->circle.center;
+                                                    if (IS_ZERO(squaredDistance(mouse_transformed__PINK.mouse_position, center))) {
+                                                        chowder_set_color_AND_chower_entity(entity);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    chowder_reset_stipple();
+
+                                    chowder_set_color(get_color_from_color_code(entity_snapped_to->color_code));
+                                    chowder_set_primitive(SOUP_POINTS);
+                                    chowder_set_size(4.0f);
+                                    chowder_vertex(mouse_transformed__PINK.mouse_position);
+                                    chowder_reset_size();
+                                    chowder_reset_primitive();
+                                }
+                            }
+
                             { // crosshairs
                                 bool not_drawing_on_top_of_system_cursor = ((pass != DRAW2D_PASS_Mouse) || Snap_eating_mouse);
                                 if (not_drawing_on_top_of_system_cursor) {
                                     real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
 
-                                    eso_color(basic.black);
+                                    chowder_set_color(basic.black);
                                     chowder_set_size(2.0f);
                                     real r = 1.3 * funky_OpenGL_factor;
-                                    eso_vertex(crosshair - V2(r, 0));
-                                    eso_vertex(crosshair + V2(r, 0));
-                                    eso_vertex(crosshair - V2(0, r));
-                                    eso_vertex(crosshair + V2(0, r));
+                                    chowder_vertex(crosshair - V2(r, 0));
+                                    chowder_vertex(crosshair + V2(r, 0));
+                                    chowder_vertex(crosshair - V2(0, r));
+                                    chowder_vertex(crosshair + V2(0, r));
                                     chowder_reset_size();
 
-                                    eso_color(color);
+                                    chowder_set_color(color);
                                     r = 1.2 * funky_OpenGL_factor;
-                                    eso_vertex(crosshair - V2(r, 0));
-                                    eso_vertex(crosshair + V2(r, 0));
-                                    eso_vertex(crosshair - V2(0, r));
-                                    eso_vertex(crosshair + V2(0, r));
+                                    chowder_vertex(crosshair - V2(r, 0));
+                                    chowder_vertex(crosshair + V2(r, 0));
+                                    chowder_vertex(crosshair - V2(0, r));
+                                    chowder_vertex(crosshair + V2(0, r));
                                 }
                             }
-                        }
 
-                        { // TODOLATER: other annotations
-                            { // snapped (PINK) entity
-                                if (mouse_transformed__PINK.snapped) {
-                                    chowder_set_color(PINK);
-
-                                    chowder_set_stipple(true);
-                                    chowder_entity(&drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to]);
-                                    chowder_reset_stipple();
-
-                                    chowder_set_primitive(SOUP_POINTS);
-                                    chowder_set_size(4.0f);
-                                    chowder_vertex(mouse_transformed__PINK.mouse_position);
-                                    chowder_reset_size();
-                                }
-                            }
                         }
                     }
 
@@ -961,26 +1014,6 @@ void conversation_draw() {
             }
 
             { // TODOLATER: dots snap_divide_dot
-                if (other.show_details_2D) { // dots
-                    eso_begin(PV_2D, SOUP_POINTS);
-                    eso_size(2.0f);
-                    eso_color(pallete_2D->dots);
-                    _for_each_entity_ {
-                        if (0
-                                || state_Draw_command_is_(Translate)
-                                || state_Draw_command_is_(Rotate)
-                           ) continue;
-
-                        if (entity->type == EntityType::Circle) {
-                            CircleEntity *circle = &entity->circle;
-                            if (circle->has_pseudo_point) eso_vertex(circle->get_pseudo_point());
-                            continue;
-                        }
-                        eso_vertex(entity_get_start_point(entity));
-                        eso_vertex(entity_get_end_point(entity));
-                    }
-                    eso_end();
-                }
 
                 { // snap_divide_dot
                     eso_begin(PV_2D, SOUP_POINTS);
