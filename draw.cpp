@@ -1152,8 +1152,8 @@ void conversation_draw() {
             JUICEIT_EASYTWEEN(&preview->tubes_color, target_preview_tubes_color);
 
             #if 1
-            // mat4 T_o = M4_Translation(preview->drawing_origin);
-            // mat4 inv_T_o = inverse(T_o);
+            mat4 T_o = M4_Translation(preview->drawing_origin);
+            mat4 inv_T_o = inverse(T_o);
             glDisable(GL_DEPTH_TEST);
             eso_begin(PV_3D * M_3D_from_2D * inv_T_o, SOUP_LINES); {
                 eso_size(1.0f);
