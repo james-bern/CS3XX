@@ -469,7 +469,7 @@ void fancy_draw(mat4 P, mat4 V, mat4 M, DrawMesh *mesh) {
 
 
     for_(pass, 2) {
-        if ((pass == 1) && !other.show_details) continue;
+        if ((pass == 1) && !other.show_details_3D) continue;
 
         glDisable(GL_SCISSOR_TEST);
         glBindFramebuffer(GL_FRAMEBUFFER, GL2.FBO);

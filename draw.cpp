@@ -1,15 +1,16 @@
 // // FUN PROJECTS FOR NATE and JIM
-// TODO: stipple arcs by passing center and radius to shader ( theta(L_stipple, r) )
-// TODO: preview highlight select connected
+// TODO: select window preview
+// TODO: select connected preview
 // TODO: Translate, Rotate, Scale etc. should refuse to activate if nothing is selected (their buttons should also be grayed out)
+// TODO: properly stipple arcs by passing center and radius to shader ( theta(L_stipple, r) )
 // TODO: attractive sparkly swoosh of light (see olllld commits) while extruding
 // TODO: undo and redo buttons (where to put these? -- i think along the top in a separate pane)
 // TODO: press TAB to switch from Box to CenterBox
-// TODO: highlight 3D faces before clicking to spawn plane
-// TODO: select connected preview
-// TODO: select window preview
 // TODO: make BLUE not show up until the user has keyed something into the draw Enter popup
 // TODO: PINK endpoint snaps should draw a big pink dot
+// TODO: z-sort the feature plane and grid (probably after breaking the feature plane into two pieces oh god wai)
+// XXXX: highlight 3D faces before clicking to spawn plane
+// XXXX: feature plane tween needs work when clicking on mesh
 
 // // TODO: (Jim) stuff for alpha
 // TODO: fix in/out relationship (right now they just seem to add)
@@ -603,129 +604,146 @@ void conversation_draw() {
 
                             // TODO: select connected should preview the entire connected selection
                             if (pass == DRAW2D_PASS_Mouse) {
-                                DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
-                                if (closest_result.success) { // highlight (TODO: for 3D face as well)
-                                    if (
-                                            0
-                                            || (state_Draw_command_is_(Divide2) && (!two_click_command->awaiting_second_click))
-                                            || (state_Draw_command_is_(DogEar) && (!two_click_command->awaiting_second_click))
-                                            || (state_Draw_command_is_(Fillet) && (!two_click_command->awaiting_second_click))
-                                            || (state_Draw_command_is_(Join2) && (!two_click_command->awaiting_second_click))
-                                            || (state_Draw_command_is_(Select) && (!closest_result.closest_entity->is_selected))
-                                            || (state_Draw_command_is_(Deselect) && (closest_result.closest_entity->is_selected))
-                                       ) {
-                                        // TODO: consider having closest result return a nill entity
-                                        //       that is valid to pass to draw *shrug*
-                                        chowder_set_color_AND_chower_entity(closest_result.closest_entity);
+                                if (1
+                                        && state_Draw_command_is_(Select)
+                                        && state_Xsel_command_is_(Window)
+                                        && two_click_command->awaiting_second_click
+                                   ) {
+                                    _for_each_entity_ {
+                                        if (entity->is_selected) continue;
+                                        bbox2 window = {
+                                            MIN(click_1.x, click_2.x),
+                                            MIN(click_1.y, click_2.y),
+                                            MAX(click_1.x, click_2.x),
+                                            MAX(click_1.y, click_2.y)
+                                        };
+                                        if (bbox_contains(window, entity_get_bbox(entity))) chowder_set_color_AND_chower_entity(entity);
                                     }
-                                }
+                                } else {
+                                    DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
+                                    if (closest_result.success) { // highlight (TODO: for 3D face as well)
+                                        if (
+                                                0
+                                                || (state_Draw_command_is_(Divide2) && (!two_click_command->awaiting_second_click))
+                                                || (state_Draw_command_is_(DogEar) && (!two_click_command->awaiting_second_click))
+                                                || (state_Draw_command_is_(Fillet) && (!two_click_command->awaiting_second_click))
+                                                || (state_Draw_command_is_(Join2) && (!two_click_command->awaiting_second_click))
+                                                || (state_Draw_command_is_(Select) && (!closest_result.closest_entity->is_selected))
+                                                || (state_Draw_command_is_(Deselect) && (closest_result.closest_entity->is_selected))
+                                           ) {
+                                            // TODO: consider having closest result return a nill entity
+                                            //       that is valid to pass to draw *shrug*
+                                            chowder_set_color_AND_chower_entity(closest_result.closest_entity);
+                                        }
+                                    }
 
-                                if (two_click_command->awaiting_second_click) {
-                                    if (0) {
-                                    } else if (state_Draw_command_is_(Fillet) || state_Draw_command_is_(DogEar)) {
-                                        if (closest_result.success) {
-                                            if (state_Draw_command_is_(Fillet)) {
-                                                FilletResult fillet_result = preview_fillet(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->fillet_radius);
-                                                if (fillet_result.fillet_success) {
-                                                    chowder_set_color_AND_chower_entity(&fillet_result.ent_one);
-                                                    chowder_set_color_AND_chower_entity(&fillet_result.ent_two);
-                                                    chowder_set_color_AND_chower_entity(&fillet_result.fillet_arc);
-                                                } else {
+                                    if (two_click_command->awaiting_second_click) {
+                                        if (0) {
+                                        } else if (state_Draw_command_is_(Fillet) || state_Draw_command_is_(DogEar)) {
+                                            if (closest_result.success) {
+                                                if (state_Draw_command_is_(Fillet)) {
+                                                    FilletResult fillet_result = preview_fillet(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->fillet_radius);
+                                                    if (fillet_result.fillet_success) {
+                                                        chowder_set_color_AND_chower_entity(&fillet_result.ent_one);
+                                                        chowder_set_color_AND_chower_entity(&fillet_result.ent_two);
+                                                        chowder_set_color_AND_chower_entity(&fillet_result.fillet_arc);
+                                                    } else {
+                                                        chowder_set_color_AND_chower_entity(two_click_command->entity_closest_to_first_click);
+                                                        chowder_set_color_AND_chower_entity(closest_result.closest_entity);
+                                                    }
+                                                } else { ASSERT(state_Draw_command_is_(DogEar)); 
+                                                    DogEarResult dogear_result = preview_dogear(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->dogear_radius);
+                                                    if (dogear_result.dogear_success) {
+                                                        chowder_set_color_AND_chower_entity(&dogear_result.ent_one);
+                                                        chowder_set_color_AND_chower_entity(&dogear_result.ent_two);
+                                                        chowder_set_color_AND_chower_entity(&dogear_result.fillet_arc_one);
+                                                        chowder_set_color_AND_chower_entity(&dogear_result.fillet_arc_two);
+                                                        chowder_set_color_AND_chower_entity(&dogear_result.dogear_arc);
+                                                    } else {
+                                                        chowder_set_color_AND_chower_entity(closest_result.closest_entity);
+                                                    }
+                                                }
+                                            }
+
+                                            // { // X
+                                            //     real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
+
+                                            //     chowder_set_size(2.0f);
+                                            //     real r = 0.5f * funky_OpenGL_factor;
+                                            //     eso_vertex(click_average_click + V2( r,  r));
+                                            //     eso_vertex(click_average_click + V2(-r, -r));
+                                            //     eso_vertex(click_average_click + V2(-r,  r));
+                                            //     eso_vertex(click_average_click + V2( r, -r));
+                                            //     chowder_reset_size();
+                                            // }
+                                        } else if (state_Draw_command_is_(Divide2)) {
+                                            // TODO animated dotted line
+                                            // TODO dotted arcs (here (easy) and glsl (hard))
+
+                                            if (closest_result.success) {
+
+                                                ClosestIntersectionResult intersection_result =
+                                                    closest_intersection(
+                                                            two_click_command->entity_closest_to_first_click,
+                                                            closest_result.closest_entity,
+                                                            mouse_no_snap_potentially_15_deg__WHITE.mouse_position
+                                                            );
+
+                                                // vec3 pallete_failure = V3(1.0f, 0.0f, 0.0f);
+                                                // vec3 pallete_warning = V3(1.0f, 1.0f, 0.0f);
+
+                                                bool other_condition = (
+                                                        intersection_result.point_is_on_entity_b
+                                                        // || intersection_result.point_is_on_entity_a
+                                                        );
+                                                bool failure = (intersection_result.no_possible_intersection || (!other_condition));
+                                                if (failure) {
+                                                    // chowder_set_color(pallete_failure);
                                                     chowder_set_color_AND_chower_entity(two_click_command->entity_closest_to_first_click);
                                                     chowder_set_color_AND_chower_entity(closest_result.closest_entity);
-                                                }
-                                            } else { ASSERT(state_Draw_command_is_(DogEar)); 
-                                                DogEarResult dogear_result = preview_dogear(two_click_command->entity_closest_to_first_click, closest_result.closest_entity, click_average_click, popup->dogear_radius);
-                                                if (dogear_result.dogear_success) {
-                                                    chowder_set_color_AND_chower_entity(&dogear_result.ent_one);
-                                                    chowder_set_color_AND_chower_entity(&dogear_result.ent_two);
-                                                    chowder_set_color_AND_chower_entity(&dogear_result.fillet_arc_one);
-                                                    chowder_set_color_AND_chower_entity(&dogear_result.fillet_arc_two);
-                                                    chowder_set_color_AND_chower_entity(&dogear_result.dogear_arc);
                                                 } else {
+
+                                                    auto Q = [&](Entity *entity) {
+                                                        if (entity->type == EntityType::Line) {
+                                                            LineEntity *line = &entity->line;
+                                                            chowder_vertex(line->start);
+                                                            chowder_vertex(intersection_result.point);
+                                                        }
+                                                    };
+
+
+                                                    chowder_set_color_AND_chower_entity(two_click_command->entity_closest_to_first_click);
                                                     chowder_set_color_AND_chower_entity(closest_result.closest_entity);
-                                                }
-                                            }
-                                        }
 
-                                        // { // X
-                                        //     real funky_OpenGL_factor = other.camera_drawing.ortho_screen_height_World / 120.0f;
 
-                                        //     chowder_set_size(2.0f);
-                                        //     real r = 0.5f * funky_OpenGL_factor;
-                                        //     eso_vertex(click_average_click + V2( r,  r));
-                                        //     eso_vertex(click_average_click + V2(-r, -r));
-                                        //     eso_vertex(click_average_click + V2(-r,  r));
-                                        //     eso_vertex(click_average_click + V2( r, -r));
-                                        //     chowder_reset_size();
-                                        // }
-                                    } else if (state_Draw_command_is_(Divide2)) {
-                                        // TODO animated dotted line
-                                        // TODO dotted arcs (here (easy) and glsl (hard))
+                                                    chowder_set_stipple(true);
+                                                    {
+                                                        // chowder_set_color(pallete_2D->two_click_blend);
+                                                        // chowder_set_color(pallete_2D->two_click_first_click);
+                                                        chowder_set_color(get_color_from_color_code(two_click_command->entity_closest_to_first_click->color_code));
+                                                        Q(two_click_command->entity_closest_to_first_click);
+                                                        // Q(closest_result.closest_entity);
+                                                    }
+                                                    chowder_reset_stipple();
 
-                                        if (closest_result.success) {
-
-                                            ClosestIntersectionResult intersection_result =
-                                                closest_intersection(
-                                                        two_click_command->entity_closest_to_first_click,
-                                                        closest_result.closest_entity,
-                                                        mouse_no_snap_potentially_15_deg__WHITE.mouse_position
-                                                        );
-
-                                            // vec3 pallete_failure = V3(1.0f, 0.0f, 0.0f);
-                                            // vec3 pallete_warning = V3(1.0f, 1.0f, 0.0f);
-
-                                            bool other_condition = (
-                                                    intersection_result.point_is_on_entity_b
-                                                    // || intersection_result.point_is_on_entity_a
-                                                    );
-                                            bool failure = (intersection_result.no_possible_intersection || (!other_condition));
-                                            if (failure) {
-                                                // chowder_set_color(pallete_failure);
-                                                chowder_set_color_AND_chower_entity(two_click_command->entity_closest_to_first_click);
-                                                chowder_set_color_AND_chower_entity(closest_result.closest_entity);
-                                            } else {
-
-                                                auto Q = [&](Entity *entity) {
-                                                    if (entity->type == EntityType::Line) {
-                                                        LineEntity *line = &entity->line;
-                                                        chowder_vertex(line->start);
+                                                    // TODO: dotted lines to point
+                                                    // TODO: FAILURE/WARNING color for point off entity
+                                                    // TODO: SUCCESS color for point on entity
+                                                    chowder_set_primitive(SOUP_POINTS);
+                                                    chowder_set_size(4.0);
+                                                    {
+                                                        chowder_set_color(get_color_from_color_code(closest_result.closest_entity->color_code));
                                                         chowder_vertex(intersection_result.point);
                                                     }
-                                                };
-
-
-                                                chowder_set_color_AND_chower_entity(two_click_command->entity_closest_to_first_click);
-                                                chowder_set_color_AND_chower_entity(closest_result.closest_entity);
-
-
-                                                chowder_set_stipple(true);
-                                                {
-                                                    // chowder_set_color(pallete_2D->two_click_blend);
-                                                    // chowder_set_color(pallete_2D->two_click_first_click);
-                                                    chowder_set_color(get_color_from_color_code(two_click_command->entity_closest_to_first_click->color_code));
-                                                    Q(two_click_command->entity_closest_to_first_click);
-                                                    // Q(closest_result.closest_entity);
+                                                    chowder_reset_size();
+                                                    chowder_set_primitive(SOUP_LINES);
                                                 }
-                                                chowder_reset_stipple();
-
-                                                // TODO: dotted lines to point
-                                                // TODO: FAILURE/WARNING color for point off entity
-                                                // TODO: SUCCESS color for point on entity
-                                                chowder_set_primitive(SOUP_POINTS);
-                                                chowder_set_size(4.0);
-                                                {
-                                                    chowder_set_color(get_color_from_color_code(closest_result.closest_entity->color_code));
-                                                    chowder_vertex(intersection_result.point);
-                                                }
-                                                chowder_reset_size();
-                                                chowder_set_primitive(SOUP_LINES);
                                             }
+                                        } else if (state_Draw_command_is_(Join2)) {
+                                            chowder_entity(two_click_command->entity_closest_to_first_click);
+                                        } else if (state_Draw_command_is_(Select)) {
+                                            // TODO: draw all selected entities in white
                                         }
-                                    } else if (state_Draw_command_is_(Join2)) {
-                                        chowder_entity(two_click_command->entity_closest_to_first_click);
-                                    } else if (state_Draw_command_is_(Select)) {
-                                        // TODO: draw all selected entities in white
                                     }
                                 }
                             }
@@ -928,7 +946,7 @@ void conversation_draw() {
             }
 
             { // TODOLATER: dots snap_divide_dot
-                if (other.show_details) { // dots
+                if (other.show_details_2D) { // dots
                     eso_begin(PV_2D, SOUP_POINTS);
                     eso_size(2.0f);
                     eso_color(pallete_2D->dots);
@@ -1041,7 +1059,7 @@ void conversation_draw() {
                         }
                     }
                     {
-                        real eps = 10.0f;
+                        real eps = 5.0f;
                         target_bbox.min[0] -= eps;
                         target_bbox.max[0] += eps;
                         target_bbox.min[1] -= eps;
@@ -1056,20 +1074,19 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->feature_plane_bbox.min, target_bbox.min);
                 JUICEIT_EASYTWEEN(&preview->feature_plane_bbox.max, target_bbox.max);
                 if (other.time_since_plane_selected == 0.0f) { // FORNOW
+
                     preview->feature_plane_bbox = face_selection_bbox;
                     preview->feature_plane_alpha = 0.0f;
-
                     // FORNOW
                     if (face_selection_bbox.min[0] > face_selection_bbox.max[0]) {
                         preview->feature_plane_bbox = {};
                     }
-
                     target_bbox = bbox_inflate(target_bbox, -10.0f);
                 }
             }
         }
 
-        JUICEIT_EASYTWEEN(&preview->feature_plane_alpha, (feature_plane->is_active) ? 0.33f : 0.0f);
+        JUICEIT_EASYTWEEN(&preview->feature_plane_alpha, (feature_plane->is_active) ? 0.4f : 0.0f);
 
         #if 0
         if (!other.hide_grid) { // grid 3D grid 3d grid
@@ -1139,6 +1156,7 @@ void conversation_draw() {
             mat4 inv_T_o = inverse(T_o);
             glDisable(GL_DEPTH_TEST);
             eso_begin(PV_3D * M_3D_from_2D * inv_T_o, SOUP_LINES); {
+                eso_size(1.0f);
                 eso_overlay(true);
                 _for_each_selected_entity_ {
                     real alpha;
@@ -1466,8 +1484,8 @@ void conversation_draw() {
                 real height = 12.0f;
                 static char scratch_buffer[1024];
 
-                if (other.show_details) {
-                    {
+                { // details
+                    if (other.show_details_2D) {
                         EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height), height, pallete_2D->foreground };
                         if (!any_entities_selected) {
                             sprintf(scratch_buffer, "%d lines %d arcs %d circles", num_lines, num_arcs, num_circles);
@@ -1487,7 +1505,7 @@ void conversation_draw() {
                         easy_text_drawf(&pen, scratch_buffer);
                     }
 
-                    {
+                    if (other.show_details_3D) {
                         EasyTextPen pen = { V2(0.0f, window_get_height_Pixel() - height), height, pallete_2D->foreground };
                         sprintf(scratch_buffer, "%d triangles %d vertices", meshes->work.num_triangles, meshes->work.num_vertices);
                         real w = _easy_text_dx(&pen, scratch_buffer);

@@ -74,20 +74,20 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             *toolbox = {};
 
-            real _w = 80.0f;
+            real _w = 54.0f;
             real h = 12.0f;
             EasyTextPen Draw_pen,  Xsel_pen,  Snap_pen,  Colo_pen,  Both_pen,  Mesh_pen;
             EasyTextPen Draw_pen2, Xsel_pen2, Snap_pen2, Colo_pen2, Both_pen2, Mesh_pen2;
             {
-                real padding = 8.0f;
+                real padding = 4.0f;
 
-                Draw_pen = { V2(padding, padding), h, basic.white, true };
+                Draw_pen = { V2(padding, padding + 6), h, basic.white, true };
                 Draw_pen2 = Draw_pen;
                 Draw_pen2.color = basic.light_gray;
 
                 Xsel_pen = Draw_pen;
                 Xsel_pen2 = Draw_pen2;
-                Xsel_pen.origin.x += (_w + padding) - 4.0f;
+                Xsel_pen.origin.x += (_w + padding);
                 Xsel_pen2.origin = Xsel_pen.origin;
 
                 Snap_pen = Xsel_pen;
@@ -109,7 +109,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                 Mesh_pen = Draw_pen;
                 Mesh_pen2 = Draw_pen2;
-                Mesh_pen.origin.x = window_get_width_Pixel() - (_w + padding);
+                Mesh_pen.origin.x = window_get_width_Pixel() - (64 + padding);
                 // Mesh_pen.origin.y += 64.0f;
                 Mesh_pen2.origin = Mesh_pen.origin;
             }
@@ -191,6 +191,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             } else { ASSERT(group == ToolboxGroup::Mesh);
                                 pen = &Mesh_pen;
                                 pen2 = &Mesh_pen2;
+                                w = 64.0f;
                             }
 
                             real eps = 6.0;
@@ -358,6 +359,23 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 eso_end();
+                            } else if ((custom_button_id == 2) || (custom_button_id == 3)) { // details_2D details 2D dots
+
+                                int sign = (custom_button_id == 2) ? -1 : 1;
+                                bool show_details = (custom_button_id == 2) ? other.show_details_2D : other.show_details_3D;
+
+                                real x = get_x_divider_drawing_mesh_Pixel() + sign * 2 * 16.0f;
+                                real y = 16.0f;
+                                real half_bbox_side_length = 8.0f;
+                                bbox = { x - half_bbox_side_length, y - half_bbox_side_length, x + half_bbox_side_length, y + half_bbox_side_length };
+                                eso_begin(other.OpenGL_from_Pixel, SOUP_POINTS);
+                                eso_overlay(true);
+                                eso_size((!show_details) ? 2.0f : 4.0f);
+                                eso_color(basic.red);//(!other.show_details_2D) ? pallete_2D->button_background : pallete_2D->button_foreground);
+                                eso_vertex(x, y);
+                                eso_end();
+                            } else {
+                                ASSERT(false);
                             }
                         }
                     }
@@ -508,11 +526,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     SEPERATOR();
 
                     if (GUIBUTTON(commands.ToggleConsole)) other.show_console = !other.show_console;
-                    if (GUIBUTTON(commands.ToggleDetails)) other.show_details = !other.show_details;
                     if (GUIBUTTON(commands.ToggleFPS)) other.show_debug = !other.show_debug;
                     if (GUIBUTTON(commands.ToggleHistory)) other.show_history = !other.show_history;
                     if (GUIBUTTON(commands.ToggleLightMode2D, false, false, true, 0)) target_pallete->_2D = (target_pallete->_2D.id == PALLETE_2D_DARK) ?  _pallete_2D_light : _pallete_2D_dark;
                     if (GUIBUTTON(commands.ToggleLightMode3D, false, false, true, 1)) target_pallete->_3D = (target_pallete->_3D.id == PALLETE_3D_DARK) ?  _pallete_3D_light : _pallete_3D_dark;
+                    if (GUIBUTTON(commands.ToggleDetails2D, false, false, true, 2)) other.show_details_2D = !other.show_details_2D;
+                    if (GUIBUTTON(commands.ToggleDetails3D, false, false, true, 3)) other.show_details_3D = !other.show_details_3D;
                 }
 
                 { // Colo
@@ -655,7 +674,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Measure);
                     SEPERATOR();
                     GUIBUTTON(commands.Translate);
-                    GUIBUTTON(commands.Drag);
+                    // GUIBUTTON(commands.Drag);
                     GUIBUTTON(commands.Rotate);
                     if (GUIBUTTON(commands.Scale)) {
                         preview->scale_factor = 1.0f;
@@ -673,7 +692,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.Divide2);
                     GUIBUTTON(commands.Join2);
                     SEPERATOR();
-                    GUIBUTTON(commands.ElfHat);
+                    // GUIBUTTON(commands.ElfHat);
                     GUIBUTTON(commands.Fillet);
                     GUIBUTTON(commands.DogEar);
                     GUIBUTTON(commands.Offset);
@@ -681,14 +700,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     GUIBUTTON(commands.SetOrigin);
                     GUIBUTTON(commands.SetAxis);
                     SEPERATOR();
-                    if (GUIBUTTON(commands.ClearDrawing)) {
+                    if (GUIBUTTON(commands.Clear2D)) {
                         result.checkpoint_me = true;
                         // result.snapshot_me = true;
                         list_free_AND_zero(&drawing->entities);
                         *drawing = {};
-                        MESSAGE_SUCCESS("ClearDrawing");
+                        MESSAGE_SUCCESS("Clear2D");
                     }
-                    if (GUIBUTTON(commands.ZoomDrawing)) {
+                    if (GUIBUTTON(commands.Zoom2D)) {
                         init_camera_drawing();
                     }
                     SEPERATOR();
@@ -773,12 +792,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                         }
                     }
                     SEPERATOR();
-                    if (GUIBUTTON(commands.ClearMesh)) {
+                    if (GUIBUTTON(commands.Clear3D)) {
                         result.checkpoint_me = true;
                         result.snapshot_me = true;
                         meshes_free_AND_zero(meshes);
                         *feature_plane = {};
-                        MESSAGE_SUCCESS("ClearMesh");
+                        MESSAGE_SUCCESS("Clear3D");
                     }
                     if (GUIBUTTON(commands.ZoomMesh)) {
                         init_camera_mesh();
@@ -822,7 +841,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                    if (GUIBUTTON(commands.TOGGLE_GRID)) {
+                    if (GUIBUTTON(commands.ToggleGrid)) {
                         other.hide_grid = !other.hide_grid;
 
                     }
@@ -1759,8 +1778,8 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                 if (snap_result.hit_mesh) { // something hit
                     if (!(state.Mesh_command.flags & HIDE_FEATURE_PLANE)) {
                         result.checkpoint_me = result.record_me = true;
-                        if (!feature_plane->is_active)
-                            other.time_since_plane_selected = 0.0f;
+                        // if (!feature_plane->is_active)
+                        other.time_since_plane_selected = 0.0f;
                         feature_plane->is_active = true;
 
                         // The default tolerance on this is too tight to prevent clicks on same plane from resetting things

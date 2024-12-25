@@ -607,7 +607,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool awaiting_close_confirmation;
 
     bool hide_grid;
-    bool show_details;
+    bool show_details_2D;
+    bool show_details_3D;
     bool show_console;
     bool show_help;
     bool show_history;
