@@ -7,8 +7,8 @@
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
     real f = multiplier * 9.2f; // 6.9 = -ln(.0001), where .001 is the remaining percent after 1 second
-    if (IS_ZERO(multiplier)) f = 1.0f;
     if (other.slowmo) f *= 0.05;
+    if (IS_ZERO(multiplier)) f = 9999.0f; // FORNOW
     if (!other.paused && !other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * other.delta_time));
     else if (other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * 0.0083)); // Choose to use 120fps as framerate for paused stepping
 }

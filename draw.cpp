@@ -1,4 +1,7 @@
 // // FUN PROJECTS FOR NATE and JIM
+// TODO: each entity could have a target_color and current_color (just for drawing) -- BBPR and all that jazz could be replaced by a massive
+//       block that determines the entities target_color
+// TODO: divide on snap is deselecting even for End snap (End snap should never ever divide)
 // TODO: RevolveAdd and RevolveCut need to start at 360
 // TODO: cooldown on bbpr restore so less flickery 
 // TODO: select window preview
@@ -281,7 +284,7 @@ void conversation_draw() {
                 JUICEIT_EASYTWEEN(&preview->mouse_from_Draw_Enter__BLUE_position, Draw_Enter);
                 JUICEIT_EASYTWEEN(&preview->xy_xy, Snap_Enter);
 
-                JUICEIT_EASYTWEEN(&preview->mouse_transformed__PINK_position, mouse_transformed__PINK.mouse_position, 1.0f);
+                JUICEIT_EASYTWEEN(&preview->mouse_transformed__PINK_position, mouse_transformed__PINK.mouse_position, 1.5f);
 
                 JUICEIT_EASYTWEEN(&preview->polygon_num_sides, real(popup->polygon_num_sides));
 
@@ -459,7 +462,7 @@ void conversation_draw() {
                         || state_Draw_command_is_(YMirror)
                         || (!state_Snap_command_is_(None))
                         ;
-                    JUICEIT_EASYTWEEN(&bbpr_alpha, (bbpr ? 0.60f : 0.0f), 0.5f);
+                    JUICEIT_EASYTWEEN(&bbpr_alpha, (bbpr ? 0.60f : 0.0f), 0);//0.5f);
 
                     { // BBPR big bad panic rectangle bbpr
                         chowder_end();
@@ -499,6 +502,7 @@ void conversation_draw() {
                             if (!Snap_eating_mouse) {
                                 WHITE_or_PINK_depending_on_whether_snap_is_active = WHITE;
                                 mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = mouse_no_snap_potentially_15_deg__WHITE.mouse_position;
+                                preview->mouse_no_snap_potentially_15_deg__WHITE_position = mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active; // Important! (this keeps box from center to center corners in splash from looking weird)
                             } else {
                                 WHITE_or_PINK_depending_on_whether_snap_is_active = PINK;
                                 mouse_WHITE_or_PINK_position__depending_on_whether_snap_is_active = preview->mouse_transformed__PINK_position;
