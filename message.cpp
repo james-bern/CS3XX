@@ -88,7 +88,7 @@ void _messages_draw() {
         x_right = window_get_width_Pixel() - epsilon;
         y_bottom = window_get_height_Pixel() - epsilon;
         y_top = y_bottom - 96.0f;
-        if (other.show_details || other.show_debug) y_bottom -= font_height_Pixel;
+        if (other.show_details_3D || other.show_debug) y_bottom -= font_height_Pixel;
         bbox = { x_left, y_top, x_right, y_bottom };
     }
 

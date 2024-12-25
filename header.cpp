@@ -290,7 +290,7 @@ struct TransformMouseDrawingPositionResult {
     bool split_tangent_2;
 };
 
-struct MagicSnapResult3D {
+struct MagicSnapResult3D { // IS THIS A RAYCAST?--WHAT IS THIS? WHY IS IT CALLED MAGICSNAPRESULT3D? :)
     vec3 mouse_position;
     uint triangle_index;
 
@@ -588,6 +588,9 @@ struct Cursors {
 };
 
 struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
+
+    FeaturePlaneState hover_plane; // FORNOW
+
     Pallete pallete; 
     Pallete target_pallete; 
 
@@ -604,7 +607,8 @@ struct ScreenState_ChangesToThisDo_NOT_NeedToBeRecorded_other {
     bool awaiting_close_confirmation;
 
     bool hide_grid;
-    bool show_details;
+    bool show_details_2D;
+    bool show_details_3D;
     bool show_console;
     bool show_help;
     bool show_history;

@@ -7,14 +7,17 @@
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
     real f = multiplier * 9.2f; // 6.9 = -ln(.0001), where .001 is the remaining percent after 1 second
-    if (IS_ZERO(multiplier)) f = 1.0f;
     if (other.slowmo) f *= 0.05;
+    if (IS_ZERO(multiplier)) f = 9999.0f; // FORNOW
     if (!other.paused && !other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * other.delta_time));
     else if (other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * 0.0083)); // Choose to use 120fps as framerate for paused stepping
 }
 
 // NOTE: This doesn't use delta time (Commented out so ppl will notice if they start using it again, currenlty unused)
-// real _JUICEIT_EASYTWEEN(real t) { return 0.287f * log(t) + 1.172f; }
+real _JUICEIT_EASYTWEEN(real t) {
+    do_once { MESSAGE_FAILURE("_JUICEIT_EASYTWEEN"); };
+    return 0.287f * log(t) + 1.172f; // TODO: PORT
+}
 
 
 real get_x_divider_drawing_mesh_Pixel() {
@@ -201,7 +204,7 @@ TransformMouseDrawingPositionResult transform_mouse_drawing_position(
 }
 
 MagicSnapResult3D magic_snap_raycast(vec3 origin, vec3 dir) {
-    MagicSnapResult3D result{};
+    MagicSnapResult3D result = {};
     WorkMesh* mesh = &meshes->work;
 
     int index_of_first_triangle_hit_by_ray = -1;

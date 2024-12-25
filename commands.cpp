@@ -27,7 +27,9 @@
     COMMANDS_INNER(Redo,            'U', 0b001, Both, 0, 0 | NO_RECORD, 'Y', 0b010, 'Z', 0b011 ); \
     \
     COMMANDS_INNER(ToggleConsole,   ',', 0b000, Both, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(ToggleDetails,   '.', 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleDetails2D, '.', 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleDetails3D,   0, 0b000, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleGrid,          'G', 0b011, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleGUI,       '.', 0b010, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleFPS,       '/', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleHistory,   'H', 0b011, None, 0, 0 | NO_RECORD);  \
@@ -75,8 +77,8 @@
     COMMANDS_INNER(RCopy,           'R', 0b001, Draw, 1, 0 | TWO_CLICK | SNAPPER | SHIFT_15); \
     COMMANDS_INNER(SaveDXF,         'S', 0b010, Draw, 1, 0 | FOCUS_THIEF | NO_RECORD); \
     COMMANDS_INNER(Select,          'S', 0b000, Draw, 1, 0); \
-    COMMANDS_INNER(ClearDrawing,    'N', 0b010, Draw, 0, 0); \
-    COMMANDS_INNER(ZoomDrawing,       0, 0b000, Draw, 0, 0 | NO_RECORD); \
+    COMMANDS_INNER(Clear2D,    'N', 0b010, Draw, 0, 0); \
+    COMMANDS_INNER(Zoom2D,       0, 0b000, Draw, 0, 0 | NO_RECORD); \
     \
     COMMANDS_INNER(Delete,               GLFW_KEY_DELETE, 0b000, Draw, 0, 0, GLFW_KEY_BACKSPACE, 0b000);  \
     COMMANDS_INNER(OverwriteDXF,                       0, 0b000, Draw, 0, 0); \
@@ -95,7 +97,7 @@
     COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(SaveSTL,         'S', 0b011, Mesh, 1, 0 | FOCUS_THIEF | NO_RECORD); \
-    COMMANDS_INNER(ClearMesh,       'N', 0b011, Mesh, 0, 0); \
+    COMMANDS_INNER(Clear3D,         'N', 0b011, Mesh, 0, 0); \
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
@@ -138,7 +140,6 @@
     \
     COMMANDS_INNER(ConfirmClose,                     0,   0b000, Draw, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(TOGGLE_BUTTONS,          GLFW_KEY_TAB, 0b001, None, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(TOGGLE_GRID,                      'G', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(TOGGLE_LIGHT_MODE,                'L', 0b011, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_2D,              ' ', 0b000, None, 0, 0);  \
     COMMANDS_INNER(PREVIOUS_HOT_KEY_3D,              ' ', 0b001, None, 0, 0);  \
