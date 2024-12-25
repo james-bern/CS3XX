@@ -729,18 +729,33 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.CyclePlane)) {
                         // TODO: 'Y' remembers last terminal choice of plane for next time
                         result.checkpoint_me = true;
-                        other.time_since_plane_selected = 0.0f;
 
                         // already one of the three primary planes
-                        if ((feature_plane->is_active) && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)) {
+                        if (
+                                (feature_plane->is_active) 
+                                && ARE_EQUAL(feature_plane->signed_distance_to_world_origin, 0.0f) 
+                                && ARE_EQUAL(squaredNorm(feature_plane->normal), 1.0f) 
+                                && ARE_EQUAL(maxComponent(feature_plane->normal), 1.0f)
+                                && ARE_EQUAL(feature_plane->rotation_angle, 0.0f)
+                                && !feature_plane->mirror_x && !feature_plane->mirror_y
+                            ) {
                             feature_plane->normal = { feature_plane->normal[2], feature_plane->normal[0], feature_plane->normal[1] };
                         } else {
-                            feature_plane->is_active = true;
-                            feature_plane->signed_distance_to_world_origin = 0.0f;
-                            preview->feature_plane_signed_distance_to_world_origin = 0.0f;
                             feature_plane->normal = { 0.0f, 1.0f, 0.0f };
-                            feature_plane->rotation_angle = 0.0f;
                         }
+
+                        // TODO: Nice interpolation (along with clickling plane)
+                        feature_plane->is_active = true;
+                        feature_plane->signed_distance_to_world_origin = 0.0f;
+                        preview->feature_plane_signed_distance_to_world_origin = 0.0f;
+                        other.time_since_plane_selected = 0.0f;
+                        feature_plane->rotation_angle = 0.0f;
+                        preview->feature_plane_rotation_angle = 0.0f;
+                        feature_plane->mirror_x = false;
+                        preview->feature_plane_mirror_x_angle = 0.0f;
+                        feature_plane->mirror_y = false;
+                        preview->feature_plane_mirror_y_angle = 0.0f;
+                        preview->feature_plane_mirror_XXX_bump = 0.0f;
                     }
                     if (GUIBUTTON(commands.NudgePlane)) {
                         if (!feature_plane->is_active) {
