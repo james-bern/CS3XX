@@ -479,6 +479,14 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     { // Escape
                         if (GUIBUTTON(commands.Escape)) {
+                            
+                            auto potentially_unhide_feature_plane = []() {
+                                if ((state.Mesh_command.flags & HIDE_FEATURE_PLANE) && other.should_feature_plane_be_active) {
+                                    feature_plane->is_active = true;
+                                    other.time_since_plane_selected = 0.0;
+                                }
+                            };
+
                             if (popup->manager.focus_group == ToolboxGroup::Draw) {
                                 if (!state_Draw_command_is_(None)) {
                                     set_state_Draw_command(None);
@@ -486,13 +494,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     set_state_Colo_command(None);
                                 } else {
                                     // Size, Load, Save...
+                                    potentially_unhide_feature_plane();
                                     set_state_Mesh_command(None);
                                 }
                             } else if (popup->manager.focus_group == ToolboxGroup::Mesh) {
+                                    potentially_unhide_feature_plane();
                                 set_state_Mesh_command(None);
                             } else if (popup->manager.focus_group == ToolboxGroup::Snap) {
                                 set_state_Snap_command(None);
                             } else {
+                                potentially_unhide_feature_plane();
                                 set_state_Draw_command(None);
                                 set_state_Snap_command(None);
                                 set_state_Colo_command(None);

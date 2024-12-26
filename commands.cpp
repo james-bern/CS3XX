@@ -87,22 +87,22 @@
     COMMANDS_INNER(ExtrudeAdd,      '[', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(ExtrudeCut,      '[', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(NudgePlane,      'N', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
-    COMMANDS_INNER(OpenSTL,         'O', 0b011, Mesh, 1, 0 | FOCUS_THIEF); \
+    COMMANDS_INNER(OpenSTL,         'O', 0b100, Mesh, 1, 0 | FOCUS_THIEF, 'O', 0b011); \
     COMMANDS_INNER(CyclePlane,      'Y', 0b000, Mesh, 0, 0); \
     COMMANDS_INNER(TogglePlane,     ';', 0b000, Mesh, 0, 0);  \
-    COMMANDS_INNER(MirrorPlaneX,    'X', 0b011, Mesh, 0, 0);  \
-    COMMANDS_INNER(MirrorPlaneY,    'Y', 0b011, Mesh, 0, 0);  \
-    COMMANDS_INNER(RotatePlane,     'R', 0b011, Mesh, 1, 0 | FOCUS_THIEF);  \
+    COMMANDS_INNER(MirrorPlaneX,    'X', 0b100, Mesh, 0, 0);  \
+    COMMANDS_INNER(MirrorPlaneY,    'Y', 0b100, Mesh, 0, 0);  \
+    COMMANDS_INNER(RotatePlane,     'R', 0b100, Mesh, 1, 0 | FOCUS_THIEF);  \
     \
     COMMANDS_INNER(RevolveAdd,      ']', 0b000, Mesh, 1, 0 | FOCUS_THIEF); \
     COMMANDS_INNER(RevolveCut,      ']', 0b001, Mesh, 1, 0 | FOCUS_THIEF); \
-    COMMANDS_INNER(SaveSTL,         'S', 0b011, Mesh, 1, 0 | FOCUS_THIEF | NO_RECORD); \
-    COMMANDS_INNER(Clear3D,         'N', 0b011, Mesh, 0, 0); \
+    COMMANDS_INNER(SaveSTL,         'S', 0b100, Mesh, 1, 0 | FOCUS_THIEF | NO_RECORD, 'S', 0b011); \
+    COMMANDS_INNER(Clear3D,         'N', 0b100, Mesh, 0, 0, 'N', 0b011); \
     COMMANDS_INNER(ZoomMesh,          0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     COMMANDS_INNER(ZoomPlane,         0, 0b000, Mesh, 0, 0 | NO_RECORD); \
     \
-    COMMANDS_INNER(Measure3D,       'M', 0b011, Mesh, 1, 0 | TWO_CLICK | SNAPPER | HIDE_FEATURE_PLANE); \
-    COMMANDS_INNER(SetOrigin3D,     'Z', 0b011, Mesh, 1, 0 | SNAPPER | HIDE_FEATURE_PLANE); \
+    COMMANDS_INNER(Measure3D,       'M', 0b100, Mesh, 1, 0 | TWO_CLICK | SNAPPER | HIDE_FEATURE_PLANE); \
+    COMMANDS_INNER(SetOrigin3D,     'Z', 0b100, Mesh, 1, 0 | SNAPPER | HIDE_FEATURE_PLANE); \
     \
     \
     COMMANDS_INNER(All,             'A', 0b000, Xsel, 0, 0); \

@@ -6,7 +6,7 @@
 #define _for_each_selected_entity_ _for_each_entity_ if (entity->is_selected) 
 
 template <typename T> void JUICEIT_EASYTWEEN(T *a, T b, real multiplier) {
-    real f = multiplier * 9.2f; // 6.9 = -ln(.0001), where .001 is the remaining percent after 1 second
+    real f = multiplier * 9.2f; // 9.2 = -ln(.0001), where .0001 is the remaining percent after 1 second
     if (other.slowmo) f *= 0.05;
     if (IS_ZERO(multiplier)) f = 9999.0f; // FORNOW
     if (!other.paused && !other.stepping_one_frame_while_paused) *a += (b - *a) * (1 - exp(-f * other.delta_time));
