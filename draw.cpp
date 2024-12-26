@@ -45,10 +45,13 @@ mat4 get_M_3D_from_2D(bool for_drawing = false) {
 
         o += preview->feature_plane_signed_distance_to_world_origin * feature_plane->normal;
 
-        // TODO: move sketch and rotate sketch goes in here too
-        x = transformVector(M4_RotationAbout(y, -preview->feature_plane_mirror_x_angle), x);
-        y = transformVector(M4_RotationAbout(x, preview->feature_plane_mirror_y_angle), y);
-        o += preview->feature_plane_mirror_XXX_bump * feature_plane->normal;
+        { // MirrorPlaneX, MirrorPlaneY
+            vec3 old_x = x;
+            vec3 old_y = y;
+            x = transformVector(M4_RotationAbout(old_y, -preview->feature_plane_mirror_x_angle), old_x);
+            y = transformVector(M4_RotationAbout(old_x, preview->feature_plane_mirror_y_angle), old_y);
+            o += preview->feature_plane_mirror_XXX_bump * feature_plane->normal;
+        }
 
         mat4 R = M4_RotationAbout(z, preview->feature_plane_rotation_angle);
         x = transformVector(R, x);

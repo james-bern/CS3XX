@@ -479,7 +479,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
                     { // Escape
                         if (GUIBUTTON(commands.Escape)) {
-                            
+
                             auto potentially_unhide_feature_plane = []() {
                                 if ((state.Mesh_command.flags & HIDE_FEATURE_PLANE) && other.should_feature_plane_be_active) {
                                     feature_plane->is_active = true;
