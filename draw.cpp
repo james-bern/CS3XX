@@ -848,8 +848,8 @@ void conversation_draw() {
 
                             chowder_set_color(color);
 
-                            // TODO: Add to bbox
-                            { // vanilla two click commands
+                            // TODO: Add to bbox ?
+                            if (!is_feature_plane_pass) { // vanilla two click commands
                                 if (two_click_command->awaiting_second_click) {
                                     if (0) {
                                     } else if (state_Draw_command_is_(Box) || state_Xsel_command_is_(Window)) {
