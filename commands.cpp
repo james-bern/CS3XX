@@ -28,8 +28,9 @@
     \
     COMMANDS_INNER(ToggleConsole,   ',', 0b000, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleDetails2D, '.', 0b000, Both, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(ToggleDetails3D,   0, 0b000, Both, 0, 0 | NO_RECORD);  \
-    COMMANDS_INNER(ToggleGrid,          'G', 0b011, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleDetails3D, '.', 0b100, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleGrid2D,          'G', 0b011, Both, 0, 0 | NO_RECORD);  \
+    COMMANDS_INNER(ToggleGrid3D,          'G', 0b111, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleGUI,       '.', 0b010, Both, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleFPS,       '/', 0b000, None, 0, 0 | NO_RECORD);  \
     COMMANDS_INNER(ToggleHistory,   'H', 0b011, None, 0, 0 | NO_RECORD);  \

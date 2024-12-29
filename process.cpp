@@ -116,7 +116,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
             bool special_case_started_frame_with_snaps_enabled_NOTE_fixes_partial_snap_toolbox_graphical_glitch = (state.Draw_command.flags & SNAPPER);
 
-            // TODO: GUIBUTTON should be able to take a hardcoded bbox
+            // TODO: should be able to take a hardcoded bbox
             //       (we still want the hot_name logic)
             // TODO: have the non-toggle-able buttons a different color (like before)
             Map<Shortcut, bool> shortcut_already_checked = {}; // TODO: arena
@@ -127,8 +127,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     Command command,
                     bool hide_button = false,
                     bool deactivate_hotkey = false,
-                    bool use_custom_button = false,
-                    uint custom_button_id = 0
+                    bool use_custom_button = false
                     ) -> bool {
                 most_recent_group_for_SEPERATOR = command.group;
                 bool gray_out_shortcut;
@@ -325,10 +324,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 pen2->origin.x += w + 2;
                             }
                         } else {
-                            if (custom_button_id == 0 || custom_button_id == 1) { // sun moon light mode dark mode toggle light mode
-                                int sign = (custom_button_id == 0) ? -1 : 1;
-                                real tween = (custom_button_id == 0) ? pallete_2D->dark_light_tween : pallete_3D->dark_light_tween;
-                                vec3 background = (custom_button_id == 0) ? pallete_2D->background : pallete_3D->background;
+                            if (command_equals(command, commands.ToggleLightMode2D) || command_equals(command, commands.ToggleLightMode3D)) { // sun moon light mode dark mode toggle light mode
+                                int sign = (command_equals(command, commands.ToggleLightMode2D)) ? -1 : 1;
+                                real tween = (command_equals(command, commands.ToggleLightMode2D)) ? pallete_2D->dark_light_tween : pallete_3D->dark_light_tween;
+                                vec3 background = (command_equals(command, commands.ToggleLightMode2D)) ? pallete_2D->background : pallete_3D->background;
                                 real x = get_x_divider_drawing_mesh_Pixel() + sign * 16.0f;
                                 real y = 16.0f;
                                 real half_bbox_side_length = 8.0f;
@@ -359,12 +358,11 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 eso_end();
-                            } else if ((custom_button_id == 2) || (custom_button_id == 3)) { // details_2D details 2D dots
+                            } else if ((command_equals(command, commands.ToggleDetails2D)) || (command_equals(command, commands.ToggleDetails3D))) { // details_2D details 2D dots
+                                int sign = (command_equals(command, commands.ToggleDetails2D)) ? -1 : 1;
+                                bool show_details = (command_equals(command, commands.ToggleDetails2D)) ? other.show_details_2D : other.show_details_3D;
 
-                                int sign = (custom_button_id == 2) ? -1 : 1;
-                                bool show_details = (custom_button_id == 2) ? other.show_details_2D : other.show_details_3D;
-
-                                real x = get_x_divider_drawing_mesh_Pixel() + sign * 2 * 16.0f;
+                                real x = get_x_divider_drawing_mesh_Pixel() + sign * 2.5f * 16.0f;
                                 real y = 16.0f;
                                 real half_bbox_side_length = 8.0f;
                                 bbox = { x - half_bbox_side_length, y - half_bbox_side_length, x + half_bbox_side_length, y + half_bbox_side_length };
@@ -374,6 +372,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 eso_color(basic.red);//(!other.show_details_2D) ? pallete_2D->button_background : pallete_2D->button_foreground);
                                 eso_vertex(x, y);
                                 eso_end();
+                            } else if ((command_equals(command, commands.ToggleGrid2D)) || (command_equals(command, commands.ToggleGrid3D))) { // details_2D details 2D dots
                             } else {
                                 ASSERT(false);
                             }
@@ -528,10 +527,10 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                     if (GUIBUTTON(commands.ToggleConsole)) other.show_console = !other.show_console;
                     if (GUIBUTTON(commands.ToggleFPS)) other.show_debug = !other.show_debug;
                     if (GUIBUTTON(commands.ToggleHistory)) other.show_history = !other.show_history;
-                    if (GUIBUTTON(commands.ToggleLightMode2D, false, false, true, 0)) target_pallete->_2D = (target_pallete->_2D.id == PALLETE_2D_DARK) ?  _pallete_2D_light : _pallete_2D_dark;
-                    if (GUIBUTTON(commands.ToggleLightMode3D, false, false, true, 1)) target_pallete->_3D = (target_pallete->_3D.id == PALLETE_3D_DARK) ?  _pallete_3D_light : _pallete_3D_dark;
-                    if (GUIBUTTON(commands.ToggleDetails2D, false, false, true, 2)) other.show_details_2D = !other.show_details_2D;
-                    if (GUIBUTTON(commands.ToggleDetails3D, false, false, true, 3)) other.show_details_3D = !other.show_details_3D;
+                    if (GUIBUTTON(commands.ToggleLightMode2D, false, false, true)) target_pallete->_2D = (target_pallete->_2D.id == PALLETE_2D_DARK) ?  _pallete_2D_light : _pallete_2D_dark;
+                    if (GUIBUTTON(commands.ToggleLightMode3D, false, false, true)) target_pallete->_3D = (target_pallete->_3D.id == PALLETE_3D_DARK) ?  _pallete_3D_light : _pallete_3D_dark;
+                    if (GUIBUTTON(commands.ToggleDetails2D, false, false, true)) other.show_details_2D = !other.show_details_2D;
+                    if (GUIBUTTON(commands.ToggleDetails3D, false, false, true)) other.show_details_3D = !other.show_details_3D;
                 }
 
                 { // Colo
@@ -841,9 +840,12 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
 
 
 
-                    if (GUIBUTTON(commands.ToggleGrid)) {
-                        other.hide_grid = !other.hide_grid;
+                    if (GUIBUTTON(commands.ToggleGrid2D, false, false, true)) {
+                        other.hide_grid_2D = !other.hide_grid_2D;
+                    }
 
+                    if (GUIBUTTON(commands.ToggleGrid3D, false, false, true)) {
+                        other.hide_grid_3D = !other.hide_grid_3D;
                     }
 
 

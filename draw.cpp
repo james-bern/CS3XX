@@ -1,21 +1,23 @@
 // // FUN PROJECTS FOR NATE and JIM
+// ????: WHITE_or_PINK just WHITE
+// TODO: attractive sparkly swoosh of light (see olllld commits) while extruding
+// TODO: BLUE rotate should SLERP
+// TODO: make BLUE not show up until the user has keyed something into the draw Enter popup
 // TODO: each entity could have a target_color and current_color (just for drawing) -- BBPR and all that jazz could be replaced by a massive
 //       block that determines the entities target_color
 // TODO: divide on snap is deselecting even for End snap (End snap should never ever divide)
 // TODO: RevolveAdd and RevolveCut need to start at 360
-// TODO: cooldown on bbpr restore so less flickery 
 // TODO: select window preview
 // TODO: select connected preview
 // TODO: Translate, Rotate, Scale etc. should refuse to activate if nothing is selected (their buttons should also be grayed out)
 // TODO: properly stipple arcs by passing center and radius to shader ( theta(L_stipple, r) )
-// TODO: attractive sparkly swoosh of light (see olllld commits) while extruding
 // TODO: undo and redo buttons (where to put these? -- i think along the top in a separate pane)
 // TODO: press TAB to switch from Box to CenterBox
-// TODO: make BLUE not show up until the user has keyed something into the draw Enter popup
 // TODO: PINK endpoint snaps should draw a big pink dot
 // TODO: z-sort the feature plane and grid (probably after breaking the feature plane into two pieces oh god wai)
 // XXXX: highlight 3D faces before clicking to spawn plane
 // XXXX: feature plane tween needs work when clicking on mesh
+// XXXX: cooldown on bbpr restore so less flickery 
 
 // // TODO: (Jim) stuff for alpha
 // TODO: fix in/out relationship (right now they just seem to add)
@@ -219,7 +221,7 @@ void conversation_draw() {
         glEnable(GL_SCISSOR_TEST);
         gl_scissor_Pixel(0, 0, x_divider_drawing_mesh_Pixel, window_height);
         {
-            if (!other.hide_grid) { // grid 2D grid 2d grid
+            if (!other.hide_grid_2D) { // grid 2D grid 2d grid
                 mat4 PVM = PV_2D * M4_Translation(-GRID_SIDE_LENGTH / 2, -GRID_SIDE_LENGTH / 2);
                 eso_begin(PVM, SOUP_LINES);
                 eso_color(pallete_2D->grid);
@@ -641,12 +643,13 @@ void conversation_draw() {
                             // TODO: select connected should preview the entire connected selection
                             if (pass == DRAW2D_PASS_Mouse) {
                                 if (1
-                                        && state_Draw_command_is_(Select)
+                                        && SELECT_OR_DESELECT()
                                         && state_Xsel_command_is_(Window)
                                         && two_click_command->awaiting_second_click
                                    ) {
                                     _for_each_entity_ {
-                                        if (entity->is_selected) continue;
+                                        if (state_Xsel_command_is_(Select) && entity->is_selected) continue;
+                                        if (state_Xsel_command_is_(Deselect) && !entity->is_selected) continue;
                                         bbox2 window = {
                                             MIN(click_1.x, click_2.x),
                                             MIN(click_1.y, click_2.y),
@@ -657,19 +660,22 @@ void conversation_draw() {
                                     }
                                 } else {
                                     DXFFindClosestEntityResult closest_result = dxf_find_closest_entity(&drawing->entities, mouse_no_snap_potentially_15_deg__WHITE.mouse_position);
-                                    if (closest_result.success) { // highlight (TODO: for 3D face as well)
-                                        if (
-                                                0
-                                                || (state_Draw_command_is_(Divide2) && (!two_click_command->awaiting_second_click))
-                                                || (state_Draw_command_is_(DogEar) && (!two_click_command->awaiting_second_click))
-                                                || (state_Draw_command_is_(Fillet) && (!two_click_command->awaiting_second_click))
-                                                || (state_Draw_command_is_(Join2) && (!two_click_command->awaiting_second_click))
-                                                || (state_Draw_command_is_(Select) && (!closest_result.closest_entity->is_selected))
-                                                || (state_Draw_command_is_(Deselect) && (closest_result.closest_entity->is_selected))
-                                           ) {
-                                            // TODO: consider having closest result return a nill entity
-                                            //       that is valid to pass to draw *shrug*
-                                            chowder_set_color_AND_chower_entity(closest_result.closest_entity);
+
+                                    if (other.hot_pane == Pane::Drawing) { // highlight (TODO: for 3D face as well)
+                                        if (closest_result.success) {
+                                            if (
+                                                    0
+                                                    || (state_Draw_command_is_(Divide2) && (!two_click_command->awaiting_second_click))
+                                                    || (state_Draw_command_is_(DogEar) && (!two_click_command->awaiting_second_click))
+                                                    || (state_Draw_command_is_(Fillet) && (!two_click_command->awaiting_second_click))
+                                                    || (state_Draw_command_is_(Join2) && (!two_click_command->awaiting_second_click))
+                                                    || (state_Draw_command_is_(Select) && (!closest_result.closest_entity->is_selected))
+                                                    || (state_Draw_command_is_(Deselect) && (closest_result.closest_entity->is_selected))
+                                               ) {
+                                                // TODO: consider having closest result return a nill entity
+                                                //       that is valid to pass to draw *shrug*
+                                                chowder_set_color_AND_chower_entity(closest_result.closest_entity);
+                                            }
                                         }
                                     }
 
@@ -944,46 +950,48 @@ void conversation_draw() {
                             }
 
 
-                            if (!state_Snap_command_is_(None)) { // snapped (PINK) entity
-                                if (mouse_transformed__PINK.snapped) {
-                                    // chowder_set_color(PINK);
+                            if (pass == 0) { // FORNOW
+                                if (!state_Snap_command_is_(None)) { // snapped (PINK) entity
+                                    if (mouse_transformed__PINK.snapped) {
+                                        // chowder_set_color(PINK);
 
-                                    // chowder_set_stipple(true);
-                                    Entity *entity_snapped_to = &drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to];
-                                    chowder_set_color_AND_chower_entity(entity_snapped_to);
+                                        // chowder_set_stipple(true);
+                                        Entity *entity_snapped_to = &drawing->entities.array[mouse_transformed__PINK.entity_index_snapped_to];
+                                        chowder_set_color_AND_chower_entity(entity_snapped_to);
 
-                                    { // FORNOW: Center, End, Intersect additional annotations
-                                        _for_each_entity_ {
-                                            if (0
-                                                    || state_Snap_command_is_(End)
-                                                    || state_Snap_command_is_(Intersect)
-                                               ) {
-                                                if (IS_ZERO(squared_distance_point_entity(mouse_transformed__PINK.mouse_position, entity))) {
-                                                    chowder_set_color_AND_chower_entity(entity);
-                                                }
-                                            } else if (0
-                                                    || state_Snap_command_is_(Center)
-                                                    ) {
+                                        { // FORNOW: Center, End, Intersect additional annotations
+                                            _for_each_entity_ {
                                                 if (0
-                                                        || entity->type == EntityType::Arc
-                                                        || entity->type == EntityType::Circle
+                                                        || state_Snap_command_is_(End)
+                                                        || state_Snap_command_is_(Intersect)
                                                    ) {
-                                                    vec2 center = (entity->type == EntityType::Arc) ? entity->arc.center : entity->circle.center;
-                                                    if (IS_ZERO(squaredDistance(mouse_transformed__PINK.mouse_position, center))) {
+                                                    if (IS_ZERO(squared_distance_point_entity(mouse_transformed__PINK.mouse_position, entity))) {
                                                         chowder_set_color_AND_chower_entity(entity);
+                                                    }
+                                                } else if (0
+                                                        || state_Snap_command_is_(Center)
+                                                        ) {
+                                                    if (0
+                                                            || entity->type == EntityType::Arc
+                                                            || entity->type == EntityType::Circle
+                                                       ) {
+                                                        vec2 center = (entity->type == EntityType::Arc) ? entity->arc.center : entity->circle.center;
+                                                        if (IS_ZERO(squaredDistance(mouse_transformed__PINK.mouse_position, center))) {
+                                                            chowder_set_color_AND_chower_entity(entity);
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                    chowder_reset_stipple();
+                                        chowder_reset_stipple();
 
-                                    chowder_set_color(get_color_from_color_code(entity_snapped_to->color_code));
-                                    chowder_set_primitive(SOUP_POINTS);
-                                    chowder_set_size(4.0f);
-                                    chowder_vertex(mouse_transformed__PINK.mouse_position);
-                                    chowder_reset_size();
-                                    chowder_reset_primitive();
+                                        chowder_set_color(get_color_from_color_code(entity_snapped_to->color_code));
+                                        chowder_set_primitive(SOUP_POINTS);
+                                        chowder_set_size(4.0f);
+                                        chowder_vertex(mouse_transformed__PINK.mouse_position);
+                                        chowder_reset_size();
+                                        chowder_reset_primitive();
+                                    }
                                 }
                             }
 
@@ -994,7 +1002,7 @@ void conversation_draw() {
 
                                     chowder_set_color(basic.black);
                                     chowder_set_size(2.0f);
-                                    real r = 1.3 * funky_OpenGL_factor;
+                                    real r = 0.9f * funky_OpenGL_factor;
                                     chowder_vertex(crosshair - V2(r, 0));
                                     chowder_vertex(crosshair + V2(r, 0));
                                     chowder_vertex(crosshair - V2(0, r));
@@ -1002,7 +1010,7 @@ void conversation_draw() {
                                     chowder_reset_size();
 
                                     chowder_set_color(color);
-                                    r = 1.2 * funky_OpenGL_factor;
+                                    r = 0.8f * funky_OpenGL_factor;
                                     chowder_vertex(crosshair - V2(r, 0));
                                     chowder_vertex(crosshair + V2(r, 0));
                                     chowder_vertex(crosshair - V2(0, r));
@@ -1137,8 +1145,8 @@ void conversation_draw() {
 
         JUICEIT_EASYTWEEN(&preview->feature_plane_alpha, (feature_plane->is_active) ? 0.4f : 0.0f);
 
-        #if 0
-        if (!other.hide_grid) { // grid 3D grid 3d grid
+        #if 1
+        if (!other.hide_grid_3D) { // grid 3D grid 3d grid
             JUICEIT_EASYTWEEN(&preview->bbox_min_y, meshes->work.bbox.min.y);
             real r = 0.5f * GRID_SIDE_LENGTH;
             real f; { // backface culling (check sign of rasterized triangle)
