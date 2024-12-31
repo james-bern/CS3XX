@@ -1,5 +1,8 @@
 // // FUN PROJECTS FOR NATE and JIM
+// TODO: inactive buttons (NudgePlane shouldn't be clickable when no plane active)
+// TODO: what is TogglePlane doing now?
 // ????: WHITE_or_PINK just WHITE
+// TODO: it would be cool if when you were drawing the circle manually, especially with a snap, it told you the radius etc. (i think more feedback is better)
 // TODO: attractive sparkly swoosh of light (see olllld commits) while extruding
 // TODO: BLUE rotate should SLERP
 // TODO: make BLUE not show up until the user has keyed something into the draw Enter popup
@@ -172,7 +175,9 @@ void conversation_draw() {
 
     { // FORNOW: hover_plane TODO (this conversion should be a function of something -- or honestly just included in the result)
         WorkMesh *mesh = &meshes->work;
-        if (mouse_snap_result_3D.hit_mesh) {
+        if ((other.mouse_left_drag_pane == Pane::None)
+                &&
+                mouse_snap_result_3D.hit_mesh) {
             hover_plane->is_active = true;
             hover_plane->normal = mesh->triangle_normals[mouse_snap_result_3D.triangle_index];
             hover_plane->signed_distance_to_world_origin = dot(hover_plane->normal, mouse_snap_result_3D.mouse_position);
@@ -193,9 +198,9 @@ void conversation_draw() {
         eso_begin(M4_Identity(), SOUP_LINES);
         // eso_overlay(true);
         real f = (pallete_2D->dark_light_tween + pallete_3D->dark_light_tween) / 2;
-        eso_size(dragging ? 1.0f
+        eso_size(dragging ? 1.5f
                 : hovering ? 2.0f
-                : 1.5f);
+                : 1.0f);
         eso_color(
                 LERP(f,
                     hovering || dragging ? basic.dark_gray : basic.darker_gray,
@@ -1371,20 +1376,27 @@ void conversation_draw() {
                         eso_begin(transform, SOUP_LINES);
                         eso_overlay(true);
                         eso_size(2.0f);
-                        eso_color(1.0f, 0.0f, 0.0f);
+                        eso_color(basic.red);
                         eso_vertex(0.0f, 0.0f);
                         eso_vertex(r, 0.0f);
-                        eso_color(0.0f, 1.0f, 0.0f);
+                        eso_color(basic.green);
                         eso_vertex(0.0f, 0.0f);
                         eso_vertex(0.0f, r);
                         eso_end();
                     } else {
-                        // eso_begin(transform, SOUP_POINTS);
-                        // eso_overlay(true);
-                        // eso_color(color);
-                        // eso_size(5.0f);
-                        // eso_vertex(0.0f, 0.0f);
-                        // eso_end();
+                        eso_begin(PV_3D, SOUP_LINES);
+                        eso_overlay(true);
+                        eso_size(2.0f);
+                        eso_color(basic.red);
+                        eso_vertex(0.0f, 0.0f);
+                        eso_vertex(r, 0.0f);
+                        eso_color(basic.green);
+                        eso_vertex(0.0f, 0.0f);
+                        eso_vertex(0.0f, r);
+                        eso_color(basic.blue);
+                        eso_vertex(0.0f, 0.0f);
+                        eso_vertex(0.0f, 0.0f, r);
+                        eso_end();
                     }
                 }
 

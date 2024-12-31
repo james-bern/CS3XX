@@ -262,6 +262,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     eso_bbox_SOUP_QUADS(bbox_inflate(bbox, { 0.0f, -r }));
                                     eso_end();
                                     eso_begin(other.OpenGL_from_Pixel, SOUP_POINTS);
+                                    eso_overlay(true);
                                     eso_size(2 * r);
                                     eso_color(color);
                                     eso_vertex(bbox.min + V2(r));
@@ -324,9 +325,27 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 pen2->origin.x += w + 2;
                             }
                         } else {
-                            if (command_equals(command, commands.ToggleLightMode2D) || command_equals(command, commands.ToggleLightMode3D)) { // sun moon light mode dark mode toggle light mode
+                            bool is_2D = 0
+                                || command_equals(command, commands.ToggleLightMode2D)
+                                || command_equals(command, commands.ToggleDetails2D)
+                                || command_equals(command, commands.ToggleGrid2D);
+
+                            real dark_light_tween = (is_2D) ? pallete_2D->dark_light_tween : pallete_3D->dark_light_tween;
+
+                            vec3 custom_button_inactive_color = LERP(dark_light_tween, basic.dark_gray, basic.light_gray);
+                            vec3 custom_button_active_color = AVG(basic.gray, LERP(dark_light_tween, monokai.blue, monokai.yellow));
+
+                            bool is_active = \
+                                             command_equals(command, commands.ToggleDetails2D) ? other.show_details_2D :
+                                             command_equals(command, commands.ToggleDetails3D) ? other.show_details_3D :
+                                             command_equals(command, commands.ToggleGrid2D) ? (!other.hide_grid_2D) :
+                                             command_equals(command, commands.ToggleGrid3D) ? (!other.hide_grid_3D) :
+                                             false;
+
+                            vec3 custom_button_base_color = (!is_active) ? custom_button_inactive_color : custom_button_active_color;
+
+                            if (command_equals(command, commands.ToggleLightMode2D) || command_equals(command, commands.ToggleLightMode3D)) {
                                 int sign = (command_equals(command, commands.ToggleLightMode2D)) ? -1 : 1;
-                                real tween = (command_equals(command, commands.ToggleLightMode2D)) ? pallete_2D->dark_light_tween : pallete_3D->dark_light_tween;
                                 vec3 background = (command_equals(command, commands.ToggleLightMode2D)) ? pallete_2D->background : pallete_3D->background;
                                 real x = get_x_divider_drawing_mesh_Pixel() + sign * 16.0f;
                                 real y = 16.0f;
@@ -338,16 +357,16 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     eso_color((pass == 0) ?
                                             LERP(
                                                 ((!bbox_contains(bbox, other.mouse_Pixel)) ? 0.0f : 0.3f),
-                                                LERP(tween, basic.gray, 0.9f * basic.yellow),
+                                                LERP(dark_light_tween, monokai.blue, monokai.yellow),
                                                 basic.white)
                                             : background);
                                     // eso_color(basic.yellow);
                                     uint N = 16;
 
-                                    real radius = LERP(tween, 1.0f, 1.2f) *  half_bbox_side_length;
+                                    real radius = LERP(dark_light_tween, 0.8f, 1.0f) *  half_bbox_side_length;
 
                                     vec2 center = { x, y };
-                                    if (pass == 1) center.x = LERP(tween, x + sign * 0.5 * radius, x + sign * (radius + radius));
+                                    if (pass == 1) center.x = LERP(dark_light_tween, x + sign * 0.5 * radius, x + sign * (radius + radius));
                                     for_(i, N) {
                                         real theta_i = TAU * i / N;
                                         real theta_ip1 = TAU * (i + 1) / N;
@@ -358,7 +377,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                     }
                                 }
                                 eso_end();
-                            } else if ((command_equals(command, commands.ToggleDetails2D)) || (command_equals(command, commands.ToggleDetails3D))) { // details_2D details 2D dots
+                            } else if ((command_equals(command, commands.ToggleDetails2D)) || (command_equals(command, commands.ToggleDetails3D))) {
                                 int sign = (command_equals(command, commands.ToggleDetails2D)) ? -1 : 1;
                                 bool show_details = (command_equals(command, commands.ToggleDetails2D)) ? other.show_details_2D : other.show_details_3D;
 
@@ -369,10 +388,44 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                                 eso_begin(other.OpenGL_from_Pixel, SOUP_POINTS);
                                 eso_overlay(true);
                                 eso_size((!show_details) ? 2.0f : 4.0f);
-                                eso_color(basic.red);//(!other.show_details_2D) ? pallete_2D->button_background : pallete_2D->button_foreground);
+                                // eso_color((!show_details) ? pallete_2D->button_background : pallete_2D->button_foreground);
+                                eso_color(
+                                        LERP(
+                                            ((!bbox_contains(bbox, other.mouse_Pixel)) ? 0.0f : 0.3f),
+                                            custom_button_base_color,
+                                            basic.white)
+                                        );
                                 eso_vertex(x, y);
                                 eso_end();
-                            } else if ((command_equals(command, commands.ToggleGrid2D)) || (command_equals(command, commands.ToggleGrid3D))) { // details_2D details 2D dots
+                            } else if ((command_equals(command, commands.ToggleGrid2D)) || (command_equals(command, commands.ToggleGrid3D))) {
+                                int sign = (command_equals(command, commands.ToggleGrid2D)) ? -1 : 1;
+                                bool hide_grid = (command_equals(command, commands.ToggleGrid2D)) ? other.hide_grid_2D : other.hide_grid_3D;
+
+                                real x = get_x_divider_drawing_mesh_Pixel() + sign * 4.0f * 16.0f;
+                                real y = 16.0f;
+                                real half_bbox_side_length = 8.0f;
+                                bbox = { x - half_bbox_side_length, y - half_bbox_side_length, x + half_bbox_side_length, y + half_bbox_side_length };
+                                real r = (is_active) ? 3.0f : 2.5f;
+                                real R = (is_active) ? 6.0f : 5.0f;
+                                eso_begin(other.OpenGL_from_Pixel, SOUP_LINES);
+                                eso_overlay(true);
+                                eso_size((hide_grid) ? 1.0f : 1.5f);
+                                eso_color(hide_grid ? pallete_2D->button_background : pallete_2D->button_foreground);
+                                eso_color(
+                                        LERP(
+                                            ((!bbox_contains(bbox, other.mouse_Pixel)) ? 0.0f : 0.3f),
+                                            custom_button_base_color,
+                                            basic.white)
+                                        );
+                                eso_vertex(x - R, y + r);
+                                eso_vertex(x + R, y + r);
+                                eso_vertex(x - R, y - r);
+                                eso_vertex(x + R, y - r);
+                                eso_vertex(x + r, y - R);
+                                eso_vertex(x + r, y + R);
+                                eso_vertex(x - r, y - R);
+                                eso_vertex(x - r, y + R);
+                                eso_end();
                             } else {
                                 ASSERT(false);
                             }
