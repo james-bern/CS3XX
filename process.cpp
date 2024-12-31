@@ -333,7 +333,7 @@ StandardEventProcessResult _standard_event_process_NOTE_RECURSIVE(Event event) {
                             real dark_light_tween = (is_2D) ? pallete_2D->dark_light_tween : pallete_3D->dark_light_tween;
 
                             vec3 custom_button_inactive_color = LERP(dark_light_tween, basic.dark_gray, basic.light_gray);
-                            vec3 custom_button_active_color = AVG(basic.gray, LERP(dark_light_tween, monokai.blue, monokai.yellow));
+                            vec3 custom_button_active_color = LERP(0.7f, basic.gray, LERP(dark_light_tween, monokai.blue, monokai.yellow));
 
                             bool is_active = \
                                              command_equals(command, commands.ToggleDetails2D) ? other.show_details_2D :

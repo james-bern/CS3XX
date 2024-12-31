@@ -1,4 +1,5 @@
 // // FUN PROJECTS FOR NATE and JIM
+// TODO: Translate, Rotate, Scale with nothing selected auto-select all
 // TODO: inactive buttons (NudgePlane shouldn't be clickable when no plane active)
 // TODO: what is TogglePlane doing now?
 // ????: WHITE_or_PINK just WHITE
@@ -11,7 +12,7 @@
 // TODO: divide on snap is deselecting even for End snap (End snap should never ever divide)
 // TODO: RevolveAdd and RevolveCut need to start at 360
 // TODO: select window preview
-// TODO: select connected preview
+// TODO: select connected preview (NOTE: first refactor Select Connected)
 // TODO: Translate, Rotate, Scale etc. should refuse to activate if nothing is selected (their buttons should also be grayed out)
 // TODO: properly stipple arcs by passing center and radius to shader ( theta(L_stipple, r) )
 // TODO: undo and redo buttons (where to put these? -- i think along the top in a separate pane)
@@ -1152,6 +1153,9 @@ void conversation_draw() {
 
         #if 1
         if (!other.hide_grid_3D) { // grid 3D grid 3d grid
+            #if 1 // new version: TODO
+
+            #else // old version: eso
             JUICEIT_EASYTWEEN(&preview->bbox_min_y, meshes->work.bbox.min.y);
             real r = 0.5f * GRID_SIDE_LENGTH;
             real f; { // backface culling (check sign of rasterized triangle)
@@ -1182,6 +1186,7 @@ void conversation_draw() {
             // eso_vertex(GRID_SIDE_LENGTH, GRID_SIDE_LENGTH);
             // eso_vertex(GRID_SIDE_LENGTH, 0.0f);
             // eso_end();
+            #endif
         }
         #endif
 
