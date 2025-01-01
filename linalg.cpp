@@ -677,7 +677,7 @@ RayTriangleIntersectionResult ray_triangle_intersection(vec3 o, vec3 dir, vec3 a
                 a[2], b[2], c[2], -dir[2],
                 1.0f, 1.0f, 1.0f,     0.0))
         * V4(o, 1.0f);
-    result.hit = ((w_t.x > 0) && (w_t.y > 0) && (w_t.z > 0) && (w_t.w > 0));
+    result.hit = ((w_t.x > -TINY_VAL) && (w_t.y > -TINY_VAL) && (w_t.z > -TINY_VAL) && (w_t.w > -TINY_VAL));
     result.distance = w_t.w;
     result.pos = o + dir * result.distance;
     return result;
