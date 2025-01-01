@@ -7,7 +7,11 @@ char *startup_script = "";
 #else
 // char *startup_script = "^.bz10\t10x-10\t-10";
 // char *startup_script = "^.^odemo.dxf\n";
-char *startup_script = "^osplash.dxf\n^Osplash.stl\n"; // BUG: this doesn't work
+// char *startup_script = "^osplash.dxf\n^Osplash.stl\n";
+
+// TODO: raycast in the startup script doesn't seem to work D:
+char *startup_script = "^otest.dxf\n^Otest.stl\n<m3d 100 0 0 -1 0 0>";
+// char *startup_script = "^otest.dxf\n^Otest.stl\n<m3d 0 -200 0 1 0>";
 #endif
 
 #ifdef SHIP

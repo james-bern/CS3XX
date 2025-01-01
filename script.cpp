@@ -31,6 +31,7 @@ void script_process(String string) {
                         sscanf(params, "%f %f %f %f %f %f", &mouse_ray_origin.x, &mouse_ray_origin.y, &mouse_ray_origin.z, &mouse_ray_direction.x, &mouse_ray_direction.y, &mouse_ray_direction.z);
                         mouse_ray_direction = normalized(mouse_ray_direction);
                         instabaked_event = make_mouse_event_3D(mouse_ray_origin, mouse_ray_direction);
+                        // DEBUGBREAK();
                     } else if (strncmp(tag, "esc", TAG_LENGTH) == 0) {
                         is_instabaked = false;
                         _raw_event.type = EventType::Key;

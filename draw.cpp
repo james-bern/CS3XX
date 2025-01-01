@@ -521,11 +521,13 @@ void conversation_draw() {
                         #define DRAW2D_PASS_DrawEnter 1
                         #define DRAW2D_PASS_XY        2
                         for_(pass, 3) {
-                            if (
-                                    1
-                                    && (pass == DRAW2D_PASS_Mouse)
-                                    && (very_special_boolean && (!two_click_command->awaiting_second_click)) 
-                               ) continue;
+
+                            // TODO(?): put this back at some point (i can't remember what it's supposed to do, but one unintended side effect is that it disables snap visualization when translating and rotating) -- i think we just want to disable drawing...something else
+                            // if (
+                            //         1
+                            //         && (pass == DRAW2D_PASS_Mouse)
+                            //         && (very_special_boolean && (!two_click_command->awaiting_second_click)) 
+                            //    ) continue;
 
 
                             // bool TODO
@@ -1151,10 +1153,24 @@ void conversation_draw() {
 
         JUICEIT_EASYTWEEN(&preview->feature_plane_alpha, (feature_plane->is_active) ? 0.4f : 0.0f);
 
+
+        // TODO: grid and feature plane drawing need to be co-located
+        // if one is A and the other is B (which is which is not important)
+        // then we want something like A- B A+, where A- is the half of A (cut by B) that is further from the viewer
         #if 1
         if (!other.hide_grid_3D) { // grid 3D grid 3d grid
             #if 1 // new version: TODO
-
+            real R = GRID_SIDE_LENGTH / 2;
+            mat4 transform = PV_3D * M4_Translation(0, -2 * Z_FIGHT_EPS, 0);
+            glDisable(GL_CULL_FACE);
+            eso_begin(transform, SOUP_QUADS);
+            eso_color(basic.green, 0.5f);
+            eso_vertex(-R, 0.0f, -R);
+            eso_vertex( R, 0.0f, -R);
+            eso_vertex( R, 0.0f,  R);
+            eso_vertex(-R, 0.0f,  R);
+            eso_end();
+            glEnable(GL_CULL_FACE);
             #else // old version: eso
             JUICEIT_EASYTWEEN(&preview->bbox_min_y, meshes->work.bbox.min.y);
             real r = 0.5f * GRID_SIDE_LENGTH;
